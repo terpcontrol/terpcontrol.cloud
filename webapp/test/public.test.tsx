@@ -15,6 +15,7 @@ import { Diary } from '@/screens/public/Diary';
 import { DiaryWeek } from '@/screens/public/DiaryWeek';
 import { FollowButton } from '@/screens/public/FollowButton';
 import { PublicGrowRoute } from '@/screens/public/PublicGrowRoute';
+import { PublicProfileRoute } from '@/screens/public/PublicProfileRoute';
 import { SharedRoute } from '@/screens/public/SharedRoute';
 import { windowIsCurrent } from '@/screens/public/window';
 import { ThemeProvider } from '@/theme/ThemeProvider';
@@ -139,6 +140,24 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
     });
   }
   if (path === '/follows') return json({ items: [], nextCursor: null });
+  if (path === '/public/users/mia') {
+    return json({
+      author: page.author,
+      grows: [
+        {
+          growId: 'grow-2',
+          slug: 'seriotica',
+          name: 'Seriotica',
+          handle: 'mia',
+          dayNumber: 218,
+          stage: 'curing',
+          endedAt: '2026-08-24T15:31:56.000Z',
+          coverMediaId: null,
+          updatedAt: at(83),
+        },
+      ],
+    });
+  }
 
   return json({ code: 'not_found' }, 404);
 });
@@ -265,6 +284,17 @@ describe('a public diary', () => {
       </QueryClientProvider>,
     );
     expect(screen.queryByRole('link', { name: /@mia/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('a public profile', () => {
+  it('says of a diary that is over that it is over, which its own page says one click away', async () => {
+    drawRoute('/@mia', '/:handle', <PublicProfileRoute />);
+
+    // The final day and the day it finished on, beside the age of its last
+    // line - three different figures, and the card used to draw the first and
+    // the third as if the grow were still running.
+    expect(await screen.findByText(/Day 218 · Curing · ended 24 Aug 2026 · \d+ d ago/)).toBeInTheDocument();
   });
 });
 

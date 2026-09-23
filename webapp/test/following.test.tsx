@@ -37,6 +37,7 @@ const followed: FollowedGrowCard = {
   handle: 'greenthumb',
   dayNumber: 51,
   stage: 'flowering',
+  endedAt: null,
   coverMediaId: null,
   updatedAt: NOW.minus({ hours: 3 }).toISO()!,
 };

@@ -3131,6 +3131,10 @@ export interface FollowedGrowCard {
   handle: string;
   dayNumber: number | null;
   stage: GrowthStage | null;
+  /**
+   * When the grow finished; null while it is running. `dayNumber` is then its final day rather than the day it is on.
+   */
+  endedAt: string | null;
   coverMediaId: string | null;
   /**
    * When the diary last moved: the newest line in it, or the day the grow started where nobody has written one yet.

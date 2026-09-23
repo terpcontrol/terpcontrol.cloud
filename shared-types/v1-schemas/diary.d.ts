@@ -2568,6 +2568,7 @@ export declare const followedGrowCard: z.ZodObject<{
         drying: "drying";
         curing: "curing";
     }>>;
+    endedAt: z.ZodNullable<z.ZodISODateTime>;
     coverMediaId: z.ZodNullable<z.ZodString>;
     updatedAt: z.ZodISODateTime;
 }, z.core.$strip>;
@@ -2852,6 +2853,7 @@ export declare const homeAnswer: z.ZodObject<{
             drying: "drying";
             curing: "curing";
         }>>;
+        endedAt: z.ZodNullable<z.ZodISODateTime>;
         coverMediaId: z.ZodNullable<z.ZodString>;
         updatedAt: z.ZodISODateTime;
     }, z.core.$strip>>;
@@ -5607,6 +5609,7 @@ export declare const publicUserPage: z.ZodObject<{
             drying: "drying";
             curing: "curing";
         }>>;
+        endedAt: z.ZodNullable<z.ZodISODateTime>;
         coverMediaId: z.ZodNullable<z.ZodString>;
         updatedAt: z.ZodISODateTime;
     }, z.core.$strip>>;

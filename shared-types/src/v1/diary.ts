@@ -1128,6 +1128,9 @@ export const followedGrowCard = named(
     handle: z.string().describe('The owner’s handle, the only name others ever see.'),
     dayNumber: z.number().int().nullable(),
     stage: growthStage.nullable(),
+    endedAt: instant()
+      .nullable()
+      .describe('When the grow finished; null while it is running. `dayNumber` is then its final day rather than the day it is on.'),
     coverMediaId: id().nullable(),
     updatedAt: instant().describe(
       'When the diary last moved: the newest line in it, or the day the grow started where nobody has written one yet.',

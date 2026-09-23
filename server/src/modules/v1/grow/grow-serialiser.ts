@@ -247,6 +247,11 @@ export const serialisePublicCard = (
     handle,
     dayNumber: summary.dayNumber,
     stage: summary.stage,
+    // Beside the day number rather than instead of it: 218 is the grow's last
+    // day and worth keeping, and the card's own date is when the diary last
+    // moved, which is not when the grow ended. Without this a card of a diary
+    // that finished in August reads exactly like one of a grow that is running.
+    endedAt: grow.endedAt?.toISOString() ?? null,
     coverMediaId: grow.coverMediaId,
     updatedAt: (movedAt ?? grow.startedAt).toISOString(),
   };

@@ -854,6 +854,9 @@ exports.followedGrowCard = (0, common_js_1.named)('FollowedGrowCard', zod_1.z.ob
     handle: zod_1.z.string().describe('The owner’s handle, the only name others ever see.'),
     dayNumber: zod_1.z.number().int().nullable(),
     stage: common_js_1.growthStage.nullable(),
+    endedAt: (0, common_js_1.instant)()
+        .nullable()
+        .describe('When the grow finished; null while it is running. `dayNumber` is then its final day rather than the day it is on.'),
     coverMediaId: (0, common_js_1.id)().nullable(),
     updatedAt: (0, common_js_1.instant)().describe('When the diary last moved: the newest line in it, or the day the grow started where nobody has written one yet.'),
 }));

@@ -362,6 +362,7 @@ describe('what needs a person', () => {
             handle: 'greenthumb',
             dayNumber: 51,
             stage: 'flowering',
+            endedAt: null,
             coverMediaId: null,
             updatedAt: at(3 * 3600),
           },
@@ -372,6 +373,31 @@ describe('what needs a person', () => {
 
     expect(screen.getByText('@greenthumb · Autoflower run')).toBeInTheDocument();
     expect(screen.getByText(/Day 51 · Flower · 3 h ago/)).toBeInTheDocument();
+  });
+
+  it('says of a followed grow that has ended that it has, rather than drawing it as one still running', () => {
+    draw(
+      <FollowingStrip
+        grows={[
+          {
+            growId: 'grow-9',
+            slug: 'autoflower-run',
+            name: 'Autoflower run',
+            handle: 'greenthumb',
+            dayNumber: 218,
+            stage: 'curing',
+            endedAt: '2026-08-24T15:31:56.000Z',
+            coverMediaId: null,
+            updatedAt: at(3 * 3600),
+          },
+        ]}
+        now={NOW}
+      />,
+    );
+
+    // The day number is the grow's last day and stays; the age is when its
+    // diary last moved, which is neither the end nor a sign of one.
+    expect(screen.getByText(/Day 218 · Curing · ended 24 Aug 2026 · 3 h ago/)).toBeInTheDocument();
   });
 });
 

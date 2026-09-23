@@ -1,5 +1,5 @@
 import { Leaf } from 'lucide-react';
-import type { DateTime } from 'luxon';
+import { DateTime } from 'luxon';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
@@ -127,6 +127,11 @@ function DiaryCard({ grow, now, own }: { grow: FollowedGrowCard; now: DateTime; 
             {[
               grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null,
               grow.stage ? t(`home.stage.${grow.stage}`) : null,
+              // The card of a finished diary says so, as its own page does one
+              // click away. The day number stays: it is the day the grow ended
+              // on, and the age beside it dates the last line rather than the
+              // end.
+              grow.endedAt ? t('grow.ended', { date: DateTime.fromISO(grow.endedAt).toFormat('d LLL yyyy') }) : null,
               t('home.card.ago', { age: ageLabel(grow.updatedAt, now) }),
             ]
               .filter(Boolean)

@@ -358,6 +358,38 @@ describe('a public profile', () => {
     expect(card.headers['content-type']).toBe('image/png');
   });
 
+  it('says of a diary that has ended that it has, wherever that card is listed', async () => {
+    const author = await createAccount('public-finished');
+    await author.client.patch('/v1/me').send({ publicProfile: true }).expect(200);
+
+    const over = (
+      await author.client
+        .post('/v1/grows')
+        .send({ name: 'Finished', type: 'photoperiod', plants: [{ strain: 'Amnesia', count: 1 }] })
+        .expect(201)
+    ).body;
+    const endedAt = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+    await author.client.patch(`/v1/grows/${over.id}`).send({ visibility: 'public', endedAt }).expect(200);
+
+    const running = (
+      await author.client
+        .post('/v1/grows')
+        .send({ name: 'Still going', type: 'photoperiod', plants: [{ strain: 'Gelato', count: 1 }] })
+        .expect(201)
+    ).body;
+    await author.client.patch(`/v1/grows/${running.id}`).send({ visibility: 'public' }).expect(200);
+
+    const handle = (await author.client.get('/v1/me').expect(200)).body.handle;
+    const profile = await anonymous().get(`/v1/public/users/${handle}`).expect(200);
+
+    // The card's own date is when the diary last moved, which says nothing
+    // about an end; without this field the two cards read alike.
+    const cards: Record<string, string | null> = Object.fromEntries(
+      profile.body.grows.map((card: { name: string; endedAt: string | null }) => [card.name, card.endedAt]),
+    );
+    expect(cards).toEqual({ Finished: endedAt, 'Still going': null });
+  });
+
   it('dates a card by the newest line in its diary, and opens on the diary with the newest one', async () => {
     const quiet = (await author.client.post('/v1/grows').send({ name: 'Quiet', type: 'autoflower', plants: [] }).expect(201)).body;
     await author.client.patch(`/v1/grows/${quiet.id}`).send({ visibility: 'public' }).expect(200);

@@ -142,6 +142,10 @@ export function FollowedTile({ grow, now }: { grow: FollowedGrowCard; now: DateT
         <span className={`mono ${styles.tileMeta}`}>
           {grow.dayNumber !== null ? `${t('home.card.dayN', { day: grow.dayNumber })} · ` : ''}
           {grow.stage ? `${t(`home.stage.${grow.stage}`)} · ` : ''}
+          {/* A diary that is over says so, and keeps its day number: that is
+              the day it finished on. The age beside it is when its last line
+              was written, which is a different date and no substitute. */}
+          {grow.endedAt ? `${t('grow.ended', { date: DateTime.fromISO(grow.endedAt).toFormat('d LLL yyyy') })} · ` : ''}
           {t('home.card.ago', { age: ageLabel(grow.updatedAt, now) })}
         </span>
       </Link>
