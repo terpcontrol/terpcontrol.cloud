@@ -577,8 +577,8 @@
     "compareLabel": "Compare",
     "on": "on",
     "off": "off",
-    "notHere_one": "{{names}} is not measured in this grow and is not drawn.",
-    "notHere_other": "{{names}} are not measured in this grow and are not drawn."
+    "notHere_one": "{{names}} has nothing in this period, so it is not drawn.",
+    "notHere_other": "{{names}} have nothing in this period, so they are not drawn."
   },
   "diagnostics": {
     "serialnumber": "Device serial number",

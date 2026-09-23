@@ -419,7 +419,7 @@ describe('the Charts view', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Day-of-grow' })).toBeEnabled());
   });
 
-  it('offers a view saved over another run and says what this grow cannot draw of it', async () => {
+  it('offers a view saved over another run and says which of its lines it has nothing to draw', async () => {
     state.views = [
       {
         id: 'view-9',
@@ -442,7 +442,11 @@ describe('the Charts view', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Water in' }));
 
-    expect(screen.getByText('EC is not measured in this grow and is not drawn.')).toBeInTheDocument();
+    // Of the window rather than of the grow: the screen cannot tell a line this
+    // grow never measured from one whose window happens to be empty - the
+    // server leaves out a panel of nothing either way - and the grow-level
+    // sentence was printed over grows with a month of readings in them.
+    expect(screen.getByText('EC has nothing in this period, so it is not drawn.')).toBeInTheDocument();
     // What it could draw is drawn: the view names temperature and nothing else.
     expect(screen.getByRole('button', { name: 'Temp' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'RH' })).toHaveAttribute('aria-pressed', 'false');

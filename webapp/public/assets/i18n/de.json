@@ -577,8 +577,8 @@
     "compareLabel": "Vergleich",
     "on": "an",
     "off": "aus",
-    "notHere_one": "{{names}} wird in diesem Grow nicht erfasst und nicht gezeichnet.",
-    "notHere_other": "{{names}} werden in diesem Grow nicht erfasst und nicht gezeichnet."
+    "notHere_one": "Für {{names}} ist in diesem Zeitraum nichts erfasst, deshalb wird nichts gezeichnet.",
+    "notHere_other": "Für {{names}} ist in diesem Zeitraum nichts erfasst, deshalb wird nichts gezeichnet."
   },
   "devices": {
     "button-settings": "Einstellungen",
