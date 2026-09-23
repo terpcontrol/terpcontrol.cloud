@@ -11,7 +11,7 @@ import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { DataService } from '@modules/data/data.service';
 import { READING_KINDS } from '../diary/diary-entries';
-import { originOf } from '../diary/grow-calendar';
+import { horizonOf, originOf } from '../diary/grow-calendar';
 import { spacesDuring } from '../diary/grow-places';
 import { lanesOf, nightsOf, panelsOf } from '../timeline/timeline-series';
 import { TimelineWindow, narrowedTo, stretchesOf, windowOf } from '../timeline/timeline-window';
@@ -119,9 +119,20 @@ export class GrowSeriesService {
    * the same grow; `custom` is two instants somebody picked and is the only one
    * that can be asked for without naming a width at all, so it is the only one
    * that can be refused.
+   *
+   * A rolling chip counts back from where the grow's own record stops rather
+   * than from now. Here the grow is what is being asked about, so `24 h` on a
+   * grow harvested a month ago means its last day and not the last day of the
+   * calendar: without this the chip printed "day 246-247" over an empty panel
+   * while every other screen of the same grow said it lasted 218 days. The
+   * clamp is applied here and not in `windowOf`, which the tent's Timeline
+   * shares: a tent whose grow has ended is still a live tent, and its "last
+   * 24 h" has to end now.
    */
   private windowFor(grow: GrowDocument, grant: Grant, asked: GrowSeriesQuery, now: Date): TimelineWindow {
-    if (asked.range !== 'custom') return windowOf(asked.range, grant, grow, asked.to ?? now);
+    if (asked.range !== 'custom') {
+      return windowOf(asked.range, grant, grow, asked.to ?? new Date(Math.min(horizonOf(grow, now).getTime(), now.getTime())));
+    }
 
     if (!asked.from || !asked.to || asked.to <= asked.from) {
       throw badRequest('range_required', 'A custom range names both of its ends, and ends after it begins.', [

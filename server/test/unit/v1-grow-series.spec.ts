@@ -324,6 +324,31 @@ describe('what a chart is drawn from', () => {
     expect(answer.dayTo).toBe(28);
   });
 
+  it('counts a rolling chip back from the day a finished grow ended rather than from today', async () => {
+    const ended = new Date('2026-06-03T12:00:00.000Z');
+    await db.grows.updateOne({ id: GROW }, { $set: { endedAt: ended } });
+
+    const answer = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] });
+
+    // A week after the harvest, "the last 24 hours" of this grow is still its
+    // last day. Counting back from now would print a day number past the one
+    // every other screen of the same grow gives it, over an empty panel.
+    expect(answer.endsAt).toBe(ended.toISOString());
+    // Day 21 of 21, because the grow's own day turns at noon and the window is
+    // exactly one of them; without the clamp it read day 27-28 of a 21-day grow.
+    expect([answer.dayFrom, answer.dayTo]).toEqual([21, 21]);
+    // And the panel has something in it, which is the other half of the fault:
+    // a window wholly after the harvest could only ever be empty.
+    expect(answer.deviceIds).toEqual([CONTROLLER]);
+    expect(answer.climate[0].points.length).toBeGreaterThan(0);
+  });
+
+  it('counts a rolling chip back from now while the grow is still running', async () => {
+    const answer = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] });
+
+    expect(answer.endsAt).toBe(NOW.toISOString());
+  });
+
   it('refuses a key the grow does not measure, and a custom range missing an end', async () => {
     await expect(readAs(session(OWNER), { range: 'grow', measurements: ['girth'] })).rejects.toMatchObject({
       problem: { status: 400, code: 'measurement_not_defined' },
