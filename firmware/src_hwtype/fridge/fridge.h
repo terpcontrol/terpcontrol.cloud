@@ -119,6 +119,7 @@ namespace fg {
     static constexpr float CO2_OVERSWING_ABORT = 300.0;
 
     static constexpr float MAX_SENSOR_DEVIATION = 15.0;
+    static constexpr unsigned MAX_SENSOR_FAILS = 10;
 
     static constexpr TickType_t DIRECTMODE_TIMEOUT = configTICK_RATE_HZ * 60;
 
