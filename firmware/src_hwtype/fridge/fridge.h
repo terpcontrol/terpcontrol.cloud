@@ -8,6 +8,7 @@
 
 #include "fghmi.h"
 #include "pid.h"
+#include "esp_timer.h"
 
 
 namespace fg {
@@ -100,6 +101,9 @@ namespace fg {
     static constexpr int WARN_LEVEL_CO2_MIN = 100;
 
     static constexpr double HEATER_MAX_TEMPERATURE = 80.0;
+    // Hard stop for the regulated heater: however the PID ends up, it never
+    // heats a box that is already this far above its target.
+    static constexpr float HEATER_OVERTEMP_MARGIN = 5.0f;
     static constexpr double HEATER_PID_P = 0.5;
     static constexpr double HEATER_PID_I = 0.001;
     static constexpr double HEATER_PID_D = 100.0;
@@ -185,6 +189,10 @@ namespace fg {
 
     double heater_temp;
     TickType_t heater_turn_off;
+    // Ends each heater pulse from the esp_timer task. The loop task can block
+    // for seconds in WiFi/MQTT calls on a bad uplink; a pulse that relied on
+    // fastloop() to end it would stay on for that whole time.
+    esp_timer_handle_t heater_off_timer = nullptr;
 
     Pid heater_day_pid;
     Pid heater_night_pid;
@@ -209,6 +217,7 @@ namespace fg {
     void controlDehumidifierExperimental();
     void controlCooling();
     void controlHeater();
+    void pulseHeater(float seconds);
 
   public:
     FridgeController(Fridgecloud& cloud);
