@@ -152,6 +152,19 @@ export const DAY = 'd LLL yyyy';
 export const DAY_IN_YEAR = 'd LLL';
 
 /**
+ * The same short day with its weekday in front, for a list of what is coming
+ * rather than of what happened: a task falls due on a day of this week before
+ * it falls due on a date, and the weekday is what the week is planned by.
+ *
+ * It is built out of `DAY_IN_YEAR` rather than spelled out again, so that the
+ * date inside it cannot quietly take a second order. Tasks had a shape of its
+ * own through a locale preset and wrote "Wed, Sep 16" in English and
+ * "Mi., 16. Sept." in German, two taps from an archive writing "24 Aug 2026"
+ * in both.
+ */
+export const WEEKDAY_DAY = `ccc ${DAY_IN_YEAR}`;
+
+/**
  * A day in digits, for the one column too narrow to hold a month in words: the
  * plant's diary gives each line a five-character slot, which holds "D 218" and
  * would not hold "18 Sep 2026". The day still comes first, as it does in `DAY`,

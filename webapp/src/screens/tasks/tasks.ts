@@ -1,6 +1,6 @@
 import type { DateTime } from 'luxon';
 import type { GrowListItem, GrowOrSpaceRef, Reminder, Space, Task } from '@fg2/shared-types/v1';
-import { nowThere, zoned } from '@/ui/zone';
+import { nowThere, WEEKDAY_DAY, zoned } from '@/ui/zone';
 
 /**
  * The arithmetic of the Tasks tab, kept apart from the drawing so it can be
@@ -83,9 +83,19 @@ export const storeScope = (scope: Scope): void => {
   }
 };
 
-/** "Tue 16 Sep", in the language the app is being read in rather than the browser's own, so a German screen does not carry an English weekday. */
-export const dateLabel = (at: DateTime, language: string): string =>
-  at.setLocale(language).toLocaleString({ weekday: 'short', day: 'numeric', month: 'short' });
+/**
+ * "Tue 16 Sep": the words in the language the app is being read in, so a German
+ * screen does not carry an English weekday, and the order the app's one date
+ * shape gives them.
+ *
+ * The language chooses the words and nothing else. Asked for the shape as well,
+ * through `toLocaleString`, it answered "Wed, Sep 16" in English - the American
+ * order - and "Mi., 16. Sept." in German, while the archive and the account's
+ * sessions two taps away wrote "24 Aug 2026" in both; a reader had one screen
+ * putting the month first and another putting the day first with nothing to say
+ * why.
+ */
+export const dateLabel = (at: DateTime, language: string): string => at.setLocale(language).toFormat(WEEKDAY_DAY);
 
 /** "today", "yesterday", or the day itself for a tick older than that. */
 export const dayLabel = (t: Translate, at: string, now: DateTime, language: string, zone: string | null): string => {

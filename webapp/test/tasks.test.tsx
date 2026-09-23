@@ -13,7 +13,7 @@ import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
 import { Tasks } from '@/screens/Tasks';
-import { groupOf } from '@/screens/tasks/tasks';
+import { dateLabel, groupOf } from '@/screens/tasks/tasks';
 import { spaceWhere, THE_HOST, YOU } from './session';
 
 /**
@@ -275,6 +275,17 @@ describe('the groups', () => {
 
     expect(groupOf(soon, at, 'UTC')).toBe('today');
     expect(groupOf(soon, at, 'Pacific/Kiritimati')).toBe('tomorrow');
+  });
+
+  it('writes a task´s date the way the rest of the app writes one: the day, then the month', () => {
+    // The words follow the language the app is being read in; the order does
+    // not. Asked for the shape as well, this label came out "Wed, Sep 16" in
+    // English - the American order - beside an archive two taps away reading
+    // "24 Aug 2026", and a reader had no way of telling which of them to trust.
+    const at = DateTime.fromISO('2026-09-16T10:00:00.000Z', { zone: 'UTC' });
+
+    expect(dateLabel(at, 'en')).toBe('Wed 16 Sep');
+    expect(dateLabel(at, 'de')).toBe('Mi 16 Sep');
   });
 
   it('marks whose a task is: my initials, a plain mark for somebody else, nothing for everyone', async () => {
