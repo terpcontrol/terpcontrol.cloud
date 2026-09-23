@@ -1,4 +1,5 @@
 import { ExecutionContext } from '@nestjs/common';
+import { stageSpansOf } from '@fg2/shared-types/v1-schemas';
 import { Reflector } from '@nestjs/core';
 import { AccessGuard } from '@common/v1/access.guard';
 import { AccessService } from '@common/v1/access.service';
@@ -186,6 +187,32 @@ describe('what a grow´s phases and placements mean', () => {
     const summary = summaryOf(grown({ startedAt: STARTED_AT, phases: [phase({ startedAt: later })] }), planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
 
     expect(summary.dayNumber).toBe(6);
+  });
+
+  it('counts the day of the phase in the grow´s own days, the same days the phase bar counts', () => {
+    // The flip was pressed at two in the morning, and the grow's day turns over
+    // at eight. Counted in 24-hour blocks from the phase's own instant the
+    // header read a day less than the bar directly above it said the stage had
+    // lasted, which is the drift the shared arithmetic exists to stop.
+    const flip = new Date('2026-05-09T02:00:00.000Z');
+    const grow = grown({ phases: [phase({ id: 'phase-veg' }), phase({ id: 'phase-flower', stage: 'flowering', startedAt: flip })] });
+
+    const summary = summaryOf(grow, planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const span = stageSpansOf(grow, TEN_DAYS_LATER).find(one => one.stage === 'flowering');
+
+    expect(summary.phaseDay).toBe(4);
+    expect(span?.dayCount).toBe(4);
+  });
+
+  it('counts the day of a split group´s phase the same way, which the home and tent cards draw', () => {
+    const flip = new Date('2026-05-09T02:00:00.000Z');
+    const split = phase({ id: 'phase-drying', stage: 'drying', startedAt: flip, plantIds: ['c'] });
+    const summary = summaryOf(grown({ phases: [phase({ id: 'phase-veg' }), split] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+
+    expect(summary.groups.map(group => ({ stage: group.stage, phaseDay: group.phaseDay }))).toEqual([
+      { stage: 'vegetative', phaseDay: 11 },
+      { stage: 'drying', phaseDay: 4 },
+    ]);
   });
 
   it('counts nothing before the grow has entered a phase', () => {

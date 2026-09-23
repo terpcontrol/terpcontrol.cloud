@@ -305,15 +305,17 @@ describe('the phase bar', () => {
     const flipped: GrowListItem = {
       ...grow,
       phases: [grow.phases[0], { ...grow.phases[1], startedAt: at(10, 2) }],
-      summary: { ...grow.summary, phaseDay: 10 },
+      summary: { ...grow.summary, phaseDay: 12 },
     };
 
     const { container } = draw(<PhaseBar grow={flipped} now={NOW} />);
 
     // Day 1 begins with the veg phase and the flip falls inside day 24, so veg
-    // is days 1 to 23 and flowering begins on day 24.
+    // is days 1 to 23 and flowering begins on day 24. The bar's own segments and
+    // the day the server counts for the stage are the same 35 days between them:
+    // the counter the current segment draws is a day of the grow like the rest.
     expect(container).toHaveTextContent('Veg23 d');
-    expect(container).toHaveTextContent('Flowerday 10');
+    expect(container).toHaveTextContent('Flowerday 12');
   });
 });
 

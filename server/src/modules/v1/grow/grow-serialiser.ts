@@ -9,7 +9,7 @@ import type {
   Plant,
   UserPrivacy,
 } from '@fg2/shared-types/v1';
-import { growOriginOf, growWeekAt, stageWeekOf } from '@fg2/shared-types/v1-schemas';
+import { growDayAt, growOriginOf, growWeekAt, stageWeekOf } from '@fg2/shared-types/v1-schemas';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 
@@ -68,8 +68,25 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * Day 1 is the day the grow started. Counted in elapsed days rather than in
  * calendar days: the grower's midnight is not the server's, and a grow begun at
  * 23:00 would otherwise be two days old within the hour.
+ *
+ * This counts the grow's own days and nothing else. How far into a phase the
+ * grow is has its own arithmetic below, for a reason this one cannot serve.
  */
 const dayNumberOf = (from: Date, asOf: Date): number => Math.max(1, Math.floor((asOf.getTime() - from.getTime()) / DAY_MS) + 1);
+
+/**
+ * Which day of its phase the grow is on, counted in the grow's own days.
+ *
+ * The phase bar and the report's chapters state the same stretch as a count of
+ * the grow's days - the day the next phase began, less the day this one began -
+ * and a phase almost never begins at the hour the grow's day turns over. Counted
+ * in 24-hour blocks from the phase's own instant instead, the same cure read 74
+ * days long in the bar and 73 in the line directly beneath it, and the two only
+ * ever agreed where a phase happened to begin at the grow's own hour. So the
+ * header is counted the way the bar above it is: the days of the grow this phase
+ * has covered, the first of them included.
+ */
+const phaseDayOf = (origin: Date, startedAt: Date, asOf: Date): number => Math.max(1, growDayAt(origin, asOf) - growDayAt(origin, startedAt) + 1);
 
 /** Weeks are counted like days, so week 1 is days 1 to 7 and lines up with the feeding grid's first row. */
 const weekNumberOf = (dayNumber: number): number => Math.floor((dayNumber - 1) / 7) + 1;
@@ -171,7 +188,7 @@ export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Red
   const told: PhaseGroup[] = groups.map(group => ({
     stage: group.phase.stage,
     preset: group.phase.preset,
-    phaseDay: dayNumberOf(group.phase.startedAt, asOf),
+    phaseDay: phaseDayOf(origin, group.phase.startedAt, asOf),
     plantIds: hide.counts ? [] : group.plantIds,
   }));
 
@@ -179,7 +196,7 @@ export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Red
     dayNumber,
     stage: headline?.stage ?? null,
     preset: headline?.preset ?? null,
-    phaseDay: headline ? dayNumberOf(headline.startedAt, asOf) : null,
+    phaseDay: headline ? phaseDayOf(origin, headline.startedAt, asOf) : null,
     weekNumber: dayNumber === null ? null : weekNumberOf(dayNumber),
     // Which week of its stage, counted against the grow's own weeks rather than
     // by dividing the phase's days by seven. The week cards count it that way,
