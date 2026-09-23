@@ -272,6 +272,14 @@ export class OverviewService {
    * each picture falls in is grouped in the database rather than read out and
    * thinned here.
    *
+   * The last picture of each slot is the one kept, not the first. Every slot but
+   * one is over by the time it is read and either end of it would do, but the
+   * slot the day is still inside is not: taking its first froze the strip on a
+   * picture up to two hours old under a heading that says "today", while the
+   * home card and the camera page beside it drew the current one. The id and
+   * the instant are taken from the same end so a tile's stamp belongs to the
+   * picture above it.
+   *
    * The day is the one the tent stands in - its owner's, not its reader's - so
    * that a shared tent and its grower see the same strip.
    */
@@ -296,8 +304,8 @@ export class OverviewService {
           {
             $group: {
               _id: { $floor: { $divide: [{ $subtract: ['$capturedAt', from] }, slotMs] } },
-              mediaId: { $first: '$id' },
-              capturedAt: { $first: '$capturedAt' },
+              mediaId: { $last: '$id' },
+              capturedAt: { $last: '$capturedAt' },
             },
           },
           { $sort: { capturedAt: 1 } },

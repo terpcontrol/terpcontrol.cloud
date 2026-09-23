@@ -186,7 +186,7 @@ const world = async (): Promise<void> => {
     // Before midnight in Berlin, so yesterday's.
     still('still-yesterday', CAMERA, '2026-06-09T21:00:00.000Z'),
     still('still-01', CAMERA, '2026-06-09T23:00:00.000Z'),
-    // The same two-hour slot as the one before it, so only the first is shown.
+    // The same two-hour slot as the one before it, so only the last is shown.
     still('still-01b', CAMERA, '2026-06-09T23:30:00.000Z'),
     still('still-05', CAMERA, '2026-06-10T03:00:00.000Z'),
     still('still-13', CAMERA, '2026-06-10T11:00:00.000Z'),
@@ -437,7 +437,22 @@ describe('the day´s pictures', () => {
     const cam = page.cameras.find(camera => camera.cameraId === CAMERA);
 
     expect(cam?.name).toBe('Cam 1');
-    expect(cam?.stills.map(picture => picture.mediaId)).toEqual(['still-01', 'still-05', 'still-13']);
+    expect(cam?.stills.map(picture => picture.mediaId)).toEqual(['still-01b', 'still-05', 'still-13']);
+  });
+
+  /**
+   * Every slot but one is over by the time the page is read, and either end of a
+   * finished slot would do. The slot the day is still inside is the one that
+   * matters: keeping its first picture left a strip headed "today" showing one
+   * up to two hours old while the home card drew the current one.
+   */
+  it('shows the newest picture of the slot the day is still inside', async () => {
+    await db.media.create([still('still-13b', CAMERA, '2026-06-10T11:45:00.000Z')]);
+
+    const page = await readAs(session(OWNER));
+    const cam = page.cameras.find(camera => camera.cameraId === CAMERA);
+
+    expect(cam?.stills.at(-1)).toEqual({ mediaId: 'still-13b', capturedAt: '2026-06-10T11:45:00.000Z' });
   });
 
   it('says when a camera that took nothing today last delivered', async () => {
