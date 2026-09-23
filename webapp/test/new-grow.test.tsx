@@ -373,7 +373,7 @@ describe('where the plants go', () => {
 
     expect(screen.getByRole('button', { name: 'Blue Dream tent · Controller + Cam' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.queryByText('Blue Dream tent goes on the Germination preset now.')).not.toBeInTheDocument();
-    expect(screen.getByText('Make the place first, or pick one of the chips.')).toBeInTheDocument();
+    expect(screen.getByText('Make the space first, or pick one of the chips.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start the grow · Day 1' })).toBeDisabled();
   });
 });
