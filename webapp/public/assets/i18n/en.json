@@ -1468,7 +1468,7 @@
       "someone": "someone"
     },
     "entryPhotos": {
-      "alt": "A picture on this line",
+      "alt": "Picture {{n}} of {{count}}",
       "more": "+{{count}}"
     },
     "entryKind": {

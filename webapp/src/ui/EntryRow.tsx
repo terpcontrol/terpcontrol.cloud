@@ -122,8 +122,15 @@ export function EntryRow({
         ) : null}
         {entry.mediaIds.length > 0 ? (
           <span className={styles.photos}>
-            {entry.mediaIds.slice(0, THUMBNAILS_PER_ROW).map(mediaId => (
-              <Photo key={mediaId} className={styles.photo} src={picture(mediaId, THUMBNAIL_WIDTH.strip)} alt={t('home.entryPhotos.alt')} />
+            {/* Numbered, because a screen reader meeting four pictures in a row
+                has no other way to tell one from the next. */}
+            {entry.mediaIds.slice(0, THUMBNAILS_PER_ROW).map((mediaId, index) => (
+              <Photo
+                key={mediaId}
+                className={styles.photo}
+                src={picture(mediaId, THUMBNAIL_WIDTH.strip)}
+                alt={t('home.entryPhotos.alt', { n: index + 1, count: entry.mediaIds.length })}
+              />
             ))}
             {entry.mediaIds.length > THUMBNAILS_PER_ROW ? (
               <span className={`mono ${styles.morePhotos}`}>{t('home.entryPhotos.more', { count: entry.mediaIds.length - THUMBNAILS_PER_ROW })}</span>
