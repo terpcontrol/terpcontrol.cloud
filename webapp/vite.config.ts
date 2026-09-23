@@ -50,6 +50,7 @@ export default defineConfig({
     // no schema are imported this way; the index would bring zod with it.
     include: [
       '@fg2/shared-types/v1-schemas/feeding.js',
+      '@fg2/shared-types/v1-schemas/grow-days.js',
       '@fg2/shared-types/v1-schemas/socket-report.js',
       '@fg2/shared-types/v1-schemas/value-age.js',
       '@fg2/shared-types/v1-schemas/climate-presets.js',
