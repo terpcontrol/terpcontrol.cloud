@@ -536,12 +536,26 @@ const joined = (spans: readonly PlotSpan[]): PlotSpan[] =>
   }, []);
 
 const aboutMetric = (t: Translate, metric: Metric, steered: boolean, leaf: LeafOffsets | null): string =>
-  [steered ? t('charts.about.band') : null, metric === 'vpd' && leaf ? t('charts.about.leaf', { offset: signed(leaf.day) }) : null]
-    .filter(Boolean)
-    .join(' · ');
+  [steered ? t('charts.about.band') : null, metric === 'vpd' && leaf ? leafAbout(t, leaf) : null].filter(Boolean).join(' · ');
 
-/** "−2", with the minus a typesetter would use: the offset is a difference and reads as one. */
-const signed = (value: number): string => (value < 0 ? `−${Math.abs(value)}` : `+${value}`);
+/**
+ * What the VPD card takes the leaf to be.
+ *
+ * A device holds two offsets, one for each half of the cycle, because a leaf
+ * under a lamp is warmer than the air and a dark one is not - and the band is
+ * worked out with whichever applies over each stretch. Naming the day figure
+ * alone left the raised blocks over the night strips unexplained: on the
+ * restored install every device holds −2 by day and 0 at night, so half of the
+ * band on that one card came from an assumption the caption denied. Where the
+ * two agree there is only one assumption to name, and it is named as before.
+ */
+const leafAbout = (t: Translate, leaf: LeafOffsets): string =>
+  leaf.day === leaf.night
+    ? t('charts.about.leaf', { offset: signed(leaf.day) })
+    : t('charts.about.leafHalves', { day: signed(leaf.day), night: signed(leaf.night) });
+
+/** "−2", with the minus a typesetter would use: the offset is a difference and reads as one. No leaf sits "+0" above the air. */
+const signed = (value: number): string => (value === 0 ? '0' : value < 0 ? `−${Math.abs(value)}` : `+${value}`);
 
 /** The table behind the CSV button: exactly the lines that are on the screen, in the order they are drawn. */
 export const csvForCards = (t: Translate, series: GrowSeries, input: CardsInput): string =>

@@ -252,7 +252,9 @@ describe('the Charts view', () => {
     expect(screen.getByText('°C · %')).toBeInTheDocument();
     // The chip, the card's own title and the line the pinned reading names.
     expect(screen.getAllByText('VPD')).toHaveLength(3);
-    expect(screen.getByText('· band moves with the phase · leaf −2 °C')).toBeInTheDocument();
+    // Both halves, because the device holds a different leaf offset for each
+    // and the band on this one card is worked out from both of them.
+    expect(screen.getByText('· band moves with the phase · leaf −2 °C by day, 0 °C at night')).toBeInTheDocument();
     expect(screen.getByText('kPa')).toBeInTheDocument();
 
     for (const label of ['Stacked', 'Overlay', 'Day-of-grow', 'Save view', 'CSV']) {
@@ -320,7 +322,7 @@ describe('the Charts view', () => {
     state.series = { ...series, climate: series.climate.map(panel => (panel.metric === 'vpd' ? { ...panel, targets: [] } : panel)) };
     draw();
 
-    expect(await screen.findByText('· band moves with the phase · leaf −2 °C')).toBeInTheDocument();
+    expect(await screen.findByText('· band moves with the phase · leaf −2 °C by day, 0 °C at night')).toBeInTheDocument();
   });
 
   it('labels the two ends of a season with dates, and the two ends of a rolling day with weekdays', async () => {

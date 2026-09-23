@@ -534,6 +534,7 @@
     "about": {
       "band": "Band wandert mit der Phase",
       "leaf": "Blatt {{offset}} °C",
+      "leafHalves": "Blatt tags {{day}} °C, nachts {{night}} °C",
       "pair": "überlagert, zwei Achsen",
       "overlay": "überlagert",
       "measured": "erfasst",
