@@ -21,7 +21,7 @@ import { EntryRow } from '@/ui/EntryRow';
 import { readingFigure, readingNamesOf } from '@/ui/entries';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
-import { livenessOf, measuredAtOf } from '../home/attention';
+import { livenessOf } from '../home/attention';
 import { figure, targetFigure, UNIT } from '../home/units';
 import { MoveHereSheet } from './MoveHereSheet';
 import { PresetSheet } from './PresetSheet';
@@ -125,7 +125,14 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
 
       {hasDevice ? (
         <Section
-          label={climateLabel(t, liveness, measuredAtOf(overview.values), now)}
+          // Always the last 24 h, because that is the window the verdict below
+          // is read over: the server grades from now backwards whatever the
+          // tent has been doing, so a heading naming the hour the last reading
+          // came in was a window nothing had been computed for - and it sat
+          // over a panel saying nothing had been heard in the last 24 h. How
+          // old the tent is, this page says three other ways: the header pill,
+          // the dimmed tiles, and that sentence in the panel itself.
+          label={t('space.climate24h')}
           // Charts opens from here as well as from the Timeline header: this is
           // the section a grower is already reading the climate in.
           actions={
@@ -398,18 +405,6 @@ function CameraStrip({ camera, now }: { camera: OverviewCamera; now: DateTime })
 
 const WIDTH = 320;
 const HEIGHT = 48;
-
-/**
- * "Climate · 24 h" while the tent is heard from. Once it has gone quiet the
- * day the verdict is about ended when the last reading came in, and the label
- * says so rather than calling a window that stopped hours ago the last 24 h.
- */
-const climateLabel = (t: Translate, liveness: Liveness, measuredAt: string | null, now: DateTime): string => {
-  if (liveness === 'live' || !measuredAt) return t('space.climate24h');
-
-  const last = DateTime.fromISO(measuredAt);
-  return t('space.climate24hUntil', { time: last.toFormat(last.hasSame(now, 'day') ? 'HH:mm' : 'ccc HH:mm') });
-};
 
 /**
  * The 24 h verdict in the board's words: the share of the day in band, the

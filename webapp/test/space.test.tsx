@@ -231,6 +231,22 @@ describe('the tent overview', () => {
     expect(screen.getByText(clock(at(7200)))).toBeInTheDocument();
   });
 
+  it('heads the verdict with the window it was actually computed over, however quiet the tent has been', () => {
+    // The server always grades the 24 h ending now. A heading that named the
+    // hour the last reading came in put a window over a panel that had been
+    // computed for another one - and said a day full of readings ended on
+    // Saturday while the panel under it said nothing had been heard at all.
+    const quiet: SpaceOverview = {
+      ...overview,
+      values: overview.values.map(value => ({ ...value, measuredAt: at(4 * 86_400), state: 'offline' as const })),
+      verdict: { ...overview.verdict, rating: null, inBandFraction: null, metrics: [], actuators: [] },
+    };
+    draw(<Overview overview={quiet} now={NOW} />);
+
+    expect(screen.getByText('Climate · 24 h')).toBeInTheDocument();
+    expect(screen.queryByText(/24 h to/)).not.toBeInTheDocument();
+  });
+
   it('says there is nothing to judge where nothing is steered', () => {
     const unsteered: SpaceOverview = {
       ...overview,

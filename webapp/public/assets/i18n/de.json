@@ -2645,7 +2645,6 @@
     },
     "latest": "Zuletzt",
     "all": "Alle",
-    "climate24hUntil": "Klima · 24 h bis {{time}}",
     "moveHereTitle": "Grow nach {{name}} umziehen",
     "presets": {
       "title": "Klima-Preset · {{name}}",

@@ -2649,7 +2649,6 @@
     },
     "latest": "Latest",
     "all": "All",
-    "climate24hUntil": "Climate · 24 h to {{time}}",
     "moveHereTitle": "Move a grow into {{name}}",
     "presets": {
       "title": "Climate preset · {{name}}",
