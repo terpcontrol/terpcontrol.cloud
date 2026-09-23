@@ -103,20 +103,47 @@ export const entryBody = (i18n: I18n, entry: EntryWords): string =>
  * Three things keep this from being noise rather than detail. A line somebody
  * typed has none: their words are already the headline, `entryBody` falls back
  * to the same words, and a phase line carrying a typed paragraph would print it
- * twice. A message with no parameters has none either - its text is its title
- * said again at greater length, which is all `message-diary-plant-log-text`
- * ("A line written in the diary of the plants.") has to add to a mark that
- * already says so. And a key whose two halves resolve alike says it once.
+ * twice. A key whose two halves resolve alike says it once. And the marks that
+ * stand for a line written somewhere else say what they are in their title, so
+ * their text is that title at greater length - "A line written in the diary of
+ * the plants." is all `message-diary-plant-log-text` has to add to a mark that
+ * already reads "Plant log entry". Those are named, because there is no other
+ * way to know it: they are the only keys whose text says nothing the title has
+ * not, and `message-ext-sensor-fail` is among them although its two halves are
+ * not string-equal.
+ *
+ * Carrying no parameters is not the test, though it stood in for one until a
+ * real account showed what it costs. Four device messages state what to do
+ * about them in the text and nothing in the title - "Please check your internet
+ * connection or wifi", "check your power connection", "Check sensor placement!",
+ * "Check your CO2 bottle!" - and none of them takes a parameter, so the advice
+ * reached no screen at all on seventy thousand of this account's lines.
  *
  * A migrated line with no key at all has its two halves in `text` rather than
  * in a catalogue, so it is cut apart rather than looked up - the same two
  * things, told apart the only way that row can be.
  */
+/**
+ * The keys whose text is their title said at greater length, so that a row
+ * drawing both would say one thing twice. They are the marks a diary line
+ * leaves behind rather than anything a device has to report, with the sensor
+ * failure beside them because its two halves differ by a word and an
+ * exclamation mark and would otherwise slip past the equality test below.
+ */
+const RESTATES_THE_MARK = new Set([
+  'message-diary-co2-refill',
+  'message-diary-fridge-log',
+  'message-diary-measurement',
+  'message-diary-plant-lifecycle',
+  'message-diary-plant-log',
+  'message-ext-sensor-fail',
+]);
+
 export const entryDetail = (i18n: I18n, entry: EntryWords): string | null => {
   const migrated = machineLineParts(entry);
   if (migrated) return migrated.detail;
 
-  if (ownWords(entry) || !entry.message || entry.message.params.length === 0) return null;
+  if (ownWords(entry) || !entry.message || RESTATES_THE_MARK.has(entry.message.key)) return null;
 
   const detail = entryBody(i18n, entry);
   return detail === entryHeadline(i18n, entry) ? null : detail;

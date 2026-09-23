@@ -57,6 +57,30 @@ describe('device messages against the shipped catalogue', () => {
     expect(resolveDeviceMessage(i18n, message, 'title')).toBe('Camera picture incomplete');
     expect(resolveDeviceMessage(i18n, message, 'text')).toContain('res=2');
   });
+
+  /**
+   * Four of the keys a device writes carry the whole of what to do about them in
+   * the text and take no parameter, so a rule that suppressed the body of every
+   * parameterless message silenced the advice on 70,314 of one account's lines.
+   * "Connection problem" on its own is a row a grower can do nothing with.
+   */
+  it('keeps the sentence that says what to do about a message that takes no parameter', () => {
+    const line = { source: 'device' as const, text: null, message: { key: 'message-buffer-overflow', params: [] } };
+
+    expect(entryHeadline(i18n, line)).toBe('Connection problem');
+    expect(entryDetail(i18n, line)).toContain('check your internet connection or wifi');
+  });
+
+  /** A mark left by a line written elsewhere says what it is in its title; its text is that again. */
+  it('says nothing under a mark whose text is its own title at greater length', () => {
+    const plants = { source: 'device' as const, text: null, message: { key: 'message-diary-plant-log', params: [] } };
+    const sensor = { source: 'device' as const, text: null, message: { key: 'message-ext-sensor-fail', params: [] } };
+
+    expect(entryHeadline(i18n, plants)).toBe('Plant log entry');
+    expect(entryDetail(i18n, plants)).toBeNull();
+    // Its two halves differ by a word, so only being named keeps it quiet.
+    expect(entryDetail(i18n, sensor)).toBeNull();
+  });
 });
 
 /**
