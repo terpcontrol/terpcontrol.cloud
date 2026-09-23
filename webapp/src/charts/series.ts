@@ -234,11 +234,23 @@ export const dayOfGrow = (time: number, originAt: number): number => (time - ori
 /**
  * What is on the screen, as a table.
  *
- * Climate is bucketed and a reading somebody wrote down is not, so there is no
- * grid the two share: the rows are every instant any drawn line has a value at,
- * and a line with nothing at that instant leaves its cell empty rather than
- * having a figure invented for it. That is the honest shape of a chart of
- * things measured at different rates, and it is what a spreadsheet wants.
+ * Climate is bucketed, an output switches when the tent switched it and a
+ * reading somebody wrote down happened when they wrote it, so there is no grid
+ * the three share: the rows are every instant any drawn line has something to
+ * say at. Dropping an output's own instants onto the climate's grid would
+ * throw away the switching record the export exists for - a lamp that came on
+ * at 06:00:13 did not come on at 06:00 - so the rows stay as many as the tent
+ * really did something.
+ *
+ * What a column puts in a row it has no instant at depends on what the column
+ * is. A mean of a window and a reading somebody took are measurements, and
+ * there was no measurement at that instant, so the cell is empty rather than
+ * invented. A state is not a measurement: an output that came on at 06:00:13
+ * was still on at 07:00, and saying so is reading the record rather than
+ * adding to it - the same thing the pinned readout above the cards says at the
+ * cursor. Without that the file a grower opens to read Temp against Light held
+ * the two in no row at all: 361 rows carried a temperature, 6,977 carried
+ * nothing but an output state, and exactly one carried both.
  *
  * The day column counts the way the grow's own counter counts, out of the
  * contract's arithmetic rather than a second copy of it, so a reading somebody
@@ -247,27 +259,56 @@ export const dayOfGrow = (time: number, originAt: number): number => (time - ori
 export interface CsvColumn {
   label: string;
   points: readonly [number, number | null][];
+  /** Set for a state that stands until it changes, which is what makes it readable across the rows it has no instant of its own at. */
+  holds?: boolean;
 }
 
 export const csvOf = (columns: readonly CsvColumn[], originAt: number | null): string => {
-  const byTime = columns.map(column => new Map(column.points.map(([time, value]) => [time, value])));
   const times = [...new Set(columns.flatMap(column => column.points.map(([time]) => time)))].sort((one, other) => one - other);
+  const cells = columns.map(column => (column.holds ? carried(column.points, times) : measured(column.points, times)));
   const head = ['time', ...(originAt === null ? [] : ['day']), ...columns.map(column => column.label)];
 
-  const rows = times.map(time =>
+  const rows = times.map((time, row) =>
     [
       DateTime.fromMillis(time).toISO() ?? '',
       ...(originAt === null ? [] : [String(growDayAt(new Date(originAt), new Date(time)))]),
-      ...byTime.map(column => {
-        const value = column.get(time);
-
-        return value === undefined || value === null ? '' : String(value);
-      }),
+      ...cells.map(column => column[row]),
     ].join(','),
   );
 
   return [head.map(quoted).join(','), ...rows].join('\n');
 };
+
+/** A column's own instants and nothing else: where it measured nothing, it says nothing. */
+const measured = (points: readonly [number, number | null][], times: readonly number[]): string[] => {
+  const byTime = new Map(points.map(([time, value]) => [time, value]));
+
+  return times.map(time => cell(byTime.get(time) ?? null));
+};
+
+/**
+ * A state carried into the rows between its switchings: the last thing it was
+ * said to be doing, which is what it was doing. Before anything was heard about
+ * it at all there is nothing to carry, and a break in the wave - where the
+ * device went quiet - carries a nothing forward exactly as it should.
+ */
+const carried = (points: readonly [number, number | null][], times: readonly number[]): string[] => {
+  let next = 0;
+  let last: number | null = null;
+  let heard = false;
+
+  return times.map(time => {
+    while (next < points.length && points[next][0] <= time) {
+      last = points[next][1];
+      heard = true;
+      next += 1;
+    }
+
+    return heard ? cell(last) : '';
+  });
+};
+
+const cell = (value: number | null): string => (value === null ? '' : String(value));
 
 /** A name a grower gave a measurement may hold a comma, so every heading is quoted and its own quotes doubled. */
 const quoted = (cell: string): string => `"${cell.replace(/"/g, '""')}"`;

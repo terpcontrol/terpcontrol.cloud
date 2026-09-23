@@ -521,7 +521,8 @@ const outputDrawn = (
     unit: '',
     values: [0, 1],
     lines: [{ key: `out-${output}`, label: title, shape: 'step', colour: 'warning', axis: 0, points }],
-    csv: { label: t('charts.csvOutput', { output: title }), points },
+    // A state stands until it switches, so the column reads across the rows the climate put in the table.
+    csv: { label: t('charts.csvOutput', { output: title }), points, holds: true },
   };
 };
 

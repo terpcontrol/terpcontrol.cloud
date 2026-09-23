@@ -11,7 +11,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChartViewSpan, GrowListItem, GrowSeries, TimelineTargets } from '@fg2/shared-types/v1';
 import { chartViewCreate } from '@fg2/shared-types/v1-schemas/diary.js';
 import { Charts } from '@/screens/charts/Charts';
-import { cardsOf, offeredBy, type Offered } from '@/screens/charts/cards';
+import { cardsOf, csvForCards, offeredBy, type Offered } from '@/screens/charts/cards';
 import { csvOf, niceScale, stepPoints } from '@/charts/series';
 
 const state = vi.hoisted(() => ({
@@ -649,5 +649,36 @@ describe('what a plot is made of', () => {
     expect(rows[0]).toBe('"time","day","Temp (°C)","Height (cm)"');
     expect(rows[1].endsWith(',1,24,')).toBe(true);
     expect(rows[2].endsWith(',1,,54')).toBe(true);
+  });
+
+  it('carries an output´s state across the rows between its switchings, and keeps every switching a row of its own', () => {
+    // A lamp switches when the tent switched it and not on the step the
+    // climate is bucketed at, so this one comes on and goes off half an hour
+    // off the grid the readings sit on.
+    const switching: GrowSeries = {
+      ...series,
+      outputs: [{ output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(6.5), endsAt: at(17.5) }], heardUntil: at(24) }],
+    };
+    const csv = csvForCards(key => key, switching, {
+      picked: { metrics: ['temperature'], outputs: ['light'], measurements: [] },
+      layout: 'stacked',
+      offered: offeredBy(switching, []),
+      leaf: null,
+      plants: [],
+    });
+    const rows = csv.split('\n').slice(1);
+    const cells = rows.map(row => row.split(','));
+
+    // The lamp's own instants are still rows of their own - it came on at 06:30
+    // and went off at 17:30, and the export is the record of that.
+    expect(rows.length).toBeGreaterThan(series.climate[0].points.length);
+    expect(cells.filter(([, , , light]) => light === '1')).not.toHaveLength(0);
+
+    // And every row that carries a temperature now carries the lamp beside it,
+    // which is the whole point of a table: the file used to hold the two in
+    // one row out of seven thousand.
+    const measured = cells.filter(([, , temperature]) => temperature !== '');
+    expect(measured).toHaveLength(series.climate[0].points.length);
+    expect(measured.every(([, , , light]) => light === '0' || light === '1')).toBe(true);
   });
 });
