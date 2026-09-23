@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowHarvest, PublicAuthor, PublicGrowPage } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type EarlierWeeks, type Picture } from '@/api/public';
-import { weekOfGrowDay } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { DiaryWeek } from './DiaryWeek';
 import { Photo } from '@/ui/Photo';
@@ -148,13 +147,17 @@ function Author({ author, picture, aside }: { author: PublicAuthor; picture: Pic
 /** "Flowering · late flower · week 5 · Amnesia, Gelato · 3 plants · from 15 Aug" - what the diary is, in one line. */
 function Facts({ page }: { page: PublicGrowPage }) {
   const { t } = useTranslation();
-  const week = weekOfGrowDay(page.dayNumber);
   const from = DateTime.fromISO(page.startedAt);
   const until = page.endedAt ? DateTime.fromISO(page.endedAt) : null;
 
   const parts = [
     page.stage ? (page.preset === 'late_flowering' ? t('grow.lateFlower') : t(`home.stage.${page.stage}`)) : t('home.card.noPhase'),
-    week !== null ? t('grow.week', { week }) : null,
+    // The week of the stage the word before it names, which is what the owner's
+    // own header says and what the first card's pill repeats. The week of the
+    // whole grow belongs to the cards' own headings: glued to a stage name it
+    // told a reader that a grow had been curing for thirty-two weeks when it
+    // had been curing for twelve.
+    page.stageWeek !== null ? t('grow.week', { week: page.stageWeek }) : null,
     page.strains.length > 0 ? page.strains.join(', ') : null,
     page.plantCount ? t('home.card.plants', { count: page.plantCount }) : null,
     t(`publicPage.type.${page.type}`),

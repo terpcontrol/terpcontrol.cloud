@@ -1868,6 +1868,13 @@ export const publicGrowPage = named(
     dayNumber: z.number().int().nullable(),
     stage: growthStage.nullable(),
     preset: z.string().nullable(),
+    stageWeek: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        'Which week of the stage above the diary is in, counted against the grow’s own weeks exactly as the week cards below count them - the same figure `summary.stageWeek` answers the owner. It is here because it cannot be worked out from `dayNumber`: that gives the week of the whole grow, which is the week cards’ own heading and a different number entirely once a grow has changed stage. Null where the grow has entered no phase, and, like the day number and the stage, counted up to the end of the reader’s window rather than to today.',
+      ),
     plantCount: z.number().int().nullable(),
     strains: z.array(z.string()),
     coverMediaId: id().nullable(),

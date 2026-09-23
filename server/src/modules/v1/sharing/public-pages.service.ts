@@ -126,6 +126,13 @@ export class PublicPagesService {
       dayNumber: summary.dayNumber,
       stage: summary.stage,
       preset: summary.preset,
+      // The week of the stage rather than of the grow, because the line the
+      // page draws it on names the stage: a reader told "Curing · week 32"
+      // takes that for thirty-two weeks of curing. It is the same figure the
+      // owner's own header states and the same one the first week card's pill
+      // carries, worked out against the reader's window like everything else
+      // here.
+      stageWeek: summary.stageWeek,
       plantCount: hide.counts ? null : plants.length,
       strains: [...new Set(plants.map(plant => plant.strain))],
       coverMediaId: grow.coverMediaId,

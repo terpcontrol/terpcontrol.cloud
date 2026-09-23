@@ -63,13 +63,29 @@ describe('a public grow at its own address', () => {
   it('answers the diary, and says the window it was read through', async () => {
     const page = await anonymous().get(`/v1/public/grows/${diary.slug}`).expect(200);
 
-    expect(page.body).toMatchObject({ slug: diary.slug, name: 'Public run', type: 'photoperiod', stage: 'flowering', dayNumber: 1 });
+    expect(page.body).toMatchObject({ slug: diary.slug, name: 'Public run', type: 'photoperiod', stage: 'flowering', dayNumber: 1, stageWeek: 1 });
     expect(page.body.author.handle).toEqual(expect.any(String));
     expect(page.body.weeks.length).toBeGreaterThan(0);
     expect(page.body.totals).toMatchObject({ entryCount: expect.any(Number) });
     // A public grow is readable for as long as it ran, and no further.
     expect(page.body.range.startsAt).toEqual(expect.any(String));
     expect(page.body.includeCameras).toBe(true);
+  });
+
+  it('says which week of the stage it is in, and nothing else of what the owner is told about the phases', async () => {
+    const page = await anonymous().get(`/v1/public/grows/${diary.slug}`).expect(200);
+
+    // The line above the cards names the stage, so the week beside it is the
+    // stage's; the grow's own week is the cards' heading.
+    expect(page.body.stageWeek).toBe(1);
+    expect(page.body.weeks[0].stageWeek).toBe(page.body.stageWeek);
+
+    // One figure and no more: when each phase began, how many days of it have
+    // gone by, which plants are in which of them and where they stand are the
+    // owner's business, and none of them travel with it.
+    for (const field of ['phases', 'summary', 'phaseDay', 'weekNumber', 'groups', 'locations', 'isAuto', 'spaceId']) {
+      expect(page.body).not.toHaveProperty(field);
+    }
   });
 
   it('counts a picture the diary carries on a line of any kind, not only on a line called a photo', async () => {
@@ -604,6 +620,21 @@ describe('a diary read through a window that has closed', () => {
     expect(seen.dayNumber).toBeGreaterThanOrEqual(30);
     expect(seen.dayNumber).toBeLessThanOrEqual(32);
     expect(seen.stage).toBe('vegetative');
+  });
+
+  it('counts the week of the stage up to the window too, and of the stage the window ends in', async () => {
+    const seen = (await anonymous().get(`/v1/shared/${closed.token}`).expect(200)).body.subject.grow;
+    const whole = (await anonymous().get(`/v1/public/grows/${longRun.slug}`).expect(200)).body;
+
+    // Flowering began five days ago, so the diary is in its first or second
+    // week of it - nothing like the ninth week of the grow the day counter is
+    // on, which is the figure the page used to draw beside the stage.
+    expect(whole.stageWeek).toBeLessThanOrEqual(2);
+    expect(Math.floor((whole.dayNumber - 1) / 7) + 1).toBeGreaterThan(7);
+
+    // The reader inside the closed window is in vegetative, which began on day
+    // one, so there the stage week and the grow week are the same figure.
+    expect(seen.stageWeek).toBe(Math.floor((seen.dayNumber - 1) / 7) + 1);
   });
 
   it('states no harvest at all, because it happened after the reader´s window', async () => {

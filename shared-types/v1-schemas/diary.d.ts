@@ -5207,6 +5207,7 @@ export declare const publicGrowPage: z.ZodObject<{
         curing: "curing";
     }>>;
     preset: z.ZodNullable<z.ZodString>;
+    stageWeek: z.ZodNullable<z.ZodNumber>;
     plantCount: z.ZodNullable<z.ZodNumber>;
     strains: z.ZodArray<z.ZodString>;
     coverMediaId: z.ZodNullable<z.ZodString>;
@@ -5683,6 +5684,7 @@ export declare const sharedGrow: z.ZodObject<{
             curing: "curing";
         }>>;
         preset: z.ZodNullable<z.ZodString>;
+        stageWeek: z.ZodNullable<z.ZodNumber>;
         plantCount: z.ZodNullable<z.ZodNumber>;
         strains: z.ZodArray<z.ZodString>;
         coverMediaId: z.ZodNullable<z.ZodString>;
@@ -6313,6 +6315,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             curing: "curing";
         }>>;
         preset: z.ZodNullable<z.ZodString>;
+        stageWeek: z.ZodNullable<z.ZodNumber>;
         plantCount: z.ZodNullable<z.ZodNumber>;
         strains: z.ZodArray<z.ZodString>;
         coverMediaId: z.ZodNullable<z.ZodString>;
@@ -6954,6 +6957,7 @@ export declare const sharedResolution: z.ZodObject<{
                 curing: "curing";
             }>>;
             preset: z.ZodNullable<z.ZodString>;
+            stageWeek: z.ZodNullable<z.ZodNumber>;
             plantCount: z.ZodNullable<z.ZodNumber>;
             strains: z.ZodArray<z.ZodString>;
             coverMediaId: z.ZodNullable<z.ZodString>;

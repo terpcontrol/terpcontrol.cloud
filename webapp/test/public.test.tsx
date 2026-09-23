@@ -109,6 +109,8 @@ const page: PublicGrowPage = {
   dayNumber: 35,
   stage: 'flowering',
   preset: 'late_flowering',
+  // Day 35 is the grow's week 5; the stage it names began two weeks ago.
+  stageWeek: 2,
   plantCount: 3,
   strains: ['Amnesia', 'Gelato'],
   coverMediaId: 'cover-1',
@@ -205,7 +207,7 @@ describe('a public diary', () => {
     expect(screen.getByText('@mia')).toBeInTheDocument();
     expect(screen.getByText('Two tents in a Berlin flat.')).toBeInTheDocument();
     expect(screen.getByText('Three plants under 400 W.')).toBeInTheDocument();
-    expect(screen.getByText(/Late flower · week 5 · Amnesia, Gelato · 3 plants · photoperiod · since/)).toBeInTheDocument();
+    expect(screen.getByText(/Late flower · week 2 · Amnesia, Gelato · 3 plants · photoperiod · since/)).toBeInTheDocument();
 
     // The same five figures the owner's own Report counts.
     expect(screen.getByText('37')).toBeInTheDocument();
@@ -260,6 +262,22 @@ describe('a public diary', () => {
     expect(cards).toEqual(['Week 5', 'Week 4']);
     fireEvent.click(screen.getByRole('button', { name: 'Earlier weeks' }));
     expect(asked).toHaveBeenCalledTimes(1);
+  });
+
+  it('counts the week of the stage it has just named, not the week of the whole grow', () => {
+    // The line reads "<stage> · week N", and the card two hundred pixels below
+    // it repeats the stage week in its own pill: a reader given the grow week
+    // there is told a grow has been curing for as long as it has been alive.
+    draw(<Diary page={{ ...page, stage: 'curing', preset: null, dayNumber: 218, stageWeek: 12 }} picture={publicPicture(page.slug)} now={NOW} />);
+
+    expect(screen.getByText(/Curing · week 12 ·/)).toBeInTheDocument();
+    expect(screen.queryByText(/Curing · week 32/)).not.toBeInTheDocument();
+  });
+
+  it('says the stage alone where the grow has entered no phase, rather than a week of nothing', () => {
+    draw(<Diary page={{ ...page, stage: null, preset: null, dayNumber: null, stageWeek: null }} picture={publicPicture(page.slug)} now={NOW} />);
+
+    expect(screen.getByText(/^No phase yet · Amnesia, Gelato/)).toBeInTheDocument();
   });
 
   it('says how many lines of a week it is not drawing, because a card carries only the first of them', () => {
