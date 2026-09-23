@@ -57,12 +57,23 @@ export const authorOf = (t: Translate, entry: Pick<Entry, 'source' | 'authorId'>
  * The weights are the ones the server served, which are already null for a
  * reader they are hidden from, so a shared diary says a harvest happened
  * without saying how much it was.
+ *
+ * A phase says its stage whatever words arrived with it, rather than falling
+ * back to them. A line migrated from the old app carries that app's heading for
+ * the change - the same sentence for every stage, in English however the grower
+ * writes - which says strictly less than the stage does; a phase set in the app
+ * today carries no words at all. Anything somebody typed under the heading
+ * follows the stage rather than replacing it.
  */
 export const headlineOf = (t: Translate, i18n: I18n, entry: Entry): string => {
+  if (entry.values.kind === 'phase') {
+    const entered = t('home.card.enteredPhase', { stage: t(`home.stage.${entry.values.stage}`) });
+    return entry.text ? `${entered} · ${entry.text}` : entered;
+  }
+
   const translated = entryHeadline(i18n, entry);
   if (translated) return translated;
 
-  if (entry.values.kind === 'phase') return t('home.card.enteredPhase', { stage: t(`home.stage.${entry.values.stage}`) });
   if (entry.values.kind === 'harvest') {
     const { wetWeightG, dryWeightG } = entry.values;
     return [

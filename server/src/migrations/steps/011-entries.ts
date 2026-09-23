@@ -122,8 +122,15 @@ const migrateEntry = async (
   const grow = growAt(grows.get(fact.id), occurredAt);
   const kind = kindOf(slugs, log, readings.length > 0, devicesWithPlans.has(fact.id), grow !== null);
 
-  const message = messageOf(log.message) ?? messageOf(log.title);
-  const text = [freeText(log.title), freeText(log.message)].filter(part => part !== null).join('\n\n');
+  // A phase line already says what it is in `values.stage`, so the heading the
+  // old app put on it is dropped: the title of a lifecycle line was written by
+  // that app and never by the grower - it is either the key or its English
+  // rendering, the same sentence for every stage - while what somebody typed
+  // went into the body. Keeping it would put "Plant phase change" in front of
+  // the stage on every migrated phase row, in every language.
+  const said = kind === 'phase' ? [freeText(log.message)] : [freeText(log.title), freeText(log.message)];
+  const message = kind === 'phase' ? null : (messageOf(log.message) ?? messageOf(log.title));
+  const text = said.filter(part => part !== null).join('\n\n');
 
   await context.write('entries', {
     id: derivedId('entry', String(log._id)),

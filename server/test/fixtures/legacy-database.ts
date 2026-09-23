@@ -877,6 +877,18 @@ export async function seedLegacyDatabase(target: Connection | mongo.Db, at: numb
     __v: 0,
   });
 
+  /**
+   * The same line as the app wrote it before it logged a key: its own English
+   * heading in the title, whatever the grower typed underneath. The heading is
+   * the app's and says the same thing for every stage, so what survives the
+   * migration is the note alone.
+   */
+  const lifecycleUnderHeading = (deviceId: string, days: number, stage: string, name: string, note: string): LegacyDeviceLog => ({
+    ...lifecycle(deviceId, days, stage, name, true),
+    title: 'Plant phase change',
+    message: note,
+  });
+
   const tent = LEGACY_DEVICE_IDS.controller;
   const fridge = LEGACY_DEVICE_IDS.fridge;
 
@@ -886,7 +898,7 @@ export async function seedLegacyDatabase(target: Connection | mongo.Db, at: numb
     lifecycle(tent, 156, 'seedling', 'Blue Dream', false),
     lifecycle(tent, 145, 'vegetative', 'Blue Dream', false),
     lifecycle(tent, 115, 'flowering', 'Blue Dream', false),
-    lifecycle(tent, 60, 'drying', 'Blue Dream', true),
+    lifecycleUnderHeading(tent, 60, 'drying', 'Blue Dream', 'Am Freitag geerntet, hängt jetzt im Keller.'),
     lifecycle(tent, 53, 'curing', 'Blue Dream', true),
     // The tent's second grow, still running.
     lifecycle(tent, 40, 'germination', 'Purple Haze', true),

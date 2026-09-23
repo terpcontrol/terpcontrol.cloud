@@ -1035,6 +1035,22 @@ describe('entries', () => {
     expect(phases.filter(entry => phaseIds.has(entry.values.phaseId))).toHaveLength(fixture.grows.running.stages);
   });
 
+  /**
+   * The stage is in the row's own values, so the old app's heading for the
+   * change adds nothing and would stand in front of it on every migrated phase
+   * line, in English whatever language the reader is in. The words under the
+   * heading are the grower's and are the whole point of keeping the line.
+   */
+  it('keeps what somebody typed under a phase line and drops the heading the old app put on it', async () => {
+    await migrate();
+
+    const written = await one<Record<string, any>>('entries', { kind: 'phase', text: { $ne: null } });
+
+    expect(written?.text).toBe('Am Freitag geerntet, hängt jetzt im Keller.');
+    expect(await collection<Record<string, any>>('entries').countDocuments({ kind: 'phase', text: /Plant phase change/ })).toBe(0);
+    expect(await collection<Record<string, any>>('entries').countDocuments({ kind: 'phase', message: { $ne: null } })).toBe(0);
+  });
+
   it('carries every line that is still there, whatever the deleted flag says', async () => {
     // The app sets the flag on every diary entry it writes and deleting one
     // really removed the row, so a line carrying it is a line somebody kept -

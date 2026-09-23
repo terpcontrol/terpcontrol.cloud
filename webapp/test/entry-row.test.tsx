@@ -141,6 +141,41 @@ describe('a diary row', () => {
     });
   });
 
+  it('names the stage a phase line entered, whatever heading arrived with it', () => {
+    render(
+      <ul>
+        <EntryRow
+          entry={entryOf({
+            kind: 'phase',
+            values: { kind: 'phase', stage: 'vegetative', phaseId: 'phase-1' },
+            message: { key: 'message-diary-plant-lifecycle', params: [] },
+          })}
+          people={[]}
+        />
+      </ul>,
+    );
+
+    expect(screen.getByText(/Entered Veg/)).toBeInTheDocument();
+    expect(screen.queryByText(/Plant phase change/)).not.toBeInTheDocument();
+  });
+
+  it('puts a note written under a phase line after the stage rather than in place of it', () => {
+    render(
+      <ul>
+        <EntryRow
+          entry={entryOf({
+            kind: 'phase',
+            values: { kind: 'phase', stage: 'germination', phaseId: 'phase-1' },
+            text: 'Steckling von Sensi Seeds',
+          })}
+          people={[]}
+        />
+      </ul>,
+    );
+
+    expect(screen.getByText(/Entered Germination · Steckling von Sensi Seeds/)).toBeInTheDocument();
+  });
+
   it('still translates what a device wrote, which is a key and not words', () => {
     render(
       <ul>
