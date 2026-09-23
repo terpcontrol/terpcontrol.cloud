@@ -671,6 +671,46 @@ describe('the films and the pictures behind the first page', () => {
     expect(drawPage().container.textContent).toContain('1 picture today');
   });
 
+  /**
+   * A control that cannot change anything is worse than no control. On a
+   * camera dark for days the scrubber was drawn live across midnight to now
+   * over a day holding no picture: the handle moved and announced an hour this
+   * morning while the still under it, four days old, never changed.
+   */
+  it('draws the scrubber only where there are pictures for it to walk between', () => {
+    state.frames = { items: [], partial: false };
+    state.lastStill = 'still-old';
+    const dark = render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: '2026-09-15T02:28:17.000Z' } }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(dark.container.querySelector('input[type=range]')).toBeNull();
+    // The day's own count and the picture standing in for it are still said.
+    expect(dark.container.textContent).toContain('0 pictures today');
+    expect(dark.container.querySelector('img[src="/media/still-old"]')).toBeInTheDocument();
+    dark.unmount();
+
+    // A read still out has no window to draw either: its ends would be the
+    // whole day and would jump to the first picture as soon as it answered.
+    state.framesPending = true;
+    const waiting = drawPage();
+    expect(waiting.container.querySelector('input[type=range]')).toBeNull();
+    waiting.unmount();
+
+    // A day the camera filled gets the control, spanning its own pictures.
+    state.framesPending = false;
+    state.lastStill = null;
+    state.frames = { items: [{ id: 'still-1', capturedAt: NOW.minus({ hours: 2 }).toISO()! }], partial: false };
+    const walked = drawPage().container.querySelector('input[type=range]')!;
+
+    expect(walked).toBeInTheDocument();
+    expect(walked.getAttribute('min')).toBe(String(DateTime.fromISO(NOW.minus({ hours: 2 }).toISO()!).toMillis()));
+  });
+
   it('counts the day it walked, and calls a count it stopped short of a floor', () => {
     const shot = (index: number) => ({ id: `still-${index}`, capturedAt: NOW.minus({ minutes: index }).toISO()! });
 

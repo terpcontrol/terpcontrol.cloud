@@ -242,11 +242,22 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
         {mayManage ? <TestImage cameraId={camera.id} /> : null}
       </div>
 
-      <div className={`${timeline.bareSlider} ${styles.transport}`}>
-        <span className={`mono ${styles.edge}`}>{zonedAt(from, zone).toFormat(CLOCK)}</span>
-        <Slider from={from} to={to} cursor={Math.min(Math.max(time, from), to)} onScrub={setCursor} />
-        <span className={`mono ${styles.edge}`}>{t('camera.now')}</span>
-      </div>
+      {/* The scrubber walks between the day's pictures, so it is drawn where
+          there are pictures to walk between. A camera dark for days drew one
+          anyway, spanning midnight to now over a day that held nothing: the
+          handle moved, the picture under it and its caption and the count
+          never did, and a screen reader was told the cursor stood at an hour
+          this morning over a still taken four days ago. A control that cannot
+          change what it points at is worse than no control, and the same is
+          true before the read has answered - the ends would be the whole day
+          and then jump to the first picture as soon as it did. */}
+      {dayPictures === 'filled' ? (
+        <div className={`${timeline.bareSlider} ${styles.transport}`}>
+          <span className={`mono ${styles.edge}`}>{zonedAt(from, zone).toFormat(CLOCK)}</span>
+          <Slider from={from} to={to} cursor={Math.min(Math.max(time, from), to)} onScrub={setCursor} />
+          <span className={`mono ${styles.edge}`}>{t('camera.now')}</span>
+        </div>
+      ) : null}
       {/* A read still out has no count in it and nothing here may invent one:
           "0 pictures today" under a frame still saying it is loading is the
           page contradicting itself in two adjacent lines. Nor does this line
