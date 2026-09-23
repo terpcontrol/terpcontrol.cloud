@@ -16,7 +16,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { Entry, EntryKind, GrowReadingNames, Person, ReadingName } from '@fg2/shared-types/v1';
-import { entryHeadline } from '@/i18n/device-message';
+import { entryHeadline, machineLineParts } from '@/i18n/device-message';
 
 /**
  * What the grow a line belongs to calls its measurements, out of the table an
@@ -87,11 +87,17 @@ export const authorOf = (t: Translate, entry: Pick<Entry, 'source' | 'authorId'>
  * writes - which says strictly less than the stage does; a phase set in the app
  * today carries no words at all. Anything somebody typed under the heading
  * follows the stage rather than replacing it.
+ *
+ * A machine's phase line is the one row that reaches its words without going
+ * through `entryHeadline`, so it takes the same first paragraph that does: the
+ * rest of such a line is drawn under the row as its detail, and putting the
+ * whole of it here would print that paragraph twice.
  */
 export const headlineOf = (t: Translate, i18n: I18n, entry: Entry): string => {
   if (entry.values.kind === 'phase') {
     const entered = t('home.card.enteredPhase', { stage: t(`home.stage.${entry.values.stage}`) });
-    return entry.text ? `${entered} · ${entry.text}` : entered;
+    const said = machineLineParts(entry)?.headline ?? entry.text;
+    return said ? `${entered} · ${said}` : entered;
   }
 
   const translated = entryHeadline(i18n, entry);

@@ -237,6 +237,24 @@ describe('what a machine´s line says under its headline', () => {
     expect(container.textContent).not.toContain('A line written in the diary of the plants.');
   });
 
+  /**
+   * The unkeyed half of the same problem. A migrated line keeps the old app's
+   * free-form title joined to its body with a blank line, `pre-line` draws that
+   * blank line, and the row becomes three lines with its own title at the top
+   * of two of them - beside keyed rows on the same screen that draw as a title
+   * over a detail.
+   */
+  it('does not print a migrated line´s own title a second time under itself', () => {
+    const { container } = said({
+      text: 'Alarm Kühlschrank Dauerlauf resolved\n\nAlarm Kühlschrank Dauerlauf resolved: Sensor dehumidifier, value: 1',
+      message: null,
+    });
+
+    expect(screen.getAllByText(/Alarm Kühlschrank Dauerlauf resolved/)).toHaveLength(1);
+    expect(container.textContent).toContain('Sensor dehumidifier, value: 1');
+    expect(container.textContent).not.toContain('\n\n');
+  });
+
   it('does not print a grower´s own paragraph a second time under itself', () => {
     render(
       <ul>

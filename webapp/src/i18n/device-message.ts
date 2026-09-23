@@ -42,12 +42,48 @@ type EntryWords = Pick<Entry, 'source' | 'text' | 'message'>;
  */
 const ownWords = (entry: EntryWords): string | null => (entry.source === 'human' && entry.text ? entry.text : null);
 
+/** What the migration joined a title and a body with, and what cuts them apart again. */
+const PARAGRAPH = '\n\n';
+
+/**
+ * A machine's line that came over with no key, cut back into the two things it
+ * is: what it was called, and what it said.
+ *
+ * The old app let a device line carry a free-form title, and the migration kept
+ * it - a title nobody has a translation for is still what the row is about -
+ * by joining it to the body with a blank line, since neither can be recovered
+ * from the other afterwards. Without this, the whole of that goes into the
+ * headline, `white-space: pre-line` draws the blank line, and a row that should
+ * be a title over a detail is three lines with its own title at the top of two
+ * of them: 38,228 of the 68,023 unkeyed machine lines in the restored database
+ * carry a body that begins with their own title, 138 of one fridge's 253 alarm
+ * rows among them, beside keyed rows on the same screen that draw correctly.
+ *
+ * The repeat is stripped only where the body is the title followed by a colon,
+ * which is the shape every one of those 38,228 has and the only one that can be
+ * taken off without maiming a sentence that merely starts with the same word.
+ * Only the first blank line is cut at: 48 rows have more than one, and what
+ * follows is the body speaking rather than a third thing.
+ */
+export const machineLineParts = (entry: EntryWords): { headline: string; detail: string | null } | null => {
+  if (entry.message || ownWords(entry) || !entry.text) return null;
+
+  const blank = entry.text.indexOf(PARAGRAPH);
+  if (blank < 0) return null;
+
+  const headline = entry.text.slice(0, blank);
+  const body = entry.text.slice(blank + PARAGRAPH.length);
+  const said = body.startsWith(`${headline}:`) ? body.slice(headline.length + 1).trimStart() : body;
+
+  return { headline, detail: said.length > 0 ? said : null };
+};
+
 /**
  * What a timeline row says. A person's own words are never translated; a
  * device's, a plan's and an alarm's always are.
  */
 export const entryHeadline = (i18n: I18n, entry: EntryWords): string =>
-  ownWords(entry) ?? (entry.message ? resolveDeviceMessage(i18n, entry.message, 'title') : (entry.text ?? ''));
+  machineLineParts(entry)?.headline ?? ownWords(entry) ?? (entry.message ? resolveDeviceMessage(i18n, entry.message, 'title') : (entry.text ?? ''));
 
 export const entryBody = (i18n: I18n, entry: EntryWords): string =>
   ownWords(entry) ?? (entry.message ? resolveDeviceMessage(i18n, entry.message, 'text') : (entry.text ?? ''));
@@ -71,8 +107,15 @@ export const entryBody = (i18n: I18n, entry: EntryWords): string =>
  * said again at greater length, which is all `message-diary-plant-log-text`
  * ("A line written in the diary of the plants.") has to add to a mark that
  * already says so. And a key whose two halves resolve alike says it once.
+ *
+ * A migrated line with no key at all has its two halves in `text` rather than
+ * in a catalogue, so it is cut apart rather than looked up - the same two
+ * things, told apart the only way that row can be.
  */
 export const entryDetail = (i18n: I18n, entry: EntryWords): string | null => {
+  const migrated = machineLineParts(entry);
+  if (migrated) return migrated.detail;
+
   if (ownWords(entry) || !entry.message || entry.message.params.length === 0) return null;
 
   const detail = entryBody(i18n, entry);

@@ -2,7 +2,7 @@ import i18next, { type i18n as I18n } from 'i18next';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { resolveDeviceMessage } from '@/i18n/device-message';
+import { entryDetail, entryHeadline, resolveDeviceMessage } from '@/i18n/device-message';
 
 /**
  * The catalogue is the one the devices have always written into, so this reads
@@ -110,5 +110,54 @@ describe('the punctuation of a title, across the two catalogues', () => {
 
     const differing = titles.filter(key => typeof german[key] === 'string' && terminal(german[key] as string) !== terminal(english[key] as string));
     expect(differing).toEqual([]);
+  });
+});
+
+/**
+ * The lines that came over with no key at all. The old app let a device line
+ * carry a free-form title, and the migration kept it by joining it to the body
+ * with a blank line - so the whole of both lands in the headline, and 38,228 of
+ * the 68,023 unkeyed machine lines in the restored production database say
+ * their own title twice, 138 of one fridge's 253 alarm rows among them.
+ *
+ * Nothing here is translated, so the catalogue is not needed and is not given.
+ */
+describe('a machine´s line that carries its own title', () => {
+  const machine = (text: string) => ({ source: 'device' as const, text, message: null });
+  const untranslated = null as unknown as I18n;
+
+  it('draws the title once and what it said under it', () => {
+    const line = machine('Alarm fridge running long resolved\n\nAlarm fridge running long resolved: Sensor dehumidifier, value: 1');
+
+    expect(entryHeadline(untranslated, line)).toBe('Alarm fridge running long resolved');
+    expect(entryDetail(untranslated, line)).toBe('Sensor dehumidifier, value: 1');
+  });
+
+  it('keeps a body that only begins like its title, rather than cutting a sentence in half', () => {
+    const line = machine('Alarm\n\nAlarm was raised at 04:12 and stood for an hour');
+
+    expect(entryHeadline(untranslated, line)).toBe('Alarm');
+    expect(entryDetail(untranslated, line)).toBe('Alarm was raised at 04:12 and stood for an hour');
+  });
+
+  it('cuts at the first blank line only, so a body of several paragraphs stays whole', () => {
+    const line = machine('Webcam error\n\nffmpeg failed\n\nRetried three times');
+
+    expect(entryHeadline(untranslated, line)).toBe('Webcam error');
+    expect(entryDetail(untranslated, line)).toBe('ffmpeg failed\n\nRetried three times');
+  });
+
+  it('leaves a line of one paragraph as the whole headline, with nothing under it', () => {
+    const line = machine('Device configuration has been updated');
+
+    expect(entryHeadline(untranslated, line)).toBe('Device configuration has been updated');
+    expect(entryDetail(untranslated, line)).toBeNull();
+  });
+
+  it('never cuts up what a person typed', () => {
+    const typed = { source: 'human' as const, text: 'Umgetopft\n\nUmgetopft: beide in 11 l', message: null };
+
+    expect(entryHeadline(untranslated, typed)).toBe('Umgetopft\n\nUmgetopft: beide in 11 l');
+    expect(entryDetail(untranslated, typed)).toBeNull();
   });
 });
