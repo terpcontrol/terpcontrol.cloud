@@ -2,14 +2,17 @@ import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
+import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Device, GrowListItem, Space } from '@fg2/shared-types/v1';
+import { growDayAt } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
+import { dayNumber } from '@/screens/grow/new/new-grow';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { spaceWhere } from './session';
 
@@ -402,5 +405,40 @@ describe('a read that failed', () => {
     await waitFor(() => expect(screen.getByText(/The feeding schemes could not be read/)).toBeInTheDocument());
     expect(screen.queryByText(/This build ships no feeding schemes/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'None / my own' })).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+/**
+ * The day the button promises, against the day the grow will actually read.
+ *
+ * The two were counted differently: the button counted the midnights between
+ * the start and now, and everything else - the log sheet, the week cards, the
+ * report, the charts axis and the server's own serialiser - counts whole
+ * twenty-four hour periods from the instant the first phase began. A day
+ * containing a clock change has twenty-three of those hours in it, so the two
+ * parted company by one for every start backdated across the change, and the
+ * button was the one over-promising.
+ */
+describe('the day the button promises', () => {
+  const now = DateTime.fromISO('2026-09-23T16:15:16.686Z');
+
+  it('counts whole days from the moment the grow starts, and not the midnights in between', () => {
+    // 1 March typed at 18:15 in a browser on central European time, which was
+    // still an hour behind its summer self: 205 d 23 h ago, so day 206. By
+    // midnights it is 207, which is what the button used to say.
+    expect(dayNumber(new Date('2026-03-01T17:15:16.686Z'), now)).toBe(206);
+
+    // The same start after the change, where the hour and the midnight agree.
+    expect(dayNumber(new Date('2026-03-29T16:15:16.686Z'), now)).toBe(179);
+  });
+
+  it('says the same day as the contract every other screen counts with', () => {
+    for (const startedAt of ['2026-03-01T17:15:16.686Z', '2026-03-28T17:15:16.686Z', '2026-05-01T16:15:16.686Z', '2026-09-23T16:15:16.686Z']) {
+      expect(dayNumber(new Date(startedAt), now)).toBe(growDayAt(new Date(startedAt), now.toJSDate()));
+    }
+  });
+
+  it('never promises a day before the first, whatever a date field is handed', () => {
+    expect(dayNumber(now.plus({ days: 3 }).toJSDate(), now)).toBe(1);
   });
 });
