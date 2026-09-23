@@ -36,6 +36,13 @@ const OF_THE_CAMERA: DeviceMessageFact = { kind: 'system', aboutCamera: true };
 /** Every key current firmware sends. What is not here is still an entry, about the device. */
 const DEVICE_MESSAGES: Readonly<Record<string, DeviceMessageFact>> = {
   'message-device-booted': OF_THE_DEVICE,
+  // Emitted the moment the device is *told* to install a build, from inside the
+  // firmware's subscribe handler and before the download runs - not when one
+  // finishes. The rollout republishes the owed build on a doubling backoff until
+  // the device comes back, so a device that cannot take the update writes one of
+  // these per attempt. A finished update is a different key entirely
+  // (`message-firmware-update-complete-with-ids`, written by the server once the
+  // device reports the new build), and the two must not be worded alike.
   'message-device-firmware-update': OF_THE_DEVICE,
   'message-buffer-overflow': OF_THE_DEVICE,
   'message-co2-low': OF_THE_DEVICE,
