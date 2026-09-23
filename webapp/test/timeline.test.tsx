@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
+import { LogProvider } from '@/log/LogProvider';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
 import { Timeline } from '@/screens/timeline/Timeline';
@@ -150,7 +151,10 @@ const draw = () =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter>
-        <Timeline spaceId="space-1" />
+        {/* The rail opens a line to be corrected, which is the shell's sheet. */}
+        <LogProvider>
+          <Timeline spaceId="space-1" />
+        </LogProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   );

@@ -2,6 +2,7 @@ import { DateTime } from 'luxon';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
+import { useCorrecting } from '@/log/corrections';
 import { EntryRow } from '@/ui/EntryRow';
 import { KIND_ICON, readingNamesOf } from '@/ui/entries';
 import { useZone } from '@/ui/zone';
@@ -37,6 +38,10 @@ interface LanesProps {
  */
 export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onScrub, scrub }: LanesProps) {
   const { t } = useTranslation();
+  // A mark tapped open is the one place the rail draws what somebody wrote, so
+  // it is also where they can put right what they wrote. The place that decides
+  // is the tent the rail is of: a line is drawn here because it happened here.
+  const correcting = useCorrecting();
   // The axis is cut at midnight and the marks are titled with the hour, both
   // of which are the account's and not this browser's: a window of a week read
   // two zones away otherwise labels its stops with the wrong days.
@@ -134,6 +139,7 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
               people={timeline.people}
               measurements={readingNamesOf(timeline.readingNames, entry.growId)}
               now={now}
+              onOpen={correcting(entry, { label: timeline.name, spaceId: timeline.spaceId })}
             />
           ))}
         </ul>

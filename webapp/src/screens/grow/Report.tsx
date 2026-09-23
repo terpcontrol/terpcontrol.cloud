@@ -7,8 +7,10 @@ import { exportFilename, fileSize, isBuilding, useAskExport, useDownloadExport, 
 import { useGrowReport } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
+import { useCorrecting } from '@/log/corrections';
 import { growDayOf } from '@/ui/entries';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
+import { standsIn } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import styles from './Report.module.css';
 
@@ -154,6 +156,7 @@ function Chapter({
   measurements: GrowListItem['measurements'];
 }) {
   const { t } = useTranslation();
+  const correcting = useCorrecting();
   const cover = chapter.coverMediaId ? mediaUrl(chapter.coverMediaId, THUMBNAIL_WIDTH.cover * 2) : null;
   const temperature = chapter.climate.find(row => row.metric === 'temperature');
   const humidity = chapter.climate.find(row => row.metric === 'humidity');
@@ -193,6 +196,12 @@ function Chapter({
                 picture={mediaUrl}
                 measurements={measurements}
                 day={growDayOf(grow, entry.occurredAt)}
+                onOpen={correcting(entry, {
+                  label: grow.name,
+                  dayNumber: growDayOf(grow, entry.occurredAt),
+                  ownerId: grow.ownerId,
+                  spaceId: standsIn(grow),
+                })}
               />
             ))}
           </ul>

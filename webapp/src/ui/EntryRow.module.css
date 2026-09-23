@@ -52,6 +52,30 @@
   min-width: 0;
 }
 
+/*
+ * The line itself as the way back into it: the whole of what was written, and
+ * not a pencil at the end of the row, because a row that is several lines and a
+ * strip of pictures tall has no end to put one at.
+ *
+ * It keeps the shape it had as plain text - the row is scanned, and a framed
+ * control on every one of a season's lines would stop it being scannable. What
+ * says it can be tapped is the pointer, the focus ring the app draws
+ * everywhere, and the underline that comes up under the words.
+ */
+.open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+}
+
+.open:hover .headline {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .author {
   font-weight: var(--weight-semibold);
 }

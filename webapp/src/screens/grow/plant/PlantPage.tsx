@@ -9,7 +9,7 @@ import { useGrow, useGrowPlants, useGrowSeries, usePlantEntries } from '@/api/gr
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
-import { useLog, type LogTarget, type TileKind } from '@/log/log-context';
+import { useCorrecting } from '@/log/corrections';
 import { authorOf, headlineOf, KIND_ICON, readingFigure } from '@/ui/entries';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, standsIn, useMayWith } from '@/ui/session-access';
@@ -306,13 +306,13 @@ interface LineProps {
 function Line({ entry, grow, plant, measurements }: LineProps) {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
-  const { openDetails } = useLog();
-  const youMay = useMayWith()({ ownerId: grow.ownerId, spaceId: standsIn(grow) });
+  const correcting = useCorrecting();
   const Icon = KIND_ICON[entry.kind];
   const day = dayOfEntry(grow, entry);
   const readings = 'readings' in entry.values ? entry.values.readings : [];
-  const mine = user !== null && !user.isDemo && entry.authorId === user.id;
-  const correctable = enough(youMay, mine ? 'log' : 'manage') ? correctableKind(entry) : null;
+  // The plant's own label rather than the grow's: a line drawn here is about
+  // this plant, and the toast that acknowledges the correction says so.
+  const open = correcting(entry, { label: plant.label, dayNumber: day, ownerId: grow.ownerId, spaceId: standsIn(grow) });
 
   const body = (
     <>
@@ -339,43 +339,16 @@ function Line({ entry, grow, plant, measurements }: LineProps) {
     </>
   );
 
-  if (correctable === null) return <li className={styles.line}>{body}</li>;
+  if (open === undefined) return <li className={styles.line}>{body}</li>;
 
   return (
     <li>
-      <button
-        type="button"
-        className={`${styles.line} ${styles.lineOpen}`}
-        aria-label={t('grow.plant.correctLine')}
-        onClick={() => openDetails(correctable, targetOf(entry, grow, plant), entry)}
-      >
+      <button type="button" className={`${styles.line} ${styles.lineOpen}`} aria-label={t('grow.correctLine')} onClick={open}>
         {body}
       </button>
     </li>
   );
 }
-
-/** The kinds the details sheet holds - the same five the toast offers Details for. */
-const CORRECTABLE: TileKind[] = ['water', 'feed', 'note', 'measurement', 'training'];
-
-/** Which sheet this line would be corrected in, or null where it is not a person's line to correct. */
-const correctableKind = (entry: Entry): TileKind | null =>
-  entry.source === 'human' ? (CORRECTABLE.find(kind => kind === entry.kind) ?? null) : null;
-
-/**
- * What the line is about, taken from the line rather than from the page: a
- * correction must not quietly move a line onto the plant whose page it was
- * opened from.
- */
-const targetOf = (entry: Entry, grow: GrowListItem, plant: Plant): LogTarget => ({
-  key: `entry:${entry.id}`,
-  label: plant.label,
-  growId: entry.growId,
-  spaceId: entry.spaceId,
-  plantIds: entry.plantIds,
-  dayNumber: dayOfEntry(grow, entry),
-  standsIn: entry.spaceId,
-});
 
 const byPlant = (plant: Plant) => (point: { plantId: string | null }) => point.plantId === plant.id;
 

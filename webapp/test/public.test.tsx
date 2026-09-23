@@ -342,6 +342,27 @@ describe('a public diary', () => {
     expect(tiles.filter(text => text?.includes('Flower'))).toHaveLength(1);
   });
 
+  it('leaves its lines inert, because a stranger corrects nothing and has no sheet to be offered one in', () => {
+    const line = entry({ id: 'e2', kind: 'training', text: 'Defoliated', values: { kind: 'training' }, mediaIds: ['media-2'] });
+    const { container } = draw(
+      <DiaryWeek
+        week={{ ...week, entries: [line], entryCount: 1 }}
+        picture={publicPicture('spring-run')}
+        now={NOW}
+        current
+        ended={false}
+        asOf={null}
+      />,
+    );
+
+    // The only button a public row ever carries is a picture's, which opens the
+    // viewer; what was written is words, because the way into a line is the log
+    // sheet and this page lives nowhere near one.
+    expect(screen.getByText('Defoliated')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Defoliated/ })).not.toBeInTheDocument();
+    expect(container.querySelectorAll('li button')).toHaveLength(1);
+  });
+
   it('says of an empty week of a diary that is over that nothing was logged, not that nothing has been yet', () => {
     const empty = { ...week, entries: [], entryCount: 0 };
 

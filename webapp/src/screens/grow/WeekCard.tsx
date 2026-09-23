@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowWeekCard, Person, WeekClimate } from '@fg2/shared-types/v1';
 import { useWeekEntries } from '@/api/grows';
+import { useCorrecting } from '@/log/corrections';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
 import { readingFigure, weekDayOf } from '@/ui/entries';
+import { standsIn } from '@/ui/session-access';
 import { amountLabel, schemeName } from './scheme';
 import styles from './WeekCard.module.css';
 
@@ -36,6 +38,10 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
   // one screen it was ever drawn on.
   const [all, setAll] = useState(false);
   const rest = useWeekEntries(grow.id, all ? week : null);
+  // A line is corrected where it is read, which for most of this account's
+  // diary is here: a migrated grow has no plants and so no plant page, which
+  // used to be the only screen in the app that opened a written line again.
+  const correcting = useCorrecting();
   // The last day the grow lived through. A week card is always seven days wide -
   // "day 218-224" is what the week *is* - so the tiles are where it says how
   // much of it happened, and for a grow that ended in August the unlived days
@@ -154,16 +160,21 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
 
           {shown.length > 0 ? (
             <ul className={styles.entries}>
-              {shown.map(entry => (
-                <EntryRow
-                  key={entry.id}
-                  entry={entry}
-                  people={people}
-                  picture={mediaUrl}
-                  measurements={grow.measurements}
-                  day={weekDayOf(week, entry.occurredAt)}
-                />
-              ))}
+              {shown.map(entry => {
+                const day = weekDayOf(week, entry.occurredAt);
+
+                return (
+                  <EntryRow
+                    key={entry.id}
+                    entry={entry}
+                    people={people}
+                    picture={mediaUrl}
+                    measurements={grow.measurements}
+                    day={day}
+                    onOpen={correcting(entry, { label: grow.name, dayNumber: day, ownerId: grow.ownerId, spaceId: standsIn(grow) })}
+                  />
+                );
+              })}
             </ul>
           ) : (
             // "yet" is a promise that the week can still be written in. An

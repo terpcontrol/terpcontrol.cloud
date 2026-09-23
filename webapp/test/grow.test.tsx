@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
+import { LogProvider } from '@/log/LogProvider';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, GrowListItem, GrowWeekCard, Media, MediaRenderStatus } from '@fg2/shared-types/v1';
 import { exportFilename } from '@/api/exports';
@@ -175,7 +176,10 @@ const people = [{ id: 'user-anna', handle: 'anna' }];
 const draw = (node: React.ReactNode) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>{node}</MemoryRouter>
+      <MemoryRouter>
+        {/* A week card and a report chapter open a line to be corrected, which is the shell's sheet. */}
+        <LogProvider>{node}</LogProvider>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 
@@ -390,6 +394,45 @@ describe('a grow that has ended', () => {
 
     expect(container.querySelectorAll('[data-current="true"]')).toHaveLength(1);
     expect(screen.getByRole('img')).toHaveAccessibleName('Phase progress, now in Flower');
+  });
+});
+
+/**
+ * A figure typed wrongly is typed wrongly on the row that carries it, and until
+ * the row was a way back into the line the only screen in the app that opened
+ * one was a plant's page - which no grow brought over from the old app has.
+ */
+describe('correcting a line a week card is drawing', () => {
+  it('opens the line in the sheet it was written in', async () => {
+    draw(<WeekCard week={week} grow={grow} people={people} now={NOW} current />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Defoliated/ }));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('leaves what a machine recorded inert, because that is not ours to rewrite', () => {
+    const alarm = entry({
+      id: 'e3',
+      kind: 'alarm',
+      source: 'device',
+      authorId: null,
+      message: { key: 'message-alarm-triggered', params: ['Temperatur (temperature), value=31.2'] },
+    });
+
+    draw(<WeekCard week={{ ...week, entries: [alarm], entryCount: 1 }} grow={grow} people={people} now={NOW} current />);
+
+    expect(screen.getByText('Alarm triggered')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Alarm triggered/ })).not.toBeInTheDocument();
+  });
+
+  it('offers no way in on the demo, which reads the whole account and writes nothing to it', () => {
+    session.user = ON_THE_DEMO;
+
+    draw(<WeekCard week={week} grow={grow} people={people} now={NOW} current />);
+
+    expect(screen.getByText('Defoliated')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Defoliated/ })).not.toBeInTheDocument();
   });
 });
 

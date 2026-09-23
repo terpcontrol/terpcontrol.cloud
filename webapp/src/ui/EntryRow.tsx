@@ -103,6 +103,15 @@ interface EntryRowProps {
    * already does.
    */
   zone?: string | null;
+  /**
+   * What opening this line does, where the surface offers it at all.
+   *
+   * The row does not decide it: a public diary and a share link draw this same
+   * row outside the shell, where there is neither a log sheet to open nor a
+   * session to ask what it may do, so the way in is handed down by the screens
+   * that have both rather than reached for here.
+   */
+  onOpen?: () => void;
 }
 
 /**
@@ -124,6 +133,7 @@ export function EntryRow({
   byline = true,
   picture = (mediaId, width) => mediaUrl(mediaId, width),
   zone: given,
+  onOpen,
 }: EntryRowProps) {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
@@ -143,6 +153,33 @@ export function EntryRow({
   const shown = entry.mediaIds.filter(mediaId => picture(mediaId, THUMBNAIL_WIDTH.strip) !== null);
   const frames = shown.map(mediaId => picture(mediaId, THUMBNAIL_WIDTH.frame) ?? '');
 
+  const said = (
+    <>
+      {/* A device, the plan or an alarm is named by its mark; a person by name. */}
+      {byline && entry.source === 'human' ? <span className={styles.author}>{authorOf(t, entry, people, user?.id)} </span> : null}
+      {/* A person writes in lines, so the breaks they typed are kept rather than collapsed into one run-on sentence. */}
+      <span className={styles.headline}>{headlineOf(t, i18n, entry)}</span>
+      {readings.length > 0 ? (
+        <span className={`mono ${styles.readings}`}>
+          {readings.map(reading => {
+            const definition = measurements.find(one => one.key === reading.key);
+            return (
+              <span key={`${reading.key}-${reading.plantId ?? ''}`}>
+                {' · '}
+                {definition?.name ?? reading.key} {readingFigure(reading.value)}
+                {definition?.unit ? ` ${definition.unit}` : ''}
+              </span>
+            );
+          })}
+        </span>
+      ) : null}
+      {/* What the machine's line said, under the kind of thing it was: the
+          reading an alarm tripped on, the settings a save changed, the reason
+          a device rebooted. */}
+      {detail === null ? null : <span className={styles.detail}>{detail}</span>}
+    </>
+  );
+
   return (
     <li className={styles.row} data-severity={entry.severity ?? undefined}>
       <span className={`mono ${styles.stamp}`}>
@@ -152,28 +189,16 @@ export function EntryRow({
         <Icon size={13} strokeWidth={1.75} aria-hidden />
       </span>
       <span className={styles.text}>
-        {/* A device, the plan or an alarm is named by its mark; a person by name. */}
-        {byline && entry.source === 'human' ? <span className={styles.author}>{authorOf(t, entry, people, user?.id)} </span> : null}
-        {/* A person writes in lines, so the breaks they typed are kept rather than collapsed into one run-on sentence. */}
-        <span className={styles.headline}>{headlineOf(t, i18n, entry)}</span>
-        {readings.length > 0 ? (
-          <span className={`mono ${styles.readings}`}>
-            {readings.map(reading => {
-              const definition = measurements.find(one => one.key === reading.key);
-              return (
-                <span key={`${reading.key}-${reading.plantId ?? ''}`}>
-                  {' · '}
-                  {definition?.name ?? reading.key} {readingFigure(reading.value)}
-                  {definition?.unit ? ` ${definition.unit}` : ''}
-                </span>
-              );
-            })}
-          </span>
-        ) : null}
-        {/* What the machine's line said, under the kind of thing it was: the
-            reading an alarm tripped on, the settings a save changed, the reason
-            a device rebooted. */}
-        {detail === null ? null : <span className={styles.detail}>{detail}</span>}
+        {/* What the line says is the way into it, and the pictures are not: a
+            thumbnail opens the viewer, and a button inside a button is not a
+            thing a browser will draw. */}
+        {onOpen ? (
+          <button type="button" className={styles.open} title={t('grow.correctLine')} onClick={onOpen}>
+            {said}
+          </button>
+        ) : (
+          said
+        )}
         {entry.mediaIds.length > 0 ? (
           <span className={styles.photos}>
             {/* Numbered, because a screen reader meeting four pictures in a row
