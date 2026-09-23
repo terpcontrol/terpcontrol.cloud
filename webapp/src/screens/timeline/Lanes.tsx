@@ -114,7 +114,7 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
       {open ? (
         <ul className={styles.opened}>
           {open.entries.map(entry => (
-            <EntryRow key={entry.id} entry={entry} people={timeline.people} withDay={!DateTime.fromISO(entry.occurredAt).hasSame(now, 'day')} />
+            <EntryRow key={entry.id} entry={entry} people={timeline.people} now={now} />
           ))}
         </ul>
       ) : null}

@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { DateTime } from 'luxon';
 import { initReactI18next } from 'react-i18next';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Entry } from '@fg2/shared-types/v1';
@@ -88,10 +89,7 @@ describe('a diary row', () => {
   it('draws the pictures the line carries, and says how many more it has than it drew', () => {
     render(
       <ul>
-        <EntryRow
-          entry={entryOf({ text: 'Steckling von Sensi Seeds', mediaIds: ['one', 'two', 'three', 'four', 'five', 'six'] })}
-          people={[]}
-        />
+        <EntryRow entry={entryOf({ text: 'Steckling von Sensi Seeds', mediaIds: ['one', 'two', 'three', 'four', 'five', 'six'] })} people={[]} />
       </ul>,
     );
 
@@ -109,10 +107,47 @@ describe('a diary row', () => {
     expect(screen.getByRole('img')).toHaveAttribute('src', '/v1/public/grows/mimosa/media/one');
   });
 
+  /**
+   * A tent's latest lines sit under no heading that dates them and have no lower
+   * bound on age, so a bare weekday reads as this week however old the line is.
+   */
+  describe('the stamp on a list that reaches back as far as the tent has been quiet', () => {
+    const NOW = DateTime.fromISO('2026-09-23T12:00:00');
+    const drawnAt = (at: DateTime) =>
+      render(
+        <ul>
+          <EntryRow entry={entryOf({ occurredAt: at.toISO()! })} people={[]} now={NOW} />
+        </ul>,
+      ).container.querySelector('span')!.textContent;
+
+    it('says the hour alone for a line written today', () => {
+      expect(drawnAt(NOW.minus({ hours: 3 }))).toBe('09:00');
+    });
+
+    it('says the weekday while that weekday still means one day', () => {
+      expect(drawnAt(NOW.minus({ days: 2 }))).toBe('Mon 12:00');
+    });
+
+    it('says the date for a line a week old, rather than today´s weekday again', () => {
+      expect(drawnAt(NOW.minus({ days: 7 }))).toBe('16 Sep 12:00');
+    });
+
+    it('says the date for a line nine days old, which read as two', () => {
+      expect(drawnAt(NOW.minus({ days: 9 }))).toBe('14 Sep 12:00');
+    });
+
+    it('says the year as well once the line is not of this one', () => {
+      expect(drawnAt(NOW.minus({ years: 1 }))).toBe('23 Sep 2025 12:00');
+    });
+  });
+
   it('still translates what a device wrote, which is a key and not words', () => {
     render(
       <ul>
-        <EntryRow entry={entryOf({ kind: 'system', source: 'device', authorId: null, text: null, message: { key: 'message-co2-low', params: [] } })} people={[]} />
+        <EntryRow
+          entry={entryOf({ kind: 'system', source: 'device', authorId: null, text: null, message: { key: 'message-co2-low', params: [] } })}
+          people={[]}
+        />
       </ul>,
     );
 

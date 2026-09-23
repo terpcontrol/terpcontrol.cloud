@@ -90,7 +90,7 @@ export function SharedSpace({ space, picture, now, banner }: { space: SpaceOverv
         ) : (
           <ul className={styles.entries}>
             {space.entries.map(entry => (
-              <EntryRow key={entry.id} entry={entry} people={[]} withDay byline={false} picture={picture} />
+              <EntryRow key={entry.id} entry={entry} people={[]} now={now} byline={false} picture={picture} />
             ))}
           </ul>
         )}

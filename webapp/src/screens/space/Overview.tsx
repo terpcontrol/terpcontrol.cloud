@@ -146,7 +146,7 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
         ) : (
           <ul className={styles.entries}>
             {overview.entries.map(entry => (
-              <EntryRow key={entry.id} entry={entry} people={overview.people} withDay={!DateTime.fromISO(entry.occurredAt).hasSame(now, 'day')} />
+              <EntryRow key={entry.id} entry={entry} people={overview.people} now={now} />
             ))}
           </ul>
         )}

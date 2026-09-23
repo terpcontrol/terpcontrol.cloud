@@ -65,7 +65,9 @@ describe('every key the firmware sends', () => {
 
     for (const language of both) {
       const catalogue = JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8')) as Record<string, unknown>;
-      const missing = keys.flatMap(key => ['title', 'text'].filter(part => typeof catalogue[`${key}-${part}`] !== 'string').map(part => `${key}-${part}`));
+      const missing = keys.flatMap(key =>
+        ['title', 'text'].filter(part => typeof catalogue[`${key}-${part}`] !== 'string').map(part => `${key}-${part}`),
+      );
 
       expect({ language, missing }).toEqual({ language, missing: [] });
     }
