@@ -10,7 +10,7 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { BackgroundWork } from '@common/background-work';
 import { heardAt, isOffline } from '@common/v1/value-age';
 import { logger } from '@utils/logger';
-import { DataService } from '../data/data.service';
+import { DataService, NewestSamples } from '../data/data.service';
 import { AlarmEngineService } from './alarm-engine.service';
 import { AlertService } from './alert.service';
 import { ALARM_DEVICE_FIELDS, AlarmDevice } from './alarm.types';
@@ -45,9 +45,44 @@ const OFFLINE_REPEAT_SECONDS = 30 * 60;
  */
 const MISSED_STILLS = 10;
 
+/** What one pass did, which is what the health card is drawn from and what a test reads. */
+export interface AlarmHealthPass {
+  /** Claimed devices the pass went round. */
+  devices: number;
+  /**
+   * Devices it could not decide about, because the store did not say whether
+   * they had written anything since the cloud last heard them. Their rules were
+   * kept and their alarms were left exactly as they stood.
+   */
+  unjudged: number;
+}
+
+/** The same, with the instant it finished, which is the half a screen needs and a test does not. */
+export type LastAlarmHealthPass = AlarmHealthPass & { ranAt: Date };
+
+/**
+ * How the loop itself is doing: its last completed pass, and the run of
+ * failures since - which is the fact a bare log line could not carry.
+ */
+export interface AlarmHealthState {
+  last: LastAlarmHealthPass | null;
+  /** Passes that have failed since the last one that completed. */
+  failures: number;
+  /** When the most recent of them failed, so a run that has stopped can be told from one that has not. */
+  failedAt: Date | null;
+}
+
 @Injectable()
 export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
   private readonly work = new BackgroundWork();
+
+  /**
+   * The last pass and the failures after it, kept by this process and stored
+   * nowhere, exactly as the retention sweep keeps its own night. A restart
+   * answering "no pass yet" is honest; a row read back out of the database
+   * would report a pass this server knows nothing about.
+   */
+  private state: AlarmHealthState = { last: null, failures: 0, failedAt: null };
 
   constructor(
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
@@ -59,7 +94,7 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
   ) {}
 
   public onModuleInit(): void {
-    this.work.repeat('The alarm health loop', () => this.run(), TICK_MS);
+    this.work.repeat('The alarm health loop', () => this.tick(), TICK_MS);
   }
 
   public onApplicationShutdown(): void {
@@ -67,15 +102,43 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
     this.work.stop();
   }
 
+  /**
+   * How the loop is doing, for the install's health card.
+   *
+   * It is answered rather than only logged because this loop is the whole
+   * install's last line: while it cannot complete a pass there is no offline
+   * alarm and no camera-stale alarm anywhere, and every alerts inbox on the
+   * install says that nothing has gone wrong. A loop that fails every minute
+   * writes a line a minute and looks, from every screen, exactly like a fleet
+   * where nothing is the matter - which is the state this install spent a
+   * hundred and seventy-five consecutive passes in without anyone seeing it.
+   */
+  public get health(): AlarmHealthState {
+    return this.state;
+  }
+
+  /** One tick: a pass, and the note of how it went. The failure is re-thrown so the loop logs it as it always did. */
+  private async tick(): Promise<void> {
+    try {
+      const pass = await this.run();
+      this.state = { last: { ranAt: new Date(), ...pass }, failures: 0, failedAt: null };
+    } catch (error) {
+      this.state = { ...this.state, failures: this.state.failures + 1, failedAt: new Date() };
+      throw error;
+    }
+  }
+
   /** One pass over the fleet. Public so it can be run once, in a test or by hand. */
-  public async run(at: Date = new Date()): Promise<void> {
+  public async run(at: Date = new Date()): Promise<AlarmHealthPass> {
     // A device nobody has claimed has nobody to tell, and so has no offline rule.
     const devices = await this.devices.find({ ownerId: { $ne: null } }, ALARM_DEVICE_FIELDS).lean<AlarmDevice[]>();
-    const spoke = await this.spokeAt(devices, at);
+    const heard = await this.spokeAt(devices, at);
 
     await this.keepStaleWarningOptOut();
-    for (const device of devices) await this.checkDevice(device, at, spoke);
-    await this.checkCameras(new Map(devices.map(device => [device.id, device])), at, spoke);
+    for (const device of devices) await this.checkDevice(device, at, heard);
+    await this.checkCameras(new Map(devices.map(device => [device.id, device])), at, heard);
+
+    return { devices: devices.length, unjudged: heard.unread.size };
   }
 
   /**
@@ -97,24 +160,22 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
    * from within the last ten minutes is not about to be called offline, and a
    * reading could only agree with it - the correction shortens a silence and
    * never invents one - so the read covers exactly the devices whose answer it
-   * could change. It starts at the oldest of their last messages, because no
-   * sample older than that can answer the question being asked of any of them:
-   * has this device written anything since the cloud last heard from it.
+   * could change. Each of them is asked about from its own last message, because
+   * no sample older than that can answer the question being put to it: has this
+   * device written anything since the cloud last heard from it. That is also
+   * what keeps a pass answerable at all - a single read over the whole set has
+   * to reach back to the oldest silence in it, which on a migrated fleet is most
+   * of a year of every series in the store.
    */
-  private async spokeAt(devices: readonly AlarmDevice[], at: Date): Promise<Map<string, Date>> {
+  private spokeAt(devices: readonly AlarmDevice[], at: Date): Promise<NewestSamples> {
     const quiet = devices.filter(device => device.state.lastSeenAt !== null && isOffline(device.state.lastSeenAt, at));
-    if (quiet.length === 0) return new Map();
 
-    const since = new Date(Math.min(...quiet.map(device => device.state.lastSeenAt!.getTime())));
-    return this.data.newestSamplesOf(
-      quiet.map(device => device.id),
-      since,
-    );
+    return this.data.newestSamplesOf(quiet.map(device => ({ deviceId: device.id, since: device.state.lastSeenAt! })));
   }
 
   /** The instant this device is dated by: its last message, or a stored reading that came after it. */
-  private spokeLast(device: AlarmDevice, spoke: Map<string, Date>): Date | null {
-    return heardAt(device.state.lastSeenAt, spoke.get(device.id) ?? null);
+  private spokeLast(device: AlarmDevice, heard: NewestSamples): Date | null {
+    return heardAt(device.state.lastSeenAt, heard.spokeAt.get(device.id) ?? null);
   }
 
   /**
@@ -133,16 +194,23 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
     await this.cameras.updateMany({ staleWarning: { $exists: false } }, { $set: { staleWarning: true } });
   }
 
-  private async checkDevice(device: AlarmDevice, at: Date, spoke: Map<string, Date>): Promise<void> {
+  private async checkDevice(device: AlarmDevice, at: Date, heard: NewestSamples): Promise<void> {
     // A device that has never reported is not a device that has stopped: it is
     // one nobody has plugged in yet, and saying so every minute helps nobody.
     if (!device.state.lastSeenAt) return;
 
     await this.keepOfflineRule(device);
+    // A device the store could not be asked about keeps its rule and keeps
+    // whatever its alarm already said. The correction the store supplies can
+    // only shorten a silence, so asserting one without it would be asserting
+    // the longest silence the cloud can imagine on the strength of not having
+    // looked - which is the sentence this loop was taught not to write.
+    if (heard.unread.has(device.id)) return;
+
     // The silence is counted from when the device was last heard and not from
     // the cloud's note of it, so the span the diary states cannot be one the
     // same account's own stored readings run past.
-    const spokeLast = this.spokeLast(device, spoke)!;
+    const spokeLast = this.spokeLast(device, heard)!;
     const quietSeconds = (at.getTime() - spokeLast.getTime()) / 1000;
 
     for (const rule of await this.rules.find({ deviceId: device.id, 'watch.metric': 'offline' }).lean<StoredAlarmRule[]>()) {
@@ -190,12 +258,12 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
       .lean();
   }
 
-  private async checkCameras(devices: Map<string, AlarmDevice>, at: Date, spoke: Map<string, Date>): Promise<void> {
+  private async checkCameras(devices: Map<string, AlarmDevice>, at: Date, heard: NewestSamples): Promise<void> {
     for (const camera of await this.cameras.find({ removedAt: null }).lean<CameraDocument[]>()) {
       // Nothing to compare against: a camera that has never delivered a picture
       // is a setup that is not finished, which its own page says better than an
       // alert would.
-      if (!camera.state.lastStillAt || this.cannotJudge(camera, devices, spoke)) continue;
+      if (!camera.state.lastStillAt || this.cannotJudge(camera, devices, heard)) continue;
 
       const open = await this.alerts.openOfCamera(camera.id);
       const quietSeconds = (at.getTime() - camera.state.lastStillAt.getTime()) / 1000;
@@ -226,7 +294,7 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
    * Nothing is resolved either while this holds: an alert raised before the tent
    * went dark stays open until a picture arrives.
    */
-  private cannotJudge(camera: CameraDocument, devices: Map<string, AlarmDevice>, spoke: Map<string, Date>): boolean {
+  private cannotJudge(camera: CameraDocument, devices: Map<string, AlarmDevice>, heard: NewestSamples): boolean {
     // Somebody has said they do not want to hear about this one. Compared
     // against `false` rather than read as a truth, so that a row written
     // before the field existed - and not yet filled in - is warned about
@@ -237,10 +305,14 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
     const device = camera.deviceId ? devices.get(camera.deviceId) : undefined;
     if (!device) return !!camera.deviceId;
     if (camera.maintenanceOff && device.state.maintenanceUntil && device.state.maintenanceUntil.getTime() > Date.now()) return true;
+    // Whether the controller is away is the question the store was not able to
+    // answer, and the camera's verdict rests on it; so this pass says nothing
+    // about this camera either, rather than half of something.
+    if (heard.unread.has(device.id)) return true;
 
     // The same instant the device's own alert is dated by: one file deciding a
     // device is away by two different clocks is the drift this is fixing.
-    return isOffline(this.spokeLast(device, spoke));
+    return isOffline(this.spokeLast(device, heard));
   }
 }
 

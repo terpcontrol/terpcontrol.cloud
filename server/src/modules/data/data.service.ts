@@ -26,7 +26,7 @@ import {
   latestByField,
   liveQuery,
   newestSampleQuery,
-  newestSamplesQuery,
+  newestSampleSinceQuery,
   oldestSampleQuery,
   OutputSwitching,
   pointsOf,
@@ -71,6 +71,37 @@ const SENSOR_FIELDS = [...STORED_FIELDS, ...DIAGNOSTIC_FIELDS];
 
 /** An output is written with an `out_` prefix, which is what the device reports it without. */
 const OUTPUT_KEYS = OUTPUT_FIELDS.map(field => ({ key: field.slice('out_'.length), field }));
+
+/**
+ * How many of the fleet's "when did this one last write" reads are in flight at
+ * once. Eight rather than one because a fleet of a few hundred asked one after
+ * another is seconds of a pass spent waiting on round trips, and rather than
+ * all of them because the store serves the growers' own screens from the same
+ * process, and a background loop is not entitled to the whole of it.
+ */
+const NEWEST_SAMPLE_LANES = 8;
+
+/**
+ * How long a pass may spend asking. Well past what a healthy store needs for a
+ * fleet of this size, and short enough that a store which has stopped answering
+ * costs one pass rather than every pass after it: what is not asked in the
+ * budget is reported unasked, and the caller comes round again a minute later.
+ */
+const NEWEST_SAMPLES_BUDGET_MS = 20_000;
+
+/** One device and the instant its caller wants its samples counted from. */
+export interface DeviceSince {
+  deviceId: string;
+  since: Date;
+}
+
+/** What the store could say about a fleet's last words, and about which of them it could not. */
+export interface NewestSamples {
+  /** When each device the store answered for last wrote something, for those that wrote anything at all. */
+  spokeAt: Map<string, Date>;
+  /** The devices the store did not answer for, whose last word is unknown rather than absent. */
+  unread: ReadonlySet<string>;
+}
 
 /** One status message, in the device's own vocabulary. The device-protocol module translates the rest. */
 export interface DeviceSample {
@@ -376,29 +407,67 @@ export class DataService implements LightStateReader {
   }
 
   /**
-   * When each of several devices last wrote anything, counting only from an
-   * instant onwards, keyed by device.
+   * When each of several devices last wrote anything, each counted only from
+   * the instant its caller named, keyed by device.
    *
-   * A device that wrote nothing in that stretch is absent from the answer
+   * A device that wrote nothing since its instant is absent from `spokeAt`
    * rather than carried as a null, because "nothing since then" and "nothing
    * ever" are the same answer to the caller: the instant it already has stands.
-   * The read is what tells a device that stopped talking from one whose last
-   * message the cloud simply failed to note, so it is deliberately about the
-   * device rather than about any one of its fields.
+   * A device the store did not answer for is a different fact and is named in
+   * `unread`, because the caller's question is whether a device has fallen
+   * silent, and a store that could not be asked is not evidence that it has.
+   *
+   * The reads are one per device and not one for the set, for the reason
+   * `newestSampleSinceQuery` gives. A few at a time, because the caller is a
+   * loop over a whole fleet and a fleet's worth of reads one after another is a
+   * pass that takes longer than the interval between passes; and under a budget,
+   * because the loop this serves protects every device on the install and must
+   * come round again even on the day the store is the thing that is ill.
    */
-  public async newestSamplesOf(deviceIds: readonly string[], since: Date): Promise<Map<string, Date>> {
-    if (deviceIds.length === 0) return new Map();
+  public async newestSamplesOf(asked: readonly DeviceSince[], budgetMs: number = NEWEST_SAMPLES_BUDGET_MS): Promise<NewestSamples> {
+    const spokeAt = new Map<string, Date>();
+    const unread = new Set<string>();
+    if (asked.length === 0) return { spokeAt, unread };
 
-    const newest = new Map<string, Date>();
-    for (const row of await this.read(newestSamplesQuery(this.bucket, deviceIds, since))) {
-      const at = row._time ? new Date(row._time).getTime() : NaN;
-      if (!row.device_id || !Number.isFinite(at)) continue;
+    const queue = [...asked];
+    const until = Date.now() + budgetMs;
+    let firstRefusal: unknown = null;
 
-      const known = newest.get(row.device_id);
-      if (!known || at > known.getTime()) newest.set(row.device_id, new Date(at));
-    }
+    const lane = async (): Promise<void> => {
+      for (let next = queue.shift(); next; next = queue.shift()) {
+        // Out of time: the rest are unasked rather than answered, and the pass
+        // goes on with what it has.
+        if (Date.now() >= until) {
+          unread.add(next.deviceId);
+          continue;
+        }
 
-    return newest;
+        try {
+          const at = await this.newestSampleSince(next.deviceId, next.since);
+          if (at) spokeAt.set(next.deviceId, at);
+        } catch (error) {
+          firstRefusal ??= error;
+          unread.add(next.deviceId);
+        }
+      }
+    };
+
+    await Promise.all(Array.from({ length: Math.min(NEWEST_SAMPLE_LANES, queue.length) }, lane));
+    // One line for the pass rather than one per device: a store that is down
+    // refuses every read, and a fleet's worth of identical lines buries the
+    // count, which is the part worth reading.
+    if (unread.size > 0)
+      logger.warn(`The store did not say when ${unread.size} of ${asked.length} devices last wrote: ${firstRefusal ?? 'out of time'}`);
+
+    return { spokeAt, unread };
+  }
+
+  /** The newest raw sample one device wrote since an instant, whatever field it was of. */
+  private async newestSampleSince(deviceId: string, since: Date): Promise<Date | null> {
+    const rows = await this.read(newestSampleSinceQuery(this.bucket, deviceId, since));
+    const instants = rows.map(row => (row._time ? new Date(row._time).getTime() : NaN)).filter(at => Number.isFinite(at));
+
+    return instants.length === 0 ? null : new Date(Math.max(...instants));
   }
 
   /**

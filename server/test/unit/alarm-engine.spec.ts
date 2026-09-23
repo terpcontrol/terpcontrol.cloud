@@ -9,7 +9,7 @@ import { AlarmDeliveryService } from '@modules/alarm/alarm-delivery.service';
 import { AlarmEngineService } from '@modules/alarm/alarm-engine.service';
 import { AlarmHealthService } from '@modules/alarm/alarm-health.service';
 import { AlertService } from '@modules/alarm/alert.service';
-import { DataService } from '@modules/data/data.service';
+import { DataService, DeviceSince } from '@modules/data/data.service';
 import { MailService } from '@modules/mail/mail.service';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
 import { V1TestDatabase, startV1TestDatabase } from './support/v1-database';
@@ -49,7 +49,10 @@ let seriesReads: number;
  * cloud's own note of it stopped being written, which is the migrated fleet.
  */
 let heard: Map<string, Date>;
-let heardAsked: string[][];
+let heardAsked: DeviceSince[][];
+
+/** Devices the store is to refuse to answer for, which is what a store that is slow or down looks like from the loop. */
+let unread: string[];
 
 /** A minute apart, oldest first, ending at `endingAt` - the shape `DataService` answers a window in. */
 const series = (values: (number | null)[], endingAt: number = Date.now()): SeriesPoint[] =>
@@ -105,6 +108,7 @@ beforeEach(async () => {
   seriesReads = 0;
   heard = new Map();
   heardAsked = [];
+  unread = [];
 
   const mail = { send: async (message: { subject: string }) => void mailed.push(message.subject) } as unknown as MailService;
   const entries = new EntryWriterService(db.entries);
@@ -113,9 +117,14 @@ beforeEach(async () => {
     seriesReads += 1;
     return stored;
   };
-  const newestSamplesOf = async (deviceIds: readonly string[]) => {
-    heardAsked.push([...deviceIds]);
-    return new Map([...heard].filter(([id]) => deviceIds.includes(id)));
+  const newestSamplesOf = async (asked: readonly DeviceSince[]) => {
+    heardAsked.push(asked.map(one => ({ ...one })));
+    const answered = asked.filter(one => !unread.includes(one.deviceId)).map(one => one.deviceId);
+
+    return {
+      spokeAt: new Map([...heard].filter(([id]) => answered.includes(id))),
+      unread: new Set(asked.map(one => one.deviceId).filter(id => unread.includes(id))),
+    };
   };
   const data = { points: jest.fn(answer), outputPoints: jest.fn(answer), newestSamplesOf: jest.fn(newestSamplesOf) } as unknown as DataService;
   const alertService = new AlertService(alerts, entries, delivery, null);
@@ -412,17 +421,21 @@ describe('the health loop', () => {
   });
 
   /**
-   * One read for the quiet half of the fleet and none for the rest: a reading
+   * The quiet half of the fleet is asked about and the rest is not: a reading
    * can only shorten a silence, so a device the note still calls present has
-   * no answer the store could change.
+   * no answer the store could change. Each of them is asked from its own last
+   * message, which is the only instant that can answer anything about it - and
+   * is what keeps a read off the whole bucket back to the oldest silence on the
+   * install.
    */
-  it('asks the store only about the devices the note already calls gone', async () => {
-    await device({ state: { lastSeenAt: new Date(Date.now() - GONE_MS) } });
+  it('asks the store only about the devices the note already calls gone, each from its own last message', async () => {
+    const seen = new Date(Date.now() - GONE_MS);
+    await device({ state: { lastSeenAt: seen } });
     await db.devices.create({ id: 'device-2', type: 'controller', ownerId: OWNER, spaceId: SPACE, state: { lastSeenAt: new Date() } });
 
     await health.run(new Date());
 
-    expect(heardAsked).toEqual([[DEVICE]]);
+    expect(heardAsked).toEqual([[{ deviceId: DEVICE, since: seen }]]);
   });
 
   it('raises for a camera that has stopped delivering stills', async () => {

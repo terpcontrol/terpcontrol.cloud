@@ -312,25 +312,27 @@ export const newestSampleQuery = (bucket: string, deviceId: string, window: Omit
     |> last()`;
 
 /**
- * The same question asked of several devices at once, from an instant to the
- * present: when did each of them last write anything at all.
+ * The same question asked from an instant to the present rather than over a
+ * window: when did this device last write anything at all.
  *
- * It is one read for the whole set rather than one per device, because the
- * caller is a loop over the fleet and a query apiece would be a query per
- * device per minute. `last()` answers a row per device and field, and the
- * latest of a device's rows is the answer for that device; one that wrote
- * nothing in the stretch answers no rows, which is how it says so.
+ * It names one device in an equality, which is what makes it answerable. A set
+ * of devices reads naturally as `contains(value: r["device_id"], set: [...])`
+ * and costs one read for a whole fleet, but that filter is not pushed down to
+ * the storage engine: the `last()` behind it is then computed in memory over
+ * every point in the range, of every series in the bucket, however few ids are
+ * in the set. Against a migrated fleet, whose oldest silence reaches back most
+ * of a year, such a read does not return at all. A tag equality is pushed down
+ * and answers from the index instead, so the question is asked one device at a
+ * time - and each of those reads can start at that device's own last message
+ * rather than at the oldest of everybody's, which is the only instant that can
+ * answer anything about it.
  */
-export const newestSamplesQuery = (bucket: string, deviceIds: readonly string[], since: Date): string => {
-  const ids = deviceIds.map(id => `"${safe(id, SAFE_NAME, 'device id')}"`).join(', ');
-
-  return `
-  from(bucket: "${safe(bucket, SAFE_NAME, 'bucket')}")
-    |> range(start: ${since.toISOString()})
-    |> filter(fn: (r) => r["_measurement"] == "${MEASUREMENT}")
-    |> filter(fn: (r) => contains(value: r["device_id"], set: [${ids}]))
+export const newestSampleSinceQuery = (bucket: string, deviceId: string, since: Date): string => `${head(
+  bucket,
+  deviceId,
+  `start: ${since.toISOString()}`,
+)}
     |> last()`;
-};
 
 /**
  * A stretch of a device's raw samples as one figure a day.
