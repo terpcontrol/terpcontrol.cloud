@@ -7,13 +7,13 @@ import type { ChartView, ChartViewDefinition, ChartViewSpan, GrowListItem, GrowS
 import { useChartViews } from '@/api/chart-views';
 import { useGrowSeries } from '@/api/charts';
 import { useDevices } from '@/api/devices';
-import { useGrow, useGrowPlants, useSpaceGrows } from '@/api/grows';
+import { useGrow, useGrowPlants, useGrowsEverIn, useSpaceGrows } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
 import { useScrub } from '@/charts/scrub';
 import { axisFigure, dayOfGrow, downloadCsv, valueAt, type PlotLine } from '@/charts/series';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
-import { standsIn, useMayManage } from '@/ui/session-access';
+import { stoodIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { MoveHereSheet } from '../space/MoveHereSheet';
@@ -43,6 +43,9 @@ const DAY_RANGES: GrowSeriesRange[] = ['phase', 'grow'];
 
 /** How many output chips stand in the bar before the rest go behind "+ more". */
 const OUTPUTS_SHOWN = 2;
+
+/** And how many earlier runs of the same tent, which an account that has grown in it for years has plenty of. */
+const RUNS_SHOWN = 3;
 
 const DAY_SECONDS = 24 * 60 * 60;
 
@@ -151,6 +154,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
   const [asked, setAsked] = useState<Layout>('stacked');
   const [appliedId, setAppliedId] = useState<string | null>(null);
   const [moreOutputs, setMoreOutputs] = useState(false);
+  const [moreRuns, setMoreRuns] = useState(false);
   const [sheet, setSheet] = useState(false);
   /** Where the one cursor of the screen stands across the window, so every card is read at the same instant. */
   const [scrubbed, setScrubbed] = useState<number | null>(null);
@@ -161,8 +165,11 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
   const dayAxis = DAY_RANGES.includes(range);
   const layout = asked === 'day_of_grow' && !dayAxis ? 'stacked' : asked;
 
-  const place = standsIn(grow);
-  const siblings = useSpaceGrows(layout === 'day_of_grow' ? place : null);
+  // The place the grow last stood in and not only the one it stands in today:
+  // a finished run has no open placement at all, and it is exactly the run
+  // somebody wants to lay under this one.
+  const place = stoodIn(grow);
+  const siblings = useGrowsEverIn(layout === 'day_of_grow' ? place : null);
   const others = (siblings.data?.items ?? []).filter(one => one.id !== grow.id);
   const comparedId = params.get('compare');
   const comparedName = others.find(one => one.id === comparedId)?.name ?? null;
@@ -301,11 +308,13 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
         ) : null}
       </div>
 
-      {/* Two runs of one tent lie over each other only where the axis counts days rather than dates. */}
+      {/* Two runs of one tent lie over each other only where the axis counts days
+          rather than dates. A tent with eight seasons behind it would otherwise
+          draw seven chips, so the older ones fold away the way the outputs do. */}
       {layout === 'day_of_grow' && others.length > 0 ? (
         <div className={styles.chips} role="group" aria-label={t('charts.compareLabel')}>
           <span className="label">{t('charts.compareLabel')}</span>
-          {others.map(one => (
+          {(moreRuns ? others : others.slice(0, RUNS_SHOWN)).map(one => (
             <button
               key={one.id}
               type="button"
@@ -316,6 +325,16 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
               {one.name}
             </button>
           ))}
+          {others.length > RUNS_SHOWN ? (
+            <button
+              type="button"
+              className={`${ui.chip} ${styles.chip} ${styles.more}`}
+              aria-expanded={moreRuns}
+              onClick={() => setMoreRuns(!moreRuns)}
+            >
+              {t(moreRuns ? 'charts.less' : 'charts.more')}
+            </button>
+          ) : null}
         </div>
       ) : null}
 

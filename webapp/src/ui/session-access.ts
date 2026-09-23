@@ -113,6 +113,24 @@ export const standsIn = (grow: { placements: Placement[] }): string | null =>
   grow.placements.find(placement => placement.endedAt === null)?.spaceId ?? null;
 
 /**
+ * Where a grow stood last, which is what a screen looking at it needs and what
+ * `standsIn` deliberately will not say.
+ *
+ * `standsIn` answers the open placement because that is the one a grow may be
+ * written to through; a grow that has been harvested has none, and asking that
+ * question of it gives nothing at all. But its Charts screen still has a tent
+ * to name and an earlier run of that tent to offer, so this answers the newest
+ * placement that named a place, open or closed. It decides nothing about
+ * access - only what a finished grow is shown beside.
+ */
+export const stoodIn = (grow: { placements: Placement[] }): string | null =>
+  standsIn(grow) ??
+  [...grow.placements]
+    .filter(placement => placement.spaceId !== null)
+    .sort((one, other) => other.startedAt.localeCompare(one.startedAt))[0]?.spaceId ??
+  null;
+
+/**
  * Whether this session reaches a given need in a given place.
  *
  * Called without a place it answers only the session's half - the demo may

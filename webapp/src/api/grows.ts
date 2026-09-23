@@ -141,6 +141,21 @@ export const useSpaceGrows = (spaceId: string | null) =>
   });
 
 /**
+ * Every grow that has ever stood in one tent, newest first, which is a
+ * different question from what stands there now.
+ *
+ * The Charts view is the one screen that asks it: laying two runs of a tent
+ * over each other is a thing to do with the run that finished, and the list of
+ * what is growing there this minute holds exactly one of them.
+ */
+export const useGrowsEverIn = (spaceId: string | null) =>
+  useQuery({
+    queryKey: ['grows', 'space', spaceId, 'ever'],
+    queryFn: ({ signal }) => api.get<GrowPage>('/grows', { spaceId, including: 'ended' }, signal),
+    enabled: spaceId !== null,
+  });
+
+/**
  * Starting a grow, and the stage it starts in.
  *
  * They are two calls because they are two facts: a grow exists from the moment

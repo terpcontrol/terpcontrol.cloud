@@ -69,7 +69,15 @@ import { GrowsService } from './grows.service';
  * may delete - a space, a grow and a camera are - so removing one is managing
  * the grow.
  */
-const growListQuery = pageQuery.extend({ spaceId: z.string().optional().describe('Only the grows standing in this space.') });
+const growListQuery = pageQuery.extend({
+  spaceId: z.string().optional().describe('Only the grows standing in this space.'),
+  including: z
+    .literal('ended')
+    .optional()
+    .describe(
+      'With `spaceId`, every grow that has ever stood there rather than only the ones standing there now. What a tent holds and what a tent has held are different questions, and the default answers the first; a screen laying a finished run over the current one asks the second.',
+    ),
+});
 
 /** A repeated query parameter arrives as one value or as many; the shape below wants a list either way. */
 const many = <T>(value: T | T[]): T[] => (Array.isArray(value) ? value : [value]);
@@ -114,7 +122,7 @@ export class GrowsController {
   @ApiOperation({ summary: 'The grows this account can see' })
   @V1Answer(growPage)
   public list(@Caller() ctx: AccessContext, @V1Query(growListQuery) query: z.infer<typeof growListQuery>): Promise<GrowPage> {
-    return this.grows.list(ctx, query, query.spaceId);
+    return this.grows.list(ctx, query, query.spaceId, query.including === 'ended');
   }
 
   @Post()

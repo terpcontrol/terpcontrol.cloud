@@ -15,9 +15,13 @@ import { csvOf, stepPoints } from '@/charts/series';
 
 const state = vi.hoisted(() => ({
   series: null as GrowSeries | null,
+  /** The grow the screen is opened on, so a test can harvest it and move it out of its tent. */
+  grow: null as unknown,
   posted: [] as { path: string; body: unknown }[],
   refuse: false,
   views: [] as unknown[],
+  /** Every read the screen made, so what it asked the server for can be asserted and not only what it drew. */
+  asked: [] as { path: string; query: Record<string, unknown> | undefined }[],
   /** Set to have the next series read fail, which is how a chip is tapped against a server that cannot answer. */
   breaks: false,
 }));
@@ -29,7 +33,8 @@ vi.mock('@/api/client', async () => {
 
   return {
     api: {
-      get: (path: string) => {
+      get: (path: string, query?: Record<string, unknown>) => {
+        state.asked.push({ path, query });
         if (path.startsWith('/grows/grow-1/series')) {
           return state.breaks
             ? Promise.reject(new ApiError({ status: 503, code: 'unavailable', title: 'Nope', detail: 'The store said no.', errors: [] }))
@@ -37,8 +42,8 @@ vi.mock('@/api/client', async () => {
         }
         if (path.startsWith('/grows/grow-2/series')) return Promise.resolve(earlier);
         if (path === '/grows/grow-1/plants') return Promise.resolve({ items: plants, nextCursor: null });
-        if (path === '/grows/grow-1') return Promise.resolve(grow);
-        if (path === '/grows') return Promise.resolve({ items: [grow, { ...grow, id: 'grow-2', name: 'Autumn run' }], nextCursor: null });
+        if (path === '/grows/grow-1') return Promise.resolve(state.grow);
+        if (path === '/grows') return Promise.resolve({ items: [state.grow, { ...grow, id: 'grow-2', name: 'Autumn run' }], nextCursor: null });
         if (path === '/spaces') return Promise.resolve({ items: [{ id: 'space-1', name: 'Tent 1' }], nextCursor: null });
         if (path === '/devices') {
           return Promise.resolve({ items: [{ id: 'device-1', settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0 } }], nextCursor: null });
@@ -211,7 +216,9 @@ beforeAll(async () => {
 
 beforeEach(() => {
   state.series = series;
+  state.grow = grow;
   state.posted = [];
+  state.asked = [];
   state.refuse = false;
   state.breaks = false;
   state.views = [];
@@ -378,6 +385,23 @@ describe('the Charts view', () => {
     const reading = await screen.findByRole('status');
     await waitFor(() => expect(reading).toHaveTextContent('Temp · Autumn run 21 °C'));
     expect(reading).toHaveTextContent('day 35');
+  });
+
+  it('offers the earlier runs of a tent a finished grow no longer stands in', async () => {
+    // Harvested and moved out, which closes its placement. Asked only what
+    // stands in the tent now, this grow knows of no tent at all and the row of
+    // runs to compare with was never drawn - for exactly the grow the layout
+    // exists for.
+    state.grow = { ...grow, endedAt: at(24), placements: [{ ...grow.placements[0], endedAt: at(24) }] };
+    state.series = { ...series, range: 'grow' };
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'Grow' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Day-of-grow' }));
+    expect(await screen.findByRole('button', { name: 'Autumn run' })).toBeInTheDocument();
+
+    // And the tent it stood in is still named beside the chart.
+    expect(screen.getByText('Tent 1 · Spring run')).toBeInTheDocument();
+    expect(state.asked.some(read => read.path === '/grows' && read.query?.including === 'ended')).toBe(true);
   });
 
   it('keeps the window already drawn when the next one cannot be read, dimmed rather than thrown away', async () => {

@@ -944,6 +944,18 @@ describe('the grows a caller is shown', () => {
     expect((await grows.list(session(OWNER), {}, TENT)).items).toHaveLength(1);
     expect((await grows.list(session(OWNER), {}, FRIDGE)).items).toHaveLength(0);
   });
+
+  it('widens that to every grow the space has ever held when asked, and only when asked', async () => {
+    await db.grows.updateOne({}, { $set: { 'placements.0.endedAt': new Date('2026-06-01T08:00:00.000Z') } });
+
+    // Harvesting closes the placement, and with it the only route by which the
+    // Charts view can offer a finished run of the tent to lay under this one.
+    expect((await grows.list(session(OWNER), {}, TENT)).items).toHaveLength(0);
+    expect((await grows.list(session(OWNER), {}, TENT, true)).items).toHaveLength(1);
+    // Still only the tent it stood in, and still only what the caller may see.
+    expect((await grows.list(session(OWNER), {}, FRIDGE, true)).items).toHaveLength(0);
+    expect((await grows.list(session(STRANGER), {}, TENT, true)).items).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

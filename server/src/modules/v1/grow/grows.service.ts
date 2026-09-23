@@ -134,9 +134,19 @@ export class GrowsService {
     return serialiseGrow(grow, await this.plantsOf(id), hide);
   }
 
-  public async list(ctx: AccessContext, query: PageQuery, spaceId?: string): Promise<CursorPage<GrowListItem>> {
+  /**
+   * A page of grows, optionally only those in one space.
+   *
+   * By default that means standing there now, which is what every screen asking
+   * "what is in this tent" wants. `everStood` widens it to every grow that has
+   * ever stood there, for the one question the narrow answer cannot serve:
+   * laying a finished run of a tent over the one growing in it now. It leaks
+   * nothing, because `visibleTo` already grants a member of a space every grow
+   * that has ever stood in it.
+   */
+  public async list(ctx: AccessContext, query: PageQuery, spaceId?: string, everStood = false): Promise<CursorPage<GrowListItem>> {
     const limit = pageLimit(query.limit);
-    const place = spaceId ? { placements: { $elemMatch: { spaceId, endedAt: null } } } : {};
+    const place = spaceId ? { placements: { $elemMatch: everStood ? { spaceId } : { spaceId, endedAt: null } } } : {};
 
     // Combined rather than merged into one object: the visibility and the cursor
     // are each an `$or` of their own, and one would silently replace the other -
