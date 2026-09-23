@@ -691,6 +691,24 @@ describe('the inbox', () => {
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
 
+  /** The route answers a demo session `403 no_account`, so the screen that knows it would be refused does not ask. */
+  it('asks the demo session nothing about an account', async () => {
+    state.who = 'demo';
+    draw();
+
+    expect(await screen.findByText('The demo has no inbox; open a tent to see its alarms.')).toBeInTheDocument();
+    expect(readsOf('/v1/me')).toHaveLength(0);
+  });
+
+  it('still reads the account for somebody who has one, and reads it once for the list and the mute together', async () => {
+    server.alerts = [alert({})];
+    server.rules = [rule()];
+    draw();
+
+    expect(await screen.findByRole('button', { name: 'Mute all 1 h' })).toBeInTheDocument();
+    expect(readsOf('/v1/me')).toHaveLength(1);
+  });
+
   it('follows the cursor it was given when the reader asks for what came before, without taking back what is on screen', async () => {
     const older = NOW.startOf('day').minus({ days: 4 });
     server.alerts = [alert({ id: 'open' })];

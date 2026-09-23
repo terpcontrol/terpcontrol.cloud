@@ -1,6 +1,6 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
-import type { Alert } from '@fg2/shared-types/v1';
+import type { Alert, Me } from '@fg2/shared-types/v1';
 import { notificationsWith, useMe, useUpdateMe } from '@/api/account';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { useOpenAlerts, useResolvedAlerts } from '@/api/alerts';
@@ -57,7 +57,11 @@ export function Alerts() {
   // is the whole answer, and everywhere else the place decides.
   const mayActOn = (alert: Alert): boolean => (alert.spaceId === null ? mayWriteAtAll : enough(mayManageIn(alert.spaceId), 'manage'));
   const { user } = useSession();
-  const me = useMe();
+  // The demo has no account of its own and the route says so with a refusal, so
+  // it is not asked; what the account would have given this screen - the zone
+  // its clock times are drawn in, the channels its cards promise - the demo has
+  // no answer to anyway, and an empty inbox draws no card and no mute.
+  const me = useMe(false, user !== null && user.isDemo !== true);
   const open = useOpenAlerts();
   const resolved = useResolvedAlerts();
   const { names, watching } = useInboxNames();
@@ -74,7 +78,7 @@ export function Alerts() {
   const head = (
     <header className={styles.head}>
       <h1 className={styles.title}>{t('shell.alerts')}</h1>
-      {mayWriteAtAll ? <MuteCorner now={now} zone={zoneOf(me.data)} /> : null}
+      {mayWriteAtAll ? <MuteCorner account={me.data} now={now} /> : null}
     </header>
   );
 
@@ -184,14 +188,19 @@ const emptyKey = (isDemo: boolean, watching: boolean): string =>
  * this person only. The settings travel whole, so the rest of them go back as
  * they were read; while the mute holds, the corner says until when and offers
  * the way out.
+ *
+ * The account is handed down rather than read again here. The page above holds
+ * the one read of it and holds the one decision about whether to make it at
+ * all, and a second call would have been a second place to remember that a
+ * session which is nobody must not ask.
  */
-function MuteCorner({ now, zone }: { now: DateTime; zone: string | null }) {
+function MuteCorner({ account, now }: { account: Me | undefined; now: DateTime }) {
   const { t } = useTranslation();
-  const me = useMe();
   const update = useUpdateMe();
-  if (!me.data) return null;
+  if (!account) return null;
 
-  const { notifications } = me.data;
+  const zone = zoneOf(account);
+  const { notifications } = account;
   const muted = isAhead(notifications.mutedUntil, now);
   const set = (mutedUntil: string | null) => update.mutate({ notifications: notificationsWith(notifications, { mutedUntil }) });
 
