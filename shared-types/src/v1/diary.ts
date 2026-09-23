@@ -1862,10 +1862,25 @@ export const publicGrowPage = named(
     range: timeRange,
     includeCameras: z.boolean(),
     weeks: z.array(growWeekCard),
+    weeksCursor: z
+      .string()
+      .nullable()
+      .describe('Pass as `cursor` to the weeks route of the same address for the weeks before these; null where the page holds them all.'),
     harvest: growHarvest.nullable(),
     totals: growTotals,
   }),
 );
+
+/**
+ * The weeks before the ones a public page carried, a page at a time.
+ *
+ * The first page of a long diary comes with the diary itself, because a reader
+ * opens on it; the earlier ones are asked for because each of them costs a
+ * time-series read per week, and a grow that ran a year would otherwise be a
+ * page nobody waits for. It carries no `people`, unlike the owner's own weeks:
+ * a stranger reads a diary by one author and is told nobody's name.
+ */
+export const publicWeekPage = named('PublicWeekPage', page(growWeekCard));
 
 /**
  * `GET /public/users/{handle}`: the public diaries of one person. A public grow

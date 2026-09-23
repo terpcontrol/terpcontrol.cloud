@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowHarvest, PublicAuthor, PublicGrowPage } from '@fg2/shared-types/v1';
-import { PUBLIC_WIDTH, type Picture } from '@/api/public';
+import { PUBLIC_WIDTH, type EarlierWeeks, type Picture } from '@/api/public';
 import { weekOfGrowDay } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { DiaryWeek } from './DiaryWeek';
@@ -19,6 +19,12 @@ interface DiaryProps {
   banner?: ReactNode;
   /** Put beside the author, which is where a reader's one decision about the diary belongs. */
   aside?: ReactNode;
+  /**
+   * The weeks from before the ones the page carried, and the way to ask for
+   * more of them. A diary longer than a page is otherwise a diary whose first
+   * months nothing on the screen leads to.
+   */
+  earlier?: EarlierWeeks;
 }
 
 /**
@@ -32,9 +38,10 @@ interface DiaryProps {
  * second route for - which is what lets the same component serve a diary's own
  * address and a link onto it.
  */
-export function Diary({ page, picture, now, banner, aside }: DiaryProps) {
+export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps) {
   const { t } = useTranslation();
   const cover = page.coverMediaId ? picture(page.coverMediaId, PUBLIC_WIDTH.cover) : null;
+  const weeks = [...page.weeks, ...(earlier?.weeks ?? [])];
 
   return (
     <article className={styles.diary}>
@@ -76,8 +83,8 @@ export function Diary({ page, picture, now, banner, aside }: DiaryProps) {
       {page.harvest ? <Harvest harvest={page.harvest} /> : null}
 
       <section className={styles.weeks} aria-label={t('publicPage.weeks')}>
-        {page.weeks.length === 0 ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('publicPage.nothingInWindow')}</p> : null}
-        {page.weeks.map((week, index) => {
+        {weeks.length === 0 ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('publicPage.nothingInWindow')}</p> : null}
+        {weeks.map((week, index) => {
           // The server answers newest first, so the first card of a diary that
           // is still running is the week it is in; no clock of ours decides it.
           const current = index === 0 && page.endedAt === null;
@@ -85,6 +92,11 @@ export function Diary({ page, picture, now, banner, aside }: DiaryProps) {
             <DiaryWeek key={week.weekNumber} week={week} picture={picture} now={now} current={current} asOf={current ? page.range.endsAt : null} />
           );
         })}
+        {earlier?.more ? (
+          <button type="button" className={ui.button} disabled={earlier.pending} onClick={earlier.more}>
+            {earlier.pending ? t('home.waiting') : t('grow.earlierWeeks')}
+          </button>
+        ) : null}
       </section>
     </article>
   );

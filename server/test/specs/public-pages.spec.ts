@@ -155,6 +155,95 @@ describe('a public grow at its own address', () => {
   });
 });
 
+describe('a public diary longer than one page of weeks', () => {
+  /** Thirty-two weeks, which is what a real photoperiod run under lights comes to and more than a page holds. */
+  const A_LONG_RUN_DAYS = 218;
+
+  let long: { id: string; slug: string };
+
+  beforeAll(async () => {
+    long = await startAGrow({
+      name: 'The long one',
+      startedAt: new Date(Date.now() - A_LONG_RUN_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+      spaceId: null,
+    });
+    await owner.client.patch(`/v1/grows/${long.id}`).send({ visibility: 'public' }).expect(200);
+  });
+
+  it('says with a cursor that there are earlier weeks, and answers every one of them', async () => {
+    const page = await anonymous().get(`/v1/public/grows/${long.slug}`).expect(200);
+
+    expect(page.body.weeks).toHaveLength(26);
+    expect(page.body.weeksCursor).toEqual(expect.any(String));
+
+    const earlier = await anonymous().get(`/v1/public/grows/${long.slug}/weeks?cursor=${page.body.weeksCursor}`).expect(200);
+    const numbers = [...page.body.weeks, ...earlier.body.items].map((week: { weekNumber: number }) => week.weekNumber);
+
+    // Every week the grow lived, newest first and each of them once: the first
+    // day of a long diary has an address like any other day of it.
+    expect(numbers[0]).toBe(32);
+    expect(numbers[numbers.length - 1]).toBe(1);
+    expect(new Set(numbers).size).toBe(numbers.length);
+    expect(earlier.body.nextCursor).toBeNull();
+  });
+
+  it('carries no cursor where the diary fits on its page', async () => {
+    const page = await anonymous().get(`/v1/public/grows/${diary.slug}`).expect(200);
+
+    expect(page.body.weeksCursor).toBeNull();
+    const weeks = await anonymous().get(`/v1/public/grows/${diary.slug}/weeks`).expect(200);
+    expect(weeks.body.nextCursor).toBeNull();
+  });
+
+  it('gives a stranger nothing on those weeks the page itself would not have', async () => {
+    const weeks = await anonymous().get(`/v1/public/grows/${long.slug}/weeks`).expect(200);
+    const body = JSON.stringify(weeks.body);
+
+    // The owner's own route names who wrote each line and answers a `people`
+    // list to look them up in; neither is a stranger's, on the first page of
+    // weeks or on the twentieth.
+    expect(weeks.body).not.toHaveProperty('people');
+    expect(body).not.toContain(owner.userId);
+    expect(body).not.toContain(deviceId);
+    const lines: { authorId: string | null }[] = weeks.body.items.flatMap((week: { entries: { authorId: string | null }[] }) => week.entries);
+    expect(lines.every(line => line.authorId === null)).toBe(true);
+  });
+
+  it('is not there for a diary that is not public, whatever its slug', async () => {
+    const hidden = await startAGrow({ name: 'Kept quiet too' });
+
+    const refused = await anonymous().get(`/v1/public/grows/${hidden.slug}/weeks`).expect(404);
+    expect(refused.body.code).toBe('grow_not_found');
+  });
+
+  it('reads the same way through a link, and a link onto a tent has no weeks at all', async () => {
+    const link = await linkOnto({ type: 'grow', id: long.id });
+    const opened = await anonymous().get(`/v1/shared/${link.token}`).expect(200);
+
+    expect(opened.body.subject.grow.weeksCursor).toEqual(expect.any(String));
+    const earlier = await anonymous().get(`/v1/shared/${link.token}/weeks?cursor=${opened.body.subject.grow.weeksCursor}`).expect(200);
+    expect(earlier.body.items.map((week: { weekNumber: number }) => week.weekNumber)).toContain(1);
+
+    const ontoTheTent = await linkOnto({ type: 'space', id: tent });
+    await anonymous().get(`/v1/shared/${ontoTheTent.token}/weeks`).expect(404);
+  });
+
+  it('carries a link no further back than the window the link itself was given', async () => {
+    const from = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000);
+    const link = await linkOnto({ type: 'grow', id: long.id }, { range: { startsAt: from.toISOString(), endsAt: null } });
+
+    const opened = await anonymous().get(`/v1/shared/${link.token}`).expect(200);
+    // Three weeks of a thirty-two week grow, and nothing earlier to ask for:
+    // the second route is granted exactly what the first one was.
+    expect(opened.body.subject.grow.weeksCursor).toBeNull();
+
+    const weeks = await anonymous().get(`/v1/shared/${link.token}/weeks`).expect(200);
+    expect(weeks.body.items.length).toBeLessThan(6);
+    expect(weeks.body.items.every((week: { startsAt: string }) => Date.parse(week.startsAt) >= from.getTime())).toBe(true);
+    expect(weeks.body.nextCursor).toBeNull();
+  });
+});
+
 describe('a picture of a public grow', () => {
   it('serves a still of the camera that watched it', async () => {
     const mediaId = await storeCameraStill(camera, A_PICTURE, new Date());

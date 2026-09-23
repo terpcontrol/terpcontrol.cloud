@@ -5372,6 +5372,7 @@ export declare const publicGrowPage: z.ZodObject<{
         entryCount: z.ZodNumber;
         timelapseMediaId: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>;
+    weeksCursor: z.ZodNullable<z.ZodString>;
     harvest: z.ZodNullable<z.ZodObject<{
         harvestedAt: z.ZodNullable<z.ZodISODateTime>;
         wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -5383,6 +5384,201 @@ export declare const publicGrowPage: z.ZodObject<{
         feedCount: z.ZodNumber;
         photoCount: z.ZodNumber;
     }, z.core.$strip>;
+}, z.core.$strip>;
+/**
+ * The weeks before the ones a public page carried, a page at a time.
+ *
+ * The first page of a long diary comes with the diary itself, because a reader
+ * opens on it; the earlier ones are asked for because each of them costs a
+ * time-series read per week, and a grow that ran a year would otherwise be a
+ * page nobody waits for. It carries no `people`, unlike the owner's own weeks:
+ * a stranger reads a diary by one author and is told nobody's name.
+ */
+export declare const publicWeekPage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        weekNumber: z.ZodNumber;
+        dayFrom: z.ZodNumber;
+        dayTo: z.ZodNumber;
+        startsAt: z.ZodISODateTime;
+        endsAt: z.ZodISODateTime;
+        stage: z.ZodNullable<z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>>;
+        preset: z.ZodNullable<z.ZodString>;
+        stageWeek: z.ZodNullable<z.ZodNumber>;
+        deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
+        climate: z.ZodArray<z.ZodObject<{
+            metric: z.ZodEnum<{
+                offline: "offline";
+                co2: "co2";
+                temperature: "temperature";
+                humidity: "humidity";
+                leafTemperature: "leafTemperature";
+                lux: "lux";
+                vpd: "vpd";
+                ppfd: "ppfd";
+            }>;
+            minValue: z.ZodNullable<z.ZodNumber>;
+            maxValue: z.ZodNullable<z.ZodNumber>;
+            averageValue: z.ZodNullable<z.ZodNumber>;
+            dayAverage: z.ZodNullable<z.ZodNumber>;
+            nightAverage: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>;
+        lightHours: z.ZodNullable<z.ZodNumber>;
+        days: z.ZodArray<z.ZodObject<{
+            dayNumber: z.ZodNumber;
+            startsAt: z.ZodISODateTime;
+            mediaId: z.ZodNullable<z.ZodString>;
+            cameraId: z.ZodNullable<z.ZodString>;
+            capturedAt: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>>;
+        feeding: z.ZodNullable<z.ZodObject<{
+            amounts: z.ZodArray<z.ZodObject<{
+                productKey: z.ZodString;
+                name: z.ZodString;
+                value: z.ZodNullable<z.ZodNumber>;
+                unit: z.ZodString;
+            }, z.core.$strip>>;
+            plannedCount: z.ZodNumber;
+        }, z.core.$strip>>;
+        readings: z.ZodArray<z.ZodObject<{
+            key: z.ZodString;
+            value: z.ZodNumber;
+            change: z.ZodNullable<z.ZodNumber>;
+            measuredAt: z.ZodISODateTime;
+        }, z.core.$strip>>;
+        waterCount: z.ZodNumber;
+        feedCount: z.ZodNumber;
+        entries: z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            createdAt: z.ZodISODateTime;
+            kind: z.ZodEnum<{
+                move: "move";
+                water: "water";
+                feed: "feed";
+                photo: "photo";
+                note: "note";
+                measurement: "measurement";
+                training: "training";
+                phase: "phase";
+                harvest: "harvest";
+                visit: "visit";
+                alarm: "alarm";
+                plan: "plan";
+                system: "system";
+            }>;
+            occurredAt: z.ZodISODateTime;
+            source: z.ZodEnum<{
+                alarm: "alarm";
+                plan: "plan";
+                human: "human";
+                device: "device";
+                preset: "preset";
+            }>;
+            authorId: z.ZodNullable<z.ZodString>;
+            growId: z.ZodNullable<z.ZodString>;
+            spaceId: z.ZodNullable<z.ZodString>;
+            deviceId: z.ZodNullable<z.ZodString>;
+            plantIds: z.ZodArray<z.ZodString>;
+            cameraId: z.ZodNullable<z.ZodString>;
+            taskId: z.ZodNullable<z.ZodString>;
+            alertId: z.ZodNullable<z.ZodString>;
+            severity: z.ZodNullable<z.ZodEnum<{
+                critical: "critical";
+                warning: "warning";
+                info: "info";
+            }>>;
+            text: z.ZodNullable<z.ZodString>;
+            message: z.ZodNullable<z.ZodObject<{
+                key: z.ZodString;
+                params: z.ZodArray<z.ZodString>;
+            }, z.core.$strip>>;
+            values: z.ZodDiscriminatedUnion<[z.ZodObject<{
+                kind: z.ZodLiteral<"water">;
+                litres: z.ZodNullable<z.ZodNumber>;
+                readings: z.ZodArray<z.ZodObject<{
+                    key: z.ZodString;
+                    value: z.ZodNumber;
+                    plantId: z.ZodNullable<z.ZodString>;
+                }, z.core.$strip>>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"feed">;
+                litres: z.ZodNullable<z.ZodNumber>;
+                schemeWeek: z.ZodNullable<z.ZodNumber>;
+                doses: z.ZodArray<z.ZodObject<{
+                    productKey: z.ZodString;
+                    name: z.ZodString;
+                    amount: z.ZodNumber;
+                    unit: z.ZodString;
+                }, z.core.$strip>>;
+                readings: z.ZodArray<z.ZodObject<{
+                    key: z.ZodString;
+                    value: z.ZodNumber;
+                    plantId: z.ZodNullable<z.ZodString>;
+                }, z.core.$strip>>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"measurement">;
+                readings: z.ZodArray<z.ZodObject<{
+                    key: z.ZodString;
+                    value: z.ZodNumber;
+                    plantId: z.ZodNullable<z.ZodString>;
+                }, z.core.$strip>>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"photo">;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"note">;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"training">;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"visit">;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"system">;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"alarm">;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"phase">;
+                phaseId: z.ZodString;
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"move">;
+                placementId: z.ZodString;
+                spaceId: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"harvest">;
+                wetWeightG: z.ZodNullable<z.ZodNumber>;
+                dryWeightG: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"plan">;
+                planId: z.ZodString;
+                stepIndex: z.ZodNumber;
+                transition: z.ZodNullable<z.ZodEnum<{
+                    pause: "pause";
+                    resume: "resume";
+                    confirm: "confirm";
+                    extend: "extend";
+                    skip: "skip";
+                }>>;
+            }, z.core.$strip>], "kind">;
+            mediaIds: z.ZodArray<z.ZodString>;
+            undoUntil: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>>;
+        entryCount: z.ZodNumber;
+        timelapseMediaId: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>;
+    nextCursor: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
 /**
  * `GET /public/users/{handle}`: the public diaries of one person. A public grow
@@ -5634,6 +5830,7 @@ export declare const sharedGrow: z.ZodObject<{
             entryCount: z.ZodNumber;
             timelapseMediaId: z.ZodNullable<z.ZodString>;
         }, z.core.$strip>>;
+        weeksCursor: z.ZodNullable<z.ZodString>;
         harvest: z.ZodNullable<z.ZodObject<{
             harvestedAt: z.ZodNullable<z.ZodISODateTime>;
             wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -6254,6 +6451,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             entryCount: z.ZodNumber;
             timelapseMediaId: z.ZodNullable<z.ZodString>;
         }, z.core.$strip>>;
+        weeksCursor: z.ZodNullable<z.ZodString>;
         harvest: z.ZodNullable<z.ZodObject<{
             harvestedAt: z.ZodNullable<z.ZodISODateTime>;
             wetWeightG: z.ZodNullable<z.ZodNumber>;
@@ -6885,6 +7083,7 @@ export declare const sharedResolution: z.ZodObject<{
                 entryCount: z.ZodNumber;
                 timelapseMediaId: z.ZodNullable<z.ZodString>;
             }, z.core.$strip>>;
+            weeksCursor: z.ZodNullable<z.ZodString>;
             harvest: z.ZodNullable<z.ZodObject<{
                 harvestedAt: z.ZodNullable<z.ZodISODateTime>;
                 wetWeightG: z.ZodNullable<z.ZodNumber>;

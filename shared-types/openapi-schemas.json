@@ -13034,6 +13034,13 @@
           "$ref": "#/components/schemas/GrowWeekCard"
         }
       },
+      "weeksCursor": {
+        "description": "Pass as `cursor` to the weeks route of the same address for the weeks before these; null where the page holds them all.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "harvest": {
         "anyOf": [
           {
@@ -13066,8 +13073,31 @@
       "range",
       "includeCameras",
       "weeks",
+      "weeksCursor",
       "harvest",
       "totals"
+    ]
+  },
+  "PublicWeekPage": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowWeekCard"
+        }
+      },
+      "nextCursor": {
+        "description": "Pass back as `cursor` for the next page; null on the last one.",
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "items",
+      "nextCursor"
     ]
   },
   "PublicUserPage": {

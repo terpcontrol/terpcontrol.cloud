@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -108,6 +108,7 @@ const page: PublicGrowPage = {
   range: { startsAt: at(34), endsAt: at(0, 12) },
   includeCameras: true,
   weeks: [week],
+  weeksCursor: null,
   harvest: null,
   totals: { entryCount: 37, waterCount: 9, feedCount: 9, photoCount: 2 },
 };
@@ -169,6 +170,29 @@ describe('a public diary', () => {
 
     expect(screen.getByText(/dry 412 g/)).toBeInTheDocument();
     expect(screen.queryByText(/wet/)).not.toBeInTheDocument();
+  });
+
+  it('offers the weeks from before the ones it was given, and nothing where the diary fits on its page', () => {
+    const asked = vi.fn();
+    const older: GrowWeekCard = { ...week, weekNumber: 4, dayFrom: 22, dayTo: 28, entries: [], entryCount: 0 };
+
+    const { rerender } = draw(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
+    expect(screen.queryByRole('button', { name: 'Earlier weeks' })).not.toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter>
+          <Diary page={page} picture={publicPicture(page.slug)} now={NOW} earlier={{ weeks: [older], more: asked, pending: false }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // The weeks the page carried and the ones asked for afterwards read as one
+    // diary, newest first, and the control is still there because there is more.
+    const cards = screen.getAllByRole('article', { name: /^Week/ }).map(card => card.getAttribute('aria-label'));
+    expect(cards).toEqual(['Week 5', 'Week 4']);
+    fireEvent.click(screen.getByRole('button', { name: 'Earlier weeks' }));
+    expect(asked).toHaveBeenCalledTimes(1);
   });
 
   it('links to the author only where they published a profile, because a handle with none leads nowhere', () => {

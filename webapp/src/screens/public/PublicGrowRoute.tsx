@@ -1,5 +1,5 @@
 import { useParams } from 'react-router';
-import { publicPicture, usePublicGrow } from '@/api/public';
+import { publicPicture, usePublicGrow, usePublicGrowWeeks } from '@/api/public';
 import { ApiError } from '@/api/problem';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
@@ -11,14 +11,15 @@ import { PublicShell } from './PublicShell';
  * `/g/{slug}`: the address somebody pastes into a message.
  *
  * It sits outside the session gate, so a stranger never meets the sign-in page
- * and never sees a frame of it either. One read answers the whole page - the
- * weeks come with it - because a public diary is read from top to bottom and
- * has no "load more".
+ * and never sees a frame of it either. One read answers the page and the weeks
+ * a reader opens on; a diary that ran longer than one page holds says so with a
+ * cursor, and the weeks before those are read when somebody asks for them.
  */
 export function PublicGrowRoute() {
   const { slug = '' } = useParams();
   const now = useNow();
   const grow = usePublicGrow(slug);
+  const earlier = usePublicGrowWeeks(slug, grow.data?.weeksCursor ?? null);
 
   if (grow.isPending) {
     return (
@@ -42,7 +43,7 @@ export function PublicGrowRoute() {
 
   return (
     <PublicShell title={grow.data.name}>
-      <Diary page={grow.data} picture={publicPicture(slug)} now={now} />
+      <Diary page={grow.data} picture={publicPicture(slug)} now={now} earlier={earlier} />
     </PublicShell>
   );
 }

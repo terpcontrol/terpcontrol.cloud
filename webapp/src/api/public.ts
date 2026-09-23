@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import type { PublicGrowPage, PublicUserPage, SharedResolution } from '@fg2/shared-types/v1';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import type { GrowWeekCard, PublicGrowPage, PublicUserPage, PublicWeekPage, SharedResolution } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { v1 } from './config';
 
@@ -35,6 +35,53 @@ export const usePublicUser = (handle: string) =>
     queryKey: ['public', 'user', handle],
     queryFn: ({ signal }) => api.get<PublicUserPage>(`/public/users/${encodeURIComponent(handle)}`, undefined, signal),
   });
+
+/** What a diary draws under its own weeks: the earlier ones, the way to ask for more, and whether more are on their way. */
+export interface EarlierWeeks {
+  weeks: GrowWeekCard[];
+  /** Null once there is nothing earlier to ask for, which is what takes the control off the page. */
+  more: (() => void) | null;
+  pending: boolean;
+}
+
+/**
+ * The weeks of a diary from before the ones its page carried, a page at a time.
+ *
+ * A long grow's page opens on its newest weeks and says with a cursor that
+ * there are earlier ones; this is what the control under them follows. Nothing
+ * is asked for until somebody asks - the query is disabled and `fetchNextPage`
+ * is the whole of it - so a reader who stops at the newest week costs the
+ * server one page of week reads, which is what the cursor is there for.
+ *
+ * Where the next page begins is worked out here rather than read from
+ * `hasNextPage`: before anything has been fetched there are no pages to derive
+ * it from, and the cursor the diary itself carried is what says whether there
+ * is anything earlier at all.
+ */
+const useEarlierWeeks = (queryKey: unknown[], path: string, from: string | null): EarlierWeeks => {
+  const query = useInfiniteQuery({
+    queryKey: [...queryKey, 'weeks', from],
+    queryFn: ({ pageParam, signal }) => api.get<PublicWeekPage>(path, { cursor: pageParam }, signal),
+    initialPageParam: from,
+    getNextPageParam: last => last.nextCursor,
+    enabled: false,
+  });
+
+  const pages = query.data?.pages ?? [];
+  const next = pages.length === 0 ? from : pages[pages.length - 1].nextCursor;
+
+  return {
+    weeks: pages.flatMap(page => page.items),
+    more: next === null ? null : () => void query.fetchNextPage(),
+    pending: query.isFetching,
+  };
+};
+
+export const usePublicGrowWeeks = (slug: string, from: string | null) =>
+  useEarlierWeeks(['public', 'grow', slug], `/public/grows/${encodeURIComponent(slug)}/weeks`, from);
+
+export const useSharedWeeks = (token: string, from: string | null) =>
+  useEarlierWeeks(['shared', token], `/shared/${encodeURIComponent(token)}/weeks`, from);
 
 /**
  * A link, resolved. A token that was revoked, has expired or never existed is

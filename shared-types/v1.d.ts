@@ -3721,8 +3721,20 @@ export interface PublicGrowPage {
   range: TimeRange;
   includeCameras: boolean;
   weeks: GrowWeekCard[];
+  /**
+   * Pass as `cursor` to the weeks route of the same address for the weeks before these; null where the page holds them all.
+   */
+  weeksCursor: string | null;
   harvest: GrowHarvest | null;
   totals: GrowTotals;
+}
+
+export interface PublicWeekPage {
+  items: GrowWeekCard[];
+  /**
+   * Pass back as `cursor` for the next page; null on the last one.
+   */
+  nextCursor: string | null;
 }
 
 export interface PublicUserPage {

@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import type { FollowedGrowCard, LinkCard, PublicAuthor, PublicGrowPage, PublicUserPage, SharedResolution } from '@fg2/shared-types/v1';
+import type { FollowedGrowCard, GrowWeekCard, LinkCard, PublicAuthor, PublicGrowPage, PublicUserPage, SharedResolution } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, AccessRange, Grant } from '@common/v1/access.types';
+import { CursorPage } from '@common/v1/pages';
 import { clampRange } from '@common/v1/range';
 import { notFound } from '@common/v1/problem';
+import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
@@ -36,15 +38,18 @@ import { ShareLinksService } from './share-links.service';
  *
  * **What a page costs.** The grow and its plants, its owner, the totals as one
  * aggregate, and then the week cards - which is where the real cost is: one
- * time-series read per week per controller. The public page asks for the whole
- * grow's worth of them in one go, because a public diary is read from top to
- * bottom and has no "load more".
+ * time-series read per week per controller. The page carries as many of them as
+ * a reader opening on the newest week will get through, and says with a cursor
+ * that there are more; the weeks before those are a page of their own, so a
+ * diary that ran a year costs a reader who stops after a screenful no more than
+ * a diary that ran a month.
  */
 
 /**
- * How many weeks a public page carries. Half a year, which is longer than a
- * photoperiod grow runs; a grow that outlives it shows its newest weeks, and
- * asking for every week of a two-year perpetual would be a page nobody waits for.
+ * How many weeks a page of a public diary carries. Half a year, which is longer
+ * than most grows run and far more than anybody scrolls in one go; the weeks
+ * before it are read a page at a time through the weeks route, which is what
+ * keeps a two-year perpetual from being a page nobody waits for.
  */
 const WEEKS_ON_A_PUBLIC_PAGE = 26;
 
@@ -124,6 +129,7 @@ export class PublicPagesService {
       range: { startsAt: range.startsAt?.toISOString() ?? null, endsAt: range.endsAt?.toISOString() ?? null },
       includeCameras: grant.includeCameras,
       weeks: page.items,
+      weeksCursor: page.nextCursor,
       // A harvest is dated, so it belongs to the window like any other line: a
       // plant that came down after a link's window closed has not come down as
       // far as that link is concerned, and a grow whose whole harvest is outside
@@ -134,6 +140,22 @@ export class PublicPagesService {
       ),
       totals,
     };
+  }
+
+  /**
+   * The weeks before the ones a page carried, and the weeks before those.
+   *
+   * It is the same read the page itself makes, by the same grant, so a week
+   * reached through it is clamped exactly as a week on the page was and a long
+   * diary cannot be walked into a window its reader was never given. What the
+   * owner's own weeks route answers beside the cards - the people its lines
+   * name - is dropped here, because a public diary is by one author and names
+   * nobody else.
+   */
+  public async weeksPage(grow: GrowDocument, grant: Grant, query: PageQuery, now: Date = new Date()): Promise<CursorPage<GrowWeekCard>> {
+    const page = await this.weeks.page(grow.id, grant, { cursor: query.cursor, limit: query.limit ?? WEEKS_ON_A_PUBLIC_PAGE }, now);
+
+    return { items: page.items, nextCursor: page.nextCursor };
   }
 
   // -------------------------------------------------------------------------
@@ -210,19 +232,7 @@ export class PublicPagesService {
    * otherwise be granted the grow's whole life rather than its own window.
    */
   public async resolve(token: string, now: Date = new Date()): Promise<SharedResolution> {
-    const link = await this.links.open(token, now);
-    const reader: AccessContext = { userId: null, isAdmin: false, isDemo: false, shareToken: link.token };
-
-    const granted = await this.access.access(reader, subjectRef(link.subject.type, link.subject.id), 'view');
-    // The subject is gone, or the link no longer reaches it. Either way the
-    // reader learns nothing beyond "this address leads nowhere".
-    if (!granted) throw notFound('share_link_not_found', 'That link leads nowhere.');
-
-    const grant: Grant = {
-      ...granted,
-      range: clampRange(granted, { startsAt: link.range.startsAt, endsAt: link.range.endsAt }),
-      includeCameras: granted.includeCameras && link.includeCameras,
-    };
+    const { link, grant } = await this.keyOf(token, now);
     const range = clampRange(grant);
 
     return {
@@ -232,6 +242,43 @@ export class PublicPagesService {
       expiresAt: link.expiresAt?.toISOString() ?? null,
       subject: await this.subjectOf(link, grant, now),
     };
+  }
+
+  /**
+   * What a token opens, as the link it is and the grant it carries. Both routes
+   * a link has go through this, so the narrowing below is stated once and a
+   * second route onto the same diary cannot be given a wider window than the
+   * page the reader came from.
+   */
+  private async keyOf(token: string, now: Date): Promise<{ link: ShareLinkDocument; grant: Grant }> {
+    const link = await this.links.open(token, now);
+    const reader: AccessContext = { userId: null, isAdmin: false, isDemo: false, shareToken: link.token };
+
+    const granted = await this.access.access(reader, subjectRef(link.subject.type, link.subject.id), 'view');
+    // The subject is gone, or the link no longer reaches it. Either way the
+    // reader learns nothing beyond "this address leads nowhere".
+    if (!granted) throw notFound('share_link_not_found', 'That link leads nowhere.');
+
+    return {
+      link,
+      grant: {
+        ...granted,
+        range: clampRange(granted, { startsAt: link.range.startsAt, endsAt: link.range.endsAt }),
+        includeCameras: granted.includeCameras && link.includeCameras,
+      },
+    };
+  }
+
+  /**
+   * The earlier weeks of the diary a link leads to. A link onto a tent has no
+   * weeks, and says so rather than answering an empty page, which would read as
+   * a diary with nothing in it.
+   */
+  public async sharedWeeks(token: string, query: PageQuery, now: Date = new Date()): Promise<CursorPage<GrowWeekCard>> {
+    const { link, grant } = await this.keyOf(token, now);
+    if (link.subject.type !== 'grow') throw notFound('grow_not_found', 'That link does not lead to a grow diary.');
+
+    return this.weeksPage(await this.grows.require(link.subject.id), grant, query, now);
   }
 
   private async subjectOf(link: ShareLinkDocument, grant: Grant, now: Date): Promise<SharedResolution['subject']> {

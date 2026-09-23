@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import type { SharedResolution } from '@fg2/shared-types/v1';
-import { sharedPicture, useSharedLink } from '@/api/public';
+import { sharedPicture, useSharedLink, useSharedWeeks } from '@/api/public';
 import { ApiError } from '@/api/problem';
 import { ageLabel } from '@/ui/age';
 import { LoadFailed, Waiting } from '@/ui/PageState';
@@ -29,6 +29,10 @@ export function SharedRoute() {
   const { token = '' } = useParams();
   const now = useNow();
   const link = useSharedLink(token);
+  // A link onto a tent has no weeks to page through, so there is no cursor to
+  // follow and nothing is ever asked for.
+  const diary = link.data?.subject.type === 'grow' ? link.data.subject.grow : null;
+  const earlier = useSharedWeeks(token, diary?.weeksCursor ?? null);
 
   if (link.isPending) {
     return (
@@ -56,7 +60,7 @@ export function SharedRoute() {
 
   return subject.type === 'grow' ? (
     <PublicShell title={subject.grow.name}>
-      <Diary page={subject.grow} picture={picture} now={now} banner={banner} />
+      <Diary page={subject.grow} picture={picture} now={now} banner={banner} earlier={earlier} />
     </PublicShell>
   ) : (
     <PublicShell title={subject.space.name}>

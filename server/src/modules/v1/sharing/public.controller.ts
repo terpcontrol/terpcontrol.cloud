@@ -2,11 +2,14 @@ import { Controller, Get, HttpStatus, Inject, Param, Query, Req, Res, UseGuards 
 import { ConfigType } from '@nestjs/config';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import type { PublicGrowPage, PublicUserPage, SharedResolution } from '@fg2/shared-types/v1';
-import { publicGrowPage, publicUserPage, sharedResolution } from '@fg2/shared-types/v1-schemas';
+import { z } from 'zod';
+import type { GrowWeekCard, PublicGrowPage, PublicUserPage, SharedResolution } from '@fg2/shared-types/v1';
+import { publicGrowPage, publicUserPage, publicWeekPage, sharedResolution } from '@fg2/shared-types/v1-schemas';
 import { RateLimited, RateLimitGuard } from '@common/rate-limit.guard';
 import { Caller } from '@common/v1/access.guard';
 import { AccessContext } from '@common/v1/access.types';
+import { CursorPage } from '@common/v1/pages';
+import { V1Query, pageQuery } from '@common/v1/validation';
 import { parseDimension } from '@modules/v1/camera/media-presentation.service';
 import { MediaDeliveryService } from '@modules/v1/camera/media-delivery.service';
 import { appConfig } from '../../../config/configuration';
@@ -71,6 +74,20 @@ export class PublicController {
     return this.pages.resolve(token);
   }
 
+  /**
+   * The earlier weeks of a diary somebody was sent a link to. The page itself
+   * carries the newest of them, so this is what the "earlier weeks" control
+   * follows, and it is the same read under the same link - the token is the
+   * whole of the request here as it is there.
+   */
+  @Get('shared/:token/weeks')
+  @RateLimited({ limit: 30, windowMs: MINUTE, message: 'Too many requests for shared diaries, please try again later.' })
+  @ApiOperation({ summary: 'The weeks before the ones a shared diary carried', ...PUBLIC_OPERATION })
+  @V1Answer(publicWeekPage)
+  public sharedWeeks(@Param('token') token: string, @V1Query(pageQuery) query: z.infer<typeof pageQuery>): Promise<CursorPage<GrowWeekCard>> {
+    return this.pages.sharedWeeks(token, query);
+  }
+
   @Get('public/grows/:slug')
   @RateLimited({ limit: 30, windowMs: MINUTE, message: 'Too many requests for public diaries, please try again later.' })
   @ApiOperation({ summary: 'A public grow diary', ...PUBLIC_OPERATION })
@@ -78,6 +95,28 @@ export class PublicController {
   public async grow(@Caller() ctx: AccessContext, @Param('slug') slug: string): Promise<PublicGrowPage> {
     const { grow, grant } = await this.pages.publicGrow(ctx, slug);
     return this.pages.growPage(grow, grant);
+  }
+
+  /**
+   * The weeks before the ones the page carried, for a diary at its own address.
+   *
+   * A diary that ran longer than a page holds is otherwise a diary whose first
+   * months have no address at all, and the page is the wrong place to grow: it
+   * would mean reading the grow, its plants, its owner and its totals again for
+   * every screenful. So the weeks alone are asked for, through the same grant
+   * the page was built from.
+   */
+  @Get('public/grows/:slug/weeks')
+  @RateLimited({ limit: 30, windowMs: MINUTE, message: 'Too many requests for public diaries, please try again later.' })
+  @ApiOperation({ summary: 'The weeks before the ones a public diary carried', ...PUBLIC_OPERATION })
+  @V1Answer(publicWeekPage)
+  public async weeks(
+    @Caller() ctx: AccessContext,
+    @Param('slug') slug: string,
+    @V1Query(pageQuery) query: z.infer<typeof pageQuery>,
+  ): Promise<CursorPage<GrowWeekCard>> {
+    const { grow, grant } = await this.pages.publicGrow(ctx, slug);
+    return this.pages.weeksPage(grow, grant, query);
   }
 
   /**
