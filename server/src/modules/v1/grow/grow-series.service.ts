@@ -140,7 +140,7 @@ export class GrowSeriesService {
       ]);
     }
 
-    return narrowedTo({ startsAt: asked.from, endsAt: asked.to }, grant, grow);
+    return narrowedTo({ startsAt: asked.from, endsAt: asked.to }, grant, grow, now);
   }
 
   /**

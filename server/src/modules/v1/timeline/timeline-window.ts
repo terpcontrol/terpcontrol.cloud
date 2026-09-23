@@ -68,7 +68,7 @@ export const windowOf = (range: TimelineRange, grant: Grant, grow: GrowDocument 
   const granted = grant.range.endsAt;
   const at = granted && granted < asOf ? granted : asOf;
 
-  return narrowedTo(grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at), grant, grow);
+  return narrowedTo(grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at), grant, grow, at);
 };
 
 /**
@@ -76,21 +76,39 @@ export const windowOf = (range: TimelineRange, grant: Grant, grow: GrowDocument 
  * chip. The two instants of a custom range are as much subject to the clamp as
  * a chip's are, and the day counter is counted across them the same way.
  */
-export const narrowedTo = (asked: { startsAt: Date; endsAt: Date }, grant: Grant, grow: GrowDocument | null): TimelineWindow => {
+export const narrowedTo = (asked: { startsAt: Date; endsAt: Date }, grant: Grant, grow: GrowDocument | null, asOf: Date): TimelineWindow => {
   const clamped = clampRange(grant, asked);
   const startsAt = clamped.startsAt ?? asked.startsAt;
   const endsAt = new Date(Math.max(startsAt.getTime(), (clamped.endsAt ?? asked.endsAt).getTime()));
-  const origin = grow ? originOf(grow) : null;
 
-  return {
-    startsAt,
-    endsAt,
-    stepSeconds: stepFor(startsAt, endsAt),
-    dayFrom: origin ? dayNumberOf(origin, startsAt) : null,
-    // The last instant inside the window rather than the first outside it: a
-    // window ending where day 35 begins is still day 34.
-    dayTo: origin ? dayNumberOf(origin, new Date(Math.max(startsAt.getTime(), endsAt.getTime() - 1))) : null,
-  };
+  return { startsAt, endsAt, stepSeconds: stepFor(startsAt, endsAt), ...daysOf(grow, asOf, startsAt, endsAt) };
+};
+
+/**
+ * The grow's own day counter at each end of the window, which is the "day
+ * 33-34" the chips are drawn beside.
+ *
+ * It counts inside the grow's own calendar at both ends. `growDayAt` floors at
+ * 1, so a window reaching back before the grow began has always read as day 1;
+ * nothing floored the other end, and a window four months after a grow that
+ * lasted 218 days was answered "day 347-352" - a figure no other screen of that
+ * grow will ever print. Where the window and the grow's calendar do not meet at
+ * all there is no day to name, and both ends are nothing rather than the first
+ * or the last.
+ */
+const daysOf = (grow: GrowDocument | null, asOf: Date, startsAt: Date, endsAt: Date): Pick<TimelineWindow, 'dayFrom' | 'dayTo'> => {
+  if (!grow) return { dayFrom: null, dayTo: null };
+
+  const origin = originOf(grow);
+  const horizon = horizonOf(grow, asOf);
+  if (endsAt <= origin || startsAt > horizon) return { dayFrom: null, dayTo: null };
+
+  const last = dayNumberOf(origin, horizon);
+  // The last instant inside the window rather than the first outside it: a
+  // window ending where day 35 begins is still day 34.
+  const inside = new Date(Math.max(startsAt.getTime(), endsAt.getTime() - 1));
+
+  return { dayFrom: Math.min(dayNumberOf(origin, startsAt), last), dayTo: Math.min(dayNumberOf(origin, inside), last) };
 };
 
 const rollingOf = (range: TimelineRange, at: Date): { startsAt: Date; endsAt: Date } => ({

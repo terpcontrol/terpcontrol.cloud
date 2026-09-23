@@ -364,6 +364,64 @@ describe('what a chart is drawn from', () => {
     expect(answer.startsAt).toBe(LINK_FROM.toISOString());
     expect(answer.endsAt).toBe(LINK_TO.toISOString());
   });
+
+  it('counts a custom window inside the grow´s own calendar at both ends', async () => {
+    await db.grows.updateOne({ id: GROW }, { $set: { endedAt: new Date('2026-06-03T12:00:00.000Z') } });
+
+    // A window straddling the origin keeps the day it can honestly draw: the
+    // counter floors at day 1 where it reaches back before the grow began.
+    const before = await readAs(session(OWNER), {
+      range: 'custom',
+      from: new Date('2026-05-01T00:00:00.000Z'),
+      to: new Date('2026-05-15T00:00:00.000Z'),
+      metrics: ['temperature'],
+    });
+    expect([before.dayFrom, before.dayTo]).toEqual([1, 2]);
+
+    // And now it stops at the other end as well. This grow lasted 22 days, and
+    // a window running a fortnight past its harvest used to be answered "day
+    // 19-38" - a figure no other screen of the same grow will ever print.
+    const after = await readAs(session(OWNER), {
+      range: 'custom',
+      from: new Date('2026-06-01T00:00:00.000Z'),
+      to: new Date('2026-06-20T00:00:00.000Z'),
+      metrics: ['temperature'],
+    });
+    expect([after.dayFrom, after.dayTo]).toEqual([19, 22]);
+  });
+
+  it('names no day at all for a window the grow´s calendar does not reach', async () => {
+    await db.grows.updateOne({ id: GROW }, { $set: { endedAt: new Date('2026-06-03T12:00:00.000Z') } });
+
+    const long = await readAs(session(OWNER), {
+      range: 'custom',
+      from: new Date('2026-10-01T00:00:00.000Z'),
+      to: new Date('2026-10-05T00:00:00.000Z'),
+      metrics: ['temperature'],
+    });
+    expect([long.dayFrom, long.dayTo]).toEqual([null, null]);
+
+    const early = await readAs(session(OWNER), {
+      range: 'custom',
+      from: new Date('2026-02-01T00:00:00.000Z'),
+      to: new Date('2026-02-05T00:00:00.000Z'),
+      metrics: ['temperature'],
+    });
+    expect([early.dayFrom, early.dayTo]).toEqual([null, null]);
+  });
+
+  it('counts a running grow´s window up to today and no further', async () => {
+    // Today is day 29 of this one, and a window running a fortnight past now
+    // stops there rather than reaching day 42.
+    const ahead = await readAs(session(OWNER), {
+      range: 'custom',
+      from: new Date('2026-06-09T00:00:00.000Z'),
+      to: new Date('2026-06-24T00:00:00.000Z'),
+      metrics: ['temperature'],
+    });
+
+    expect([ahead.dayFrom, ahead.dayTo]).toEqual([27, 29]);
+  });
 });
 
 describe('who is told', () => {
