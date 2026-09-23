@@ -2644,6 +2644,7 @@
       "co2": "CO₂",
       "fan": "Lüfter",
       "exhaust": "Abluft",
+      "backFan": "Rückwandlüfter",
       "relais": "Relais"
     },
     "latest": "Zuletzt",

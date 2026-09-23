@@ -251,6 +251,28 @@ describe('the tent overview', () => {
   });
 
   /**
+   * A fridge has three fans and each is its own piece of hardware. Drawn with
+   * two of them called "fan" the sentence carried two clauses a grower cannot
+   * tell apart, while the Timeline of the same tent names all three.
+   */
+  it('names a fridge’s three fans apart', () => {
+    const fans: SpaceOverview = {
+      ...overview,
+      verdict: {
+        ...overview.verdict,
+        actuators: [
+          { output: 'fanInternal', runCount: 4, forSeconds: 900 },
+          { output: 'fanExternal', runCount: 2, forSeconds: 600 },
+          { output: 'fanBackwall', runCount: 1, forSeconds: 300 },
+        ],
+      },
+    };
+    draw(<Overview overview={fans} now={NOW} />);
+
+    expect(screen.getByText(/fan ran 4× · exhaust ran 2× · back fan ran 1×$/)).toBeInTheDocument();
+  });
+
+  /**
    * The share is worked out over the windows that held a reading, so a tent
    * back from an outage an hour ago answers one over that hour under a heading
    * that says 24 h. Both metrics are aggregated over the same windows: added

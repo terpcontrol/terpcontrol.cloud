@@ -470,7 +470,18 @@ const MEASURED_ENOUGH = 0.9;
 const wellMeasured = (verdict: ClimateVerdict): boolean =>
   verdict.forSeconds <= 0 || measuredSeconds(verdict) >= verdict.forSeconds * MEASURED_ENOUGH;
 
-const OUTPUT_NAMES: Record<string, string> = { fanInternal: 'fan', fanExternal: 'exhaust', fanBackwall: 'fan' };
+/**
+ * What the verdict calls the outputs whose contract name is not a word.
+ *
+ * Three of a fridge's outputs are fans and each is a different piece of
+ * hardware, so they need three names: with the back-wall fan drawn as "fan" the
+ * sentence ended "fan ran 1× · exhaust ran 1× · fan ran 1×", two clauses a
+ * grower cannot tell apart, while the Timeline of the same tent gives the three
+ * lanes of their own. A verdict is read from one device, so no other pair
+ * collides: a fan device's bare `fan` and a fridge's `fanInternal` are never in
+ * the same sentence.
+ */
+const OUTPUT_NAMES: Record<string, string> = { fanInternal: 'fan', fanExternal: 'exhaust', fanBackwall: 'backFan' };
 
 /** Whether any reading at all was heard in the window: a verdict with a band and no readings is a silent tent, not an unsteered one. */
 const heardAnything = (verdict: ClimateVerdict): boolean => verdict.metrics.some(row => row.minValue !== null);

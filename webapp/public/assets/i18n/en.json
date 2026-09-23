@@ -2648,6 +2648,7 @@
       "co2": "CO₂",
       "fan": "fan",
       "exhaust": "exhaust",
+      "backFan": "back fan",
       "relais": "relay"
     },
     "latest": "Latest",
