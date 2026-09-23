@@ -99,14 +99,31 @@ export type Delivery = 'notAnnounced' | 'unheard' | 'once' | 'repeats';
  * addresses itself carries its target with it and goes out whatever the grid
  * says. Until the account has answered, nothing is known either way and nothing
  * is claimed.
+ *
+ * A rule is not what decides the question, which is why there does not have to
+ * be one. The health loop raises a camera that has stopped delivering without a
+ * rule to raise it from, and the server routes such an alert through the
+ * account's channels exactly as it routes a rule's - so the inbox drew a
+ * critical card saying that nobody was listening beside a warning card in the
+ * same undeliverable state saying nothing at all, and the silence read as an
+ * assurance. Only what a rule alone can answer is left to one: repeating is the
+ * rule's own `repeatSeconds`, and what the health loop raises is said once.
+ *
+ * Carrying no rule is not the same as having one the page cannot reach. An
+ * alert that names a rule the list has not answered for - a read still out, a
+ * rule somebody has since deleted - keeps its silence, because the rule is what
+ * would say whether it addressed a target of its own and how often it repeats,
+ * and guessing the grid for it would be a claim about a delivery nobody here
+ * has read.
  */
-export const deliveryOf = (alert: Alert, rule: AlarmRule, me: Me | undefined): Delivery | null => {
+export const deliveryOf = (alert: Alert, rule: AlarmRule | null, me: Me | undefined): Delivery | null => {
   if (!me) return null;
+  if (alert.ruleId !== null && rule === null) return null;
 
-  if (rule.delivery.mode === 'routing') {
+  if (!rule || rule.delivery.mode === 'routing') {
     if (alertCategory(alert.severity) === null) return 'notAnnounced';
     if (!routedChannels(me, alert.severity).some(routed => routed.configured)) return 'unheard';
   }
 
-  return rule.repeatSeconds > 0 ? 'repeats' : 'once';
+  return rule !== null && rule.repeatSeconds > 0 ? 'repeats' : 'once';
 };

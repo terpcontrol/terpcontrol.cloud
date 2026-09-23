@@ -84,7 +84,21 @@ const answer = (path: string): Response => {
   if (path === '/v1/spaces') return json({ items: [spaceWhere('own', { id: 'space-1', name: 'Flower room B' })], nextCursor: null });
   if (path === '/v1/devices') return json({ items: [device], nextCursor: null });
   if (path === '/v1/cameras') return json({ items: [], nextCursor: null });
-  if (path === '/v1/me') return json({ id: 'user-1', handle: 'you', notifications: { mutedUntil: null } });
+  // The whole notification object rather than the mute alone. The inbox reads
+  // the routing grid to say whether an open alert reached anybody, and it asks
+  // that of every open card now, so half an answer here is a shape the server
+  // never sends and would take the page down on the way to the ages.
+  if (path === '/v1/me')
+    return json({
+      id: 'user-1',
+      handle: 'you',
+      notifications: {
+        mutedUntil: null,
+        channels: { email: null, push: false, telegram: null, webhook: null },
+        routing: { alerts: [], warnings: [], tasks: [], plan: [], weekly_timelapse: [] },
+        quietHours: null,
+      },
+    });
 
   return json({ items: [], nextCursor: null });
 };

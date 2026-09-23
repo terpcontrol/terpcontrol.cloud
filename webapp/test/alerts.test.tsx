@@ -368,6 +368,91 @@ describe('the inbox', () => {
     expect(screen.queryByText(/announced once/)).not.toBeInTheDocument();
   });
 
+  /**
+   * Two alerts in one undeliverable state used to read as two different states:
+   * the rule-backed one said nobody was listening and the camera the health
+   * loop raised said nothing, which is the shape of a card that did reach
+   * somebody.
+   */
+  it('says of a camera no rule raised that nobody heard it either, and that it is said once', async () => {
+    server.me = {
+      ...me,
+      notifications: { ...me.notifications, routing: { ...me.notifications.routing, alerts: ['email'], warnings: ['push'] } },
+    } as unknown as Me;
+    server.alerts = [
+      alert({ id: 'offline', kind: 'offline', severity: 'critical', startedAt: iso(NOW.minus({ minutes: 30 })) }),
+      alert({
+        id: 'cam',
+        kind: 'camera_stale',
+        ruleId: null,
+        deviceId: null,
+        spaceId: null,
+        cameraId: 'cam-2',
+        severity: 'warning',
+        startedAt: iso(NOW.minus({ minutes: 20 })),
+        value: 900,
+        extremeValue: 900,
+      }),
+    ];
+    server.rules = [rule({ name: 'Device offline' })];
+    draw();
+
+    expect(await screen.findByText(/^warning · since .* · nobody was listening$/)).toBeInTheDocument();
+    // The account can be reached for a critical alarm, so the card beside it
+    // says what it will go on doing rather than that it reached nobody.
+    expect(screen.getByText(/^Device offline · critical · .* · repeats every 30 min until resolved$/)).toBeInTheDocument();
+  });
+
+  it('says a camera nobody could have missed is announced once, because the health loop never repeats one', async () => {
+    server.alerts = [
+      alert({
+        id: 'cam',
+        kind: 'camera_stale',
+        ruleId: null,
+        deviceId: null,
+        spaceId: null,
+        cameraId: 'cam-2',
+        severity: 'warning',
+        value: 900,
+        extremeValue: 900,
+      }),
+    ];
+    draw();
+
+    expect(await screen.findByText(/^warning · since .* · announced once$/)).toBeInTheDocument();
+  });
+
+  /** Not having a rule is one thing; naming one the page has not got is another, and only the first is a delivery this screen can read. */
+  it('stays silent about delivery where the alert names a rule the list could not answer for', async () => {
+    server.alerts = [alert({ id: 'orphan', ruleId: 'rule-gone' })];
+    server.rules = [];
+    draw();
+
+    expect(await screen.findByText(/^critical · since .* · for .*$/)).toBeInTheDocument();
+    expect(screen.queryByText(/announced once|nobody was listening|not announced|repeats every/)).not.toBeInTheDocument();
+  });
+
+  it('promises nothing about a ruleless alert that has already resolved', async () => {
+    server.alerts = [
+      alert({
+        id: 'cam',
+        kind: 'camera_stale',
+        ruleId: null,
+        deviceId: null,
+        spaceId: null,
+        cameraId: 'cam-2',
+        severity: 'warning',
+        resolvedAt: iso(NOW.minus({ minutes: 5 })),
+        value: 900,
+        extremeValue: 900,
+      }),
+    ];
+    draw();
+
+    expect(await screen.findByText(/^warning · resolved .* · lasted .*$/)).toBeInTheDocument();
+    expect(screen.queryByText(/announced once|nobody was listening|not announced/)).not.toBeInTheDocument();
+  });
+
   it('puts the worst first under NOW and lets the clock decide only between equals', async () => {
     server.alerts = [
       alert({ id: 'warn', severity: 'warning', startedAt: iso(NOW.minus({ minutes: 5 })) }),

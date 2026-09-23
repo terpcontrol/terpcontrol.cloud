@@ -238,6 +238,17 @@ const watched = (t: Translate, alert: Alert, rule: AlarmRule): What => {
  * the alert, so the two only differ where somebody edited the rule before that
  * was so; where they do differ the card says which, rather than quietly
  * reading half from each.
+ *
+ * Whether anybody was told is said of every open card, whether or not a rule
+ * raised it. A camera the health loop found dark carries none, and the server
+ * routes it through the same channels a rule's alert goes through - so hanging
+ * the clause on the rule left a critical card reading "nobody was listening"
+ * above a warning card in exactly that state and silent about it, and a silence
+ * where the card beside it names the trouble reads as the assurance that this
+ * one did reach somebody. Only what a rule alone can answer - the grade it
+ * carries today, the silence resting on it, how often it says itself again -
+ * stays behind one, and a card whose rule is merely not in hand goes on saying
+ * nothing about delivery at all.
  */
 const metaOf = (
   t: Translate,
@@ -257,14 +268,14 @@ const metaOf = (
       : t('alerts.meta.since', { time: clock(alert.startedAt, zone), age: lastedLabel(alert, now) }),
   ].filter((part): part is string => part !== null);
 
-  if (!alert.resolvedAt && rule) {
-    if (rule.severity !== alert.severity) parts.push(t('alerts.meta.ruleNow', { severity: t(`alerts.severity.${rule.severity}`) }));
+  if (!alert.resolvedAt) {
+    if (rule && rule.severity !== alert.severity) parts.push(t('alerts.meta.ruleNow', { severity: t(`alerts.severity.${rule.severity}`) }));
 
     const delivery = deliveryOf(alert, rule, me);
-    if (delivery === 'repeats') parts.push(t('alerts.meta.repeats', { every: spanLabel(rule.repeatSeconds) }));
-    else if (delivery) parts.push(t(`alerts.meta.${delivery}`));
+    if (delivery === 'repeats' && rule) parts.push(t('alerts.meta.repeats', { every: spanLabel(rule.repeatSeconds) }));
+    else if (delivery !== null && delivery !== 'repeats') parts.push(t(`alerts.meta.${delivery}`));
 
-    if (isAhead(rule.silencedUntil, now)) parts.push(t('alerts.meta.silenced', { time: clock(rule.silencedUntil!, zone) }));
+    if (rule && isAhead(rule.silencedUntil, now)) parts.push(t('alerts.meta.silenced', { time: clock(rule.silencedUntil!, zone) }));
   }
 
   return parts.join(' · ');
