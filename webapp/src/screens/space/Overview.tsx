@@ -22,6 +22,7 @@ import { readingFigure, readingNamesOf } from '@/ui/entries';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
+import { durationLabel } from '../devices/sockets';
 import { daysUntil } from '../tasks/tasks';
 import { livenessOf } from '../home/attention';
 import { figure, targetFigure, UNIT } from '../home/units';
@@ -431,7 +432,12 @@ function Verdict({ verdict, liveness }: { verdict: ClimateVerdict; liveness: Liv
   return (
     <div
       className={`${ui.card} ${styles.verdict}`}
-      data-rating={verdict.rating ?? undefined}
+      // The rating is the share worked out over the windows that hold a
+      // reading, so on a day mostly unmeasured it colours the whole sentence
+      // red or amber on the strength of an hour. The sentence says how little
+      // it stands on; the colour cannot, so it is left off rather than
+      // asserted, and the card reads in the plain grey of a thing not graded.
+      data-rating={(wellMeasured(verdict) ? verdict.rating : null) ?? undefined}
       {...(liveness === 'none' ? {} : ageAttribute(liveness))}
     >
       <TrendLine verdict={verdict} bands={[temperature?.dayBand ?? null, temperature?.nightBand ?? null]} />
@@ -439,6 +445,30 @@ function Verdict({ verdict, liveness }: { verdict: ClimateVerdict; liveness: Liv
     </div>
   );
 }
+
+/**
+ * How much of the window the verdict was actually read over.
+ *
+ * Every metric is aggregated over the same windows of the same stretch, so
+ * their measured seconds are one span counted once per metric rather than
+ * three spans to be added up: summing them called 24 minutes of a day an hour
+ * and a half. The longest single metric is that span, and a metric nothing was
+ * ever heard for contributes nothing to it.
+ */
+const measuredSeconds = (verdict: ClimateVerdict): number => Math.max(0, ...verdict.metrics.map(row => row.inBandSeconds + row.outOfBandSeconds));
+
+/**
+ * Above this share of the window the verdict may be stated as the day's. Below
+ * it, it is a verdict on whatever stretch the device was reporting for - a tent
+ * back from an outage an hour ago has a figure over that hour, and the heading
+ * over it says 24 h. The margin is wide enough that the sampling gaps every
+ * device has stay quiet, since nobody needs a sentence about four missed
+ * windows.
+ */
+const MEASURED_ENOUGH = 0.9;
+
+const wellMeasured = (verdict: ClimateVerdict): boolean =>
+  verdict.forSeconds <= 0 || measuredSeconds(verdict) >= verdict.forSeconds * MEASURED_ENOUGH;
 
 const OUTPUT_NAMES: Record<string, string> = { fanInternal: 'fan', fanExternal: 'exhaust', fanBackwall: 'fan' };
 
@@ -450,7 +480,15 @@ const verdictSentence = (t: Translate, verdict: ClimateVerdict, zone: string | n
     return t(heardAnything(verdict) || verdict.metrics.length === 0 ? 'space.verdict.noTarget' : 'space.verdict.noReadings');
   }
 
-  const parts = [t('space.inBand', { percent: Math.round(verdict.inBandFraction * 100) })];
+  const percent = Math.round(verdict.inBandFraction * 100);
+  // A share of a day nobody measured is not a share of the day. Where the
+  // window holds readings for most of itself the figure stands on its own, as
+  // it always has; where it does not, the span it was worked out over is said
+  // in the same breath, because the heading above says 24 h and the figure
+  // would otherwise be read as that day's.
+  const parts = [
+    wellMeasured(verdict) ? t('space.inBand', { percent }) : t('space.inBandOver', { percent, span: durationLabel(measuredSeconds(verdict)) }),
+  ];
 
   for (const metric of verdict.metrics) {
     if (metric.excursions.length === 0) continue;

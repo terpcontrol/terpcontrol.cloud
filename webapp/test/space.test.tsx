@@ -250,6 +250,34 @@ describe('the tent overview', () => {
     expect(screen.getByText(`91 % in band · 1 humidity excursion ${excursion} · dehumidifier ran 14×`)).toBeInTheDocument();
   });
 
+  /**
+   * The share is worked out over the windows that held a reading, so a tent
+   * back from an outage an hour ago answers one over that hour under a heading
+   * that says 24 h. Both metrics are aggregated over the same windows: added
+   * together they would call this one span 48 minutes long.
+   */
+  it('names the span a partly measured day was judged over, and leaves such a day uncoloured', () => {
+    const measured = { inBandSeconds: 960, outOfBandSeconds: 480, excursions: [] };
+    const humidity = overview.verdict.metrics[0];
+    const patchy: SpaceOverview = {
+      ...overview,
+      verdict: {
+        ...overview.verdict,
+        rating: 'poor',
+        inBandFraction: 0.67,
+        metrics: [
+          { ...humidity, ...measured },
+          { ...humidity, metric: 'temperature', ...measured },
+        ],
+        actuators: [],
+      },
+    };
+    draw(<Overview overview={patchy} now={NOW} />);
+
+    const sentence = screen.getByText('67 % in band over the 24 min that were measured');
+    expect(sentence.closest('[data-rating]')).toBeNull();
+  });
+
   it('shows the latest lines with who wrote them and today’s stills with their hour', () => {
     draw(<Overview overview={overview} now={NOW} />);
 

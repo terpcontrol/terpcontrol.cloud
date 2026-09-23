@@ -2624,6 +2624,7 @@
     "stillAlt": "{{name}} um {{time}}",
     "climate24h": "Klima · 24 h",
     "inBand": "{{percent}} % im Zielband",
+    "inBandOver": "{{percent}} % im Zielband über die {{span}}, die gemessen wurden",
     "verdict": {
       "noTarget": "Kein Ziel hier · nichts, woran der Tag zu messen wäre",
       "metric": {

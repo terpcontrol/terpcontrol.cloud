@@ -2628,6 +2628,7 @@
     "stillAlt": "{{name}} at {{time}}",
     "climate24h": "Climate · 24 h",
     "inBand": "{{percent}} % in band",
+    "inBandOver": "{{percent}} % in band over the {{span}} that were measured",
     "verdict": {
       "noTarget": "No target here · nothing to judge the day against",
       "metric": {
