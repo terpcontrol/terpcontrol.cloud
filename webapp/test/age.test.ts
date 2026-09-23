@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import { describe, expect, it } from 'vitest';
-import { ageLabel, isStale, valueAge } from '@/ui/age';
+import { ageLabel, countdownLabel, isStale, spanLabel, valueAge } from '@/ui/age';
 
 describe('the age beside a value', () => {
   const now = DateTime.fromISO('2026-09-18T12:00:00Z');
@@ -42,5 +42,30 @@ describe('a value still on the screen after its answer has aged', () => {
 
   it('is offline when nothing was ever measured, which is what an empty tile is dimmed by', () => {
     expect(valueAge({ state: 'live', measuredAt: null }, now)).toBe('offline');
+  });
+});
+
+/**
+ * A countdown is the mirror of an age, and is rounded the other way round.
+ * Flooring an age is honest - four and a half days ago did happen four days ago
+ * - while flooring what is left promises less of it than there is: a seven-day
+ * step read "6 d left" in the minute it began, a whole day short of the length
+ * printed on the line above it.
+ */
+describe('how much of a span is still to run', () => {
+  it('rounds up where an age of the very same length rounds down', () => {
+    expect(countdownLabel(7 * 86_400 - 25 * 60)).toBe('7 d');
+    expect(spanLabel(7 * 86_400 - 25 * 60)).toBe('6 d');
+  });
+
+  it('carries the unit when the rounding fills it, rather than saying "60 min"', () => {
+    expect(countdownLabel(59 * 60 + 30)).toBe('1 h');
+    expect(countdownLabel(23 * 3600 + 59 * 60)).toBe('1 d');
+  });
+
+  it('says a whole number of its unit exactly', () => {
+    expect(countdownLabel(7 * 86_400)).toBe('7 d');
+    expect(countdownLabel(2 * 3600)).toBe('2 h');
+    expect(countdownLabel(45)).toBe('45 s');
   });
 });

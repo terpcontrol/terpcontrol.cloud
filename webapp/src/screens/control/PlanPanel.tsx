@@ -13,6 +13,7 @@ import { KeepAsTemplateSheet, StartFromTemplateSheet } from './PlanTemplates';
 import { PlanRefusal } from './Refusal';
 import {
   activeStep,
+  countdownLabel,
   DURATION_UNITS,
   elapsedMs,
   isOpenEnded,
@@ -202,7 +203,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
               {isOpenEnded(step.duration)
                 ? ` · ${t('space.control.openEnded')}`
                 : left !== null
-                  ? ` · ${t('space.control.left', { age: spanLabel(left) })}`
+                  ? ` · ${t('space.control.left', { age: countdownLabel(left) })}`
                   : ` · ${t('space.control.over')}`}
             </p>
           ) : null}

@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import type { DurationUnit, Plan, PlanStep, PlanState, StepDuration } from '@fg2/shared-types/v1';
-import { spanLabel as wordsFor } from '@/ui/age';
+import { countdownLabel as wordsLeftFor, spanLabel as wordsFor } from '@/ui/age';
 
 /**
  * Where a plan stands, read the way the server reads it.
@@ -122,5 +122,14 @@ export const overdueMs = (plan: Plan, now: DateTime): number | null => {
  * The app has one way of saying "4 min" and this borrows it rather than
  * rounding a second time. A span is a length and not an instant, so no clock
  * comes into it.
+ *
+ * What the step has served and how long it has been standing still are both
+ * ages and are written by this. What it has left to run is not - a countdown
+ * floored the way an age is would read a day short for the whole of its first
+ * day, and the card states the step's own length one line above it, where the
+ * shortfall is there to be read off.
  */
 export const spanLabel = (ms: number): string => (Number.isFinite(ms) ? wordsFor(ms / 1000) : '—');
+
+/** The same, for what is still to come: rounded up, so a step never reads shorter than what is left of it. */
+export const countdownLabel = (ms: number): string => (Number.isFinite(ms) ? wordsLeftFor(ms / 1000) : '—');

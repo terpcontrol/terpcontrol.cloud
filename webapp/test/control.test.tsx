@@ -219,6 +219,39 @@ describe('what the Control tab offers, by who is reading', () => {
   });
 });
 
+/**
+ * The clock line carries a served age and a countdown, and they are rounded in
+ * opposite directions. Rounded the same way, the remainder read a full day
+ * short of the step length printed one line above it for the whole of the
+ * step's first day - which is the day somebody decides in whether to flush or
+ * harvest before the step turns over.
+ */
+describe('the clock under a running step', () => {
+  it('leaves a step that has barely begun the whole length it states', () => {
+    state.plan = plan(
+      { steps: [step({ stage: null, duration: { value: 7, unit: 'days' } })] },
+      { stepStartedAt: DateTime.now().minus({ minutes: 25 }).toISO()! },
+    );
+
+    draw();
+
+    // The header states the step's length and the ladder below it repeats it.
+    expect(screen.getAllByText('No stage · 7 d')).not.toHaveLength(0);
+    expect(screen.getByText('25 min on this step · 7 d left')).toBeInTheDocument();
+  });
+
+  it('still counts what has been served the way every other age is counted', () => {
+    state.plan = plan(
+      { steps: [step({ stage: null, duration: { value: 7, unit: 'days' } })] },
+      { stepStartedAt: DateTime.now().minus({ days: 3, hours: 23 }).toISO()! },
+    );
+
+    draw();
+
+    expect(screen.getByText('3 d on this step · 4 d left')).toBeInTheDocument();
+  });
+});
+
 describe('what saving an edited recipe would do to the tent', () => {
   it('keeps the running step and its clock when another is inserted above it', () => {
     const running = plan();

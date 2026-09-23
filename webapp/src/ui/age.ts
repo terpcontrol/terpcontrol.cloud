@@ -50,6 +50,35 @@ export const spanLabel = (seconds: number): string => {
 };
 
 /**
+ * The same words for a span that has yet to run rather than one that already
+ * has: how much of a step is left, how long an override still holds.
+ *
+ * It rounds the other way, and that is the whole of the difference. An age is
+ * floored because a thing that happened four and a half days ago did happen
+ * four days ago, and saying "5 d" of it would claim time that has not passed.
+ * A countdown flooded the same way claims the opposite: a seven-day step read
+ * "6 d left" in the moment it began, a full day short of the length the same
+ * card printed one line above it, and it went on reading a day short for the
+ * whole of every day it crossed - which is exactly the window somebody decides
+ * in whether to flush or harvest before the step turns over.
+ *
+ * Rounding up can only overstate what is left, never promise less of it than
+ * there is, and the caller stops drawing the line when nothing is left, so it
+ * never counts down to a "0 s" that is not zero. The unit is carried when the
+ * rounding fills it - 59 minutes and a half left is "1 h", not "60 min".
+ */
+export const countdownLabel = (seconds: number): string => {
+  const whole = Math.max(0, Math.ceil(seconds));
+  if (whole < 60) return `${whole} s`;
+
+  const minutes = Math.ceil(whole / 60);
+  if (minutes < 60) return `${minutes} min`;
+
+  const hours = Math.ceil(whole / 3600);
+  return hours < 24 ? `${hours} h` : `${Math.ceil(whole / 86_400)} d`;
+};
+
+/**
  * What `global.css` dims by. It is an attribute rather than a class so a row can
  * pass it straight through to whatever it wraps.
  */
@@ -132,8 +161,8 @@ export const deviceLiveness = (lastSeenAt: string | null, now: DateTime): ValueS
   return seconds <= VALUE_AGE.staleSeconds ? 'stale' : 'offline';
 };
 
-/** How much of a hold is left, in the same words an age is put in. */
-export const leftLabel = (until: string, now: DateTime): string => ageLabel(now.toISO(), DateTime.fromISO(until));
+/** How much of a hold is left, which is a countdown and is rounded as one. */
+export const leftLabel = (until: string, now: DateTime): string => countdownLabel((DateTime.fromISO(until).toMillis() - now.toMillis()) / 1000);
 
 /**
  * An instant as the contract carries one: ISO 8601 in UTC, whatever zone the
