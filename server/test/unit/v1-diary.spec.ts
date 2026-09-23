@@ -927,6 +927,56 @@ describe('the report', () => {
     expect(answer.totals).toEqual({ entryCount: 7, waterCount: 2, feedCount: 1, photoCount: 0 });
   });
 
+  it('counts the pictures the diary carries, whatever kind of line is carrying them', async () => {
+    await db.entries.create([
+      entry({ id: 'entry-two-shots', growId: GROW, kind: 'note', occurredAt: onDay(31), text: 'The two in front', mediaIds: ['shot-a', 'shot-b'] }),
+      entry({
+        id: 'entry-watered-shot',
+        growId: GROW,
+        kind: 'water',
+        occurredAt: onDay(30),
+        values: { kind: 'water', litres: 2, readings: [] },
+        mediaIds: ['shot-c'],
+      }),
+    ]);
+
+    const answer = await report.read(GROW, await grantFor(session(OWNER)), NOW);
+
+    expect(answer.totals.photoCount).toBe(3);
+    expect(answer.totals.entryCount).toBe(9);
+  });
+
+  it('leaves a camera´s own picture out of the count for a reader who was not given the cameras', async () => {
+    await db.entries.create(
+      entry({
+        id: 'entry-still-logged',
+        growId: GROW,
+        kind: 'photo',
+        cameraId: CAMERA,
+        occurredAt: onDay(31),
+        values: { kind: 'photo' },
+        mediaIds: ['still-logged'],
+      }),
+    );
+    await db.shareLinks.create({
+      id: 'share-report-counts',
+      token: 'report-counts-no-pictures',
+      kind: 'view',
+      subject: { type: 'grow', id: GROW },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: false,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+
+    const own = await report.read(GROW, await grantFor(session(OWNER)), NOW);
+    const seen = await report.read(GROW, await grantFor({ ...anonymous, shareToken: 'report-counts-no-pictures' }), NOW);
+
+    expect(own.totals.photoCount).toBe(1);
+    expect(seen.totals.photoCount).toBe(0);
+  });
+
   it('adds the harvest up and strips the weights from a reader the owner hides them from', async () => {
     await db.plants.updateOne({ id: PLANT }, { $set: { harvest: { harvestedAt: onDay(34), wetWeightG: 480, dryWeightG: 96 } } });
     await db.users.updateOne({ id: OWNER }, { $set: { privacy: { hideWeights: true, hideCounts: true } } });

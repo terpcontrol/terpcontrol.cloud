@@ -211,11 +211,31 @@ export class GrowReportService {
    * The four numbers above the chapters, counted in the database rather than
    * from the rows that were read. The public page states the same four, so it
    * asks for them here rather than counting a grow's diary a second way.
+   *
+   * The pictures are counted as pictures and not as entries of a kind. A photo
+   * is something a line carries rather than something a line is - an entry of
+   * any human kind may name pictures in `mediaIds`, a watering with a picture
+   * of the runoff is a watering, and every diary that came from the old app
+   * carries its pictures on notes - so counting rows of kind `photo` answered
+   * zero over grows holding dozens. Counting them inside the same aggregate
+   * keeps them inside the window and the kinds this already clamps to, so a
+   * share link cannot be told about a picture from outside its own weeks.
+   *
+   * A line about a camera's own picture is left out where the reader was not
+   * given the cameras, matching the covers and the stills the rest of the page
+   * withholds from that reader.
    */
   public async totalsOf(growId: string, grant: Grant): Promise<GrowTotals> {
-    const rows = await this.entries.aggregate<{ _id: EntryKind; count: number }>([
+    const pictures = { $size: { $ifNull: ['$mediaIds', []] } };
+    const rows = await this.entries.aggregate<{ _id: EntryKind; count: number; pictures: number }>([
       { $match: { $and: [{ growId, kind: { $in: CHAPTER_KINDS } }, withinRange('occurredAt', clampRange(grant))] } },
-      { $group: { _id: '$kind', count: { $sum: 1 } } },
+      {
+        $group: {
+          _id: '$kind',
+          count: { $sum: 1 },
+          pictures: { $sum: grant.includeCameras ? pictures : { $cond: [{ $eq: ['$cameraId', null] }, pictures, 0] } },
+        },
+      },
     ]);
 
     const of = (kind: EntryKind): number => rows.find(row => row._id === kind)?.count ?? 0;
@@ -224,7 +244,7 @@ export class GrowReportService {
       entryCount: rows.reduce((sum, row) => sum + row.count, 0),
       waterCount: of('water'),
       feedCount: of('feed'),
-      photoCount: of('photo'),
+      photoCount: rows.reduce((sum, row) => sum + row.pictures, 0),
     };
   }
 }

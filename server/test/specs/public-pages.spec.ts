@@ -72,6 +72,22 @@ describe('a public grow at its own address', () => {
     expect(page.body.includeCameras).toBe(true);
   });
 
+  it('counts a picture the diary carries on a line of any kind, not only on a line called a photo', async () => {
+    const before = (await anonymous().get(`/v1/public/grows/${diary.slug}`).expect(200)).body.totals.photoCount;
+
+    const picture = (
+      await owner.client.post('/v1/media').field('kind', 'photo').field('growId', diary.id).attach('file', A_PICTURE, 'leaf.jpg').expect(201)
+    ).body;
+    await owner.client
+      .post('/v1/entries')
+      .send({ kind: 'note', growId: diary.id, text: 'The two in front', mediaIds: [picture.id], values: { kind: 'note' } })
+      .expect(201);
+
+    const page = await anonymous().get(`/v1/public/grows/${diary.slug}`).expect(200);
+
+    expect(page.body.totals.photoCount).toBe(before + 1);
+  });
+
   it('names nobody: no owner id, no e-mail, no real name', async () => {
     const page = await anonymous().get(`/v1/public/grows/${diary.slug}`).expect(200);
     const body = JSON.stringify(page.body);
