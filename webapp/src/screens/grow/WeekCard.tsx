@@ -36,6 +36,11 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
   // one screen it was ever drawn on.
   const [all, setAll] = useState(false);
   const rest = useWeekEntries(grow.id, all ? week : null);
+  // The last day the grow lived through. A week card is always seven days wide -
+  // "day 218-224" is what the week *is* - so the tiles are where it says how
+  // much of it happened, and for a grow that ended in August the unlived days
+  // are in the past and were drawn as days like any other.
+  const lived = grow.endedAt ? DateTime.fromISO(grow.endedAt) : now;
   const shown = rest.data ? rest.data.items : week.entries;
   const missing = week.entryCount - shown.length;
   const temperature = week.climate.find(row => row.metric === 'temperature');
@@ -66,7 +71,7 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
           const at = DateTime.fromISO(day.startsAt);
           const src = day.mediaId ? mediaUrl(day.mediaId, THUMBNAIL_WIDTH.dayTile) : null;
           return (
-            <li key={day.dayNumber} className={styles.dayTile} data-future={at > now}>
+            <li key={day.dayNumber} className={styles.dayTile} data-future={at > lived}>
               <span className={styles.thumb} title={t('home.card.dayN', { day: day.dayNumber })}>
                 {src ? <img src={src} alt={t('grow.dayStillAlt', { day: day.dayNumber })} loading="lazy" /> : null}
               </span>

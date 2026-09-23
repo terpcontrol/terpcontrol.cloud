@@ -350,6 +350,34 @@ describe('a grow that has ended', () => {
   });
 });
 
+describe('the last card of a grow that has ended', () => {
+  it('draws the days after its end as days it never lived, not as days like any other', () => {
+    // The grow came down on the Wednesday of its last week. The card is still
+    // seven days wide - that is what the week is - so the tiles are where it
+    // says how much of it happened, and four of them did not.
+    const finished: GrowListItem = { ...grow, endedAt: at(4, 15) };
+
+    const { container } = draw(<WeekCard week={week} grow={finished} people={people} now={NOW} current={false} />);
+
+    const lived = [...container.querySelectorAll('[data-future]')].map(tile => tile.getAttribute('data-future'));
+    expect(lived).toEqual(['false', 'false', 'false', 'true', 'true', 'true', 'true']);
+  });
+
+  it('draws a running grow´s days against now, which is what the ended case is told against', () => {
+    const { container } = draw(<WeekCard week={week} grow={grow} people={people} now={NOW} current />);
+
+    expect([...container.querySelectorAll('[data-future]')].map(tile => tile.getAttribute('data-future'))).toEqual([
+      'false',
+      'false',
+      'false',
+      'false',
+      'false',
+      'false',
+      'false',
+    ]);
+  });
+});
+
 describe('a week with more lines than the card carries', () => {
   it('reads the rest into the card itself, because no other screen can be pointed at them', async () => {
     wire.entries = [
