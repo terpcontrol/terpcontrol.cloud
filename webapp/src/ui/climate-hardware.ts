@@ -48,5 +48,24 @@ export const statesTargets = (configuration: DeviceConfiguration | null): boolea
  */
 export const HOLDS_A_CLIMATE = ['controller', 'fridge', 'fan'];
 
-/** A device that has never sent its document, but whose kind says it will state a climate when it does. */
+/**
+ * A device that has never sent its document, but whose kind says it will state a
+ * climate when it does.
+ *
+ * What ends that wait is worth stating, because every screen that draws this
+ * state has to tell somebody what to do about it, and the obvious answer is
+ * wrong. The device publishes its configuration only when a setting is changed
+ * on its own menu; on connect it publishes its firmware id and nothing else, and
+ * the cloud has no way to ask for the document, so waiting for the next
+ * connection is waiting for something that never happens.
+ *
+ * Writing a first document from here instead would be worse than waiting. The
+ * firmware rebuilds its whole settings struct from the document it is handed and
+ * falls back to its compile-time defaults for every key the document leaves out,
+ * so a document invented by the app would silently reset the work mode, the
+ * dehumidifier's timing and the light's ramps - the tuning somebody set standing
+ * at the hardware, which is exactly the tuning the app has never been sent and
+ * therefore cannot put back. So these screens say what actually produces a
+ * document and write nothing.
+ */
 export const awaitingClimate = (device: Device): boolean => device.configuration === null && HOLDS_A_CLIMATE.includes(device.type);
