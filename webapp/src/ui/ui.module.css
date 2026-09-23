@@ -74,6 +74,17 @@
   white-space: nowrap;
 }
 
+/* A chip out of reach, turned down as far as every other control the app
+   refuses. The rule above says the outlined chips do this, and until now they
+   did not: a chip never carries `.button`, so the only thing that reached a
+   disabled one was the cursor, which a thumb does not have. The camera page
+   draws four films to ask for in one row, two of which cannot be made while
+   nothing grows in the tent, and all four were drawn alike - the reason sits
+   under the row, so the row has to show which two it is about. */
+.chip:disabled {
+  opacity: 0.45;
+}
+
 .input {
   width: 100%;
   height: var(--control-height);
