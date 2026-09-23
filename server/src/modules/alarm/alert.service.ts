@@ -137,9 +137,9 @@ export class AlertService {
  * `offline` and `camera_stale` the seconds since the device or the camera was
  * last heard from, and printing that as `value=374021.218` puts a figure on the
  * grow's own diary that means nothing to the person reading it - while the
- * alert beside it, from the same number, says "quiet for 4 d". It is written
- * here as a span for that reason, and here rather than in the catalogue because
- * the whole line is already composed on this side.
+ * alert beside it, from the same number, says "last heard 4 d ago". It is
+ * written here as a span for that reason, and here rather than in the catalogue
+ * because the whole line is already composed on this side.
  */
 const summary = (subject: AlertSubject, alert: StoredAlert, value: number | null, event: AlarmEvent): string => {
   if (alert.kind === 'offline' || alert.kind === 'camera_stale') return silence(subject, alert, value, event);
@@ -160,16 +160,21 @@ const summary = (subject: AlertSubject, alert: StoredAlert, value: number | null
  *
  * A device that has gone away and a camera that has stopped delivering stills
  * are both raised by the health loop with the silence in seconds, so there is no
- * band to state and no reading to name: what the line has to say is how long it
- * had been quiet when the alarm was raised, and how long the episode ran once it
- * was over. The name in front of it is the rule's - "Device offline" - or the
+ * band to state and no reading to name: what the line has to say is when it was
+ * last heard from before the alarm was raised, and how long the episode ran once
+ * it was over. The name in front of it is the rule's - "Device offline" - or the
  * camera's, so neither line repeats the metric after it the way a threshold
  * alarm names the reading it watched.
  *
+ * It says "last heard" rather than calling the span a silence of readings,
+ * because the span is counted from the last thing the device was heard to say -
+ * a stored reading as readily as a message - and the liveness vocabulary the
+ * rest of the app uses was given that wording for exactly this distinction.
+ *
  * The end of it is dated from the alert rather than from the value it is handed:
  * the loop resolves an episode from a fresh measurement of the silence, which is
- * a few seconds by the time anything has been heard again, and "quiet for 12 s"
- * is not what a four-day absence should be remembered as.
+ * a few seconds by the time anything has been heard again, and "last heard 12 s
+ * ago" is not what a four-day absence should be remembered as.
  */
 const silence = (subject: AlertSubject, alert: StoredAlert, value: number | null, event: AlarmEvent): string => {
   if (event === 'resolved') {
@@ -177,7 +182,7 @@ const silence = (subject: AlertSubject, alert: StoredAlert, value: number | null
     return episode === null ? `${subject.name}, back` : `${subject.name}, back after ${spanWords(episode)}`;
   }
 
-  return value === null ? subject.name : `${subject.name}, quiet for ${spanWords(value)}`;
+  return value === null ? subject.name : `${subject.name}, last heard ${spanWords(value)} ago`;
 };
 
 const MINUTE = 60;

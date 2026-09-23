@@ -26,6 +26,7 @@ import {
   latestByField,
   liveQuery,
   newestSampleQuery,
+  newestSamplesQuery,
   oldestSampleQuery,
   OutputSwitching,
   pointsOf,
@@ -372,6 +373,32 @@ export class DataService implements LightStateReader {
   public async outputPoints(deviceId: string, output: OutputMetric, window: Omit<SeriesRequest, 'metrics' | 'outputs'>): Promise<SeriesPoint[]> {
     const { outputs } = await this.series(deviceId, { ...window, metrics: [], outputs: [output] });
     return outputs[0].points;
+  }
+
+  /**
+   * When each of several devices last wrote anything, counting only from an
+   * instant onwards, keyed by device.
+   *
+   * A device that wrote nothing in that stretch is absent from the answer
+   * rather than carried as a null, because "nothing since then" and "nothing
+   * ever" are the same answer to the caller: the instant it already has stands.
+   * The read is what tells a device that stopped talking from one whose last
+   * message the cloud simply failed to note, so it is deliberately about the
+   * device rather than about any one of its fields.
+   */
+  public async newestSamplesOf(deviceIds: readonly string[], since: Date): Promise<Map<string, Date>> {
+    if (deviceIds.length === 0) return new Map();
+
+    const newest = new Map<string, Date>();
+    for (const row of await this.read(newestSamplesQuery(this.bucket, deviceIds, since))) {
+      const at = row._time ? new Date(row._time).getTime() : NaN;
+      if (!row.device_id || !Number.isFinite(at)) continue;
+
+      const known = newest.get(row.device_id);
+      if (!known || at > known.getTime()) newest.set(row.device_id, new Date(at));
+    }
+
+    return newest;
   }
 
   /**

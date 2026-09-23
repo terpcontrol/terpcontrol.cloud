@@ -43,6 +43,14 @@ let mailed: string[];
 let stored: SeriesPoint[];
 let seriesReads: number;
 
+/**
+ * What the store answers when the health loop asks when a device last wrote
+ * anything: empty unless a case says the device went on reporting after the
+ * cloud's own note of it stopped being written, which is the migrated fleet.
+ */
+let heard: Map<string, Date>;
+let heardAsked: string[][];
+
 /** A minute apart, oldest first, ending at `endingAt` - the shape `DataService` answers a window in. */
 const series = (values: (number | null)[], endingAt: number = Date.now()): SeriesPoint[] =>
   values.map((value, index) => ({ measuredAt: new Date(endingAt - (values.length - 1 - index) * 60_000).toISOString(), value }));
@@ -95,6 +103,8 @@ beforeEach(async () => {
   mailed = [];
   stored = [];
   seriesReads = 0;
+  heard = new Map();
+  heardAsked = [];
 
   const mail = { send: async (message: { subject: string }) => void mailed.push(message.subject) } as unknown as MailService;
   const entries = new EntryWriterService(db.entries);
@@ -103,12 +113,16 @@ beforeEach(async () => {
     seriesReads += 1;
     return stored;
   };
-  const data = { points: jest.fn(answer), outputPoints: jest.fn(answer) } as unknown as DataService;
+  const newestSamplesOf = async (deviceIds: readonly string[]) => {
+    heardAsked.push([...deviceIds]);
+    return new Map([...heard].filter(([id]) => deviceIds.includes(id)));
+  };
+  const data = { points: jest.fn(answer), outputPoints: jest.fn(answer), newestSamplesOf: jest.fn(newestSamplesOf) } as unknown as DataService;
   const alertService = new AlertService(alerts, entries, delivery, null);
   episodes = alertService;
 
   engine = new AlarmEngineService(rules, db.devices, data, alertService);
-  health = new AlarmHealthService(db.devices, rules, db.cameras, engine, alertService);
+  health = new AlarmHealthService(db.devices, rules, db.cameras, engine, alertService, data);
 });
 
 describe('a reading leaving its band', () => {
@@ -370,6 +384,47 @@ describe('the health loop', () => {
     expect(await openAlert()).toBeNull();
   });
 
+  /**
+   * The migrated fleet: the old cloud recorded a last connection and the
+   * devices went on writing samples for another half day, so the note on the
+   * document is older than the truth and a silence counted from it is longer
+   * than the account's own stored readings show.
+   */
+  it('counts the silence from a stored reading that is newer than the note on the device', async () => {
+    const at = new Date();
+    await device({ state: { lastSeenAt: new Date(at.getTime() - 4 * 24 * 3600_000 - 13 * 3600_000) } });
+    heard.set(DEVICE, new Date(at.getTime() - 4 * 24 * 3600_000 - 90 * 60_000));
+
+    await health.run(at);
+
+    expect(await openAlert()).toMatchObject({ kind: 'offline', value: 4 * 24 * 3600 + 90 * 60 });
+    expect((await db.entries.find({}).lean()).map(entry => entry.message?.params[0])).toEqual(['Device offline, last heard 4 d 1 h ago']);
+  });
+
+  it('calls no device gone that the store heard from since the note was written', async () => {
+    const at = new Date();
+    await device({ state: { lastSeenAt: new Date(at.getTime() - GONE_MS) } });
+    heard.set(DEVICE, new Date(at.getTime() - 60_000));
+
+    await health.run(at);
+
+    expect(await alerts.countDocuments({})).toBe(0);
+  });
+
+  /**
+   * One read for the quiet half of the fleet and none for the rest: a reading
+   * can only shorten a silence, so a device the note still calls present has
+   * no answer the store could change.
+   */
+  it('asks the store only about the devices the note already calls gone', async () => {
+    await device({ state: { lastSeenAt: new Date(Date.now() - GONE_MS) } });
+    await db.devices.create({ id: 'device-2', type: 'controller', ownerId: OWNER, spaceId: SPACE, state: { lastSeenAt: new Date() } });
+
+    await health.run(new Date());
+
+    expect(heardAsked).toEqual([[DEVICE]]);
+  });
+
   it('raises for a camera that has stopped delivering stills', async () => {
     await device();
     await db.cameras.create({
@@ -458,18 +513,19 @@ describe('the health loop', () => {
  * The words the diary gets. An alarm's line is composed here rather than in the
  * catalogue, so what it says about silence is only ever as good as this - and
  * the seconds the health loop measures a silence in are not a figure anybody
- * reads, while the same number is drawn on the alert card as "quiet for 4 d".
+ * reads, while the same number is drawn on the alert card as "last heard 4 d
+ * ago".
  */
 describe('the line an alarm writes into the diary', () => {
   const said = async (): Promise<string[]> => (await db.entries.find({}).sort({ createdAt: 1 }).lean()).map(entry => entry.message?.params[0] ?? '');
 
-  it('says how long a device has been quiet rather than how many seconds that is', async () => {
+  it('says when a device was last heard rather than how many seconds ago that is', async () => {
     const quietSince = new Date(Date.now() - 374_021_218);
     await device({ state: { lastSeenAt: quietSince } });
 
     await health.run(new Date());
 
-    expect(await said()).toEqual(['Device offline, quiet for 4 d 7 h']);
+    expect(await said()).toEqual(['Device offline, last heard 4 d 7 h ago']);
   });
 
   it('says the same for a camera that has stopped delivering stills, which has no rule to name it', async () => {
@@ -487,7 +543,7 @@ describe('the line an alarm writes into the diary', () => {
 
     await health.run(new Date());
 
-    expect(await said()).toEqual(['Fridgegrow, quiet for 2 h']);
+    expect(await said()).toEqual(['Fridgegrow, last heard 2 h ago']);
   });
 
   it('dates the end of an absence from the episode rather than from the silence it was resolved on', async () => {
@@ -508,7 +564,7 @@ describe('the line an alarm writes into the diary', () => {
     // not the twelve seconds that ended it.
     await episodes.settle(subject, alert, 12, new Date());
 
-    expect(await said()).toEqual(['Device offline, quiet for 11 min', 'Device offline, back after 1 h 30 min']);
+    expect(await said()).toEqual(['Device offline, last heard 11 min ago', 'Device offline, back after 1 h 30 min']);
   });
 
   it('leaves a threshold alarm in the words it has always used', async () => {
