@@ -1952,6 +1952,13 @@
     "earlierWeeks": "Frühere Wochen",
     "ended": "beendet {{date}}",
     "finalDay": "letzter Tag",
+    "archive": {
+      "title": "Archiv",
+      "count_one": "{{count}} abgeschlossener Grow",
+      "count_other": "{{count}} abgeschlossene Grows",
+      "none": "Noch nichts abgeschlossen · ein Grow erscheint hier, sobald du ihn beendest",
+      "partial": "Es sind mehr, als auf einmal gelesen werden konnten; öffne das Archiv erneut, um weiterzulesen."
+    },
     "phaseBarEndedLabel": "Phasenverlauf, beendet in {{stage}}",
     "noWeeks": "Noch keine Phase · die Wochen beginnen mit der ersten Phase",
     "noFixedPlace": "Kein fester Platz",

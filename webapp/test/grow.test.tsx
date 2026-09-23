@@ -9,6 +9,7 @@ import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, GrowListItem, GrowWeekCard, Media, MediaRenderStatus } from '@fg2/shared-types/v1';
+import { GrowArchive } from '@/screens/grow/Archive';
 import { GrowHeader } from '@/screens/grow/GrowPage';
 import { PhaseBar } from '@/screens/grow/PhaseBar';
 import { Report } from '@/screens/grow/Report';
@@ -199,7 +200,7 @@ const EXPORT_ROW = (status: MediaRenderStatus, error: string | null = null): Med
     render: null,
   }) as unknown as Media;
 
-const wire = { calls: [] as string[], job: EXPORT_ROW('queued') };
+const wire = { calls: [] as string[], job: EXPORT_ROW('queued'), grows: [] as GrowListItem[] };
 
 const jsonOf = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -212,6 +213,8 @@ vi.stubGlobal(
     if (path === '/grows/grow-1/report') {
       return jsonOf({ dayCount: 35, totals: { entryCount: 4, waterCount: 1, feedCount: 2, photoCount: 1 }, harvest: null, phases: [], people: [] });
     }
+    if (path === '/grows') return jsonOf({ items: wire.grows, nextCursor: null });
+    if (path === '/spaces') return jsonOf({ items: [{ id: 'space-1', name: 'Tent 1', kind: 'tent', roomId: null }], nextCursor: null });
     if (path === '/grows/grow-1/export') return jsonOf({ media: wire.job, queued: true }, 202);
     if (path === '/media/media-export') return jsonOf(wire.job);
 
@@ -222,6 +225,7 @@ vi.stubGlobal(
 beforeEach(() => {
   wire.calls = [];
   wire.job = EXPORT_ROW('queued');
+  wire.grows = [];
   session.user = SIGNED_IN;
 });
 
@@ -341,6 +345,29 @@ describe('a grow that has ended', () => {
 
     expect(container.querySelectorAll('[data-current="true"]')).toHaveLength(1);
     expect(screen.getByRole('img')).toHaveAccessibleName('Phase progress, now in Flower');
+  });
+});
+
+describe('the archive', () => {
+  const finished: GrowListItem = { ...grow, id: 'grow-old', name: 'Autumn run', endedAt: at(20, 15), summary: { ...grow.summary, dayNumber: 14 } };
+
+  it('lists a grow that has ended and links to its diary, which nothing else in the app does', async () => {
+    wire.grows = [grow, finished];
+    draw(<GrowArchive />);
+
+    const row = await screen.findByRole('link', { name: /Autumn run/ });
+    expect(row).toHaveAttribute('href', '/grows/grow-old/weeks');
+    expect(row).toHaveTextContent('15 Aug 2026 → 29 Aug 2026');
+    // The grow that is still running belongs on the home, not here.
+    expect(screen.queryByText('Spring run')).not.toBeInTheDocument();
+    expect(screen.getByText('1 finished grow')).toBeInTheDocument();
+  });
+
+  it('says an account with nothing finished has nothing rather than drawing an empty list', async () => {
+    wire.grows = [grow];
+    draw(<GrowArchive />);
+
+    expect(await screen.findByText(/Nothing finished yet/)).toBeInTheDocument();
   });
 });
 

@@ -1,0 +1,100 @@
+/* The archive: a titled page and one card per finished grow. Layout only -
+   the card, the note and every colour, size and radius are the app's own. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.back {
+  display: inline-flex;
+  margin-left: calc(var(--space-2) * -1);
+  color: var(--ink);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.count {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.cover {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--card-2);
+  color: var(--green);
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name {
+  font-weight: var(--weight-semibold);
+}
+
+.meta {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--label);
+}
+
+/* The way in, under the home's cards: a quiet line rather than a button, so it
+   sits beside the row that starts a grow without competing with it. */
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.link .mono {
+  color: var(--label);
+}

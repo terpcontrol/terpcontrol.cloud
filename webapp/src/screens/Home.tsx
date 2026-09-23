@@ -8,6 +8,7 @@ import { useReportFreshness } from '@/ui/freshness';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { EmptyHome } from './EmptyHome';
+import { ArchiveLink } from './grow/Archive';
 import { NewGrowRow } from './grow/new/NewGrowRow';
 import { NewGrowSheet } from './grow/new/NewGrowSheet';
 import { isClub, sortedByAttention } from './home/attention';
@@ -73,6 +74,9 @@ function Nothing({ grows, onStartGrow }: { grows: HomeAnswer['followedGrows']; o
   return (
     <>
       <EmptyHome onStartGrow={onStartGrow} />
+      {/* An account whose only grow has ended owns no place and lands here, so
+          the way into the archive belongs on this half of the home as well. */}
+      <ArchiveLink />
       <FollowingStrip grows={grows} now={now} />
     </>
   );
@@ -110,6 +114,7 @@ function Cards({ answer, failedAt, onStartGrow }: { answer: HomeAnswer; failedAt
       </div>
 
       <NewGrowRow onOpen={onStartGrow} />
+      <ArchiveLink />
 
       <FollowingStrip grows={answer.followedGrows} now={now} />
     </section>

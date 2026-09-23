@@ -1956,6 +1956,13 @@
     "earlierWeeks": "Earlier weeks",
     "ended": "ended {{date}}",
     "finalDay": "final day",
+    "archive": {
+      "title": "Archive",
+      "count_one": "{{count}} finished grow",
+      "count_other": "{{count}} finished grows",
+      "none": "Nothing finished yet · a grow appears here once you end it",
+      "partial": "There are more than could be read in one go; open the archive again to read on."
+    },
     "phaseBarEndedLabel": "Phase progress, ended in {{stage}}",
     "noWeeks": "No phase yet · the weeks start with the first phase",
     "noFixedPlace": "No fixed place",

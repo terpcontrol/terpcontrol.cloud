@@ -12,6 +12,7 @@ import { Demo } from '@/screens/admin/Demo';
 import { Devices } from '@/screens/devices/Devices';
 import { FirmwareScreen } from '@/screens/admin/Firmware';
 import { Fleet } from '@/screens/admin/Fleet';
+import { GrowArchive } from '@/screens/grow/Archive';
 import { GrowPage } from '@/screens/grow/GrowPage';
 import { Home } from '@/screens/Home';
 import { JoinRoute } from '@/screens/join/JoinRoute';
@@ -70,6 +71,12 @@ import { Timeline } from '@/screens/Timeline';
  * third page a row opens, beside the grow and the space, and adding one is a
  * page of its own above it: a static segment outranks the parameter beside it,
  * so `/cameras/add` is never read as a camera called "add".
+ *
+ * A grow that has ended is not on the home, which draws the places and what
+ * stands in them today, so the diaries that are over have an address of their
+ * own: `/grows/archive`, reached from under the home's cards. It is a static
+ * segment beside the grow parameter and therefore outranks it, exactly as
+ * `/grows/new` does, so it is never read as a grow called "archive".
  *
  * A grow has two pages below it rather than tabs: what it measures, and one of
  * its plants. Both are about something narrower than the grow and are reached
@@ -146,6 +153,7 @@ export const router = createBrowserRouter([
       },
       { path: 'alerts', element: <Alerts /> },
       { path: 'grows/new', element: <NewGrowRoute /> },
+      { path: 'grows/archive', element: <GrowArchive /> },
       { path: 'grows/:growId/measurements', element: <Measurements /> },
       { path: 'grows/:growId/plants/:plantId', element: <PlantPage /> },
       { path: 'grows/:growId/:tab?', element: <GrowPage /> },
