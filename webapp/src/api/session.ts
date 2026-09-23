@@ -30,9 +30,28 @@ export interface SessionState {
   sessionId: string | null;
   /** False until the stored refresh token has been tried, so nothing redirects too early. */
   restored: boolean;
+  /**
+   * True when the stored session could not be tried rather than tried and
+   * refused: the server answered with a fault of its own, or nothing answered
+   * at all.
+   *
+   * It is not a signed-out state and must not be drawn as one. The refresh
+   * token is still in local storage and is still good; what is missing is an
+   * answer, and the honest thing to say is that the server cannot be reached
+   * and that trying again is worth doing. Sending somebody to the sign-in form
+   * instead asks them for a password to solve an outage.
+   */
+  unreachable: boolean;
 }
 
 const STORAGE_KEY = 'terp.session';
+
+/**
+ * The one answer to a refresh that means the session itself is gone, and so the
+ * one that may take the stored token with it. The server answers it for every
+ * token it refuses, and for nothing else.
+ */
+const SESSION_IS_GONE = 401;
 
 /** Refresh this long before the token actually dies, so a slow request does not race its own expiry. */
 const REFRESH_MARGIN_MS = 30_000;
@@ -50,6 +69,13 @@ const MEDIA_MARGIN_MS = 24 * 60 * 60 * 1000;
 
 interface Stored {
   refreshToken: string;
+  /**
+   * When the server said this token dies. Kept as the record of what it said,
+   * and deliberately not what decides whether to try it: the instant would have
+   * to be read against this browser's clock, and at boot nothing has answered
+   * yet for `serverNow` to correct one that is wrong. A phone a day fast would
+   * throw away a session that is perfectly good. The server is asked instead.
+   */
   refreshTokenUntil: number;
   user: SessionUser;
   sessionId: string;
@@ -65,6 +91,12 @@ const stores = (): Storage[] => {
   }
 };
 
+/**
+ * The session as it was left. A value that will not parse is removed, which is
+ * the one thing thrown away here that no server answer decided - and it is not
+ * a session being ended: nothing can be refreshed from a string that is not
+ * JSON, and leaving it would make every later boot fail on it again.
+ */
 const readStored = (): Stored | null => {
   for (const store of stores()) {
     const raw = store.getItem(STORAGE_KEY);
@@ -125,7 +157,7 @@ const tokensOf = (result: SessionTokens, held: Tokens | null): Tokens => {
 };
 
 class SessionStore {
-  private state: SessionState = { user: null, tokens: null, sessionId: null, restored: false };
+  private state: SessionState = { user: null, tokens: null, sessionId: null, restored: false, unreachable: false };
   private listeners = new Set<() => void>();
   private stayLoggedIn = false;
   private inFlight: Promise<Tokens | null> | null = null;
@@ -165,7 +197,7 @@ class SessionStore {
     // Nothing is carried over: whoever signs in here gets their own media
     // token, and never the one the last person to use this tab was given.
     const tokens = tokensOf(result, null);
-    this.publish({ user: result.user, tokens, sessionId: result.sessionId, restored: true });
+    this.publish({ user: result.user, tokens, sessionId: result.sessionId, restored: true, unreachable: false });
     writeStored({
       refreshToken: tokens.refreshToken,
       refreshTokenUntil: tokens.refreshTokenUntil,
@@ -187,19 +219,36 @@ class SessionStore {
     }
   }
 
+  /**
+   * Throws the session away, here and in storage. Only two things may call it:
+   * signing out, and an answer that says the session is gone. Anything else -
+   * a server fault, a proxy restarting, a phone in a lift - leaves the tokens
+   * where they are, because a session nobody could ask about is not a session
+   * that ended.
+   */
   private forget() {
     writeStored(null);
-    this.publish({ user: null, tokens: null, sessionId: null, restored: true });
+    this.publish({ user: null, tokens: null, sessionId: null, restored: true, unreachable: false });
   }
 
-  /** Turns whatever was stored into a live session, once, at boot. */
+  /**
+   * Turns whatever was stored into a live session, at boot - and again after an
+   * attempt that ended in no answer, which is what the "try again" on the
+   * unreachable screen asks for. An attempt the server did answer is final:
+   * there is nothing left in storage to try a second time.
+   */
   public async restore(): Promise<void> {
-    if (this.state.restored) return;
+    if (this.state.restored && !this.state.unreachable) return;
     const stored = readStored();
-    if (!stored || stored.refreshTokenUntil <= serverNow().toMillis()) {
-      this.publish({ restored: true });
+    if (!stored) {
+      this.publish({ restored: true, unreachable: false });
       return;
     }
+
+    // The stored token is spent whatever this browser thinks of the hour: how
+    // long is left in it is the server's to say, and it says so with the one
+    // answer that ends a session. A token that really has run out costs one
+    // request and once only, because the 401 it comes back with clears it.
     this.stayLoggedIn = stored.stayLoggedIn;
     this.publish({ user: stored.user, tokens: null, sessionId: stored.sessionId });
     const tokens = await this.refresh(stored.refreshToken);
@@ -227,19 +276,46 @@ class SessionStore {
     return this.inFlight;
   }
 
+  /**
+   * Spends the refresh token, and decides what a failure means.
+   *
+   * Only an answer that says the session is gone may end it. The server refuses
+   * a refresh token with 401 and with nothing else - an unreadable or expired
+   * signature, a token of the wrong type, a session row that was revoked or ran
+   * out are all `unauthenticated` - so 401 is the one answer that carries "there
+   * is nothing here to renew". A 500, a 502 from a proxy while the server
+   * restarts, or a request that never arrived say only that this minute was a
+   * bad one, and the difference is somebody signed out of their tent while the
+   * alarm they are watching is still ringing. The tokens are kept in every one
+   * of those cases: the screen says the server cannot be reached, and the next
+   * attempt, on this page or the next load, signs them back in without a
+   * password.
+   */
   private async doRefresh(refreshToken: string): Promise<Tokens | null> {
-    const response = await fetch(v1('/sessions/refresh'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(v1('/sessions/refresh'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+    } catch {
+      // Nothing reached the server: no connection, a name that would not
+      // resolve, a request cut off. It is also the one failure that used to
+      // reject out of the caller and leave the boot unfinished, so it is
+      // answered as a refresh that did not happen rather than thrown on.
+      this.publish({ unreachable: true });
+      return null;
+    }
+
     if (!response.ok) {
-      this.forget();
+      if (response.status === SESSION_IS_GONE) this.forget();
+      else this.publish({ unreachable: true });
       return null;
     }
 
     const tokens = tokensOf((await response.json()) as SessionTokens, this.state.tokens);
-    this.publish({ tokens });
+    this.publish({ tokens, unreachable: false });
     const { user, sessionId } = this.state;
     if (user && sessionId) {
       writeStored({

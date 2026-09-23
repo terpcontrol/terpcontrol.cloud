@@ -1377,6 +1377,13 @@
     "accountNote": "Du · Profil, Einstellungen",
     "loadFailed": "Konnte nicht laden. Bitte erneut versuchen.",
     "unreachable": "Server nicht erreichbar. Bitte erneut versuchen.",
+    "cannotReach": {
+      "title": "Server nicht erreichbar",
+      "why": "Du bist weiterhin angemeldet. Die App lässt sich das bei jedem Start vom Server bestätigen, und diesmal kam keine Antwort - ein Neustart auf der anderen Seite oder eine abgerissene Verbindung. Es ist nichts verloren und nichts muss neu eingetippt werden; meist genügt es, es gleich noch einmal zu versuchen.",
+      "again": "Erneut versuchen",
+      "asking": "Versucht …",
+      "signIn": "Stattdessen anmelden"
+    },
     "gone": {
       "space": "Dieses Zelt ist nicht mit dir geteilt.",
       "grow": "Dieser Grow ist nicht mit dir geteilt.",

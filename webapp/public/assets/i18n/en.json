@@ -1381,6 +1381,13 @@
     "accountNote": "You · profile, settings",
     "loadFailed": "Could not load. Try again.",
     "unreachable": "Could not reach the server. Try again.",
+    "cannotReach": {
+      "title": "Could not reach the server",
+      "why": "You are still signed in. The app asks the server to confirm that each time it starts, and this time the server did not answer - a restart at the other end, or a connection that dropped. Nothing has been lost and nothing has to be typed again; trying again in a moment is usually all it takes.",
+      "again": "Try again",
+      "asking": "Trying …",
+      "signIn": "Sign in instead"
+    },
     "gone": {
       "space": "This tent is not shared with you.",
       "grow": "This grow is not shared with you.",

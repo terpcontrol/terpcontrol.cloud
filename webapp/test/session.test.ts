@@ -197,3 +197,99 @@ describe('the day the media token is swapped', () => {
     expect(session.snapshot().tokens?.mediaToken).toBe('media-second');
   });
 });
+
+/**
+ * What a refresh that failed is allowed to cost.
+ *
+ * The stored refresh token is the whole of a session between one load and the
+ * next, and throwing it away is signing somebody out of their tent - possibly
+ * while the alarm they are watching is still ringing. Only an answer that says
+ * the session is gone may do that, and on this route the server says it with
+ * 401 and with nothing else: a 500, a 502 from a proxy during a restart or a
+ * request that never arrived say only that the minute was a bad one.
+ */
+describe('a refresh the server could not answer', () => {
+  const stored = () => ({
+    refreshToken: 'refresh-stored',
+    refreshTokenUntil: Date.now() + 30 * DAY_MS,
+    user: USER,
+    sessionId: 'session-1',
+    stayLoggedIn: true,
+  });
+
+  /** The refresh route answering one status, with a problem document as the API always sends one. */
+  const answering = (status: number): void => {
+    const problem = { status, code: 'down', title: 'Down', detail: 'The server is having a bad minute.', errors: [] };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify(problem), { status, headers: { 'Content-Type': 'application/json' } })),
+    );
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem('terp.session', JSON.stringify(stored()));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps the session through a 500, says the server could not be reached, and signs in again on the next try', async () => {
+    answering(500);
+    const { session } = await freshSession();
+
+    await session.restore();
+
+    expect(localStorage.getItem('terp.session')).not.toBeNull();
+    expect(session.snapshot()).toMatchObject({ user: null, restored: true, unreachable: true });
+
+    // The same token, once the server is back: no password is asked for.
+    serve([triple('afterTheOutage', 30 * DAY_MS)]);
+    await session.restore();
+
+    expect(session.snapshot()).toMatchObject({ user: USER, unreachable: false });
+    expect(session.snapshot().tokens?.userToken).toBe('user-afterTheOutage');
+  });
+
+  it('keeps it when nothing answered at all, rather than leaving the boot unfinished', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('Failed to fetch');
+      }),
+    );
+    const { session } = await freshSession();
+
+    await expect(session.restore()).resolves.toBeUndefined();
+
+    expect(localStorage.getItem('terp.session')).not.toBeNull();
+    expect(session.snapshot()).toMatchObject({ user: null, restored: true, unreachable: true });
+  });
+
+  it('ends it on a 401, which is the one answer that says the session is gone', async () => {
+    answering(401);
+    const { session } = await freshSession();
+
+    await session.restore();
+
+    expect(localStorage.getItem('terp.session')).toBeNull();
+    expect(sessionStorage.getItem('terp.session')).toBeNull();
+    expect(session.snapshot()).toMatchObject({ user: null, restored: true, unreachable: false });
+  });
+
+  it('leaves an open tab signed in when a renewal in the middle of a session hits a fault', async () => {
+    serve([result('first', 30 * DAY_MS)]);
+    const { session } = await freshSession();
+    // Stays signed in, which is what a phone does and what leaves the token in local storage.
+    await session.logIn({ email: 'you@example.com', password: 'secret', stayLoggedIn: true });
+
+    answering(503);
+    expect(await session.refresh(session.snapshot().tokens?.refreshToken)).toBeNull();
+
+    expect(session.snapshot()).toMatchObject({ user: USER, unreachable: true });
+    expect(session.snapshot().tokens?.refreshToken).toBe('refresh-first');
+    expect(localStorage.getItem('terp.session')).not.toBeNull();
+  });
+});
