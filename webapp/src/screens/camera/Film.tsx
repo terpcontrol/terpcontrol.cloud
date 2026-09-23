@@ -69,10 +69,21 @@ export function Film({ mediaId, collapsed }: { mediaId: string; collapsed?: bool
  * drawn as running into the next one for a reader sitting east of the account
  * they are reading, which is the film saying it covers a day it holds no frame
  * of.
+ *
+ * The end is read as the last moment inside the span rather than as the first
+ * moment outside it, because the two things that write `endsAt` disagree about
+ * which they mean: the rolling builder stores the last frame it encoded, while
+ * a film composed on request stores the exclusive end of the bucket it was
+ * asked for. A one-tap "Today" therefore arrived as midnight to midnight and
+ * was drawn "23 Sep -> 24 Sep", two dates for one day, directly above builder
+ * films of the same length reading "18 Sep 00:00 -> 18 Sep 23:58". Taking the
+ * millisecond off settles it here; no film has an end aligned to a whole second
+ * but those, so no other row's clock time moves. The durable answer is for the
+ * render job to write back the frame it actually finished on.
  */
 const spanLabel = (film: Media, zone: string | null): string => {
   const from = zoned(film.capturedAt, zone);
-  const to = film.endsAt ? zoned(film.endsAt, zone) : null;
+  const to = film.endsAt ? zoned(film.endsAt, zone).minus({ milliseconds: 1 }) : null;
   const format = from.hasSame(to ?? from, 'day') ? 'd MMM HH:mm' : 'd MMM';
 
   return to ? `${from.toFormat(format)} → ${to.toFormat(format)}` : from.toFormat(format);

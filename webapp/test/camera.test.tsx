@@ -601,6 +601,23 @@ describe('the job it starts', () => {
     expect(render(<Film mediaId="media-1" />).container.textContent).toContain('18 Sep → 19 Sep');
   });
 
+  /**
+   * The two things that write `endsAt` mean different ends by it: the rolling
+   * builder stores the last frame it encoded, a film composed on request stores
+   * the exclusive end of its bucket. A one-tap "Today" arrived as midnight to
+   * midnight and was drawn as two dates, over builder films of the same length
+   * reading as one.
+   */
+  it('reads a film´s end as the last moment inside it rather than the first outside', () => {
+    state.zone = 'UTC';
+    state.film = { ...(film('ready') as object), capturedAt: '2026-09-23T00:00:00.000Z', endsAt: '2026-09-24T00:00:00.000Z' };
+
+    const { container } = render(<Film mediaId="media-1" />);
+
+    expect(container.textContent).toContain('23 Sep 00:00 → 23 Sep 23:59');
+    expect(container.textContent).not.toContain('24 Sep');
+  });
+
   it('plays the film once it is done, with the length it came out at', () => {
     state.film = film('ready');
     const { container } = render(<Film mediaId="media-1" />);
