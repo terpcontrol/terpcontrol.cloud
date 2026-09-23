@@ -325,6 +325,8 @@ describe('a link’s own sheet', () => {
     const sheet = screen.getByRole('dialog', { name: 'Tent 1 · timeline · 7 days' });
     expect(within(sheet).getByText(/\/shared\/tok-week$/)).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Forget' })).not.toBeInTheDocument();
+    // What it will do, to whom, and that there is no way back to a live link.
+    expect(within(sheet).getByText(/it cannot be started again - handing the grow out once more takes a new link/)).toBeInTheDocument();
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Revoke' }));
     await waitFor(() => expect(server.revoked).toEqual(['link-week']));

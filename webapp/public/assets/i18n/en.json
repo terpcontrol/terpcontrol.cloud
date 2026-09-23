@@ -1756,7 +1756,7 @@
       "closing": "Two kinds: the public page of a grow (permanent until you make the grow private) and a read-only view of a tent or a time range with an expiry. Both can include the cams or not. Followers see the public page; a link never grants writing.",
       "new": "+ New link · grow or tent · cams · expiry",
       "address": "Address",
-      "revokeNote": "Revoking ends the link now. Whoever has it sees from then on exactly what a link nobody made shows: nothing. It stays listed here with the date.",
+      "revokeNote": "Revoking ends the link now. Whoever has it sees from then on exactly what a link nobody made shows: nothing. It stays listed here with the date, and it cannot be started again - handing the grow out once more takes a new link.",
       "forgetNote": "Forgetting takes the link off this list. It has already stopped working.",
       "sheet": {
         "title": "New link",
@@ -1855,7 +1855,7 @@
       "save": "Save",
       "saving": "Saving…",
       "delete": "Delete",
-      "deleteAsk": "Delete {{name}}? Grows already fed by it keep their own grid.",
+      "deleteAsk": "Delete {{name}}? Grows already fed by it keep their own grid. The copy on your shelf goes for good; a grow that still has the grid can put one back from its Feeding tab.",
       "deleteYes": "Delete it",
       "cancel": "Cancel",
       "demo": "The demo has no shelf of its own, so only the shipped schemes are here."

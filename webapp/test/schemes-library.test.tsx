@@ -200,6 +200,8 @@ describe('the own shelf', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Delete' }));
     expect(server.deleted).toEqual([]);
     expect(within(sheet).getByText(/Grows already fed by it keep their own grid/)).toBeInTheDocument();
+    // And the half that is not about the grows: the copy itself does not come back.
+    expect(within(sheet).getByText(/The copy on your shelf goes for good/)).toBeInTheDocument();
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Delete it' }));
 
