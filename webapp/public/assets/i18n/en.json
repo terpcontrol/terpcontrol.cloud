@@ -2002,7 +2002,7 @@
     },
     "noScheme": "No feeding scheme",
     "noSchemeNote": "This grow is fed no scheme. Choose one to start from, or feed it by hand and log what you give.",
-    "noSchemeNoteEnded": "This grow was fed no scheme. Writing in what it really got is still worth doing: its report and its export read this grid.",
+    "noSchemeNoteEnded": "This grow was fed no scheme. Writing in what it really got is still worth doing: its week cards read this grid, here and on a shared link.",
     "edited": "edited",
     "strength": "strength {{percent}} %",
     "waterEc": "water EC {{ec}}",

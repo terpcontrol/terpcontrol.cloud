@@ -115,9 +115,13 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
           <span className="label">{t('grow.noScheme')}</span>
           {/* A finished grow is not being fed anything, so it is told what it
               was fed and why the grid is still worth filling in, rather than
-              being advised how to start. The action itself stays: this grid is
-              the record the report and the export read, and filling in what a
-              grow really got is a legitimate repair of it long afterwards. */}
+              being advised how to start. The action itself stays: the grid is
+              what every week card of this grow states it was fed, here and on
+              a shared link, and filling in what a grow really got is a
+              legitimate repair of that long afterwards. It reaches no further
+              than those cards - the report carries nothing week-level and the
+              export writes only the scheme it was fed by - so the note must
+              not promise those two. */}
           <p className={ui.note}>{t(grow.endedAt ? 'grow.noSchemeNoteEnded' : 'grow.noSchemeNote')}</p>
         </section>
         {mayManage ? (

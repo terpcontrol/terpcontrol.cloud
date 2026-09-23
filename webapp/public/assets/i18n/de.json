@@ -1998,7 +1998,7 @@
     },
     "noScheme": "Kein Düngeschema",
     "noSchemeNote": "Dieser Grow folgt keinem Schema. Wähle eines als Ausgangspunkt oder dünge von Hand und schreibe auf, was du gibst.",
-    "noSchemeNoteEnded": "Dieser Grow wurde nach keinem Schema gedüngt. Nachzutragen, was er wirklich bekommen hat, lohnt sich trotzdem: Sein Bericht und sein Export lesen dieses Raster.",
+    "noSchemeNoteEnded": "Dieser Grow wurde nach keinem Schema gedüngt. Nachzutragen, was er wirklich bekommen hat, lohnt sich trotzdem: Seine Wochenkarten lesen dieses Raster, hier und auf einem geteilten Link.",
     "edited": "bearbeitet",
     "strength": "Stärke {{percent}} %",
     "waterEc": "Wasser-EC {{ec}}",
