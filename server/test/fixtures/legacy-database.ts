@@ -722,6 +722,15 @@ export async function seedLegacyDatabase(target: Connection | mongo.Db, at: numb
       current_firmware: 'fw-controller-1.4.2',
       fwupdate_start: 0,
       fwupdate_end: 0,
+      cloudSettings: {
+        _id: idAt(ago(180), 121),
+        firmwareChannel: 'stable',
+        pendingFirmware: '',
+        // A stream on a device nobody ever named: its camera has no name to
+        // take, and the id it used to fall back to is not one either.
+        rtspStream: 'rtsp://10.0.0.71:554/stream1',
+        rtspStreamTransport: 'udp',
+      },
       hardwareInfo: { firmware_version: '1.4.2', claimcode_auth: 'on', sockets: 'none', socket_ips: 'none', sockets_n: '0' },
       __v: 0,
     },

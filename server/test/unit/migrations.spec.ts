@@ -392,9 +392,10 @@ describe('what the migration wrote', () => {
       alarmRules: 8,
       // One per alarm standing triggered: the warm tent, and the racing fan.
       alerts: 2,
-      // A stream each for the tent, the fridge and the demo tent, and a retired
-      // one for the fan, whose stills outlived the camera they came from.
-      cameras: 4,
+      // A stream each for the tent, the fridge, the unnamed controller and the
+      // demo tent, and a retired one for the fan, whose stills outlived the
+      // camera they came from.
+      cameras: 5,
       planTemplates: fixture.counts.recipetemplates,
       grows: 3,
       // Every line that is still in the collection is one somebody kept.
@@ -845,6 +846,24 @@ describe('cameras', () => {
     for (const imageId of fixture.images.withoutCamera) {
       expect((await one<Record<string, any>>('media', { id: imageId }))?.cameraId).toBe(retired?.id);
     }
+  });
+
+  /**
+   * Two thirds of the fleet was never named, and the camera took the device's
+   * id when there was no name to take - so three of the ten cameras in the
+   * restored database were drawn under a bare uuid on every screen that names
+   * one. `004-spaces` argues the same case about the same device and gives its
+   * place a name a person can read; a camera gets one too.
+   */
+  it('gives an unnamed device’s camera a name rather than the device’s id', async () => {
+    await migrate();
+
+    const camera = await one<Record<string, any>>('cameras', { id: cameraIdOf(LEGACY_DEVICE_IDS.unnamed) });
+    expect(camera?.name).toBe('Camera 1');
+    expect(camera?.kind).toBe('rtsp');
+
+    // A name its owner typed is theirs and is left exactly as it stands.
+    expect((await one<Record<string, any>>('cameras', { id: cameraIdOf(LEGACY_DEVICE_IDS.fridge) }))?.name).toBe('Cellar fridge');
   });
 
   it('dates a camera by the newest picture it delivered, so a quiet one does not read as one that never worked', async () => {
