@@ -7,10 +7,10 @@ import type { ActuatorRuns, Camera, ClimateVerdict, Device, Firmware, OutputMetr
 import { useMe } from '@/api/account';
 import { useCameras, useLatestStills } from '@/api/cameras';
 import { fetchedAt } from '@/api/clock';
-import { useDeviceFirmwares, useDevices, useLightLevels, useSocketTables } from '@/api/devices';
+import { useDeviceFirmwares, useDevices, useLiveReads, useSocketTables } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
-import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
+import { ageAttribute, ageLabel, deviceLiveness, heardAt } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, useMayLogIn, useMayManage, useMayWith } from '@/ui/session-access';
@@ -57,17 +57,20 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
   const cameras = useCameras(spaceId);
   const spaces = useSpaces();
 
+  const here = (devices.data?.items ?? []).filter(device => spaceId === undefined || device.spaceId === spaceId);
+  // What each controller is reading and what its lamp is running at. The level
+  // is a reading and not a setting, and it is the only word the device gives on
+  // its own light output: a brightness is never acknowledged and an override is
+  // never reported back. The instants come with it, because a reading is proof
+  // the device was heard and the migrated `lastSeenAt` of a device claimed into
+  // the old cloud can be older than its own samples.
+  const reads = useLiveReads(here.map(device => device.id));
+  const spokeAt = (device: Device): string | null => heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null);
   // The device that is talking is the one somebody came here for; one that has
   // gone quiet keeps its row, its place and its age, further down.
-  const mine = (devices.data?.items ?? [])
-    .filter(device => spaceId === undefined || device.spaceId === spaceId)
-    .sort((one, other) => RANK[deviceLiveness(one.state.lastSeenAt, now)] - RANK[deviceLiveness(other.state.lastSeenAt, now)]);
+  const mine = [...here].sort((one, other) => RANK[deviceLiveness(spokeAt(one), now)] - RANK[deviceLiveness(spokeAt(other), now)]);
   const shown = cameras.data?.items ?? [];
   const tables = useSocketTables(mine.map(device => device.id));
-  // What each controller's lamp is running at. It is a reading and not a
-  // setting, and it is the only word the device gives on its own light output:
-  // a brightness is never acknowledged and an override is never reported back.
-  const levels = useLightLevels(mine.map(device => device.id));
   const stills = useLatestStills(shown.map(camera => camera.id));
 
   useReportFreshness(devices.dataUpdatedAt ? fetchedAt(devices.dataUpdatedAt) : null);
@@ -101,6 +104,7 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
             sockets={tables.tables.get(device.id)}
             cameras={shown.filter(camera => camera.deviceId === device.id).length}
             linked={spaceId === undefined}
+            spokeAt={spokeAt(device)}
             now={now}
           />
         ))}
@@ -151,7 +155,7 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
         // "why is it dark in there" is asking about one of these rows, and which
         // of them it is is the question this screen used to leave open.
         const rows = rowsOf(table.items);
-        const light = lightOutputOf(device, table.capabilities, levels.levels.get(device.id) ?? null);
+        const light = lightOutputOf(device, table.capabilities, reads.levels.get(device.id) ?? null);
         const lamps = rows.filter(row => isLightRole(row.role));
         const rest = rows.filter(row => !isLightRole(row.role));
         if (!light && rows.length === 0) return null;
@@ -161,7 +165,7 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
         // noise. A device nobody is listening on hears nothing at all; one whose
         // build predates the override still takes every command it always did,
         // so that reason is kept apart from this one.
-        const unheard = deviceLiveness(device.state.lastSeenAt, now) === 'offline' ? t('devices.socket.offline') : null;
+        const unheard = deviceLiveness(spokeAt(device), now) === 'offline' ? t('devices.socket.offline') : null;
         const refusal = !table.capabilities.socketOverride ? t('devices.socket.needsFirmware') : unheard;
         const place = placeOf(device.spaceId) ?? deviceTitle(device, t);
         // A socket and the lamp above it are this device's configuration, which
@@ -236,15 +240,17 @@ interface DeviceRowProps {
   cameras: number;
   /** The tent's own list is already in the tent, so a row there does not offer the way back to it. */
   linked: boolean;
+  /** When the device was last heard, which is its own last message or its own newest reading, whichever is later. */
+  spokeAt: string | null;
   now: DateTime;
 }
 
 /** A controller: where it stands, what it runs, how much it drives, and how long ago it last said anything. */
-function DeviceRow({ device, place, sockets, cameras, linked, now }: DeviceRowProps) {
+function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now }: DeviceRowProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const firmwares = useDeviceFirmwares(device.id, open);
-  const liveness = deviceLiveness(device.state.lastSeenAt, now);
+  const liveness = deviceLiveness(spokeAt, now);
   const legacy = sockets ? !sockets.capabilities.socketOverride : false;
 
   const build = firmwares.data?.items.find(one => one.id === device.state.firmwareId);
@@ -280,7 +286,7 @@ function DeviceRow({ device, place, sockets, cameras, linked, now }: DeviceRowPr
         <span className={`mono ${styles.liveness}`} data-liveness={liveness}>
           <span className={styles.dot} aria-hidden />
           {t(`home.liveness.${liveness}`)}
-          {device.state.lastSeenAt ? ` · ${ageLabel(device.state.lastSeenAt, now)}` : ''}
+          {spokeAt ? ` · ${ageLabel(spokeAt, now)}` : ''}
         </span>
         <button
           type="button"

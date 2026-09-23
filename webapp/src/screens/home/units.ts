@@ -42,6 +42,12 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * the least useful true thing a card could say about a tent nobody has heard
  * from - so it is said as a span, in the same words every other age on the
  * screen uses.
+ *
+ * Those seconds are counted from when the device was last *heard*, which is not
+ * the same instant as its last sample and on a migrated device can be half a
+ * day earlier. So the span is worded as the pill beside it is worded, "last
+ * heard", and never as a silence of readings: calling it that put "quiet for
+ * 4 d" on a card whose own figures were dated three days ago.
  */
 export const alertLabel = (t: Translate, alert: OpenAlert): string => {
   if (alert.metric === 'offline') {

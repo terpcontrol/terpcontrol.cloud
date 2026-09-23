@@ -1514,7 +1514,7 @@
       "threshold": "Alarm",
       "offline": "Offline",
       "camera_stale": "Cam not delivering",
-      "quietFor": "quiet for {{age}}"
+      "quietFor": "last heard {{age}} ago"
     },
     "actions": {
       "water": "Water",

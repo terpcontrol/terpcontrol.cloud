@@ -1510,7 +1510,7 @@
       "threshold": "Alarm",
       "offline": "Offline",
       "camera_stale": "Cam liefert nicht",
-      "quietFor": "still seit {{age}}"
+      "quietFor": "zuletzt gemeldet vor {{age}}"
     },
     "actions": {
       "water": "Gießen",

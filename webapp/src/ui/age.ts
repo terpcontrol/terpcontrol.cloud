@@ -102,6 +102,29 @@ export const isStale = (value: Pick<MetricValue, 'state' | 'measuredAt'>, now: D
  * an hour fast would otherwise call four live devices dead and sort them to the
  * top of the list for it.
  */
+/**
+ * When a device was last heard, from everything a screen holds that proves it.
+ *
+ * `lastSeenAt` is the cloud's note of the last message it took from the device,
+ * and the ingest stamps it on every one, so on a device claimed into this cloud
+ * the two can never part. The devices carried over from the old one were given
+ * the last *connection* the old cloud recorded, which for a fleet that went on
+ * reporting for another half day afterwards is simply older than the truth: a
+ * row read "offline · 4 d" directly above its own light output at "60 % · 3 d
+ * ago", which is the same device saying it was heard a day later than the row
+ * claimed.
+ *
+ * A stored reading is proof the device was heard, so the later of the two is
+ * taken. It can only shorten a silence and never invent one, which is what
+ * makes it safe to prefer over the raw field: no device is made to look present
+ * by a reading older than the last message from it.
+ */
+export const heardAt = (lastSeenAt: string | null, measuredAt: string | null): string | null => {
+  if (!lastSeenAt) return measuredAt;
+  if (!measuredAt) return lastSeenAt;
+  return measuredAt > lastSeenAt ? measuredAt : lastSeenAt;
+};
+
 export const deviceLiveness = (lastSeenAt: string | null, now: DateTime): ValueState => {
   if (!lastSeenAt) return 'offline';
   const seconds = (now.toMillis() - DateTime.fromISO(lastSeenAt).toMillis()) / 1000;

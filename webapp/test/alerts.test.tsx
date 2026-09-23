@@ -751,8 +751,10 @@ describe('the arithmetic behind the cards', () => {
     // `offline` is a metric so the health loop's rule can be an ordinary
     // reading rule, and the reading is a number of seconds. Drawn as a figure
     // it said "337256 offline" on a real tent nobody had heard from in days.
-    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 337_255.9 }))).toBe('Offline · quiet for 3 d');
-    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 900 }))).toBe('Offline · quiet for 15 min');
+    // Counted from when the device was last heard, which is not the instant of
+    // its last sample and is worded so rather than as a silence of readings.
+    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 337_255.9 }))).toBe('Offline · last heard 3 d ago');
+    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 900 }))).toBe('Offline · last heard 15 min ago');
   });
 
   it('keeps an open alert under NOW however long ago it began', () => {

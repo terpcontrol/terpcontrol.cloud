@@ -71,7 +71,17 @@ export interface OutputLevel {
   state: ValueState;
 }
 
-export const useLightLevels = (deviceIds: string[]) =>
+/**
+ * What each of these devices is reading and driving right now.
+ *
+ * One read per device, and two things are taken from it: the lamp's level,
+ * which is the only word a controller gives on its own light output, and the
+ * newest instant anywhere in the answer, which is the proof a row has that the
+ * device was heard at all. A device list that judged liveness by `lastSeenAt`
+ * alone called a device quiet for four days on the same card as a reading of
+ * its own three days old.
+ */
+export const useLiveReads = (deviceIds: string[]) =>
   useQueries({
     queries: deviceIds.map(deviceId => ({
       queryKey: ['devices', deviceId, 'live'],
@@ -80,6 +90,7 @@ export const useLightLevels = (deviceIds: string[]) =>
     })),
     combine: results => ({
       levels: new Map(deviceIds.map((deviceId, index) => [deviceId, lightLevel(results[index]?.data)])),
+      measuredAt: new Map(deviceIds.map((deviceId, index) => [deviceId, newestInstant(results[index]?.data)])),
       isPending: results.some(result => result.isPending),
     }),
   });
@@ -92,6 +103,13 @@ const lightLevel = (live: DeviceLive | undefined): OutputLevel | null => {
     ? { percent: light.value, measuredAt: light.measuredAt, state: light.state }
     : null;
 };
+
+/** The newest thing the device said, over every metric and every output it answers. */
+const newestInstant = (live: DeviceLive | undefined): string | null =>
+  [...Object.values(live?.metrics ?? {}), ...Object.values(live?.outputs ?? {})].reduce<string | null>(
+    (newest, value) => (value.measuredAt && (!newest || value.measuredAt > newest) ? value.measuredAt : newest),
+    null,
+  );
 
 /**
  * The device's own configuration document, written back whole.

@@ -538,6 +538,42 @@ describe('what the Devices tab calls a device', () => {
     expect(screen.queryByText('devices.type.hydro')).toBeNull();
   });
 
+  /**
+   * A device carried over from the old cloud was given the last connection that
+   * cloud recorded, and the fleet went on reporting for half a day after it
+   * stopped writing the field. The row said "offline · 4 d" directly above its
+   * own light output at "60 % · 3 d ago" - one device, two ages, on one card.
+   */
+  it('dates a device by its own newest reading where that is later than the last message from it', async () => {
+    // Against the wall clock, because the row ages what it draws against the
+    // clock the reader is sitting at rather than against a fixture's idea of now.
+    const heard = DateTime.now().minus({ days: 4 }).toISO()!;
+    const measured = DateTime.now().minus({ days: 3 }).toISO()!;
+    list.devices = [standing({ state: { lastSeenAt: heard, firmwareId: null } } as Partial<Device>)];
+    list.cameras = [];
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: list.devices, nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [{ id: 'space-1', name: 'Tent 1' } as Space], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
+      if (path.endsWith('/live'))
+        return Promise.resolve({
+          deviceId: 'device-aaaabbbb-c0ffee',
+          metrics: { temperature: { value: 26, measuredAt: measured, state: 'offline' } },
+          outputs: {},
+          setpoints: null,
+        }) as never;
+      if (path.endsWith('/sockets')) return Promise.resolve({ items: [], capabilities: CAPABILITIES }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    wrap(<DeviceList />);
+
+    const pill = await screen.findByText((_, node) => node?.getAttribute('data-liveness') === 'offline');
+
+    expect(pill).toHaveTextContent('offline · 3 d');
+  });
+
   it('heads the list with what it holds rather than calling a socket a controller', async () => {
     // The section covers whatever the account has claimed - a light, a fan and
     // a plug among them - and "Smart sockets" further down is a different list.
