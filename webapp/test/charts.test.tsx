@@ -779,3 +779,41 @@ describe('what a plot is made of', () => {
     expect(measured.every(([, , , light]) => light === '0' || light === '1')).toBe(true);
   });
 });
+
+/**
+ * The one figure a card's caption carries that the plot beside it is computed
+ * from, and the two things that decide whether a phone can read it. jsdom lays
+ * nothing out, so both are asserted against the stylesheet and the catalogues
+ * themselves.
+ */
+describe('the leaf offset the VPD band rests on', () => {
+  let css: string;
+
+  beforeAll(async () => {
+    css = await readFile(resolve(process.cwd(), 'src/screens/charts/Charts.module.css'), 'utf8');
+  });
+
+  it('lets the caption wrap rather than trailing it off at the width of a phone', () => {
+    // Held on one line this caption measured 354 px into the 267 px a phone
+    // gives it: English lost the night offset and German lost both. A figure
+    // that is only stated on a desktop is not stated.
+    const rule = /\.cardAbout\s*\{[^}]*\}/s.exec(css)?.[0] ?? '';
+    expect(rule).toContain('white-space: normal');
+    expect(rule).not.toContain('text-overflow: ellipsis');
+    // The title and the unit still hold their own ends of the line.
+    expect(/\.cardTitle\s*\{[^}]*flex-shrink:\s*0/s.test(css)).toBe(true);
+    expect(/\.cardUnit\s*\{[^}]*flex-shrink:\s*0/s.test(css)).toBe(true);
+  });
+
+  it('keeps each offset bound to its unit, in both languages', async () => {
+    // Wrapping is only an improvement if the wrap cannot fall between "−2" and
+    // "°C", which is where German broke first.
+    for (const language of ['en', 'de']) {
+      const catalogue = JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'));
+      for (const key of ['leaf', 'leafHalves']) {
+        expect(catalogue.charts.about[key]).not.toMatch(/}} °C/);
+        expect(catalogue.charts.about[key]).toMatch(/}} °C/);
+      }
+    }
+  });
+});

@@ -140,14 +140,20 @@
   font-weight: var(--weight-semibold);
 }
 
-/* What the panel is, in the same line and one step quieter. It is the first
-   thing to give way, because the title and the unit are what cannot be lost. */
+/* What the panel is, in the same line and one step quieter.
+
+   It wraps rather than trailing off, because on the VPD card it carries the one
+   number the band and the curve are both computed from: the leaf offset, which
+   a phone's width cut to "leaf −2 °C by ..." in English and to "Blatt tags −..."
+   in German, losing the assumption the green block rests on at exactly the
+   width most people read this screen at. A chart is not finished until it
+   states a number, and a figure that is only stated on a desktop is not stated.
+   It costs a second line on one card on a phone and nothing anywhere else; the
+   title and the unit still hold their own ends of the line. */
 .cardAbout {
   min-width: 0;
-  overflow: hidden;
   font-size: var(--text-sm);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
   color: var(--muted);
 }
 
