@@ -63,7 +63,7 @@ class ImageController {
         );
 
         if (image) {
-          this.sendImage(req, res, await this.withOfflineOverlay(req, image), image.format === 'mp4' ? 'video/mp4' : 'image/jpeg');
+          await this.sendStoredImage(req, res, image);
         } else {
           if (req.query.format === 'mp4') {
             this.sendImage(req, res, await readFile('assets/no-image_placeholder.mp4'), 'video/mp4');
@@ -162,18 +162,79 @@ class ImageController {
     }
   };
 
+  private async sendStoredImage(req: RequestWithUser, res: Response, image: Image) {
+    const contentType = image.format === 'mp4' ? 'video/mp4' : 'image/jpeg';
+    const caption = this.offlineCaption(req, image);
+    const resizes = contentType.startsWith('image/') && !!(parseResizeDimension(req.query.width) || parseResizeDimension(req.query.height));
+
+    // Rewriting the picture needs all of it in memory. Only stills are ever
+    // rewritten - a timelapse is neither resized nor captioned - and one still is
+    // a few hundred kilobytes, so the whole-buffer path stays off the videos.
+    if (caption || resizes) {
+      const data = await imageService.readImageData(image);
+      this.sendImage(req, res, caption ? await imageService.addOfflineOverlay(data, caption) : data, contentType);
+      return;
+    }
+
+    this.streamImage(req, res, image, contentType);
+  }
+
   // The image URL is consumed by the webapp and by other services alike, so a
   // still that is too old for the device to count as online carries the notice
   // in the picture instead of leaving it to the client.
-  private async withOfflineOverlay(req: RequestWithUser, image: Image): Promise<Buffer> {
+  private offlineCaption(req: RequestWithUser, image: Image): string | undefined {
     const requestedTimestamp = Number(req.query.timestamp);
     const wantsLatest = !(requestedTimestamp > 0) || requestedTimestamp >= Date.now() - LATEST_IMAGE_TOLERANCE_MS;
 
     if (image.format !== 'jpeg' || req.query.image_id || !wantsLatest || Date.now() - image.timestamp <= ONLINE_TIMEOUT) {
-      return image.data;
+      return undefined;
     }
 
-    return imageService.addOfflineOverlay(image.data, buildOfflineCaption(image.timestamp));
+    return buildOfflineCaption(image.timestamp);
+  }
+
+  /**
+   * Serve the stored bytes straight from the image store. A timelapse runs to
+   * tens of megabytes, so it is piped rather than buffered, and byte ranges are
+   * honoured - a <video> element asks for them, and Safari will not start
+   * playing without a 206.
+   */
+  private streamImage(req: RequestWithUser, res: Response, image: Image, contentType: string) {
+    const size = imageService.imageSize(image);
+    // -1 is "asked for bytes we do not have", -2 "asked in a way we cannot read".
+    const ranges = size === undefined ? undefined : req.range(size, { combine: true });
+
+    res.setHeader('Content-type', contentType);
+    res.setHeader('Cache-Control', 'max-age=3600');
+    if (size !== undefined) {
+      res.setHeader('Accept-Ranges', 'bytes');
+    }
+
+    if (ranges === -1) {
+      res.setHeader('Content-Range', `bytes */${size}`);
+      res.status(416).send();
+      return;
+    }
+
+    // Several ranges at once would need a multipart body no client here asks for.
+    const range = Array.isArray(ranges) && ranges.type === 'bytes' && ranges.length === 1 ? ranges[0] : undefined;
+
+    if (range) {
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${size}`);
+      res.setHeader('Content-Length', range.end - range.start + 1);
+    } else if (size !== undefined) {
+      res.setHeader('Content-Length', size);
+    }
+
+    const stream = imageService.readImageStream(image, range);
+    stream.on('error', error => {
+      console.log(`Failed streaming image ${image.image_id}:`, error);
+      // The status line is long gone by the time a chunk fails, so cutting the
+      // connection is all that is left to tell the client the body is short.
+      res.destroy();
+    });
+    stream.pipe(res);
   }
 
   private sendImage(req: Request, res: Response, image: Buffer, contentType: string) {
