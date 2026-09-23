@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
-import type { Metric, SpaceTimeline, TimelineAlarm, TimelineCamera, TimelineRange } from '@fg2/shared-types/v1';
+import type { Metric, SpaceTimeline, TimelineAlarm, TimelineCamera, TimelineGrow, TimelineRange } from '@fg2/shared-types/v1';
 import { outputMetric } from '@fg2/shared-types/v1-schemas';
 import { Grant } from '@common/v1/access.types';
 import { badRequest, notFound } from '@common/v1/problem';
@@ -112,7 +112,7 @@ export class TimelineService {
     const window = windowOf(asked.range, grant, grow, at);
     const growIds = stood.filter(one => stoodDuring(one, spaceId, window)).map(one => one.id);
 
-    const [series, alerts, entries, cameras] = await Promise.all([
+    const [series, alerts, recorded, cameras] = await Promise.all([
       Promise.all(
         devices.map(device =>
           this.data.history(device.id, {
@@ -135,7 +135,7 @@ export class TimelineService {
     ]);
 
     const [watched, frames, hide] = await Promise.all([this.metricsOf(alerts), this.framesOf(cameras, window), this.redactionFor(grant)]);
-    const told = entries.map(entry => serialiseDiaryEntry(entry, hide, grant.includeCameras));
+    const told = recorded.entries.map(entry => serialiseDiaryEntry(entry, hide, grant.includeCameras));
     const people = await this.users.find({ id: { $in: authorIdsOf(told) } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
     const panels = panelsOf(
       series.map(one => one.series),
@@ -160,6 +160,10 @@ export class TimelineService {
       alarms: alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
       outputs: lanesOf(series, window),
       events: told,
+      machineEvents: recorded.machine,
+      // A reader who is shown one grow's week is not shown what else has stood
+      // in the room, so the chips they have not got are answered as none.
+      grows: grant.redacted ? [] : stood.map(one => growOf(one)),
       readingNames: readingNamesOf(stood),
       cameras: cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: frames.get(camera.id) ?? [] })),
       people: peopleOf(told, people),
@@ -184,22 +188,32 @@ export class TimelineService {
    * than the story of their grow. Widening the rail must not widen what a link
    * hands out, so the kinds a stranger never sees stay the kinds a stranger
    * never sees.
+   *
+   * How many machine lines the window held is answered beside them, because the
+   * net is silent otherwise: a four-month grow in a chatty tent holds thousands
+   * and the rail drew two hundred of them with nothing on the screen to say that
+   * the first months carried more than nothing.
    */
-  private async eventsOf(grant: Grant, spaceId: string, growIds: string[], window: TimelineWindow): Promise<EntryDocument[]> {
+  private async eventsOf(grant: Grant, spaceId: string, growIds: string[], window: TimelineWindow): Promise<SpaceEvents> {
     const recordedHere = { $or: [{ spaceId }, { growId: { $in: growIds } }] };
+    const of = (kinds: readonly string[]) => ({ $and: [recordedHere, { kind: { $in: kinds } }, withinRange('occurredAt', window)] });
     // Newest first so that a net cuts the far end of a long range rather than
     // the days somebody is most likely looking at.
     const newest = (kinds: readonly string[], net: number) =>
-      this.entries
-        .find({ $and: [recordedHere, { kind: { $in: kinds } }, withinRange('occurredAt', window)] })
-        .sort({ occurredAt: -1, id: -1 })
-        .limit(net)
-        .lean<EntryDocument[]>();
+      this.entries.find(of(kinds)).sort({ occurredAt: -1, id: -1 }).limit(net).lean<EntryDocument[]>();
 
-    if (grant.redacted) return (await newest(DIARY_KINDS, MAX_EVENTS)).reverse();
+    if (grant.redacted) return { entries: (await newest(DIARY_KINDS, MAX_EVENTS)).reverse(), machine: { shown: 0, total: 0 } };
 
     const [diary, machine] = await Promise.all([newest(DIARY_KINDS, MAX_EVENTS), newest(MACHINE_KINDS, MAX_MACHINE_EVENTS)]);
-    return [...diary, ...machine].sort((one, other) => one.occurredAt.getTime() - other.occurredAt.getTime() || one.id.localeCompare(other.id));
+    // Counted only where the net actually bit. Under the net the read is the
+    // count, and the alternative would be a second pass over the entries of
+    // every tent on every refresh to learn a number nothing would draw.
+    const total = machine.length < MAX_MACHINE_EVENTS ? machine.length : await this.entries.countDocuments(of(MACHINE_KINDS));
+
+    return {
+      entries: [...diary, ...machine].sort((one, other) => one.occurredAt.getTime() - other.occurredAt.getTime() || one.id.localeCompare(other.id)),
+      machine: { shown: machine.length, total },
+    };
   }
 
   /**
@@ -319,6 +333,20 @@ export class TimelineService {
     return redactionOf(true, owner?.privacy);
   }
 }
+
+/** The rail's lines, and how many of the machines' own the window held behind the two hundred it was given. */
+interface SpaceEvents {
+  entries: EntryDocument[];
+  machine: { shown: number; total: number };
+}
+
+/** A grow the stretch chips may be pointed at, which is any that has stood here. */
+const growOf = (grow: GrowDocument): TimelineGrow => ({
+  growId: grow.id,
+  name: grow.name,
+  startedAt: grow.startedAt.toISOString(),
+  endedAt: grow.endedAt?.toISOString() ?? null,
+});
 
 /** What the route was asked for, after the query string has been checked against the contract. */
 export interface TimelineQuery {

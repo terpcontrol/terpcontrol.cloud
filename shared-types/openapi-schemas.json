@@ -11775,6 +11775,62 @@
       "extremeValue"
     ]
   },
+  "TimelineMachineEvents": {
+    "type": "object",
+    "properties": {
+      "shown": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991,
+        "description": "How many are in `events`. Zero on a shared or public read, whose rail is the grow's diary and never a device's diagnostics."
+      },
+      "total": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991,
+        "description": "How many the window held. Equal to `shown` wherever the net did not bite, which is every short window."
+      }
+    },
+    "required": [
+      "shown",
+      "total"
+    ]
+  },
+  "TimelineGrow": {
+    "type": "object",
+    "properties": {
+      "growId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "name": {
+        "type": "string"
+      },
+      "startedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "endedAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "growId",
+      "name",
+      "startedAt",
+      "endedAt"
+    ]
+  },
   "TimelineCamera": {
     "type": "object",
     "properties": {
@@ -11920,6 +11976,16 @@
         },
         "description": "The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn."
       },
+      "machineEvents": {
+        "$ref": "#/components/schemas/TimelineMachineEvents"
+      },
+      "grows": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineGrow"
+        },
+        "description": "Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the rail is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room."
+      },
       "readingNames": {
         "type": "array",
         "items": {
@@ -11959,6 +12025,8 @@
       "alarms",
       "outputs",
       "events",
+      "machineEvents",
+      "grows",
       "readingNames",
       "cameras",
       "people"

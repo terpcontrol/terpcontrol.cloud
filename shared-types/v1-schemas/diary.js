@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.exportAccepted = exports.media = exports.mediaExportJob = exports.exportScope = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.growReadingNames = exports.readingName = exports.entryReading = void 0;
 exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineAlarm = exports.timelineOutputLane = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -1101,6 +1101,27 @@ exports.timelineAlarm = (0, common_js_1.named)('TimelineAlarm', zod_1.z.object({
     value: zod_1.z.number().nullable(),
     extremeValue: zod_1.z.number().nullable(),
 }));
+/**
+ * How many of the machines' own lines the rail was given, and how many the
+ * window actually held.
+ *
+ * They differ where the net over a device's own log and the plan's bookkeeping
+ * cut a long window - a grow of four months in a chatty tent holds thousands of
+ * them - and the two numbers exist so that the rail can say so. A screen that
+ * only got the first would draw four months with no machine mark on them and
+ * nothing to say why.
+ */
+exports.timelineMachineEvents = (0, common_js_1.named)('TimelineMachineEvents', zod_1.z.object({
+    shown: zod_1.z.number().int().describe("How many are in `events`. Zero on a shared or public read, whose rail is the grow's diary and never a device's diagnostics."),
+    total: zod_1.z.number().int().describe('How many the window held. Equal to `shown` wherever the net did not bite, which is every short window.'),
+}));
+/** One grow that has stood in this space, so a rail can be pointed at one that has since ended. */
+exports.timelineGrow = (0, common_js_1.named)('TimelineGrow', zod_1.z.object({
+    growId: (0, common_js_1.id)(),
+    name: zod_1.z.string(),
+    startedAt: (0, common_js_1.instant)(),
+    endedAt: (0, common_js_1.instant)().nullable(),
+}));
 /** One camera of the space over the window, thinned to what the slider above the panels steps through. */
 exports.timelineCamera = (0, common_js_1.named)('TimelineCamera', zod_1.z.object({
     cameraId: (0, common_js_1.id)(),
@@ -1143,6 +1164,10 @@ exports.spaceTimeline = (0, common_js_1.named)('SpaceTimeline', zod_1.z.object({
     alarms: zod_1.z.array(exports.timelineAlarm),
     outputs: zod_1.z.array(exports.timelineOutputLane),
     events: zod_1.z.array(exports.entry).describe('The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.'),
+    machineEvents: exports.timelineMachineEvents,
+    grows: zod_1.z
+        .array(exports.timelineGrow)
+        .describe('Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the rail is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.'),
     readingNames: zod_1.z.array(exports.growReadingNames).describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed.'),
     cameras: zod_1.z.array(exports.timelineCamera),
     people: zod_1.z.array(common_js_1.person).describe('Everyone the rail names, so a mark can say who wrote it without another read.'),

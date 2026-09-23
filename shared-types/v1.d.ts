@@ -3414,6 +3414,24 @@ export interface TimelineAlarm {
   extremeValue: number | null;
 }
 
+export interface TimelineMachineEvents {
+  /**
+   * How many are in `events`. Zero on a shared or public read, whose rail is the grow's diary and never a device's diagnostics.
+   */
+  shown: number;
+  /**
+   * How many the window held. Equal to `shown` wherever the net did not bite, which is every short window.
+   */
+  total: number;
+}
+
+export interface TimelineGrow {
+  growId: string;
+  name: string;
+  startedAt: string;
+  endedAt: string | null;
+}
+
 export interface TimelineCamera {
   cameraId: string;
   name: string;
@@ -3459,6 +3477,11 @@ export interface SpaceTimeline {
    * The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.
    */
   events: Entry[];
+  machineEvents: TimelineMachineEvents;
+  /**
+   * Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the rail is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.
+   */
+  grows: TimelineGrow[];
   /**
    * What the grows those lines belong to call their measurements, so a reading is named rather than keyed.
    */

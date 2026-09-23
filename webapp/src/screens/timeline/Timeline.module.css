@@ -83,6 +83,36 @@
   flex-shrink: 0;
 }
 
+/*
+ * Which grow the two stretch chips are about. The name is what is read and the
+ * select over it is what is operated, the same way the tab's own place picker
+ * is built; the chip keeps its shape while the names inside it vary.
+ */
+.growChip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 14rem;
+}
+
+.growChip svg {
+  flex-shrink: 0;
+}
+
+.growChip select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+}
+
+.growName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .chip[aria-pressed='true'] {
   background: var(--brand);
   border-color: var(--brand);
@@ -518,6 +548,14 @@
   justify-content: space-between;
   margin-left: var(--gutter);
   padding-top: var(--space-1);
+}
+
+/* What the rail could not fit, said under it rather than left to be guessed at. */
+.capped {
+  margin-left: var(--gutter);
+  padding-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--muted);
 }
 
 .stop {

@@ -111,6 +111,15 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
         })}
       </div>
 
+      {/* The net over a device's own log and the plan's bookkeeping cuts the far
+          end of a long window, so a four-month grow's first months would
+          otherwise carry no machine mark and nothing would say why. */}
+      {timeline.machineEvents.total > timeline.machineEvents.shown ? (
+        <p className={`mono ${styles.capped}`}>
+          {t('timeline.machineCapped', { shown: timeline.machineEvents.shown, total: timeline.machineEvents.total })}
+        </p>
+      ) : null}
+
       {open ? (
         <ul className={styles.opened}>
           {open.entries.map(entry => (

@@ -1455,6 +1455,35 @@ export const timelineAlarm = named(
   }),
 );
 
+/**
+ * How many of the machines' own lines the rail was given, and how many the
+ * window actually held.
+ *
+ * They differ where the net over a device's own log and the plan's bookkeeping
+ * cut a long window - a grow of four months in a chatty tent holds thousands of
+ * them - and the two numbers exist so that the rail can say so. A screen that
+ * only got the first would draw four months with no machine mark on them and
+ * nothing to say why.
+ */
+export const timelineMachineEvents = named(
+  'TimelineMachineEvents',
+  z.object({
+    shown: z.number().int().describe("How many are in `events`. Zero on a shared or public read, whose rail is the grow's diary and never a device's diagnostics."),
+    total: z.number().int().describe('How many the window held. Equal to `shown` wherever the net did not bite, which is every short window.'),
+  }),
+);
+
+/** One grow that has stood in this space, so a rail can be pointed at one that has since ended. */
+export const timelineGrow = named(
+  'TimelineGrow',
+  z.object({
+    growId: id(),
+    name: z.string(),
+    startedAt: instant(),
+    endedAt: instant().nullable(),
+  }),
+);
+
 /** One camera of the space over the window, thinned to what the slider above the panels steps through. */
 export const timelineCamera = named(
   'TimelineCamera',
@@ -1505,6 +1534,12 @@ export const spaceTimeline = named(
     alarms: z.array(timelineAlarm),
     outputs: z.array(timelineOutputLane),
     events: z.array(entry).describe('The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.'),
+    machineEvents: timelineMachineEvents,
+    grows: z
+      .array(timelineGrow)
+      .describe(
+        'Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the rail is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.',
+      ),
     readingNames: z.array(growReadingNames).describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed.'),
     cameras: z.array(timelineCamera),
     people: z.array(person).describe('Everyone the rail names, so a mark can say who wrote it without another read.'),

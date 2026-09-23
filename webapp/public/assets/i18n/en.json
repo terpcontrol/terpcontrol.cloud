@@ -2932,6 +2932,7 @@
       "grow": "Grow"
     },
     "pickSpace": "Which place",
+    "pickGrow": "Which grow",
     "dayN": "day {{day}}",
     "dayRange": "day {{from}}–{{to}}",
     "now": "now",
@@ -2963,6 +2964,7 @@
     },
     "events": "Events",
     "noEvents": "Nothing written in this window",
+    "machineCapped": "The newest {{shown}} of {{total}} lines the devices and the plan wrote",
     "noPanels": "Nothing measures here, so there are no curves to draw",
     "quietWindow": "Nothing heard in this window · last measured {{age}} ago",
     "noSpaces": "Nothing to draw yet. Add a device or start a grow on the"

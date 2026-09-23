@@ -3843,6 +3843,27 @@ export declare const timelineAlarm: z.ZodObject<{
     value: z.ZodNullable<z.ZodNumber>;
     extremeValue: z.ZodNullable<z.ZodNumber>;
 }, z.core.$strip>;
+/**
+ * How many of the machines' own lines the rail was given, and how many the
+ * window actually held.
+ *
+ * They differ where the net over a device's own log and the plan's bookkeeping
+ * cut a long window - a grow of four months in a chatty tent holds thousands of
+ * them - and the two numbers exist so that the rail can say so. A screen that
+ * only got the first would draw four months with no machine mark on them and
+ * nothing to say why.
+ */
+export declare const timelineMachineEvents: z.ZodObject<{
+    shown: z.ZodNumber;
+    total: z.ZodNumber;
+}, z.core.$strip>;
+/** One grow that has stood in this space, so a rail can be pointed at one that has since ended. */
+export declare const timelineGrow: z.ZodObject<{
+    growId: z.ZodString;
+    name: z.ZodString;
+    startedAt: z.ZodISODateTime;
+    endedAt: z.ZodNullable<z.ZodISODateTime>;
+}, z.core.$strip>;
 /** One camera of the space over the window, thinned to what the slider above the panels steps through. */
 export declare const timelineCamera: z.ZodObject<{
     cameraId: z.ZodString;
@@ -4105,6 +4126,16 @@ export declare const spaceTimeline: z.ZodObject<{
         }, z.core.$strip>], "kind">;
         mediaIds: z.ZodArray<z.ZodString>;
         undoUntil: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>>;
+    machineEvents: z.ZodObject<{
+        shown: z.ZodNumber;
+        total: z.ZodNumber;
+    }, z.core.$strip>;
+    grows: z.ZodArray<z.ZodObject<{
+        growId: z.ZodString;
+        name: z.ZodString;
+        startedAt: z.ZodISODateTime;
+        endedAt: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>>;
     readingNames: z.ZodArray<z.ZodObject<{
         growId: z.ZodString;

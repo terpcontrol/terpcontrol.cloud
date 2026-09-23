@@ -778,6 +778,40 @@ describe('the rail and the frames', () => {
       'entry-space',
     ]);
     expect(page.events.filter(line => line.kind === 'system' || line.kind === 'plan')).toHaveLength(200);
+    // And says so: a rail that drew 200 of 522 without a word left the reader to
+    // conclude that the rest of the window held nothing.
+    expect(page.machineEvents).toEqual({ shown: 200, total: 522 });
+  });
+
+  it('counts the machines´ lines as shown where the net did not bite', async () => {
+    expect((await readAs(session(OWNER))).machineEvents).toEqual({ shown: 2, total: 2 });
+  });
+
+  /**
+   * Every other way into a grow's record names the grow standing in the tent
+   * now, so a grow that moved out in spring had no address at all - and the rail
+   * is the only screen carrying what the tent recorded while it stood there.
+   */
+  it('names every grow that has stood here, so a rail can be pointed at one that has ended', async () => {
+    await db.grows.create({
+      id: 'grow-last-winter',
+      ownerId: OWNER,
+      name: 'Winter run',
+      type: 'photoperiod',
+      phases: [],
+      placements: [{ id: 'placement-was', spaceId: TENT, startedAt: new Date('2025-11-01T00:00:00.000Z'), endedAt: ORIGIN, plantIds: null }],
+      measurements: [],
+      slug: 'winter-run',
+      startedAt: new Date('2025-11-01T00:00:00.000Z'),
+      endedAt: ORIGIN,
+    });
+
+    const page = await readAs(session(OWNER));
+
+    expect(page.grows.map(one => one.growId)).toEqual([GROW, 'grow-last-winter']);
+    expect(page.grows[1]).toMatchObject({ name: 'Winter run', endedAt: ORIGIN.toISOString() });
+    // And the server takes that grow, which is what gives those months an address.
+    expect((await readAs(session(OWNER), { range: 'grow', growId: 'grow-last-winter' })).growId).toBe('grow-last-winter');
   });
 
   /**
@@ -906,6 +940,10 @@ describe('who may read it', () => {
 
     expect(page.events.map(line => line.id)).toEqual(['entry-water', 'entry-training', 'entry-space']);
     expect(page.events.some(line => line.kind === 'system' || line.kind === 'plan')).toBe(false);
+    // Nothing was cut, because none was offered; and a stranger shown one grow's
+    // week is not handed a list of everything else that has stood in the room.
+    expect(page.machineEvents).toEqual({ shown: 0, total: 0 });
+    expect(page.grows).toEqual([]);
   });
 });
 

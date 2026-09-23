@@ -140,6 +140,8 @@ const answer: SpaceTimeline = {
       ],
     },
   ],
+  machineEvents: { shown: 0, total: 0 },
+  grows: [{ growId: 'grow-1', name: 'Spring run', startedAt: FROM.minus({ days: 34 }).toISO()!, endedAt: null }],
   readingNames: [{ growId: 'grow-1', readings: [{ key: 'height', name: 'Height', unit: 'cm' }] }],
   people: [{ id: 'user-1', handle: 'you' }],
 };
@@ -302,6 +304,54 @@ describe('the timeline', () => {
     const written = screen.queryAllByRole('button').filter(button => /done|save|log|add|delete/i.test(button.textContent ?? ''));
     expect(written).toHaveLength(0);
     expect(within(header()).queryAllByRole('button')).toHaveLength(0);
+  });
+
+  /**
+   * The net over a device's own log and the plan's bookkeeping cuts the far end
+   * of a long window. One restored fridge holds 2,752 machine lines over its
+   * grow and the rail was given 200 of them, drawing four months with no mark
+   * on them and nothing to say why.
+   */
+  it('says how many of the machines´ lines the rail could not fit', () => {
+    state.answer = { ...answer, machineEvents: { shown: 200, total: 2752 } };
+    draw();
+
+    expect(screen.getByText('The newest 200 of 2752 lines the devices and the plan wrote')).toBeInTheDocument();
+  });
+
+  it('says nothing about a net that did not bite', () => {
+    state.answer = { ...answer, machineEvents: { shown: 12, total: 12 } };
+    draw();
+
+    expect(screen.queryByText(/lines the devices and the plan wrote/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Every other way into a grow's record names the grow standing in the tent
+   * now, so a grow that moved out in spring left its whole rail with no address
+   * at all - the record the tent kept while it stood there is on no other
+   * screen.
+   */
+  it('points the stretch chips at a grow that has since ended', () => {
+    state.answer = {
+      ...answer,
+      grows: [
+        { growId: 'grow-1', name: 'Spring run', startedAt: FROM.toISO()!, endedAt: null },
+        { growId: 'grow-0', name: 'Seriotica', startedAt: FROM.minus({ days: 200 }).toISO()!, endedAt: FROM.toISO()! },
+      ],
+    };
+    draw();
+
+    fireEvent.change(screen.getByLabelText('Which grow'), { target: { value: 'grow-0' } });
+
+    expect(screen.getByRole('button', { name: 'Grow' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByLabelText('Which grow')).toHaveValue('grow-0');
+  });
+
+  it('offers no grow to pick where only one has ever stood here', () => {
+    draw();
+
+    expect(screen.queryByLabelText('Which grow')).not.toBeInTheDocument();
   });
 
   it('will not ask for a stretch of a grow where nothing is growing', () => {
