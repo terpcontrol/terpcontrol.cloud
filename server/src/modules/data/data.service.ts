@@ -433,6 +433,16 @@ export class DataService implements LightStateReader {
     const until = Date.now() + budgetMs;
     let firstRefusal: unknown = null;
 
+    // One timer for the whole call, which every lane races its read against.
+    // The client's own timeout is a socket timeout and only fires on a
+    // connection that has gone quiet, so a store that answers slowly rather
+    // than not at all can hold a read open for as long as it likes; this is
+    // what makes the budget a promise rather than an intention.
+    let expire: ReturnType<typeof setTimeout> | undefined;
+    const expired = new Promise<null>(resolve => {
+      expire = setTimeout(() => resolve(null), Math.max(0, until - Date.now()));
+    });
+
     const lane = async (): Promise<void> => {
       for (let next = queue.shift(); next; next = queue.shift()) {
         // Out of time: the rest are unasked rather than answered, and the pass
@@ -442,17 +452,30 @@ export class DataService implements LightStateReader {
           continue;
         }
 
-        try {
-          const at = await this.newestSampleSince(next.deviceId, next.since);
-          if (at) spokeAt.set(next.deviceId, at);
-        } catch (error) {
-          firstRefusal ??= error;
-          unread.add(next.deviceId);
-        }
+        // The read is made unable to reject before it is raced. Past the
+        // deadline nobody is waiting for it any more, and a rejection with no
+        // caller left would reach the handler in `main.ts`, which ends the
+        // process - one slow store taking the whole API down with it.
+        const read = this.newestSampleSince(next.deviceId, next.since).then(
+          at => ({ at }),
+          (error: unknown) => {
+            firstRefusal ??= error;
+            return null;
+          },
+        );
+
+        const answer = await Promise.race([read, expired]);
+        if (!answer) unread.add(next.deviceId);
+        else if (answer.at) spokeAt.set(next.deviceId, answer.at);
       }
     };
 
-    await Promise.all(Array.from({ length: Math.min(NEWEST_SAMPLE_LANES, queue.length) }, lane));
+    try {
+      await Promise.all(Array.from({ length: Math.min(NEWEST_SAMPLE_LANES, queue.length) }, lane));
+    } finally {
+      clearTimeout(expire);
+    }
+
     // One line for the pass rather than one per device: a store that is down
     // refuses every read, and a fleet's worth of identical lines buries the
     // count, which is the part worth reading.
