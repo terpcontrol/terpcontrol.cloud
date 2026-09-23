@@ -13,6 +13,7 @@ import { GrowArchive } from '@/screens/grow/Archive';
 import { GrowHeader } from '@/screens/grow/GrowPage';
 import { PhaseBar } from '@/screens/grow/PhaseBar';
 import { Report } from '@/screens/grow/Report';
+import { NoLongerHere } from '@/ui/PageState';
 import { WeekCard } from '@/screens/grow/WeekCard';
 import { ON_THE_DEMO, SIGNED_IN } from './session';
 
@@ -456,6 +457,25 @@ describe('the archive', () => {
     draw(<GrowArchive />);
 
     expect(await screen.findByText(/Nothing finished yet/)).toBeInTheDocument();
+  });
+
+  it('is what stops the page for a grow somebody cannot reach blaming the grow for having ended', async () => {
+    // The archive is one tap away and opens a finished grow in full, so a page
+    // that explained a 404 by the grow having ended would be contradicted by
+    // the screen beside it - and would point the person who was really taken
+    // out of a tent at a cause this app does not have.
+    wire.grows = [grow, finished];
+    draw(
+      <>
+        <NoLongerHere what="grow" />
+        <GrowArchive />
+      </>,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('This grow is not shared with you.');
+    expect(screen.getByText(/Whoever shares it has taken you out/)).toBeInTheDocument();
+    expect(screen.queryByText(/has ended/)).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /Autumn run/ })).toBeInTheDocument();
   });
 });
 

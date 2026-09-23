@@ -1380,7 +1380,7 @@
       "grow": "Dieser Grow ist nicht mit dir geteilt.",
       "camera": "Diese Kamera ist nicht mit dir geteilt.",
       "device": "Dieses Gerät ist nicht mit dir geteilt.",
-      "why": "Entweder ist es beendet, oder wer es teilt, hat dich herausgenommen. Ein erneuter Versuch bringt es nicht zurück.",
+      "why": "Wer es teilt, hat dich herausgenommen. Ein erneuter Versuch bringt es nicht zurück.",
       "home": "Start"
     }
   },

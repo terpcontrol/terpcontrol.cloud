@@ -1384,7 +1384,7 @@
       "grow": "This grow is not shared with you.",
       "camera": "This camera is not shared with you.",
       "device": "This device is not shared with you.",
-      "why": "Either it has ended, or whoever shares it has taken you out. Trying again will not bring it back.",
+      "why": "Whoever shares it has taken you out. Trying again will not bring it back.",
       "home": "Home"
     }
   },

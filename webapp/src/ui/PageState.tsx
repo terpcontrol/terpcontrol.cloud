@@ -62,9 +62,14 @@ export type Subject = 'space' | 'grow' | 'camera' | 'device';
  * so it says what is true - this is not yours to see - and offers the only
  * move that leads anywhere, which is home.
  *
- * It does not claim to know *why*, because the server does not say: a tent
- * that ended and a bookmark to an id that never existed answer the same 404,
- * and both are honestly described by the same sentence.
+ * What it may not say is that the subject is over. A finished grow opens from
+ * the archive and draws every tab, an archived tent is served like any other,
+ * and ending a grow withdraws nobody's access - so "it has ended" names a cause
+ * this app does not have, and points the one person who has just been taken out
+ * of somebody's tent at the wrong explanation, one screen away from the archive
+ * that disproves it. The remaining sentence is true of all four subjects: a
+ * bookmark to an id that never existed answers the same 404, and being told
+ * that whoever shares it has taken you out is the same dead end.
  */
 export function NoLongerHere({ what }: { what: Subject }) {
   const { t } = useTranslation();
