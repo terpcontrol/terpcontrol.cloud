@@ -16,7 +16,7 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
-import { DIARY_KINDS, authorIdsOf, peopleOf, serialiseDiaryEntry } from '../diary/diary-entries';
+import { DIARY_KINDS, MACHINE_KINDS, authorIdsOf, peopleOf, serialiseDiaryEntry } from '../diary/diary-entries';
 import { NOTHING_HIDDEN, Redaction, redactionOf } from '../grow/grow-serialiser';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
@@ -32,12 +32,13 @@ import { TimelineWindow, stretchesOf, windowOf } from './timeline-window';
  * would draw six windows that disagree at their edges and would have to scrub
  * them into agreement afterwards.
  *
- * **What the whole answer costs, for every range.** Up to nine reads of Mongo -
+ * **What the whole answer costs, for every range.** Up to ten reads of Mongo -
  * the space, the devices standing in it, the grows that have stood in it, the
  * alerts overlapping the window, the metrics their rules watch, the diary over
- * the window, the cameras, one aggregation for the frames, and the people the
- * rail names - and one time-series read per device in the space. The last two of
- * the Mongo reads are skipped where there is nothing to look up.
+ * the window and the machines' own lines over it, the cameras, one aggregation
+ * for the frames, and the people the rail names - and one time-series read per
+ * device in the space. The last two of the Mongo reads are skipped where there
+ * is nothing to look up, and a redacted reader reads the diary alone.
  *
  * A long range costs no more than a short one, because the step follows from
  * the width of the window: `24 h` and a four-month grow are both one read of a
@@ -59,6 +60,20 @@ const FRAME_SLOTS = 120;
 
 /** A safety net, not a page size: a season of human logging is hundreds of lines, and a runaway alarm must not become a read of everything. */
 const MAX_EVENTS = 500;
+
+/**
+ * The same net over a device's own log and the plan's bookkeeping, held
+ * separately from the one above it.
+ *
+ * Both nets cut the far end of a newest-first read, so a single net over both
+ * groups would let one failing capture every thirty seconds spend the whole of
+ * it and push the grower's own notes off the far end of a wide window - the
+ * lines the rail exists for would be the first to go. Read apart, a chatty
+ * device can only ever crowd out other chatter. It is the smaller number
+ * because a machine's log is a stream to scrub past rather than a record read
+ * line by line, and because lines this close together share one mark anyway.
+ */
+const MAX_MACHINE_EVENTS = 200;
 
 @Injectable()
 export class TimelineService {
@@ -108,23 +123,14 @@ export class TimelineService {
         .find({ $and: [raisedHere(spaceId, devices), { startedAt: { $lte: window.endsAt } }, openInto(window.startsAt)] })
         .sort({ startedAt: 1 })
         .lean<StoredAlert[]>(),
-      this.entries
-        .find({
-          $and: [{ $or: [{ spaceId }, { growId: { $in: growIds } }] }, { kind: { $in: DIARY_KINDS } }, withinRange('occurredAt', window)],
-        })
-        // Read newest first so that the safety net below cuts the far end of a
-        // long range rather than the days somebody is most likely looking at;
-        // the rail itself is then turned round, because it is read left to right.
-        .sort({ occurredAt: -1, id: -1 })
-        .limit(MAX_EVENTS)
-        .lean<EntryDocument[]>(),
+      this.eventsOf(grant, spaceId, growIds, window),
       grant.includeCameras
         ? this.cameras.find({ spaceId, removedAt: null }).sort({ createdAt: 1, id: 1 }).lean<CameraDocument[]>()
         : Promise.resolve([]),
     ]);
 
     const [watched, frames, hide] = await Promise.all([this.metricsOf(alerts), this.framesOf(cameras, window), this.redactionFor(grant)]);
-    const told = entries.reverse().map(entry => serialiseDiaryEntry(entry, hide, grant.includeCameras));
+    const told = entries.map(entry => serialiseDiaryEntry(entry, hide, grant.includeCameras));
     const people = await this.users.find({ id: { $in: authorIdsOf(told) } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
 
     return {
@@ -147,6 +153,44 @@ export class TimelineService {
       cameras: cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: frames.get(camera.id) ?? [] })),
       people: peopleOf(told, people),
     };
+  }
+
+  /**
+   * Everything the space recorded inside the window, oldest first, which is the
+   * order the rail is read in.
+   *
+   * The whole record, not the diary half of it: a capture that keeps failing and
+   * a plan that stepped are precisely what somebody scrubs a tent's timeline to
+   * find, and the tent's own Latest list already shows them, so a rail that left
+   * them out said "nothing was written here" over lines the screen before it had
+   * just listed. The two groups are read under nets of their own so that neither
+   * can spend the other's - see `MAX_MACHINE_EVENTS`.
+   *
+   * A redacted reader is the exception and keeps the diary-only rail. A share
+   * link and a public page are given what happened to the grow, and a device's
+   * line carries its own diagnostics verbatim - a failing capture's byte counts,
+   * a socket's role, an address - which is the inside of somebody's flat rather
+   * than the story of their grow. Widening the rail must not widen what a link
+   * hands out, so the kinds a stranger never sees stay the kinds a stranger
+   * never sees.
+   */
+  private async eventsOf(grant: Grant, spaceId: string, growIds: string[], window: TimelineWindow): Promise<EntryDocument[]> {
+    const recordedHere = { $or: [{ spaceId }, { growId: { $in: growIds } }] };
+    // Newest first so that a net cuts the far end of a long range rather than
+    // the days somebody is most likely looking at.
+    const newest = (kinds: readonly string[], net: number) =>
+      this.entries
+        .find({ $and: [recordedHere, { kind: { $in: kinds } }, withinRange('occurredAt', window)] })
+        .sort({ occurredAt: -1, id: -1 })
+        .limit(net)
+        .lean<EntryDocument[]>();
+
+    if (grant.redacted) return (await newest(DIARY_KINDS, MAX_EVENTS)).reverse();
+
+    const [diary, machine] = await Promise.all([newest(DIARY_KINDS, MAX_EVENTS), newest(MACHINE_KINDS, MAX_MACHINE_EVENTS)]);
+    return [...diary, ...machine].sort(
+      (one, other) => one.occurredAt.getTime() - other.occurredAt.getTime() || one.id.localeCompare(other.id),
+    );
   }
 
   /**

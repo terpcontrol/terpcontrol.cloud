@@ -285,8 +285,10 @@ const world = async (): Promise<void> => {
       deviceId: CONTROLLER,
       occurredAt: new Date('2026-06-10T09:00:00.000Z'),
     }),
-    // A device's own log line is kept and is not what a rail is about.
+    // What the machines wrote about the tent, which the rail carries for the
+    // people who own it and for nobody else.
     entry({ id: 'entry-system', spaceId: TENT, source: 'device', authorId: null, kind: 'system', occurredAt: new Date('2026-06-10T09:30:00.000Z') }),
+    entry({ id: 'entry-plan', spaceId: TENT, source: 'plan', authorId: null, kind: 'plan', occurredAt: new Date('2026-06-10T09:45:00.000Z') }),
   ]);
 
   await db.alarmRules.create({
@@ -626,11 +628,41 @@ describe('the night, the lanes and the alarms', () => {
 });
 
 describe('the rail and the frames', () => {
-  it('carries the diary of the space and of the grows standing in it, oldest first, and names who wrote it', async () => {
+  it('carries everything the space recorded, the machines´ own lines included, oldest first, and names who wrote it', async () => {
     const page = await readAs(session(OWNER));
 
-    expect(page.events.map(line => line.id)).toEqual(['entry-water', 'entry-training', 'entry-space']);
+    expect(page.events.map(line => line.id)).toEqual(['entry-water', 'entry-training', 'entry-space', 'entry-system', 'entry-plan']);
     expect(page.people).toEqual(expect.arrayContaining([{ id: MEMBER, handle: 'mia' }]));
+  });
+
+  /**
+   * The net over a machine's lines is its own, so a device that fails a capture
+   * every half minute can only ever crowd out other machine lines. Under one net
+   * over both, these 520 would spend the whole of it and the oldest thing on the
+   * rail - the note somebody wrote - would be the line that fell off.
+   */
+  it('does not let a device´s chatter push what a person wrote off the far end', async () => {
+    const chatter = Array.from({ length: 520 }, (_, index) =>
+      entry({
+        id: `entry-chatter-${index}`,
+        spaceId: TENT,
+        source: 'device',
+        authorId: null,
+        deviceId: CONTROLLER,
+        kind: 'system',
+        occurredAt: new Date(new Date('2026-06-10T00:00:00.000Z').getTime() + index * 60_000),
+      }),
+    );
+    await db.entries.insertMany(chatter);
+
+    const page = await readAs(session(OWNER));
+
+    expect(page.events.filter(line => line.kind !== 'system' && line.kind !== 'plan').map(line => line.id)).toEqual([
+      'entry-water',
+      'entry-training',
+      'entry-space',
+    ]);
+    expect(page.events.filter(line => line.kind === 'system' || line.kind === 'plan')).toHaveLength(200);
   });
 
   it('thins the frames to what a slider can step through rather than answering every still', async () => {
@@ -730,5 +762,21 @@ describe('who may read it', () => {
     const token = await linkFor({ includeCameras: false, range: { startsAt: null, endsAt: null } });
 
     expect((await readAs(visitor(token))).cameras).toEqual([]);
+  });
+
+  /**
+   * A machine's line carries its own diagnostics verbatim - what a capture
+   * failed at, which socket was addressed, how many bytes came back - which is
+   * the inside of somebody's flat rather than the story of their grow. Widening
+   * the rail for the people who own the tent must not widen what they hand out
+   * with a link.
+   */
+  it('keeps the rail diary-only for a link, whose reader gains nothing from the widening', async () => {
+    const token = await linkFor({ range: { startsAt: null, endsAt: null } });
+
+    const page = await readAs(visitor(token));
+
+    expect(page.events.map(line => line.id)).toEqual(['entry-water', 'entry-training', 'entry-space']);
+    expect(page.events.some(line => line.kind === 'system' || line.kind === 'plan')).toBe(false);
   });
 });

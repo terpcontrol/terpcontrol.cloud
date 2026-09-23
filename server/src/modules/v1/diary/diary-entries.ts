@@ -1,5 +1,5 @@
 import { Model } from 'mongoose';
-import type { Entry, Person } from '@fg2/shared-types/v1';
+import type { Entry, EntryKind, Person } from '@fg2/shared-types/v1';
 import { entryKind } from '@fg2/shared-types/v1-schemas';
 import { serialiseEntry } from '@common/v1/entries';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
@@ -62,12 +62,21 @@ const valuesOf = (values: Entry['values'], hide: Redaction): Entry['values'] => 
 };
 
 /**
- * What the diary shows without being asked. A device's own line and the plan's
- * bookkeeping are `system` and `plan`: they are kept, they are read through the
- * timeline when somebody asks for those kinds, and they are not what a week card
- * or a chapter is about.
+ * What a device and the plan engine write for themselves. They are entries like
+ * any other and are kept like any other, but they are a machine's running
+ * commentary rather than a record of the grow, so a week card and a report
+ * chapter leave them out and the timeline's rail reads them under a cap of their
+ * own.
  */
-export const DIARY_KINDS = entryKind.options.filter(kind => kind !== 'system' && kind !== 'plan');
+export const MACHINE_KINDS: EntryKind[] = entryKind.options.filter(kind => kind === 'system' || kind === 'plan');
+
+/**
+ * What a week card or a report chapter is about: everything somebody did to the
+ * grow, and everything that happened to it, with a machine's bookkeeping left
+ * out. The rail on the Timeline tab is deliberately not this list - a tent's
+ * whole record is what it is scrubbed for.
+ */
+export const DIARY_KINDS = entryKind.options.filter(kind => !MACHINE_KINDS.includes(kind));
 
 /**
  * When each of these grows was last written in, by its id.
