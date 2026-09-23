@@ -41,8 +41,20 @@ const TILES: { kind: TileKind; Icon: LucideIcon }[] = [
   { kind: 'visit', Icon: Clock },
 ];
 
-/** The tiles nothing can be guessed for: they open their view rather than writing a line nobody filled in. */
-const ASKS_FIRST = new Set<TileKind>(['photo', 'note', 'measurement', 'phase']);
+/**
+ * The tiles a tap does not write on its own.
+ *
+ * Four of them are there because nothing can be guessed for them - a picture,
+ * words, a reading, a phase - and writing one on a tap would file a line nobody
+ * filled in. The fifth is there for the opposite reason: stepping in is the one
+ * tile whose line is not the whole of what it does. The server puts every device
+ * standing in the place into maintenance mode for a quarter of an hour, which
+ * stops the heater, the dehumidifier and the CO2 valve and holds the alarms, and
+ * the Undo the toast offers takes the line back without calling any of that off.
+ * A consequence that reaches hardware and cannot be undone is one a person says
+ * yes to, so the tile opens the panel that names what it is about to quieten.
+ */
+const ASKS_FIRST = new Set<TileKind>(['photo', 'note', 'measurement', 'phase', 'visit']);
 
 /** The tiles a written line can still be corrected in, which is what the toast's Details opens. */
 const HAS_DETAILS = new Set<TileKind>(['water', 'feed', 'note', 'measurement', 'training']);

@@ -1514,7 +1514,7 @@
       "phase": "Phase",
       "move": "Moved",
       "harvest": "Harvested",
-      "visit": "In the tent",
+      "visit": "Stepped in",
       "alarm": "Alarm",
       "plan": "Plan",
       "system": "System"
@@ -1529,7 +1529,7 @@
       "water": "Water",
       "note": "Note",
       "photo": "Photo",
-      "visit": "In the tent 15 min",
+      "visit": "Alarms off 15 min",
       "reading": "Reading"
     },
     "invite": {
@@ -2881,7 +2881,7 @@
     "close": "Close",
     "longPress": "long-press a tile for details",
     "targetLabel": "What the line is about",
-    "oneTap": "One tap logs it now with sensible defaults, Undo for 5 s, details optional. Photo opens the photo entry.",
+    "oneTap": "One tap logs it now with sensible defaults, Undo for 5 s, details optional. Photo opens the photo entry, and stepping in asks first because it quietens the hardware.",
     "nowhere": "Nothing to log against yet · start a grow or add a device first",
     "litres": "{{litres}} L",
     "lastAgo": "last {{age}}",
@@ -2893,9 +2893,20 @@
       "measurement": "Measure",
       "training": "Training",
       "phase": "Phase",
-      "visit": "In the tent",
+      "visit": "Step in",
       "photoCaption": "cam still or camera",
-      "visitCaption": "15 min"
+      "visitCaption": "alarms off 15 min"
+    },
+    "visit": {
+      "hereFallback": "this place",
+      "reading": "Reading what stands in {{name}} …",
+      "parks_one": "Saving this puts the device standing in {{name}} into maintenance mode for {{minutes}} minutes: no heating, no dehumidifying, no CO₂, and no alarm while it lasts.",
+      "parks_other": "Saving this puts all {{count}} devices standing in {{name}} into maintenance mode for {{minutes}} minutes: no heating, no dehumidifying, no CO₂, and no alarm while it lasts.",
+      "nothingThere": "Nothing stands in {{name}}, so this is a line in the diary and nothing else.",
+      "unreadable": "What stands in {{name}} could not be read, so nothing can be named here. Every device there is put into maintenance mode for {{minutes}} minutes all the same.",
+      "notUndone": "The line can be taken back afterwards. The {{minutes}} minutes of quiet cannot: they run out by themselves and the devices pick up where they left off.",
+      "save_one": "Step in · quieten {{count}} device",
+      "save_other": "Step in · quieten {{count}} devices"
     },
     "water": "Water",
     "when": "When",
@@ -3304,7 +3315,7 @@
     "title": "Alarms",
     "backToPlan": "‹ back to the plan",
     "noController": "Nothing stands here that has alarm rules. A device has to be claimed into this tent first.",
-    "footer": "Silence and maintenance mode pause all of them; \"in the tent\" from the Log sheet does the same for 15 minutes.",
+    "footer": "Silence and maintenance mode pause all of them; \"Step in\" from the Log sheet does the same for 15 minutes.",
     "add": "+ Alarm · threshold · duration · severity · webhook",
     "group": {
       "presetOf": "From the {{name}} preset",

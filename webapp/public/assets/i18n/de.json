@@ -1510,7 +1510,7 @@
       "phase": "Phase",
       "move": "Umgezogen",
       "harvest": "Geerntet",
-      "visit": "Im Zelt",
+      "visit": "Reingegangen",
       "alarm": "Alarm",
       "plan": "Plan",
       "system": "System"
@@ -1525,7 +1525,7 @@
       "water": "Gießen",
       "note": "Notiz",
       "photo": "Foto",
-      "visit": "Im Zelt 15 min",
+      "visit": "Alarme aus 15 min",
       "reading": "Messwert"
     },
     "invite": {
@@ -2877,7 +2877,7 @@
     "close": "Schließen",
     "longPress": "lange drücken für Details",
     "targetLabel": "Worum es in dem Eintrag geht",
-    "oneTap": "Ein Tipp schreibt den Eintrag mit sinnvollen Vorgaben, 5 s lang widerrufbar, Details optional. Foto öffnet den Fotoeintrag.",
+    "oneTap": "Ein Tipp schreibt den Eintrag mit sinnvollen Vorgaben, 5 s lang widerrufbar, Details optional. Foto öffnet den Fotoeintrag, und Reingehen fragt vorher, weil es die Geräte ruhigstellt.",
     "nowhere": "Noch nichts da, wofür sich ein Eintrag lohnt · zuerst einen Grow starten oder ein Gerät hinzufügen",
     "litres": "{{litres}} l",
     "lastAgo": "zuletzt vor {{age}}",
@@ -2889,9 +2889,20 @@
       "measurement": "Messen",
       "training": "Training",
       "phase": "Phase",
-      "visit": "Im Zelt",
+      "visit": "Reingehen",
       "photoCaption": "Cam-Bild oder Kamera",
-      "visitCaption": "15 min"
+      "visitCaption": "Alarme aus 15 min"
+    },
+    "visit": {
+      "hereFallback": "diesem Ort",
+      "reading": "Lese, was in {{name}} steht …",
+      "parks_one": "Speichern setzt das Gerät in {{name}} für {{minutes}} Minuten in den Wartungsmodus: kein Heizen, kein Entfeuchten, kein CO₂ und in dieser Zeit kein Alarm.",
+      "parks_other": "Speichern setzt alle {{count}} Geräte in {{name}} für {{minutes}} Minuten in den Wartungsmodus: kein Heizen, kein Entfeuchten, kein CO₂ und in dieser Zeit kein Alarm.",
+      "nothingThere": "In {{name}} steht nichts, das ist also eine Zeile im Tagebuch und sonst nichts.",
+      "unreadable": "Was in {{name}} steht, ließ sich nicht lesen, hier lässt sich also nichts benennen. In den Wartungsmodus für {{minutes}} Minuten geht trotzdem jedes Gerät dort.",
+      "notUndone": "Die Zeile lässt sich danach zurücknehmen. Die {{minutes}} Minuten Ruhe nicht: Sie laufen von selbst ab, und die Geräte machen dort weiter, wo sie aufgehört haben.",
+      "save_one": "Reingehen · {{count}} Gerät ruhigstellen",
+      "save_other": "Reingehen · {{count}} Geräte ruhigstellen"
     },
     "water": "Wasser",
     "when": "Wann",
@@ -3300,7 +3311,7 @@
     "title": "Alarme",
     "backToPlan": "‹ zurück zum Plan",
     "noController": "Hier steht nichts, das Alarmregeln hat. Erst muss ein Gerät in dieses Zelt geholt werden.",
-    "footer": "Stummschalten und Wartungsmodus pausieren alle; „Im Zelt“ aus dem Log-Blatt tut dasselbe für 15 Minuten.",
+    "footer": "Stummschalten und Wartungsmodus pausieren alle; „Reingehen“ aus dem Log-Blatt tut dasselbe für 15 Minuten.",
     "add": "+ Alarm · Schwelle · Dauer · Stufe · Webhook",
     "group": {
       "presetOf": "Aus dem Preset {{name}}",

@@ -23,11 +23,18 @@ import { api, apiRequest } from './client';
  */
 export const DEVICES_REFRESH_MS = 30_000;
 
-export const useDevices = () =>
+/**
+ * Every device this account can see. `enabled` is here for the readers that only
+ * want the list under one condition: a sheet that names the hardware of a place
+ * for one of its eight tiles should not read the whole fleet for the other
+ * seven.
+ */
+export const useDevices = (enabled = true) =>
   useQuery({
     queryKey: ['devices'],
     queryFn: ({ signal }) => api.get<DevicePage>('/devices', undefined, signal),
     refetchInterval: DEVICES_REFRESH_MS,
+    enabled,
   });
 
 export const socketsKey = (deviceId: string) => ['devices', deviceId, 'sockets'];

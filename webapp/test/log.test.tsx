@@ -7,7 +7,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AccessNeed, Entry, GrowListItem, HomeAnswer, PlantPage } from '@fg2/shared-types/v1';
+import type { AccessNeed, Device, Entry, GrowListItem, HomeAnswer, PlantPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { LogProvider } from '@/log/LogProvider';
 import { useLog } from '@/log/log-context';
@@ -171,8 +171,16 @@ const written: Entry = { ...lastWater, id: 'entry-new', occurredAt: NOW.toISOStr
 /** What the reader may do in Tent 1: a phase is the one tile that is not a diary line. */
 const may = { youMay: 'own' as AccessNeed };
 
+/** What stands in Tent 1: one named controller and one nobody has named, which is what the visit panel has to print. */
+const standing = [
+  { id: 'device-1', type: 'controller', name: 'Big tent controller', spaceId: 'space-1' },
+  { id: 'device-2', type: 'plug', name: null, spaceId: 'space-1' },
+  { id: 'device-3', type: 'fan', name: 'Somewhere else', spaceId: 'space-2' },
+] as unknown as Device[];
+
 const answers = (path: string) => {
   if (path === '/home') return home;
+  if (path === '/devices') return { items: standing, nextCursor: null };
   if (path === '/spaces') return { items: [spaceWhere(may.youMay)], nextCursor: null };
   // The grow belongs to whoever the tent it stands in does, so one reader's two
   // standings cannot contradict each other.
@@ -247,7 +255,7 @@ describe('the log sheet', () => {
     expect(within(sheet).getByRole('button', { name: 'Tent 1' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Amnesia 1' })).toBeInTheDocument();
 
-    const tiles = ['Water', 'Feed', 'Photo', 'Note', 'Measure', 'Training', 'Phase', 'In the tent'];
+    const tiles = ['Water', 'Feed', 'Photo', 'Note', 'Measure', 'Training', 'Phase', 'Step in'];
     for (const tile of tiles) expect(within(sheet).getByRole('button', { name: new RegExp(`^${tile}`) })).toBeInTheDocument();
 
     // The captions: the last can, the scheme's week, the grow's own measurements, the phase after this one.
@@ -268,7 +276,7 @@ describe('the log sheet', () => {
     await openSheet();
     const sheet = screen.getByRole('dialog', { name: 'Log' });
 
-    for (const tile of ['Water', 'Feed', 'Photo', 'Note', 'Measure', 'Training', 'In the tent'])
+    for (const tile of ['Water', 'Feed', 'Photo', 'Note', 'Measure', 'Training', 'Step in'])
       expect(within(sheet).getByRole('button', { name: new RegExp(`^${tile}`) })).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: /^Phase/ })).not.toBeInTheDocument();
   });
@@ -388,6 +396,56 @@ describe('the log sheet', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Tent 1' }));
     expect(within(sheet).queryByRole('button', { name: /^Measure/ })).not.toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: /^Water/ })).toBeInTheDocument();
+  });
+
+  /**
+   * Stepping in is the one tile whose line is the smaller half of what it does:
+   * the server puts every device standing in the place into maintenance mode for
+   * a quarter of an hour, and deleting the line afterwards leaves them parked. So
+   * it asks first, names what it reaches by the names those rows carry, and the
+   * toast does not offer an Undo that would only be half of one.
+   */
+  it('asks before it steps in, names every device it will quieten, and offers no Undo for the quiet', async () => {
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Step in/ }));
+
+    const asked = await screen.findByRole('dialog', { name: 'Step in' });
+    expect(api.post).not.toHaveBeenCalled();
+    expect(await within(asked).findByText(/all 2 devices standing in Tent 1 into maintenance mode for 15 minutes/)).toBeInTheDocument();
+    // By the name each device's own row carries, and only the ones standing here.
+    expect(within(asked).getByText('Big tent controller')).toBeInTheDocument();
+    expect(within(asked).getByText('Plug · VICE-2')).toBeInTheDocument();
+    expect(within(asked).queryByText('Somewhere else')).not.toBeInTheDocument();
+    expect(within(asked).getByText(/The 15 minutes of quiet cannot/)).toBeInTheDocument();
+    // The day is not asked for: the quiet starts when this is saved, so the line is now.
+    expect(within(asked).queryByLabelText('When')).not.toBeInTheDocument();
+
+    fireEvent.click(within(asked).getByRole('button', { name: 'Step in · quieten 2 devices' }));
+
+    expect(api.post).toHaveBeenCalledWith('/entries', {
+      kind: 'visit',
+      growId: undefined,
+      spaceId: 'space-1',
+      plantIds: undefined,
+      text: undefined,
+      values: { kind: 'visit' },
+    });
+
+    expect(await screen.findByText('Stepped in · Tent 1')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  });
+
+  it('says so where nothing stands to be quietened, rather than promising an effect it will not have', async () => {
+    vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/devices' ? { items: [], nextCursor: null } : answers(path)));
+
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Step in/ }));
+
+    const asked = await screen.findByRole('dialog', { name: 'Step in' });
+    expect(await within(asked).findByText('Nothing stands in Tent 1, so this is a line in the diary and nothing else.')).toBeInTheDocument();
+    expect(within(asked).getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
 
   it('writes a line about one plant when a plant is the target', async () => {

@@ -3,6 +3,7 @@ import { Minus, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
+  Device,
   Entry,
   EntryCreate,
   EntryReading,
@@ -13,8 +14,11 @@ import type {
   MeasurementDefinition,
 } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
+import { useDevices } from '@/api/devices';
 import { correctEntry, diaryChanged, startPhase, takeEntryBack, useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow } from '@/api/grows';
+import { useHome } from '@/api/home';
+import { deviceTitle } from '@/screens/devices/naming';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { dayOf, momentOn } from '@/ui/days';
 import { readingFigure } from '@/ui/entries';
@@ -49,6 +53,9 @@ import styles from './Log.module.css';
 /** The grow's own name for a can of water, which the water row already is: it is not asked for twice. */
 const WATER_KEY = 'water_l';
 
+/** How long stepping in quietens the hardware, as the server counts it (`VISIT_SECONDS`). */
+const VISIT_MINUTES = 15;
+
 /** How many readings a kind shows fields for before the rest become chips. */
 const FIELDS_SHOWN = 3;
 
@@ -72,6 +79,11 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
   const client = useQueryClient();
   const { data: grow } = useGrow(target.growId);
   const { data: recent } = useRecentEntries(target.growId, target.spaceId);
+
+  // What a new visit line would put into maintenance mode, read only when that
+  // is the line being written: the panel below names it, and the button says how
+  // many it reaches.
+  const quietens = useQuietened(kind === 'visit' && !entry ? (target.standsIn ?? target.spaceId) : null);
 
   const definitions = (grow?.measurements ?? []).filter(measurement => measurement.key !== WATER_KEY);
   // The same can the tile offers, so opening the details never changes the line a tap would have written.
@@ -99,7 +111,12 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
   const showsWater = kind === 'water' || kind === 'feed';
   const showsReadings = kind === 'water' || kind === 'feed' || kind === 'measurement';
   const showsText = kind === 'note' || kind === 'training';
-  const showsWhen = kind !== 'phase';
+  // A new line about stepping in is not asked which day it was: the quarter of
+  // an hour of quiet it buys starts when it is saved, so a line dated to
+  // yesterday would park the hardware today and say it happened then. An
+  // existing one is a plain diary line by the time it is corrected - the window
+  // it opened has long closed and nothing here reopens it - so its day is free.
+  const showsWhen = kind !== 'phase' && (kind !== 'visit' || entry !== null);
   const doses = dosesOf(grow, litres, at);
 
   const values = (): EntryValuesDraft => {
@@ -113,6 +130,8 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
         return { kind: 'measurement', readings: taken };
       case 'training':
         return { kind: 'training' };
+      case 'visit':
+        return { kind: 'visit' };
       default:
         return { kind: 'note' };
     }
@@ -173,7 +192,11 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
     if (entry) return void correct();
 
     const body: EntryCreate = { kind, ...about(target), ...whenSaid(dated, at), text: showsText && text ? text : undefined, values: values() };
-    log({ label: lineLabel(t, kind, filed), details: { kind, target }, send: () => writeEntry(body) });
+    // Stepping in is the one line here whose Undo would only be half of one: the
+    // row goes and the devices stay parked for the rest of the quarter of an
+    // hour, so the toast does not offer it. The panel above said as much before
+    // the tap, which is where a consequence that cannot be taken back belongs.
+    log({ label: lineLabel(t, kind, filed), details: { kind, target }, send: () => writeEntry(body), undoable: kind !== 'visit' });
   };
 
   const add = (key: string) => setShown(current => [...current, key]);
@@ -282,14 +305,21 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
 
       {kind === 'phase' ? <Stages grow={grow} stage={stage} onPick={setStage} /> : null}
 
+      {kind === 'visit' && !entry ? <WhatItQuietens quietens={quietens} /> : null}
+
       {failed ? (
         <p className={ui.problem} role="alert">
           {t(failed === 'back' ? 'log.undoFailed' : 'log.saveFailed')}
         </p>
       ) : null}
 
-      <button type="button" className={`${ui.button} ${ui.primary} ${styles.save}`} onClick={save} disabled={saving || (kind === 'phase' && !stage)}>
-        {saveLabel(t, kind, entry, filed, step !== null)}
+      <button
+        type="button"
+        className={`${ui.button} ${ui.primary} ${styles.save}`}
+        onClick={save}
+        disabled={saving || (kind === 'phase' && !stage) || quietens.isPending}
+      >
+        {saveLabel(t, kind, entry, filed, step !== null, quietens.devices?.length ?? null)}
       </button>
 
       {/* Only a line somebody wrote: what a device or the server recorded is
@@ -320,6 +350,75 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
 }
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/** What a visit line is about to quieten: where it reaches, and what stands there. */
+interface Quietened {
+  /** The place's own name, so the panel says where rather than "here". */
+  name: string | null;
+  /** What stands there; null while the list has not been read, or where nothing was asked. */
+  devices: Device[] | null;
+  isPending: boolean;
+  failed: boolean;
+}
+
+/**
+ * The hardware a visit line would park.
+ *
+ * The server quietens every device whose space the line names - the place
+ * itself, or the place a grow it is about stands in - so the same rule is asked
+ * of the same list here, and what the panel names is what the request will
+ * reach. It is read only while a visit is being written: the other seven tiles
+ * have no business reading the fleet, so they ask for nothing and this answers
+ * nothing.
+ */
+const useQuietened = (spaceId: string | null): Quietened => {
+  const home = useHome();
+  const devices = useDevices(spaceId !== null);
+  const card = (home.data?.spaces ?? []).find(one => one.spaceId === spaceId) ?? null;
+
+  return {
+    name: card?.name ?? null,
+    devices: spaceId === null || !devices.data ? null : devices.data.items.filter(device => device.spaceId === spaceId),
+    isPending: spaceId !== null && devices.isPending,
+    failed: spaceId !== null && devices.isError,
+  };
+};
+
+/**
+ * What stepping in is about to do, said before it is done.
+ *
+ * The line itself is the smaller half: saving it puts every device standing in
+ * the place into maintenance mode for a quarter of an hour, which is a command
+ * on real hardware and is not what "in here for 15 minutes" sounds like. So the
+ * panel names the place, names each device by the name its own row carries, and
+ * says that the diary line can be taken back afterwards while the quiet cannot.
+ *
+ * A place with nothing standing in it says so rather than promising an effect it
+ * will not have, and a list that could not be read says that too - the rule
+ * still holds for whatever stands there, and a panel that stayed silent would be
+ * the very thing this replaces.
+ */
+function WhatItQuietens({ quietens }: { quietens: Quietened }) {
+  const { t } = useTranslation();
+  const { name, devices, isPending, failed } = quietens;
+  const where = { name: name ?? t('log.visit.hereFallback'), minutes: VISIT_MINUTES };
+
+  if (isPending) return <p className={ui.note}>{t('log.visit.reading', where)}</p>;
+  if (failed || devices === null) return <p className={ui.note}>{t('log.visit.unreadable', where)}</p>;
+  if (devices.length === 0) return <p className={ui.note}>{t('log.visit.nothingThere', where)}</p>;
+
+  return (
+    <div className={styles.quietens}>
+      <p className={ui.note}>{t('log.visit.parks', { ...where, count: devices.length })}</p>
+      <ul className={`mono ${styles.quietensList}`}>
+        {devices.map(device => (
+          <li key={device.id}>{deviceTitle(device, t)}</li>
+        ))}
+      </ul>
+      <p className={ui.note}>{t('log.visit.notUndone', where)}</p>
+    </div>
+  );
+}
 
 /** The six stages, with the one the grow is in named and the next one already picked. */
 function Stages({ grow, stage, onPick }: { grow: GrowListItem | undefined; stage: GrowthStage | null; onPick: (stage: GrowthStage) => void }) {
@@ -359,9 +458,15 @@ const schemeLine = (grow: GrowListItem | undefined): string => {
   return [name, grow?.scheme?.plantType].filter(Boolean).join(' · ');
 };
 
-const saveLabel = (t: Translate, kind: TileKind, entry: Entry | null, target: LogTarget, planned: boolean): string => {
+/**
+ * What the button says it will do. Stepping in says how much hardware it is
+ * about to quieten, because that is the part of it a person is agreeing to; with
+ * nothing standing there it is an ordinary line and says so.
+ */
+const saveLabel = (t: Translate, kind: TileKind, entry: Entry | null, target: LogTarget, planned: boolean, quietens: number | null): string => {
   if (entry) return t('log.saveCorrection');
   if (kind === 'feed' && planned) return t('log.logAsPlanned');
+  if (kind === 'visit' && quietens) return t('log.visit.save', { count: quietens });
   return target.dayNumber === null ? t('log.save') : t('log.saveDay', { day: target.dayNumber });
 };
 
