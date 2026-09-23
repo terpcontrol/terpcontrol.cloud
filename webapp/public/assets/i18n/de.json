@@ -1963,6 +1963,7 @@
     "phaseBarEndedLabel": "Phasenverlauf, beendet in {{stage}}",
     "noWeeks": "Noch keine Phase · die Wochen beginnen mit der ersten Phase",
     "noFixedPlace": "Kein fester Platz",
+    "stoodIn": "stand in {{name}}",
     "noPlants": "Keine Pflanzen erfasst",
     "plantStatus": {
       "active": "aktiv",

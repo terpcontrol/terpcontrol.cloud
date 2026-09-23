@@ -333,6 +333,18 @@ describe('a grow that has ended', () => {
     expect(screen.getByText('final day')).toBeInTheDocument();
   });
 
+  it('names the tent it stood in, which its own report names on every chapter', () => {
+    // An ended grow has no open placement, so "where the plants are" is empty
+    // and the slot the header draws a place in was left blank.
+    const moved: GrowListItem = { ...finished, summary: { ...finished.summary, locations: [] } };
+    draw(<GrowHeader grow={moved} plants={[]} spaces={[{ id: 'space-1', name: 'Tent 1' } as never]} now={NOW} onShare={null} />);
+
+    expect(screen.getByRole('link', { name: 'stood in Tent 1' })).toHaveAttribute('href', '/spaces/space-1');
+    // And it keeps the way to its charts: the tent page lists only the grows
+    // standing there now, so this is the ended grow's one route to them.
+    expect(screen.getByRole('link', { name: 'Charts' })).toHaveAttribute('href', '/charts?grow=grow-1');
+  });
+
   it('is drawn as standing in no stage, so the bar claims no present it does not have', () => {
     const { container } = draw(<PhaseBar grow={finished} now={NOW} />);
 

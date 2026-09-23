@@ -1,6 +1,6 @@
 import { ChevronLeft, CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
 import { DateTime } from 'luxon';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
@@ -94,6 +94,20 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
   );
 }
 
+/**
+ * The last place the grow stood, for a grow that stands nowhere any more.
+ *
+ * The newest placement by the day it was closed, which for an ended grow is the
+ * tent it came down in. It is the header's label and nothing else: where a grow
+ * may be logged or managed is still its *open* placements, which is what the
+ * serialiser answers and what the access decision reads.
+ */
+const lastPlaceOf = (grow: GrowListItem): { spaceId: string | null } | null =>
+  grow.placements.reduce<GrowListItem['placements'][number] | null>(
+    (latest, placement) => (latest && (latest.endedAt ?? '') >= (placement.endedAt ?? '') ? latest : placement),
+    null,
+  );
+
 /** "Amnesia ×2 · Gelato": each strain once, with its count where there is more than one. */
 const strainsOf = (plants: Plant[]): string =>
   [...new Set(plants.map(plant => plant.strain))]
@@ -127,10 +141,27 @@ export function GrowHeader({ grow, plants, spaces, now, onShare }: HeaderProps) 
   const { t } = useTranslation();
   const { summary } = grow;
   const endedAt = grow.endedAt ? DateTime.fromISO(grow.endedAt) : null;
-  const places = summary.locations.map(location => ({
-    spaceId: location.spaceId,
-    name: location.spaceId ? (spaces.find(space => space.id === location.spaceId)?.name ?? '…') : t('grow.noFixedPlace'),
-  }));
+  const nameOf = (spaceId: string | null) => (spaceId ? (spaces.find(space => space.id === spaceId)?.name ?? '…') : t('grow.noFixedPlace'));
+  // Where the plants are now, which a grow whose placements have all been
+  // closed no longer has. Its report names the tent on every chapter and the
+  // move sheet lists the span it stood there, so a header with nothing at all
+  // in that slot is the one screen that forgets it - the closed placement
+  // answers for it, said as the past tense it is.
+  const places = summary.locations.map(location => ({ spaceId: location.spaceId, name: nameOf(location.spaceId) }));
+  const stood = places.length > 0 ? null : lastPlaceOf(grow);
+  const placeLink = (spaceId: string | null, label: string) =>
+    spaceId ? (
+      <Link to={`/spaces/${spaceId}`} className={styles.place}>
+        {label}
+      </Link>
+    ) : (
+      label
+    );
+  const said: ReactNode[] = [
+    ...(plants.length > 0 ? [strainsOf(plants)] : []),
+    ...places.map(place => placeLink(place.spaceId, place.name)),
+    ...(stood ? [placeLink(stood.spaceId, t('grow.stoodIn', { name: nameOf(stood.spaceId) }))] : []),
+  ];
 
   return (
     <header className={styles.header}>
@@ -141,17 +172,13 @@ export function GrowHeader({ grow, plants, spaces, now, onShare }: HeaderProps) 
         <div className={styles.titles}>
           <h1 className={styles.name}>{grow.name}</h1>
           <p className={styles.subtitle}>
-            {plants.length > 0 ? <span>{strainsOf(plants)}</span> : null}
-            {places.map(place => (
-              <span key={place.spaceId ?? 'none'}>
-                {' · '}
-                {place.spaceId ? (
-                  <Link to={`/spaces/${place.spaceId}`} className={styles.place}>
-                    {place.name}
-                  </Link>
-                ) : (
-                  place.name
-                )}
+            {/* Joined rather than each prefixed with its own separator, so a
+                grow with no strains recorded does not open its subtitle with a
+                dot in front of the tent. */}
+            {said.map((part, index) => (
+              <span key={index}>
+                {index > 0 ? ' · ' : ''}
+                {part}
               </span>
             ))}
             {endedAt ? (
@@ -216,7 +243,7 @@ export function GrowHeader({ grow, plants, spaces, now, onShare }: HeaderProps) 
           <Ruler size={13} strokeWidth={1.75} aria-hidden />
           {t('grow.measurements.title')}
         </Link>
-        {places.every(place => place.spaceId === null) ? (
+        {places.length === 0 || places.every(place => place.spaceId === null) ? (
           <Link to={`/charts?grow=${grow.id}`} className={ui.chip}>
             <LineChart size={13} strokeWidth={1.75} aria-hidden />
             {t('charts.title')}

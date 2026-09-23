@@ -1967,6 +1967,7 @@
     "phaseBarEndedLabel": "Phase progress, ended in {{stage}}",
     "noWeeks": "No phase yet · the weeks start with the first phase",
     "noFixedPlace": "No fixed place",
+    "stoodIn": "stood in {{name}}",
     "noPlants": "No plants recorded",
     "plantStatus": {
       "active": "active",
