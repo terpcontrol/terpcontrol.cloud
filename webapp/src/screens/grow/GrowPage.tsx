@@ -235,7 +235,7 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
           Charts opens from the timeline and from a tent page. A grow that
           stands in no tent has neither, and would otherwise be told its
           measurements are drawn on a view it can never reach. */}
-      <div className={`${ui.scrollRowNarrow} ${styles.ways}`}>
+      <div className={`${ui.scrollRowNarrow} ${styles.ways}`} data-print="omit">
         <Link to={`/grows/${grow.id}/measurements`} className={ui.chip}>
           <Ruler size={13} strokeWidth={1.75} aria-hidden />
           {t('grow.measurements.title')}

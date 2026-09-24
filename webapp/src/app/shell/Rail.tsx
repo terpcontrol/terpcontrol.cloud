@@ -50,7 +50,7 @@ export function Rail() {
   const itemClass = ({ isActive }: { isActive: boolean }) => [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ');
 
   return (
-    <nav className={styles.rail} aria-label={t('shell.navigation')}>
+    <nav className={styles.rail} aria-label={t('shell.navigation')} data-print="omit">
       <div className={styles.identity}>
         <div className={styles.wordmark}>Terp Control</div>
         <Freshness />

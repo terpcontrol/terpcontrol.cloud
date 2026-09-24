@@ -88,7 +88,7 @@ function Export({ growId, mayOwn }: { growId: string; mayOwn: boolean }) {
   const ready = row && status === 'ready' ? row : null;
 
   return (
-    <section className={`${ui.card} ${styles.export}`}>
+    <section className={`${ui.card} ${styles.export}`} data-print="omit">
       <div className={styles.exportText}>
         <span className="label">{t('grow.report.export.title')}</span>
         <p className={ui.note}>{t('grow.report.export.note')}</p>

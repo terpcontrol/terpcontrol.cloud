@@ -234,3 +234,14 @@ button:disabled {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Paper. The browser's own print is the only way a report reaches it, and a
+   printed page has nothing to tap: the rail, the top bar, the tab bar with its
+   Log button, a page's tabs and its row of actions, and the export card are
+   the app around the record rather than the record, so they are left off it.
+   An element says so with data-print="omit". */
+@media print {
+  [data-print='omit'] {
+    display: none !important;
+  }
+}

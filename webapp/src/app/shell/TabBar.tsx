@@ -17,7 +17,7 @@ export function TabBar() {
   const mayLog = useMayLog();
 
   return (
-    <nav className={styles.bar} aria-label={t('shell.navigation')}>
+    <nav className={styles.bar} aria-label={t('shell.navigation')} data-print="omit">
       {TABS.filter(tab => mayLog || !tab.raised).map(({ path, labelKey, Icon, raised }) =>
         raised ? (
           <button key={path} type="button" className={`${styles.tab} ${styles.raised}`} onClick={() => openSheet()}>

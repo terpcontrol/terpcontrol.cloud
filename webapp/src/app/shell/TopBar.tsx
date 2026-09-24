@@ -33,7 +33,7 @@ export function TopBar() {
   const bell = bellOf(useOpenAlertCount());
 
   return (
-    <header className={styles.bar}>
+    <header className={styles.bar} data-print="omit">
       <div className={styles.identity}>
         <div className={styles.wordmark}>Terp Control</div>
         <Freshness />
