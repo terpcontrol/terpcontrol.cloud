@@ -36,6 +36,12 @@ export interface LogOpening {
   growId?: string | null;
   spaceId?: string | null;
   kind?: TileKind | null;
+  /**
+   * The place was read off the page the sheet was opened over rather than
+   * named by a link, so a miss - an ended grow's page, a tent the home does
+   * not list - falls back to the chip chosen last time instead of refusing.
+   */
+  underneath?: boolean;
 }
 
 /** A line on its way to the server, and what a retry would send again. */

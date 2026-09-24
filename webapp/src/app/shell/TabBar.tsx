@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
 import { useLog, useMayLog } from '@/log/log-context';
+import { useOpeningUnderneath } from '@/log/underneath';
 import { TABS } from './tabs';
 import styles from './TabBar.module.css';
 
@@ -14,13 +15,14 @@ import styles from './TabBar.module.css';
 export function TabBar() {
   const { t } = useTranslation();
   const { openSheet } = useLog();
+  const underneath = useOpeningUnderneath();
   const mayLog = useMayLog();
 
   return (
     <nav className={styles.bar} aria-label={t('shell.navigation')} data-print="omit">
       {TABS.filter(tab => mayLog || !tab.raised).map(({ path, labelKey, Icon, raised }) =>
         raised ? (
-          <button key={path} type="button" className={`${styles.tab} ${styles.raised}`} onClick={() => openSheet()}>
+          <button key={path} type="button" className={`${styles.tab} ${styles.raised}`} onClick={() => openSheet(underneath)}>
             <span className={styles.icon}>
               <Icon size={26} strokeWidth={2} aria-hidden />
             </span>

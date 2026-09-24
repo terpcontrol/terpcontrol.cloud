@@ -90,7 +90,7 @@ export const openingTarget = (targets: LogTarget[], opening: LogOpening, last: s
     targets.find(target => opening.spaceId && target.standsIn === opening.spaceId) ??
     null;
 
-  if (opening.growId || opening.spaceId) return { target: asked, missed: asked === null };
+  if ((opening.growId || opening.spaceId) && (asked !== null || !opening.underneath)) return { target: asked, missed: asked === null };
 
   return { target: targets.find(target => target.key === last) ?? targets[0] ?? null, missed: false };
 };

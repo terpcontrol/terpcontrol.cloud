@@ -5,6 +5,7 @@ import { NavLink } from 'react-router';
 import { bellOf, useOpenAlertCount } from '@/api/alerts';
 import { useSession } from '@/api/session';
 import { useLog, useMayLog } from '@/log/log-context';
+import { useOpeningUnderneath } from '@/log/underneath';
 import { TABS, initials } from './tabs';
 import { Freshness } from './TopBar';
 import styles from './Rail.module.css';
@@ -27,6 +28,7 @@ export function Rail() {
   const { t } = useTranslation();
   const { user } = useSession();
   const { openSheet } = useLog();
+  const underneath = useOpeningUnderneath();
   const mayLog = useMayLog();
   const bell = bellOf(useOpenAlertCount());
 
@@ -41,11 +43,11 @@ export function Rail() {
       if (event.key !== LOG_KEY || event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
       if (!window.matchMedia('(min-width: 900px)').matches) return;
       event.preventDefault();
-      openSheet();
+      openSheet(underneath);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [mayLog, openSheet]);
+  }, [mayLog, openSheet, underneath]);
 
   const itemClass = ({ isActive }: { isActive: boolean }) => [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ');
 
@@ -57,7 +59,7 @@ export function Rail() {
       </div>
 
       {log ? (
-        <button type="button" className={styles.log} onClick={() => openSheet()}>
+        <button type="button" className={styles.log} onClick={() => openSheet(underneath)}>
           <log.Icon size={20} strokeWidth={2} aria-hidden />
           <span className={styles.logCaption}>{t(log.labelKey)}</span>
           <kbd className={`mono ${styles.key}`}>{LOG_KEY.toUpperCase()}</kbd>
