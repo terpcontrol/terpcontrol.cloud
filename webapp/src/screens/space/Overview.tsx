@@ -20,7 +20,7 @@ import { useLog, useMayLog } from '@/log/log-context';
 import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
 import type { Liveness } from '../home/attention';
 import { EntryRow } from '@/ui/EntryRow';
-import { readingFigure, readingNamesOf } from '@/ui/entries';
+import { foldRepeats, readingFigure, readingNamesOf } from '@/ui/entries';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
@@ -190,10 +190,11 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
             <p className={ui.note}>{t('home.card.noEntries')}</p>
           ) : (
             <ul className={styles.entries}>
-              {overview.entries.map(entry => (
+              {foldRepeats(overview.entries).map(({ entry, count, since }) => (
                 <EntryRow
                   key={entry.id}
                   entry={entry}
+                  repeats={{ count, since }}
                   people={overview.people}
                   measurements={readingNamesOf(overview.readingNames, entry.growId)}
                   now={now}

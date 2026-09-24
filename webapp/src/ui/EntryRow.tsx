@@ -112,6 +112,11 @@ interface EntryRowProps {
    * that have both rather than reached for here.
    */
   onOpen?: () => void;
+  /**
+   * Identical machine lines before this one that a list folded into it (see
+   * `foldRepeats`): how many there were in all, and when the first was written.
+   */
+  repeats?: { count: number; since: string } | null;
 }
 
 /**
@@ -134,6 +139,7 @@ export function EntryRow({
   picture = (mediaId, width) => mediaUrl(mediaId, width),
   zone: given,
   onOpen,
+  repeats = null,
 }: EntryRowProps) {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
@@ -159,6 +165,12 @@ export function EntryRow({
       {byline && entry.source === 'human' ? <span className={styles.author}>{authorOf(t, entry, people, user?.id)} </span> : null}
       {/* A person writes in lines, so the breaks they typed are kept rather than collapsed into one run-on sentence. */}
       <span className={styles.headline}>{headlineOf(t, i18n, entry)}</span>
+      {repeats && repeats.count > 1 ? (
+        <span className="mono">
+          {' · '}
+          {t('home.entryRepeats', { count: repeats.count, since: sinceOf(repeats.since, now, zone) })}
+        </span>
+      ) : null}
       {readings.length > 0 ? (
         <span className={`mono ${styles.readings}`}>
           {readings.map(reading => {
@@ -242,3 +254,9 @@ export function EntryRow({
     </li>
   );
 }
+
+/** When the first of a folded run was written: the hour where that was today, the date as well where it was not. */
+const sinceOf = (since: string, now: DateTime | undefined, zone: string | null): string => {
+  const at = zoned(since, zone);
+  return at.toFormat(now && at.hasSame(nowThere(now, zone), 'day') ? CLOCK : DATED_CLOCK);
+};

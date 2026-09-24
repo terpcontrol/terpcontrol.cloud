@@ -1441,6 +1441,7 @@
     "zoneAdoptedDismiss": "Got it"
   },
   "home": {
+    "entryRepeats": "{{count}}× since {{since}}",
     "empty": {
       "title": "Nothing here yet.",
       "text": "Both doors lead to the same place: a space with a diary and, if you have one, a controller.",

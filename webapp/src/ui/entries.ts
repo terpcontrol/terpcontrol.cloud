@@ -161,3 +161,50 @@ export const growDayOf = (grow: GrowListItem, occurredAt: string): number | null
  */
 export const weekDayOf = (week: Pick<GrowWeekCard, 'dayFrom' | 'dayTo' | 'startsAt'>, occurredAt: string): number =>
   Math.min(week.dayTo, Math.max(week.dayFrom, week.dayFrom + Math.floor((Date.parse(occurredAt) - Date.parse(week.startsAt)) / DAY_MS)));
+
+/** A line and how many identical machine lines just before it were folded into it. */
+export interface FoldedEntry {
+  entry: Entry;
+  /** How many lines this one stands for, itself included. */
+  count: number;
+  /** When the oldest of them was written; the entry's own instant where it stands alone. */
+  since: string;
+}
+
+/**
+ * Runs of identical machine lines folded into one, newest first.
+ *
+ * A camera that times out writes "Picture not taken" and its advice every few
+ * minutes, and a tent's latest lines were three or six of those one above the
+ * other, pushing everything else off the list. A device's, the plan's or an
+ * alarm's line that says exactly what the one before it said - same source,
+ * same device, same key and parameters, no pictures - is the same thing
+ * happening again, so it is counted rather than drawn again. What a person
+ * wrote is never folded: two waterings are two waterings.
+ */
+export const foldRepeats = (entries: Entry[]): FoldedEntry[] => {
+  const folded: FoldedEntry[] = [];
+
+  for (const entry of entries) {
+    const last = folded.at(-1);
+    if (last && sameMachineLine(last.entry, entry)) {
+      last.count += 1;
+      last.since = entry.occurredAt;
+    } else {
+      folded.push({ entry, count: 1, since: entry.occurredAt });
+    }
+  }
+
+  return folded;
+};
+
+const sameMachineLine = (one: Entry, other: Entry): boolean =>
+  one.source !== 'human' &&
+  one.source === other.source &&
+  one.kind === other.kind &&
+  one.deviceId === other.deviceId &&
+  one.cameraId === other.cameraId &&
+  one.mediaIds.length === 0 &&
+  other.mediaIds.length === 0 &&
+  (one.text ?? null) === (other.text ?? null) &&
+  JSON.stringify(one.message ?? null) === JSON.stringify(other.message ?? null);

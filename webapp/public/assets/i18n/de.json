@@ -1437,6 +1437,7 @@
     "zoneAdoptedDismiss": "Verstanden"
   },
   "home": {
+    "entryRepeats": "{{count}}× seit {{since}}",
     "empty": {
       "title": "Noch nichts hier.",
       "text": "Beide Türen führen an denselben Ort: einen Bereich mit Tagebuch und, wenn du einen hast, einem Controller.",
