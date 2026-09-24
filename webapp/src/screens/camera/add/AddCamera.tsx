@@ -78,7 +78,12 @@ function Ways() {
 
   return (
     <>
-      <div className={`${ui.segments} ${styles.tabs}`} role="group" aria-label={t('cameras.add.which')}>
+      {/* The three ways in, as one control: which of them is meant is a choice
+          between three, not three buttons that each do something. They say
+          which one is pressed rather than being an ARIA tab strip, because the
+          arrow keys a tab strip promises are a behaviour nothing else in the
+          app has. */}
+      <div className={`${ui.segments} ${ui.segmentsFill}`} role="group" aria-label={t('cameras.add.which')}>
         {KINDS.map(one => (
           <button key={one} type="button" className={ui.segment} aria-pressed={one === kind} onClick={() => setChosen(one)}>
             {t(`cameras.add.tab.${one}`)}

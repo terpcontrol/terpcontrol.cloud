@@ -7,14 +7,6 @@
   gap: var(--space-3);
 }
 
-/* The two-way switch: one segment is where you are, the other is an address.
-   Filled rather than underlined, because it chooses what the page is about
-   rather than which part of it is shown - the tabs above already do that. */
-.scope {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 .scopeOption {
   display: block;
   line-height: var(--chip-height);

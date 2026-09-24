@@ -155,7 +155,7 @@ function Made({ invite }: { invite: Invite }) {
 
   return (
     <div className={styles.made}>
-      <div className={`${ui.segments} ${styles.ways}`} role="tablist" aria-label={t('space.members.sheet.waysLabel')}>
+      <div className={`${ui.segments} ${ui.segmentsFill}`} role="tablist" aria-label={t('space.members.sheet.waysLabel')}>
         {WAYS.map(one => (
           <button
             key={one}

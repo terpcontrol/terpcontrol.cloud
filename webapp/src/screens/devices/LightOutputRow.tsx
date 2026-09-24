@@ -189,7 +189,7 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
               three keep the one-word names they are drawn with and a reader
               hears how long a hold lasts once, where the choice belongs. */}
           <span
-            className={`${ui.segments} ${styles.forces}`}
+            className={ui.segments}
             role="group"
             aria-label={t('devices.lightOutput.forceFor', { duration: durationLabel(hold) })}
           >

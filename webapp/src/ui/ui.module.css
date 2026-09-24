@@ -359,6 +359,14 @@
   border-radius: var(--radius-pill);
 }
 
+/* A track that runs the width of what it sits in, its options sharing it
+   equally - where the choice decides what the card under it shows. */
+.segmentsFill {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+}
+
 .segment {
   display: inline-flex;
   align-items: center;

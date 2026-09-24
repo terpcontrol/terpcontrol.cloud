@@ -91,7 +91,7 @@ function Head({ scope, onScope }: { scope?: Scope; onScope?: (scope: Scope) => v
               type="button"
               role="radio"
               aria-checked={scope === one}
-              className={`${ui.segment} ${styles.segment}`}
+              className={ui.segment}
               onClick={() => onScope(one)}
             >
               {t(`tasks.scope.${one}`)}

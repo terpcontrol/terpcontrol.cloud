@@ -22,13 +22,6 @@
   line-height: var(--line-tight);
 }
 
-/* Mine | All: two halves of one control on a pill track, the chosen one filled
-   with the brand the way a chosen chip is. */
-
-.segment {
-  padding: 0 var(--space-4);
-}
-
 .group {
   display: flex;
   flex-direction: column;

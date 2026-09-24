@@ -103,27 +103,6 @@
 }
 
 /* The row that is not a row yet. */
-
-/* Photoperiod and autoflower: one question with two halves of an answer. */
-.halves {
-  display: flex;
-}
-
-/* Each half is a chosen-or-not chip; on the track it sheds its outline, so
-   the pair reads as the app's one segmented control. */
-.halves > button {
-  flex: 1;
-  justify-content: center;
-  border-color: transparent;
-  font-family: var(--font-text);
-  font-size: var(--text-sm);
-}
-
-.halves > button:not([data-chosen='true']) {
-  background: none;
-  color: var(--muted);
-}
-
 .newSpace {
   display: flex;
   flex-direction: column;

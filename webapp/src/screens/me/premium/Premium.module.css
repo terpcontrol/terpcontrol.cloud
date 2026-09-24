@@ -12,6 +12,8 @@
   line-height: var(--line-body);
 }
 
+/* ---------------------------------------------------------------- cameras */
+
 .camera {
   display: flex;
   flex-direction: column;

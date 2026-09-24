@@ -273,10 +273,11 @@
   color: var(--brand);
 }
 
-/* Where the device does not say what the row is doing: auto, on, off - a
-   pill track like every segmented choice in the app, the pressed one filled
-   with the brand. */
-
+/* Auto, on, off: the app's one segmented control, the pressed one filled with
+   the brand. The words are one each, so capitalising them is sentence case.
+   Holding the light output on or off is three plain actions rather than a
+   control drawn in a position nobody checked: the device reports no override
+   of its own output, so none of them is ever drawn pressed. */
 .threeWayOption,
 .forceOption {
   text-transform: capitalize;
@@ -321,10 +322,6 @@
   font-size: var(--text-sm);
   text-align: right;
 }
-
-/* Holding the output on or off (`.forces` above) is three plain actions rather
-   than a control drawn in a position nobody checked: the device reports no
-   override of its own output, so none of them is ever drawn pressed. */
 
 /* How long ON and OFF hold the output for, beside the buttons that send it. The
    duration is a mandatory part of the command - the server refuses a hold with

@@ -22,15 +22,6 @@
   line-height: var(--line-tight);
 }
 
-/* The three ways in, as one control: which of them is meant is a choice
-   between three, not three buttons that each do something. They are chips that
-   say which one is pressed rather than an ARIA tab strip, because the arrow
-   keys a tab strip promises are a behaviour nothing else in the app has. */
-.tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 .panel {
   display: flex;
   flex-direction: column;

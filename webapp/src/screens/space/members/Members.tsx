@@ -92,7 +92,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
       ) : (
         <>
           {room ? (
-            <nav className={`${ui.segments} ${styles.scope}`} aria-label={t('space.members.scopeLabel')}>
+            <nav className={`${ui.segments} ${ui.segmentsFill}`} aria-label={t('space.members.scopeLabel')}>
               <span className={`${ui.segment} ${styles.scopeOption} ${styles.scopeHere}`} aria-current="page">
                 {name}
               </span>
@@ -101,7 +101,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
               </Link>
             </nav>
           ) : mayWrite ? (
-            <nav className={`${ui.segments} ${styles.scope}`} aria-label={t('space.members.scopeLabel')}>
+            <nav className={`${ui.segments} ${ui.segmentsFill}`} aria-label={t('space.members.scopeLabel')}>
               <span className={`${ui.segment} ${styles.scopeOption} ${styles.scopeHere}`} aria-current="page">
                 {name}
               </span>

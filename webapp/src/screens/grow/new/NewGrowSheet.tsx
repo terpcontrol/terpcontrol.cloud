@@ -323,13 +323,13 @@ function Form({
         </Block>
 
         <Block label={t('grow.new.type')} aside={t('grow.new.typeAside')}>
-          <div className={`${ui.segments} ${styles.halves}`} role="group" aria-label={t('grow.new.type')}>
-            <Choice chosen={draft.type === 'photoperiod'} onChoose={() => change({ type: 'photoperiod' })}>
+          <div className={`${ui.segments} ${ui.segmentsFill}`} role="group" aria-label={t('grow.new.type')}>
+            <button type="button" className={ui.segment} aria-pressed={draft.type === 'photoperiod'} onClick={() => change({ type: 'photoperiod' })}>
               {t('grow.new.photoperiod')}
-            </Choice>
-            <Choice chosen={draft.type === 'autoflower'} onChoose={() => change({ type: 'autoflower' })}>
+            </button>
+            <button type="button" className={ui.segment} aria-pressed={draft.type === 'autoflower'} onClick={() => change({ type: 'autoflower' })}>
               {t('grow.new.autoflower')}
-            </Choice>
+            </button>
           </div>
         </Block>
 
