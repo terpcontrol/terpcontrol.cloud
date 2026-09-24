@@ -61,7 +61,7 @@
 }
 
 .segment[data-filled='true'] {
-  background: var(--ink);
+  background: var(--brand);
 }
 
 /* One step: the marker in its own column, everything the step says in the
@@ -70,30 +70,43 @@
 .step {
   display: flex;
   gap: var(--space-3);
+  padding: 0 var(--space-4);
+}
+
+/* The step being asked stands on a card, so the one question on the page is
+   the one thing on it that is lifted; the others are its margin notes. */
+.step[data-state='open'] {
+  padding: var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 .marker {
   display: grid;
   place-items: center;
   flex: none;
-  width: 24px;
-  height: 24px;
-  border: var(--rule-solid);
+  width: 26px;
+  height: 26px;
+  border: var(--rule-width) solid var(--rule-strong);
   border-radius: 50%;
   font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
   color: var(--muted);
 }
 
 /* The step being asked is the one filled in; a settled one keeps the outline
    and carries its tick, so the page shows at a glance how far it has got. */
 .marker[data-state='open'] {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--bg);
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-brand);
 }
 
 .marker[data-state='done'] {
-  border-color: var(--green);
+  background: var(--brand-wash);
+  border-color: transparent;
   color: var(--green-ink);
 }
 
@@ -111,6 +124,18 @@
   font-weight: var(--weight-display-sm);
   line-height: var(--line-tight);
   text-align: left;
+}
+
+.step[data-state='open'] .stepTitle {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-display);
+}
+
+/* The open step's heading takes focus when a step settles so that a screen
+   reader starts at the question; it is not a control, and a ring round a
+   heading nobody tabbed to reads as a fault. */
+.stepTitle[tabindex='-1']:focus {
+  outline: none;
 }
 
 /* A step still ahead says what it will ask and reads as not yet its turn. */
@@ -186,8 +211,8 @@
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3);
-  border: var(--rule-dashed);
-  border-radius: var(--radius);
+  background: var(--card-2);
+  border-radius: var(--radius-sm);
 }
 
 .answers {
