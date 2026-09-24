@@ -6,7 +6,7 @@ import type { Alert, AlarmRule, Device, Me, Metric, OutputMetric } from '@fg2/sh
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
 import { clockLabel } from '@/screens/notifications/settings';
-import { parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES } from '@/ui/maintenance';
+import { maintenanceQuiet, parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES } from '@/ui/maintenance';
 import { ruleTitle } from '@/screens/control/alarms/rules';
 import { ageAttribute, ageLabel, isAhead, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
@@ -286,6 +286,13 @@ const metaOf = (
     else if (delivery !== null && delivery !== 'repeats') parts.push(t(`alerts.meta.${delivery}`));
 
     if (rule && isAhead(rule.silencedUntil, now)) parts.push(t('alerts.meta.silenced', { time: clock(rule.silencedUntil!, zone) }));
+
+    // A device being worked on has its alarms held by the engine itself, so
+    // this card will not change while that stands. It is said for the same
+    // reason the silence beside it is: what a reader can see of an open alert
+    // has to include why nothing more is going to happen to it.
+    const quiet = device && maintenanceQuiet(device, now);
+    if (quiet) parts.push(t('alerts.meta.inMaintenance', { time: clock(quiet.alarmsUntil, zone) }));
   }
 
   return parts.join(' · ');
@@ -330,6 +337,9 @@ function OpenChips({ alert, rule, device, now }: { alert: Alert; rule: AlarmRule
   const maintenance = useDeviceCommand();
   const [asking, setAsking] = useState(false);
   const silenced = rule !== null && isAhead(rule.silencedUntil, now);
+  // Whether the device is already being worked on, so the chip offers the way
+  // out of that rather than a second window on top of the one running.
+  const parked = device !== null && maintenanceQuiet(device, now)?.parked === true;
   const busy = silence.isPending || unsilence.isPending || maintenance.isPending;
   const camera = alert.kind === 'camera_stale';
 
@@ -356,8 +366,14 @@ function OpenChips({ alert, rule, device, now }: { alert: Alert; rule: AlarmRule
             cannot yet say which would have to guess, and guessing is what put a
             heater, a dehumidifier and a CO2 valve on a fan in the first place. */}
         {!camera && device && alert.deviceId ? (
-          <button type="button" className={ui.chip} disabled={busy} aria-expanded={asking} onClick={() => setAsking(!asking)}>
-            {t('alerts.action.maintenance')}
+          <button
+            type="button"
+            className={ui.chip}
+            disabled={busy}
+            aria-expanded={parked ? undefined : asking}
+            onClick={() => (parked ? maintenance.mutate({ deviceId, command: { kind: 'maintenance', forSeconds: 0 } }) : setAsking(!asking))}
+          >
+            {t(parked ? 'alerts.action.endMaintenance' : 'alerts.action.maintenance', { minutes: SPANS.minutes })}
           </button>
         ) : null}
         {alert.spaceId ? <TimelineChip spaceId={alert.spaceId} /> : null}
@@ -394,7 +410,9 @@ function OpenChips({ alert, rule, device, now }: { alert: Alert; rule: AlarmRule
 
       {maintenance.data && device ? (
         <p className={`mono ${styles.answer}`} role="status">
-          {maintenanceReceipt(t, device, maintenance.data.deviceOnline)}
+          {maintenance.variables?.command.kind === 'maintenance' && maintenance.variables.command.forSeconds === 0
+            ? t('maintenance.ended')
+            : maintenanceReceipt(t, device, maintenance.data.deviceOnline)}
         </p>
       ) : null}
       <Refused error={silence.error ?? unsilence.error ?? maintenance.error} />

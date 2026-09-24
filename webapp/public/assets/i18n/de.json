@@ -3315,6 +3315,11 @@
   },
   "maintenance": {
     "and": "und",
+    "parked": "Im Wartungsmodus bis {{until}} — bis {{alarms}} kein Alarm auf diesem Gerät",
+    "settling": "Wartungsmodus seit {{until}} beendet — bis {{alarms}} noch kein Alarm auf diesem Gerät, solange das Klima zurückkommt",
+    "end": "Jetzt beenden",
+    "ending": "Wird beendet …",
+    "ended": "Beenden angefragt. Die Alarme kommen zurück, sobald sich das Klima beruhigt hat.",
     "output": {
       "heater": "die Heizung",
       "dehumidifier": "den Entfeuchter",
@@ -3695,6 +3700,7 @@
       "repeats": "meldet sich alle {{every}}, bis es behoben ist",
       "once": "meldet sich einmal",
       "silenced": "für alle stumm bis {{time}}",
+      "inMaintenance": "Gerät in Wartung, bis {{time}} wird nichts ausgelöst",
       "resolved": "behoben {{time}} · dauerte {{age}}",
       "notAnnounced": "nicht gemeldet",
       "unheard": "niemand hat zugehört",
@@ -3703,7 +3709,8 @@
     "action": {
       "silence": "1 h stumm",
       "unsilence": "Wieder laut",
-      "maintenance": "Wartung 15 min",
+      "maintenance": "Wartung {{minutes}} min",
+      "endMaintenance": "Wartung beenden",
       "timeline": "Verlauf öffnen",
       "editRule": "Regel bearbeiten",
       "checkCam": "Cam prüfen"

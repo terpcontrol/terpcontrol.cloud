@@ -665,6 +665,30 @@ describe('the inbox', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('drops the order, so nothing it drives will stop');
   });
 
+  /**
+   * The silence chip already reads the state it sets and flips to the way out;
+   * the maintenance chip read nothing, so pressing it twice was invisible both
+   * times and a card went on offering a quarter of an hour to a device that was
+   * already in it. It says the state now, and offers the end of it.
+   */
+  it('says that the device is already in maintenance, and offers the end of it instead of a second window', async () => {
+    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })), maintenanceUntil: iso(NOW.plus({ minutes: 8 })) } })];
+    server.alerts = [alert({})];
+    server.rules = [rule()];
+    draw();
+
+    expect(
+      await screen.findByText(new RegExp(`device in maintenance, nothing raised until ${clock(NOW.plus({ minutes: 18 }))}`)),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Maintenance 15 min' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'End maintenance' }));
+
+    await waitFor(() => expect(sentTo('POST', '/v1/devices/device-1/commands')).toHaveLength(1));
+    expect(sentTo('POST', '/v1/devices/device-1/commands')[0].body).toEqual({ kind: 'maintenance', forSeconds: 0 });
+    expect(await screen.findByRole('status')).toHaveTextContent('Asked to end it.');
+  });
+
   it('sends nothing when the maintenance question is cancelled', async () => {
     server.alerts = [alert({})];
     server.rules = [rule()];

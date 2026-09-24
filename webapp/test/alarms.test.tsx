@@ -411,6 +411,51 @@ describe('the alarm rules page', () => {
     expect(footer).toHaveTextContent('for the 15 minutes it names and 10 more, while the climate comes back');
   });
 
+  /**
+   * Nothing in the app read `maintenanceUntil`, so a device whose every alarm
+   * the engine was refusing to turn was drawn exactly like one that was being
+   * watched: switches armed, dots lit, and the only trace of the step-in a
+   * diary line that says when it began. The page says it now, and says when the
+   * watch comes back - which is later than the window, because the engine holds
+   * a worked-on device for the settling as well.
+   */
+  it('says that the device is in maintenance and until when the alarms are held, and ends it on request', async () => {
+    const until = NOW.plus({ minutes: 9 });
+    const there = (at: DateTime) => at.setZone('Europe/Berlin').toFormat('HH:mm');
+    vi.mocked(api.post).mockResolvedValue({ publishedAt: NOW.toISO(), deviceOnline: true } as never);
+    draw([device({ state: { ...device().state, maintenanceUntil: until.toISO()! } })]);
+
+    const banner = await screen.findByRole('status');
+    expect(banner).toHaveTextContent(`In maintenance until ${there(until)}`);
+    expect(banner).toHaveTextContent(`no alarm on this device until ${there(until.plus({ minutes: 10 }))}`);
+
+    fireEvent.click(within(banner).getByRole('button', { name: 'End now' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 0 }));
+  });
+
+  /**
+   * The ten minutes after the window are the ones nothing named at all: the
+   * hardware is running again, so every screen said the device was fine, while
+   * the engine went on refusing to raise anything about it.
+   */
+  it('goes on saying so through the settling after the window, with nothing left to end', async () => {
+    const ended = NOW.minus({ minutes: 4 });
+    draw([device({ state: { ...device().state, maintenanceUntil: ended.toISO()! } })]);
+
+    const banner = await screen.findByRole('status');
+    expect(banner).toHaveTextContent('Out of maintenance');
+    expect(banner).toHaveTextContent(`no alarm on this device until ${ended.plus({ minutes: 10 }).setZone('Europe/Berlin').toFormat('HH:mm')}`);
+    expect(within(banner).queryByRole('button', { name: 'End now' })).not.toBeInTheDocument();
+  });
+
+  it('says nothing about maintenance on a device nobody is working on', async () => {
+    draw();
+
+    await screen.findByText('Too hot');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
   it('calls the stage group by the stage alone where nothing grows here yet', async () => {
     vi.mocked(api.get).mockImplementation(
       (path: string) => Promise.resolve(path === '/spaces/space-1/overview' ? { ...overview, grows: [] } : answers(path)) as never,

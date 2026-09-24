@@ -5,13 +5,14 @@ import { Link, useSearchParams } from 'react-router';
 import type { AlarmRule, Device, Me, OverviewGrow } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useAlarmRulesOf, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
+import { useDeviceCommand } from '@/api/commands';
 import { useSession } from '@/api/session';
 import { useSpaceOverview } from '@/api/spaces';
 import { durationLabel } from '@/screens/devices/sockets';
 import { timeOf } from '@/screens/notifications/settings';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
-import { SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
+import { maintenanceQuiet, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
 import { useNow } from '@/ui/useNow';
 import { clock, zoneOf } from '@/ui/zone';
 import { RuleSheet } from './RuleSheet';
@@ -177,6 +178,11 @@ function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: D
       {title}
       <RefreshFailed failedAt={rules.isError ? rules.dataUpdatedAt : null} now={now} />
 
+      {/* Over the rules rather than under them: while this stands, every switch
+          and every triggered dot below it is drawn over an engine that is
+          refusing to turn this device's rules at all. */}
+      <InMaintenance device={device} me={me} mayManage={mayManage} now={now} />
+
       {groups.map(group => (
         <div key={group.origin} className={styles.group}>
           <header className={styles.groupHead}>
@@ -219,6 +225,50 @@ function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: D
 
       {open ? <RuleSheet device={device} rule={open === 'new' ? null : open} me={me} onClose={() => setOpen(null)} /> : null}
     </section>
+  );
+}
+
+/**
+ * That this device is being worked on, and until when.
+ *
+ * Nothing in the app read `maintenanceUntil`, so the state that decides what
+ * every rule below will do was drawn nowhere: the switches stood armed, the
+ * triggered dots stood lit, and the engine was refusing every turn on the
+ * device. A rule silenced one at a time says so on its own card, two lines
+ * down, which is what makes the silence of the whole device read as an
+ * oversight rather than a decision.
+ *
+ * Both halves are named because they end at different times. The hardware is
+ * let go when the window runs out; the alarms are held for the settling after
+ * that, and those are the minutes a grower is most likely to be standing in the
+ * tent believing the watch is back on. "End now" gives back the hardware at
+ * once - it is the same command with no seconds in it - and the line then says
+ * that the alarms are still coming, because they are.
+ */
+function InMaintenance({ device, me, mayManage, now }: { device: Device; me: Me | undefined; mayManage: boolean; now: DateTime }) {
+  const { t } = useTranslation();
+  const end = useDeviceCommand();
+  const quiet = maintenanceQuiet(device, now);
+
+  if (!quiet) return null;
+  const zone = zoneOf(me);
+  const times = { until: clock(quiet.until, zone), alarms: clock(quiet.alarmsUntil, zone) };
+
+  return (
+    <div className={`${ui.card} ${styles.maintenance}`} role="status">
+      <span className={`mono ${styles.maintenanceText}`}>{t(quiet.parked ? 'maintenance.parked' : 'maintenance.settling', times)}</span>
+      {mayManage && quiet.parked ? (
+        <button
+          type="button"
+          className={ui.chip}
+          disabled={end.isPending}
+          onClick={() => end.mutate({ deviceId: device.id, command: { kind: 'maintenance', forSeconds: 0 } })}
+        >
+          {t(end.isPending ? 'maintenance.ending' : 'maintenance.end')}
+        </button>
+      ) : null}
+      <Refused error={end.error} />
+    </div>
   );
 }
 

@@ -3319,6 +3319,11 @@
   },
   "maintenance": {
     "and": "and",
+    "parked": "In maintenance until {{until}} — no alarm on this device until {{alarms}}",
+    "settling": "Out of maintenance since {{until}} — no alarm on this device until {{alarms}}, while the climate comes back",
+    "end": "End now",
+    "ending": "Ending …",
+    "ended": "Asked to end it. The alarms come back once the climate has settled.",
     "output": {
       "heater": "the heater",
       "dehumidifier": "the dehumidifier",
@@ -3699,6 +3704,7 @@
       "repeats": "repeats every {{every}} until resolved",
       "once": "announced once",
       "silenced": "silenced for everyone until {{time}}",
+      "inMaintenance": "device in maintenance, nothing raised until {{time}}",
       "resolved": "resolved {{time}} · lasted {{age}}",
       "notAnnounced": "not announced",
       "unheard": "nobody was listening",
@@ -3707,7 +3713,8 @@
     "action": {
       "silence": "Silence 1 h",
       "unsilence": "Unsilence",
-      "maintenance": "Maintenance 15 min",
+      "maintenance": "Maintenance {{minutes}} min",
+      "endMaintenance": "End maintenance",
       "timeline": "Open timeline",
       "editRule": "Edit rule",
       "checkCam": "Check cam"

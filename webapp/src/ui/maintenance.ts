@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import type { Device, OutputMetric } from '@fg2/shared-types/v1';
 import { MAINTENANCE_SETTLE_SECONDS } from '@fg2/shared-types/v1-schemas/maintenance.js';
 
@@ -86,3 +87,38 @@ export const parkedLabel = (t: Translate, device: Device): string => {
  * which a tent going wrong would have raised nothing at all.
  */
 export const quietMinutes = (windowSeconds: number): number => Math.round(windowSeconds / 60) + SETTLE_MINUTES;
+
+/** The two ends of a quiet: when the hardware is let go, and when an alarm can be raised on it again. */
+export interface Quiet {
+  /** The device's own window, after which it picks up where it left off. */
+  until: string;
+  /** That plus the settling, which is when the engine starts turning this device's rules again. */
+  alarmsUntil: string;
+  /** Whether the hardware is still parked, or whether only the alarms are still being held. */
+  parked: boolean;
+}
+
+/**
+ * What is standing on this device right now, or null while nothing is.
+ *
+ * No screen read `maintenanceUntil` at all, so the one state that changes what
+ * every alarm on a device will do was invisible: Home said "live · 2 s", the
+ * rule card drew its armed switch and its triggered dot over an engine that was
+ * refusing every turn, and the alert card went on offering a quarter of an hour
+ * of maintenance to a device that was already in it. The only evidence a
+ * step-in had done anything was a diary line saying when it began, which says
+ * nothing about whether it is still in force.
+ *
+ * The quiet is read to the end of the settling rather than to the window's own
+ * edge, because those last minutes are exactly the ones nothing named - and a
+ * device whose hardware is running again while its alarms are still held is a
+ * state worth telling apart from both of its neighbours.
+ */
+export const maintenanceQuiet = (device: Device, now: DateTime): Quiet | null => {
+  const until = device.state.maintenanceUntil;
+  if (!until) return null;
+  const window = DateTime.fromISO(until);
+  const alarms = window.plus({ minutes: SETTLE_MINUTES });
+
+  return alarms > now ? { until, alarmsUntil: alarms.toISO() ?? until, parked: window > now } : null;
+};
