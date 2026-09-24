@@ -8,11 +8,8 @@
   margin-bottom: var(--space-3);
 }
 
-.chip[data-chosen='true'] {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--bg);
-}
+/* A chosen chip is the app's own pressed chip, filled with the brand; the ink
+   fill this sheet had was the old look's. */
 
 .chipValue {
   font-weight: var(--weight-semibold);

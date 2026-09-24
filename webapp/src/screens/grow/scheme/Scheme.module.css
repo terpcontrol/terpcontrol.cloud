@@ -81,8 +81,10 @@
    column that stays where it was read. */
 .tableWrap {
   overflow-x: auto;
+  background: var(--card);
   border: var(--rule-solid);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 /* Natural column widths, never narrower than the card: a table squeezed to the
@@ -182,21 +184,21 @@
   background: none;
   border: 0;
   padding: var(--space-1) var(--space-2);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   color: inherit;
   font: inherit;
 }
 
 .cellButton[data-chosen='true'] {
-  box-shadow: inset 0 0 0 var(--rule-width) var(--ink);
+  box-shadow: inset 0 0 0 1.5px var(--brand);
 }
 
 .cellInput {
   width: 100%;
   min-width: 44px;
   background: var(--card);
-  border: var(--rule-width) solid var(--ink);
-  border-radius: 3px;
+  border: 1.5px solid var(--brand);
+  border-radius: var(--radius-xs);
   padding: var(--space-1) 0;
   color: var(--ink);
   font: inherit;
