@@ -15,15 +15,16 @@
 }
 
 .target[data-chosen='true'] {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--bg);
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-brand);
 }
 
 .tiles {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 
 .tile {
@@ -55,7 +56,10 @@
   font-size: var(--text-xs);
   line-height: var(--line-tight);
   color: var(--muted);
-  overflow-wrap: anywhere;
+  /* A long word is hyphenated where the language allows it rather than cut
+     at whichever letter reached the edge ("measuremen / t"). */
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 /* What the details are about: the same line the toast will say. */
@@ -260,8 +264,8 @@
 }
 
 .segmented button[data-chosen='true'] {
-  background: var(--ink);
-  color: var(--bg);
+  background: var(--brand);
+  color: var(--on-brand);
 }
 
 .segmented button:disabled {
