@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { dayOf, startOfDayOn } from '@/ui/days';
-import { clock, CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, datedClock, DAY, nowThere, zoned, zonedAt } from '@/ui/zone';
+import { clock, CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, datedClock, DAY, DAY_IN_YEAR, nowThere, zoned, zonedAt } from '@/ui/zone';
 
 /**
  * The zone a clock time is drawn in, and the sweep that keeps it that way.
@@ -226,16 +226,6 @@ describe('the month token every date is written with', () => {
   /** `ui/zone.ts` is the rule, and it names the token it forbids in order to say why. */
   const EXEMPT = ['src/ui/zone.ts'];
 
-  /**
-   * One file that still spells the month the other way and is not fixed here:
-   * a film's range is drawn in `screens/camera`, which is open in front of
-   * another pass, and two passes editing one file is a conflict rather than a
-   * fix. A debt and not a reason, so the check below insists it is still an
-   * offender - whoever fixes the file deletes the entry, or the suite fails
-   * asking why it is here.
-   */
-  const NOT_YET = ['src/screens/camera/Film.tsx'];
-
   const spellsTheOtherMonth = (path: string): boolean => OTHER_MONTH.test(readFileSync(resolve(process.cwd(), path), 'utf8'));
 
   it('writes one month in a dated stamp and in a date, which German is the half of the app that can tell', () => {
@@ -254,16 +244,34 @@ describe('the month token every date is written with', () => {
     expect(autumn.toFormat('d MMM HH:mm')).toBe('17 Sept. 19:34');
   });
 
+  /**
+   * There was one file the sweep let through: `screens/camera/Film.tsx` drew a
+   * film's span with a format of its own and sat on a `NOT_YET` list, because
+   * the file was open in front of another pass and two passes editing one file
+   * is a conflict rather than a fix. The pass that held it has fixed it, so the
+   * list is gone rather than empty - an empty one invites the next offender.
+   */
   it('is the one `DAY` uses, so that one day is not written two ways on one screen', () => {
     const offenders = files('src')
-      .filter(path => !EXEMPT.includes(path) && !NOT_YET.includes(path))
+      .filter(path => !EXEMPT.includes(path))
       .filter(spellsTheOtherMonth);
 
     expect(offenders).toEqual([]);
   });
 
-  it('still owes the spelling to the file another pass is holding, and will say so until it is fixed', () => {
-    expect(NOT_YET.filter(spellsTheOtherMonth)).toEqual(NOT_YET);
+  /**
+   * The film rows themselves, in the language that can tell the two tokens
+   * apart. A day's film reads as one day rather than as two, and a span of
+   * several reads without the clock - and the month in either is the one the
+   * camera's own last still beside them is stamped with.
+   */
+  it('writes a film´s span in the month every other date on that page uses', () => {
+    const day = DateTime.fromISO('2026-09-19T00:00:00.000Z', { zone: 'UTC' }).setLocale('de');
+    const ends = DateTime.fromISO('2026-09-20T00:00:00.000Z', { zone: 'UTC' }).setLocale('de').minus({ milliseconds: 1 });
+
+    expect(day.toFormat(DATED_CLOCK)).toBe('19 Sep 00:00');
+    expect(ends.toFormat(DATED_CLOCK)).toBe('19 Sep 23:59');
+    expect(day.toFormat(DAY_IN_YEAR)).toBe('19 Sep');
   });
 });
 

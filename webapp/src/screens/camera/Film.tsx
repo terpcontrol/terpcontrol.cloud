@@ -4,7 +4,7 @@ import { useMe } from '@/api/account';
 import { useMedia } from '@/api/cameras';
 import { mediaUrl, useSession } from '@/api/session';
 import ui from '@/ui/ui.module.css';
-import { zoned, zoneOf } from '@/ui/zone';
+import { DATED_CLOCK, DAY_IN_YEAR, zoned, zoneOf } from '@/ui/zone';
 import styles from './CameraPage.module.css';
 
 /**
@@ -80,11 +80,20 @@ export function Film({ mediaId, collapsed }: { mediaId: string; collapsed?: bool
  * millisecond off settles it here; no film has an end aligned to a whole second
  * but those, so no other row's clock time moves. The durable answer is for the
  * render job to write back the frame it actually finished on.
+ *
+ * The two formats are `ui/zone`'s and not this file's. Spelled out here they
+ * reached for Luxon's other month token - the one that writes a month as it is
+ * written inside a date rather than standing on its own, which `ui/zone` names
+ * and forbids. English spells the two alike for all twelve months and German
+ * for one of them, so a German reader was told "24 Sept." here and "19 Sep" on
+ * the alerts inbox two taps away, about one September; and on this very page,
+ * "19 Sept. 00:00 → 19 Sept. 02:28" sat directly under the camera's own last
+ * still stamped "19 Sep 02:28".
  */
 const spanLabel = (film: Media, zone: string | null): string => {
   const from = zoned(film.capturedAt, zone);
   const to = film.endsAt ? zoned(film.endsAt, zone).minus({ milliseconds: 1 }) : null;
-  const format = from.hasSame(to ?? from, 'day') ? 'd MMM HH:mm' : 'd MMM';
+  const format = from.hasSame(to ?? from, 'day') ? DATED_CLOCK : DAY_IN_YEAR;
 
   return to ? `${from.toFormat(format)} → ${to.toFormat(format)}` : from.toFormat(format);
 };
