@@ -148,16 +148,34 @@ export class SessionsService {
   // Listing and ending one
   // ---------------------------------------------------------------------------
 
-  /** The caller's own sessions, most recently used first, which is the order the account screen shows. */
+  /**
+   * The caller's own sessions, newest sign-in first.
+   *
+   * Paged by `createdAt` and not by `lastSeenAt`, although recency is what the
+   * account screen sorts by, because a cursor is the sort key of the last row a
+   * page contained and this is the one list in the API whose rows move. Every
+   * signed-in client renews about every five minutes, and a renewal writes a
+   * fresh `lastSeenAt`: a row that had not been handed out yet then jumped above
+   * the cursor, could no longer satisfy it, and was silently missing from the
+   * walk - and the row that vanished was by definition the one most recently
+   * used, on the screen somebody opens after a laptop goes missing. `createdAt`
+   * is written once and never again, which is what every other list here pages
+   * on and what `pages.ts` promises: rows written meanwhile neither shift a page
+   * nor make one skip.
+   *
+   * The order a person reads is still recency - the screen sorts what it holds,
+   * and `lastSeenAt` is on every row - but which rows are on which page no
+   * longer depends on who polled last.
+   */
   public async list(userId: string, query: PageQuery): Promise<CursorPage<Session>> {
     const limit = pageLimit(query.limit);
     const rows = await this.sessions
-      .find({ userId, ...afterCursor('lastSeenAt', query.cursor) })
-      .sort({ lastSeenAt: -1, id: -1 })
+      .find({ userId, ...afterCursor('createdAt', query.cursor) })
+      .sort({ createdAt: -1, id: -1 })
       .limit(readLimit(limit))
       .lean();
 
-    const page = pageOf(rows, limit, row => ({ at: row.lastSeenAt, id: row.id }));
+    const page = pageOf(rows, limit, row => ({ at: row.createdAt, id: row.id }));
     return { items: page.items.map(serialiseSession), nextCursor: page.nextCursor };
   }
 

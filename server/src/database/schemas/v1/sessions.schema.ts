@@ -25,8 +25,11 @@ export const sessionsSchema = new Schema<StoredSession>(
   { collection: 'sessions', versionKey: false },
 );
 
-// `GET /sessions` lists a person's sessions, newest use first.
-sessionsSchema.index({ userId: 1, lastSeenAt: -1 });
+// `GET /sessions` lists a person's sessions, newest sign-in first. On
+// `createdAt` rather than on `lastSeenAt`, because that is what the list pages
+// by: a refresh rewrites `lastSeenAt` on a row every few minutes, and a cursor
+// walk over a key that moves loses the rows that move past it.
+sessionsSchema.index({ userId: 1, createdAt: -1 });
 
 // A session outlives neither its expiry nor the account: Mongo drops it here,
 // and the deletion sweep drops the rest by `userId`.

@@ -44,6 +44,48 @@ beforeAll(async () => {
   admin = await loginAsAdmin();
 });
 
+/**
+ * The one list in the API whose rows move while it is being read: every
+ * signed-in client renews about every five minutes, and a renewal rewrote the
+ * very field the walk was keyed on. A row that had not been handed out yet then
+ * jumped above the cursor and was gone from that walk - on the screen somebody
+ * opens after a laptop has gone missing, and the row lost was by definition the
+ * one most recently used.
+ */
+describe('walking the list of sessions', () => {
+  it('hands out every session, even one that is renewed before the walk reaches it', async () => {
+    const user = await createAccount('paged-sessions');
+    await login(user.username, user.password);
+    await login(user.username, user.password);
+
+    const whole = (await user.client.get('/v1/sessions?limit=200').expect(200)).body;
+    expect(whole.items).toHaveLength(3);
+    expect(whole.nextCursor).toBe(null);
+
+    // A page at a time, and the account's own first session - the last one the
+    // walk will reach - is used again after the first page has come back.
+    const walked: string[] = [];
+    let cursor: string | null = null;
+
+    do {
+      const query: string = cursor === null ? '?limit=1' : `?limit=1&cursor=${encodeURIComponent(cursor)}`;
+      const answered = (await user.client.get(`/v1/sessions${query}`).expect(200)).body;
+
+      walked.push(...answered.items.map((row: { id: string }) => row.id));
+      cursor = answered.nextCursor as string | null;
+
+      if (walked.length === 1) {
+        await anonymous().post('/v1/sessions/refresh').send({ refreshToken: user.refreshToken }).expect(200);
+        expect(walked).not.toContain(user.sessionId);
+      }
+    } while (cursor !== null);
+
+    expect(new Set(walked).size).toBe(walked.length);
+    expect([...walked].sort()).toEqual(whole.items.map((row: { id: string }) => row.id).sort());
+    expect(walked).toContain(user.sessionId);
+  });
+});
+
 describe('a session that has been ended', () => {
   it('stops answering the moment it is revoked, rather than when its token runs out', async () => {
     const user = await createAccount('revoked');
