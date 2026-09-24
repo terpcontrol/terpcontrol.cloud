@@ -10,6 +10,7 @@ import { EntryRow } from '@/ui/EntryRow';
 import { decimalFigure } from '@/ui/figures';
 import { readingFigure, weekDayOf } from '@/ui/entries';
 import { standsIn } from '@/ui/session-access';
+import ui from '@/ui/ui.module.css';
 import { amountLabel, schemeName } from './scheme';
 import styles from './WeekCard.module.css';
 
@@ -109,7 +110,7 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
       ) : week.climate.length === 0 ? (
         <p className={`mono ${styles.noClimate}`}>{t('grow.nothingMeasured')}</p>
       ) : (
-        <dl className={styles.stats}>
+        <dl className={`${ui.strip} ${styles.stats}`}>
           <Stat value={dayNight(temperature, 1)} unit="°C" label={temperature?.dayAverage != null ? t('grow.dayNight') : t('grow.average')} />
           <Stat value={figure(humidity?.averageValue ?? null, 0)} unit="%" label={t('grow.humidity')} />
           <Stat value={figure(week.lightHours, 0)} unit="h" label={t('grow.light')} />
@@ -209,12 +210,12 @@ const dayNight = (row: WeekClimate | undefined, decimals: number): string =>
 
 function Stat({ value, unit, label }: { value: string; unit: string; label: string }) {
   return (
-    <div className={styles.stat}>
-      <dd className={styles.statValue}>
+    <div>
+      <dd className={ui.stripValue}>
         <span className="figure">{value}</span>
-        <span className={`mono ${styles.statUnit}`}>{unit}</span>
+        <span className={`mono ${ui.stripUnit}`}>{unit}</span>
       </dd>
-      <dt className={`label ${styles.statLabel}`}>{label}</dt>
+      <dt className="caption">{label}</dt>
     </div>
   );
 }

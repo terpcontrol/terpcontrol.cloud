@@ -260,7 +260,7 @@ function Figures({ grow, plant, entries, definitions, series }: FiguresProps) {
   const trainedOn = training ? dayOfEntry(grow, training) : null;
 
   return (
-    <dl className={styles.figures}>
+    <dl className={ui.strip}>
       {newest && definition ? (
         <Figure value={readingFigure(newest.value)} label={[definition.unit, movement(t, newest, before)].filter(Boolean).join(' · ')} />
       ) : null}
@@ -275,9 +275,9 @@ function Figures({ grow, plant, entries, definitions, series }: FiguresProps) {
 
 function Figure({ value, label }: { value: string; label: string }) {
   return (
-    <div className={styles.figure}>
-      <dt className={`figure ${styles.figureValue}`}>{value}</dt>
-      <dd className={`mono ${styles.figureLabel}`}>{label}</dd>
+    <div>
+      <dt className={`figure ${ui.stripValue} ${styles.figureValue}`}>{value}</dt>
+      <dd className="caption">{label}</dd>
     </div>
   );
 }

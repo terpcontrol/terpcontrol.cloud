@@ -114,6 +114,17 @@ input[type='number']::-webkit-inner-spin-button {
   color: var(--label);
 }
 
+/* What a figure is, in words under it - "day / night", "plants", "day" under
+   a day count: sentence case and untracked, because it is read as a caption
+   to the number and not as the head of a section. */
+.caption {
+  font-family: var(--font-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  color: var(--muted);
+}
+
 /* A section's head - a header whose first thing is a label, whatever the
    screen called it - stands on a hairline, so a long page reads as sections
    and not as one run of text. Zero specificity, so a screen that wants its

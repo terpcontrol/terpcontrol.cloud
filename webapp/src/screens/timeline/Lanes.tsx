@@ -67,7 +67,7 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
     <section className={styles.lanes}>
       {timeline.outputs.map(lane => (
         <div key={`${lane.deviceId}-${lane.output}`} className={styles.lane}>
-          <span className={`label ${styles.laneName}`}>{t(`timeline.output.${lane.output}`, { defaultValue: lane.output })}</span>
+          <span className={`caption ${styles.laneName}`}>{t(`timeline.output.${lane.output}`, { defaultValue: lane.output })}</span>
           <div className={styles.track} {...scrub}>
             {lane.spans.map(span => (
               <span
@@ -82,7 +82,7 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
       ))}
 
       <div className={styles.lane}>
-        <span className={`label ${styles.laneName}`}>{t('timeline.events')}</span>
+        <span className={`caption ${styles.laneName}`}>{t('timeline.events')}</span>
         <div className={styles.rail} ref={rail}>
           {marks.length === 0 ? <span className={`mono ${styles.noEvents}`}>{t('timeline.noEvents')}</span> : null}
           {marks.map(mark => {

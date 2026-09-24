@@ -142,64 +142,10 @@
   white-space: nowrap;
 }
 
-/* The week's three figures as one strip, a hairline between each, the way a
-   tent's readouts stand on Home. */
+/* The week's three figures, a strip on a hairline under the days. */
 .stats {
-  display: flex;
-  flex-wrap: wrap;
-  row-gap: var(--space-3);
-  margin: 0;
   padding-top: var(--space-3);
   border-top: var(--rule-solid);
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 0 var(--space-4);
-  border-left: var(--rule-solid);
-}
-
-.stat:first-child {
-  padding-left: 0;
-  border-left: 0;
-}
-
-.statValue {
-  display: flex;
-  align-items: baseline;
-  gap: 3px;
-  margin: 0;
-  font-size: 20px;
-  font-weight: var(--weight-figure);
-  letter-spacing: -0.01em;
-}
-
-.statUnit {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  letter-spacing: 0;
-  color: var(--muted);
-}
-
-/* What a figure is, in words under it: sentence case, because "day / night"
-   is read as a caption to the number and not as the head of a section. */
-.stat .statLabel {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-@media (min-width: 900px) {
-  .stat {
-    padding: 0 var(--space-5);
-  }
-
-  .statValue {
-    font-size: 22px;
-  }
 }
 
 /* The scheme's row for the week, with how much of it is done at the right. */

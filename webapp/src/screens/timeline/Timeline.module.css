@@ -561,12 +561,8 @@
   flex-shrink: 0;
   width: var(--gutter);
   /* A lane's name lives in the plot's gutter, which has no room for the
-     tracked capitals a section label takes. */
-  letter-spacing: 0;
-  text-transform: none;
+     tracked capitals a section label takes: it is a caption instead. */
   padding-right: 12px;
-  font-weight: var(--weight-semibold);
-  color: var(--muted);
   overflow: hidden;
   text-align: right;
   text-overflow: ellipsis;

@@ -367,7 +367,7 @@
   right: 0;
 }
 
-/* "34 / DAY" */
+/* "34" over its caption, "day". */
 .day {
   display: flex;
   flex-direction: column;

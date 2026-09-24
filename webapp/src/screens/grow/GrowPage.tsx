@@ -198,7 +198,7 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
         {summary.dayNumber !== null ? (
           <div className={styles.day}>
             <span className={`figure ${styles.dayFigure}`}>{summary.dayNumber}</span>
-            <span className="label">{t(endedOn ? 'grow.finalDay' : 'home.card.day')}</span>
+            <span className="caption">{t(endedOn ? 'grow.finalDay' : 'home.card.day')}</span>
           </div>
         ) : null}
       </div>

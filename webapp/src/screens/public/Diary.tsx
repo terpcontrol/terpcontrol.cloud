@@ -182,7 +182,7 @@ function Totals({ page }: { page: PublicGrowPage }) {
   const { totals } = page;
 
   return (
-    <dl className={styles.totals}>
+    <dl className={`${ui.strip} ${ui.stripEven} ${styles.totals}`}>
       {page.dayNumber !== null ? <Total value={page.dayNumber} label={t('grow.report.days')} /> : null}
       <Total value={totals.entryCount} label={t('grow.report.entries')} />
       <Total value={totals.waterCount} label={t('grow.report.waters')} />
@@ -194,9 +194,9 @@ function Totals({ page }: { page: PublicGrowPage }) {
 
 function Total({ value, label }: { value: number; label: string }) {
   return (
-    <div className={styles.total}>
-      <dd className={`figure ${styles.totalValue}`}>{value}</dd>
-      <dt className={`label ${styles.statLabel}`}>{label}</dt>
+    <div>
+      <dd className={`figure ${ui.stripValue}`}>{value}</dd>
+      <dt className="caption">{label}</dt>
     </div>
   );
 }

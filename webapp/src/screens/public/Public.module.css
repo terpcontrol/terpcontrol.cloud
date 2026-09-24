@@ -270,41 +270,14 @@
   color: var(--muted);
 }
 
-/* The five counts as one strip, a hairline between each - the owner's own
-   Report tab counts the same five the same way. */
+/* The five counts as one strip on a card - the owner's own Report tab counts
+   the same five the same way. */
 .totals {
-  display: flex;
-  flex-wrap: wrap;
-  row-gap: var(--space-3);
-  margin: 0;
   padding: var(--space-3) var(--space-4);
   border: var(--rule-solid);
   border-radius: var(--radius);
   background: var(--card);
   box-shadow: var(--shadow);
-}
-
-.total {
-  display: flex;
-  flex: 1 1 0;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding: 0 var(--space-3);
-  border-left: var(--rule-solid);
-}
-
-.total:first-child {
-  padding-left: 0;
-  border-left: 0;
-}
-
-.totalValue {
-  margin: 0;
-  font-size: 22px;
-  font-weight: var(--weight-figure);
-  letter-spacing: -0.01em;
-  line-height: var(--line-tight);
 }
 
 .harvest {
@@ -477,54 +450,10 @@
   white-space: nowrap;
 }
 
+/* The week's figures, a strip on a hairline under the days. */
 .stats {
-  display: flex;
-  flex-wrap: wrap;
-  row-gap: var(--space-3);
-  margin: 0;
   padding-top: var(--space-3);
   border-top: var(--rule-solid);
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 0 var(--space-4);
-  border-left: var(--rule-solid);
-}
-
-.stat:first-child {
-  padding-left: 0;
-  border-left: 0;
-}
-
-.statValue {
-  display: flex;
-  align-items: baseline;
-  gap: 3px;
-  margin: 0;
-  font-size: 20px;
-  font-weight: var(--weight-figure);
-  letter-spacing: -0.01em;
-  line-height: var(--line-tight);
-}
-
-.statUnit {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  letter-spacing: 0;
-  color: var(--muted);
-}
-
-/* A caption to a figure, in sentence case: read as words under a number, not
-   as the head of a section. */
-.stat .statLabel,
-.total .statLabel {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0;
-  text-transform: none;
 }
 
 .feeding {
@@ -817,11 +746,6 @@
      longer decides how wide its column is. */
   .cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .total {
-    flex: none;
-    padding: 0 var(--space-5);
   }
 
   .card {

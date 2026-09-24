@@ -96,6 +96,78 @@
   border-color: var(--alarm);
 }
 
+/* A few figures read as one strip, a hairline between each, the way a tent's
+   readouts stand on Home: a week's light and climate, a grow's totals, a
+   plant's size. Each item is a figure over its caption; a figure takes
+   `.stripValue`, which a page may set larger, and its unit `.stripUnit`. A
+   strip that shares its width equally on a phone - five counts across a
+   report - adds `.stripEven`; from the rail's width up each item is as wide as
+   its figure again. Written for a `<dl>`, so a term and its value carry no
+   margin of their own. */
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+}
+
+.strip > * {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 var(--space-4);
+  border-left: var(--rule-solid);
+}
+
+.strip > :first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.strip dt,
+.strip dd {
+  margin: 0;
+}
+
+.stripEven > * {
+  flex: 1 1 0;
+  padding-inline: var(--space-3);
+}
+
+.stripValue {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-family: var(--font-figure);
+  font-size: 20px;
+  font-weight: var(--weight-figure);
+  letter-spacing: -0.01em;
+  line-height: var(--line-tight);
+}
+
+.stripUnit {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  .strip > * {
+    padding: 0 var(--space-5);
+  }
+
+  .stripEven > * {
+    flex: none;
+  }
+
+  .stripValue {
+    font-size: 22px;
+  }
+}
+
 /* The way to add one more to a list - a device, a camera, a grow: a dashed
    row that closes the list it adds to, its words in the middle. */
 .addRow {

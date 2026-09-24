@@ -37,7 +37,7 @@ export function Report({ grow, spaces, mayOwn, now }: { grow: GrowListItem; spac
     <div className={styles.report}>
       <RefreshFailed failedAt={report.isError ? report.dataUpdatedAt : null} now={now} />
 
-      <dl className={styles.totals}>
+      <dl className={`${ui.strip} ${ui.stripEven} ${styles.totals}`}>
         <Total value={report.data.dayCount} label={t('grow.report.days')} />
         <Total value={totals.entryCount} label={t('grow.report.entries')} />
         <Total value={totals.waterCount} label={t('grow.report.waters')} />
@@ -136,9 +136,9 @@ function Export({ growId, mayOwn }: { growId: string; mayOwn: boolean }) {
 
 function Total({ value, label }: { value: number; label: string }) {
   return (
-    <div className={styles.total}>
-      <dd className={`figure ${styles.totalValue}`}>{value}</dd>
-      <dt className={`label ${styles.totalLabel}`}>{label}</dt>
+    <div>
+      <dd className={`figure ${ui.stripValue} ${styles.totalValue}`}>{value}</dd>
+      <dt className="caption">{label}</dt>
     </div>
   );
 }

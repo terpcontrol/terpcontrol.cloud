@@ -95,7 +95,7 @@ export function DayCounter({ day }: { day: number | null }) {
   return (
     <div className={styles.day}>
       <span className={`figure ${styles.dayFigure}`}>{day}</span>
-      <span className="label">{t('home.card.day')}</span>
+      <span className="caption">{t('home.card.day')}</span>
     </div>
   );
 }
