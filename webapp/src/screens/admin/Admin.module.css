@@ -59,11 +59,13 @@
   gap: var(--space-2);
 }
 
-/* A chip that is on. The outline carries it: a filled one would be a second
-   primary on a screen that already has the rollout's. */
+/* A chip that is on, filled with the brand as every chosen chip in the app is.
+   The brand is the deep forest and not the primary's green, so it does not
+   read as a second primary beside the rollout's. */
 .chipOn {
+  background: var(--brand);
   border-color: var(--brand);
-  color: var(--brand);
+  color: var(--on-brand);
 }
 
 /* A chip that is a menu: the native select, keeping its keyboard and the
@@ -96,6 +98,7 @@
   background: var(--card);
   border: var(--rule-solid);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 /* Wide enough that no cell wraps a line under another in a narrow window, and
@@ -135,6 +138,23 @@
   border-bottom: var(--rule-solid);
   font-size: var(--text-sm);
   vertical-align: middle;
+}
+
+/* A figure, an id, a date or a build name is one line: "12 May / 2025" in
+   two is read as two facts. Prose cells - an address, a note - still wrap. */
+.table tbody td:global(.mono) {
+  white-space: nowrap;
+}
+
+.table tbody td.address {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* A row's actions stand side by side rather than stacked, which doubled the
+   height of every row in the users' table. */
+.table .actions {
+  flex-wrap: nowrap;
 }
 
 .table tbody tr:last-child td {
@@ -210,8 +230,8 @@
 }
 
 .dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: currentcolor;
 }
@@ -237,6 +257,7 @@
 .cards {
   display: grid;
   grid-template-columns: 1fr;
+  align-items: start;
   gap: var(--space-4);
 }
 
@@ -244,10 +265,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-5);
   background: var(--card);
   border: var(--rule-solid);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 .cardHead {
@@ -261,7 +283,8 @@
 /* The one figure a card is read for, in the size the design keeps for it. */
 .figure {
   font-size: var(--text-lg);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-figure);
+  line-height: var(--line-tight);
 }
 
 .lines {
@@ -296,6 +319,7 @@
 }
 
 .blockName {
+  font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
 }
 
@@ -328,7 +352,7 @@
 .slider {
   flex: 1;
   min-width: 160px;
-  accent-color: var(--brand);
+  accent-color: var(--green-fill);
 }
 
 .paused {
