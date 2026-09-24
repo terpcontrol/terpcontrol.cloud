@@ -193,8 +193,9 @@
 }
 
 /* The steps are one list, the way the camera's settings are: a card with a
-   rule between rows, not a stack of twenty cards. */
-.steps {
+   rule between rows, not a stack of twenty cards. The editor's steps too. */
+.steps,
+.editSteps {
   gap: 0;
   overflow: hidden;
   background: var(--card);
@@ -214,13 +215,19 @@
   border-radius: var(--radius);
 }
 
-.steps > .step {
+.editSteps:empty {
+  display: none;
+}
+
+.steps > .step,
+.editSteps > .editStep {
   padding: 10px var(--space-4);
   border: 0;
   border-radius: 0;
 }
 
-.steps > .step + .step {
+.steps > .step + .step,
+.editSteps > .editStep + .editStep {
   border-top: var(--rule-solid);
 }
 
@@ -383,6 +390,18 @@
 
 .figureInput:focus {
   outline: none;
+}
+
+/* The figure is typed, not stepped: the browser's spinner crowded the unit. */
+.figureInput {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.figureInput::-webkit-outer-spin-button,
+.figureInput::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
 }
 
 .figureUnit {
