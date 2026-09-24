@@ -48,7 +48,7 @@ import { AuthGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { V1Query, pageQuery } from '@common/v1/validation';
+import { V1Query, instantQuery, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { V1Answer } from '../answer-shape';
@@ -104,8 +104,8 @@ const growSeriesQuery = z.object({
     .transform(many)
     .optional()
     .describe("Keys of the grow's own `measurements[]`."),
-  from: z.coerce.date().optional().describe('The start of a `custom` range.'),
-  to: z.coerce.date().optional().describe('The end of a `custom` range, and the instant a rolling one counts back from.'),
+  from: instantQuery().optional().describe('The start of a `custom` range.'),
+  to: instantQuery().optional().describe('The end of a `custom` range, and the instant a rolling one counts back from.'),
 });
 
 @ApiTags('grows')

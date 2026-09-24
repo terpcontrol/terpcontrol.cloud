@@ -31,7 +31,7 @@ import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { badRequest, notFound, unprocessable } from '@common/v1/problem';
 import { clampRange } from '@common/v1/range';
-import { V1Query, pageQuery } from '@common/v1/validation';
+import { V1Query, instantQuery, pageQuery } from '@common/v1/validation';
 import { terpCamConfig } from '@config/configuration';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
@@ -72,8 +72,8 @@ const cameraListQuery = pageQuery.extend({
 
 /** A span a client asks for, narrowed by the one the decision allows. */
 const spanQuery = pageQuery.extend({
-  startsAt: z.coerce.date().optional(),
-  endsAt: z.coerce.date().optional(),
+  startsAt: instantQuery().optional(),
+  endsAt: instantQuery().optional(),
 });
 
 type SpanQuery = z.infer<typeof spanQuery>;

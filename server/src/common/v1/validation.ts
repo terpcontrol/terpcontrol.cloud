@@ -83,3 +83,10 @@ export const pageQuery = z.object({
 });
 
 export type PageQuery = z.infer<typeof pageQuery>;
+
+/**
+ * An instant in a query string, as every instant in the contract is written -
+ * ISO 8601 in UTC - and handed to the route as a date. Not `z.coerce.date()`,
+ * which the document cannot describe and which reads `1` as the year 2001.
+ */
+export const instantQuery = () => z.iso.datetime().transform(value => new Date(value));

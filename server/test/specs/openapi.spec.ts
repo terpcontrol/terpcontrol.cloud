@@ -395,6 +395,27 @@ describe('the document', () => {
     expect(invalid.body.code).toBe('validation_failed');
   });
 
+  it('takes every instant in a query as the ISO instant it documents, and nothing else', async () => {
+    const instants: [string, string][] = [
+      ['/v1/grows/{id}/series', 'from'],
+      ['/v1/grows/{id}/series', 'to'],
+      ['/v1/spaces/{id}/timeline', 'at'],
+      ['/v1/cameras/{id}/frames', 'startsAt'],
+      ['/v1/cameras/{id}/timelapses', 'endsAt'],
+      ['/v1/entries', 'startsAt'],
+    ];
+    for (const [path, name] of instants) {
+      expect({ path, name, schema: declaredQuery(path)[name]?.schema }).toMatchObject({ schema: { type: 'string', format: 'date-time' } });
+    }
+
+    const grow = (await owner.client.post('/v1/grows').send({ name: 'Instants', type: 'photoperiod', plants: [] }).expect(201)).body;
+    for (const asked of [`/v1/grows/${grow.id}/series?range=custom&from=1&to=2`, `/v1/cameras/${cameraId}/frames?startsAt=nope`]) {
+      const refused = await owner.client.get(asked).expect(400);
+      expect(refused.body.code).toBe('validation_failed');
+    }
+    await owner.client.get(`/v1/cameras/${cameraId}/frames?startsAt=2026-03-01T00:00:00.000Z`).expect(200);
+  });
+
   it('declares the 200 a job that is already there answers, beside the 202 of one that was just started', () => {
     for (const [path, method] of [
       ['/v1/grows/{id}/export', 'get'],

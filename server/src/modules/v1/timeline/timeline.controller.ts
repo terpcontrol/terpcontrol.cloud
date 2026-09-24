@@ -5,7 +5,7 @@ import type { SpaceTimeline } from '@fg2/shared-types/v1';
 import { spaceTimeline, timelineRange } from '@fg2/shared-types/v1-schemas';
 import { AccessGuard, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { Grant } from '@common/v1/access.types';
-import { V1Query } from '@common/v1/validation';
+import { V1Query, instantQuery } from '@common/v1/validation';
 import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { V1Answer } from '../answer-shape';
 import { TimelineService } from './timeline.service';
@@ -21,7 +21,7 @@ import { TimelineService } from './timeline.service';
 const timelineQuery = z.object({
   range: timelineRange,
   growId: z.string().min(1).optional().describe('Which grow the bands and the day counter are of. Required by `phase` and `grow`.'),
-  at: z.coerce.date().optional().describe('The instant the window ends at; now by default, and earlier when somebody has scrubbed back.'),
+  at: instantQuery().optional().describe('The instant the window ends at; now by default, and earlier when somebody has scrubbed back.'),
 });
 
 @ApiTags('spaces')
