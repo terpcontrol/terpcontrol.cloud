@@ -7,6 +7,7 @@ import { useActivateAccount, useSignUp } from '@/api/account';
 import { CUSTOM_LINKS_HTML } from '@/api/config';
 import { ApiError } from '@/api/problem';
 import { session, useSession } from '@/api/session';
+import { Logo } from '@/ui/Logo';
 import ui from '@/ui/ui.module.css';
 import styles from './SignIn.module.css';
 import { refusalText } from '@/ui/refusal';
@@ -111,7 +112,9 @@ export function SignUp() {
           }}
           noValidate
         >
-          <h1 className={styles.wordmark}>Terp Control</h1>
+          <h1 className={styles.wordmark}>
+            <Logo />
+          </h1>
           <h2 className={styles.step}>{t('login.signUp.activation.title')}</h2>
           <p className={styles.intro}>{t('login.signUp.activation.body', { email: awaiting.email })}</p>
 
@@ -153,7 +156,9 @@ export function SignUp() {
   return (
     <main className={styles.page}>
       <form className={styles.card} onSubmit={submit} noValidate>
-        <h1 className={styles.wordmark}>Terp Control</h1>
+        <h1 className={styles.wordmark}>
+          <Logo />
+        </h1>
         <p className={styles.intro}>
           {invitation
             ? sent.name

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation } from 'react-router';
 import { session, useSession } from '@/api/session';
+import { Logo } from '@/ui/Logo';
 import ui from '@/ui/ui.module.css';
 // The page below stands exactly where the error page does - in place of the
 // whole shell, with no bar above it - so it is laid out by the same stylesheet
@@ -60,7 +61,7 @@ function CannotReach({ asking, onAskAgain, from }: { asking: boolean; onAskAgain
   return (
     <section className={styles.screen}>
       <div className={styles.wordmark} aria-hidden>
-        Terp Control
+        <Logo />
       </div>
       <h1 className={styles.title}>{t('shell.cannotReach.title')}</h1>
       <p className={ui.note} role="alert">

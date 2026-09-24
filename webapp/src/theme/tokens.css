@@ -1,14 +1,17 @@
 /*
- * "Greenhouse", the decided look, as the only place a colour, a size or a
- * radius is written down. Components name a token and never a literal, so the
- * two modes are this file and nothing else. ADR 0002 records why each of these
- * is what it is; change the two together.
+ * The brand, as the only place a colour, a size or a radius is written down.
+ * Components name a token and never a literal, so the two modes are this file
+ * and nothing else. ADR 0002 records why each of these is what it is; change
+ * the two together.
  *
- * Warm paper and soil for the frame, a living green for what is growing and
- * the one primary action, and signal colours that stay exact because a chart
- * is read against them. Every text colour here clears WCAG AA with room to
- * spare - 5:1 or better on the page, the card and the inset surface of its own
- * mode, so a thin 12 px label still holds on a cheap screen.
+ * The values are the company's own, as terpcontrol.com sets them: brand blue
+ * for navigation, links and whatever is selected, brand green for the one
+ * primary action and for "good", cool white and blue-grey surfaces with dark
+ * ink, shadows tinted with the dark blue - and for dark mode the navy of the
+ * site's dark sections. The signal colours stay apart from both brand colours
+ * and from each other, because a chart is read against them. Every text colour
+ * here clears WCAG AA on the page, the card and the inset surface of its own
+ * mode, 4.9:1 at the least.
  *
  * Light is the default set; dark replaces the colours under the same names. It
  * is declared twice on purpose: once for a system that asks for dark and has
@@ -20,78 +23,98 @@
 :root {
   color-scheme: light;
 
-  /* Light mode - oat paper, cream cards, ink with a little green in it. */
-  --bg: #f4efe6;
-  --card: #fffcf7;
-  --card-2: #f1ebdf;
-  --rule: #e5ddcd;
+  /* Light mode - the site's white and cool greys. */
+  --bg: #f5f7fb;
+  --card: #ffffff;
+  --card-2: #eef2f8;
+  --rule: #e3e7ef;
   /* A rule that has to be seen rather than felt: a field's edge, an empty segment. */
-  --rule-strong: #d6ccb8;
+  --rule-strong: #cbd3e1;
   /* The edge of a control that has to be found by its edge alone - an off
      switch's track: 3:1 or better on a card. */
-  --control-edge: #8f8571;
-  --ink: #22271f;
-  --muted: #60594c;
-  --label: #655d4d;
+  --control-edge: #7a849a;
+  --ink: #1a1d29;
+  --muted: #5a6275;
+  --label: #586074;
+  /* A page's title and a thing's name: the site sets its headings in the dark
+     brand blue. */
+  --heading: #1f3a6e;
 
-  /* The active range chip and the active tab: a deep forest. */
-  --brand: #2c5a37;
-  --on-brand: #fffcf7;
-  --wordmark: var(--brand);
-  /* A tint of the brand, behind whatever is selected. */
-  --brand-wash: #e3ebdc;
+  /* Brand blue: the active tab, the chosen chip and option, the focus ring, a
+     link. */
+  --brand: #2d4b95;
+  --on-brand: #ffffff;
+  /* A tint of the blue, behind whatever is selected. */
+  --brand-wash: #e8eef9;
 
-  /* Live, in band, a dot that says growing. `--green-ink` is the shade green
-     text needs to stay readable on a cream card. */
-  --green: #3b7a34;
-  --green-ink: #2c6427;
-  /* The one primary action, filled. In light mode it is the green itself; in
-     dark mode it is a step down from it, because a large lit fill glares in a
-     dark tent where a dot or a line does not. */
-  --green-fill: #3b7a34;
+  /* Brand green. `--green` is a surface colour - a dot, a line, a filled
+     segment - and reaches only 3.3:1 as text on white, so green text takes
+     `--green-ink`, the site's green for text on light. `--green-wash` is the
+     tint a green word stands on: live, in band, a grow's stage. */
+  --green: #50a030;
+  --green-ink: #35701f;
+  --green-wash: #eaf4e4;
+  /* The one primary action, filled: the site's primary button. */
+  --green-fill: #3e8024;
   --on-green: #ffffff;
 
   /* A quiet action - a card's Photo, Note, Alarms off - is a filled tint
      rather than an outline, so a row of them sits under the readings instead
      of over them. */
   --tint: var(--card-2);
-  --tint-hover: #e8e0d0;
+  --tint-hover: #e2e8f2;
 
-  /* Signals. Earthy but exact: terracotta, sky, plum, ochre, brick. */
-  --temperature: #9a4212;
-  --humidity: #1b6590;
-  --co2: #7447a0;
-  --warning: #7a5405;
-  --alarm: #a82e27;
+  /* Signals, apart from the brand: an orange, a teal (never the brand's
+     blue), a violet, an amber and a crimson. */
+  --temperature: #b93f0b;
+  --humidity: #08737f;
+  --co2: #8a3aa8;
+  --warning: #855800;
+  --alarm: #b8213d;
   /* Text laid on a filled signal - a pressed series chip, a count badge. */
   --on-signal: var(--card);
 
   /* The target band behind a chart line, the night behind it, and the faint
      rule a plot is read across. A canvas reads these, so they are written in
      the syntax every chart parser knows. */
-  --band: rgba(59, 122, 52, 0.13);
-  --night: rgba(120, 96, 52, 0.07);
+  --band: rgba(80, 160, 48, 0.14);
+  --night: rgba(31, 58, 110, 0.07);
   /* The nights of a long range - a grow's thirty and more - at half that: at
      full strength they drew a barcode of stripes the curves had to be read
      through. */
-  --night-long: rgba(120, 96, 52, 0.035);
-  --grid: rgba(96, 89, 76, 0.16);
+  --night-long: rgba(31, 58, 110, 0.035);
+  --grid: rgba(90, 98, 117, 0.16);
 
-  /* Light coming in from the top of the page: a warm wash, nothing more. */
-  --glow: radial-gradient(1200px 520px at 70% -180px, rgb(247 205 130 / 28%), transparent 70%);
+  /* A breath of the brand blue at the top of the page, nothing more. */
+  --glow: radial-gradient(1200px 520px at 70% -180px, rgb(72 112 192 / 9%), transparent 70%);
 
-  /* Type. Nunito Sans for words and figures - its digits are tabular by
-     design, so a column of numbers lines up without a second face. Fraunces,
-     softened, for the names a person gave things: pages, places, grows. Both
-     carry an optical-size axis, so a 17 px card name gets the sturdier text
-     cut and a 32 px page title the finer display one without anybody asking. */
-  --font-text: 'Nunito Sans Variable', system-ui, sans-serif;
-  --font-display: 'Fraunces Variable', Georgia, serif;
+  /* The navy of the site's dark sections, which the desktop rail stands on in
+     both modes: the spotlight's three stops run top to bottom, the colour it
+     ends in, and the inks that read on it - measured on the lightest stop. */
+  --navy: linear-gradient(180deg, #2d4b95 0%, #1f3a6e 48%, #14264a 100%);
+  --navy-end: #14264a;
+  --navy-ink: #ffffff;
+  --navy-muted: #cdd7ec;
+  --navy-label: #b9c6e2;
+  --navy-green: #c2eca0;
+  --navy-hover: rgb(255 255 255 / 8%);
+  --navy-active: rgb(255 255 255 / 14%);
+  --navy-rule: rgb(255 255 255 / 10%);
+
+  /* The logo: in colour on a light surface, reversed - white with its green
+     kept - on a dark one. A component draws both and these say which shows. */
+  --logo-colour: block;
+  --logo-reverse: none;
+
+  /* Type. Inter for every word and every figure, as the site's own stack
+     names it: its tabular figures line a column of readings up without a
+     second face, and its optical-size axis cuts a caption open and a title
+     tight. Headings take their rank from weight and size, never a second
+     family. */
+  --font-text: 'Inter Variable', -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   /* Figures, timestamps and captions: the same face, whose tabular digits do
      the aligning a monospaced face used to. */
   --font-figure: var(--font-text);
-  /* Fraunces at full softness, never wonky. */
-  --display-axes: 'SOFT' 100, 'WONK' 0;
 
   /* The scale. 11.5 is only ever the tracked capitals of a section label. */
   --text-2xs: 11.5px;
@@ -99,8 +122,8 @@
   --text-sm: 13.5px;
   --text-md: 15px;
   --text-lg: 17px;
-  --text-xl: 24px;
-  /* A thing's name in a list or on a card: Fraunces at its lighter small weight. */
+  --text-xl: 22px;
+  /* A thing's name in a list or on a card. */
   --text-name: 17px;
   /* A page's own title. A phone's here, a desktop's below. */
   --text-title: 26px;
@@ -108,15 +131,15 @@
      their units sit on one line of a 390 px phone card. */
   --text-figure: 25px;
 
-  --weight-regular: 420;
-  --weight-medium: 560;
-  --weight-semibold: 680;
-  --weight-bold: 780;
-  --weight-figure: 650;
-  /* Fraunces at a title's size, and one step lighter under about 22 px, where
-     the same weight reads as a blot rather than a name. */
-  --weight-display: 540;
-  --weight-display-sm: 480;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-figure: 600;
+  /* A page's title, bold as the site's; a name or a section's heading a step
+     under it. */
+  --weight-title: 700;
+  --weight-heading: 650;
 
   --line-tight: 1.2;
   --line-body: 1.5;
@@ -124,19 +147,24 @@
   /* A section label is small capitals, tracked open. */
   --tracking-label: 0.08em;
   --tracking-caption: 0.01em;
-  --tracking-display: -0.01em;
+  /* Headings close up, as the site's do. */
+  --tracking-title: -0.02em;
 
-  /* Shape. Soft corners, hairline rules and a low, warm shadow under a card:
-     paper lying on paper, not a panel floating over glass. */
-  --radius: 16px;
-  --radius-sm: 10px;
-  --radius-xs: 6px;
+  /* Shape: the site's three radii - a control, a card, a large panel - and the
+     pill a badge or a chip is. Hairline rules and a low shadow in the dark
+     blue under a card. */
+  --radius: 12px;
+  --radius-sm: 6px;
+  --radius-xs: 4px;
+  --radius-lg: 20px;
   --radius-pill: 999px;
   --rule-width: 1px;
   --rule-solid: var(--rule-width) solid var(--rule);
   --rule-dashed: var(--rule-width) dashed var(--rule-strong);
-  --shadow: 0 1px 2px rgb(80 62 30 / 6%), 0 8px 24px -12px rgb(80 62 30 / 16%);
-  --shadow-raised: 0 2px 4px rgb(80 62 30 / 8%), 0 16px 32px -12px rgb(80 62 30 / 24%);
+  --shadow: 0 1px 2px rgb(31 58 110 / 6%), 0 1px 3px rgb(31 58 110 / 4%);
+  --shadow-raised: 0 12px 32px rgb(31 58 110 / 12%), 0 4px 8px rgb(31 58 110 / 6%);
+  /* Cast upwards, by the phone's tab bar over the page. */
+  --shadow-bar: 0 -8px 24px -16px rgb(31 58 110 / 24%);
 
   /* A 4 px rhythm, roomier at the top end: 48 and 64 separate the sections of
      a long page rather than the parts of a card. */
@@ -172,20 +200,20 @@
   /* A whole page on a wide screen: two columns, or one wide plot. */
   --page-width: 1180px;
 
-  /* The screen behind a sheet, and the bar that says what was just logged: one
-     dark surface in light mode, a raised one in dark mode, because a toast has
-     to read as sitting over the page rather than in it. */
-  --scrim: rgb(34 30 22 / 38%);
-  --toast: #26241e;
-  --toast-ink: #f6f1e7;
+  /* The screen behind a sheet, and the bar that says what was just logged: the
+     dark brand blue in light mode, a raised navy in dark mode, because a toast
+     has to read as sitting over the page rather than in it. */
+  --scrim: rgb(20 38 74 / 42%);
+  --toast: #1f3a6e;
+  --toast-ink: #ffffff;
 
-  /* A caption laid over a photograph: smoked glass, the same in both modes
-     because the picture under it does not change with the theme. A button over
-     a photograph is solid instead - glass under a control lets a bright frame
-     wash the control out. */
-  --overlay: rgb(24 21 16 / 70%);
-  --on-overlay: #fbf7ee;
-  --overlay-solid: #2a2620;
+  /* A caption laid over a photograph: smoked navy glass, the same in both
+     modes because the picture under it does not change with the theme. A
+     button over a photograph is solid instead - glass under a control lets a
+     bright frame wash the control out. */
+  --overlay: rgb(12 24 48 / 72%);
+  --on-overlay: #f5f8ff;
+  --overlay-solid: #111f3d;
 
   /* A value whose age says it is old is dimmed, never hidden - and dimmed by
      its ink, not by opacity: faded to half, the sentence that says why a
@@ -203,7 +231,7 @@
      a light ground, and an inverted code is read by some scanners and not by
      others. So these two are the light mode's ink and card, and the dark mode
      below deliberately leaves them alone. */
-  --qr-ink: #22271f;
+  --qr-ink: #1a1d29;
   --qr-paper: #ffffff;
 }
 
@@ -212,7 +240,7 @@
 @media (min-width: 900px) {
   :root {
     --text-title: 32px;
-    --text-name: 19px;
+    --text-name: 18px;
     --text-figure: 28px;
     --card-padding: 20px;
   }
@@ -221,47 +249,52 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  /* Dark mode - a potting shed at night: warm charcoal, lamplit ink. */
-  --bg: #13120f;
-  --card: #1d1b17;
-  --card-2: #27241f;
-  --rule: #34302a;
-  --rule-strong: #5a5347;
-  --control-edge: #7d7466;
-  --ink: #f1ebe0;
-  --muted: #b5ad9e;
-  --label: #a39a89;
+  /* Dark mode - the navy of the site's dark sections, #14264a to #1f3a6e. */
+  --bg: #14264a;
+  --card: #1a2f58;
+  --card-2: #213a69;
+  --rule: #2c4677;
+  --rule-strong: #4a6598;
+  --control-edge: #8193bd;
+  --ink: #f1f4fa;
+  --muted: #b9c4dc;
+  --label: #aab7d3;
+  --heading: #ffffff;
 
-  --brand: #a9d98d;
-  --on-brand: #13200d;
-  --wordmark: var(--ink);
-  --brand-wash: #283523;
-  --green: #8fcd6f;
-  --green-ink: #9fd782;
-  --green-fill: #6aa651;
-  --on-green: #10190b;
+  --brand: #b8d4ff;
+  --on-brand: #14264a;
+  --brand-wash: #2a4a86;
+  --green: #6fbe4a;
+  --green-ink: #c2eca0;
+  --green-wash: #244a45;
+  --green-fill: #3e8024;
+  --on-green: #ffffff;
 
-  --tint: #2b2822;
-  --tint-hover: #353128;
+  --tint: #233d70;
+  --tint-hover: #2a4579;
 
-  --band: rgba(143, 205, 111, 0.12);
-  --night: rgba(0, 0, 0, 0.22);
-  --night-long: rgba(0, 0, 0, 0.11);
-  --grid: rgba(241, 235, 224, 0.09);
-  --glow: radial-gradient(1200px 520px at 70% -180px, rgb(230 170 80 / 9%), transparent 70%);
+  --band: rgba(111, 190, 74, 0.14);
+  --night: rgba(4, 10, 26, 0.3);
+  --night-long: rgba(4, 10, 26, 0.15);
+  --grid: rgba(184, 212, 255, 0.1);
+  --glow: radial-gradient(1400px 640px at 12% -220px, rgb(45 75 149 / 55%), transparent 70%);
 
-  --shadow: 0 1px 0 rgb(255 240 210 / 3%) inset, 0 10px 28px -14px rgb(0 0 0 / 70%);
-  --shadow-raised: 0 1px 0 rgb(255 240 210 / 4%) inset, 0 18px 36px -12px rgb(0 0 0 / 80%);
+  --shadow: 0 1px 0 rgb(184 212 255 / 4%) inset, 0 10px 28px -14px rgb(3 8 20 / 70%);
+  --shadow-raised: 0 1px 0 rgb(184 212 255 / 5%) inset, 0 18px 36px -12px rgb(3 8 20 / 80%);
+  --shadow-bar: 0 -8px 24px -16px rgb(3 8 20 / 60%);
 
-  --scrim: rgb(6 5 3 / 66%);
-  --toast: #2c2923;
-  --toast-ink: #f1ebe0;
+  --logo-colour: none;
+  --logo-reverse: block;
 
-  --temperature: #f0935c;
-  --humidity: #6bb6dc;
-  --co2: #bf9be6;
-  --warning: #e3b457;
-  --alarm: #f27e6f;
+  --scrim: rgb(4 10 24 / 66%);
+  --toast: #2a4579;
+  --toast-ink: #f1f4fa;
+
+  --temperature: #ffa166;
+  --humidity: #5fd4cf;
+  --co2: #dca5f5;
+  --warning: #f2c35a;
+  --alarm: #ff8b9a;
   --on-signal: var(--bg);
 }
 
@@ -269,46 +302,51 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --bg: #13120f;
-    --card: #1d1b17;
-    --card-2: #27241f;
-    --rule: #34302a;
-    --rule-strong: #5a5347;
-    --control-edge: #7d7466;
-    --ink: #f1ebe0;
-    --muted: #b5ad9e;
-    --label: #a39a89;
+    --bg: #14264a;
+    --card: #1a2f58;
+    --card-2: #213a69;
+    --rule: #2c4677;
+    --rule-strong: #4a6598;
+    --control-edge: #8193bd;
+    --ink: #f1f4fa;
+    --muted: #b9c4dc;
+    --label: #aab7d3;
+    --heading: #ffffff;
 
-    --brand: #a9d98d;
-    --on-brand: #13200d;
-    --wordmark: var(--ink);
-    --brand-wash: #283523;
-    --green: #8fcd6f;
-    --green-ink: #9fd782;
-    --green-fill: #6aa651;
-    --on-green: #10190b;
+    --brand: #b8d4ff;
+    --on-brand: #14264a;
+    --brand-wash: #2a4a86;
+    --green: #6fbe4a;
+    --green-ink: #c2eca0;
+    --green-wash: #244a45;
+    --green-fill: #3e8024;
+    --on-green: #ffffff;
 
-    --tint: #2b2822;
-    --tint-hover: #353128;
+    --tint: #233d70;
+    --tint-hover: #2a4579;
 
-    --band: rgba(143, 205, 111, 0.12);
-    --night: rgba(0, 0, 0, 0.22);
-    --night-long: rgba(0, 0, 0, 0.11);
-    --grid: rgba(241, 235, 224, 0.09);
-    --glow: radial-gradient(1200px 520px at 70% -180px, rgb(230 170 80 / 9%), transparent 70%);
+    --band: rgba(111, 190, 74, 0.14);
+    --night: rgba(4, 10, 26, 0.3);
+    --night-long: rgba(4, 10, 26, 0.15);
+    --grid: rgba(184, 212, 255, 0.1);
+    --glow: radial-gradient(1400px 640px at 12% -220px, rgb(45 75 149 / 55%), transparent 70%);
 
-    --shadow: 0 1px 0 rgb(255 240 210 / 3%) inset, 0 10px 28px -14px rgb(0 0 0 / 70%);
-    --shadow-raised: 0 1px 0 rgb(255 240 210 / 4%) inset, 0 18px 36px -12px rgb(0 0 0 / 80%);
+    --shadow: 0 1px 0 rgb(184 212 255 / 4%) inset, 0 10px 28px -14px rgb(3 8 20 / 70%);
+    --shadow-raised: 0 1px 0 rgb(184 212 255 / 5%) inset, 0 18px 36px -12px rgb(3 8 20 / 80%);
+    --shadow-bar: 0 -8px 24px -16px rgb(3 8 20 / 60%);
 
-    --scrim: rgb(6 5 3 / 66%);
-    --toast: #2c2923;
-    --toast-ink: #f1ebe0;
+    --logo-colour: none;
+    --logo-reverse: block;
 
-    --temperature: #f0935c;
-    --humidity: #6bb6dc;
-    --co2: #bf9be6;
-    --warning: #e3b457;
-    --alarm: #f27e6f;
+    --scrim: rgb(4 10 24 / 66%);
+    --toast: #2a4579;
+    --toast-ink: #f1f4fa;
+
+    --temperature: #ffa166;
+    --humidity: #5fd4cf;
+    --co2: #dca5f5;
+    --warning: #f2c35a;
+    --alarm: #ff8b9a;
     --on-signal: var(--bg);
   }
 }

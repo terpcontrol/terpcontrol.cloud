@@ -38,23 +38,22 @@ p {
   margin: 0;
 }
 
-/* The names a person gave things - a page, a place, a grow - are set in the
-   softened serif; everything that is read rather than named stays in the sans.
+/* The names a person gave things - a page, a place, a grow - are headings in
+   the one face, ranked by weight and size the way the site ranks its own: a
+   title bold, a name a step lighter, both closed up and in the heading ink.
    A page's title is the one size a screen does not choose for itself, so the
    forty screens that never set one still get the same title. The optical-size
-   axis follows the size on its own; the weight does not, so a heading under
-   about 22 px takes the lighter display weight. `.name` is a name that is not
-   a heading - a grow's in a list, a week's on its card - at the name size. */
+   axis follows the size on its own. `.name` is a name that is not a heading -
+   a grow's in a list, a week's on its card - at the name size. */
 h1,
 h2,
 .display,
 .name {
-  font-family: var(--font-display);
-  font-weight: var(--weight-display);
+  font-weight: var(--weight-title);
   font-optical-sizing: auto;
-  font-variation-settings: var(--display-axes);
-  letter-spacing: var(--tracking-display);
+  letter-spacing: var(--tracking-title);
   line-height: var(--line-tight);
+  color: var(--heading);
   text-wrap: balance;
 }
 
@@ -64,7 +63,8 @@ h1 {
 
 h2,
 .name {
-  font-weight: var(--weight-display-sm);
+  font-weight: var(--weight-heading);
+  letter-spacing: -0.01em;
 }
 
 .name {
@@ -155,6 +155,8 @@ input[type='number']::-webkit-inner-spin-button {
    the caption beside it says how old it is. */
 [data-age='stale'],
 [data-age='offline'] {
+  --heading: var(--ink);
+
   color: var(--ink);
 }
 
@@ -223,7 +225,7 @@ button:disabled {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--green) 26%, transparent);
+  background: color-mix(in srgb, var(--brand) 22%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

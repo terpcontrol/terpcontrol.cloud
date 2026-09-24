@@ -62,7 +62,7 @@
 
 .chapterTitle {
   font-size: var(--text-lg);
-  font-weight: var(--weight-display-sm);
+  font-weight: var(--weight-heading);
 }
 
 .chapterMeta {

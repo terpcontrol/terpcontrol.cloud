@@ -32,7 +32,7 @@ export default defineConfig({
         // `assets/` are megabytes and the onboarding videos tens of them, so
         // they are fetched and kept once they are actually looked at.
         globPatterns: ['**/*.{js,css,html,woff2}', 'assets/i18n/*.json'],
-        // The app speaks English and German; the other subsets of the two fonts
+        // The app speaks English and German; the other subsets of the face
         // are downloaded if a name ever needs them, not kept for offline.
         globIgnores: ['**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
       },

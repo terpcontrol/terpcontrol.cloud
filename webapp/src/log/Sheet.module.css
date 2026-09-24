@@ -61,7 +61,7 @@
 .title {
   flex: 1;
   font-size: var(--text-name);
-  font-weight: var(--weight-display-sm);
+  font-weight: var(--weight-heading);
   line-height: var(--line-tight);
 }
 

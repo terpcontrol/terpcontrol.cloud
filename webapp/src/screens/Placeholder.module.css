@@ -11,7 +11,7 @@
 
 .title {
   font-size: var(--text-title);
-  font-weight: var(--weight-display);
+  font-weight: var(--weight-title);
   margin: 0;
 }
 

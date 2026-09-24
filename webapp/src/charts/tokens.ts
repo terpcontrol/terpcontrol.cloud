@@ -17,7 +17,6 @@ const TOKENS = [
   'night',
   'night-long',
   'brand',
-  'wordmark',
   'temperature',
   'humidity',
   'co2',

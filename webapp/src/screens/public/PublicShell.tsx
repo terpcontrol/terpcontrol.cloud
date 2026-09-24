@@ -3,10 +3,11 @@ import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useTheme } from '@/theme/theme-context';
+import { Logo } from '@/ui/Logo';
 import styles from './Public.module.css';
 
 /**
- * The chrome a page wears when nobody is signed in: a wordmark, the light and
+ * The chrome a page wears when nobody is signed in: the logo, the light and
  * dark switch, and a line at the foot saying what this is.
  *
  * Deliberately not the app shell. The tab bar, the rail and the top bar are
@@ -30,7 +31,9 @@ export function PublicShell({ title, children }: { title?: string; children: Rea
   return (
     <div className={styles.page}>
       <header className={styles.bar}>
-        <span className={styles.wordmark}>Terp Control</span>
+        <span className={styles.wordmark}>
+          <Logo />
+        </span>
         <ThemeSwitch />
       </header>
 

@@ -8,12 +8,12 @@
 
 .title {
   font-size: var(--text-title);
-  font-weight: var(--weight-display);
+  font-weight: var(--weight-title);
   line-height: var(--line-tight);
 }
 
 /* Who is signed in: the initials on the brand's wash, as the rail and the top
-   bar draw them, and the handle in the serif - it is a name somebody chose. */
+   bar draw them, and the handle set as a name - it is one somebody chose. */
 .identity {
   display: flex;
   align-items: center;
@@ -46,7 +46,7 @@
 .handle {
   overflow: hidden;
   font-size: var(--text-xl);
-  font-weight: var(--weight-display);
+  font-weight: var(--weight-title);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

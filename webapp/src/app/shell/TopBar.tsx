@@ -5,6 +5,7 @@ import { bellOf, useOpenAlertCount } from '@/api/alerts';
 import { useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { useFreshness } from '@/ui/freshness';
+import { Logo } from '@/ui/Logo';
 import { useNow } from '@/ui/useNow';
 import { initials } from './tabs';
 import styles from './TopBar.module.css';
@@ -22,7 +23,7 @@ export function Freshness({ className }: { className?: string }) {
 }
 
 /**
- * The phone's header: the wordmark with the freshness line, the alerts bell,
+ * The phone's header: the logo with the freshness line, the alerts bell,
  * and the avatar that opens Me. The bell carries the open count, or nothing at
  * all when none is open, so it reads as quiet rather than as a zero; the link
  * says the count too, for anybody who cannot see the badge.
@@ -35,7 +36,9 @@ export function TopBar() {
   return (
     <header className={styles.bar} data-print="omit">
       <div className={styles.identity}>
-        <div className={styles.wordmark}>Terp Control</div>
+        <div className={styles.wordmark}>
+          <Logo />
+        </div>
         <Freshness />
       </div>
       <Link to="/alerts" className={styles.action} aria-label={bell ? t(bell.key, { count: bell.count }) : t('shell.alerts')}>

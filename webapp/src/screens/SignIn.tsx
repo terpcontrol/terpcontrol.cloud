@@ -7,6 +7,7 @@ import type { SessionCreate } from '@fg2/shared-types/v1';
 import { CUSTOM_LINKS_HTML } from '@/api/config';
 import { ApiError } from '@/api/problem';
 import { session, useSession } from '@/api/session';
+import { Logo } from '@/ui/Logo';
 import ui from '@/ui/ui.module.css';
 import styles from './SignIn.module.css';
 
@@ -72,7 +73,9 @@ export function SignIn() {
   return (
     <main className={styles.page}>
       <form className={styles.card} onSubmit={submit} noValidate>
-        <h1 className={styles.wordmark}>Terp Control</h1>
+        <h1 className={styles.wordmark}>
+          <Logo />
+        </h1>
 
         {ended ? (
           <p className={ui.note} role="status">

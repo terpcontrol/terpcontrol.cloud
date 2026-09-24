@@ -39,7 +39,7 @@
 
 .title {
   font-size: var(--text-title);
-  font-weight: var(--weight-display);
+  font-weight: var(--weight-title);
   line-height: var(--line-tight);
 }
 

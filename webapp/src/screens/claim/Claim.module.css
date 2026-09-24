@@ -20,7 +20,7 @@
 
 .title {
   font-size: var(--text-title);
-  font-weight: var(--weight-display);
+  font-weight: var(--weight-title);
   line-height: var(--line-tight);
 }
 
@@ -127,7 +127,7 @@
 }
 
 .marker[data-state='done'] {
-  background: var(--brand-wash);
+  background: var(--green-wash);
   border-color: transparent;
   color: var(--green-ink);
 }
@@ -143,14 +143,14 @@
 
 .stepTitle {
   font-size: var(--text-lg);
-  font-weight: var(--weight-display-sm);
+  font-weight: var(--weight-heading);
   line-height: var(--line-tight);
   text-align: left;
 }
 
 .step[data-state='open'] .stepTitle {
   font-size: var(--text-xl);
-  font-weight: var(--weight-display);
+  font-weight: var(--weight-title);
 }
 
 @media (max-width: 599px) {

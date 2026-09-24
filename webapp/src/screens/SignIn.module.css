@@ -22,15 +22,14 @@
   box-shadow: var(--shadow-raised);
 }
 
-/* The name, set as the rail sets it but larger: the one place the wordmark is
-   the whole of the page's heading. */
+/* The logo, larger than the rail's: the one place it is the whole of the
+   page's heading. */
 .wordmark {
+  --logo-height: 52px;
+
   margin-bottom: var(--space-6);
-  font-size: 36px;
-  font-weight: var(--weight-display);
-  line-height: var(--line-tight);
+  line-height: 0;
   text-align: center;
-  color: var(--wordmark);
 }
 
 /* The line above the fields: why this form, in the words of the page that sent somebody here. */
@@ -49,7 +48,7 @@
   margin-bottom: var(--space-2);
   text-align: center;
   font-size: var(--text-md);
-  font-weight: var(--weight-display-sm);
+  font-weight: var(--weight-heading);
   line-height: var(--line-tight);
 }
 
@@ -86,7 +85,7 @@
 }
 
 .links a {
-  color: var(--green-ink);
+  color: var(--brand);
   font-weight: var(--weight-semibold);
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -100,8 +99,9 @@
   }
 
   .wordmark {
+    --logo-height: 44px;
+
     margin-bottom: var(--space-5);
-    font-size: 32px;
   }
 
   .intro,

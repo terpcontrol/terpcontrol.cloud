@@ -14,7 +14,7 @@
 
 .name {
   font-size: var(--text-title);
-  font-weight: var(--weight-display);
+  font-weight: var(--weight-title);
   display: flex;
   flex: 1;
   align-items: center;
@@ -29,8 +29,7 @@
 
 /* On a phone a place's name has the row to itself, a step smaller than a
    page title, and the pill that says how live it is goes under it: beside the
-   pill "Plantalytix Fridgegrow 2.0" broke into three lines of serif above the
-   tabs. The way back stays level with the name's first line. */
+   pill "Plantalytix Fridgegrow 2.0" broke into three lines above the tabs. The way back stays level with the name's first line. */
 @media (max-width: 599px) {
   .header {
     display: grid;

@@ -14,7 +14,7 @@
   backdrop-filter: saturate(1.4) blur(14px);
   -webkit-backdrop-filter: saturate(1.4) blur(14px);
   border-top: var(--rule-solid);
-  box-shadow: 0 -8px 24px -16px rgb(0 0 0 / 25%);
+  box-shadow: var(--shadow-bar);
 }
 
 .tab {

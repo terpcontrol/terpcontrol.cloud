@@ -12,7 +12,7 @@
 
 .title {
   font-size: var(--text-title);
-  font-weight: var(--weight-display);
+  font-weight: var(--weight-title);
   line-height: var(--line-tight);
 }
 
@@ -30,7 +30,7 @@
 
 .cardTitle {
   font-size: var(--text-lg);
-  font-weight: var(--weight-display-sm);
+  font-weight: var(--weight-heading);
   line-height: var(--line-tight);
 }
 

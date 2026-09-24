@@ -6,6 +6,7 @@ import { bellOf, useOpenAlertCount } from '@/api/alerts';
 import { useSession } from '@/api/session';
 import { useLog, useMayLog } from '@/log/log-context';
 import { useOpeningUnderneath } from '@/log/underneath';
+import { Logo } from '@/ui/Logo';
 import { TABS, initials } from './tabs';
 import { Freshness } from './TopBar';
 import styles from './Rail.module.css';
@@ -53,56 +54,60 @@ export function Rail() {
 
   return (
     <nav className={styles.rail} aria-label={t('shell.navigation')} data-print="omit">
-      <div className={styles.identity}>
-        <div className={styles.wordmark}>Terp Control</div>
-        <Freshness />
-      </div>
-
-      {log ? (
-        <button type="button" className={styles.log} onClick={() => openSheet(underneath)}>
-          <log.Icon size={20} strokeWidth={2} aria-hidden />
-          <span className={styles.logCaption}>{t(log.labelKey)}</span>
-          <kbd className={`mono ${styles.key}`}>{LOG_KEY.toUpperCase()}</kbd>
-        </button>
-      ) : null}
-
-      {tabs.map(({ path, labelKey, Icon }) => (
-        <NavLink key={path} to={path} end={path === '/'} className={itemClass}>
-          <Icon size={18} strokeWidth={1.75} aria-hidden />
-          <span>{t(labelKey)}</span>
-        </NavLink>
-      ))}
-
-      <div className={styles.spacer} />
-
-      {/* The fleet, for whoever runs this install. It is on the rail and
-          nowhere else: there is no tab for it on a phone, because the screens
-          behind it are tables that need a desktop and say so, and an account
-          that is not an administrator is shown no section it cannot open. */}
-      {user?.isAdmin ? (
-        <div className={styles.section}>
-          <span className={`label ${styles.sectionLabel}`}>{t('admin.section')}</span>
-          {ADMIN_LINKS.map(({ path, labelKey }) => (
-            <NavLink key={path} to={path} className={itemClass}>
-              <span>{t(labelKey)}</span>
-            </NavLink>
-          ))}
+      <div className={styles.inner}>
+        <div className={styles.identity}>
+          <div className={styles.wordmark}>
+            <Logo />
+          </div>
+          <Freshness />
         </div>
-      ) : null}
 
-      <NavLink to="/alerts" className={itemClass} aria-label={bell ? t(bell.key, { count: bell.count }) : t('shell.alerts')}>
-        <Bell size={18} strokeWidth={1.75} aria-hidden />
-        <span>{t('shell.alerts')}</span>
-        {bell ? <span className={`mono ${styles.badge}`}>{bell.text}</span> : null}
-      </NavLink>
+        {log ? (
+          <button type="button" className={styles.log} onClick={() => openSheet(underneath)}>
+            <log.Icon size={20} strokeWidth={2} aria-hidden />
+            <span className={styles.logCaption}>{t(log.labelKey)}</span>
+            <kbd className={`mono ${styles.key}`}>{LOG_KEY.toUpperCase()}</kbd>
+          </button>
+        ) : null}
 
-      <NavLink to="/me" className={itemClass}>
-        <span className={`mono ${styles.avatar}`}>{initials(user?.handle ?? '?')}</span>
-        <span className={styles.account}>
-          <span className={styles.handle}>{user?.handle ?? ''}</span>
-          <span className={styles.accountNote}>{t('shell.accountNote')}</span>
-        </span>
-      </NavLink>
+        {tabs.map(({ path, labelKey, Icon }) => (
+          <NavLink key={path} to={path} end={path === '/'} className={itemClass}>
+            <Icon size={18} strokeWidth={1.75} aria-hidden />
+            <span>{t(labelKey)}</span>
+          </NavLink>
+        ))}
+
+        <div className={styles.spacer} />
+
+        {/* The fleet, for whoever runs this install. It is on the rail and
+            nowhere else: there is no tab for it on a phone, because the screens
+            behind it are tables that need a desktop and say so, and an account
+            that is not an administrator is shown no section it cannot open. */}
+        {user?.isAdmin ? (
+          <div className={styles.section}>
+            <span className={`label ${styles.sectionLabel}`}>{t('admin.section')}</span>
+            {ADMIN_LINKS.map(({ path, labelKey }) => (
+              <NavLink key={path} to={path} className={itemClass}>
+                <span>{t(labelKey)}</span>
+              </NavLink>
+            ))}
+          </div>
+        ) : null}
+
+        <NavLink to="/alerts" className={itemClass} aria-label={bell ? t(bell.key, { count: bell.count }) : t('shell.alerts')}>
+          <Bell size={18} strokeWidth={1.75} aria-hidden />
+          <span>{t('shell.alerts')}</span>
+          {bell ? <span className={`mono ${styles.badge}`}>{bell.text}</span> : null}
+        </NavLink>
+
+        <NavLink to="/me" className={itemClass}>
+          <span className={`mono ${styles.avatar}`}>{initials(user?.handle ?? '?')}</span>
+          <span className={styles.account}>
+            <span className={styles.handle}>{user?.handle ?? ''}</span>
+            <span className={styles.accountNote}>{t('shell.accountNote')}</span>
+          </span>
+        </NavLink>
+      </div>
     </nav>
   );
 }

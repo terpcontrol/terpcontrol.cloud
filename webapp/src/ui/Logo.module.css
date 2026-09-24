@@ -1,0 +1,18 @@
+.logo {
+  display: inline-block;
+  height: var(--logo-height, 32px);
+  line-height: 0;
+}
+
+.logo img {
+  width: auto;
+  height: 100%;
+}
+
+.colour {
+  display: var(--logo-colour);
+}
+
+.reverse {
+  display: var(--logo-reverse);
+}

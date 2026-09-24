@@ -132,7 +132,7 @@
 }
 
 .sentence a {
-  color: var(--green-ink);
+  color: var(--brand);
   text-decoration: underline;
 }
 

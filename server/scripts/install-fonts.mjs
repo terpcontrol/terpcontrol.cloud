@@ -1,7 +1,7 @@
-// Puts the app's two faces where the image renderer can find them.
+// Puts the app's face where the image renderer can find it.
 //
 // A film's overlays and a shared link's card are SVG layers that sharp hands to
-// librsvg, which asks fontconfig for "Nunito Sans" and "Fraunces". Fontconfig
+// librsvg, which asks fontconfig for "Inter". Fontconfig
 // reads TrueType and OpenType files only, and the @fontsource packages ship the
 // faces as WOFF and WOFF2 for the web. WOFF1 is the same sfnt tables, each one
 // zlib-compressed, so this unpacks the weights the overlays set into plain .ttf
@@ -10,23 +10,20 @@
 //
 //   node scripts/install-fonts.mjs /app/fonts
 //
-// Only the weights the server draws with are unpacked - Nunito Sans at 400, 600
-// and 700, Fraunces at 600 - in the latin and latin-ext subsets, so a German
-// caption keeps its umlauts in the same face.
+// Only the weights the server draws with are unpacked - Inter at 400, 600 and
+// 700 - in the latin and latin-ext subsets, so a German caption keeps its
+// umlauts in the same face.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { inflateSync } from 'node:zlib';
 
-const FACES = [
-  { pkg: '@fontsource/nunito-sans', family: 'Nunito Sans', file: 'nunito-sans', weights: [400, 600, 700] },
-  { pkg: '@fontsource/fraunces', family: 'Fraunces', file: 'fraunces', weights: [600] },
-];
+const FACES = [{ pkg: '@fontsource/inter', family: 'Inter', file: 'inter', weights: [400, 600, 700] }];
 
 // A static instance names its family after its weight where the weight is not
 // one of the four a legacy family can hold: the 600 files call themselves
-// "Fraunces SemiBold" and "Nunito Sans SemiBold", so an SVG asking for
-// "Fraunces" at weight 600 was never matched with them. The configuration
+// "Inter SemiBold", so an SVG asking for "Inter" at weight 600 was never
+// matched with them. The configuration
 // files each such face under its family's own name as it is scanned; the
 // weight it carries is what tells the instances apart.
 const WEIGHT_NAMES = { 600: 'SemiBold' };
@@ -106,7 +103,7 @@ const renames = FACES.flatMap(face =>
 );
 
 // The system's own configuration first, so DejaVu stays the fallback for a
-// character neither face has, and its cache directory is the one used.
+// character the face does not have, and its cache directory is the one used.
 writeFileSync(
   join(target, 'fonts.conf'),
   `<?xml version="1.0"?>

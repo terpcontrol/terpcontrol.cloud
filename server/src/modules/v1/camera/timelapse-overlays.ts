@@ -11,7 +11,7 @@ import { TimelapseContext } from './timelapse-context.service';
  * counter, the curve and the caption are one overlay per frame rather than
  * three filters, so a film of a week is one composite per frame.
  *
- * The type is the app's: Nunito Sans for words and figures, Fraunces for the
+ * The type is the app's: Inter for words and figures, and Inter bold for the
  * day counter, which is a grow's own "where are we" and is set the way the app
  * sets a week's heading. librsvg finds a face through fontconfig, and only as a
  * TrueType or OpenType file - the WOFF and WOFF2 the web packages ship are not
@@ -26,18 +26,20 @@ import { TimelapseContext } from './timelapse-context.service';
  * the card a shared link is drawn as, which is the same trick: an SVG layer
  * composited onto a picture by sharp. A picture is seen through a plate at
  * night-time strength whatever mode the viewer's app is in, so the plate is the
- * warm charcoal of the dark theme and the lines are its lamplit signal colours.
+ * navy of the dark theme and the lines are its signal colours.
  */
-export const INK = '#f1ebe0';
-export const MUTED = '#b5ad9e';
-export const PANEL = 'rgb(19,18,15)';
-const TEMPERATURE = '#f0935c';
-const HUMIDITY = '#6bb6dc';
+export const INK = '#f1f4fa';
+export const MUTED = '#b9c4dc';
+export const PANEL = 'rgb(20,38,74)';
+const TEMPERATURE = '#ffa166';
+const HUMIDITY = '#5fd4cf';
 
-export const TEXT_FAMILY = 'Nunito Sans, DejaVu Sans, sans-serif';
-/** Nunito's digits are tabular by design, so a reading that changes from frame to frame holds its width without a monospaced face. */
+export const TEXT_FAMILY = 'Inter, DejaVu Sans, sans-serif';
+/**
+ * The same face. Each reading on a frame starts at a fixed place of its own, so
+ * one whose width changes from frame to frame moves nothing beside it.
+ */
 export const FIGURE_FAMILY = TEXT_FAMILY;
-const DISPLAY_FAMILY = 'Fraunces, DejaVu Sans, sans-serif';
 
 /** How far either side of a diary line its caption is shown. */
 const CAPTION_WINDOW_MS = 30 * 60 * 1000;
@@ -131,7 +133,7 @@ const dayBadge = (frame: OverlayFrame, context: TimelapseContext): string | null
   return `<g>
     <rect x="${pad}" y="${pad}" width="${width}" height="${height}" rx="${Math.round(size / 3)}" fill="${PANEL}" fill-opacity="0.58"/>
     <text x="${pad + width / 2}" y="${pad + height / 2}" text-anchor="middle" dominant-baseline="central"
-          font-family="${DISPLAY_FAMILY}" font-size="${size}" font-weight="600" fill="${INK}">Day ${day}</text>
+          font-family="${TEXT_FAMILY}" font-size="${size}" font-weight="700" fill="${INK}">Day ${day}</text>
   </g>`;
 };
 

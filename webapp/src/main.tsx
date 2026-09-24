@@ -1,7 +1,6 @@
-import '@fontsource-variable/nunito-sans/opsz.css';
-// Every axis Fraunces has: optical size so a small name takes the sturdier
-// text cut, softness for the look, and weight. `tokens.css` pins WONK off.
-import '@fontsource-variable/fraunces/full.css';
+// Inter with its optical-size axis, so a 12 px caption gets the open text cut
+// and a 32 px title the tighter display one without anybody asking.
+import '@fontsource-variable/inter/opsz.css';
 import './theme/tokens.css';
 import './styles/global.css';
 
