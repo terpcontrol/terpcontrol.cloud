@@ -190,6 +190,11 @@
   color: var(--muted);
 }
 
+/* A tab with nothing in it yet: the note that says so. */
+.empty {
+  margin: 0;
+}
+
 /* "AUTO" beside the phase: a small tinted tag at the label's size, which is
    the smallest the scale goes. */
 .auto {
@@ -357,7 +362,8 @@
     max-width: var(--page-width);
   }
 
-  .page[data-tab='plants'] .rows {
+  .page[data-tab='plants'] .rows,
+  .page[data-tab='plants'] .empty {
     max-width: var(--reading-width);
   }
 }

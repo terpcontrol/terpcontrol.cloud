@@ -35,7 +35,7 @@ function PlantList({ grow, page, spaces }: { grow: GrowListItem; page: PlantPage
     return location.spaceId ? (spaces.find(space => space.id === location.spaceId)?.name ?? '…') : t('grow.noFixedPlace');
   };
 
-  if (page.items.length === 0) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('grow.noPlants')}</p>;
+  if (page.items.length === 0) return <p className={`${ui.cardDashed} ${ui.note} ${styles.empty}`}>{t('grow.noPlants')}</p>;
 
   return (
     <ul className={styles.rows} aria-label={t('grow.tabs.plants')}>
