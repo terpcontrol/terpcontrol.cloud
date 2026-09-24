@@ -7,7 +7,8 @@ import type { HomeSpaceCard, Person, SpaceKind } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
-import { clock, useZone } from '@/ui/zone';
+import { useZone } from '@/ui/zone';
+import { clockLabel } from '@/screens/notifications/settings';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from './attention';
 import { ClimateHalf } from './ClimateHalf';
 import { DayCounter, DeviceActions, GrowHalf, NewestEntry, NoGrow, NoSensor, PhaseLine } from './GrowHalf';
@@ -171,7 +172,7 @@ function Still({ card, now }: { card: HomeSpaceCard; now: DateTime }) {
     <figure className={styles.still}>
       <img src={src} alt={t('home.card.stillAlt', { name: card.name })} loading="lazy" />
       <figcaption className={ui.photoCaption}>
-        {t('home.card.cam')} · {clock(still.capturedAt, zone)} · {t('home.card.ago', { age: ageLabel(still.capturedAt, now) })}
+        {t('home.card.cam')} · {clockLabel(still.capturedAt, now, zone)} · {t('home.card.ago', { age: ageLabel(still.capturedAt, now) })}
       </figcaption>
     </figure>
   );
