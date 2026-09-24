@@ -232,7 +232,7 @@ function Hero({ plant, photos, grow }: { plant: Plant; photos: Entry[]; grow: Gr
   return (
     <figure className={styles.hero}>
       <img src={src} alt={t('grow.plant.photoAlt', { label: plant.label, day: dayOfEntry(grow, newest) ?? '—' })} loading="lazy" />
-      <figcaption className={`mono ${styles.heroChip}`}>{t('grow.plant.photos', { count: photos.length })}</figcaption>
+      <figcaption className={`${ui.photoCaption} ${styles.heroChip}`}>{t('grow.plant.photos', { count: photos.length })}</figcaption>
     </figure>
   );
 }

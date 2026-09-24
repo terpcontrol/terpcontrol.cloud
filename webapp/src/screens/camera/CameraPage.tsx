@@ -226,7 +226,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
             </p>
           )}
           {shown ? (
-            <span className={`mono ${styles.frameLabel}`}>
+            <span className={ui.photoCaption}>
               {zonedAt(at(shown.capturedAt), zone).toFormat(STAMPS[stampFor(to - from)])}
               {/* "live" is a claim about how late the picture is, so it is the
                 pill's own verdict that decides it and not the frame's position
@@ -245,7 +245,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
             // today's window and would date a picture from four days ago by the
             // clock alone. This one names its day and says how long ago it was,
             // exactly as the tent's card says it.
-            <span className={`mono ${styles.frameLabel}`} data-age="offline">
+            <span className={ui.photoCaption} data-age="offline">
               {zonedAt(at(camera.state.lastStillAt), zone).toFormat(DATED_CLOCK)} ·{' '}
               {t('devices.ago', { age: ageLabel(camera.state.lastStillAt, now) })}
             </span>

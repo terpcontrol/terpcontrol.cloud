@@ -350,18 +350,6 @@
   object-fit: cover;
 }
 
-.stillTime {
-  position: absolute;
-  left: var(--space-1);
-  bottom: var(--space-1);
-  padding: 1px 6px;
-  border-radius: var(--radius-pill);
-  background: var(--overlay);
-  font-size: 11px;
-  font-weight: var(--weight-semibold);
-  color: var(--on-overlay);
-}
-
 /* The verdict: the day as a line, then the sentence. */
 .verdict {
   display: flex;

@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import type { HomeSpaceCard, Person, SpaceKind } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { ageLabel } from '@/ui/age';
+import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from './attention';
 import { ClimateHalf } from './ClimateHalf';
@@ -169,7 +170,7 @@ function Still({ card, now }: { card: HomeSpaceCard; now: DateTime }) {
   return (
     <figure className={styles.still}>
       <img src={src} alt={t('home.card.stillAlt', { name: card.name })} loading="lazy" />
-      <figcaption className={`mono ${styles.stillCaption}`}>
+      <figcaption className={ui.photoCaption}>
         {t('home.card.cam')} · {clock(still.capturedAt, zone)} · {t('home.card.ago', { age: ageLabel(still.capturedAt, now) })}
       </figcaption>
     </figure>

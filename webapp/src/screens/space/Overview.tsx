@@ -453,7 +453,7 @@ function CameraStrip({ camera, now }: { camera: OverviewCamera; now: DateTime })
         return (
           <li key={still.mediaId} className={styles.stillTile}>
             {src ? <img src={src} alt={t('space.stillAlt', { name: camera.name, time: clock(still.capturedAt, zone) })} loading="lazy" /> : null}
-            <span className={`mono ${styles.stillTime}`}>{clock(still.capturedAt, zone)}</span>
+            <span className={ui.photoCaption}>{clock(still.capturedAt, zone)}</span>
           </li>
         );
       })}

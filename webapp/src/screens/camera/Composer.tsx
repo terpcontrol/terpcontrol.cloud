@@ -95,7 +95,7 @@ export function Composer({ camera, grow, pending, onRender, onClose }: ComposerP
               the caption says which picture it is and how old, rather than
               naming a range it may be days outside of. */}
           {preview && camera.state.lastStillAt ? (
-            <span className={`mono ${styles.frameLabel}`}>{t('composer.latestPicture', { age: ageLabel(camera.state.lastStillAt) })}</span>
+            <span className={ui.photoCaption}>{t('composer.latestPicture', { age: ageLabel(camera.state.lastStillAt) })}</span>
           ) : null}
         </div>
 

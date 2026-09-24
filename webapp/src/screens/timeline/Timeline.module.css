@@ -230,22 +230,9 @@
 /* At the foot of the picture, where the camera page puts it: a camera burns
    its own clock into the top corner, and a label there covered it. The
    transport under the picture is a fixed 52 px. */
+/* The picture's caption stands clear of the transport laid over its foot. */
 .frameLabel {
-  position: absolute;
   bottom: calc(52px + var(--space-2));
-  left: var(--space-2);
-  max-width: calc(100% - var(--space-4));
-  overflow: hidden;
-  padding: var(--space-1) 10px;
-  background: var(--overlay);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-radius: var(--radius-pill);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--on-overlay);
 }
 
 .dots {

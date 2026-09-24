@@ -108,7 +108,7 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
             <span className={ui.note}>{fromCam ? t('log.noCam') : t('log.choosePicture')}</span>
           </button>
         )}
-        {fromCam && still ? <span className={`mono ${styles.pictureStamp}`}>{t('log.camAge', { age: ageLabel(still.capturedAt, now) })}</span> : null}
+        {fromCam && still ? <span className={ui.photoCaption}>{t('log.camAge', { age: ageLabel(still.capturedAt, now) })}</span> : null}
       </div>
 
       <input

@@ -48,7 +48,7 @@ export function CameraFrame({ cameras, from, to, cursor, day, onScrub }: CameraF
       ) : (
         <p className={`mono ${styles.noFrame}`}>{t('timeline.noFrames')}</p>
       )}
-      <span className={`mono ${styles.frameLabel}`}>
+      <span className={`${ui.photoCaption} ${styles.frameLabel}`}>
         {camera.name}
         {caption ? ` · ${caption}` : ''}
         {day !== null ? ` · ${t('timeline.dayN', { day })}` : ''}
