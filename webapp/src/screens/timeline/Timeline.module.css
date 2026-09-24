@@ -164,18 +164,6 @@
   white-space: nowrap;
 }
 
-.chip[aria-pressed='true'] {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--on-brand);
-  font-weight: var(--weight-semibold);
-}
-
-.chip:disabled {
-  color: var(--label);
-  opacity: 0.55;
-}
-
 .days {
   flex-shrink: 0;
   margin-left: auto;
@@ -229,8 +217,8 @@
 
 /* At the foot of the picture, where the camera page puts it: a camera burns
    its own clock into the top corner, and a label there covered it. The
-   transport under the picture is a fixed 52 px. */
-/* The picture's caption stands clear of the transport laid over its foot. */
+   transport under the picture is a fixed 52 px, and the caption stands clear
+   of it. */
 .frameLabel {
   bottom: calc(52px + var(--space-2));
 }

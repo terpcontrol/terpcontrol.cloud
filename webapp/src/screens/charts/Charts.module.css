@@ -61,22 +61,6 @@
   margin-right: var(--space-1);
 }
 
-/* The same pressed chip as the Timeline this screen is opened from: a chip that
-   changed colour one tap out of that header would read as another kind of
-   control rather than as the same one carried across. */
-.chip[aria-pressed='true'] {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--on-brand);
-  font-weight: var(--weight-semibold);
-}
-
-/* Out of reach, at the strength the chips elsewhere use for it. */
-.chip:disabled {
-  color: var(--label);
-  opacity: 0.55;
-}
-
 /* The rest of the outputs, which are a lesser offer than the series themselves. */
 .more {
   border-style: dashed;

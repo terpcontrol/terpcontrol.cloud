@@ -136,7 +136,7 @@ export function NewestEntry({ entry, people, now }: { entry: Entry | null; peopl
 
   return (
     <p className={styles.entry}>
-      <span className={styles.entryText}>{headline}</span>
+      <span>{headline}</span>
       <span className={`mono ${styles.entryMeta}`}>
         {' '}
         · {t('home.card.ago', { age: ageLabel(entry.occurredAt, now) })} · {author}

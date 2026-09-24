@@ -11,10 +11,6 @@
   padding-bottom: var(--space-1);
 }
 
-/* The chosen target is a pressed chip, filled with the brand as every chosen
-   chip in the app is - the ink fill it used to have was the last of the old
-   look's black chips. */
-
 .tiles {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

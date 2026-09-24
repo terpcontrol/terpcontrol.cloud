@@ -26,7 +26,7 @@ export function Choices({ label, children }: { label: string; children: ReactNod
 
 export function Choice({ chosen, onChoose, disabled, children }: { chosen: boolean; onChoose: () => void; disabled?: boolean; children: ReactNode }) {
   return (
-    <button type="button" className={`${ui.chip} ${styles.choice}`} data-chosen={chosen} aria-pressed={chosen} disabled={disabled} onClick={onChoose}>
+    <button type="button" className={ui.chip} data-chosen={chosen} aria-pressed={chosen} disabled={disabled} onClick={onChoose}>
       {children}
     </button>
   );

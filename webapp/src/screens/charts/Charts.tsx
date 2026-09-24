@@ -120,12 +120,12 @@ function NoGrow({ spaceId }: { spaceId: string }) {
       <p className={`${ui.cardDashed} ${ui.note}`}>{t('charts.noGrow')}</p>
       <div className={styles.chips}>
         {mayManage ? (
-          <Link to={`/log?kind=phase&space=${spaceId}`} className={`${ui.chip} ${styles.chip}`}>
+          <Link to={`/log?kind=phase&space=${spaceId}`} className={ui.chip}>
             + {t('space.newGrow')}
           </Link>
         ) : null}
         {mayManage && space ? (
-          <button type="button" className={`${ui.chip} ${styles.chip}`} onClick={() => setMoving(true)}>
+          <button type="button" className={ui.chip} onClick={() => setMoving(true)}>
             {t('space.moveHere')}
           </button>
         ) : null}
@@ -161,7 +161,7 @@ function PickGrow() {
           <p className={`${ui.cardDashed} ${ui.note}`}>{t(items.length > 0 ? 'charts.whichGrow' : 'charts.noGrow')}</p>
           <div className={styles.chips}>
             {items.map(one => (
-              <Link key={one.id} to={`/charts?grow=${one.id}`} className={`${ui.chip} ${styles.chip}`}>
+              <Link key={one.id} to={`/charts?grow=${one.id}`} className={ui.chip}>
                 {one.name}
               </Link>
             ))}
@@ -311,7 +311,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
     <>
       <div className={styles.chips} role="group" aria-label={t('charts.rangeLabel')}>
         {RANGES.map(one => (
-          <button key={one} type="button" className={`${ui.chip} ${styles.chip}`} aria-pressed={one === range} onClick={() => setRange(one)}>
+          <button key={one} type="button" className={ui.chip} aria-pressed={one === range} onClick={() => setRange(one)}>
             {one === 'custom' ? t('charts.range.custom') : t(`timeline.range.${one}`)}
           </button>
         ))}
@@ -380,12 +380,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
           </Pick>
         ))}
         {offered.outputs.length > OUTPUTS_SHOWN ? (
-          <button
-            type="button"
-            className={`${ui.chip} ${styles.chip} ${styles.more}`}
-            aria-expanded={moreOutputs}
-            onClick={() => setMoreOutputs(!moreOutputs)}
-          >
+          <button type="button" className={`${ui.chip} ${styles.more}`} aria-expanded={moreOutputs} onClick={() => setMoreOutputs(!moreOutputs)}>
             {t(moreOutputs ? 'charts.less' : 'charts.more')}
           </button>
         ) : null}
@@ -401,7 +396,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
             <button
               key={one.id}
               type="button"
-              className={`${ui.chip} ${styles.chip}`}
+              className={ui.chip}
               aria-pressed={one.id === comparedId}
               onClick={() => setQuery({ compare: one.id === comparedId ? null : one.id })}
             >
@@ -409,12 +404,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
             </button>
           ))}
           {others.length > RUNS_SHOWN ? (
-            <button
-              type="button"
-              className={`${ui.chip} ${styles.chip} ${styles.more}`}
-              aria-expanded={moreRuns}
-              onClick={() => setMoreRuns(!moreRuns)}
-            >
+            <button type="button" className={`${ui.chip} ${styles.more}`} aria-expanded={moreRuns} onClick={() => setMoreRuns(!moreRuns)}>
               {t(moreRuns ? 'charts.less' : 'charts.more')}
             </button>
           ) : null}
@@ -425,13 +415,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
         <div className={styles.chips} role="group" aria-label={t('charts.savedLabel')}>
           <span className="label">{t('charts.savedLabel')}</span>
           {saved.map(view => (
-            <button
-              key={view.id}
-              type="button"
-              className={`${ui.chip} ${styles.chip}`}
-              aria-pressed={view.id === appliedId}
-              onClick={() => apply(view)}
-            >
+            <button key={view.id} type="button" className={ui.chip} aria-pressed={view.id === appliedId} onClick={() => apply(view)}>
               {view.name}
             </button>
           ))}
@@ -535,13 +519,13 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
         <div className={styles.footerActions}>
           {/* The demo may look at every chart and keep none: a view is written to an account, and it has not got one. */}
           {mayManage ? (
-            <button type="button" className={`${ui.chip} ${styles.chip}`} onClick={() => setSheet(true)}>
+            <button type="button" className={ui.chip} onClick={() => setSheet(true)}>
               {t('charts.saveView')}
             </button>
           ) : null}
           <button
             type="button"
-            className={`${ui.chip} ${styles.chip}`}
+            className={ui.chip}
             disabled={cards.length === 0}
             onClick={() =>
               downloadCsv(csvName(grow.name, range), csvForCards(t, data, { picked: chosen, layout, offered, leaf, plants: named }, zone))
@@ -672,7 +656,7 @@ function Header({ spaceId, growId, subject }: { spaceId: string | null; growId: 
  */
 function Pick({ on, dot, colour, onPick, children }: { on: boolean; dot?: boolean; colour?: string; onPick: () => void; children: React.ReactNode }) {
   return (
-    <button type="button" className={`${ui.chip} ${styles.chip}`} aria-pressed={on} data-colour={colour} onClick={onPick}>
+    <button type="button" className={ui.chip} aria-pressed={on} data-colour={colour} onClick={onPick}>
       {dot ? <span className={styles.dot} aria-hidden /> : null}
       {children}
     </button>

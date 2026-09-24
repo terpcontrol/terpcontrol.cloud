@@ -251,7 +251,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
 /** One place the line can be about. Pressed rather than linked: the sheet stays where it is. */
 function TargetChip({ target, chosen, onChoose }: { target: LogTarget; chosen: boolean; onChoose: () => void }) {
   return (
-    <button type="button" className={`${ui.chip} ${styles.target}`} data-chosen={chosen} aria-pressed={chosen} onClick={onChoose}>
+    <button type="button" className={ui.chip} data-chosen={chosen} aria-pressed={chosen} onClick={onChoose}>
       {target.label}
     </button>
   );

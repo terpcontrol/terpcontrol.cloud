@@ -504,14 +504,7 @@ function Stages({
   return (
     <div className={styles.stages} role="group" aria-label={t('log.tile.phase')}>
       {STAGES.map(one => (
-        <button
-          key={one}
-          type="button"
-          className={`${ui.chip} ${styles.target}`}
-          data-chosen={one === stage}
-          aria-pressed={one === stage}
-          onClick={() => onPick(one)}
-        >
+        <button key={one} type="button" className={ui.chip} data-chosen={one === stage} aria-pressed={one === stage} onClick={() => onPick(one)}>
           {t(`home.stage.${one}`)}
           {one === current ? ` · ${t('log.now')}` : ''}
         </button>

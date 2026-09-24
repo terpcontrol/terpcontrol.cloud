@@ -244,7 +244,7 @@ function NothingToMeasure({ target, onClose }: MeasureSheetProps) {
 
 function Chip({ chosen, onChoose, children }: { chosen: boolean; onChoose: () => void; children: React.ReactNode }) {
   return (
-    <button type="button" className={`${ui.chip} ${styles.chip}`} data-chosen={chosen} aria-pressed={chosen} onClick={onChoose}>
+    <button type="button" className={ui.chip} data-chosen={chosen} aria-pressed={chosen} onClick={onChoose}>
       {children}
     </button>
   );

@@ -101,7 +101,7 @@ export function Composer({ camera, grow, pending, onRender, onClose }: ComposerP
 
         <Group label={t('composer.range')}>
           {RANGES.map(one => (
-            <button key={one} type="button" className={`${ui.chip} ${styles.chip}`} aria-pressed={one === range} onClick={() => setRange(one)}>
+            <button key={one} type="button" className={ui.chip} aria-pressed={one === range} onClick={() => setRange(one)}>
               {t(`camera.window.${one}`)}
               {one === 'phase' && grow?.summary.stage ? ` · ${t(`home.stage.${grow.summary.stage}`)}` : ''}
             </button>
@@ -122,22 +122,11 @@ export function Composer({ camera, grow, pending, onRender, onClose }: ComposerP
         ) : null}
 
         <Group label={t('composer.cam')}>
-          <button
-            type="button"
-            className={`${ui.chip} ${styles.chip}`}
-            aria-pressed={secondCameraId === null}
-            onClick={() => setSecondCameraId(null)}
-          >
+          <button type="button" className={ui.chip} aria-pressed={secondCameraId === null} onClick={() => setSecondCameraId(null)}>
             {camera.name}
           </button>
           {others.map(one => (
-            <button
-              key={one.id}
-              type="button"
-              className={`${ui.chip} ${styles.chip}`}
-              aria-pressed={secondCameraId === one.id}
-              onClick={() => setSecondCameraId(one.id)}
-            >
+            <button key={one.id} type="button" className={ui.chip} aria-pressed={secondCameraId === one.id} onClick={() => setSecondCameraId(one.id)}>
               {t('composer.split', { name: one.name })}
             </button>
           ))}
@@ -161,7 +150,7 @@ export function Composer({ camera, grow, pending, onRender, onClose }: ComposerP
 
         <Group label={t('composer.format')}>
           {ASPECTS.map(one => (
-            <button key={one} type="button" className={`${ui.chip} ${styles.chip}`} aria-pressed={one === aspect} onClick={() => setAspect(one)}>
+            <button key={one} type="button" className={ui.chip} aria-pressed={one === aspect} onClick={() => setAspect(one)}>
               {t(`composer.aspect.${one}`)}
             </button>
           ))}

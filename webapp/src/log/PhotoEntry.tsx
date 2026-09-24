@@ -131,7 +131,7 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
           <button
             key={tag}
             type="button"
-            className={`${ui.chip} ${styles.target}`}
+            className={ui.chip}
             data-chosen={tags.includes(tag)}
             aria-pressed={tags.includes(tag)}
             onClick={() => toggle(tag)}
@@ -142,7 +142,7 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
         {tags
           .filter(tag => !TAGS.includes(tag))
           .map(tag => (
-            <button key={tag} type="button" className={`${ui.chip} ${styles.target}`} data-chosen aria-pressed onClick={() => toggle(tag)}>
+            <button key={tag} type="button" className={ui.chip} data-chosen aria-pressed onClick={() => toggle(tag)}>
               {tag}
             </button>
           ))}

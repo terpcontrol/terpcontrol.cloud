@@ -75,7 +75,7 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
           <button
             key={one}
             type="button"
-            className={`${ui.chip} ${styles.chip}`}
+            className={ui.chip}
             aria-pressed={one === range}
             // A stretch of a grow cannot be asked for where nothing is growing, so it is not offered there.
             disabled={rangeNeedsGrow(one) && growId === null}
@@ -95,7 +95,7 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
             this those months have no address at all: every other way in names
             the grow standing here now. */}
         {data && data.grows.length > 1 ? (
-          <span className={`${ui.chip} ${styles.chip} ${styles.growChip}`}>
+          <span className={`${ui.chip} ${styles.growChip}`}>
             <span className={styles.growName}>{data.grows.find(one => one.growId === growId)?.name ?? t('timeline.pickGrow')}</span>
             <ChevronDown size={13} strokeWidth={1.75} aria-hidden />
             <select
@@ -121,7 +121,7 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
         {/* The way into the Charts view. It is not a tab of its own - it opens
             on the grow standing here, and this row is where the window is
             chosen. */}
-        <Link to={`/charts?space=${spaceId}`} className={`${ui.chip} ${styles.chip}`}>
+        <Link to={`/charts?space=${spaceId}`} className={ui.chip}>
           <LineChart size={13} strokeWidth={1.75} aria-hidden />
           {t('charts.title')}
         </Link>
