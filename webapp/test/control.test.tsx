@@ -11,9 +11,21 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Device, Plan, PlanStep, PlanTransition } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
 import { Control } from '@/screens/control/Control';
+import { PlanEditor } from '@/screens/control/PlanEditor';
 import { PlanPanel } from '@/screens/control/PlanPanel';
 import { movesOf } from '@/screens/control/plan-clock';
-import { CLIMATE_FIGURES, draftOf, editEffect, figureOf, moveStep, otherSections, withFigure } from '@/screens/control/plan-edit';
+import {
+  asWritableBy,
+  CLIMATE_FIGURES,
+  draftOf,
+  editEffect,
+  emptyDraft,
+  figureOf,
+  figuresFor,
+  moveStep,
+  otherSections,
+  withFigure,
+} from '@/screens/control/plan-edit';
 import { climateLanding } from '@/ui/climate-hardware';
 
 /**
@@ -59,6 +71,7 @@ vi.mock('@/api/plans', async importOriginal => ({
     isPending: false,
   }),
   useStopPlan: () => ({ mutate: () => {}, error: null, isPending: false }),
+  useSavePlan: () => ({ mutate: () => {}, error: null, isPending: false }),
 }));
 
 vi.mock('@/api/session', async importOriginal => {
@@ -145,6 +158,12 @@ const device = (lastSeenAt = DateTime.now().minus({ seconds: 20 })): Device => (
     socketsReportedAt: null,
   },
 });
+
+/** The same controller with the sensor the CO2 target needs, which the one above does not report. */
+const withCo2 = (): Device => {
+  const one = device();
+  return { ...one, state: { ...one.state, hardware: { ...one.state.hardware, co2: 'on' } } };
+};
 
 const draw = (one: Device = device()) =>
   render(
@@ -428,6 +447,54 @@ describe('the settings a step carries', () => {
 
   it('names the sections it does not edit rather than hiding them', () => {
     expect(otherSections({ day: { temperature: 24 }, workmode: 'small' })).toEqual(['workmode']);
+  });
+
+  /**
+   * A controller without the sensor forces its CO2 target to nothing as it reads
+   * the document, so a step offering the figure would be storing a number the
+   * hardware is known not to run - the figure the manual targets page on the
+   * same tab draws as a dead row.
+   */
+  it('offers no CO2 figure for a controller that reports no sensor, and offers one for a controller that does', () => {
+    expect(figuresFor(device()).map(one => one.key)).not.toContain('co2');
+    expect(figuresFor(withCo2()).map(one => one.key)).toContain('co2');
+  });
+
+  it('draws the CO2 row of the step editor dead for such a controller, in the words the targets page uses', () => {
+    const draft = draftOf(plan({ steps: [step({ settings: { day: { temperature: 26 }, co2: { target: 900 } } })] }));
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <PlanEditor device={device()} plan={null} draft={draft} onClose={() => {}} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // A draft of one step opens that step, which is the sheet's own rule.
+    expect(screen.getByText('needs a CO₂ sensor')).toBeInTheDocument();
+    expect(screen.queryByText('CO₂ target · ppm')).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue('900')).not.toBeInTheDocument();
+  });
+
+  it('takes a CO2 target out of a step opened for such a controller, so the step writes what it shows', () => {
+    const carried = {
+      ...emptyDraft('A plan', { mode: 'off' as const, email: null, writeEntries: true }),
+      steps: [
+        {
+          key: 'draft-x',
+          name: 'Veg',
+          stage: null,
+          preset: null,
+          duration: { value: 1, unit: 'weeks' as const },
+          settings: { co2: { target: 900 }, day: { temperature: 24 } },
+          waitForConfirmation: false,
+          confirmationMessage: null,
+        },
+      ],
+    };
+
+    expect(asWritableBy(carried, device()).steps[0].settings).toEqual({ day: { temperature: 24 } });
+    expect(asWritableBy(carried, withCo2()).steps[0].settings).toEqual({ co2: { target: 900 }, day: { temperature: 24 } });
   });
 });
 

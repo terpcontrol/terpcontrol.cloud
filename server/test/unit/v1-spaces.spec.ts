@@ -571,8 +571,13 @@ const TUNED: DeviceConfiguration = {
   lights: { sunrise: 15, sunset: 15, limit: 100 },
 };
 
-const aController = (spaceId: string | null = SPACE, configuration: DeviceConfiguration | null = TUNED) =>
-  db.devices.create({ id: CONTROLLER, type: 'controller', ownerId: OWNER, spaceId, configuration });
+/**
+ * A controller with the CO2 sensor the preset's CO2 row needs. One that reports
+ * none holds its target at zero whatever it is told, so the row is left out for
+ * it - which is its own case below.
+ */
+const aController = (spaceId: string | null = SPACE, configuration: DeviceConfiguration | null = TUNED, co2: 'on' | 'off' = 'on') =>
+  db.devices.create({ id: CONTROLLER, type: 'controller', ownerId: OWNER, spaceId, configuration, state: { hardware: { co2 } } });
 
 const aGrowIn = (id: string, spaceId: string) =>
   db.grows.create({
@@ -611,6 +616,25 @@ describe('applying a climate preset', () => {
       co2: { target: 900 },
       lights: { limit: 80 },
     });
+  });
+
+  /**
+   * The firmware of a controller that reports no CO2 sensor forces the target to
+   * zero as it reads the document, so a preset writing one left the cloud holding
+   * and showing 1000 ppm for hardware running nothing - on a tab whose manual
+   * targets page draws that row dead. The section it already had is kept; the
+   * figure is simply not put there.
+   */
+  it('writes no CO2 target to a controller that reports no sensor, and leaves the section it had alone', async () => {
+    await aController(SPACE, TUNED, 'off');
+    const applied = await presets.apply(session(OWNER), SPACE, { stage: 'vegetative' });
+
+    expect(applied.deviceIds).toEqual([CONTROLLER]);
+    expect(configured[0].settings.co2).toBeUndefined();
+    expect(configured[0].settings).toMatchObject({ day: { temperature: 26, humidity: 62 }, lights: { limit: 80 } });
+
+    const stored = await db.devices.findOne({ id: CONTROLLER }).lean();
+    expect(stored?.configuration?.co2).toEqual({ target: 300 });
   });
 
   it('keeps the hour the light comes on and the tuning around it, and writes only how long it stays on', async () => {

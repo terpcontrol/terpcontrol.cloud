@@ -37,13 +37,21 @@ export class ClimatePresetsService implements ClimatePresets {
    * and a fan have nothing a climate could be written to. A device the broker
    * could not be told about costs the others nothing - the tent is put on the
    * preset as far as it can be, and the answer says which parts of it were.
+   *
+   * What the hardware reported is read with the document, because one figure of
+   * the preset depends on it: a controller that says it has no CO2 sensor is one
+   * whose firmware holds the target at zero, so the preset's CO2 row is left out
+   * for that device rather than stored as a target nothing runs.
    */
   public async writeTo(spaceId: string, stage: GrowthStage, preset: string | null): Promise<AppliedPreset[]> {
-    const here = await this.devices.find({ spaceId }, { id: 1, configuration: 1 }).lean<StoredDevice[]>();
+    const here = await this.devices.find({ spaceId }, { id: 1, configuration: 1, 'state.hardware': 1 }).lean<StoredDevice[]>();
     const applied: AppliedPreset[] = [];
 
     for (const device of here) {
-      const settings = targetsOf(device.configuration) === null ? null : presetConfiguration(stage, preset, device.configuration);
+      const settings =
+        targetsOf(device.configuration) === null
+          ? null
+          : presetConfiguration(stage, preset, device.configuration, device.state?.hardware?.co2 === 'on');
       if (!settings) continue;
 
       try {

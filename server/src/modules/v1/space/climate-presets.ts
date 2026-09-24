@@ -24,8 +24,21 @@ const DAY_SECONDS = 24 * 60 * 60;
  * The hour the light comes on is the grower's and is kept; what a preset says
  * about light is how long it stays on. `curing` has no row, and a stage with no
  * row writes nothing at all rather than a climate somebody invented.
+ *
+ * The CO2 target is written only where the device says it can measure one. A
+ * controller that reports no sensor forces the target to zero as it reads the
+ * document, so writing the preset's figure into one left the cloud holding and
+ * showing a target of 1000 for hardware running nothing - and the app's own
+ * manual targets page draws that row dead and says it needs a sensor. What is
+ * already in the section is kept either way; nothing is written over, the
+ * figure is simply not put there.
  */
-export const presetConfiguration = (stage: GrowthStage, preset: string | null, current: DeviceConfiguration | null): DeviceConfiguration | null => {
+export const presetConfiguration = (
+  stage: GrowthStage,
+  preset: string | null,
+  current: DeviceConfiguration | null,
+  hasCo2Sensor: boolean,
+): DeviceConfiguration | null => {
   const wanted = climatePreset(stage, preset);
   if (!wanted) return null;
 
@@ -40,7 +53,7 @@ export const presetConfiguration = (stage: GrowthStage, preset: string | null, c
   return {
     day: { ...section('day'), temperature: wanted.dayTemperature, humidity: wanted.dayHumidity },
     night: { ...section('night'), temperature: wanted.nightTemperature, humidity: wanted.nightHumidity },
-    co2: { ...section('co2'), target: wanted.co2 },
+    ...(hasCo2Sensor ? { co2: { ...section('co2'), target: wanted.co2 } } : {}),
     lights: { ...section('lights'), limit: wanted.lightLimit },
     daynight: wanted.lightHours === null ? daynight : { ...daynight, day: lightsOn, night: (lightsOn + wanted.lightHours * 60 * 60) % DAY_SECONDS },
   };

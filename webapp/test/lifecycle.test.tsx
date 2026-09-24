@@ -470,12 +470,19 @@ const standing = (over: Partial<Device> = {}): Device => ({
     updateStartedAt: null,
     updateEndedAt: null,
     maintenanceUntil: null,
-    hardware: {},
+    // With the sensor, which is what makes the preset's CO2 row one that is
+    // written at all: a controller reporting none holds its target at zero.
+    hardware: { co2: 'on' },
     socketStateChangedAt: {},
     socketsReportedAt: null,
   },
   ...over,
 });
+
+const withoutCo2 = (over: Partial<Device> = {}): Device => {
+  const one = standing(over);
+  return { ...one, state: { ...one.state, hardware: { ...one.state.hardware, co2: 'off' } } };
+};
 
 describe('the climate preset sheet', () => {
   it('says a preset writes the target climate and nothing else, and which grow follows it', () => {
@@ -484,6 +491,21 @@ describe('the climate preset sheet', () => {
 
     expect(screen.getByText(/A preset writes the target climate and nothing else/)).toHaveTextContent('stay as they are');
     expect(screen.getByText('Spring run enters the stage with it.')).toBeInTheDocument();
+  });
+
+  /**
+   * The firmware of a controller without the sensor forces its CO2 target to
+   * zero as it reads the document, so the preset does not write one - and a
+   * sheet that went on naming the CO2 target would be promising the one figure
+   * of the six that could not land.
+   */
+  it('leaves the CO2 target out of what it promises where nothing standing here reports a sensor', () => {
+    hardware.devices = [withoutCo2()];
+    draw(<PresetSheet overview={overview} onClose={() => {}} />);
+
+    const said = screen.getByText(/A preset writes the target climate and nothing else/);
+    expect(said).toHaveTextContent('Nothing standing here reports a CO₂ sensor, so no CO₂ target is written');
+    expect(said).toHaveTextContent('stay as they are');
   });
 
   it('says curing writes nothing at all rather than offering a climate it has not got', () => {

@@ -7,7 +7,7 @@ import { serverNow } from '@/api/clock';
 import { useSaveConfiguration } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
-import { awaitingClimate, statesTargets } from '@/ui/climate-hardware';
+import { awaitingClimate, hasCo2Sensor, statesTargets } from '@/ui/climate-hardware';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -19,7 +19,6 @@ import { TargetRow } from './TargetRow';
 import {
   draftOf,
   equalsPreset,
-  hasCo2Sensor,
   leafOffset,
   lightWindowLabel,
   prefilled,

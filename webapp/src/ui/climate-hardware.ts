@@ -95,3 +95,23 @@ export type ClimateLanding = 'document' | 'awaited' | 'nowhere';
 
 export const climateLanding = (device: Device): ClimateLanding =>
   statesTargets(device.configuration) ? 'document' : awaitingClimate(device) ? 'awaited' : 'nowhere';
+
+/**
+ * Whether the device may have a CO2 sensor on it.
+ *
+ * Without one the firmware forces the CO2 target to zero the moment it reads a
+ * document, so a target written for such a controller is a figure the cloud
+ * holds and the hardware does not run. The question lives here beside the rest
+ * of what is asked of the hardware because three write paths ask it - the manual
+ * targets page, a plan's step editor and the preset the server writes - and only
+ * the first of them used to, which is how the other two came to offer a figure
+ * it drew as a dead row on the same tab.
+ *
+ * The report is read the way the server reads it in `common/v1/sentinels.ts`:
+ * `off` is the firmware saying it looked for an SCD and found none, and a key
+ * that is not there at all is a build too old to have been asked - "firmware too
+ * old to say" rather than "not fitted". Reading that absence as a no put "needs a
+ * CO2 sensor" on a fridge that was streaming 300 ppm at the time, so only an
+ * explicit `off` refuses a target.
+ */
+export const hasCo2Sensor = (device: Device): boolean => device.state.hardware.co2 !== 'off';

@@ -1,5 +1,6 @@
 import type { DateTime } from 'luxon';
-import type { DeviceConfiguration, GrowthStage, Plan, PlanNotify, PlanReplace, PlanStep, StepDuration } from '@fg2/shared-types/v1';
+import type { Device, DeviceConfiguration, GrowthStage, Plan, PlanNotify, PlanReplace, PlanStep, StepDuration } from '@fg2/shared-types/v1';
+import { hasCo2Sensor } from '@/ui/climate-hardware';
 import { elapsedMs } from './plan-clock';
 
 /**
@@ -123,6 +124,40 @@ export const CLIMATE_FIGURES: Figure[] = [
 ];
 
 const CLIMATE_SECTIONS = [...new Set(CLIMATE_FIGURES.map(figure => figure.section))];
+
+/**
+ * The figures a step may write to this controller.
+ *
+ * A controller that reports no CO2 sensor is one the firmware holds at a target
+ * of zero: it forces `co2.target` to nothing as it reads a document, whatever
+ * the document says. A step offering the figure would therefore be offering to
+ * store a number nobody runs, on the same tab whose manual targets page draws
+ * that row dead and says what it needs.
+ */
+export const figuresFor = (device: Device): Figure[] =>
+  hasCo2Sensor(device) ? CLIMATE_FIGURES : CLIMATE_FIGURES.filter(figure => figure.section !== 'co2');
+
+/**
+ * A draft with every figure this controller cannot run taken out of its steps,
+ * which is what opening the editor for one hands to the fields.
+ *
+ * Hiding the row would leave a plan carrying a CO2 target that goes on being
+ * published and stored while nothing on the screen says so; taking it out means
+ * the step writes what the step shows. The section goes with the last figure in
+ * it, so a step that asked for nothing else says it writes nothing.
+ */
+export const asWritableBy = (draft: PlanDraft, device: Device): PlanDraft => {
+  const dropped = CLIMATE_FIGURES.filter(figure => !figuresFor(device).includes(figure));
+  if (dropped.length === 0) return draft;
+
+  return {
+    ...draft,
+    steps: draft.steps.map(step => ({
+      ...step,
+      settings: dropped.reduce((settings, figure) => withFigure(settings, figure, null, null), step.settings),
+    })),
+  };
+};
 
 const sectionOf = (settings: DeviceConfiguration, name: string): Record<string, unknown> | null => {
   const value = settings[name];

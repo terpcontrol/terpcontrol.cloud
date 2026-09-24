@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device, GrowthStage, Plan, PlanNotifyMode } from '@fg2/shared-types/v1';
 import { useSavePlan } from '@/api/plans';
 import { Sheet } from '@/log/Sheet';
-import { awaitingClimate } from '@/ui/climate-hardware';
+import { awaitingClimate, hasCo2Sensor } from '@/ui/climate-hardware';
 import { presetsOf } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
@@ -12,8 +12,9 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { DURATION_UNITS } from './plan-clock';
 import {
-  CLIMATE_FIGURES,
+  asWritableBy,
   editEffect,
+  figuresFor,
   figureOf,
   moveStep,
   newStep,
@@ -51,7 +52,10 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
   const { t } = useTranslation();
   const now = useNow();
   const save = useSavePlan(device.id);
-  const [draft, setDraft] = useState<PlanDraft>(opened);
+  // The draft is taken as this controller could run it: a figure its hardware
+  // is known to throw away is dropped on the way in, so what the fields show is
+  // what a save would write.
+  const [draft, setDraft] = useState<PlanDraft>(() => asWritableBy(opened, device));
   /** One step is open at a time: two editors would be two answers to what is being written. */
   const [open, setOpen] = useState<string | null>(opened.steps.length === 1 ? opened.steps[0].key : null);
 
@@ -249,14 +253,26 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
 
       <span className="label">{t('space.control.step.settings')}</span>
       <div className={styles.figures}>
-        {CLIMATE_FIGURES.map(figure => (
+        {figuresFor(device).map(figure => (
           <FigureField key={figure.key} figure={figure} step={step} device={device} onChange={onChange} />
         ))}
+        {/* The figure this controller cannot run keeps its place and says what
+            it needs, rather than leaving a gap that reads as a screen that
+            forgot it. It is the row the manual targets page draws, in the same
+            words. */}
+        {hasCo2Sensor(device) ? null : (
+          <span className={styles.figure}>
+            <span className={styles.figureLabel}>{t('space.control.figure.co2')}</span>
+            <span className={`mono ${styles.figureNeeds}`}>{t('targets.needsCo2')}</span>
+          </span>
+        )}
       </div>
       <p className={ui.note}>
         {writesNothing(step.settings)
           ? t('space.control.step.writesNothing')
-          : t(awaiting ? 'space.control.step.writesNowhere' : 'space.control.step.writesSections')}
+          : awaiting
+            ? t('space.control.step.writesNowhere')
+            : t(hasCo2Sensor(device) ? 'space.control.step.writesSections' : 'space.control.step.writesSectionsNoCo2')}
       </p>
       {extra.length > 0 ? <p className={ui.note}>{t('space.control.step.alsoWrites', { sections: extra.join(', ') })}</p> : null}
       {device.configuration ? (
@@ -284,9 +300,9 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
   );
 }
 
-/** The six figures of the step's settings as the controller states them now, for a step that should hold what the tent already holds. */
+/** The figures of the step's settings as the controller states them now, for a step that should hold what the tent already holds. */
 const fromController = (step: StepDraft, device: Device) =>
-  CLIMATE_FIGURES.reduce(
+  figuresFor(device).reduce(
     (settings, figure) => withFigure(settings, figure, figureOf(device.configuration ?? {}, figure), device.configuration),
     step.settings,
   );

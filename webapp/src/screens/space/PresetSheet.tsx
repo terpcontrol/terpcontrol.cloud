@@ -6,7 +6,7 @@ import { useDevices } from '@/api/devices';
 import { useSetPresetPrompt } from '@/api/spaces';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { Sheet } from '@/log/Sheet';
-import { awaitingClimate, statesTargets } from '@/ui/climate-hardware';
+import { awaitingClimate, hasCo2Sensor, statesTargets } from '@/ui/climate-hardware';
 import { Refused } from '@/ui/PageState';
 import { presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
@@ -59,8 +59,15 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
   // for a shared or public read, and a sheet that knows nothing about the
   // hardware says nothing about it rather than guessing at the empty case.
   const hardware = overview.deviceIds === null ? null : (devices.data?.items.filter(device => device.spaceId === overview.spaceId) ?? null);
-  const nothingToWriteTo = hardware !== null && !hardware.some(device => statesTargets(device.configuration));
+  const takers = hardware?.filter(device => statesTargets(device.configuration)) ?? null;
+  const nothingToWriteTo = takers !== null && takers.length === 0;
   const willStateOne = hardware !== null && hardware.some(awaitingClimate);
+  // What the preset would actually put there: a controller that reports no CO2
+  // sensor holds its target at zero whatever it is told, so the figure is not
+  // written to one and must not be promised on its behalf. A reader who was not
+  // told what stands here knows nothing either way and is told the general
+  // thing, which is what the rest of this sheet does with that case.
+  const writesCo2 = takers === null || takers.length === 0 || takers.some(hasCo2Sensor);
   const offered = presetsOf(stage);
 
   const pickStage = (next: GrowthStage) => {
@@ -105,7 +112,11 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
         ) : null}
 
         <ul className={styles.says}>
-          <li>{t(writesClimate(stage) ? 'space.presets.writesClimateOnly' : 'space.presets.noClimateRow')}</li>
+          <li>
+            {writesClimate(stage)
+              ? t(writesCo2 ? 'space.presets.writesClimateOnly' : 'space.presets.writesClimateOnlyNoCo2')
+              : t('space.presets.noClimateRow')}
+          </li>
           {writesClimate(stage) && nothingToWriteTo ? (
             <li>{t(willStateOne ? 'space.presets.waitingToWriteTo' : 'space.presets.nothingToWriteTo')}</li>
           ) : null}

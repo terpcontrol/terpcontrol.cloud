@@ -353,6 +353,16 @@
   color: var(--label);
 }
 
+/* A figure the hardware standing here cannot run: the row keeps its place in
+   the grid, so the six read as the two halves of the cycle they are, and says
+   what is missing where the number would have been - the same words the manual
+   targets page says in the same place. */
+.figureNeeds {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
 .toggle {
   display: flex;
   align-items: center;

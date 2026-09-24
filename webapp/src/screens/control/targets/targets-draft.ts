@@ -1,5 +1,5 @@
 import type { DateTime } from 'luxon';
-import type { Device, DeviceConfiguration, DeviceSettings, GrowthStage } from '@fg2/shared-types/v1';
+import type { DeviceConfiguration, DeviceSettings, GrowthStage } from '@fg2/shared-types/v1';
 import { climatePreset, PRESETS_OF_STAGE, STAGES_WITH_CLIMATE, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { serverNow } from '@/api/clock';
@@ -164,22 +164,6 @@ export const equalsPreset = (draft: TargetsDraft, preset: ClimatePreset, hasCo2:
 export const sameDraft = (a: TargetsDraft, b: TargetsDraft): boolean => (Object.keys(a) as (keyof TargetsDraft)[]).every(key => a[key] === b[key]);
 
 /* ------------------------------------------------------------- the figures */
-
-/**
- * Whether this device may have a CO2 sensor on it, which is what decides
- * whether the CO2 target it holds is drawn at all.
- *
- * The report is read the way the server reads it in `common/v1/sentinels.ts`:
- * `off` is the firmware saying it looked for an SCD and found none, and a key
- * that is not there at all is a build too old to have been asked - "firmware
- * too old to say" rather than "not fitted". Reading that absence as a no is
- * what put "needs a CO2 sensor" on a fridge that was streaming 300 ppm at the
- * time: the tent Overview one tab away printed both the live reading and the
- * 400 ppm target the device holds, while the one screen that could have changed
- * that target said the hardware for it was not there. A target the device holds
- * and the app will go on sending is one the app has to be able to show.
- */
-export const hasCo2Sensor = (device: Device): boolean => device.state.hardware.co2 !== 'off';
 
 /**
  * The VPD a pair of targets amounts to, worked out along the contract's own
