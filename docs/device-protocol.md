@@ -716,10 +716,10 @@ command.
 
 ### 8.3 `test` and `stoptest`
 
-`{ "action": "test", "outputs": { … } }` with all seven fields present. A caller may name fewer, and the ones it
-leaves out are sent as zero (`device-publisher.service.ts`): the firmware reads each field out of the document
-and a missing one reads as `0`, so an output left out of the command is an output switched off, not one left
-alone.
+`{ "action": "test", "outputs": { … } }`. The cloud does not send either action: `/v1` has no command for them,
+because the mode is an assembly check with every safeguard off and nothing a grower should reach. A caller on the
+broker has to send all seven fields, because the firmware reads each one out of the document and a missing one
+reads as `0` - an output left out of the command is an output switched off, not one left alone.
 
 The output names are the fridge's (`fridge.cpp:601-610`): `dehumidifier` and `co2` go to their pins as raw 8-bit
 values; `lights`, `fanint`, `fanext` and `fanbw` are percentages, multiplied by 2.55 into PWM; `heater` is a

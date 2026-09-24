@@ -299,7 +299,7 @@ describe('the document', () => {
     const kinds = (declaredBody('/v1/devices/{id}/commands') as { oneOf: { properties: { kind: { const: string } } }[] }).oneOf.map(
       member => member.properties.kind.const,
     );
-    expect(kinds).toEqual(expect.arrayContaining(['reboot', 'maintenance', 'test', 'socket_override', 'socket_set']));
+    expect(kinds).toEqual(expect.arrayContaining(['reboot', 'maintenance', 'capture_still', 'socket_override', 'socket_set']));
   });
 
   it('describes the query each validated route accepts', () => {

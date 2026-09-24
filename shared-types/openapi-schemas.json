@@ -2766,40 +2766,6 @@
       "forSeconds"
     ]
   },
-  "TestCommand": {
-    "type": "object",
-    "properties": {
-      "kind": {
-        "type": "string",
-        "const": "test"
-      },
-      "outputs": {
-        "type": "object",
-        "propertyNames": {
-          "$ref": "#/components/schemas/OutputMetric"
-        },
-        "additionalProperties": {
-          "type": "number"
-        }
-      }
-    },
-    "required": [
-      "kind",
-      "outputs"
-    ]
-  },
-  "StopTestCommand": {
-    "type": "object",
-    "properties": {
-      "kind": {
-        "type": "string",
-        "const": "stop_test"
-      }
-    },
-    "required": [
-      "kind"
-    ]
-  },
   "CaptureStillCommand": {
     "type": "object",
     "properties": {
@@ -2941,12 +2907,6 @@
       },
       {
         "$ref": "#/components/schemas/MaintenanceCommand"
-      },
-      {
-        "$ref": "#/components/schemas/TestCommand"
-      },
-      {
-        "$ref": "#/components/schemas/StopTestCommand"
       },
       {
         "$ref": "#/components/schemas/CaptureStillCommand"

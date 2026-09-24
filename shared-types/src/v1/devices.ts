@@ -368,6 +368,13 @@ export const socketPage = named('SocketPage', page(socket).extend({ capabilities
  * does not know; `kind` is `snake_case` like every other enum value here.
  *
  * None of these is stored or retried: the caller is waiting for the answer.
+ *
+ * The firmware's `test`/`stoptest` bench mode is deliberately not among them.
+ * Only the fridge acts on it - the fan hears it and reads nothing, the
+ * controller, plug and light drop it - and there it holds for about ten seconds
+ * per command, switches off every output it is not given and bypasses every
+ * safeguard the control loop keeps, the compressor's included. That is an
+ * assembly check, not something to offer beside a grower's climate.
  */
 
 export const rebootCommand = named('RebootCommand', z.object({ kind: z.literal('reboot') }));
@@ -376,18 +383,6 @@ export const maintenanceCommand = named(
   'MaintenanceCommand',
   z.object({ kind: z.literal('maintenance'), forSeconds: z.number().int() }),
 );
-
-/**
- * Drives the controller's own outputs by hand for as long as the test runs.
- * Partial: an output left out keeps doing what it was doing. The value is the
- * output's level, which is on/off for a relay and a percentage for a fan.
- */
-export const testCommand = named(
-  'TestCommand',
-  z.object({ kind: z.literal('test'), outputs: z.partialRecord(outputMetric, z.number()) }),
-);
-
-export const stopTestCommand = named('StopTestCommand', z.object({ kind: z.literal('stop_test') }));
 
 /** Asks for a still now. A controller answers for the one Terp Cam it pairs, so it names no camera. */
 export const captureStillCommand = named('CaptureStillCommand', z.object({ kind: z.literal('capture_still') }));
@@ -450,8 +445,6 @@ export const deviceCommand = named(
   z.discriminatedUnion('kind', [
     rebootCommand,
     maintenanceCommand,
-    testCommand,
-    stopTestCommand,
     captureStillCommand,
     socketOverrideCommand,
     socketSetCommand,

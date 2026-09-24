@@ -34,22 +34,6 @@ export interface CommandPublished {
   deviceOnline: boolean;
 }
 
-/**
- * The outputs a `test` names, which are the fridge's. The server has always sent
- * all seven to every type, and every one of them is sent every time: the
- * firmware reads each field out of the document and a missing one reads as zero,
- * so an output left out of the command is an output switched off.
- */
-const TEST_OUTPUTS: Readonly<Record<string, string>> = {
-  heater: 'heater',
-  dehumidifier: 'dehumidifier',
-  co2: 'co2',
-  light: 'lights',
-  fanInternal: 'fanint',
-  fanExternal: 'fanext',
-  fanBackwall: 'fanbw',
-};
-
 @Injectable()
 export class DevicePublisherService {
   constructor(
@@ -186,13 +170,6 @@ export class DevicePublisherService {
         return { action: 'reboot' };
       case 'maintenance':
         return maintenancePayload(command.forSeconds);
-      case 'test':
-        return {
-          action: 'test',
-          outputs: Object.fromEntries(Object.entries(TEST_OUTPUTS).map(([metric, output]) => [output, command.outputs[metric] ?? 0])),
-        };
-      case 'stop_test':
-        return { action: 'stoptest' };
       case 'capture_still':
         return { action: 'cam_capture' };
       case 'socket_override':

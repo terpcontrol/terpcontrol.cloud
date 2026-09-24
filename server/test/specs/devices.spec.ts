@@ -189,6 +189,14 @@ describe('what reaches the hardware', () => {
     expect(JSON.parse(sent.payload)).toEqual({ action: 'maintenance', durationMinutes: 5 });
   });
 
+  it('refuses the firmware bench test, which the contract does not offer', async () => {
+    await owner.client
+      .post(`/v1/devices/${device.deviceId}/commands`)
+      .send({ kind: 'test', outputs: { heater: 100 } })
+      .expect(400);
+    await owner.client.post(`/v1/devices/${device.deviceId}/commands`).send({ kind: 'stop_test' }).expect(400);
+  });
+
   it('answers what the device measured, with the age of every reading', async () => {
     await simulator.reportStatus({ temperature: 21.5, humidity: 55 });
     await settle(1000);

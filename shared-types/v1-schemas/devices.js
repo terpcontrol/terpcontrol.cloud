@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.captureStillCommand = exports.stopTestCommand = exports.testCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.adminDeviceCreate = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.devicePage = exports.device = exports.deviceState = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
-exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = void 0;
+exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.captureStillCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.adminDeviceCreate = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.devicePage = exports.device = exports.deviceState = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
+exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 const socket_report_js_1 = require("./socket-report.js");
@@ -268,16 +268,16 @@ exports.socketPage = (0, common_js_1.named)('SocketPage', (0, common_js_1.page)(
  * does not know; `kind` is `snake_case` like every other enum value here.
  *
  * None of these is stored or retried: the caller is waiting for the answer.
+ *
+ * The firmware's `test`/`stoptest` bench mode is deliberately not among them.
+ * Only the fridge acts on it - the fan hears it and reads nothing, the
+ * controller, plug and light drop it - and there it holds for about ten seconds
+ * per command, switches off every output it is not given and bypasses every
+ * safeguard the control loop keeps, the compressor's included. That is an
+ * assembly check, not something to offer beside a grower's climate.
  */
 exports.rebootCommand = (0, common_js_1.named)('RebootCommand', zod_1.z.object({ kind: zod_1.z.literal('reboot') }));
 exports.maintenanceCommand = (0, common_js_1.named)('MaintenanceCommand', zod_1.z.object({ kind: zod_1.z.literal('maintenance'), forSeconds: zod_1.z.number().int() }));
-/**
- * Drives the controller's own outputs by hand for as long as the test runs.
- * Partial: an output left out keeps doing what it was doing. The value is the
- * output's level, which is on/off for a relay and a percentage for a fan.
- */
-exports.testCommand = (0, common_js_1.named)('TestCommand', zod_1.z.object({ kind: zod_1.z.literal('test'), outputs: zod_1.z.partialRecord(common_js_1.outputMetric, zod_1.z.number()) }));
-exports.stopTestCommand = (0, common_js_1.named)('StopTestCommand', zod_1.z.object({ kind: zod_1.z.literal('stop_test') }));
 /** Asks for a still now. A controller answers for the one Terp Cam it pairs, so it names no camera. */
 exports.captureStillCommand = (0, common_js_1.named)('CaptureStillCommand', zod_1.z.object({ kind: zod_1.z.literal('capture_still') }));
 /**
@@ -324,8 +324,6 @@ exports.socketSetCommand = (0, common_js_1.named)('SocketSetCommand', zod_1.z.ob
 exports.deviceCommand = (0, common_js_1.named)('DeviceCommand', zod_1.z.discriminatedUnion('kind', [
     exports.rebootCommand,
     exports.maintenanceCommand,
-    exports.testCommand,
-    exports.stopTestCommand,
     exports.captureStillCommand,
     exports.socketOverrideCommand,
     exports.socketSetCommand,

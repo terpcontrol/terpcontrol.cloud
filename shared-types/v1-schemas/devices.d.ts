@@ -600,6 +600,13 @@ export declare const socketPage: z.ZodObject<{
  * does not know; `kind` is `snake_case` like every other enum value here.
  *
  * None of these is stored or retried: the caller is waiting for the answer.
+ *
+ * The firmware's `test`/`stoptest` bench mode is deliberately not among them.
+ * Only the fridge acts on it - the fan hears it and reads nothing, the
+ * controller, plug and light drop it - and there it holds for about ten seconds
+ * per command, switches off every output it is not given and bypasses every
+ * safeguard the control loop keeps, the compressor's included. That is an
+ * assembly check, not something to offer beside a grower's climate.
  */
 export declare const rebootCommand: z.ZodObject<{
     kind: z.ZodLiteral<"reboot">;
@@ -607,28 +614,6 @@ export declare const rebootCommand: z.ZodObject<{
 export declare const maintenanceCommand: z.ZodObject<{
     kind: z.ZodLiteral<"maintenance">;
     forSeconds: z.ZodNumber;
-}, z.core.$strip>;
-/**
- * Drives the controller's own outputs by hand for as long as the test runs.
- * Partial: an output left out keeps doing what it was doing. The value is the
- * output's level, which is on/off for a relay and a percentage for a fan.
- */
-export declare const testCommand: z.ZodObject<{
-    kind: z.ZodLiteral<"test">;
-    outputs: z.ZodRecord<z.ZodEnum<{
-        dehumidifier: "dehumidifier";
-        heater: "heater";
-        light: "light";
-        co2: "co2";
-        fan: "fan";
-        relais: "relais";
-        fanInternal: "fanInternal";
-        fanExternal: "fanExternal";
-        fanBackwall: "fanBackwall";
-    }> & z.core.$partial, z.ZodNumber>;
-}, z.core.$strip>;
-export declare const stopTestCommand: z.ZodObject<{
-    kind: z.ZodLiteral<"stop_test">;
 }, z.core.$strip>;
 /** Asks for a still now. A controller answers for the one Terp Cam it pairs, so it names no camera. */
 export declare const captureStillCommand: z.ZodObject<{
@@ -698,21 +683,6 @@ export declare const deviceCommand: z.ZodDiscriminatedUnion<[z.ZodObject<{
 }, z.core.$strip>, z.ZodObject<{
     kind: z.ZodLiteral<"maintenance">;
     forSeconds: z.ZodNumber;
-}, z.core.$strip>, z.ZodObject<{
-    kind: z.ZodLiteral<"test">;
-    outputs: z.ZodRecord<z.ZodEnum<{
-        dehumidifier: "dehumidifier";
-        heater: "heater";
-        light: "light";
-        co2: "co2";
-        fan: "fan";
-        relais: "relais";
-        fanInternal: "fanInternal";
-        fanExternal: "fanExternal";
-        fanBackwall: "fanBackwall";
-    }> & z.core.$partial, z.ZodNumber>;
-}, z.core.$strip>, z.ZodObject<{
-    kind: z.ZodLiteral<"stop_test">;
 }, z.core.$strip>, z.ZodObject<{
     kind: z.ZodLiteral<"capture_still">;
 }, z.core.$strip>, z.ZodObject<{

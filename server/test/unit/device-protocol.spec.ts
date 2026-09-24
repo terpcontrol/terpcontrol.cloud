@@ -453,14 +453,6 @@ describe('what the cloud tells a device', () => {
     expect((await stored())?.state.maintenanceUntil).not.toBeNull();
   });
 
-  it('names every test output, because one left out is one switched off', async () => {
-    await device();
-
-    await publisher.command(DEVICE, { kind: 'test', outputs: { heater: 50, light: 100 } });
-
-    expect(sent()).toEqual({ action: 'test', outputs: { heater: 50, dehumidifier: 0, co2: 0, lights: 100, fanint: 0, fanext: 0, fanbw: 0 } });
-  });
-
   it('adds a socket to a role when no slot is named, and configures the named one otherwise', async () => {
     await device({ state: { hardware: { sockets_n: '3', socket_list0: 'heater|AA|10.0.0.1,light|BB|10.0.0.2,heater|CC|10.0.0.3' } } as never });
 

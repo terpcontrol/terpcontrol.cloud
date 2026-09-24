@@ -77,8 +77,7 @@ export type SocketState = 'on' | 'off' | 'unknown';
 
 export type SocketOverrideState = 'on' | 'off' | 'auto';
 
-export type DeviceCommand =
-  RebootCommand | MaintenanceCommand | TestCommand | StopTestCommand | CaptureStillCommand | SocketOverrideCommand | SocketSetCommand;
+export type DeviceCommand = RebootCommand | MaintenanceCommand | CaptureStillCommand | SocketOverrideCommand | SocketSetCommand;
 
 export type DurationUnit = 'minutes' | 'hours' | 'days' | 'weeks';
 
@@ -988,17 +987,6 @@ export interface RebootCommand {
 export interface MaintenanceCommand {
   kind: 'maintenance';
   forSeconds: number;
-}
-
-export interface TestCommand {
-  kind: 'test';
-  outputs: {
-    [k: string]: number;
-  };
-}
-
-export interface StopTestCommand {
-  kind: 'stop_test';
 }
 
 export interface CaptureStillCommand {
