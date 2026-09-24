@@ -304,6 +304,35 @@ describe('what the builder makes of it', () => {
     expect({ width: written.width, height: written.height }).toEqual(size);
   });
 
+  /**
+   * The span of a film is the window that was asked for, and the readings
+   * inside it begin whenever the device began reporting - so the first bucket
+   * of a "Today" film is empty on every device that was off at midnight. The
+   * command of the first point is the one thing that made this fatal: a path
+   * that opens with an L is not path data, and the renderer drew the panel, the
+   * two readings and the cursor over a fifth of every frame with no curve in
+   * it and nothing anywhere saying the curve had been dropped.
+   */
+  it('starts the curve at the first reading, on a span that opens before the device was reporting', () => {
+    const readings = [
+      { measuredAt: '2026-08-20T00:00:00.000Z', value: null },
+      { measuredAt: '2026-08-20T06:00:00.000Z', value: null },
+      { measuredAt: '2026-08-20T12:00:00.000Z', value: 24.5 },
+      { measuredAt: '2026-08-20T18:00:00.000Z', value: 27.5 },
+    ];
+    const context = { growStartedAt: null, temperature: readings, humidity: readings, light: [], captions: [] };
+
+    const layer = overlayLayer(
+      { at: new Date('2026-08-20T18:00:00.000Z'), width: 1080, height: 1920 },
+      { dayCounter: false, climate: true, entries: false },
+      context,
+    )!;
+    const paths = [...layer.matchAll(/<path d="([^"]*)"/g)].map(found => found[1]);
+
+    expect(paths).toHaveLength(2);
+    for (const path of paths) expect(path.startsWith('M')).toBe(true);
+  });
+
   it('draws nothing where every overlay that was asked for has nothing to say', () => {
     const empty = { growStartedAt: null, temperature: [], humidity: [], light: [], captions: [] };
 

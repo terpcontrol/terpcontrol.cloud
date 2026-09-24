@@ -156,13 +156,26 @@ const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | 
     const high = Math.max(...values);
     const range = Math.max(high - low, 1);
 
+    // The first command of a path has to be a moveto, and the one that decides
+    // it is the first point actually drawn - not the first slot of the series.
+    // A span that opens before the readings do, which is every "Today" film
+    // asked for before the device's first report of the day and every longer
+    // film across a day the device was off, has a null in that slot; the path
+    // then began with an L, which is not path data at all, and the renderer
+    // drew the panel with no curve in it and said nothing about the curve it
+    // had dropped.
+    let started = false;
+
     const path = line.points
       .flatMap((point, index) => {
         if (point.value === null) return [];
 
         const x = left + (width * index) / Math.max(line.points.length - 1, 1);
         const y = top + height - ((point.value - low) / range) * height * 0.8 - height * 0.1;
-        return [`${index === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`];
+        const command = started ? 'L' : 'M';
+        started = true;
+
+        return [`${command}${x.toFixed(1)} ${y.toFixed(1)}`];
       })
       .join(' ');
 
