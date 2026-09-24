@@ -75,6 +75,20 @@ select {
   font-size: inherit;
 }
 
+/* A figure is typed, never stepped: the browser's spinner crowded the unit
+   beside every number field that had one, and a target or a bound is typed
+   in one go rather than nudged a tenth at a time. */
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
 /* Figures, timestamps and captions: tabular, so a column of numbers lines up.
    A big figure is the sans at a heavier weight rather than a second face. */
 .figure,

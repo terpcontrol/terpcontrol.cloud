@@ -352,18 +352,6 @@
   outline: none;
 }
 
-/* The figure is typed, not stepped: the browser's spinner crowded the unit. */
-.figureInput {
-  appearance: textfield;
-  -moz-appearance: textfield;
-}
-
-.figureInput::-webkit-outer-spin-button,
-.figureInput::-webkit-inner-spin-button {
-  appearance: none;
-  margin: 0;
-}
-
 .figureUnit {
   flex-shrink: 0;
   font-size: var(--text-xs);

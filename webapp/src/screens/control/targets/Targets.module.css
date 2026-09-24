@@ -109,14 +109,6 @@
   font-size: var(--text-md);
   font-variant-numeric: tabular-nums;
   text-align: right;
-  appearance: textfield;
-  -moz-appearance: textfield;
-}
-
-.typed::-webkit-outer-spin-button,
-.typed::-webkit-inner-spin-button {
-  appearance: none;
-  margin: 0;
 }
 
 .typed:focus {
