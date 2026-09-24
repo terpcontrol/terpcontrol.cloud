@@ -88,24 +88,62 @@ export interface CameraDay {
  * on the pipeline's own interval is ten times that. Asking once and drawing what
  * came back left the morning unreachable and printed the page size as the day's
  * count.
+ *
+ * It is read again on the same cadence as the camera's own row, because this is
+ * a screen somebody leaves open in front of a tent. Read once at load, the
+ * frame, its stamp and the count under the scrubber stood still for as long as
+ * the page was up while the header pill - which does refresh - went on counting
+ * seconds since the last picture, so the page said in one line that the camera
+ * had delivered ten seconds ago and in the next that a picture from twenty
+ * minutes back was the live one.
+ *
+ * A refetch asks only for what has been taken since the newest picture already
+ * in hand, and puts it in front of the ones held. Walking the whole day again
+ * every half minute would be up to `MAX_FRAME_PAGES` requests each time on a
+ * camera delivering at its own interval, which is the cost that made reading it
+ * once look reasonable; the tail is one request for a day that is not moving.
+ * The bound is that a still deleted behind the app's back - retention pruning
+ * an older day - is not noticed until the span is asked for afresh, which is
+ * every time this page is opened.
  */
-export const useCameraFrames = (cameraId: string, span: { startsAt: string; endsAt: string }) =>
-  useQuery({
-    queryKey: ['camera', cameraId, 'frames', span.startsAt, span.endsAt],
+export const useCameraFrames = (cameraId: string, span: { startsAt: string; endsAt: string }) => {
+  const queryClient = useQueryClient();
+  const queryKey = ['camera', cameraId, 'frames', span.startsAt, span.endsAt];
+
+  return useQuery({
+    queryKey,
     queryFn: async ({ signal }): Promise<CameraDay> => {
-      const items: Media[] = [];
+      const held = queryClient.getQueryData<CameraDay>(queryKey) ?? null;
+      // The route answers newest first and takes its ends inclusively, so the
+      // newest picture held is the tail's own start and comes back with it;
+      // ids are what tell the two apart rather than the instant, because two
+      // stills of one second are two rows.
+      const from = held?.items[0]?.capturedAt ?? span.startsAt;
+      const fresh: Media[] = [];
       let cursor: string | null = null;
 
       for (let page = 0; page < MAX_FRAME_PAGES; page += 1) {
-        const answer: MediaPage = await api.get<MediaPage>(`/cameras/${cameraId}/frames`, { ...span, limit: FRAMES_PER_PAGE, cursor }, signal);
-        items.push(...answer.items);
+        const answer: MediaPage = await api.get<MediaPage>(
+          `/cameras/${cameraId}/frames`,
+          { startsAt: from, endsAt: span.endsAt, limit: FRAMES_PER_PAGE, cursor },
+          signal,
+        );
+        fresh.push(...answer.items);
         cursor = answer.nextCursor;
         if (!cursor) break;
       }
 
-      return { items, partial: cursor !== null };
+      if (!held) return { items: fresh, partial: cursor !== null };
+
+      const known = new Set(held.items.map(one => one.id));
+
+      // A day the first walk never reached the end of stays a floor, because
+      // the tail says nothing about the morning it stopped short of.
+      return { items: [...fresh.filter(one => !known.has(one.id)), ...held.items], partial: held.partial || cursor !== null };
     },
+    refetchInterval: CAMERAS_REFRESH_MS,
   });
+};
 
 /** A screenful of films, which is also the largest page the composer's own list needs. */
 export const TIMELAPSES_PER_PAGE = 20;
