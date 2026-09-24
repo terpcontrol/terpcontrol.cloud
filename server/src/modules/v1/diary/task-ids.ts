@@ -5,7 +5,7 @@ import { badRequest } from '@common/v1/problem';
  *
  * Tasks are never stored, so their ids have to carry everything a completion
  * needs: the id is the only thing the client sends back. A reminder's task is
- * the reminder's own id, or that id and the day the occurrence fell due; a plan
+ * the reminder's own id, or that id and the instant the occurrence falls due; a plan
  * step's is its device and its position in the plan.
  *
  * `plan:` is a prefix nothing else can wear - a reminder's id is a uuid - so the

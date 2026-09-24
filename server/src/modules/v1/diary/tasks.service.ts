@@ -12,7 +12,7 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { StoredPlan } from '@database/schemas/v1/plans.schema';
 import { activeStep, durationMs, elapsedMs } from '../plan/plan-steps';
-import { WEEK_HORIZON_MS, dueTasksOf, occurrencePrefix } from '../home/due-tasks';
+import { WEEK_HORIZON_MS, dueTasksOf, occurrenceDueAt, occurrencePrefix } from '../home/due-tasks';
 import { planTaskId } from './task-ids';
 import { VisibleSubjectsService } from './visible-subjects.service';
 
@@ -144,8 +144,9 @@ export class TasksService {
       const reminder = reminders.find(candidate => taskId === candidate.id || taskId.startsWith(occurrencePrefix(candidate.id)));
       if (!reminder) return [];
 
-      const occurrence = taskId.slice(reminder.id.length + 1);
-      const dueAt = reminder.onceAt ?? new Date(`${occurrence}T00:00:00.000Z`);
+      // The occurrence's own instant, which is in its id, so the done copy says
+      // when it fell due and not the midnight of that day.
+      const dueAt = reminder.onceAt ?? occurrenceDueAt(taskId.slice(reminder.id.length + 1)) ?? entry.occurredAt;
 
       return [
         {
@@ -155,7 +156,7 @@ export class TasksService {
           subject: reminder.subject,
           kind: reminder.kind,
           label: reminder.label,
-          dueAt: (isNaN(dueAt.getTime()) ? entry.occurredAt : dueAt).toISOString(),
+          dueAt: dueAt.toISOString(),
           assigneeId: reminder.assigneeId,
           defaults: reminder.defaults,
           done: true,

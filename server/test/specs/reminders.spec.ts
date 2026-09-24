@@ -307,7 +307,7 @@ describe('the tasks a reminder derives', () => {
     expect(refused.body.code).toBe('task_done_already');
   });
 
-  it('gives a rhythm an occurrence of its own, which carries the day it fell due', async () => {
+  it('gives a rhythm an occurrence of its own, which carries the instant it falls due', async () => {
     const mine = await createAccount('reminders-rhythm');
     const space = (
       await mine.client
@@ -318,8 +318,29 @@ describe('the tasks a reminder derives', () => {
     const reminder = await create(mine, { subject: { type: 'space', id: space.id }, kind: 'water', label: 'Daily', everyDays: 1, onceAt: null });
 
     const [task] = await tasksOf(mine);
-    expect(task.id.startsWith(`${reminder.id}:`)).toBe(true);
-    expect(task.id).toMatch(/:\d{4}-\d{2}-\d{2}$/);
+    expect(task.id).toBe(`${reminder.id}:${Date.parse(task.dueAt)}`);
+  });
+
+  it('moves a daily rhythm on after a tick taken the day before, rather than jamming it on the occurrence just closed', async () => {
+    const mine = await createAccount('reminders-early');
+    const space = (
+      await mine.client
+        .post('/v1/spaces')
+        .send({ kind: 'tent', name: unique('Early') })
+        .expect(201)
+    ).body;
+    const reminder = await create(mine, { subject: { type: 'space', id: space.id }, kind: 'water', label: 'Daily', everyDays: 1, onceAt: null });
+
+    const [first] = await tasksOf(mine);
+    await mine.client.post(`/v1/tasks/${first.id}/completions`).send({}).expect(201);
+
+    const [next] = await tasksOf(mine);
+    expect(next.id.startsWith(`${reminder.id}:`)).toBe(true);
+    expect(next.id).not.toBe(first.id);
+    await mine.client.post(`/v1/tasks/${next.id}/completions`).send({}).expect(201);
+
+    const done = await mine.client.get('/v1/tasks?done=true').expect(200);
+    expect(done.body.items.find((task: { id: string }) => task.id === first.id).dueAt).toBe(first.dueAt);
   });
 
   it('narrows to one place, and refuses a place the caller cannot see', async () => {

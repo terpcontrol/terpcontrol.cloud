@@ -463,7 +463,7 @@ describe('what needs a human', () => {
 
     expect(tent.dueTasks).toEqual([
       {
-        id: 'reminder-water:2026-06-11',
+        id: `reminder-water:${Date.parse('2026-06-11T12:00:00.000Z')}`,
         kind: 'water',
         label: 'Water',
         dueAt: '2026-06-11T12:00:00.000Z',
@@ -547,10 +547,37 @@ describe('a reminder as tasks', () => {
   it('counts a rhythm from its newest completion, and from the day it was set up before there is one', () => {
     const rhythm = reminder({ everyDays: 3 });
 
-    expect(dueTasksOf([rhythm], [], NOW)[0]).toMatchObject({ id: 'reminder:2026-05-11', dueAt: '2026-05-11T08:00:00.000Z' });
+    expect(dueTasksOf([rhythm], [], NOW)[0]).toMatchObject({
+      id: `reminder:${Date.parse('2026-05-11T08:00:00.000Z')}`,
+      dueAt: '2026-05-11T08:00:00.000Z',
+    });
 
     const watered = entry({ taskId: 'reminder:2026-06-08', occurredAt: new Date('2026-06-09T18:00:00.000Z') });
     expect(dueTasksOf([rhythm], [watered], NOW)).toEqual([]);
-    expect(dueTasksOf([rhythm], [watered], new Date('2026-06-11T12:00:00.000Z'))[0].id).toBe('reminder:2026-06-12');
+    expect(dueTasksOf([rhythm], [watered], new Date('2026-06-11T12:00:00.000Z'))[0].id).toBe(`reminder:${Date.parse('2026-06-12T18:00:00.000Z')}`);
+  });
+
+  /**
+   * A daily rhythm ticked the evening before its occurrence: counted from the
+   * tick, the next one fell on the same UTC day, came back under the id just
+   * closed, and every tick on it was refused - the rhythm was jammed for good.
+   */
+  it('moves on to a new occurrence after a tick taken a day early, and never offers the one it closed', () => {
+    const daily = reminder({ everyDays: 1, createdAt: new Date('2026-09-24T20:41:39.000Z') });
+    const now = new Date('2026-09-24T20:41:47.000Z');
+    const [first] = dueTasksOf([daily], [], now);
+
+    const ticked = entry({ taskId: first.id, occurredAt: now });
+    const [next] = dueTasksOf([daily], [ticked], now);
+
+    expect(next.id).not.toBe(first.id);
+    expect(next.dueAt).toBe('2026-09-25T20:41:47.000Z');
+  });
+
+  it('still counts a tick written under an occurrence named by its day', () => {
+    const rhythm = reminder({ everyDays: 3 });
+    const legacy = entry({ taskId: 'reminder:2026-06-08', occurredAt: new Date('2026-06-09T18:00:00.000Z') });
+
+    expect(dueTasksOf([rhythm], [legacy], new Date('2026-06-12T19:00:00.000Z'))[0].dueAt).toBe('2026-06-12T18:00:00.000Z');
   });
 });

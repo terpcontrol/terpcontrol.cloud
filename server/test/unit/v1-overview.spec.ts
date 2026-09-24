@@ -418,7 +418,7 @@ describe('what is due', () => {
 
     expect(page.dueTasks).toEqual([
       {
-        id: 'reminder-water:2026-06-10',
+        id: `reminder-water:${Date.parse('2026-06-10T09:00:00.000Z')}`,
         kind: 'water',
         label: 'Water Spring run #3',
         dueAt: '2026-06-10T09:00:00.000Z',
