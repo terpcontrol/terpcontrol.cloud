@@ -9,6 +9,7 @@ import { useSpaces } from '@/api/spaces';
 import { deviceName } from '@/screens/devices/naming';
 import { useCreateSpace } from '@/screens/grow/new/create-space';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
+import { Term } from '@/ui/Help';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough } from '@/ui/session-access';
 import { Choice, Choices } from '@/ui/SheetParts';
@@ -139,7 +140,9 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
 
       <section className={styles.block}>
         <header className={styles.blockHead}>
-          <span className="label">{t('cameras.add.rtsp.label')}</span>
+          <span className="label">
+            <Term topic="rtsp">{t('cameras.add.rtsp.label')}</Term>
+          </span>
           <span className={styles.premium}>{t('devices.premium')}</span>
         </header>
         <p className={styles.text}>{premiumLine(t, me.data?.premium)}</p>

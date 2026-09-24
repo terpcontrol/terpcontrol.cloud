@@ -9,7 +9,7 @@ export function Facts({ children }: { children: React.ReactNode }) {
   return <dl className={styles.facts}>{children}</dl>;
 }
 
-export function Fact({ label, value }: { label: string; value: React.ReactNode }) {
+export function Fact({ label, value }: { label: React.ReactNode; value: React.ReactNode }) {
   return (
     <div className={styles.fact}>
       <dt className="label">{label}</dt>

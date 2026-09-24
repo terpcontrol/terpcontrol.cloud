@@ -4356,6 +4356,70 @@
     "taskFor": {
       "title": "Für",
       "text": "Für alle: Wer den Ort besitzt oder Mitglied ist, bekommt Bescheid, wenn sie fällig wird. Für mich: nur du."
+    },
+    "socketRoles": {
+      "title": "Steckdosen-Rollen",
+      "text": "Jede smarte Steckdose ist am Controller einer Rolle zugeordnet und schaltet mit ihr: eine Heizungs-Steckdose mit der Heizung, eine Licht-Steckdose mit der Lampe, Pumpe oder Timer nach eigenem Timer und eine manuelle nur, solange du sie hältst. Die Rollen werden am Controller festgelegt, nicht hier."
+    },
+    "socketHold": {
+      "title": "Halten",
+      "text": "Ein Tipp auf den Schalter hält die Steckdose eine Stunde lang im anderen Zustand; hier geht es länger, bis zu 24 Stunden. Das Halten liegt im Speicher des Geräts: Ein Neustart beendet es, und „Zurück auf Automatik“ beendet es vorher."
+    },
+    "findSocket": {
+      "title": "Finden",
+      "text": "Schaltet diese Steckdose zwei Sekunden an und wieder aus, damit du siehst, welche es ist. Binnen einer Minute stellt der Controller sie wieder richtig – eine Lampe oder Heizung, die an war, kann bis dahin aus bleiben."
+    },
+    "lightHold": {
+      "title": "Auto, an, aus",
+      "text": "An lässt die Lampe mit ihrer Lichtgrenze leuchten, auch nachts; Aus hält sie dunkel – für die angezeigte Zeit oder bis das Gerät neu startet. Das Gerät meldet das Halten nicht zurück, deshalb kann diese Zeile es nicht zeigen; Auto beendet es."
+    },
+    "firmwareChannel": {
+      "title": "Update-Kanal",
+      "text": "Die Release-Linie, aus der dieses Gerät Firmware bekommt: stabil, beta oder alpha. Ohne Kanal bleibt es beim Build, den es hat, und neue Releases erreichen es nicht. Während ein Update installiert wird, schalten Controller und Fridge alle Ausgänge und smarten Steckdosen aus und starten dann neu."
+    },
+    "stillCadence": {
+      "title": "Bild alle",
+      "text": "Wie oft die Cloud diese Kamera um ein Bild bittet, frühestens alle 30 Sekunden; nach einem Fehlversuch wartet sie jedes Mal doppelt so lang, bis zu zwei Stunden. Ältere Bilder werden ausgedünnt: Nach einem Tag bleibt eins pro Minute, nach einer Woche eins alle 5, nach einem Monat eins alle 15, nach drei Monaten eins pro Stunde."
+    },
+    "cameraPauses": {
+      "title": "Nachts aus, bei Wartung aus",
+      "text": "„Nachts aus“ lässt Bilder aus, solange das Licht des Controllers aus ist; „bei Wartung aus“, solange der Controller im Wartungsmodus oder ausgeschaltet ist. Beides wirkt nur bei einer Kamera, die zu einem Controller gehört, und mit „nachts aus“ gibt es keine Warnung, wenn diese Kamera nichts mehr liefert."
+    },
+    "staleWarning": {
+      "title": "Meldet",
+      "text": "Die Warnung kommt, wenn zehn Intervalle lang – mindestens zehn Minuten – kein Bild kam, aber nicht, solange ihr Controller offline ist; dafür gibt es dessen eigenen Alarm. „Fehlgeschlagene Aufnahmen ins Tagebuch“ schreibt für jeden gescheiterten Versuch eine Warnung ins Tagebuch."
+    },
+    "premiumCamera": {
+      "title": "Premium",
+      "text": "Premium gehört zu einer Kamera, nicht zum Konto, und verlängert sich nie von selbst; eine Terp Cam bringt beim ersten Koppeln 12 Monate mit. Ohne Premium sind Filme SD mit Wasserzeichen, und HD- und Ganzer-Grow-Filme werden nicht erstellt."
+    },
+    "timelapses": {
+      "title": "Zeitraffer",
+      "text": "Filme aus den gespeicherten Bildern dieser Kamera, 25 pro Sekunde. Die Tages-, Wochen- und Monatsfilme bauen sich selbst neu; die Chips filmen heute, die letzte vollständige Woche, die aktuelle Phase oder den ganzen Grow."
+    },
+    "overlays": {
+      "title": "Overlays",
+      "text": "Was auf den Film gezeichnet wird: der Tag des Grows, eine Temperatur- und Feuchtekurve mit markiertem Moment und Tagebucheinträge als Bildunterschriften. Jedes braucht eine Quelle – einen Grow, einen Controller, Einträge – und entfällt, wo es keine gibt."
+    },
+    "lightsOffFrames": {
+      "title": "Bilder aus der Dunkelphase",
+      "text": "Ausgeschaltet fallen Bilder weg, die bei ausgeschaltetem Licht des Controllers entstanden sind, damit der Film nicht jede Nacht dunkel aufblitzt. Ein Bild ohne Lichtmessung zählt als hell."
+    },
+    "render": {
+      "title": "Rendern",
+      "text": "HD hat 1920 Pixel an der langen Seite und braucht Premium; SD hat 1280, mit Wasserzeichen, wenn die Kamera kein Premium hat. Dieselben Tage mit anderen Einstellungen erneut zu rendern, ersetzt den zuvor gemachten Film."
+    },
+    "unpair": {
+      "title": "Entkoppeln",
+      "text": "Die Cloud liest diese Kamera nicht mehr; ihre Bilder und Filme bleiben. Eine Terp Cam bleibt aber mit ihrem Controller gekoppelt und kommt hierher zurück, sobald der Controller sie das nächste Mal meldet, etwa nach einem Neustart."
+    },
+    "rtsp": {
+      "title": "RTSP",
+      "text": "Der Live-Videostream, den die meisten Netzwerkkameras anbieten, unter einer Adresse, die mit rtsp:// beginnt. Die Cloud nimmt daraus im Intervall der Kamera ein Standbild, wie bei einer Terp Cam."
+    },
+    "rolloutFailures": {
+      "title": "Fehlschläge, die sie stoppen",
+      "text": "Ein Gerät gilt als fehlgeschlagen, wenn es zum Update aufgefordert wurde und zehn Minuten später nicht den neuen Build fährt – Offline-Geräte eingeschlossen. Bei so vielen auf einem Kanal werden keine weiteren Geräte aufgefordert; die Verteilung läuft von selbst weiter, sobald sie den Build melden."
     }
   }
 }

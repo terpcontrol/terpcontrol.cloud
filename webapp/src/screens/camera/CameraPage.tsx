@@ -13,6 +13,7 @@ import { ageLabel, instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import { enough, useMayWith } from '@/ui/session-access';
+import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, DATED_CLOCK, zonedAt, zoneOf } from '@/ui/zone';
@@ -299,7 +300,10 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
         )}
 
         <section className={styles.section}>
-          <span className="label">{t('camera.timelapses')}</span>
+          <span className="label">
+            {t('camera.timelapses')}
+            <Help topic="timelapses" />
+          </span>
           {mayManage ? <Quick buttons={quickFilms(t, camera, grow, now)} onPick={request} /> : null}
           {mayManage ? (
             <button type="button" className={`${ui.button} ${styles.compose}`} onClick={() => setComposing(true)}>

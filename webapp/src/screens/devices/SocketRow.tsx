@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ActuatorRuns, SocketOverrideState } from '@fg2/shared-types/v1';
 import { useSetOverride, useTestSocket } from '@/api/devices';
+import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { ageLabel, leftLabel } from '@/ui/age';
 import { Fact, Facts } from './Facts';
@@ -136,7 +137,10 @@ export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, no
 
           {mayManage ? (
             <div className={styles.holds}>
-              <span className="label">{t('devices.socket.holdFor')}</span>
+              <span className="label">
+                {t('devices.socket.holdFor')}
+                <Help topic="socketHold" />
+              </span>
               {holdsFor().map(seconds => (
                 <button
                   key={seconds}
@@ -163,6 +167,7 @@ export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, no
                   {t('devices.socket.findIt')}
                 </button>
               ) : null}
+              {row.slot >= 0 ? <Help topic="findSocket" /> : null}
               {/* A control that stops working with its reason a scroll away is
                   a control with no reason at all, and these are the ones a
                   person opens the row to reach. The list above says it for the

@@ -4360,6 +4360,70 @@
     "taskFor": {
       "title": "For",
       "text": "For everyone: everybody who keeps the place is told when it falls due. For me: only you are."
+    },
+    "socketRoles": {
+      "title": "Socket roles",
+      "text": "Each smart socket is paired to a role on the controller and switches with it: a heater socket with the heater, a light socket with the lamp, a pump or timer socket on its own timer, and a manual one only while you hold it. Roles are set on the controller, not here."
+    },
+    "socketHold": {
+      "title": "Hold",
+      "text": "A tap on the switch holds the socket in the other state for an hour; here you can hold it for longer, up to 24 hours. The hold lives in the device's memory: a restart ends it, and Back to auto ends it early."
+    },
+    "findSocket": {
+      "title": "Find it",
+      "text": "Switches this socket on for two seconds and off again, so you can see which one it is. The controller puts it back as it should be within a minute – a lamp or a heater that was on may stay off until then."
+    },
+    "lightHold": {
+      "title": "Auto, on, off",
+      "text": "On runs the lamp at its light limit, even at night; Off keeps it dark – for the time shown, or until the device restarts. The device does not report a hold back, so this row cannot show one running; Auto ends it."
+    },
+    "firmwareChannel": {
+      "title": "Update channel",
+      "text": "The release line this device takes firmware from: stable, beta or alpha. On no channel it stays on the build it has, and releases do not reach it. While an update installs, a controller or fridge switches every output and smart socket off, then restarts."
+    },
+    "stillCadence": {
+      "title": "Still every",
+      "text": "How often the cloud asks this camera for a picture, 30 seconds at the least; after a failed try it waits twice as long each time, up to two hours. Older pictures are thinned: after a day one a minute is kept, after a week one every 5, after a month one every 15, after three months one an hour."
+    },
+    "cameraPauses": {
+      "title": "Night off, off during maintenance",
+      "text": "Night off skips pictures while the controller's light is off; off during maintenance skips them while the controller is in maintenance or switched off. Both only work for a camera that belongs to a controller, and with night off no warning is raised when this camera stops delivering."
+    },
+    "staleWarning": {
+      "title": "Tells you",
+      "text": "The warning comes once no picture has arrived for ten intervals, and ten minutes at the least – but not while its controller is offline, which has an alert of its own. Logging failed captures writes a diary warning for every try that fails."
+    },
+    "premiumCamera": {
+      "title": "Premium",
+      "text": "Premium belongs to one camera, not to the account, and never renews by itself; a Terp Cam comes with 12 months when it is first paired. Without it, films are SD with a watermark, and HD and whole-grow films are not made."
+    },
+    "timelapses": {
+      "title": "Timelapses",
+      "text": "Films made from this camera's stored pictures, 25 to the second. The day, week and month films rebuild themselves; the chips film today, the last complete week, the current phase or the whole grow."
+    },
+    "overlays": {
+      "title": "Overlays",
+      "text": "What is drawn on the film: the grow's day, a temperature and humidity curve with the moment marked, and diary entries as captions. Each needs something to draw from – a grow, a controller, entries – and is left out where there is none."
+    },
+    "lightsOffFrames": {
+      "title": "Lights-off frames",
+      "text": "Left off, pictures taken while the controller's light was off are dropped, so the film does not flash dark every night. A picture with no light reading counts as lit."
+    },
+    "render": {
+      "title": "Render",
+      "text": "HD is 1920 pixels on the long side and needs Premium; SD is 1280, with a watermark unless the camera has Premium. Rendering the same days again with other settings replaces the film made before."
+    },
+    "unpair": {
+      "title": "Unpair",
+      "text": "The cloud stops reading this camera; its pictures and films stay. A Terp Cam stays paired to its controller, though, and comes back here the next time the controller reports it, for example after a restart."
+    },
+    "rtsp": {
+      "title": "RTSP",
+      "text": "The live video stream most network cameras offer, at an address that starts with rtsp://. The cloud takes a still from it at the camera's interval, as it does from a Terp Cam."
+    },
+    "rolloutFailures": {
+      "title": "Failures that stop it",
+      "text": "A device counts as failed once it was told to update and is not running the new build ten minutes later – offline devices included. At this many on a channel no further devices are told; the rollout carries on by itself once they report the build."
     }
   }
 }

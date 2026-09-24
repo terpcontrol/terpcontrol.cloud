@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device, DeviceClass, DeviceClassUpdate, Firmware, FleetClass } from '@fg2/shared-types/v1';
 import { useUpdateDeviceClass } from '@/api/admin';
 import { Sheet } from '@/log/Sheet';
+import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { CHANNELS, channelStands, classSize, staged } from './rollout';
@@ -204,11 +205,15 @@ export function ClassRollout({
           />
         </label>
         <label className={styles.field}>
-          <span className="label">{t('admin.firmware.maxFailures')}</span>
+          <span className="label">
+            {t('admin.firmware.maxFailures')}
+            <Help topic="rolloutFailures" />
+          </span>
           <input
             className={`mono ${ui.input}`}
             type="number"
             min={1}
+            aria-label={t('admin.firmware.maxFailures')}
             value={draft.maxFailures}
             onChange={event => setDraft({ ...draft, maxFailures: Number(event.target.value) })}
           />

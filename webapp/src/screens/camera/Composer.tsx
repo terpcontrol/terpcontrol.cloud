@@ -8,6 +8,8 @@ import { serverNow } from '@/api/clock';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { Sheet } from '@/log/Sheet';
 import { ageLabel, instantOf } from '@/ui/age';
+import type { HelpTopic } from '@/ui/explain';
+import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { zoneOf } from '@/ui/zone';
 import styles from './CameraPage.module.css';
@@ -135,7 +137,10 @@ export function Composer({ camera, grow, pending, onRender, onClose }: ComposerP
         </Group>
 
         <div className={styles.switches}>
-          <span className="label">{t('composer.overlays')}</span>
+          <span className="label">
+            {t('composer.overlays')}
+            <Help topic="overlays" />
+          </span>
           <div className={ui.group}>
             <Toggle label={t('composer.dayCounter')} on={overlays.dayCounter} onToggle={value => setOverlays({ ...overlays, dayCounter: value })} />
             <Toggle label={t('composer.climate')} on={overlays.climate} onToggle={value => setOverlays({ ...overlays, climate: value })} />
@@ -145,7 +150,7 @@ export function Composer({ camera, grow, pending, onRender, onClose }: ComposerP
               on={overlays.entries}
               onToggle={value => setOverlays({ ...overlays, entries: value })}
             />
-            <Toggle label={t('composer.lightsOff')} on={includeLightsOff} onToggle={setIncludeLightsOff} />
+            <Toggle label={t('composer.lightsOff')} help="lightsOffFrames" on={includeLightsOff} onToggle={setIncludeLightsOff} />
           </div>
         </div>
 
@@ -176,6 +181,7 @@ export function Composer({ camera, grow, pending, onRender, onClose }: ComposerP
           <button type="button" className={ui.button} disabled={pending || refusal !== null} onClick={() => render('sd')}>
             {t('composer.renderSd')}
           </button>
+          <Help topic="render" />
         </div>
         {free && range !== 'grow' ? <p className={ui.note}>{t('camera.needsPremium')}</p> : null}
       </div>
@@ -199,11 +205,24 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Toggle({ label, hint, on, onToggle }: { label: string; hint?: string; on: boolean; onToggle: (value: boolean) => void }) {
+function Toggle({
+  label,
+  hint,
+  help,
+  on,
+  onToggle,
+}: {
+  label: string;
+  hint?: string;
+  help?: HelpTopic;
+  on: boolean;
+  onToggle: (value: boolean) => void;
+}) {
   return (
     <div className={`${ui.card} ${styles.toggle}`}>
       <span className={styles.toggleLabel}>
         {label}
+        {help ? <Help topic={help} /> : null}
         {hint ? <span className={styles.toggleHint}>{hint}</span> : null}
       </span>
       <button type="button" className={ui.switch} role="switch" aria-checked={on} aria-label={label} onClick={() => onToggle(!on)}>

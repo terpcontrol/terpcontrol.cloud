@@ -9,6 +9,8 @@ import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { countdownDays } from '@/screens/me/premium/entitlement';
+import type { HelpTopic } from '@/ui/explain';
+import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import styles from './CameraPage.module.css';
@@ -121,7 +123,7 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
           )}
         </Row>
 
-        <Row label={t('camera.premium')}>
+        <Row label={t('camera.premium')} help={enforced ? 'premiumCamera' : undefined}>
           <span className={styles.settingStack}>
             <span className={`mono ${styles.settingValue}`}>{entitlementLine(t, camera, enforced)}</span>
             {ending !== null ? (
@@ -138,7 +140,7 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
           </span>
         </Row>
 
-        <Row label={t('camera.stillEvery')}>
+        <Row label={t('camera.stillEvery')} help="stillCadence">
           {mayManage ? (
             <span className={styles.interval}>
               <input
@@ -152,7 +154,12 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
               />
               <span className="mono">s</span>
               <Check label={t('camera.nightOff')} on={flag('nightOff')} onChange={next => set('nightOff', next)} />
-              <Check label={t('camera.maintenanceOff')} on={flag('maintenanceOff')} onChange={next => set('maintenanceOff', next)} />
+              <Check
+                label={t('camera.maintenanceOff')}
+                help="cameraPauses"
+                on={flag('maintenanceOff')}
+                onChange={next => set('maintenanceOff', next)}
+              />
             </span>
           ) : (
             <span className={`mono ${styles.settingValue}`}>
@@ -167,7 +174,7 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
           )}
         </Row>
 
-        <Row label={t('camera.tellsYou')}>
+        <Row label={t('camera.tellsYou')} help="staleWarning">
           {mayManage ? (
             <span className={styles.interval}>
               <Check label={t('camera.staleWarning')} on={flag('staleWarning')} onChange={next => set('staleWarning', next)} />
@@ -210,9 +217,12 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
               </button>
             </>
           ) : (
-            <button type="button" className={`mono ${styles.unpair}`} onClick={() => setUnpairing(true)}>
-              {t('camera.unpair')}
-            </button>
+            <>
+              <button type="button" className={`mono ${styles.unpair}`} onClick={() => setUnpairing(true)}>
+                {t('camera.unpair')}
+              </button>
+              {camera.kind === 'terpcam_controller' ? <Help topic="unpair" /> : null}
+            </>
           )}
         </div>
       ) : null}
@@ -222,19 +232,24 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
 }
 
 /** One of the camera's switches, labelled by what it does rather than by the field it writes. */
-function Check({ label, on, onChange }: { label: string; on: boolean; onChange: (next: boolean) => void }) {
+function Check({ label, help, on, onChange }: { label: string; help?: HelpTopic; on: boolean; onChange: (next: boolean) => void }) {
   return (
     <label className={`mono ${styles.check}`}>
-      <input type="checkbox" checked={on} onChange={event => onChange(event.target.checked)} />
+      {/* Named outright where the (i) stands in the label too, so the box is not called by the explanation's name as well. */}
+      <input type="checkbox" checked={on} aria-label={help ? label : undefined} onChange={event => onChange(event.target.checked)} />
       {label}
+      {help ? <Help topic={help} /> : null}
     </label>
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({ label, help, children }: { label: string; help?: HelpTopic; children: React.ReactNode }) {
   return (
     <li className={`${ui.card} ${styles.setting}`}>
-      <span className={styles.settingLabel}>{label}</span>
+      <span className={styles.settingLabel}>
+        {label}
+        {help ? <Help topic={help} /> : null}
+      </span>
       {children}
     </li>
   );

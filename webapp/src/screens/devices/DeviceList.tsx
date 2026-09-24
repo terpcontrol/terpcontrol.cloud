@@ -13,6 +13,7 @@ import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces, useSpaceVerdicts } from '@/api/spaces';
 import { ageAttribute, ageLabel, deviceLiveness, heardAt } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
+import { Help, Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, useMayLogIn, useMayManage, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -75,6 +76,17 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
   const shown = cameras.data?.items ?? [];
   const tables = useSocketTables(mine.map(device => device.id));
   const stills = useLatestStills(shown.map(camera => camera.id));
+  // The first device whose sockets are listed, and the first whose own light is, in the order they are drawn.
+  const socketTeacher =
+    mine.find(device => {
+      const table = tables.tables.get(device.id);
+      return table ? rowsOf(table.items).some(row => !isLightRole(row.role)) : false;
+    })?.id ?? null;
+  const lightTeacher =
+    mine.find(device => {
+      const table = tables.tables.get(device.id);
+      return table ? lightOutputOf(device, table.capabilities, reads.levels.get(device.id) ?? null) !== null : false;
+    })?.id ?? null;
   // How often an output came on today is counted per place, so the list asks
   // each place it draws a row from rather than only the one it was opened in.
   // On a tent's own tab that is the overview the page above this has already
@@ -109,9 +121,10 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
           wide Devices tab, one run of sections everywhere else. */}
       <div className={styles.column}>
         <Section label={t('devices.controllers')} empty={mine.length === 0 ? t(maySetUp ? 'devices.noDevices' : 'devices.noDevicesHere') : null}>
-          {mine.map(device => (
+          {mine.map((device, index) => (
             <DeviceRow
               key={device.id}
+              explain={index === 0}
               device={device}
               place={placeOf(device.spaceId)}
               sockets={tables.tables.get(device.id)}
@@ -159,6 +172,10 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
 
       <div className={`${styles.column} ${styles.outputs}`}>
         {mine.map(device => {
+          // What a socket's role is, and what the light's brightness and hold do,
+          // are said on the first list of each and on no other.
+          const explainSockets = device.id === socketTeacher;
+          const explainLight = device.id === lightTeacher;
           const table = tables.tables.get(device.id);
           if (!table) return null;
 
@@ -226,6 +243,7 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
                   <ul className={ui.group}>
                     {light ? (
                       <LightOutputRow
+                        explain={explainLight}
                         output={light}
                         unheard={unheard}
                         mayManage={mayManage}
@@ -242,6 +260,7 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
                 <section className={styles.section}>
                   <span className="label">
                     {t('devices.sockets')} · {place}
+                    {explainSockets ? <Help topic="socketRoles" /> : null}
                   </span>
                   {mayManage
                     ? refusals.map(one => (
@@ -286,10 +305,12 @@ interface DeviceRowProps {
   /** When the device was last heard, which is its own last message or its own newest reading, whichever is later. */
   spokeAt: string | null;
   now: DateTime;
+  /** The first row on the page, whose liveness pill says what live and stale mean. */
+  explain: boolean;
 }
 
 /** A controller: where it stands, what it runs, how much it drives, and how long ago it last said anything. */
-function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now }: DeviceRowProps) {
+function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now, explain }: DeviceRowProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [naming, setNaming] = useState(false);
@@ -342,7 +363,7 @@ function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now }: De
         </div>
         <span className={ui.live} data-liveness={liveness}>
           <span className={ui.liveDot} aria-hidden />
-          {t(`home.liveness.${liveness}`)}
+          {explain ? <Term topic="liveness">{t(`home.liveness.${liveness}`)}</Term> : t(`home.liveness.${liveness}`)}
           {spokeAt ? ` · ${ageLabel(spokeAt, now)}` : ''}
         </span>
         <button
@@ -396,7 +417,15 @@ function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now }: De
                 }
               />
             ) : null}
-            <Fact label={t('devices.fact.channel')} value={t(`devices.channel.${device.firmware.channel}`)} />
+            <Fact
+              label={
+                <>
+                  {t('devices.fact.channel')}
+                  <Help topic="firmwareChannel" />
+                </>
+              }
+              value={t(`devices.channel.${device.firmware.channel}`)}
+            />
             {drivesSockets && sockets ? <Fact label={t('devices.fact.can')} value={capabilityLine(t, sockets)} /> : null}
             {place && linked && device.spaceId ? (
               <Fact

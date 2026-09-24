@@ -7,6 +7,7 @@ import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js
 import { useSaveConfiguration, useSetOverride } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { ageLabel } from '@/ui/age';
+import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { Fact, Facts } from './Facts';
 import { LEVEL_STEP, percentLabel, withLightLimit, type LightOutput } from './lights';
@@ -22,6 +23,8 @@ interface LightOutputRowProps {
   /** What the light output did in the last day, where the tent's verdict is already in hand. */
   runs: ActuatorRuns | null;
   now: DateTime;
+  /** The first light on the page, which says what its brightness is. */
+  explain?: boolean;
 }
 
 /**
@@ -49,7 +52,7 @@ interface LightOutputRowProps {
  * sentence in the same amber, and pauses the same way. A row that did less would
  * be the shortcut that costs the grower their setting.
  */
-export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightOutputRowProps) {
+export function LightOutputRow({ output, unheard, mayManage, runs, now, explain }: LightOutputRowProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const override = useSetOverride();
@@ -178,6 +181,7 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
           <label className="label" htmlFor={`level-${output.deviceId}`}>
             {t('devices.lightOutput.brightness')}
           </label>
+          {explain ? <Help topic="lightLimit" /> : null}
           {/* Nothing to write into is nothing to drag: a disabled slider still
               stood at the top of its scale, a level nobody had stated. */}
           {cannotSetLevel === null ? (
@@ -221,6 +225,7 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
           {cannotForce === null ? (
             <span className={`mono ${styles.holdLength}`}>{t('devices.lightOutput.holds', { duration: durationLabel(hold) })}</span>
           ) : null}
+          {offersHold ? <Help topic="lightHold" /> : null}
         </div>
       ) : null}
 

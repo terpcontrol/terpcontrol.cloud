@@ -44,6 +44,22 @@ export const HELP_TOPICS = [
   'rhythms',
   'rhythmEvery',
   'taskFor',
+  'socketRoles',
+  'socketHold',
+  'findSocket',
+  'lightHold',
+  'firmwareChannel',
+  'stillCadence',
+  'cameraPauses',
+  'staleWarning',
+  'premiumCamera',
+  'timelapses',
+  'overlays',
+  'lightsOffFrames',
+  'render',
+  'unpair',
+  'rtsp',
+  'rolloutFailures',
 ] as const;
 
 export type HelpTopic = (typeof HELP_TOPICS)[number];
