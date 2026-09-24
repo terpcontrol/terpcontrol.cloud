@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import parseRange from 'range-parser';
+import { ProblemException, problemOf } from '@common/v1/problem';
 import { logger } from '@utils/logger';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { CamerasService } from './cameras.service';
@@ -87,8 +88,14 @@ export class MediaDeliveryService {
     void reply.header('Content-type', media.mime).header('Cache-Control', CACHE_CONTROL).header('Accept-Ranges', 'bytes');
 
     if (ranges === -1) {
-      await reply.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE).header('Content-Range', `bytes */${media.bytes}`).send();
-      return;
+      void reply.header('Content-Range', `bytes */${media.bytes}`);
+      throw new ProblemException(
+        problemOf(
+          HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE,
+          'range_not_satisfiable',
+          `The file is ${media.bytes} bytes long; the range asked for starts past its end.`,
+        ),
+      );
     }
 
     // Several ranges at once would need a multipart body no client here asks for.

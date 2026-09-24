@@ -394,6 +394,43 @@ describe('the document', () => {
     expectMatches(problem, invalid.body, 'the 400 a validated query answers');
     expect(invalid.body.code).toBe('validation_failed');
   });
+
+  it('declares the 200 a job that is already there answers, beside the 202 of one that was just started', () => {
+    for (const [path, method] of [
+      ['/v1/grows/{id}/export', 'get'],
+      ['/v1/me/export', 'get'],
+      ['/v1/cameras/{id}/timelapses', 'post'],
+    ] as [string, Method][]) {
+      expect(declaredSchema(path, method, 202)).toBeDefined();
+      expect(declaredSchema(path, method, 200)).toEqual(declaredSchema(path, method, 202));
+    }
+  });
+
+  it('refuses a picture size and a byte range it cannot serve, and says so in the document', async () => {
+    const picture = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8//8/AzbAxIAdjEoRlgIAaFcDAx2LUNMAAAAASUVORK5CYII=',
+      'base64',
+    );
+    const grow = (await owner.client.post('/v1/grows').send({ name: 'Sized', type: 'photoperiod', plants: [] }).expect(201)).body;
+    const media = (await owner.client.post('/v1/media').field('kind', 'photo').field('growId', grow.id).attach('file', picture, 'a.png').expect(201))
+      .body;
+
+    for (const path of ['/v1/media/{id}/content', '/v1/public/grows/{slug}/media/{id}']) {
+      expect(declaredQuery(path).width.schema).toMatchObject({ type: 'integer' });
+      expect(declaredRefusal(path, 'get', '416')?.schema).toBeDefined();
+    }
+
+    for (const width of ['abc', '-4', '0', '1.5']) {
+      const refused = await owner.client.get(`/v1/media/${media.id}/content?width=${width}`).expect(400);
+      expect(refused.body.code).toBe('validation_failed');
+    }
+    await owner.client.get(`/v1/media/${media.id}/content?width=1`).expect(200);
+
+    const past = await owner.client.get(`/v1/media/${media.id}/content`).set('Range', 'bytes=999999999-').expect(416);
+    expect(past.headers['content-type']).toMatch('application/problem+json');
+    expect(past.headers['content-range']).toMatch(/^bytes \*\/\d+$/);
+    expectMatches(declaredRefusal('/v1/media/{id}/content', 'get', '416')?.schema, past.body, 'the 416 a byte range past the end answers');
+  });
 });
 
 describe('what the sessions and account routes answer', () => {

@@ -1,6 +1,6 @@
-import { Controller, Get, HttpStatus, Inject, Param, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Inject, Param, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { GrowWeekCard, PublicGrowPage, PublicUserPage, SharedResolution } from '@fg2/shared-types/v1';
@@ -10,7 +10,7 @@ import { Caller } from '@common/v1/access.guard';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage } from '@common/v1/pages';
 import { V1Query } from '@common/v1/validation';
-import { parseDimension } from '@modules/v1/camera/media-presentation.service';
+import { RANGE_REFUSAL, parseDimension, pictureSizeQuery } from '@modules/v1/camera/media-presentation.service';
 import { MediaDeliveryService } from '@modules/v1/camera/media-delivery.service';
 import { weeksQuery } from '@modules/v1/diary/weeks.service';
 import { appConfig } from '../../../config/configuration';
@@ -128,16 +128,15 @@ export class PublicController {
    */
   @Get('public/grows/:slug/media/:id')
   @RateLimited({ limit: PICTURES_PER_MINUTE, windowMs: MINUTE, message: 'Too many pictures asked for, please try again later.' })
-  @ApiQuery({ name: 'width', required: false, description: 'A thumbnail rather than the whole picture. Never enlarged.' })
-  @ApiQuery({ name: 'height', required: false })
   @ApiOperation({ summary: 'A picture of a public grow', ...PUBLIC_OPERATION })
   @ApiResponse({ status: HttpStatus.OK, description: 'The file itself, in the type it was stored as.', content: PICTURE_BYTES })
   @ApiResponse({ status: HttpStatus.PARTIAL_CONTENT, description: 'The byte range a <video> element asked for.', content: PICTURE_BYTES })
+  @ApiResponse(RANGE_REFUSAL)
   public async picture(
     @Caller() ctx: AccessContext,
     @Param('slug') slug: string,
     @Param('id') id: string,
-    @Query() query: { width?: string; height?: string },
+    @V1Query(pictureSizeQuery) query: z.infer<typeof pictureSizeQuery>,
     @Req() request: FastifyRequest,
     @Res() reply: FastifyReply,
   ): Promise<void> {

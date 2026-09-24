@@ -97,10 +97,6 @@ const isV1 = (path: string): boolean => path === V1_PREFIX || path.startsWith(`$
  * that can be missing, an id that can name nothing, a body or a query that can
  * fail to parse - and `default` for everything else, which is where a rate
  * limit, a conflict and an unprocessable request come back.
- *
- * The thumbnail hints on the two picture routes carry no schema because nothing
- * validates them: a width that does not parse is ignored rather than refused, so
- * they are not what makes a route answer 400.
  */
 const declareRefusals = (document: OpenAPIObject): void => {
   document.components = { ...document.components, responses: { ...REFUSALS, ...document.components?.responses } };

@@ -1,6 +1,7 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
-import { ApiBody, ApiConsumes, ApiNoContentResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { ApiBody, ApiConsumes, ApiNoContentResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FastifyReply, FastifyRequest } from 'fastify';
+import { z } from 'zod';
 import { Media, MediaUpload } from '@fg2/shared-types/v1';
 import { media as mediaShape, mediaUpload } from '@fg2/shared-types/v1-schemas';
 import { AuthGuard } from '@common/auth/auth.guard';
@@ -10,9 +11,10 @@ import { AccessService, needToEditEntry, subjectRef } from '@common/v1/access.se
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { badRequest, notFound, unprocessable } from '@common/v1/problem';
 import { clampRange, pictureOutsideRange } from '@common/v1/range';
+import { V1Query } from '@common/v1/validation';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { MediaDeliveryService } from './media-delivery.service';
-import { MediaPresentationService, parseDimension } from './media-presentation.service';
+import { MediaPresentationService, RANGE_REFUSAL, parseDimension, pictureSizeQuery } from './media-presentation.service';
 import { MediaService } from './media.service';
 import { OptionalSessionGuard } from './optional-session.guard';
 import { V1Answer } from '../answer-shape';
@@ -126,14 +128,13 @@ export class MediaController {
   @Get(':id/content')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'media')
-  @ApiQuery({ name: 'width', required: false, description: 'A thumbnail rather than the whole picture. Never enlarged.' })
-  @ApiQuery({ name: 'height', required: false })
   @ApiOperation({ summary: 'The bytes of a picture or film' })
   @ApiResponse({ status: HttpStatus.OK, description: 'The file itself, in the type it was stored as.', content: STORED_BYTES })
   @ApiResponse({ status: HttpStatus.PARTIAL_CONTENT, description: 'The byte range a <video> element asked for.', content: STORED_BYTES })
+  @ApiResponse(RANGE_REFUSAL)
   public async content(
     @Param('id') id: string,
-    @Query() query: { width?: string; height?: string },
+    @V1Query(pictureSizeQuery) query: z.infer<typeof pictureSizeQuery>,
     @Req() request: FastifyRequest,
     @Res() reply: FastifyReply,
   ): Promise<void> {

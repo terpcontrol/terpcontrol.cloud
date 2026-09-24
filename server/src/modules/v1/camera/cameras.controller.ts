@@ -300,10 +300,8 @@ export class CamerasController {
   @UseGuards(AuthGuard, AccessGuard)
   @Requires('manage', 'camera')
   @ApiOperation({ summary: 'Ask for a film of a span' })
-  @V1Answer(timelapseAccepted, {
-    status: HttpStatus.ACCEPTED,
-    description: 'Queued, and polled through `GET /media/{id}`. 200 where the film already exists.',
-  })
+  @V1Answer(timelapseAccepted, { status: HttpStatus.ACCEPTED, description: 'Queued, and polled through `GET /media/{id}`.' })
+  @V1Answer(timelapseAccepted, { status: HttpStatus.OK, description: 'The film already exists, and `queued` is false.' })
   public async requestTimelapse(
     @Caller() ctx: AccessContext,
     @Param('id') id: string,

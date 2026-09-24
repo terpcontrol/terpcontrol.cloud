@@ -22,6 +22,7 @@ const TITLES: Readonly<Record<number, string>> = {
   [HttpStatus.CONFLICT]: 'Conflict',
   [HttpStatus.PAYLOAD_TOO_LARGE]: 'Too large',
   [HttpStatus.UNSUPPORTED_MEDIA_TYPE]: 'Unsupported media type',
+  [HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE]: 'Range not satisfiable',
   [HttpStatus.UNPROCESSABLE_ENTITY]: 'Unprocessable',
   [HttpStatus.TOO_MANY_REQUESTS]: 'Too many requests',
   [HttpStatus.NOT_IMPLEMENTED]: 'Not implemented',

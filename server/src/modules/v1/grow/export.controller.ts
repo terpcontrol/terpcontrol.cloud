@@ -34,10 +34,8 @@ export class ExportController {
   @UseGuards(AuthGuard, AccessGuard)
   @Requires('own', 'grow')
   @ApiOperation({ summary: 'A zip of one grow: its diary, its CSVs and its photos' })
-  @V1Answer(exportAccepted, {
-    status: HttpStatus.ACCEPTED,
-    description: 'Queued, and polled through `GET /media/{id}`. 200 where the export is already there.',
-  })
+  @V1Answer(exportAccepted, { status: HttpStatus.ACCEPTED, description: 'Queued, and polled through `GET /media/{id}`.' })
+  @V1Answer(exportAccepted, { status: HttpStatus.OK, description: 'The export is already there, and `queued` is false.' })
   public grow(@Caller() ctx: AccessContext, @Param('id') id: string, @Res({ passthrough: true }) reply: FastifyReply): Promise<ExportAccepted> {
     return this.answer(reply, this.exports.ask(owner(ctx), 'grow', id));
   }
@@ -45,10 +43,8 @@ export class ExportController {
   @Get('me/export')
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'A zip of everything this account has' })
-  @V1Answer(exportAccepted, {
-    status: HttpStatus.ACCEPTED,
-    description: 'Queued, and polled through `GET /media/{id}`. 200 where the export is already there.',
-  })
+  @V1Answer(exportAccepted, { status: HttpStatus.ACCEPTED, description: 'Queued, and polled through `GET /media/{id}`.' })
+  @V1Answer(exportAccepted, { status: HttpStatus.OK, description: 'The export is already there, and `queued` is false.' })
   public account(@Caller() ctx: AccessContext, @Res({ passthrough: true }) reply: FastifyReply): Promise<ExportAccepted> {
     return this.answer(reply, this.exports.ask(owner(ctx), 'account', null));
   }

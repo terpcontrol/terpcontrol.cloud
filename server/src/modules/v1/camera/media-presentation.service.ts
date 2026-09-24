@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import sharp from 'sharp';
+import { z } from 'zod';
 
 /**
  * Turning a stored picture into what goes over the wire.
@@ -22,6 +23,27 @@ export interface RenderSize {
   width?: number;
   height?: number;
 }
+
+const dimension = z.coerce.number().int().positive().optional();
+
+/**
+ * The size a picture is asked for at. Refused when it is not a positive whole
+ * number, as `limit` is, rather than quietly answered with the whole picture.
+ */
+export const pictureSizeQuery = z.object({
+  width: dimension.describe(`A thumbnail rather than the whole picture, in pixels. Never enlarged, and never more than ${MAX_DIMENSION}.`),
+  height: dimension.describe(`The same for the height. Never enlarged, and never more than ${MAX_DIMENSION}.`),
+});
+
+/**
+ * A byte range that starts past the end of the file, refused as every other
+ * refusal is rather than with an empty body.
+ */
+export const RANGE_REFUSAL = {
+  status: 416,
+  description: 'The byte range asked for starts past the end of the file. `Content-Range` says how long it is.',
+  content: { 'application/problem+json': { schema: { $ref: '#/components/schemas/Problem' } } },
+};
 
 /** A dimension a client asked for, or nothing at all - which is the stored picture whole. */
 export const parseDimension = (value: unknown): number | undefined => {
