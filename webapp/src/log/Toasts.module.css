@@ -24,6 +24,7 @@
   padding: var(--space-3) var(--space-4);
   background: var(--toast);
   border-radius: var(--radius);
+  box-shadow: var(--shadow-raised);
   color: var(--toast-ink);
   pointer-events: auto;
 }

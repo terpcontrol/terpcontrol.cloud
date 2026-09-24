@@ -60,7 +60,7 @@
 
 .title {
   flex: 1;
-  font-size: var(--text-lg);
+  font-size: var(--text-name);
   font-weight: var(--weight-display-sm);
   line-height: var(--line-tight);
 }
@@ -118,8 +118,10 @@
   .sheet {
     width: var(--column-width);
     max-height: 86dvh;
-    padding-bottom: var(--space-5);
+    padding: var(--space-5) var(--space-5) var(--space-5);
     border-radius: calc(var(--radius) * 2);
+    /* Over the page rather than of it: the one raised shadow the look has. */
+    box-shadow: var(--shadow-raised);
   }
 
   .grabber {
