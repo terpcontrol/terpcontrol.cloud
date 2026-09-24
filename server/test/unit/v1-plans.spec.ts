@@ -272,14 +272,19 @@ describe('what the step is applied to', () => {
     expect(applied).toEqual([{ deviceId: DEVICE, settings: { day: { temperature: 24 } } }]);
   });
 
-  /** A step that asks the hardware for nothing is not the write this is about, so it is left to go out. */
-  it('still sends a step that writes nothing to such a device', async () => {
+  /**
+   * An empty document is not an empty change: the firmware rebuilds its whole
+   * settings from what it is handed, so a step that writes nothing is sent
+   * nothing - and is still counted as applied, so the plan moves on.
+   */
+  it('sends nothing for a step that writes nothing, to such a device or any other', async () => {
     await db.devices.create({ id: DEVICE, type: 'controller', ownerId: OWNER, spaceId: SPACE, configuration: null, state: { lastSeenAt: NOW } });
     await aPlan([step({ id: 'a', name: 'Veg' })]);
 
     await engine.run(NOW);
 
-    expect(applied).toEqual([{ deviceId: DEVICE, settings: {} }]);
+    expect(applied).toHaveLength(0);
+    expect((await stored()).state.lastAppliedAt).toEqual(NOW);
   });
 
   it('sends nothing more once the plan is completed', async () => {

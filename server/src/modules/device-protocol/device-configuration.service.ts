@@ -41,10 +41,13 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * has always written.
    */
   public applyConfiguration(deviceId: string, settings: DeviceConfiguration): Promise<boolean> {
-    return this.store(deviceId, current => ({ ...current, ...settings }));
+    // Nothing to merge, or nothing to merge into, is no write: the firmware reads
+    // every key a document leaves out as its compile-time default, so sending
+    // either would reset tuning the cloud has no copy of.
+    return this.store(deviceId, current => (!current || Object.keys(current).length === 0 || Object.keys(settings).length === 0 ? null : { ...current, ...settings }));
   }
 
-  private async store(deviceId: string, next: (current: DeviceConfiguration) => DeviceConfiguration): Promise<boolean> {
+  private async store(deviceId: string, next: (current: DeviceConfiguration | null) => DeviceConfiguration | null): Promise<boolean> {
     // Asked before anything is written: a caller that cannot be served should
     // find nothing changed, rather than a stored configuration it was told had
     // failed and a device that goes on running the old one.
@@ -57,7 +60,8 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       throw new HttpException(404, 'Device not found');
     }
 
-    const configuration = next(device.configuration ?? {});
+    const configuration = next(device.configuration ?? null);
+    if (configuration === null) return false;
     await this.devices.updateOne({ id: deviceId }, { $set: { configuration } });
 
     // Not required after the write: the device asks for its configuration when

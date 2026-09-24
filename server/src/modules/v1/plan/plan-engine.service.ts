@@ -106,10 +106,13 @@ export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
 
     const device = await this.deviceFor(plan.deviceId);
     if (!this.isAnswering(device, now)) return;
-    if (Object.keys(step.settings ?? {}).length > 0 && Object.keys(device?.configuration ?? {}).length === 0) return;
+    const writes = Object.keys(step.settings ?? {}).length > 0;
+    if (writes && Object.keys(device?.configuration ?? {}).length === 0) return;
 
     try {
-      if (await this.configuration.applyConfiguration(plan.deviceId, step.settings)) {
+      // A step that writes nothing is sent nothing: an empty document is not an
+      // empty change to the firmware, which rebuilds its whole settings from it.
+      if (writes && (await this.configuration.applyConfiguration(plan.deviceId, step.settings))) {
         logger.info(`Applied recipe step ${plan.state.activeStepIndex} to device ${plan.deviceId}`);
       }
 
