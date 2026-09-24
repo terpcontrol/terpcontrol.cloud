@@ -60,7 +60,6 @@
 
 .subtitle {
   grid-area: sub;
-  align-self: end;
   margin-top: var(--space-1);
   font-size: var(--text-sm);
   color: var(--muted);
@@ -195,14 +194,17 @@
   color: var(--muted);
 }
 
+/* "AUTO" beside the phase: a small tinted tag at the label's size, which is
+   the smallest the scale goes. */
 .auto {
   display: inline-block;
   margin-left: var(--space-2);
-  padding: 0 6px;
-  border: var(--rule-solid);
+  padding: 1px 7px;
   border-radius: var(--radius-pill);
-  font-size: 10px;
-  letter-spacing: var(--tracking-caption);
+  background: var(--tint);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--label);
   vertical-align: 1px;
@@ -294,10 +296,6 @@
 
   .name {
     font-size: var(--text-title);
-  }
-
-  .subtitle {
-    align-self: start;
   }
 
   .phaseName,
