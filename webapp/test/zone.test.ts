@@ -1,7 +1,8 @@
-import { DateTime } from 'luxon';
+import { DateTime, Settings } from 'luxon';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { dayOf, startOfDayOn } from '@/ui/days';
 import { clock, CLOCK, datedClock, nowThere, zoned, zonedAt } from '@/ui/zone';
 
 /**
@@ -196,6 +197,116 @@ describe('every clock time and every date the app writes', () => {
     const using = files('src').filter(path => PRESET.test(readFileSync(resolve(process.cwd(), path), 'utf8')));
 
     expect(using).toEqual([]);
+  });
+});
+
+/**
+ * The calendar a day is read on and the calendar it is written back on, which
+ * have to be one calendar.
+ *
+ * This is the shape none of the sweeps above can see, and it is worth saying
+ * plainly why. Each of them asks a question about one line: does this file go
+ * through the rule, does it reach for a preset, does it read a field off a
+ * `Date`. The reminder sheet passed every one of them while being wrong,
+ * because its two halves were wrong only about each other: it read the day a
+ * one-off falls on with `dayOf(new Date(reminder.onceAt), null)` - the reader's
+ * own calendar, which `ui/days` documents as a thing a caller may ask for - and
+ * wrote it back as the start of that day where the account is. Both halves are
+ * defensible alone. Together they are not a round trip: opened by anybody
+ * behind their account the field offered the day before the one the reminder
+ * falls on, and a Save that changed nothing filed it there, one day earlier
+ * every time it was saved.
+ *
+ * What a sweep can see is the `null`. A zone that is `null` because the account
+ * has not answered yet is a value arriving through `useZone`; a `null` spelled
+ * into the call is a screen deciding that this particular day belongs to
+ * whoever is reading rather than to whoever the day is about - and the day a
+ * task falls due, the day a line was written, the day a field is showing are
+ * all the account's. So no screen spells it, and the two halves of a date field
+ * are told the same zone because there is only one zone to tell them.
+ *
+ * That is not the whole of it: a file could still hand one half the account's
+ * zone and the other half a different account's, and no reading of the source
+ * would notice. What covers that is the round trip being asserted rather than
+ * inspected - below, and again in `tasks.test.tsx`, where the sheet itself is
+ * opened and saved untouched.
+ */
+describe('the zone a day is read in and written back in', () => {
+  /**
+   * A day or an hour asked for on the reader's own calendar by name. The
+   * argument may hold a call of its own - `dayOf(serverNow().toJSDate(), null)`
+   * was one of the two lines this was written for - so one nesting is allowed
+   * inside it.
+   */
+  const READS_THE_READER = /\b(clock|datedClock|calendarDay|zoned|zonedAt|nowThere|dayOf|momentOn|startOfDayOn)\((?:[^()]|\([^()]*\))*,\s*null\s*\)/;
+
+  /**
+   * Where the reader's own calendar is the right answer, with the reason.
+   *
+   * `ui/zone.ts` and `ui/days.ts` are the rule itself, and both spell the
+   * fallback they offer. The public surfaces are read by strangers with no
+   * account here, so the day a diary line falls on is theirs to read where they
+   * are - which is the same exemption the sweep above gives them.
+   */
+  const EXEMPT = ['src/ui/zone.ts', 'src/ui/days.ts', 'src/screens/public/'];
+
+  const asksForTheReadersCalendar = (path: string): boolean => READS_THE_READER.test(readFileSync(resolve(process.cwd(), path), 'utf8'));
+
+  it('is the account´s on both halves, because a field that reads a day on one calendar and writes it on another loses one', () => {
+    const offenders = files('src')
+      .filter(path => !EXEMPT.some(exempt => path.startsWith(exempt)))
+      .filter(asksForTheReadersCalendar);
+
+    expect(offenders).toEqual([]);
+  });
+});
+
+/**
+ * The round trip itself, which is the half of this no sweep can read.
+ *
+ * A reminder falls due at the start of its day where the account is. Opening
+ * the sheet reads that instant back as a day and saving it starts that day
+ * again, so the pair has to be the identity - and it is the identity only when
+ * both ends are told the same zone. The reader's own zone is moved about
+ * underneath them here, because the defect was invisible from anywhere east of
+ * the account and every browser in the app's own tests happens to sit there.
+ */
+describe('a day read back and written again', () => {
+  /** A reader ahead of the account, one behind it, and one in it - the third is where this used to be tested and where it never failed. */
+  const BROWSERS = ['Asia/Tokyo', 'America/Los_Angeles', 'UTC'];
+  const ACCOUNTS = ['UTC', 'Europe/Berlin', 'Pacific/Auckland', 'America/Los_Angeles'];
+
+  const inBrowser = (zone: string, read: () => void): void => {
+    Settings.defaultZone = zone;
+    try {
+      read();
+    } finally {
+      Settings.defaultZone = 'system';
+    }
+  };
+
+  it('is the day it started as, wherever the reader is sitting', () => {
+    for (const browser of BROWSERS) {
+      inBrowser(browser, () => {
+        for (const account of ACCOUNTS) {
+          const due = DateTime.fromISO('2026-09-30T12:00:00.000Z').setZone(account).startOf('day').toJSDate();
+
+          expect(startOfDayOn(dayOf(due, account), account)).toEqual(due);
+        }
+      });
+    }
+  });
+
+  it('moves a whole day when the two ends are told different zones, which is what it looked like from Los Angeles', () => {
+    inBrowser('America/Los_Angeles', () => {
+      const due = new Date('2026-09-30T00:00:00.000Z');
+
+      // The pair the reminder sheet had: the day read where the reader is, the
+      // day started where the account is. Both halves plausible, a day apart.
+      expect(dayOf(due, null)).toBe('2026-09-29');
+      expect(startOfDayOn(dayOf(due, null), 'UTC')).not.toEqual(due);
+      expect(startOfDayOn(dayOf(due, 'UTC'), 'UTC')).toEqual(due);
+    });
   });
 });
 

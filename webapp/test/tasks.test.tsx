@@ -2,12 +2,12 @@ import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
-import { DateTime } from 'luxon';
+import { DateTime, Settings } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Entry, GrowListItem, Reminder, Task } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
@@ -363,6 +363,64 @@ describe('the rhythms', () => {
 
     expect(section('Rhythms').getByText('Check the inline filter')).toBeInTheDocument();
     expect(section('Rhythms').queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * A one-off rhythm read from a browser that is not in the account's zone.
+ *
+ * Every other expectation on this screen is written from a browser that happens
+ * to agree with the account, which is why a reminder could be dated twice on
+ * one screen and walk a day backwards on every Save without a single test
+ * noticing. The reader is moved west of the account here - Luxon's default zone
+ * is what a browser's own calendar is, in this app and in these tests - because
+ * a reader behind their account is where both of those show.
+ *
+ * The reminder falls due at the start of a day in the account's zone, which is
+ * how the sheet writes one, and that is the instant every assertion below is
+ * about: the card counts the days to it in the account's zone, the rhythm line
+ * names the day it falls on, and opening the sheet and saving it untouched has
+ * to leave it exactly where it was.
+ */
+describe('a one-off rhythm read from behind the account', () => {
+  /** Midnight on the last day of September where the account is kept, which is still the 29th in the afternoon for the reader. */
+  const DUE = '2026-09-30T00:00:00.000Z';
+  const repot = reminder({ id: 'rem-8', kind: 'chore', label: 'Repot', everyDays: null, onceAt: DUE, defaults: null });
+
+  beforeEach(() => {
+    Settings.defaultZone = 'America/Los_Angeles';
+    state.zone = 'UTC';
+    state.waiting = [task({ id: 'rem-8:2026-09-30', sourceId: 'rem-8', kind: 'chore', label: 'Repot', dueAt: DUE, defaults: null })];
+    state.done = [];
+    state.rhythms = [repot];
+    vi.setSystemTime(DateTime.fromISO('2026-09-23T03:00:00.000Z').toJSDate());
+  });
+
+  afterEach(() => {
+    Settings.defaultZone = 'system';
+  });
+
+  it('opens the sheet on the day it falls on, above a floor the account has reached', async () => {
+    await drawLoaded();
+
+    fireEvent.click(within(section('Rhythms').getByText('Repot').closest('li')!).getByRole('button', { name: 'Edit' }));
+    const day = within(screen.getByRole('dialog', { name: 'Reminder' })).getByLabelText('Day') as HTMLInputElement;
+
+    expect(day.value).toBe('2026-09-30');
+    // The account's today, not the reader's: on the reader's the field opened
+    // on a day below its own floor, which is a field in a state it refuses.
+    expect(day.min).toBe('2026-09-23');
+  });
+
+  it('leaves the day exactly where it was when Save is pressed with nothing touched', async () => {
+    await drawLoaded();
+
+    fireEvent.click(within(section('Rhythms').getByText('Repot').closest('li')!).getByRole('button', { name: 'Edit' }));
+    const sheet = screen.getByRole('dialog', { name: 'Reminder' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalled());
+    expect(vi.mocked(api.patch).mock.calls[0][1]).toMatchObject({ onceAt: DUE });
   });
 });
 

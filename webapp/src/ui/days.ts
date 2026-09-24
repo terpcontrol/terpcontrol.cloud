@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { zonedAt } from './zone';
 
 /**
@@ -42,3 +43,23 @@ export const momentOn = (day: string, clock: Date, zone: string | null): Date =>
 
   return zonedAt(clock.getTime(), zone).set({ year, month, day: date }).toJSDate();
 };
+
+/**
+ * That day from its first moment, for a field that is arranging something
+ * rather than remembering it.
+ *
+ * A reminder falls due on a day and not at an hour, and it is the day's task
+ * from the morning on rather than from whatever hour the sheet was filled in
+ * at - so this is the other write a date field has, beside `momentOn`. It is
+ * here rather than in the sheet because the sheet that reads a day with
+ * `dayOf` and starts one of its own with Luxon is the sheet that read on one
+ * calendar and wrote on the other: opened in a browser behind its account, the
+ * reminder sheet offered the day before the one the reminder falls on, and
+ * saving it untouched filed it there, a day earlier every time it was saved.
+ * The two halves take the same zone in the same call because they live in the
+ * same file, which is the whole reason this file exists.
+ */
+export const startOfDayOn = (day: string, zone: string | null): Date =>
+  DateTime.fromISO(day, { zone: zone ?? undefined })
+    .startOf('day')
+    .toJSDate();
