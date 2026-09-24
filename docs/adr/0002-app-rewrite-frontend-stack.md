@@ -201,19 +201,34 @@ or more.
 | `--muted` | `#5a6275` | `#b9c4dc` | secondary text |
 | `--label` | `#586074` | `#aab7d3` | labels, captions |
 | `--heading` | `#1f3a6e` | `#ffffff` | titles and names |
-| `--brand` | `#2d4b95` | `#b8d4ff` | active tab, chosen chip and option, links, focus |
+| `--brand` | `#2d4b95` | `#b8d4ff` | active tab, links, focus, a secondary button's words |
 | `--on-brand` | `#ffffff` | `#14264a` | text on the brand |
 | `--brand-wash` | `#e8eef9` | `#2a4a86` | behind whatever is selected |
+| `--selected` / `--selected-edge` | `#2d4b95` / same | `#2a4a86` / `#b8d4ff` | a chosen chip or segment: fill and ring |
+| `--on-selected` | `#ffffff` | `#ffffff` | text on a choice |
 | `--green` | `#50a030` | `#6fbe4a` | live dots, in-band marks, reached segments |
 | `--green-ink` | `#35701f` | `#c2eca0` | green text |
 | `--green-wash` | `#eaf4e4` | `#244a45` | behind a green word: live, a stage, the current step |
-| `--green-fill` | `#3e8024` | `#3e8024` | the primary action's fill, switches, sliders |
+| `--green-fill` | `#3e8024` | `#3e8024` | the primary action's fill, under white words only |
 | `--on-green` | `#ffffff` | `#ffffff` | text on the fill |
 | `--temperature` | `#b93f0b` | `#ffa166` | orange |
 | `--humidity` | `#08737f` | `#5fd4cf` | teal |
 | `--co2` | `#8a3aa8` | `#dca5f5` | violet |
-| `--warning` | `#855800` | `#f2c35a` | amber; outputs on a chart |
+| `--warning` | `#855800` | `#f2c35a` | amber, for what is actually wrong |
 | `--alarm` | `#b8213d` | `#ff8b9a` | crimson |
+| `--warning-wash` / `--warning-edge` | `#fff6db` / `#e8b53d` | `--card-2` / `#f2c35a` | a warning's ground and edge |
+| `--alarm-wash` / `--alarm-edge` | `#fdecef` / `#eba2ae` | `--card-2` / `#ff8b9a` | an alarm's ground and edge |
+| `--output` | `#4870c0` | `#8fb0ea` | what an output did: lanes, output lines |
+
+Two rules came out of checking the first brand pass against the site. **No signal is mixed into a surface**:
+amber or red laid into white or navy with `color-mix` came out beige, tan, khaki and mauve - the rejected warm
+paper under another name - so a warning's ground and edge are written out, and in dark mode a warning stands on
+the lifted navy and lets its amber edge and ink say the rest. A finished alert keeps its stripe in the strong rule
+rather than a signal at half strength. And **an output running is not a warning**: the lanes and output lines take
+the light brand blue. Selection in dark mode is a navy fill with a pale-blue ring and white words, because the site
+keeps its pale blue for links; a pressed series chip there carries its line's colour as a mark rather than as a
+pastel fill. Sliders and an on switch take the surface green, since the primary's darker fill came to 2.7:1 on the
+dark card, under the 3:1 a control needs.
 
 The primary fill is the site's `#3e8024` in both modes, as the site's dark call-to-action panel uses it. The
 desktop rail is navy in both modes - the site's dark sections round a light page, as its hero and footer stand
@@ -222,6 +237,8 @@ round its content: the spotlight's stops `#2d4b95` → `#1f3a6e` → `#14264a` r
 icon in the pale green. Captions over photographs sit on smoked navy (`--overlay`, `rgb(12 24 48 / 72%)`, text
 `#f5f8ff`) in both modes, because the picture does not change with the theme; a button over a photograph is
 solid (`--overlay-solid`, `#111f3d`). The toast is the dark brand blue in light mode and a raised navy in dark.
+The sign-in and sign-up cards stand on the site's spotlight (`--spotlight`: the radial navy with its green light)
+in both modes, so the first screen is the site's first impression.
 
 **The logo** is the brand's own, `public/assets/brand/logo.png`, in the rail, the phone's top bar, the sign-in
 and sign-up cards, the public pages' bar and the error page, in place of a typeset name. On a dark surface it is
@@ -233,20 +250,25 @@ dark sections give the brand (white type, the green kept). A `Logo` component dr
 the installed app's icons are the logo's shield.
 
 **Charts** take every colour from these tokens through `src/charts/tokens.ts`: a line in its signal colour (VPD
-and hand-written readings in ink, outputs in warning), the target band `--band` (the brand green at 14 %), the
+and hand-written readings in ink, outputs in `--output`), the target band `--band` (the brand green at 14 %; on
+navy a yellower green at 22 %, which the brand green turned slate teal beside the humidity line), the
 nights `--night` as a faint wash of the dark blue (black-navy in dark mode), halved over a long range so a month
 of nights does not read as a barcode, and three faint rules across each plot in `--grid`. A series chip is filled
 with its line's colour when it is on, and the pinned reading draws a short stroke in each line's colour before
-its name, so the chips and the header are the legend. The server's timelapse overlays and share-link cards use
+its name, so the chips and the header are the legend (in dark mode the chip is the navy choice with a mark of
+the line's colour). The server's timelapse overlays and share-link cards use
 the dark palette's ink, muted ink, navy plate and signal colours.
 
 **Shape.** The site's three radii: 6 px for a control (a button, a field, a rail item), 12 px for a card, 20 px
-for a large panel; 4 px for the option inside a segmented track. Chips, tags, the live pill and badges stay pills,
-as the site's pills and badges are. 1 px rules; under a card in light mode the site's low two-layer shadow
+for a large panel; 4 px for the option inside a segmented track. Every button is 6 px, the small action chips
+(Measurements, Share, Silence 1 h, Save view) and the native menus included; a chip that is a choice - a range, a
+place, a series, anything pressed or not - stays a pill, as do tags, the live pill and badges, as the site keeps
+pills for badges and filters. 1 px rules; under a card in light mode the site's low two-layer shadow
 tinted with the dark blue (`0 1px 2px rgb(31 58 110 / 6%), 0 1px 3px rgb(31 58 110 / 4%)`), raised things its
 larger one; in dark mode an inset top highlight and a deep drop shadow. A field is 44 px tall, a card's repeated
 action 36, a chip 30. The one primary action on a screen is filled green; the quieter actions a card repeats
-(Photo, Note, Alarms off) are a filled tint with no outline; everything else is outlined.
+(Photo, Note, Alarms off) are a filled tint with no outline; everything else is the site's ghost button - white,
+its words in the brand blue, an edge that turns blue under the pointer.
 
 **Spacing.** A 4 px unit: 4, 8, 12, 16, 24 and 36 inside a page, 48 and 64 between the sections of a long one;
 a card's padding is 16 on a phone and 20 from 900 px.

@@ -11,6 +11,11 @@
   background: var(--scrim);
 }
 
+/* Out of the page frame's centring margin, as the sheet's scrim is (log/Sheet.module.css). */
+div.scrim {
+  margin: 0;
+}
+
 .viewer {
   display: flex;
   flex-direction: column;

@@ -21,6 +21,7 @@ const TOKENS = [
   'humidity',
   'co2',
   'warning',
+  'output',
   'alarm',
   'font-text',
   'font-figure',

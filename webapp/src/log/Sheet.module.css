@@ -13,6 +13,15 @@
   background: var(--scrim);
 }
 
+/* A screen that renders its sheet inside the page's <main> hands the scrim the
+   frame's centring margin too (AppShell's `.main > *`), and a fixed element
+   with a margin starts that far in: on a desktop the left of the rail stayed
+   lit while the rest was dimmed. Named with its element so it outweighs that
+   rule wherever the two land in the stylesheet. */
+div.scrim {
+  margin: 0;
+}
+
 .sheet {
   position: relative;
   display: flex;

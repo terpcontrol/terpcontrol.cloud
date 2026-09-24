@@ -1,11 +1,11 @@
-/* The door into the app: one card on the page, with the light of something
-   growing coming up from under it - the same warm glow the app's pages fall
-   from, answered by a green one below. */
+/* The door into the app: one card on the site's navy spotlight, in both
+   modes - the first thing anybody sees is the company's own first
+   impression, and the card on it is the app's surface as ever. */
 .page {
   display: grid;
   place-items: center;
   min-height: 100%;
-  background: radial-gradient(900px 520px at 50% 115%, color-mix(in srgb, var(--green) 14%, transparent), transparent 70%);
+  background: var(--spotlight);
   padding: max(var(--space-4), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right))
     max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
 }
@@ -32,9 +32,11 @@
   text-align: center;
 }
 
-/* The line above the fields: why this form, in the words of the page that sent somebody here. */
+/* The line above the fields: why this form, in the words of the page that
+   sent somebody here. It takes back part of the logo's margin, which is set
+   for the fields, and keeps a clear 16 px under the logo's tagline. */
 .intro {
-  margin-top: calc(var(--space-2) - var(--space-6));
+  margin-top: calc(var(--space-4) - var(--space-6));
   margin-bottom: var(--space-5);
   font-size: var(--text-sm);
   line-height: var(--line-body);
@@ -44,7 +46,7 @@
 
 /* The one step that may stand between an account and its first sign-in. */
 .step {
-  margin-top: calc(var(--space-2) - var(--space-6));
+  margin-top: calc(var(--space-4) - var(--space-6));
   margin-bottom: var(--space-2);
   text-align: center;
   font-size: var(--text-md);
@@ -106,6 +108,6 @@
 
   .intro,
   .step {
-    margin-top: calc(var(--space-2) - var(--space-5));
+    margin-top: calc(var(--space-4) - var(--space-5));
   }
 }

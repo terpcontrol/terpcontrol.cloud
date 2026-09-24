@@ -37,8 +37,8 @@
 }
 
 .alert[data-severity='critical'] {
-  border-color: color-mix(in srgb, var(--alarm) 55%, var(--rule));
-  background: color-mix(in srgb, var(--alarm) 7%, var(--card));
+  border-color: var(--alarm-edge);
+  background: var(--alarm-wash);
 }
 
 .alert[data-severity='critical'] strong {
@@ -46,8 +46,8 @@
 }
 
 .alert[data-severity='warning'] {
-  border-color: color-mix(in srgb, var(--warning) 55%, var(--rule));
-  background: color-mix(in srgb, var(--warning) 7%, var(--card));
+  border-color: var(--warning-edge);
+  background: var(--warning-wash);
 }
 
 .circle {

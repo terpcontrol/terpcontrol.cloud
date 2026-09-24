@@ -38,6 +38,13 @@
   line-height: var(--line-tight);
 }
 
+/* The camera's own name is a name, in the heading blue; what kind it is and
+   where stay in their muted ink after it. */
+.cameraName > a {
+  font-weight: var(--weight-heading);
+  color: var(--heading);
+}
+
 /* The kind and the tent, which together are what tells two cameras with one
    name apart. */
 .kind {

@@ -46,6 +46,13 @@
   --on-brand: #ffffff;
   /* A tint of the blue, behind whatever is selected. */
   --brand-wash: #e8eef9;
+  /* What is chosen - a pressed chip, the segment in force: filled with the
+     brand blue in light mode. Dark mode keeps the pale blue for links, as the
+     site does, and marks the choice with a navy fill and a pale-blue ring
+     instead, so a row of chosen chips is not a row of pastel pills. */
+  --selected: var(--brand);
+  --selected-edge: var(--brand);
+  --on-selected: var(--on-brand);
 
   /* Brand green. `--green` is a surface colour - a dot, a line, a filled
      segment - and reaches only 3.3:1 as text on white, so green text takes
@@ -73,6 +80,23 @@
   --alarm: #b8213d;
   /* Text laid on a filled signal - a pressed series chip, a count badge. */
   --on-signal: var(--card);
+  /* The mark inside a pressed series chip: in light mode the chip is filled
+     with its line's colour and the mark is a hole in it; dark mode unsets this
+     and the chip is the navy choice with the mark in the line's colour. */
+  --series-mark: var(--on-signal);
+
+  /* What an output did - the lamp, the fan, the dehumidifier - on a timeline
+     lane and a chart: the light brand blue. Running is not a warning, so it
+     does not borrow the amber. */
+  --output: #4870c0;
+
+  /* The ground a warning or an alarm stands on and the edge round it, written
+     out rather than mixed: the amber mixed into these surfaces came out
+     beige on white and khaki on navy, the rejected warm paper again. */
+  --warning-wash: #fff6db;
+  --warning-edge: #e8b53d;
+  --alarm-wash: #fdecef;
+  --alarm-edge: #eba2ae;
 
   /* The target band behind a chart line, the night behind it, and the faint
      rule a plot is read across. A canvas reads these, so they are written in
@@ -93,6 +117,11 @@
      ends in, and the inks that read on it - measured on the lightest stop. */
   --navy: linear-gradient(180deg, #2d4b95 0%, #1f3a6e 48%, #14264a 100%);
   --navy-end: #14264a;
+  /* The site's spotlight, its green light and all, as a whole page's ground:
+     the door into the app stands on it in both modes. */
+  --spotlight:
+    radial-gradient(640px 640px at 88% -6%, rgb(80 160 48 / 42%) 0%, rgb(80 160 48 / 12%) 42%, transparent 68%),
+    radial-gradient(125% 120% at 10% 0%, #2d4b95 0%, #1f3a6e 48%, #14264a 100%);
   --navy-ink: #ffffff;
   --navy-muted: #cdd7ec;
   --navy-label: #b9c6e2;
@@ -188,7 +217,7 @@
   --chip-height: 30px;
 
   --tabbar-height: 62px;
-  --topbar-height: 60px;
+  --topbar-height: 64px;
   /* The raised Log button on the tab bar. */
   --log-button: 56px;
   /* The desktop rail replaces the tab bar from here up. */
@@ -264,6 +293,9 @@
   --brand: #b8d4ff;
   --on-brand: #14264a;
   --brand-wash: #2a4a86;
+  --selected: #2a4a86;
+  --selected-edge: #b8d4ff;
+  --on-selected: #ffffff;
   --green: #6fbe4a;
   --green-ink: #c2eca0;
   --green-wash: #244a45;
@@ -273,7 +305,9 @@
   --tint: #233d70;
   --tint-hover: #2a4579;
 
-  --band: rgba(111, 190, 74, 0.14);
+  /* A yellower green, and more of it: the brand green at 14% over navy came
+     out a slate teal beside the humidity line. */
+  --band: rgba(150, 235, 30, 0.22);
   --night: rgba(4, 10, 26, 0.3);
   --night-long: rgba(4, 10, 26, 0.15);
   --grid: rgba(184, 212, 255, 0.1);
@@ -296,6 +330,18 @@
   --warning: #f2c35a;
   --alarm: #ff8b9a;
   --on-signal: var(--bg);
+  --series-mark: initial;
+  --series-fill: #2a4a86;
+  --series-edge: #b8d4ff;
+  --series-ink: #ffffff;
+
+  --output: #8fb0ea;
+  /* Amber or red laid over navy at any strength turns olive or mauve, so a
+     warning in dark mode stands on the lifted navy and its edge says the rest. */
+  --warning-wash: var(--card-2);
+  --warning-edge: #f2c35a;
+  --alarm-wash: var(--card-2);
+  --alarm-edge: #ff8b9a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -316,6 +362,9 @@
     --brand: #b8d4ff;
     --on-brand: #14264a;
     --brand-wash: #2a4a86;
+    --selected: #2a4a86;
+    --selected-edge: #b8d4ff;
+    --on-selected: #ffffff;
     --green: #6fbe4a;
     --green-ink: #c2eca0;
     --green-wash: #244a45;
@@ -325,7 +374,9 @@
     --tint: #233d70;
     --tint-hover: #2a4579;
 
-    --band: rgba(111, 190, 74, 0.14);
+    /* A yellower green, and more of it: the brand green at 14% over navy came
+       out a slate teal beside the humidity line. */
+    --band: rgba(150, 235, 30, 0.22);
     --night: rgba(4, 10, 26, 0.3);
     --night-long: rgba(4, 10, 26, 0.15);
     --grid: rgba(184, 212, 255, 0.1);
@@ -348,5 +399,17 @@
     --warning: #f2c35a;
     --alarm: #ff8b9a;
     --on-signal: var(--bg);
+    --series-mark: initial;
+    --series-fill: #2a4a86;
+    --series-edge: #b8d4ff;
+    --series-ink: #ffffff;
+
+    --output: #8fb0ea;
+    /* Amber or red laid over navy at any strength turns olive or mauve, so a
+       warning in dark mode stands on the lifted navy and its edge says the rest. */
+    --warning-wash: var(--card-2);
+    --warning-edge: #f2c35a;
+    --alarm-wash: var(--card-2);
+    --alarm-edge: #ff8b9a;
   }
 }

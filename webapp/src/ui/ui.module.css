@@ -67,8 +67,8 @@
 }
 
 .group > [data-current='held'] {
-  background: color-mix(in srgb, var(--warning) 10%, var(--card));
-  box-shadow: inset 3px 0 0 var(--warning);
+  background: var(--warning-wash);
+  box-shadow: inset 3px 0 0 var(--warning-edge);
 }
 
 /* The same, for cards that stand in a page's own column with no list round
@@ -413,6 +413,8 @@
   color: var(--ink);
 }
 
+/* The secondary button, as the site draws its own: white, its words in the
+   brand blue, an edge that turns blue under the pointer. */
 .button {
   display: inline-flex;
   align-items: center;
@@ -421,9 +423,9 @@
   height: var(--control-height);
   padding: 0 var(--space-4);
   background: var(--card);
-  border: var(--rule-solid);
+  border: var(--rule-width) solid var(--rule-strong);
   border-radius: var(--radius-sm);
-  color: var(--ink);
+  color: var(--brand);
   font-weight: var(--weight-semibold);
   white-space: nowrap;
   transition:
@@ -432,7 +434,7 @@
 }
 
 .button:hover:not(:disabled) {
-  background: var(--card-2);
+  border-color: var(--brand);
 }
 
 /* An icon keeps its size when a narrow row squeezes the words beside it. */
@@ -466,11 +468,13 @@
   padding: 0 var(--space-3);
   background: var(--tint);
   border-color: transparent;
+  color: var(--ink);
   font-size: var(--text-sm);
 }
 
 .quiet:hover:not(:disabled) {
   background: var(--tint-hover);
+  border-color: transparent;
 }
 
 /* A primary that cannot be pressed gives the green up rather than fading it.
@@ -487,6 +491,10 @@
   opacity: 1;
 }
 
+/* A small action - Measurements, Share, Silence 1 h, Save view - drawn at
+   the site's control radius like every other button. A chip that is a
+   choice - a range, a place, a line on a chart, anything pressed or not - is
+   the pill, as the site keeps pills for badges and filters. */
 .chip {
   display: inline-flex;
   align-items: center;
@@ -495,7 +503,7 @@
   padding: 0 var(--space-3);
   background: transparent;
   border: var(--rule-solid);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   color: var(--ink);
   font-family: var(--font-figure);
   font-size: var(--text-xs);
@@ -503,56 +511,44 @@
   white-space: nowrap;
 }
 
+.chip:is([aria-pressed], [aria-checked], [data-chosen], [data-colour]) {
+  border-radius: var(--radius-pill);
+}
+
 /* A chip that is on: filled with the brand, so "which one is on" is answered
-   from across the room. A chip that stands for a line on a chart names the
-   line's colour in `data-colour` and is filled with that instead, which is
-   what makes the chip its own legend. */
+   from across the room - in dark mode the navy choice with its pale-blue
+   ring (tokens.css). A chip that stands for a line on a chart names the
+   line's colour in `data-colour` and carries a mark of it, on or off, which
+   is what makes the chip its own legend; in light mode the pressed one is
+   filled with that colour too. */
 .chip[aria-pressed='true'],
 .chip[data-chosen='true'] {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--on-brand);
+  background: var(--selected);
+  border-color: var(--selected-edge);
+  color: var(--on-selected);
 }
 
-.chip[aria-pressed='true'][data-colour='temperature'] {
-  background: var(--temperature);
-  border-color: var(--temperature);
-  color: var(--on-signal);
+.chip[aria-pressed='true'][data-colour] {
+  background: var(--series-fill, var(--chip-colour));
+  border-color: var(--series-edge, var(--chip-colour));
+  color: var(--series-ink, var(--on-signal));
 }
 
-.chip[aria-pressed='true'][data-colour='humidity'] {
-  background: var(--humidity);
-  border-color: var(--humidity);
-  color: var(--on-signal);
-}
-
-.chip[aria-pressed='true'][data-colour='co2'] {
-  background: var(--co2);
-  border-color: var(--co2);
-  color: var(--on-signal);
-}
-
-.chip[aria-pressed='true'][data-colour='warning'] {
-  background: var(--warning);
-  border-color: var(--warning);
-  color: var(--on-signal);
-}
-
-.chip[aria-pressed='true'][data-colour='ink'] {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--on-signal);
-}
-
-/* Off, a line's chip keeps a small mark of its colour, so the chip still says
-   which line it would draw. */
-.chip[aria-pressed='false'][data-colour]::before {
+.chip[aria-pressed][data-colour]::before {
   content: '';
   width: 8px;
   height: 8px;
   margin-right: 2px;
   border-radius: 50%;
-  background: var(--chip-colour, var(--ink));
+  background: var(--chip-colour);
+}
+
+.chip[aria-pressed='true'][data-colour]::before {
+  background: var(--series-mark, var(--chip-colour));
+}
+
+.chip[data-colour] {
+  --chip-colour: var(--ink);
 }
 
 .chip[data-colour='temperature'] {
@@ -567,8 +563,8 @@
   --chip-colour: var(--co2);
 }
 
-.chip[data-colour='warning'] {
-  --chip-colour: var(--warning);
+.chip[data-colour='output'] {
+  --chip-colour: var(--output);
 }
 
 /* A chip out of reach, turned down as far as every other control the app
@@ -746,8 +742,9 @@
 .segment[aria-selected='true'],
 .segment[aria-current='page'],
 .segment[data-chosen='true'] {
-  background: var(--brand);
-  color: var(--on-brand);
+  background: var(--selected);
+  box-shadow: inset 0 0 0 var(--rule-width) var(--selected-edge);
+  color: var(--on-selected);
 }
 
 /* Out of reach, the options that cannot be chosen drop to the label ink, and
@@ -766,7 +763,8 @@
 /* A value dragged along a line: the app's one slider, wherever it is - a
    target, a brightness, the cursor over a day of pictures. The part up to the
    thumb is the green, the rest a rule, and the thumb a green dot ringed in
-   the card. The page says how far along it is in `--filled`, a percentage. */
+   the card. The surface green rather than the button's darker fill: on the
+   dark card the fill came to 2.7:1, under the 3:1 a control's state needs. The page says how far along it is in `--filled`, a percentage. */
 .range {
   --filled: 0%;
 
@@ -782,13 +780,13 @@
 
 .range::-webkit-slider-runnable-track {
   height: 4px;
-  background: linear-gradient(to right, var(--green-fill) var(--filled), var(--rule-strong) var(--filled));
+  background: linear-gradient(to right, var(--green) var(--filled), var(--rule-strong) var(--filled));
   border-radius: var(--radius-pill);
 }
 
 .range::-moz-range-track {
   height: 4px;
-  background: linear-gradient(to right, var(--green-fill) var(--filled), var(--rule-strong) var(--filled));
+  background: linear-gradient(to right, var(--green) var(--filled), var(--rule-strong) var(--filled));
   border-radius: var(--radius-pill);
 }
 
@@ -796,7 +794,7 @@
   width: 20px;
   height: 20px;
   margin-top: -8px;
-  background: var(--green-fill);
+  background: var(--green);
   border: 3px solid var(--card);
   border-radius: var(--radius-pill);
   box-shadow: var(--shadow-raised);
@@ -806,7 +804,7 @@
 .range::-moz-range-thumb {
   width: 20px;
   height: 20px;
-  background: var(--green-fill);
+  background: var(--green);
   border: 3px solid var(--card);
   border-radius: var(--radius-pill);
   box-shadow: var(--shadow-raised);
@@ -947,9 +945,11 @@
   border-radius: var(--radius-pill);
 }
 
+/* On, the surface green - the button's darker fill fell under 3:1 on the
+   dark card. */
 .switch[aria-checked='true'] {
-  background: var(--green-fill);
-  border-color: var(--green-fill);
+  background: var(--green);
+  border-color: var(--green);
 }
 
 /* A switch that cannot be moved is turned down, not recoloured: the outline stays

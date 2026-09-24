@@ -6,7 +6,10 @@
   align-items: center;
   gap: var(--space-2);
   min-height: calc(var(--topbar-height) + env(safe-area-inset-top));
-  padding: env(safe-area-inset-top) max(var(--space-3), env(safe-area-inset-right)) 0 max(var(--space-4), env(safe-area-inset-left));
+  /* The logo is an image with no leading above it, as the typeset name had:
+     a real inset keeps the shield off the top of a screen with no notch. */
+  padding: calc(env(safe-area-inset-top) + var(--space-2)) max(var(--space-3), env(safe-area-inset-right)) var(--space-1)
+    max(var(--space-4), env(safe-area-inset-left));
   background: color-mix(in srgb, var(--bg) 86%, transparent);
   backdrop-filter: saturate(1.4) blur(14px);
   -webkit-backdrop-filter: saturate(1.4) blur(14px);
@@ -29,6 +32,7 @@
   --logo-height: 30px;
 
   margin-bottom: 2px;
+  line-height: 0;
 }
 
 .freshness {

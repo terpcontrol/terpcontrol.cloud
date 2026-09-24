@@ -58,7 +58,7 @@
 }
 
 .status[data-status='paused'] {
-  background: color-mix(in srgb, var(--warning) 14%, var(--card));
+  background: var(--warning-wash);
   color: var(--warning);
 }
 

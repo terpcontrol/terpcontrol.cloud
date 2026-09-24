@@ -18,14 +18,14 @@
 /* An alarm colours the card's edge, the same red the strip above uses: a
    band inside the rounded edge, so the corner keeps its curve. */
 .card[data-severity='critical'] {
-  border-color: color-mix(in srgb, var(--alarm) 45%, var(--rule));
+  border-color: var(--alarm-edge);
   box-shadow:
     inset 4px 0 0 var(--alarm),
     var(--shadow);
 }
 
 .card[data-severity='warning'] {
-  border-color: color-mix(in srgb, var(--warning) 45%, var(--rule));
+  border-color: var(--warning-edge);
   box-shadow:
     inset 4px 0 0 var(--warning),
     var(--shadow);

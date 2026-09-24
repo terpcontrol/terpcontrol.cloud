@@ -376,7 +376,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
           </Pick>
         ))}
         {(moreOutputs ? offered.outputs : offered.outputs.slice(0, OUTPUTS_SHOWN)).map(output => (
-          <Pick key={output} on={chosen.outputs.includes(output)} colour="warning" onPick={() => change({ outputs: toggle(chosen.outputs, output) })}>
+          <Pick key={output} on={chosen.outputs.includes(output)} colour="output" onPick={() => change({ outputs: toggle(chosen.outputs, output) })}>
             {t(`timeline.output.${output}`, { defaultValue: output })}
           </Pick>
         ))}
@@ -653,7 +653,8 @@ function Header({ spaceId, growId, subject }: { spaceId: string | null; growId: 
 /**
  * A series chip. A measurement carries the board's dot, which is what says it
  * was written down rather than measured. The colour is the line's, which the
- * chip is filled with while it is on: the chip row is the chart's legend.
+ * chip carries as a mark and, in light mode, is filled with while it is on:
+ * the chip row is the chart's legend.
  */
 function Pick({ on, dot, colour, onPick, children }: { on: boolean; dot?: boolean; colour?: string; onPick: () => void; children: React.ReactNode }) {
   return (

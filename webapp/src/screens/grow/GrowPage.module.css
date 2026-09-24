@@ -62,7 +62,9 @@
   color: var(--ink);
 }
 
-/* "34 / DAY" */
+/* "34 / DAY" - part of the grow's heading rather than one more reading, so the
+   figure takes the heading blue beside the name. Every tab, the Report
+   included, stands under this one header. */
 .day {
   grid-area: day;
   display: flex;
@@ -76,6 +78,7 @@
   font-weight: var(--weight-figure);
   letter-spacing: -0.01em;
   line-height: 1;
+  color: var(--heading);
 }
 
 /* The phase bar: six segments, filled as far as the grow has come, each named under its segment. */

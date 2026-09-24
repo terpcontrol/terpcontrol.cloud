@@ -51,12 +51,12 @@
 }
 
 .row[data-severity='warning'] .kind {
-  background: color-mix(in srgb, var(--warning) 16%, var(--card));
+  background: var(--warning-wash);
   color: var(--warning);
 }
 
 .row[data-severity='critical'] .kind {
-  background: color-mix(in srgb, var(--alarm) 14%, var(--card));
+  background: var(--alarm-wash);
   color: var(--alarm);
 }
 

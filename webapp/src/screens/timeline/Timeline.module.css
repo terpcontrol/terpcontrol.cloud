@@ -486,16 +486,16 @@
   touch-action: pan-y;
 }
 
-/* When an output ran: a tint of the amber at a little over half the lane's
+/* When an output ran: a bar in the output blue, a little inside the lane's
    height, so the lanes say when things ran without outweighing the climate
-   lines they explain. */
+   lines they explain. Not the amber - running is not a warning. */
 .bar {
   position: absolute;
   top: 2px;
   bottom: 2px;
   /* Softened, not rounded away: a run of a few minutes reads as a tick rather than as a dot. */
   min-width: 3px;
-  background: color-mix(in srgb, var(--warning) 55%, var(--card-2));
+  background: var(--output);
   border-radius: 3px;
 }
 

@@ -94,7 +94,8 @@
 /* What is over is a record rather than a call to act, so the resolved cards
    of a day are joined into one card split by hairlines, each a row: what
    happened and when on the left, the way to the timeline at the right. The
-   stripe stays, so a night's warnings still read as warnings. Over is said by
+   stripe stays, in the strong rule (below), and the line under the event
+   says in words which severity it had. Over is said by
    the ink rather than by fading the row: the card is `data-age='stale'`, so
    its title takes the stale ink the global age rule gives it. */
 .card[data-age] {
@@ -114,23 +115,12 @@
   min-height: 0;
 }
 
-/* A finished event keeps its stripe at half strength, so the one still open
-   above it is the brightest edge on the page. */
-.card[data-age][data-severity='critical'] {
+/* A finished event gives its signal colour up for the strong rule, so the
+   one still open above it is the only coloured edge on the page. A signal at
+   half strength was a tan or a mauve, neither of them the brand. */
+.card[data-age][data-severity] {
   box-shadow:
-    inset 4px 0 0 color-mix(in srgb, var(--alarm) 50%, var(--card)),
-    var(--shadow);
-}
-
-.card[data-age][data-severity='warning'] {
-  box-shadow:
-    inset 4px 0 0 color-mix(in srgb, var(--warning) 50%, var(--card)),
-    var(--shadow);
-}
-
-.card[data-age][data-severity='info'] {
-  box-shadow:
-    inset 4px 0 0 color-mix(in srgb, var(--label) 50%, var(--card)),
+    inset 4px 0 0 var(--rule-strong),
     var(--shadow);
 }
 

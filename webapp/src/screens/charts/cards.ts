@@ -533,7 +533,7 @@ const outputDrawn = (
     about: devices > 1 ? t('charts.about.outputPooled', { count: devices }) : t('charts.about.output'),
     unit: '',
     values: [0, 1],
-    lines: [{ key: `out-${output}`, label: title, shape: 'step', colour: 'warning', axis: 0, points }],
+    lines: [{ key: `out-${output}`, label: title, shape: 'step', colour: 'output', axis: 0, points }],
     // A state stands until it switches, so the column reads across the rows the climate put in the table.
     csv: { label: t('charts.csvOutput', { output: title }), points, holds: true },
   };

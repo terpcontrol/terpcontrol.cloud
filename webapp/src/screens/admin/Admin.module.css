@@ -66,13 +66,13 @@
   gap: var(--space-2);
 }
 
-/* A chip that is on, filled with the brand as every chosen chip in the app is.
-   The brand is the deep forest and not the primary's green, so it does not
-   read as a second primary beside the rollout's. */
+/* A chip that is on, drawn as every chosen chip in the app is: the brand
+   blue, not the primary's green, so it does not read as a second primary
+   beside the rollout's. */
 .chipOn {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--on-brand);
+  background: var(--selected);
+  border-color: var(--selected-edge);
+  color: var(--on-selected);
 }
 
 /* A chip that is a menu: the native select, keeping its keyboard and the

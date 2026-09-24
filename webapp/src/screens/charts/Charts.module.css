@@ -134,10 +134,12 @@
   min-width: 0;
 }
 
+/* A panel's name - "Temp + RH", "VPD" - in the heading blue, as a name is. */
 .cardTitle {
   flex-shrink: 0;
   font-size: var(--text-md);
   font-weight: var(--weight-bold);
+  color: var(--heading);
 }
 
 /* What the panel is, in the same line and one step quieter.
@@ -326,8 +328,8 @@
   color: var(--co2);
 }
 
-.scrubValue[data-colour='warning'] {
-  color: var(--warning);
+.scrubValue[data-colour='output'] {
+  color: var(--output);
 }
 
 .scrubValue[data-colour='muted'] {
