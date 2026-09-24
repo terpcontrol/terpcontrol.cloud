@@ -60,10 +60,12 @@ export function Me() {
 
       {isDemo ? <DemoDoors handle={user?.handle ?? '?'} /> : <AccountDoors handle={user?.handle ?? '?'} />}
 
-      <Door to="/me/appearance" title={t('me.appearance.title')} line={<AppearanceLine language={i18n.resolvedLanguage ?? i18n.language} />} />
-      <Door to="/me/about" title={t('me.about.title')} line={versionLine(t, APP_VERSION, BUILD_MODE)} />
+      <div className={styles.doors}>
+        <Door to="/me/appearance" title={t('me.appearance.title')} line={<AppearanceLine language={i18n.resolvedLanguage ?? i18n.language} />} />
+        <Door to="/me/about" title={t('me.about.title')} line={versionLine(t, APP_VERSION, BUILD_MODE)} />
+      </div>
 
-      <div className={styles.row}>
+      <div className={styles.foot}>
         <button type="button" className={ui.button} onClick={signOut}>
           {t('me.signOut')}
         </button>
@@ -109,22 +111,24 @@ function AccountDoors({ handle }: { handle: string }) {
         {line([me], () => [me.data!.email, t(me.data!.publicProfile ? 'me.identity.profileOn' : 'me.identity.profileOff')].join(' · '))}
       </Identity>
 
-      <Door
-        to="/me/public"
-        title={t('me.public.title')}
-        line={line([grows, me], () => publicLine(t, grows.data!.items, me.data!, window.location.host))}
-      />
-      <Door to="/me/following" title={t('me.following.title')} line={line([follows], () => followingLine(t, follows.data!.items.length))} />
-      <Door to="/me/share-links" title={t('me.shareLinks.title')} line={line([links], () => shareLinksLine(t, links.data!.items, now))} />
-      <Door to="/me/premium" title={t('me.premium.title')} line={line([cameras, me], () => premium!.text)} aside={premium?.aside ?? null} />
-      <Door to="/me/notifications" title={t('notifications.title')} line={line([me], () => notificationsLine(t, me.data!, now))} />
-      <Door to="/me/privacy" title={t('me.privacy.title')} line={line([me], () => privacyLine(t, me.data!))} />
-      <Door
-        to="/me/schemes"
-        title={t('me.schemes.title')}
-        line={line([grows, shipped, own], () => schemesLine(t, grows.data!.items, shipped.data!, own.data!.items))}
-      />
-      <Door to="/me/account" title={t('me.account.title')} line={t('me.door.account')} />
+      <div className={styles.doors}>
+        <Door
+          to="/me/public"
+          title={t('me.public.title')}
+          line={line([grows, me], () => publicLine(t, grows.data!.items, me.data!, window.location.host))}
+        />
+        <Door to="/me/following" title={t('me.following.title')} line={line([follows], () => followingLine(t, follows.data!.items.length))} />
+        <Door to="/me/share-links" title={t('me.shareLinks.title')} line={line([links], () => shareLinksLine(t, links.data!.items, now))} />
+        <Door to="/me/premium" title={t('me.premium.title')} line={line([cameras, me], () => premium!.text)} aside={premium?.aside ?? null} />
+        <Door to="/me/notifications" title={t('notifications.title')} line={line([me], () => notificationsLine(t, me.data!, now))} />
+        <Door to="/me/privacy" title={t('me.privacy.title')} line={line([me], () => privacyLine(t, me.data!))} />
+        <Door
+          to="/me/schemes"
+          title={t('me.schemes.title')}
+          line={line([grows, shipped, own], () => schemesLine(t, grows.data!.items, shipped.data!, own.data!.items))}
+        />
+        <Door to="/me/account" title={t('me.account.title')} line={t('me.door.account')} />
+      </div>
     </>
   );
 }
@@ -137,14 +141,16 @@ function DemoDoors({ handle }: { handle: string }) {
     <>
       <Identity handle={handle}>{t('me.demo')}</Identity>
 
-      <Closed title={t('me.public.title')} note={t('me.demo')} />
-      <Closed title={t('me.following.title')} note={t('me.demo')} />
-      <Closed title={t('me.shareLinks.title')} note={t('me.demo')} />
-      <Closed title={t('me.premium.title')} note={t('me.demo')} />
-      <Closed title={t('notifications.title')} note={t('notifications.demo')} />
-      <Closed title={t('me.privacy.title')} note={t('me.privacy.demo')} />
-      <Closed title={t('me.schemes.title')} note={t('me.demo')} />
-      <Closed title={t('me.account.title')} note={t('me.demo')} />
+      <div className={styles.doors}>
+        <Closed title={t('me.public.title')} note={t('me.demo')} />
+        <Closed title={t('me.following.title')} note={t('me.demo')} />
+        <Closed title={t('me.shareLinks.title')} note={t('me.demo')} />
+        <Closed title={t('me.premium.title')} note={t('me.demo')} />
+        <Closed title={t('notifications.title')} note={t('notifications.demo')} />
+        <Closed title={t('me.privacy.title')} note={t('me.privacy.demo')} />
+        <Closed title={t('me.schemes.title')} note={t('me.demo')} />
+        <Closed title={t('me.account.title')} note={t('me.demo')} />
+      </div>
     </>
   );
 }
@@ -178,7 +184,7 @@ function Identity({ handle, children }: { handle: string; children: ReactNode })
     <header className={styles.identity}>
       <span className={`mono ${styles.avatar}`}>{initials(handle)}</span>
       <div className={styles.who}>
-        <span className={styles.handle}>@{handle}</span>
+        <span className={`display ${styles.handle}`}>@{handle}</span>
         <span className={`mono ${styles.whoLine}`}>{children}</span>
       </div>
     </header>
