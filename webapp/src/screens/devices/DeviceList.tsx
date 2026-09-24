@@ -9,7 +9,7 @@ import { useCameras, useLatestStills } from '@/api/cameras';
 import { fetchedAt } from '@/api/clock';
 import { useDeviceFirmwares, useDevices, useLiveReads, useSocketTables } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
-import { useSpaces } from '@/api/spaces';
+import { useSpaces, useSpaceVerdicts } from '@/api/spaces';
 import { ageAttribute, ageLabel, deviceLiveness, heardAt } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -35,7 +35,7 @@ import styles from './Devices.module.css';
  * The tent page shows the same list narrowed to one place, which is why this is
  * a component and not a screen: the Devices tab is this with a header over it.
  */
-export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: ClimateVerdict }) {
+export function DeviceList({ spaceId }: { spaceId?: string }) {
   const { t } = useTranslation();
   const now = useNow();
   const { user } = useSession();
@@ -74,6 +74,13 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
   const shown = cameras.data?.items ?? [];
   const tables = useSocketTables(mine.map(device => device.id));
   const stills = useLatestStills(shown.map(camera => camera.id));
+  // How often an output came on today is counted per place, so the list asks
+  // each place it draws a row from rather than only the one it was opened in.
+  // On a tent's own tab that is the overview the page above this has already
+  // read, under the same key; on the account-wide tab it is what used to be
+  // missing, and the panels there ended at "Running at" with nothing saying
+  // why.
+  const verdicts = useSpaceVerdicts([...new Set(mine.map(device => device.spaceId).filter((id): id is string => id !== null))]);
 
   useReportFreshness(devices.dataUpdatedAt ? fetchedAt(devices.dataUpdatedAt) : null);
 
@@ -194,7 +201,7 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
               refusal={refusal}
               unheard={unheard}
               mayManage={mayManage}
-              runs={runsOf(verdict, row.role)}
+              runs={runsOf(verdicts.get(device.spaceId ?? ''), row.role)}
               now={now}
             />
           ));
@@ -214,7 +221,15 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
                     ))
                   : null}
                 <ul className={styles.rows}>
-                  {light ? <LightOutputRow output={light} unheard={unheard} mayManage={mayManage} runs={runsOf(verdict, 'light')} now={now} /> : null}
+                  {light ? (
+                    <LightOutputRow
+                      output={light}
+                      unheard={unheard}
+                      mayManage={mayManage}
+                      runs={runsOf(verdicts.get(device.spaceId ?? ''), 'light')}
+                      now={now}
+                    />
+                  ) : null}
                   {plugs(lamps)}
                 </ul>
               </section>

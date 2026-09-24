@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
 import type { PresetPrompt, Space, SpaceLive, SpaceOverview, SpacePage } from '@fg2/shared-types/v1';
 import { api } from './client';
@@ -40,11 +40,37 @@ export const useEverySpace = () =>
     queryFn: ({ signal }) => readEvery<Space>('/spaces', signal),
   });
 
+export const overviewKey = (spaceId: string) => ['space', spaceId, 'overview'];
+
 export const useSpaceOverview = (spaceId: string) =>
   useRead({
-    queryKey: ['space', spaceId, 'overview'],
+    queryKey: overviewKey(spaceId),
     queryFn: ({ signal }) => api.get<SpaceOverview>(`/spaces/${spaceId}/overview`, undefined, signal),
     refetchInterval: OVERVIEW_REFRESH_MS,
+  });
+
+/**
+ * The 24 h verdict of several places at once, for a list that draws rows from
+ * more than one of them.
+ *
+ * How often an output came on today is the place's answer and not the device's
+ * - it is counted by the same aggregation that decides whether the tent was in
+ * band - so a list spanning the whole account has to ask each place it draws a
+ * row from. The key is the one a tent's own page reads its overview under, so
+ * the tent tab costs nothing extra: the answer is already in hand, and the
+ * account-wide tab is the only caller that pays for a read.
+ *
+ * A place whose overview has not landed, or would not, simply has no counts,
+ * which is what a row with no run figure has always meant.
+ */
+export const useSpaceVerdicts = (spaceIds: readonly string[]) =>
+  useQueries({
+    queries: spaceIds.map(spaceId => ({
+      queryKey: overviewKey(spaceId),
+      queryFn: ({ signal }: { signal: AbortSignal }) => api.get<SpaceOverview>(`/spaces/${spaceId}/overview`, undefined, signal),
+      refetchInterval: OVERVIEW_REFRESH_MS,
+    })),
+    combine: (results: { data?: SpaceOverview }[]) => new Map(spaceIds.map((spaceId, index) => [spaceId, results[index]?.data?.verdict])),
   });
 
 export const useSpaceLive = (spaceId: string, enabled: boolean) =>

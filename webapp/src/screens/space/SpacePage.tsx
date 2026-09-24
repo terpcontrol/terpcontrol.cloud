@@ -104,7 +104,7 @@ function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; su
       ) : tab === 'timeline' ? (
         <Timeline spaceId={spaceId} />
       ) : tab === 'devices' ? (
-        <DeviceList spaceId={spaceId} verdict={current.verdict} />
+        <DeviceList spaceId={spaceId} />
       ) : tab === 'control' ? (
         <Control spaceId={spaceId} sub={sub} />
       ) : (

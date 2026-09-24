@@ -632,6 +632,35 @@ describe('what the sockets offer, by who is reading', () => {
     expect(screen.queryByRole('button', { name: 'auto' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'on' })).not.toBeInTheDocument();
   });
+
+  /**
+   * How often an output came on today is the place's own 24 h verdict, and the
+   * account-wide tab used to be handed none - so the identical panel answered
+   * "Came on" on a tent's tab and silently dropped the row on /devices, with
+   * nothing saying the figure was unavailable there. The list now asks each
+   * place it draws a row from.
+   */
+  it('counts how often an output came on wherever the row is opened from', async () => {
+    const verdict = { actuators: [{ output: 'light', runCount: 3, forSeconds: 900 }] };
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: [standing], nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [spaceWhere('own')], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
+      if (path === '/spaces/space-1/overview') return Promise.resolve({ verdict }) as never;
+      if (path.endsWith('/sockets')) return Promise.resolve({ items: [socket({ role: 'light' })], capabilities: CAPABILITIES }) as never;
+      if (path.endsWith('/series')) return Promise.resolve({ readings: [], outputs: [] }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+
+    const here = wrap(<DeviceList spaceId="space-1" />);
+    expect(await screen.findByText(/ran 3×/)).toBeInTheDocument();
+    here.unmount();
+
+    wrap(<DeviceList />);
+    expect(await screen.findByText(/ran 3×/)).toBeInTheDocument();
+  });
 });
 
 describe('what the Devices tab calls a device', () => {
