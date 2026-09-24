@@ -188,11 +188,7 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
           {/* The group carries the duration rather than each button, so the
               three keep the one-word names they are drawn with and a reader
               hears how long a hold lasts once, where the choice belongs. */}
-          <span
-            className={ui.segments}
-            role="group"
-            aria-label={t('devices.lightOutput.forceFor', { duration: durationLabel(hold) })}
-          >
+          <span className={ui.segments} role="group" aria-label={t('devices.lightOutput.forceFor', { duration: durationLabel(hold) })}>
             {(['auto', 'on', 'off'] as const).map(state => (
               <button
                 key={state}
