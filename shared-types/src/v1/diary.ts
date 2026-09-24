@@ -255,7 +255,7 @@ export const entry = named(
     authorId: id()
       .nullable()
       .describe(
-        'Who made this happen, whatever wrote it down. Null for what a device, an alarm or the plan engine´s own clock did, and set for a plan line somebody drove: a transition carries the person who asked for it.',
+        'Who made this happen, whatever wrote it down. Null for what a device, an alarm or the plan engine\'s own clock did, and set for a plan line somebody drove: a transition carries the person who asked for it.',
       ),
     growId: id().nullable(),
     spaceId: id().nullable(),
@@ -374,7 +374,7 @@ export const mediaOverlays = named(
   'MediaOverlays',
   z.object({
     dayCounter: z.boolean(),
-    climate: z.boolean().describe('The temperature and humidity of the span, with a cursor on the frame´s own instant.'),
+    climate: z.boolean().describe('The temperature and humidity of the span, with a cursor on the frame\'s own instant.'),
     entries: z.boolean().describe('The diary lines of the span, each as a caption on the frames around it.'),
   }),
 );
@@ -447,7 +447,7 @@ export const media = named(
     spaceId: id()
       .nullable()
       .describe(
-        'Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody´s flat a picture was taken in is not part of what a link shows.',
+        'Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody\'s flat a picture was taken in is not part of what a link shows.',
       ),
     uploadedBy: id()
       .nullable()
@@ -1448,7 +1448,7 @@ export const timelineOutputLane = named(
     deviceId: id().describe('Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to.'),
     spans: z.array(timelineSpan),
     heardUntil: instant().describe(
-      'How far anything is known about this output: the last instant the device was heard from inside the window, or the window´s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.',
+      'How far anything is known about this output: the last instant the device was heard from inside the window, or the window\'s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.',
     ),
   }),
 );
@@ -1547,7 +1547,7 @@ export const spaceTimeline = named(
     lastReadingAt: instant()
       .nullable()
       .describe(
-        'When a device standing here last measured one of the panels´ metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves.',
+        'When a device standing here last measured one of the panels\' metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves.',
       ),
     nights: z.array(timelineSpan).describe('When the light was off, from the light output rather than from the clock; empty where no device reports one.'),
     alarms: z.array(timelineAlarm),

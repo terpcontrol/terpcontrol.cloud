@@ -173,13 +173,13 @@ exports.meClimateRetention = (0, common_js_1.named)('MeClimateRetention', zod_1.
         .int()
         .positive()
         .nullable()
-        .describe('The install´s own window, which applies where the account has named none. Null where the install has named none either, and then nothing is ever swept.'),
+        .describe('The install\'s own window, which applies where the account has named none. Null where the install has named none either, and then nothing is ever swept.'),
     appliesDays: zod_1.z
         .number()
         .int()
         .positive()
         .nullable()
-        .describe('What will actually happen to this account´s raw samples: its own window where it named one, otherwise the install´s. Null keeps them for ever. A tent may name a window of its own, which wins for the devices standing in it.'),
+        .describe('What will actually happen to this account\'s raw samples: its own window where it named one, otherwise the install\'s. Null keeps them for ever. A tent may name a window of its own, which wins for the devices standing in it.'),
 }));
 /**
  * `GET /me`: the account as its owner sees it, plus the facts about the install

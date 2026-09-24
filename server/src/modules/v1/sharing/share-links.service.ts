@@ -295,7 +295,7 @@ const refuseADeadWindow = (range: ShareLinkDocument['range'], expiresAt: Date | 
   if (expiresAt !== null && expiresAt.getTime() <= now.getTime()) {
     throw unprocessable(
       'expiry_already_past',
-      'A link that has already run out leads nowhere the moment it is made. Leave the expiry out for one that does not run out, and revoke a link that is already in somebody else´s hands.',
+      "A link that has already run out leads nowhere the moment it is made. Leave the expiry out for one that does not run out, and revoke a link that is already in somebody else's hands.",
     );
   }
 };

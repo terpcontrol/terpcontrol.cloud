@@ -408,11 +408,11 @@ export interface Premium {
 
 export interface MeClimateRetention {
   /**
-   * The install´s own window, which applies where the account has named none. Null where the install has named none either, and then nothing is ever swept.
+   * The install's own window, which applies where the account has named none. Null where the install has named none either, and then nothing is ever swept.
    */
   installDays: number | null;
   /**
-   * What will actually happen to this account´s raw samples: its own window where it named one, otherwise the install´s. Null keeps them for ever. A tent may name a window of its own, which wins for the devices standing in it.
+   * What will actually happen to this account's raw samples: its own window where it named one, otherwise the install's. Null keeps them for ever. A tent may name a window of its own, which wins for the devices standing in it.
    */
   appliesDays: number | null;
 }
@@ -2463,7 +2463,7 @@ export interface Entry {
   occurredAt: string;
   source: EntrySource;
   /**
-   * Who made this happen, whatever wrote it down. Null for what a device, an alarm or the plan engine´s own clock did, and set for a plan line somebody drove: a transition carries the person who asked for it.
+   * Who made this happen, whatever wrote it down. Null for what a device, an alarm or the plan engine's own clock did, and set for a plan line somebody drove: a transition carries the person who asked for it.
    */
   authorId: string | null;
   growId: string | null;
@@ -2546,7 +2546,7 @@ export interface EntryUpdate {
 export interface MediaOverlays {
   dayCounter: boolean;
   /**
-   * The temperature and humidity of the span, with a cursor on the frame´s own instant.
+   * The temperature and humidity of the span, with a cursor on the frame's own instant.
    */
   climate: boolean;
   /**
@@ -2598,7 +2598,7 @@ export interface Media {
   cameraId: string | null;
   growId: string | null;
   /**
-   * Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody´s flat a picture was taken in is not part of what a link shows.
+   * Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody's flat a picture was taken in is not part of what a link shows.
    */
   spaceId: string | null;
   /**
@@ -2636,7 +2636,7 @@ export interface MediaPage {
 export interface MediaUpload {
   growId?: string | null;
   /**
-   * Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody´s flat a picture was taken in is not part of what a link shows.
+   * Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody's flat a picture was taken in is not part of what a link shows.
    */
   spaceId?: string | null;
   capturedAt?: string;
@@ -2869,7 +2869,7 @@ export interface TimelapseCreate {
   overlays?: {
     dayCounter?: boolean;
     /**
-     * The temperature and humidity of the span, with a cursor on the frame´s own instant.
+     * The temperature and humidity of the span, with a cursor on the frame's own instant.
      */
     climate?: boolean;
     /**
@@ -3447,7 +3447,7 @@ export interface TimelineOutputLane {
   deviceId: string;
   spans: TimelineSpan[];
   /**
-   * How far anything is known about this output: the last instant the device was heard from inside the window, or the window´s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.
+   * How far anything is known about this output: the last instant the device was heard from inside the window, or the window's own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.
    */
   heardUntil: string;
 }
@@ -3519,7 +3519,7 @@ export interface SpaceTimeline {
   deviceIds: string[] | null;
   panels: TimelinePanel[];
   /**
-   * When a device standing here last measured one of the panels´ metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves.
+   * When a device standing here last measured one of the panels' metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves.
    */
   lastReadingAt: string | null;
   /**

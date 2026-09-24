@@ -171,7 +171,7 @@ exports.entry = (0, common_js_1.named)('Entry', zod_1.z.object({
     source: common_js_1.entrySource,
     authorId: (0, common_js_1.id)()
         .nullable()
-        .describe('Who made this happen, whatever wrote it down. Null for what a device, an alarm or the plan engine´s own clock did, and set for a plan line somebody drove: a transition carries the person who asked for it.'),
+        .describe('Who made this happen, whatever wrote it down. Null for what a device, an alarm or the plan engine\'s own clock did, and set for a plan line somebody drove: a transition carries the person who asked for it.'),
     growId: (0, common_js_1.id)().nullable(),
     spaceId: (0, common_js_1.id)().nullable(),
     deviceId: (0, common_js_1.id)().nullable(),
@@ -267,7 +267,7 @@ exports.mediaAspect = (0, common_js_1.named)('MediaAspect', zod_1.z.enum(['16_9'
  */
 exports.mediaOverlays = (0, common_js_1.named)('MediaOverlays', zod_1.z.object({
     dayCounter: zod_1.z.boolean(),
-    climate: zod_1.z.boolean().describe('The temperature and humidity of the span, with a cursor on the frame´s own instant.'),
+    climate: zod_1.z.boolean().describe('The temperature and humidity of the span, with a cursor on the frame\'s own instant.'),
     entries: zod_1.z.boolean().describe('The diary lines of the span, each as a caption on the frames around it.'),
 }));
 /** Only `queued` is a fact of the model; the rest is how far the hourly builder has got. */
@@ -325,7 +325,7 @@ exports.media = (0, common_js_1.named)('Media', zod_1.z.object({
     growId: (0, common_js_1.id)().nullable(),
     spaceId: (0, common_js_1.id)()
         .nullable()
-        .describe('Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody´s flat a picture was taken in is not part of what a link shows.'),
+        .describe('Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody\'s flat a picture was taken in is not part of what a link shows.'),
     uploadedBy: (0, common_js_1.id)()
         .nullable()
         .describe('Null for what a camera delivered or the composer rendered, and null to a reader outside the tent: a shared diary says what happened rather than who by.'),
@@ -1093,7 +1093,7 @@ exports.timelineOutputLane = (0, common_js_1.named)('TimelineOutputLane', zod_1.
     output: common_js_1.outputMetric,
     deviceId: (0, common_js_1.id)().describe('Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to.'),
     spans: zod_1.z.array(exports.timelineSpan),
-    heardUntil: (0, common_js_1.instant)().describe('How far anything is known about this output: the last instant the device was heard from inside the window, or the window´s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.'),
+    heardUntil: (0, common_js_1.instant)().describe('How far anything is known about this output: the last instant the device was heard from inside the window, or the window\'s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.'),
 }));
 /**
  * One alarm as a span of the window. `endedAt` is null for an alert that is
@@ -1170,7 +1170,7 @@ exports.spaceTimeline = (0, common_js_1.named)('SpaceTimeline', zod_1.z.object({
     panels: zod_1.z.array(exports.timelinePanel),
     lastReadingAt: (0, common_js_1.instant)()
         .nullable()
-        .describe('When a device standing here last measured one of the panels´ metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves.'),
+        .describe('When a device standing here last measured one of the panels\' metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves.'),
     nights: zod_1.z.array(exports.timelineSpan).describe('When the light was off, from the light output rather than from the clock; empty where no device reports one.'),
     alarms: zod_1.z.array(exports.timelineAlarm),
     outputs: zod_1.z.array(exports.timelineOutputLane),

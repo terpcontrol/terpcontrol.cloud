@@ -867,7 +867,7 @@
             "type": "null"
           }
         ],
-        "description": "The install´s own window, which applies where the account has named none. Null where the install has named none either, and then nothing is ever swept."
+        "description": "The install's own window, which applies where the account has named none. Null where the install has named none either, and then nothing is ever swept."
       },
       "appliesDays": {
         "anyOf": [
@@ -880,7 +880,7 @@
             "type": "null"
           }
         ],
-        "description": "What will actually happen to this account´s raw samples: its own window where it named one, otherwise the install´s. Null keeps them for ever. A tent may name a window of its own, which wins for the devices standing in it."
+        "description": "What will actually happen to this account's raw samples: its own window where it named one, otherwise the install's. Null keeps them for ever. A tent may name a window of its own, which wins for the devices standing in it."
       }
     },
     "required": [
@@ -7950,7 +7950,7 @@
             "type": "null"
           }
         ],
-        "description": "Who made this happen, whatever wrote it down. Null for what a device, an alarm or the plan engine´s own clock did, and set for a plan line somebody drove: a transition carries the person who asked for it."
+        "description": "Who made this happen, whatever wrote it down. Null for what a device, an alarm or the plan engine's own clock did, and set for a plan line somebody drove: a transition carries the person who asked for it."
       },
       "growId": {
         "anyOf": [
@@ -8457,7 +8457,7 @@
       },
       "climate": {
         "type": "boolean",
-        "description": "The temperature and humidity of the span, with a cursor on the frame´s own instant."
+        "description": "The temperature and humidity of the span, with a cursor on the frame's own instant."
       },
       "entries": {
         "type": "boolean",
@@ -8683,7 +8683,7 @@
             "type": "null"
           }
         ],
-        "description": "Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody´s flat a picture was taken in is not part of what a link shows."
+        "description": "Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody's flat a picture was taken in is not part of what a link shows."
       },
       "uploadedBy": {
         "anyOf": [
@@ -8856,7 +8856,7 @@
             "type": "null"
           }
         ],
-        "description": "Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody´s flat a picture was taken in is not part of what a link shows."
+        "description": "Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody's flat a picture was taken in is not part of what a link shows."
       },
       "capturedAt": {
         "type": "string",
@@ -9623,7 +9623,7 @@
           },
           "climate": {
             "type": "boolean",
-            "description": "The temperature and humidity of the span, with a cursor on the frame´s own instant."
+            "description": "The temperature and humidity of the span, with a cursor on the frame's own instant."
           },
           "entries": {
             "type": "boolean",
@@ -11787,7 +11787,7 @@
         "type": "string",
         "format": "date-time",
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-        "description": "How far anything is known about this output: the last instant the device was heard from inside the window, or the window´s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge."
+        "description": "How far anything is known about this output: the last instant the device was heard from inside the window, or the window's own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge."
       }
     },
     "required": [
@@ -12043,7 +12043,7 @@
             "type": "null"
           }
         ],
-        "description": "When a device standing here last measured one of the panels´ metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves."
+        "description": "When a device standing here last measured one of the panels' metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves."
       },
       "nights": {
         "type": "array",
