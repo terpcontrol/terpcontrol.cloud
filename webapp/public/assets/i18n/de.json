@@ -47,7 +47,7 @@
     "sunset": "Sonnenuntergangsperiode",
     "daynightLinearChange": "Linearer Übergang zwischen Tag und Nacht",
     "lightlimit": "Maximalleistung",
-    "lightsOnMaintenanceMode": "Licht AN im Pflegemodus",
+    "lightsOnMaintenanceMode": "Licht AN im Wartungsmodus",
     "speed": "Geschwindigkeit",
     "maxspeed": "Maximalgeschwindigkeit",
     "minspeed": "Minimalgeschwindigkeit",
@@ -778,14 +778,14 @@
       "preset-fast": "Schnelle Trocknung"
     },
     "maintenance": {
-      "title": "Pflegemodus",
+      "title": "Wartungsmodus",
       "text": "Wie lange soll die Regelung pausieren?",
       "deactivate": "Beenden",
       "minutes": "{{minutes}} Minuten",
-      "activated": "Pflegemodus für {{minutes}} Minuten aktiviert",
-      "deactivated": "Pflegemodus beendet",
-      "failed": "Pflegemodus konnte nicht geändert werden",
-      "active": "Pflegemodus [{{duration}}]"
+      "activated": "Wartungsmodus für {{minutes}} Minuten aktiviert",
+      "deactivated": "Wartungsmodus beendet",
+      "failed": "Wartungsmodus konnte nicht geändert werden",
+      "active": "Wartungsmodus [{{duration}}]"
     },
     "device-offline-lastseen": "zuletzt gesehen: {{date}}",
     "add": "Hinzufügen",
@@ -1064,14 +1064,14 @@
   "message-ext-sensor-deviate-text": "Externer und interner Sensor weichen ab! Sensorplazierung überprüfen!",
   "message-ext-sensor-fail-title": "Externer Sensor ist ausgefallen!",
   "message-ext-sensor-fail-text": "Externer Sensor ist ausgefallen!",
-  "message-maintenance-mode-activated:0-title": "Pflegemodus deaktiviert",
-  "message-maintenance-mode-activated:0-text": "Der Pflegemodus des Moduls wurde manuell deaktiviert. Alarme werden in 10 Minuten wieder aktiviert.",
-  "message-maintenance-mode-activated-title": "Pflegemodus aktiviert",
-  "message-maintenance-mode-activated-text": "Das Modul wurde manuell für {{value}} Minuten in den Pflegemodus versetzt. Alarme werden während dieser Zeit deaktiviert.",
-  "message-maintenance-mode-activated-remote:0-title": "Pflegemodus über Portal deaktiviert",
-  "message-maintenance-mode-activated-remote:0-text": "Der Pflegemodus des Moduls wurde über das Portal manuell deaktiviert. Alarme werden in 10 Minuten wieder aktiviert.",
-  "message-maintenance-mode-activated-remote-title": "Pflegemodus über Portal aktiviert",
-  "message-maintenance-mode-activated-remote-text": "Das Modul wurde über das Portal manuell für {{value}} Minuten in den Pflegemodus versetzt. Alarme werden während dieser Zeit deaktiviert.",
+  "message-maintenance-mode-activated:0-title": "Wartungsmodus deaktiviert",
+  "message-maintenance-mode-activated:0-text": "Der Wartungsmodus deines Geräts wurde manuell deaktiviert. Alarme werden in 10 Minuten wieder aktiviert.",
+  "message-maintenance-mode-activated-title": "Wartungsmodus aktiviert",
+  "message-maintenance-mode-activated-text": "Dein Gerät wurde manuell für {{value}} Minuten in den Wartungsmodus versetzt. Alarme werden während dieser Zeit deaktiviert.",
+  "message-maintenance-mode-activated-remote:0-title": "Wartungsmodus über Portal deaktiviert",
+  "message-maintenance-mode-activated-remote:0-text": "Der Wartungsmodus deines Geräts wurde über das Portal manuell deaktiviert. Alarme werden in 10 Minuten wieder aktiviert.",
+  "message-maintenance-mode-activated-remote-title": "Wartungsmodus über Portal aktiviert",
+  "message-maintenance-mode-activated-remote-text": "Dein Gerät wurde über das Portal manuell für {{value}} Minuten in den Wartungsmodus versetzt. Alarme werden während dieser Zeit deaktiviert.",
   "message-firmware-update-complete-title": "Firmware-Update abgeschlossen",
   "message-firmware-update-complete-text": "Die Firmware deines Geräts wurde erfolgreich aktualisiert.",
   "message-firmware-update-complete-with-ids-title": "Firmware-Update abgeschlossen",
@@ -1229,8 +1229,8 @@
     },
     "maintenance": {
       "title": "Kurz in den Bereich",
-      "text": "Der Pflegemodus pausiert die Regelung für eine gewählte Zeit, damit Gießen oder Umtopfen keine Alarme auslöst. Danach läuft alles automatisch weiter.",
-      "button": "Pflegemodus starten"
+      "text": "Der Wartungsmodus pausiert die Regelung für eine gewählte Zeit, damit Gießen oder Umtopfen keine Alarme auslöst. Danach läuft alles automatisch weiter.",
+      "button": "Wartungsmodus starten"
     }
   },
   "auxDevices": {
