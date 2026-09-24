@@ -440,6 +440,15 @@
   white-space: nowrap;
 }
 
+@media (max-width: 599px) {
+  /* On a phone every film's span has its line, and the verdict and the way to
+     it share the one under it, so the rows read alike whether or not the two
+     would have squeezed in beside a short span. */
+  .filmTitle {
+    flex-basis: 100%;
+  }
+}
+
 .filmStatus[data-status='ready'] {
   color: var(--green-ink);
 }
@@ -502,13 +511,21 @@
   border-top: 0;
 }
 
+/* Every label holds the same width, so the fields beside them start on one
+   line down the card whatever their labels say. */
 .settingLabel {
   flex: none;
+  min-width: 6.5rem;
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
 }
 
+/* A value shares its label's line and wraps inside itself, at the right,
+   rather than dropping under the label: only the rows of controls take a line
+   of their own. */
 .settingValue {
+  flex: 1 1 12rem;
+  min-width: 0;
   font-size: var(--text-sm);
   color: var(--muted);
   text-align: right;
@@ -520,10 +537,16 @@
    where every other row keeps its value. */
 .settingStack {
   display: flex;
+  flex: 1 1 12rem;
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
   min-width: 0;
+}
+
+/* Inside the stack a value is one line of several, not the row's other half. */
+.settingStack > .settingValue {
+  flex: none;
 }
 
 .settingNote {
@@ -544,8 +567,14 @@
   color: var(--brand);
 }
 
+/* A name takes the room its row has rather than a fixed share of it, so
+   "Plantalytix Fridgegrow 2.0" is not cut to "Plantalytix Fridgegrow" on a
+   phone with space to spare beside a short label. */
 .settingInput {
-  width: 55%;
+  flex: 1 1 10rem;
+  width: auto;
+  min-width: 0;
+  max-width: 20rem;
   height: 34px;
   text-align: right;
 }
