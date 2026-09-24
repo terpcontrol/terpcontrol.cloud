@@ -713,6 +713,27 @@ describe('the inbox', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Asked to end it.');
   });
 
+  /**
+   * The window and the settling end at different instants, and for the ten
+   * minutes between them the hardware is running again while the alarms are
+   * still held. The card said "device in maintenance" for all of it - which is
+   * the device's state, said wrongly, in the very minutes a grower is most
+   * likely to think the watch is back on - while its own chip below had already
+   * flipped to offering a fresh window. Both now read the same instant.
+   */
+  it('says the device is out of maintenance while only the settling still holds the alarms', async () => {
+    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })), maintenanceUntil: iso(NOW.minus({ minutes: 2 })) } })];
+    server.alerts = [alert({})];
+    server.rules = [rule()];
+    draw();
+
+    expect(
+      await screen.findByText(new RegExp(`device out of maintenance, nothing raised until ${clock(NOW.plus({ minutes: 8 }))}`)),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/device in maintenance/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Maintenance 15 min' })).toBeInTheDocument();
+  });
+
   it('sends nothing when the maintenance question is cancelled', async () => {
     server.alerts = [alert({})];
     server.rules = [rule()];

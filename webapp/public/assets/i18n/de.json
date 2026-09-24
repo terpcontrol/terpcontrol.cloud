@@ -3735,6 +3735,7 @@
       "once": "meldet sich einmal",
       "silenced": "für alle stumm bis {{time}}",
       "inMaintenance": "Gerät in Wartung, bis {{time}} wird nichts ausgelöst",
+      "settling": "Wartung beendet, bis {{time}} wird nichts ausgelöst, solange das Klima zurückkommt",
       "resolved": "behoben {{time}} · dauerte {{age}}",
       "notAnnounced": "nicht gemeldet",
       "unheard": "niemand hat zugehört",

@@ -295,8 +295,17 @@ const metaOf = (
     // this card will not change while that stands. It is said for the same
     // reason the silence beside it is: what a reader can see of an open alert
     // has to include why nothing more is going to happen to it.
+    //
+    // Which of the two things is standing is said too. The quiet outlasts the
+    // window by the settling, and for those ten minutes the hardware is running
+    // again while the alarms are still held - so a card that went on calling
+    // the device "in maintenance" was telling a grower their fan was parked
+    // when it had been let go, in the very minutes they are most likely to
+    // believe the watch is back on. The alarms page one tap away already told
+    // the two apart, and the card's own maintenance chip flipped with them
+    // while this line did not.
     const quiet = device && maintenanceQuiet(device, now);
-    if (quiet) parts.push(t('alerts.meta.inMaintenance', { time: clock(quiet.alarmsUntil, zone) }));
+    if (quiet) parts.push(t(quiet.parked ? 'alerts.meta.inMaintenance' : 'alerts.meta.settling', { time: clock(quiet.alarmsUntil, zone) }));
   }
 
   return parts.join(' · ');

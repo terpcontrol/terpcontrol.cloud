@@ -3739,6 +3739,7 @@
       "once": "announced once",
       "silenced": "silenced for everyone until {{time}}",
       "inMaintenance": "device in maintenance, nothing raised until {{time}}",
+      "settling": "device out of maintenance, nothing raised until {{time}} while the climate comes back",
       "resolved": "resolved {{time}} · lasted {{age}}",
       "notAnnounced": "not announced",
       "unheard": "nobody was listening",
