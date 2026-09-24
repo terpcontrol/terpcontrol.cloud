@@ -70,15 +70,19 @@ export function WhenField({ label, at, onChange }: { label: string; at: Date; on
  * often as it carries a sentence of advice, and mono belongs to the figures.
  * A caller whose aside really is a figure or a caption wraps it in `mono`
  * itself, which is the one place that knows which of the two it has.
+ *
+ * A block whose children are the rows of one list - the day's targets, the
+ * night's - says `grouped`, and they are drawn as the app's one group: a card
+ * with a rule between the rows, rather than rows loose on the page.
  */
-export function Block({ label, aside, children }: { label: string; aside?: ReactNode; children: ReactNode }) {
+export function Block({ label, aside, grouped, children }: { label: string; aside?: ReactNode; grouped?: boolean; children: ReactNode }) {
   return (
     <section className={styles.block}>
       <header className={styles.blockHeader}>
         <span className="label">{label}</span>
         {aside ? <span className={styles.blockAside}>{aside}</span> : null}
       </header>
-      {children}
+      {grouped ? <div className={ui.group}>{children}</div> : children}
     </section>
   );
 }

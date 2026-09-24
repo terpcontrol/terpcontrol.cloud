@@ -232,7 +232,7 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
         ))}
       </Choices>
 
-      <Block label={t('targets.day')} aside={<a href={`#${nightId}`}>{t('targets.toNight')}</a>}>
+      <Block grouped label={t('targets.day')} aside={<a href={`#${nightId}`}>{t('targets.toNight')}</a>}>
         <TargetRow
           id={`targets-${device.id}-day-temperature`}
           label={t('targets.temperature')}
@@ -305,7 +305,7 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
       </Block>
 
       <span id={nightId} className={styles.anchor} aria-hidden />
-      <Block label={t('targets.night')}>
+      <Block grouped label={t('targets.night')}>
         <TargetRow
           id={`targets-${device.id}-night-temperature`}
           label={t('targets.temperature')}
