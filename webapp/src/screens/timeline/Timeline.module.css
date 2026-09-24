@@ -1,8 +1,12 @@
 /* The stacked timeline. Every plot and every lane leaves the same gutter on the
-   left - set once as `--gutter` by the screen and handed to ECharts as the same
-   number - so one cursor runs straight down through the whole stack. */
+   left - set once here as `--gutter`, which the canvas of each plot is moved
+   over by - so one cursor runs straight down through the whole stack. It holds
+   a lane's name ("Lüfter in", "Events") without cutting it, and widens where
+   the screen does. */
 
 .screen {
+  --gutter: 64px;
+
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -92,6 +96,29 @@
   scrollbar-width: none;
 }
 
+/* A row wider than the phone fades at the edge there is more of, as the tabs
+   above it do; a row that fits never scrolls and never fades. */
+@supports (animation-timeline: scroll()) {
+  .chips {
+    animation: chips-more linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+
+@keyframes chips-more {
+  from {
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+  }
+
+  99% {
+    mask-image: linear-gradient(to right, transparent 0, #000 32px, #000 calc(100% - 32px), transparent);
+  }
+
+  to {
+    mask-image: linear-gradient(to right, transparent 0, #000 32px);
+  }
+}
+
 .chip {
   flex-shrink: 0;
 }
@@ -149,40 +176,61 @@
 
 /* ------------------------------------------------------------ the frame */
 
+/* The picture at the cursor, and under it the window to walk. The whole
+   picture is shown at its own shape, on an inset mat where it is narrower than
+   the card - never cropped, because a camera burns its clock into a corner and
+   a grower checks a frame against it. The transport sits under the picture on
+   the card rather than over it, so nothing covers the plant. */
 .frame {
   position: relative;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  aspect-ratio: 4 / 3;
-  max-height: 46vh;
-  background: var(--card-2);
+  background: var(--card);
   border: var(--rule-solid);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.still,
+.noFrame {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--card-2);
 }
 
 .still {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .noFrame {
   display: grid;
   place-items: center;
-  height: 100%;
+  margin: 0;
   font-size: var(--text-sm);
   color: var(--muted);
 }
 
+/* At the foot of the picture, where the camera page puts it: a camera burns
+   its own clock into the top corner, and a label there covered it. The
+   transport under the picture is a fixed 52 px. */
 .frameLabel {
   position: absolute;
-  top: var(--space-2);
+  bottom: calc(52px + var(--space-2));
   left: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  background: var(--toast);
+  max-width: calc(100% - var(--space-4));
+  overflow: hidden;
+  padding: var(--space-1) 10px;
+  background: var(--overlay);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: var(--radius-pill);
   font-size: var(--text-xs);
-  color: var(--toast-ink);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--on-overlay);
 }
 
 .dots {
@@ -207,9 +255,10 @@
   width: 8px;
   height: 8px;
   margin: auto;
-  background: var(--toast-ink);
+  background: var(--on-overlay);
   border-radius: var(--radius-pill);
-  opacity: 0.45;
+  box-shadow: 0 0 0 1px var(--overlay);
+  opacity: 0.5;
 }
 
 .camDot[aria-current='true']::after {
@@ -217,14 +266,10 @@
 }
 
 .transport {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3);
 }
 
 .play {
@@ -234,29 +279,31 @@
   width: 36px;
   height: 36px;
   padding: 0;
-  background: var(--toast);
+  background: var(--brand);
   border: 0;
   border-radius: var(--radius-pill);
-  color: var(--toast-ink);
+  color: var(--on-brand);
 }
 
-/* Over the picture, so on a plate of its own: a shadow alone lets a bright
-   frame swallow the figures. */
+.play svg {
+  /* The triangle's weight is on its left, so it is nudged right to sit centred. */
+  translate: 1px 0;
+}
+
 .transportTime {
   flex-shrink: 0;
-  padding: 2px var(--space-2);
-  background: var(--overlay);
-  border-radius: var(--radius-pill);
+  min-width: 3.5em;
   font-size: var(--text-xs);
-  color: var(--on-overlay);
+  font-weight: var(--weight-semibold);
+  text-align: right;
+  color: var(--ink);
 }
 
-/* The window as a control a thumb can drag; it is the only scrubber on a tent
-   with no camera, and there it is drawn in the page's own colours rather than
-   in the ones that have to hold up over a picture. */
+/* The window as a control a thumb can drag: under the picture and on the tent
+   with no camera alike, drawn in the page's own colours. */
 .slider {
-  --scrub-ink: var(--toast-ink);
-  --scrub-track: color-mix(in srgb, var(--toast-ink) 30%, transparent);
+  --scrub-ink: var(--green);
+  --scrub-track: var(--rule-strong);
 
   flex: 1;
   min-width: 0;
@@ -264,11 +311,6 @@
   margin: 0;
   background: none;
   appearance: none;
-}
-
-.bareSlider .slider {
-  --scrub-ink: var(--green);
-  --scrub-track: var(--rule);
 }
 
 .slider::-webkit-slider-runnable-track {
@@ -320,11 +362,14 @@
      rather than inside a timestamp. */
   flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--space-1) var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: var(--card-2);
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: color-mix(in srgb, var(--card) 90%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: var(--rule-solid);
   border-radius: var(--radius);
+  box-shadow: var(--shadow-raised);
   font-size: var(--text-sm);
 }
 
@@ -340,7 +385,7 @@
 
 .scrubUnit {
   font-size: var(--text-xs);
-  font-weight: var(--weight-regular);
+  font-weight: var(--weight-medium);
 }
 
 .scrubOutputs {
@@ -354,31 +399,36 @@
 /* --------------------------------------------------------------- a panel */
 
 .panel {
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4) var(--space-3);
   background: var(--card);
   border: var(--rule-solid);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
+/* The metric's name in its line's colour, the reading at the cursor as a
+   figure, and the band it was held to at the far end. */
 .panelHead {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
-  padding-bottom: var(--space-2);
+  padding: 0 0 var(--space-3) var(--space-1);
 }
 
 .metric {
   font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-bold);
 }
 
 .panelValue {
   font-size: var(--text-lg);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-figure);
 }
 
 .panelUnit {
+  margin-left: -4px;
   font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   color: var(--muted);
 }
 
@@ -406,6 +456,17 @@
   position: relative;
   /* Three panels and the lanes fit a phone without scrolling past the camera. */
   height: 104px;
+  /* The faint rules to read a curve across, at the top, the middle and the
+     foot, where the scale's two figures sit - the same three the Charts draw. */
+  background:
+    linear-gradient(var(--grid), var(--grid)) var(--gutter) 0 / calc(100% - var(--gutter)) 1px no-repeat,
+    linear-gradient(var(--grid), var(--grid)) var(--gutter) 50% / calc(100% - var(--gutter)) 1px no-repeat,
+    linear-gradient(var(--grid), var(--grid)) var(--gutter) 100% / calc(100% - var(--gutter)) 1px no-repeat;
+}
+
+/* The canvas starts where the gutter ends. */
+.plot > [role='img'] {
+  margin-left: var(--gutter);
 }
 
 .scaleHigh,
@@ -462,11 +523,12 @@
 .lanes {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3);
+  gap: 6px;
+  padding: var(--space-4) var(--space-4) var(--space-3) var(--space-3);
   background: var(--card);
   border: var(--rule-solid);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 .lane {
@@ -490,7 +552,9 @@
      tracked capitals a section label takes. */
   letter-spacing: 0;
   text-transform: none;
-  padding-right: 10px;
+  padding-right: 12px;
+  font-weight: var(--weight-semibold);
+  color: var(--muted);
   overflow: hidden;
   text-align: right;
   text-overflow: ellipsis;
@@ -623,6 +687,8 @@
 
 @media (min-width: 900px) {
   .screen {
+    --gutter: 80px;
+
     max-width: var(--reading-width);
     padding-top: 0;
   }
@@ -632,8 +698,15 @@
     font-size: var(--text-md);
   }
 
-  .frame {
-    max-height: 340px;
+  /* The picture keeps its shape and gives up width rather than height, so on
+     a wide column it stands on its mat instead of turning into a letterbox. */
+  .still,
+  .noFrame {
+    max-height: 380px;
+  }
+
+  .panelValue {
+    font-size: var(--text-xl);
   }
 
   .plot {
@@ -645,5 +718,14 @@
 @media (min-width: 1200px) {
   .screen {
     max-width: var(--page-width);
+  }
+
+  .still,
+  .noFrame {
+    max-height: 420px;
+  }
+
+  .plot {
+    height: 160px;
   }
 }

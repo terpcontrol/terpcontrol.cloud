@@ -15,7 +15,7 @@ import { useZone } from '@/ui/zone';
 import { figure, UNIT } from '../home/units';
 import { CameraFrame, Slider } from './CameraFrame';
 import { Lanes } from './Lanes';
-import { GUTTER, Panel } from './Panel';
+import { Panel } from './Panel';
 import { at, pointAt, spans, stampOf } from './window';
 import styles from './Timeline.module.css';
 
@@ -150,7 +150,7 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
   return (
     // Busy while a chip's window is still on its way: what is drawn is the
     // window before it, which is worth saying without taking it off the screen.
-    <div className={styles.screen} style={{ '--gutter': `${GUTTER}px` } as React.CSSProperties} aria-busy={timeline.isPlaceholderData}>
+    <div className={styles.screen} aria-busy={timeline.isPlaceholderData}>
       {heading}
       {grow.data ? (
         <Link to={`/grows/${grow.data.id}`} className={`mono ${styles.subject}`}>

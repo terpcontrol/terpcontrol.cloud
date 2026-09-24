@@ -7,9 +7,6 @@ import { figure, targetFigure, UNIT } from '../home/units';
 import { alarmsOf, at, fractionOf, pointAt, scaleOf, stretchesOf, targetAt, type Stretch } from './window';
 import styles from './Timeline.module.css';
 
-/** The gutter the corner figures sit in, shared by every panel and every lane so one cursor lines them all up. */
-export const GUTTER = 56;
-
 /** The signal colour a curve is drawn in. Only the three steered metrics have a panel, so only they have one. */
 const METRIC_TOKEN: Partial<Record<Metric, ChartToken>> = { temperature: 'temperature', humidity: 'humidity', co2: 'co2' };
 
@@ -87,7 +84,10 @@ const optionOf = (
   to: number,
 ): ChartOption => ({
   animation: false,
-  grid: { left: GUTTER, right: 0, top: 0, bottom: 0 },
+  // The gutter the corner figures sit in is left by the stylesheet, which
+  // moves the canvas itself over by it: one width, written once, that every
+  // panel and every lane reads, and that a wide screen can widen.
+  grid: { left: 0, right: 0, top: 0, bottom: 0 },
   xAxis: { type: 'time', min: from, max: to, show: false },
   yAxis: { type: 'value', min: scale.low, max: scale.high, show: false },
   series: [
