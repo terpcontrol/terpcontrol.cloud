@@ -232,7 +232,7 @@ describe('the tent overview', () => {
     // The figures are the controller's document, which a preset is only one of
     // the things that ever wrote: the line names the phase the grow is in and
     // leaves where they came from to the Control tab, which knows the step.
-    expect(screen.getByText(/^Flower · day 25 \/ 50 · night 20 \/ 50/)).toBeInTheDocument();
+    expect(screen.getByText(/^Flower · day 25 °C \/ 50 % · night 20 °C \/ 50 %/)).toBeInTheDocument();
   });
 
   /**
@@ -250,7 +250,7 @@ describe('the tent overview', () => {
     };
     draw(<Overview overview={withCo2} now={NOW} />);
 
-    expect(screen.getByText(/^Flower · day 25 \/ 50 \/ CO₂ 400 · night 20 \/ 50$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Flower · day 25 °C \/ 50 % \/ CO₂ 400 ppm · night 20 °C \/ 50 %$/)).toBeInTheDocument();
 
     // The tile is the running half and says so; the two no longer disagree.
     expect(screen.getByText('980').closest('[data-age]')).toHaveTextContent('no target');
@@ -260,7 +260,7 @@ describe('the tent overview', () => {
     const refined: SpaceOverview = { ...overview, grows: [{ ...overview.grows[0], preset: 'late_flowering' }] };
     draw(<Overview overview={refined} now={NOW} />);
 
-    expect(screen.getByText(/^Flower · Late flower · day 25 \/ 50/)).toBeInTheDocument();
+    expect(screen.getByText(/^Flower · Late flower · day 25 °C \/ 50 %/)).toBeInTheDocument();
   });
 
   it('says what Done will write, and what grows here since when', () => {

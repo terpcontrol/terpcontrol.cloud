@@ -297,7 +297,7 @@ const phaseLabel = (t: Translate, grow: OverviewGrow): string =>
     : `${t(`home.stage.${grow.stage}`)} · ${t(`grow.presetName.${grow.preset}`, { defaultValue: grow.preset })}`;
 
 /**
- * "Flower · day 26 / 62 / CO₂ 1100 · night 21 / 58": what the controller is
+ * "Flower · day 26 °C / 62 % / CO₂ 1100 ppm · night 21 °C / 58 %": what the controller is
  * aiming at in both halves, under the phase the grow standing here is in.
  *
  * The figures are the controller's own document and not a preset's: a plan
@@ -316,17 +316,23 @@ const phaseLabel = (t: Translate, grow: OverviewGrow): string =>
  * not being held at anything. Stated inside the day half it is the same fact
  * with the half it belongs to attached, which is what the tile, the day's
  * verdict and the timeline's bands already agree on.
+ *
+ * Every figure carries its unit. Bare, "Flower · day 26 / 58" read as flower day
+ * 26 of 58 on a card that also said "Day 32 · Flower": the words day and night
+ * name the halves, and only the °C and the % say the numbers are targets.
  */
+const withUnit = (value: number, metric: Metric): string => [targetFigure(value, metric), UNIT[metric]].filter(Boolean).join(' ');
+
 function TargetsLine({ overview }: { overview: SpaceOverview }) {
   const { t } = useTranslation();
   const targets = overview.targets!;
   const pair = (row: CardSetpoint[]): string[] =>
     ['temperature', 'humidity'].flatMap(metric => {
       const value = row.find(setpoint => setpoint.metric === metric)?.value;
-      return value === null || value === undefined ? [] : [targetFigure(value, metric as Metric)];
+      return value === null || value === undefined ? [] : [withUnit(value, metric as Metric)];
     });
   const co2 = targets.day.find(setpoint => setpoint.metric === 'co2')?.value ?? null;
-  const day = [...pair(targets.day), ...(co2 === null ? [] : [`CO₂ ${targetFigure(co2, 'co2')}`])];
+  const day = [...pair(targets.day), ...(co2 === null ? [] : [`CO₂ ${withUnit(co2, 'co2')}`])];
   const here = overview.grows[0] ?? null;
 
   return (
