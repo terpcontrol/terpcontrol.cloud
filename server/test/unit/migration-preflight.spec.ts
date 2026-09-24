@@ -3,6 +3,7 @@ import mongoose, { Connection, mongo } from 'mongoose';
 import { MigrationRunner } from '@/migrations/migration-runner';
 import { PreflightFailure, formatPreflight, preflight } from '@/migrations/preflight';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
+import { stopMongod } from './support/mongod';
 
 /**
  * What the migration refuses to start on, over the same database in today's
@@ -33,7 +34,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await connection?.dropDatabase();
   await connection?.close();
-  await server?.stop();
+  await stopMongod(server);
 });
 
 beforeEach(async () => {

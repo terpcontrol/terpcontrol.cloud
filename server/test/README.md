@@ -68,7 +68,11 @@ parameter types the decorators would record are never read - and emitting them t
 runtime one, which ESM then has to find as a named export. Mongoose's `Connection` is not one; the package leaves it
 out of its ESM surface deliberately.
 
-`unit/support/database.ts` starts a real MongoDB for the specs whose behaviour is in their queries. A stubbed model
-would only ever confirm that the spec and the service agree on what to stub. `unit/support/v1-database.ts` is the
-same for the `/v1` collections, which is what the access matrix is asked against: `access()` is a handful of lookups
-and a `$in` over the spaces a membership covers, and those are the decision.
+`unit/support/v1-database.ts` starts a real MongoDB with the `/v1` collections for the specs whose behaviour is in
+their queries. A stubbed model would only ever confirm that the spec and the service agree on what to stub. It is what
+the access matrix is asked against: `access()` is a handful of lookups and a `$in` over the spaces a membership
+covers, and those are the decision.
+
+A spec that starts a mongod of its own stops it with `stopMongod` from `unit/support/mongod.ts` rather than
+`server.stop()`. A clean shutdown syncs every table to disk first, and with a dozen spec files stopping theirs at once
+that can outlast what mongodb-memory-server waits for and fail the spec file even though every test in it passed.

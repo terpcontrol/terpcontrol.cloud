@@ -27,6 +27,7 @@ import { SchemeDocument, schemesSchema } from '@database/schemas/v1/schemes.sche
 import { ShareLinkDocument, shareLinksSchema } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument, spacesSchema } from '@database/schemas/v1/spaces.schema';
 import { StoredUser, usersSchema } from '@database/schemas/v1/users.schema';
+import { stopMongod } from './mongod';
 
 /**
  * A real MongoDB holding the `/v1` collections, for the services that decide by
@@ -105,7 +106,7 @@ export const startV1TestDatabase = async (): Promise<V1TestDatabase> => {
     },
     stop: async () => {
       await connection.close();
-      await server.stop();
+      await stopMongod(server);
     },
   };
 };

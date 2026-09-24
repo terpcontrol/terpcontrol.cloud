@@ -26,6 +26,7 @@ import { warningsRouting } from '@/migrations/steps/015-warnings-routing';
 import { measurementBand } from '@/migrations/steps/016-measurement-band';
 import { entryCredentials } from '@/migrations/steps/017-entry-credentials';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
+import { stopMongod } from './support/mongod';
 
 /**
  * The migrations, run over a database in today's shapes.
@@ -107,7 +108,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await connection?.dropDatabase();
   await connection?.close();
-  await server?.stop();
+  await stopMongod(server);
 });
 
 beforeEach(async () => {
