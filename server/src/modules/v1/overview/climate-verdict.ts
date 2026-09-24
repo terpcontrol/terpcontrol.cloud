@@ -289,9 +289,7 @@ export const verdictOf = (series: DeviceSeries | null, targets: Setpoints | null
   // only when every metric judged in it was. Pooling the metrics' seconds made
   // a tent too warm and too dry the whole time, with only its CO2 in band,
   // read "33 % in band" - a third of the day, to anybody reading the sentence.
-  const judged = STEERED.map(metric =>
-    judgedWindows(series.metrics.find(row => row.metric === metric)?.points ?? [], metric, isDay, targets),
-  );
+  const judged = STEERED.map(metric => judgedWindows(series.metrics.find(row => row.metric === metric)?.points ?? [], metric, isDay, targets));
   const length = Math.max(0, ...judged.map(states => states.length));
   let inBand = 0;
   let counted = 0;
