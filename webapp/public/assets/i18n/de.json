@@ -2482,7 +2482,7 @@
       "applied": {
         "at": "Schritt vor {{age}} an den Controller geschickt",
         "never": "Die Einstellungen dieses Schritts gehen innerhalb der nächsten Minute an den Controller",
-        "atRest": "Der Controller läuft weiter mit den Einstellungen des letzten Schritts",
+        "atRest": "Dieser Plan schreibt nichts: Der Controller behält, worauf er zuletzt gestellt wurde",
         "quiet": "der Controller hat seit {{age}} nichts gesagt, was er wirklich fährt, kann also älter sein"
       },
       "move": {

@@ -258,7 +258,14 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
           which the editor has just promised in so many words. Read as "never
           sent", that line called the editor a liar seconds after it spoke, on a
           step whose settings were sitting in the controller's document the
-          whole time. */}
+          whole time.
+
+          A plan at rest is the other branch, and nothing recorded tells its two
+          cases apart: a plan that ran and was stopped and a plan saved a moment
+          ago and never started are both `stopped` with no `lastAppliedAt`. So
+          the line names no last step - it says the thing that is true of both,
+          which is that this plan is writing nothing and the controller is on
+          whatever it was on. */}
       <p className={`mono ${styles.applied}`} {...ageAttribute(liveness)}>
         {plan.state.lastAppliedAt
           ? t('space.control.applied.at', { age: ageLabel(plan.state.lastAppliedAt, now) })

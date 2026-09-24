@@ -2486,7 +2486,7 @@
       "applied": {
         "at": "Step sent to the controller {{age}} ago",
         "never": "This step's settings go to the controller within the minute",
-        "atRest": "The controller is left running the settings the last step gave it",
+        "atRest": "This plan is writing nothing: the controller keeps whatever it was last set to",
         "quiet": "the controller has said nothing for {{age}}, so what it is running may be older than this"
       },
       "move": {
