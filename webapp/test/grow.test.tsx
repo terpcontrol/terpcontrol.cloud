@@ -280,6 +280,30 @@ describe('the report tab', () => {
     expect(await screen.findByRole('button', { name: /Download/ })).toHaveTextContent('12.0 MB');
   });
 
+  /**
+   * The size is a figure a person reads, so it is written in the language the
+   * app is being read in - not in the browser's, which on an English machine
+   * with the app switched to Deutsch is the other one. This button wrote
+   * "171.9 MB" under chapter lines of its own reading "18,5 °C · 66 %", because
+   * it was the one caller that never told the formatter which language it was
+   * in. It now tells nobody anything, and the writer asks the app.
+   */
+  it('writes the size with the decimal the app is being read in, not the browser´s', async () => {
+    const german = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/de.json'), 'utf8'));
+    i18next.addResourceBundle('de', 'translation', german);
+    await i18next.changeLanguage('de');
+
+    try {
+      wire.job = EXPORT_ROW('ready');
+      drawReport();
+      fireEvent.click(await screen.findByRole('button', { name: 'Diesen Grow exportieren' }));
+
+      expect(await screen.findByRole('button', { name: /Herunterladen/ })).toHaveTextContent('12,0 MB');
+    } finally {
+      await i18next.changeLanguage('en');
+    }
+  });
+
   /** A diary of a fortnight is a few dozen kilobytes, and "0.0 MB" would read as an export that came out empty. */
   it('gives a small zip its own unit rather than rounding it away to nothing', async () => {
     wire.job = { ...EXPORT_ROW('ready'), bytes: 44_512 };

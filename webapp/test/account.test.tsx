@@ -414,13 +414,22 @@ describe('taking everything away', () => {
     expect(await screen.findByRole('button', { name: /Download · 1\.2 GB/ })).toBeInTheDocument();
   });
 
-  it('weighs a file in the unit it is felt in, with the decimal the language writes', () => {
+  it('weighs a file in the unit it is felt in, with the decimal the language writes', async () => {
     expect(fileSize(1_317_277_368)).toBe('1.2 GB');
     expect(fileSize(1024 ** 3)).toBe('1.0 GB');
     expect(fileSize(13_000_000)).toBe('12.4 MB');
     // A diary of a fortnight, which would round to 0.0 MB and read as a file that went wrong.
     expect(fileSize(45_000)).toBe('44 kB');
-    expect(fileSize(1_317_277_368, 'de')).toBe('1,2 GB');
+
+    // Whose decimal that is comes from the app and from nowhere else. It used
+    // to come from an argument, and the one caller that forgot it - the grow
+    // report's button - wrote a full stop on a German page for as long as the
+    // browser underneath was an English one.
+    await i18next.changeLanguage('de');
+    expect(fileSize(1_317_277_368)).toBe('1,2 GB');
+    expect(fileSize(13_000_000)).toBe('12,4 MB');
+
+    await i18next.changeLanguage('en');
   });
 
   it('carries the same door to deleting the account that the privacy page has', async () => {

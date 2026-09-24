@@ -10,12 +10,20 @@ import i18next from 'i18next';
  * somebody else's numbers - "0.98 kPa VPD · kein Ziel" - and did it on every
  * screen that carries a reading, which is most of them.
  *
- * The app already states the rule elsewhere: `api/exports.ts` writes a file
- * size with `Intl.NumberFormat` precisely so that a size is written the way the
- * language writes a decimal, and `i18n/i18n.ts` says the same of dates. This is
- * that rule for readings, in one place, because a reading becomes a string in
- * enough screens that patching them one at a time is how half of them would
- * stay wrong.
+ * The app already stated the rule elsewhere: `api/exports.ts` wrote a file size
+ * with `Intl.NumberFormat` of its own precisely so that a size is written the
+ * way the language writes a decimal, and `i18n/i18n.ts` says the same of dates.
+ * This is that rule for readings, in one place, because a reading becomes a
+ * string in enough screens that patching them one at a time is how half of them
+ * would stay wrong.
+ *
+ * A file size is one of them, and it is here for the reason the rest are. It
+ * asked each caller for the language instead of asking the app, two of three
+ * callers answered, and the third put "171.9 MB" on a German page under its own
+ * "18,5 °C". `api/exports.ts` now rounds a byte count to its unit and hands the
+ * number here, which is the division of labour the reading screens already
+ * have: the caller knows what the figure means, and this knows who is reading
+ * it.
  *
  * What does not belong here: an ISO instant, a `yyyy-MM-dd` a date field
  * speaks, a CSV cell, an id, a firmware version, a co-ordinate in an SVG path.

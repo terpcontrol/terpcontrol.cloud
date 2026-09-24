@@ -41,7 +41,7 @@ import styles from './Admin.module.css';
  * drawn.
  */
 export function HealthCard({ fleet, devices, stats, now }: { fleet: Fleet; devices: Device[]; stats: UseQueryResult<AdminStats>; now: DateTime }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   const updating = fleet.classes.reduce((count, one) => count + one.firmwares.reduce((sum, build) => sum + build.updating, 0), 0);
   const gaveUp = fleet.classes.reduce((count, one) => count + one.firmwares.reduce((sum, build) => sum + build.failed, 0), 0);
@@ -71,7 +71,7 @@ export function HealthCard({ fleet, devices, stats, now }: { fleet: Fleet; devic
         <span className={`mono ${styles.figure}`}>
           {[
             t('admin.count.online', { count: answer.devices.online }),
-            t('admin.health.pictures', { size: sizeLabel(answer.content.mediaBytes, i18n.language, t) }),
+            t('admin.health.pictures', { size: sizeLabel(answer.content.mediaBytes, t) }),
             t('admin.count.rendersQueued', { count: answer.renders.queued }),
           ].join(' · ')}
           {' · '}
@@ -210,5 +210,4 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * an install with no picture in it yet holds bytes rather than a rounded
  * nothing, and a fresh one should read as empty rather than as broken.
  */
-const sizeLabel = (bytes: number, language: string, t: Translate): string =>
-  bytes < 1024 ? t('admin.count.bytes', { count: bytes }) : fileSize(bytes, language);
+const sizeLabel = (bytes: number, t: Translate): string => (bytes < 1024 ? t('admin.count.bytes', { count: bytes }) : fileSize(bytes));

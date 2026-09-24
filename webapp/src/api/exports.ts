@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
 import type { ExportAccepted, Media } from '@fg2/shared-types/v1';
 import { api, apiBlob } from './client';
+import { decimalFigure } from '@/ui/figures';
 
 /**
  * Taking a copy of a whole grow away.
@@ -101,18 +102,23 @@ export const isBuilding = (media: Media | undefined): boolean => media?.exportJo
  * writes a size in everywhere, so the same zip reads the same on the account
  * page and on the administrator's health card. The decimal is always written
  * where there is room for one, because "1 GB" beside "1.2 GB" reads as the
- * rounder of two answers rather than as the same kind of figure, and it is
- * written the way the language writes a decimal rather than the way the
- * browser does; a caller with no language to hand gets the browser's.
+ * rounder of two answers rather than as the same kind of figure.
+ *
+ * Which decimal that is comes from `ui/figures`, the one writer every reading
+ * in the app goes through, and not from an argument. It was an argument, and
+ * two of the three callers passed it: the grow report's button therefore wrote
+ * "171.9 MB" with a full stop directly under chapter lines of its own reading
+ * "18,5 °C · 66 %", on a German page, because the browser underneath was an
+ * English one. A size is a figure a person reads, so it is written the way the
+ * app is being read rather than the way the machine happens to be set, and the
+ * only way to keep that true at every call site is to leave the caller nothing
+ * to forget.
  */
-export const fileSize = (bytes: number, language?: string): string => {
-  const figure = (value: number, digits: number) =>
-    new Intl.NumberFormat(language, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
+export const fileSize = (bytes: number): string => {
+  if (bytes >= 1024 ** 3) return `${decimalFigure(bytes / 1024 ** 3, 1)} GB`;
+  if (bytes >= 1024 ** 2) return `${decimalFigure(bytes / 1024 ** 2, 1)} MB`;
 
-  if (bytes >= 1024 ** 3) return `${figure(bytes / 1024 ** 3, 1)} GB`;
-  if (bytes >= 1024 ** 2) return `${figure(bytes / 1024 ** 2, 1)} MB`;
-
-  return `${figure(Math.round(bytes / 1024), 0)} kB`;
+  return `${decimalFigure(Math.round(bytes / 1024), 0)} kB`;
 };
 
 /**

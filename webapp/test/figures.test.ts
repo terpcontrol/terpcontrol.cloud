@@ -98,13 +98,16 @@ describe('which language that is', () => {
  * string is going somewhere other than a pair of eyes.
  */
 describe('the figures that must stay English', () => {
-  const MACHINE = [
-    'src/api/exports.ts',
-    'src/charts/series.ts',
-    'src/screens/home/Sparkline.tsx',
-    'src/screens/space/Overview.tsx',
-    'src/ui/days.ts',
-  ];
+  /**
+   * `src/api/exports.ts` was on this list and is not any more. It writes one
+   * figure, the size of a zip, and that figure is read by a person off a
+   * button - so it belongs on the writer above rather than beside the SVG
+   * paths. While it formatted for itself it asked each caller which language
+   * to use, and the grow report's button was the caller that never answered:
+   * it wrote "171.9 MB" with a full stop under chapter lines of its own
+   * reading "18,5 °C · 66 %".
+   */
+  const MACHINE = ['src/charts/series.ts', 'src/screens/home/Sparkline.tsx', 'src/screens/space/Overview.tsx', 'src/ui/days.ts'];
 
   const files = (from: string): string[] =>
     readdirSync(resolve(process.cwd(), from), { withFileTypes: true }).flatMap(entry =>
