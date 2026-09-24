@@ -1,12 +1,14 @@
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import { hasFailed, isFirstLoad, useRead } from './read';
 import type {
+  Device,
   DeviceCommand,
   DeviceCommandResult,
   DeviceConfiguration,
   DeviceConfigurationEnvelope,
   DeviceLive,
   DevicePage,
+  DeviceUpdate,
   FirmwarePage,
   SocketOverrideUpdate,
   SocketPage,
@@ -134,6 +136,34 @@ export const useSaveConfiguration = () => {
     mutationFn: ({ deviceId, configuration }: { deviceId: string; configuration: DeviceConfiguration }) =>
       api.put<DeviceConfigurationEnvelope>(`/devices/${deviceId}/configuration`, { configuration }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['devices'] }),
+  });
+};
+
+/**
+ * What a person decides about a device: what it is called, and where it stands.
+ *
+ * The route has always taken both - it is the first thing `PATCH /devices/{id}`
+ * is documented as doing - and until now nothing in the app called it, so the
+ * name every list is built around could only be given by the claim that stored
+ * the type as one, and hardware that landed in the wrong tent stayed there.
+ *
+ * A move is the wider of the two writes and is why the reads below are thrown
+ * away rather than patched: the device leaves one place's Devices tab and
+ * appears on another's, the home cards of both change, and the camera the
+ * controller answers for is moved with it by the server, which no answer here
+ * mentions. The device itself is written into its own key as well, because the
+ * claim flow reads one device by id and would otherwise go on drawing the place
+ * it has just been moved out of.
+ */
+export const useUpdateDevice = (deviceId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: DeviceUpdate) => api.patch<Device>(`/devices/${deviceId}`, body),
+    onSuccess: device => {
+      queryClient.setQueryData(['devices', device.id], device);
+      for (const key of ['devices', 'spaces', 'home', 'cameras']) void queryClient.invalidateQueries({ queryKey: [key] });
+    },
   });
 };
 

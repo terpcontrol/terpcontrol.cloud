@@ -1,4 +1,4 @@
-import { Camera as CameraIcon, ChevronDown, ChevronRight, Cpu } from 'lucide-react';
+import { Camera as CameraIcon, ChevronDown, ChevronRight, Cpu, Pencil } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -17,12 +17,14 @@ import { enough, useMayLogIn, useMayManage, useMayWith } from '@/ui/session-acce
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { cameraFreshness } from './cameras';
+import { DeviceSettingsSheet } from './DeviceSettingsSheet';
 import { Fact, Facts } from './Facts';
 import { isLightRole, lightOutputOf } from './lights';
 import { LightOutputRow } from './LightOutputRow';
 import { cameraTitle, deviceName, deviceTitle } from './naming';
 import { rowsOf, type SocketRowModel } from './sockets';
 import { SocketRow } from './SocketRow';
+import settings from './DeviceSettings.module.css';
 import styles from './Devices.module.css';
 
 /**
@@ -272,9 +274,14 @@ interface DeviceRowProps {
 function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now }: DeviceRowProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [naming, setNaming] = useState(false);
   const firmwares = useDeviceFirmwares(device.id, open);
   const liveness = deviceLiveness(spokeAt, now);
   const legacy = sockets ? !sockets.capabilities.socketOverride : false;
+  // Naming a device and moving it are both `manage`, and asked of this device
+  // rather than of the screen: the whole-account list draws rows from every
+  // place at once, and the same reader owns one tent and only reads the next.
+  const mayCorrect = enough(useMayWith()(device), 'manage');
 
   const build = firmwares.data?.items.find(one => one.id === device.state.firmwareId);
 
@@ -323,30 +330,45 @@ function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now }: De
       </div>
 
       {open ? (
-        <Facts>
-          <Fact label={t('devices.fact.id')} value={device.id} />
-          {/* Through the catalogue, like the thirteen other places that print a
-              type: it is a contract key and not a word, so drawn as it stands
-              it reads as lowercase English under a row title the German app has
-              already translated. A type from a newer contract than this build
-              still prints, rather than showing a missing key. */}
-          <Fact label={t('devices.fact.type')} value={t(`devices.type.${device.type}`, { defaultValue: device.type })} />
-          <Fact label={t('devices.fact.build')} value={buildLabel(build) ?? (firmwares.isPending ? t('home.waiting') : '—')} />
-          <Fact label={t('devices.fact.channel')} value={t(`devices.channel.${device.firmware.channel}`)} />
-          {sockets ? <Fact label={t('devices.fact.can')} value={capabilityLine(t, sockets)} /> : null}
-          {place && linked && device.spaceId ? (
-            <Fact
-              label={t('devices.fact.place')}
-              value={
-                <Link className={styles.placeLink} to={`/spaces/${device.spaceId}/devices`}>
-                  {place}
-                  <ChevronRight size={12} strokeWidth={2} aria-hidden />
-                </Link>
-              }
-            />
+        <>
+          <Facts>
+            <Fact label={t('devices.fact.id')} value={device.id} />
+            {/* Through the catalogue, like the thirteen other places that print a
+                type: it is a contract key and not a word, so drawn as it stands
+                it reads as lowercase English under a row title the German app has
+                already translated. A type from a newer contract than this build
+                still prints, rather than showing a missing key. */}
+            <Fact label={t('devices.fact.type')} value={t(`devices.type.${device.type}`, { defaultValue: device.type })} />
+            <Fact label={t('devices.fact.build')} value={buildLabel(build) ?? (firmwares.isPending ? t('home.waiting') : '—')} />
+            <Fact label={t('devices.fact.channel')} value={t(`devices.channel.${device.firmware.channel}`)} />
+            {sockets ? <Fact label={t('devices.fact.can')} value={capabilityLine(t, sockets)} /> : null}
+            {place && linked && device.spaceId ? (
+              <Fact
+                label={t('devices.fact.place')}
+                value={
+                  <Link className={styles.placeLink} to={`/spaces/${device.spaceId}/devices`}>
+                    {place}
+                    <ChevronRight size={12} strokeWidth={2} aria-hidden />
+                  </Link>
+                }
+              />
+            ) : null}
+          </Facts>
+
+          {/* Beside the facts it corrects, which is where the name and the place
+              are read: the panel is the only screen in the app a device has of
+              its own, and both of these were until now the claim flow's alone -
+              the name not even there. */}
+          {mayCorrect ? (
+            <button type="button" className={`${ui.chip} ${settings.open}`} onClick={() => setNaming(true)}>
+              <Pencil size={13} strokeWidth={1.75} aria-hidden />
+              {t('devices.settings.open')}
+            </button>
           ) : null}
-        </Facts>
+        </>
       ) : null}
+
+      {naming ? <DeviceSettingsSheet device={device} onClose={() => setNaming(false)} /> : null}
     </li>
   );
 }

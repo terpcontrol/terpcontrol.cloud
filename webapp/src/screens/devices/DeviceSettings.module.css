@@ -1,0 +1,17 @@
+/* The insides of the sheet that names a device and moves it. The sheet, the
+   field, the chips and the notes are the app's own, so nothing here restates a
+   surface, a radius or a colour - only the space between the two questions. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-2) 0;
+}
+
+/* The way into the sheet, in the row's own panel under the facts it corrects. */
+.open {
+  align-self: flex-start;
+  color: var(--ink);
+  margin-top: var(--space-3);
+}

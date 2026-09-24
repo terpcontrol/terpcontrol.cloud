@@ -914,6 +914,17 @@
       "numbered": "{{name}} {{number}}"
     },
     "noDevicesHere": "Hier steht kein Gerät.",
+    "settings": {
+      "open": "Umbenennen oder umziehen",
+      "title": "{{name}}",
+      "name": "Name",
+      "nameNote": "Bleibt das Feld leer, heißt das Gerät wieder nach seinem Typ und den letzten Zeichen seiner ID - denen, die auf ihm stehen.",
+      "save": "Namen speichern",
+      "saving": "wird gespeichert…",
+      "place": "Steht in",
+      "placeNote": "Ein Umzug nimmt ab jetzt mit, was das Gerät misst, und die Kamera, für die es antwortet. Die Zeilen, die es schon geschrieben hat, bleiben dort, wo sie geschrieben wurden.",
+      "noPlaces": "Es gibt keinen anderen Bereich, den du steuerst und in den es umziehen könnte."
+    },
     "unnamed": "{{type}} · {{tag}}",
     "youMayLog": "Was die Geräte hier tun, steht hier. Eine Steckdose oder die Lampe schaltet nur, wer diesen Bereich steuert."
   },

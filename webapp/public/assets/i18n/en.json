@@ -918,6 +918,17 @@
       "numbered": "{{name}} {{number}}"
     },
     "noDevicesHere": "No device here.",
+    "settings": {
+      "open": "Rename or move",
+      "title": "{{name}}",
+      "name": "Name",
+      "nameNote": "Leave it empty and the device is called after its type and the last characters of its id again - the ones printed on it.",
+      "save": "Save the name",
+      "saving": "Saving…",
+      "place": "Stands in",
+      "placeNote": "Moving it takes what it measures to the other place from now on, and the camera it answers for with it. The lines it has already written stay where they were written.",
+      "noPlaces": "There is no other place you steer to move it to."
+    },
     "unnamed": "{{type}} · {{tag}}",
     "youMayLog": "What the devices here are doing is shown. A socket or the lamp is switched by whoever steers this space."
   },
