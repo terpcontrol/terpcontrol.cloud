@@ -67,7 +67,6 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-3);
-  min-height: 32px;
   padding-bottom: 7px;
   border-bottom: var(--rule-solid);
 }

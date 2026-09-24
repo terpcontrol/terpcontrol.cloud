@@ -167,7 +167,7 @@
 }
 
 .gridCell {
-  width: 64px;
+  width: 52px;
   padding: var(--space-2) 0;
   text-align: center;
 }
@@ -177,4 +177,10 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-3);
+}
+
+@media (min-width: 600px) {
+  .gridCell {
+    width: 64px;
+  }
 }

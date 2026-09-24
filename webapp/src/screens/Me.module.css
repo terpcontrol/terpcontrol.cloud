@@ -133,9 +133,14 @@
   color: var(--muted);
 }
 
-/* A row that leads nowhere says why, under its title. */
+/* A row that leads nowhere says why, under its title, and its title is
+   turned down to the muted ink: without a chevron it is a fact, not a door. */
 .rowNote {
   margin-top: 2px;
+}
+
+.row:not(.link) .rowTitle {
+  color: var(--muted);
 }
 
 /* Signing out stands apart from the doors, at the foot. */
