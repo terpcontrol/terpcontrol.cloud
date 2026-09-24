@@ -49,13 +49,14 @@ interface Parameter {
 }
 
 interface Operation {
-  responses?: Record<string, Content>;
+  responses?: Record<string, Content & { $ref?: string; description?: string }>;
   requestBody?: Content;
   parameters?: Parameter[];
+  security?: unknown[];
 }
 
 interface OpenApiDocument {
-  components?: { schemas?: Record<string, object> };
+  components?: { schemas?: Record<string, object>; responses?: Record<string, Content & { description?: string }> };
   paths: Record<string, Record<string, Operation>>;
 }
 
@@ -75,6 +76,21 @@ let unclaimedCode: string;
 /** The response schema a route documents for one status code, or undefined. */
 const declaredSchema = (path: string, method: Method = 'get', status = 200, contentType = 'application/json'): unknown =>
   document.paths[path]?.[method]?.responses?.[String(status)]?.content?.[contentType]?.schema;
+
+/**
+ * What a route says it refuses with, followed through the shared response it
+ * names: the refusals are declared once in `components.responses` and referred
+ * to, so a reader of one operation still has to arrive at a problem document.
+ */
+const declaredRefusal = (path: string, method: Method, status: string): { description?: string; schema: unknown } | undefined => {
+  const declared = document.paths[path]?.[method]?.responses?.[status];
+  if (!declared) return undefined;
+
+  const named = declared.$ref?.split('/').pop();
+  const response = named ? document.components?.responses?.[named] : declared;
+
+  return { description: response?.description, schema: response?.content?.['application/problem+json']?.schema };
+};
 
 /** The request body a route documents, or undefined where it documents none. */
 const declaredBody = (path: string, method = 'post'): unknown => document.paths[path]?.[method]?.requestBody?.content?.['application/json']?.schema;
@@ -301,6 +317,58 @@ describe('the document', () => {
     // What every list takes, stated once and therefore documented everywhere.
     expect(Object.keys(declaredQuery('/v1/devices')).sort()).toEqual(['cursor', 'limit', 'spaceId']);
     expect(Object.keys(declaredQuery('/v1/alerts'))).toEqual(expect.arrayContaining(['cursor', 'limit']));
+  });
+
+  it('leaves no /v1 operation without a refusal', () => {
+    // A contract that describes only the happy path is a contract nobody can
+    // write a client against: the refusal is half of what a caller has to
+    // handle, and every one of them here is a problem document.
+    const cannotFail: string[] = [];
+
+    for (const [path, operations] of Object.entries(document.paths)) {
+      if (path !== '/v1' && !path.startsWith('/v1/')) continue;
+
+      for (const method of Object.keys(operations).filter(key => METHODS.includes(key as Method))) {
+        const refusal = declaredRefusal(path, method as Method, 'default');
+        if (!refusal?.schema) cannotFail.push(`${method.toUpperCase()} ${path}`);
+      }
+    }
+
+    expect(cannotFail).toEqual([]);
+    expect(declaredRefusal('/v1/devices', 'get', 'default')?.schema).toEqual({ $ref: '#/components/schemas/Problem' });
+  });
+
+  it('names the refusals the shape of an operation already implies', () => {
+    // An id that can name nothing, a credential that can be missing, a query
+    // that can fail to parse. Each is read off the operation, so a route added
+    // tomorrow carries them without anybody remembering to say so.
+    expect(declaredRefusal('/v1/devices/{id}', 'get', '404')?.schema).toEqual({ $ref: '#/components/schemas/Problem' });
+    expect(declaredRefusal('/v1/devices/{id}', 'get', '401')?.schema).toEqual({ $ref: '#/components/schemas/Problem' });
+    expect(declaredRefusal('/v1/entries', 'get', '400')?.schema).toEqual({ $ref: '#/components/schemas/Problem' });
+
+    // A route that asks for no credential does not claim it can refuse one, and
+    // a route with nothing to look up does not claim it can fail to find it.
+    expect(declaredRefusal('/v1/sessions', 'post', '401')).toBeUndefined();
+    expect(declaredRefusal('/v1/devices', 'get', '404')).toBeUndefined();
+
+    // The routes beside `/v1` answer the other half's shape and are left alone.
+    expect(document.paths['/readyz']?.get?.responses?.default).toBeUndefined();
+  });
+
+  it('refuses in the shape it declares it refuses in', async () => {
+    const problem = declaredRefusal('/v1/devices/{id}', 'get', '404')?.schema;
+    expect(problem).toBeDefined();
+
+    const unauthenticated = await anonymous().get('/v1/devices').expect(401);
+    expect(unauthenticated.headers['content-type']).toMatch('application/problem+json');
+    expectMatches(problem, unauthenticated.body, 'the 401 a list answers without a token');
+
+    const missing = await owner.client.get('/v1/devices/000000000000000000000000').expect(404);
+    expectMatches(problem, missing.body, 'the 404 a by-id route answers');
+
+    const invalid = await owner.client.get('/v1/entries?limit=0').expect(400);
+    expectMatches(problem, invalid.body, 'the 400 a validated query answers');
+    expect(invalid.body.code).toBe('validation_failed');
   });
 });
 

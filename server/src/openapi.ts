@@ -1,7 +1,9 @@
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { OpenAPIObject, OperationObject, ReferenceObject, ResponseObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
 import v1Schemas from '@fg2/shared-types/openapi-schemas.json';
 import { appConfig } from './config/configuration';
+import { V1_PREFIX } from './common/v1/problem.filter';
 
 /**
  * Spread into the `@ApiOperation` of a route that needs no token: the document
@@ -48,6 +50,86 @@ const TAGS: readonly { name: string; description: string }[] = [
 ];
 
 /**
+ * The refusals, written once and referenced everywhere.
+ *
+ * Every refusal of `/v1` is one shape - RFC 7807, `application/problem+json`,
+ * with a `code` that `problem.ts` calls the caller's to choose and a client's to
+ * branch on. The document said that once, in a sentence in its own description,
+ * and then declared not a single refusal on any of its operations: a reader
+ * generating a client from it got routes that cannot fail, and no type to catch
+ * what comes back when they do.
+ *
+ * Four responses rather than four hundred copies, so that what a status means
+ * here is said in one place - which is the same reason a route names a contract
+ * schema instead of spelling one out.
+ */
+const refusal = (description: string): ResponseObject => ({
+  description,
+  content: { 'application/problem+json': { schema: { $ref: '#/components/schemas/Problem' } } },
+});
+
+const REFUSALS: Record<string, ResponseObject> = {
+  Problem: refusal(
+    'A refusal. `code` is the stable name to branch on, `detail` is a sentence for a person, and `errors` names the fields of a body or a query that were wrong.',
+  ),
+  BadRequest: refusal(
+    'The body or the query is not what this route accepts. `validation_failed` with the offending fields in `errors`, unless the route names a reason of its own.',
+  ),
+  Unauthenticated: refusal('No credential, or one this route does not take. The bearer is the user token from `POST /v1/sessions`.'),
+  NotFound: refusal(
+    'There is nothing with that id, or nothing this caller may see: a refusal that said "that one exists but not like this" would tell a stranger there was something there.',
+  ),
+};
+
+const refers = (name: string): ReferenceObject => ({ $ref: `#/components/responses/${name}` });
+
+/** Only `/v1` answers problem documents; the routes beside it answer the shape the Angular app has always read. */
+const isV1 = (path: string): boolean => path === V1_PREFIX || path.startsWith(`${V1_PREFIX}/`);
+
+/**
+ * Which refusals an operation declares, read off the operation itself rather
+ * than off a list kept beside the controllers.
+ *
+ * A list would be wrong within a release, and it could not be right to begin
+ * with: a `ProblemException` is thrown in the service layer, so a controller
+ * does not know which codes its route reaches. What the document can state
+ * truthfully is what the shape of the operation already implies - a credential
+ * that can be missing, an id that can name nothing, a body or a query that can
+ * fail to parse - and `default` for everything else, which is where a rate
+ * limit, a conflict and an unprocessable request come back.
+ *
+ * The thumbnail hints on the two picture routes carry no schema because nothing
+ * validates them: a width that does not parse is ignored rather than refused, so
+ * they are not what makes a route answer 400.
+ */
+const declareRefusals = (document: OpenAPIObject): void => {
+  document.components = { ...document.components, responses: { ...REFUSALS, ...document.components?.responses } };
+
+  for (const [path, item] of Object.entries(document.paths)) {
+    if (!isV1(path)) continue;
+
+    const byName = /\{[^}]+\}/.test(path);
+    for (const operation of Object.values(item) as OperationObject[]) {
+      if (typeof operation !== 'object' || operation === null || !('responses' in operation)) continue;
+
+      const validated =
+        operation.requestBody !== undefined ||
+        (operation.parameters ?? []).some(parameter => 'in' in parameter && parameter.in === 'query' && parameter.schema !== undefined);
+
+      // An operation without `security` of its own inherits the document's
+      // bearer requirement; `PUBLIC_OPERATION` is the empty list that opts out.
+      const secured = operation.security === undefined || operation.security.length > 0;
+
+      const answers = operation.responses;
+      if (validated) answers['400'] ??= refers('BadRequest');
+      if (secured) answers['401'] ??= refers('Unauthenticated');
+      if (byName) answers['404'] ??= refers('NotFound');
+      answers.default ??= refers('Problem');
+    }
+  }
+};
+
+/**
  * The API description, built from the controllers themselves rather than from
  * comments kept alongside them, so it cannot drift from what the server serves.
  */
@@ -77,6 +159,10 @@ export const setupOpenApi = (app: NestFastifyApplication): void => {
   // copy of it. Nest reads response schemas off runtime metadata, and a shared
   // TypeScript interface leaves none, which is why they are registered here.
   document.components = { ...document.components, schemas: { ...V1_SCHEMAS, ...document.components?.schemas } };
+
+  // And what each of them answers when it refuses, which until now no operation
+  // said anything about at all.
+  declareRefusals(document);
 
   // The router ignores a trailing slash, so `/api-docs/` reaches the same
   // handler - but the page links its assets relative to the URL it was fetched
