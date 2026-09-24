@@ -9012,8 +9012,16 @@
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
       },
       "ownerId": {
-        "type": "string",
-        "minLength": 1
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null on a shared or public read, which is not told whose account the camera is on."
       },
       "kind": {
         "$ref": "#/components/schemas/CameraKind"
@@ -9028,7 +9036,7 @@
             "type": "null"
           }
         ],
-        "description": "The controller that answers for this camera; null for one the cloud reaches itself."
+        "description": "The controller that answers for this camera; null for one the cloud reaches itself, and on a shared or public read."
       },
       "spaceId": {
         "anyOf": [
@@ -9128,6 +9136,7 @@
         "description": "Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out."
       },
       "entitlement": {
+        "description": "On a shared or public read only the tier the pictures are served at: `validUntil` and `grant` are null and `renewalVisible` false.",
         "$ref": "#/components/schemas/CameraEntitlement"
       },
       "isDemo": {

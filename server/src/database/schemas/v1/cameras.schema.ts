@@ -20,7 +20,9 @@ type CameraEntitlementDocument = Omit<CameraEntitlement, 'validUntil' | 'tier' |
 
 type CameraStateDocument = Omit<CameraState, 'lastStillAt'> & { lastStillAt: Date | null };
 
-export type CameraDocument = Omit<Camera, 'createdAt' | 'removedAt' | 'entitlement' | 'state'> & {
+export type CameraDocument = Omit<Camera, 'createdAt' | 'removedAt' | 'entitlement' | 'state' | 'ownerId'> & {
+  /** Always somebody's: only the answer to a reader outside the space leaves it out. */
+  ownerId: string;
   createdAt: Date;
   removedAt: Date | null;
   entitlement: CameraEntitlementDocument;

@@ -2664,10 +2664,13 @@ export interface CameraState {
 export interface Camera {
   id: string;
   createdAt: string;
-  ownerId: string;
+  /**
+   * Null on a shared or public read, which is not told whose account the camera is on.
+   */
+  ownerId: string | null;
   kind: CameraKind;
   /**
-   * The controller that answers for this camera; null for one the cloud reaches itself.
+   * The controller that answers for this camera; null for one the cloud reaches itself, and on a shared or public read.
    */
   deviceId: string | null;
   spaceId: string | null;
@@ -2704,13 +2707,24 @@ export interface Camera {
    * Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out.
    */
   staleWarning: boolean;
-  entitlement: CameraEntitlement;
+  entitlement: CameraEntitlement1;
   isDemo: boolean;
   /**
    * A removed camera is a tombstone, so its pictures keep their link.
    */
   removedAt: string | null;
   state: CameraState;
+}
+
+/**
+ * On a shared or public read only the tier the pictures are served at: `validUntil` and `grant` are null and `renewalVisible` false.
+ */
+
+export interface CameraEntitlement1 {
+  validUntil: string | null;
+  grant: GrantKind | null;
+  tier: EntitlementTier;
+  renewalVisible: boolean;
 }
 
 export interface CameraPage {

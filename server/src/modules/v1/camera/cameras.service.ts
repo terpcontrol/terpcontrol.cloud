@@ -267,7 +267,9 @@ export class CamerasService {
 
     if (to === 'demo') return demoCamera(served);
 
-    return to === 'owner' || to === 'admin' ? served : withoutTheOwnersAddress(served);
+    if (to === 'owner' || to === 'admin') return served;
+
+    return to === 'member' ? withoutTheOwnersAddress(served) : withoutTheOwner(served);
   }
 }
 
@@ -290,6 +292,20 @@ const withoutTheOwnersAddress = (camera: Camera): Camera => ({
   ip: null,
   url: null,
   state: { ...camera.state, lastError: null },
+});
+
+/**
+ * A camera as a link or a public page answers it: nor whose account it is, the
+ * controller it hangs off, or what the owner paid for and until when - the
+ * diary and the pictures a stranger reads leave out the author and the device
+ * for the same reason. The tier stays, because it is what the pictures they
+ * are shown are narrowed to.
+ */
+const withoutTheOwner = (camera: Camera): Camera => ({
+  ...withoutTheOwnersAddress(camera),
+  ownerId: null,
+  deviceId: null,
+  entitlement: { ...camera.entitlement, validUntil: null, grant: null, renewalVisible: false },
 });
 
 /** How often the pipeline has always asked a camera for a picture. */

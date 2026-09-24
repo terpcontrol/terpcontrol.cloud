@@ -565,9 +565,11 @@ export const camera = named(
   z.object({
     id: id(),
     createdAt: instant(),
-    ownerId: id(),
+    ownerId: id().nullable().describe('Null on a shared or public read, which is not told whose account the camera is on.'),
     kind: cameraKind,
-    deviceId: id().nullable().describe('The controller that answers for this camera; null for one the cloud reaches itself.'),
+    deviceId: id()
+      .nullable()
+      .describe('The controller that answers for this camera; null for one the cloud reaches itself, and on a shared or public read.'),
     spaceId: id().nullable(),
     name: z.string(),
     looksAt: z.string().nullable().describe('What it is pointed at, as a label beside the picture.'),
@@ -586,7 +588,9 @@ export const camera = named(
     staleWarning: z
       .boolean()
       .describe('Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out.'),
-    entitlement: cameraEntitlement,
+    entitlement: cameraEntitlement.describe(
+      'On a shared or public read only the tier the pictures are served at: `validUntil` and `grant` are null and `renewalVisible` false.',
+    ),
     isDemo: z.boolean(),
     removedAt: instant().nullable().describe('A removed camera is a tombstone, so its pictures keep their link.'),
     state: cameraState,

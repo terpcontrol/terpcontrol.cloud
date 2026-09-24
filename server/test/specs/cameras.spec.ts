@@ -405,6 +405,23 @@ describe('what somebody the tent is shared with is answered about a camera', () 
     expect(mine.url).toBe(`rtsp://${HOME}:554/stream1`);
     expect(mine.state.lastError).toBe(TUNNEL);
   });
+
+  it('tells a link reader neither whose camera it is, what it hangs off, nor what the owner paid for', async () => {
+    const link = (
+      await owner.client
+        .post('/v1/share-links')
+        .send({ kind: 'view', subject: { type: 'space', id: tent }, includeCameras: true })
+        .expect(201)
+    ).body;
+
+    const read = (await anonymous().get(`/v1/cameras/${theirs}?share=${link.token}`).expect(200)).body;
+    expect(read).toMatchObject({ id: theirs, ownerId: null, deviceId: null, did: null, ip: null, url: null });
+    expect(read.entitlement).toMatchObject({ validUntil: null, grant: null, renewalVisible: false });
+    expect(JSON.stringify(read)).not.toContain(owner.userId);
+
+    // A member of the tent is somebody the owner grows with, and is told both.
+    expect((await guest.client.get(`/v1/cameras/${theirs}`).expect(200)).body.ownerId).toBe(owner.userId);
+  });
 });
 
 /**

@@ -413,9 +413,11 @@ exports.cameraState = (0, common_js_1.named)('CameraState', zod_1.z.object({
 exports.camera = (0, common_js_1.named)('Camera', zod_1.z.object({
     id: (0, common_js_1.id)(),
     createdAt: (0, common_js_1.instant)(),
-    ownerId: (0, common_js_1.id)(),
+    ownerId: (0, common_js_1.id)().nullable().describe('Null on a shared or public read, which is not told whose account the camera is on.'),
     kind: common_js_1.cameraKind,
-    deviceId: (0, common_js_1.id)().nullable().describe('The controller that answers for this camera; null for one the cloud reaches itself.'),
+    deviceId: (0, common_js_1.id)()
+        .nullable()
+        .describe('The controller that answers for this camera; null for one the cloud reaches itself, and on a shared or public read.'),
     spaceId: (0, common_js_1.id)().nullable(),
     name: zod_1.z.string(),
     looksAt: zod_1.z.string().nullable().describe('What it is pointed at, as a label beside the picture.'),
@@ -434,7 +436,7 @@ exports.camera = (0, common_js_1.named)('Camera', zod_1.z.object({
     staleWarning: zod_1.z
         .boolean()
         .describe('Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out.'),
-    entitlement: exports.cameraEntitlement,
+    entitlement: exports.cameraEntitlement.describe('On a shared or public read only the tier the pictures are served at: `validUntil` and `grant` are null and `renewalVisible` false.'),
     isDemo: zod_1.z.boolean(),
     removedAt: (0, common_js_1.instant)().nullable().describe('A removed camera is a tombstone, so its pictures keep their link.'),
     state: exports.cameraState,

@@ -1132,7 +1132,7 @@ export declare const cameraState: z.ZodObject<{
 export declare const camera: z.ZodObject<{
     id: z.ZodString;
     createdAt: z.ZodISODateTime;
-    ownerId: z.ZodString;
+    ownerId: z.ZodNullable<z.ZodString>;
     kind: z.ZodEnum<{
         terpcam_controller: "terpcam_controller";
         terpcam_standalone: "terpcam_standalone";
@@ -1189,7 +1189,7 @@ export declare const cameraPage: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         createdAt: z.ZodISODateTime;
-        ownerId: z.ZodString;
+        ownerId: z.ZodNullable<z.ZodString>;
         kind: z.ZodEnum<{
             terpcam_controller: "terpcam_controller";
             terpcam_standalone: "terpcam_standalone";
