@@ -152,6 +152,32 @@ describe('what the camera page edits', () => {
 });
 
 /**
+ * A query string carries a flag as text, and the flag was parsed with a
+ * coercion that is `Boolean(value)` - so every word but the empty one meant
+ * true, and the client that read the contract and sent `false` was handed the
+ * tombstones it had asked to leave out.
+ */
+describe('asking for the cameras that are gone', () => {
+  it('reads `false` as false, and refuses a word that is neither', async () => {
+    const gone = await addCamera(rtsp({ name: 'Taken down' }));
+    await owner.client.delete(`/v1/cameras/${gone}`).expect(204);
+
+    const listed = async (query: string): Promise<string[]> =>
+      (await owner.client.get(`/v1/cameras${query}`).expect(200)).body.items.map((one: { id: string }) => one.id);
+
+    expect(await listed('?includeRemoved=true')).toContain(gone);
+    expect(await listed('?includeRemoved=false')).not.toContain(gone);
+    expect(await listed('')).not.toContain(gone);
+
+    // And a word the parameter cannot be is a refusal rather than a silent
+    // `true`, the way every other flag of a /v1 query string answers.
+    const refused = await owner.client.get('/v1/cameras?includeRemoved=yes').expect(400);
+    expect(refused.body.code).toBe('validation_failed');
+    expect(refused.body.errors[0].field).toBe('includeRemoved');
+  });
+});
+
+/**
  * The Terp Cam a controller pairs is reported over MQTT and never created by
  * hand, so this is the one part of a camera's life that starts at the hardware:
  * both halves have to agree about who the picture belongs to when the hardware

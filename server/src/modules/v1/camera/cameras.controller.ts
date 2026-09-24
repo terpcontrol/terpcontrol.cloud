@@ -53,10 +53,21 @@ import { V1Answer } from '../answer-shape';
  * and nobody if there is not. Everything that changes a camera needs a session.
  */
 
+/**
+ * A query string carries a flag as text, so it is read as the two words it can
+ * be - the same way `archived`, `done` and `open` are read next door.
+ *
+ * `z.coerce.boolean()` is `Boolean(value)` and a query string is never anything
+ * but a string, so it answered true to `false`, to `0` and to `yes` alike: a
+ * client that read the published contract, saw a boolean and sent
+ * `includeRemoved=false` to leave the tombstones out was handed them. The enum
+ * reads `false` as false and refuses anything that is neither with a problem
+ * document, which is what a contract-reading client can act on.
+ */
 const cameraListQuery = pageQuery.extend({
   spaceId: z.string().optional(),
   deviceId: z.string().optional(),
-  includeRemoved: z.coerce.boolean().optional(),
+  includeRemoved: z.enum(['true', 'false']).optional().describe('`true` lists the cameras that have been removed as well as the ones in use.'),
 });
 
 /** A span a client asks for, narrowed by the one the decision allows. */
@@ -91,7 +102,7 @@ export class CamerasController {
   @ApiOperation({ summary: 'The cameras this account can see' })
   @V1Answer(cameraPage)
   public list(@Caller() ctx: AccessContext, @V1Query(cameraListQuery) query: z.infer<typeof cameraListQuery>) {
-    return this.cameras.list(ctx, query, query);
+    return this.cameras.list(ctx, { spaceId: query.spaceId, deviceId: query.deviceId, includeRemoved: query.includeRemoved === 'true' }, query);
   }
 
   /**
