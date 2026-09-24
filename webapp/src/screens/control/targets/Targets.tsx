@@ -8,6 +8,7 @@ import { useHeardAt, useSaveConfiguration } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import { awaitingClimate, hasCo2Sensor, statesTargets } from '@/ui/climate-hardware';
+import { Help, Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -221,7 +222,10 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
       {titled ? <h2 className={styles.deviceName}>{name}</h2> : null}
       <RefreshFailed failedAt={plan.isError && plan.data ? plan.dataUpdatedAt : null} now={now} />
 
-      <p className={ui.note}>{t('targets.prefill')}</p>
+      <p className={ui.note}>
+        {t('targets.prefill')}
+        <Help topic="climatePreset" />
+      </p>
       <Choices label={t('targets.presets')}>
         {PRESET_CHIPS.map(chip => (
           <Choice
@@ -238,7 +242,7 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
         ))}
       </Choices>
 
-      <Block grouped label={t('targets.day')} aside={<a href={`#${nightId}`}>{t('targets.toNight')}</a>}>
+      <Block grouped label={t('targets.day')} help="dayNight" aside={<a href={`#${nightId}`}>{t('targets.toNight')}</a>}>
         <TargetRow
           id={`targets-${device.id}-day-temperature`}
           label={t('targets.temperature')}
@@ -260,7 +264,7 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
           max={90}
           step={1}
           unit={t('targets.unit.humidity')}
-          aside={vpd(draft.dayTemperature, draft.dayHumidity, 'day')}
+          aside={<Term topic="vpd">{vpd(draft.dayTemperature, draft.dayHumidity, 'day')}</Term>}
           disabled={readOnly}
           onChange={dayHumidity => set({ ...draft, dayHumidity })}
         />
@@ -274,6 +278,7 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
           step={5}
           unit={t('targets.unit.percent')}
           aside={lightWindowLabel(draft, now, zone)}
+          help="lightLimit"
           disabled={readOnly}
           onChange={lightLimit => set({ ...draft, lightLimit })}
         />
@@ -347,9 +352,12 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
         <div className={`${ui.card} ${styles.planCard}`} data-status="paused" role="status">
           <p className={styles.planText}>{t('targets.planPaused')}</p>
           {mayManage ? (
-            <button type="button" className={ui.button} disabled={busy} onClick={() => move.mutate({ kind: 'resume' })}>
-              {t('targets.resume')}
-            </button>
+            <>
+              <button type="button" className={ui.button} disabled={busy} onClick={() => move.mutate({ kind: 'resume' })}>
+                {t('targets.resume')}
+              </button>
+              <Help topic="resumePlan" />
+            </>
           ) : null}
         </div>
       ) : null}

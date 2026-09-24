@@ -37,7 +37,7 @@ export function SharedSpace({ space, picture, now, banner }: { space: SpaceOverv
       <header className={styles.hero}>
         <div className={styles.titleRow}>
           <h1 className={styles.title}>{space.name}</h1>
-          <LivenessPill liveness={liveness} measuredAt={measuredAtOf(space.values)} now={now} />
+          <LivenessPill liveness={liveness} measuredAt={measuredAtOf(space.values)} now={now} explain />
         </div>
         <p className={`mono ${styles.facts}`}>
           {[t(`publicPage.spaceKind.${space.kind}`), space.grows.map(grow => grow.name).join(', ')].filter(Boolean).join(' · ')}

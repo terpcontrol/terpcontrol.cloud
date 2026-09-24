@@ -1,6 +1,8 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './Targets.module.css';
+import type { HelpTopic } from '@/ui/explain';
+import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 
 interface TargetRowProps {
@@ -15,6 +17,8 @@ interface TargetRowProps {
   unit: string;
   /** What stands beside the figure: the VPD it amounts to, the hours the light is on. */
   aside?: ReactNode;
+  /** What the label cannot say on its own, as the (i) beside it. */
+  help?: HelpTopic;
   disabled: boolean;
   onChange: (value: number) => void;
 }
@@ -25,7 +29,7 @@ interface TargetRowProps {
  * moving either moves the other; the field keeps what is being typed until it
  * is left, because "3" on the way to "31" is not a temperature to snap to.
  */
-export function TargetRow({ id, label, name, value, min, max, step, unit, aside, disabled, onChange }: TargetRowProps) {
+export function TargetRow({ id, label, name, value, min, max, step, unit, aside, help, disabled, onChange }: TargetRowProps) {
   const { t } = useTranslation();
   const [typing, setTyping] = useState<string | null>(null);
   const fill = `${((value - min) / (max - min)) * 100}%`;
@@ -41,6 +45,7 @@ export function TargetRow({ id, label, name, value, min, max, step, unit, aside,
     <div className={styles.row}>
       <label className={styles.rowLabel} htmlFor={id}>
         {label}
+        {help ? <Help topic={help} /> : null}
       </label>
       <input
         id={id}

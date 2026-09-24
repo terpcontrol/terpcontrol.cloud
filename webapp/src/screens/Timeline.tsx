@@ -82,7 +82,7 @@ export function Timeline() {
             </select>
           </span>
           {/* How alive the place is, read off the home's own card rather than asked for again. */}
-          <LivenessPill liveness={livenessOf(here)} measuredAt={measuredAtOf(here.values)} now={now} />
+          <LivenessPill liveness={livenessOf(here)} measuredAt={measuredAtOf(here.values)} now={now} explain />
         </h1>
       }
     />

@@ -4,6 +4,7 @@ import type { HomeAnswer } from '@fg2/shared-types/v1';
 import { fetchedAt } from '@/api/clock';
 import { useHome } from '@/api/home';
 import { ageLabel } from '@/ui/age';
+import { Term } from '@/ui/Help';
 import { useReportFreshness } from '@/ui/freshness';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -11,7 +12,7 @@ import { EmptyHome } from './EmptyHome';
 import { ArchiveLink } from './grow/Archive';
 import { NewGrowRow } from './grow/new/NewGrowRow';
 import { NewGrowSheet } from './grow/new/NewGrowSheet';
-import { isClub, sortedByAttention } from './home/attention';
+import { isClub, livenessOf, sortedByAttention } from './home/attention';
 import { SpaceCard } from './home/SpaceCard';
 import { AttentionStrip, DueStrip, FollowingStrip } from './home/Strips';
 import styles from './Home.module.css';
@@ -87,13 +88,15 @@ function Cards({ answer, failedAt, onStartGrow }: { answer: HomeAnswer; failedAt
   const now = useNow();
   const club = isClub(answer.spaces);
   const cards = sortedByAttention(answer.spaces);
+  // The words a card's readings are said in are explained once, on the first card that has readings to say them about.
+  const teacher = cards.find(card => livenessOf(card, now) !== 'none') ?? null;
 
   return (
     <section className={styles.page}>
       <header className={styles.head}>
         <h1 className={styles.title}>{t('shell.tabs.home')}</h1>
         <span className={`mono ${styles.caption}`}>
-          {t('home.count', { count: cards.length })} · {t('home.sortedByAttention')}
+          {t('home.count', { count: cards.length })} · <Term topic="sortedByAttention">{t('home.sortedByAttention')}</Term>
         </span>
       </header>
 
@@ -109,7 +112,7 @@ function Cards({ answer, failedAt, onStartGrow }: { answer: HomeAnswer; failedAt
       <div className={styles.cards}>
         {cards.map(card => (
           // A card with no place is known by its grow, which is the only id it has.
-          <SpaceCard key={card.spaceId ?? card.grow?.growId} card={card} people={answer.people} now={now} compact={club} />
+          <SpaceCard key={card.spaceId ?? card.grow?.growId} card={card} people={answer.people} now={now} compact={club} explain={card === teacher} />
         ))}
       </div>
 

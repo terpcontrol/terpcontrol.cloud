@@ -7,6 +7,7 @@ import { useSetPresetPrompt } from '@/api/spaces';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { Sheet } from '@/log/Sheet';
 import { awaitingClimate, hasCo2Sensor, statesTargets } from '@/ui/climate-hardware';
+import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
@@ -86,7 +87,7 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
             : t('space.presets.noGrowHere')}
         </p>
 
-        <Block label={t('space.presets.stage')}>
+        <Block label={t('space.presets.stage')} help="stage">
           <Choices label={t('space.presets.stage')}>
             {STAGES.map(one => (
               <Choice key={one} chosen={one === stage} onChoose={() => pickStage(one)}>
@@ -116,6 +117,7 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
             {writesClimate(stage)
               ? t(writesCo2 ? 'space.presets.writesClimateOnly' : 'space.presets.writesClimateOnlyNoCo2')
               : t('space.presets.noClimateRow')}
+            <Help topic="presetApply" />
           </li>
           {writesClimate(stage) && nothingToWriteTo ? (
             <li>{t(willStateOne ? 'space.presets.waitingToWriteTo' : 'space.presets.nothingToWriteTo')}</li>

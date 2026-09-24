@@ -21,6 +21,7 @@ import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
 import type { Liveness } from '../home/attention';
 import { EntryRow } from '@/ui/EntryRow';
 import { foldRepeats, readingFigure, readingNamesOf } from '@/ui/entries';
+import { Help, Term } from '@/ui/Help';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
@@ -90,6 +91,7 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
                 <Sliders size={13} strokeWidth={1.75} aria-hidden />
                 {t('space.presets.open')}
               </button>
+              <Help topic="climatePreset" />
             </div>
           ) : mayLog ? (
             /* The chips above are gone rather than refused, and their absence is
@@ -245,19 +247,23 @@ function Values({ overview, now }: { overview: SpaceOverview; now: DateTime }) {
   const { t } = useTranslation();
   const shown = TILES.flatMap(metric => overview.values.filter(value => value.metric === metric));
   const setpointOf = (metric: Metric): CardSetpoint | null => overview.setpoints.find(setpoint => setpoint.metric === metric) ?? null;
+  // What the band is, is said on the first tile that is judged against one and on no other.
+  const firstJudged = shown.findIndex(
+    value => value.value !== null && setpointOf(value.metric)?.value != null && setpointOf(value.metric)?.band != null,
+  );
 
   if (shown.length === 0) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.noReadingsYet')}</p>;
 
   return (
     <div className={styles.tiles}>
-      {shown.map(value => (
-        <Tile key={value.metric} value={value} setpoint={setpointOf(value.metric)} now={now} />
+      {shown.map((value, index) => (
+        <Tile key={value.metric} value={value} setpoint={setpointOf(value.metric)} now={now} explainBand={index === firstJudged} />
       ))}
     </div>
   );
 }
 
-function Tile({ value, setpoint, now }: { value: CardValue; setpoint: CardSetpoint | null; now: DateTime }) {
+function Tile({ value, setpoint, now, explainBand }: { value: CardValue; setpoint: CardSetpoint | null; now: DateTime; explainBand: boolean }) {
   const { t } = useTranslation();
   // The band is the server's, the same width the verdict below judges by.
   const band = setpoint?.band ?? null;
@@ -275,17 +281,23 @@ function Tile({ value, setpoint, now }: { value: CardValue; setpoint: CardSetpoi
             <span>→ {targetFigure(setpoint.value, value.metric)}</span>
             {delta !== null && band !== null ? (
               Math.abs(delta) <= band ? (
-                <span className={styles.inBand}>{t('home.card.inBand')}</span>
+                <span className={styles.inBand}>{explainBand ? <Term topic="band">{t('home.card.inBand')}</Term> : t('home.card.inBand')}</span>
               ) : (
-                <span
-                  className={styles.offBand}
-                >{`${delta > 0 ? '+' : '−'}${figure(Math.abs(delta), value.metric)} ${t(delta > 0 ? 'space.high' : 'space.low')}`}</span>
+                <span className={styles.offBand}>
+                  {explainBand ? <Term topic="band">{offBand(t, delta, value.metric)}</Term> : offBand(t, delta, value.metric)}
+                </span>
               )
             ) : null}
           </>
         ) : (
           <>
-            <span>{t(`home.metric.${value.metric}`, { defaultValue: value.metric })}</span>
+            <span>
+              {value.metric === 'vpd' ? (
+                <Term topic="vpd">{t('home.metric.vpd')}</Term>
+              ) : (
+                t(`home.metric.${value.metric}`, { defaultValue: value.metric })
+              )}
+            </span>
             <span>{t('home.card.noTarget')}</span>
           </>
         )}
@@ -293,6 +305,10 @@ function Tile({ value, setpoint, now }: { value: CardValue; setpoint: CardSetpoi
     </div>
   );
 }
+
+/** "+1.2 high": how far a reading stands outside its band, and which way. */
+const offBand = (t: Translate, delta: number, metric: Metric): string =>
+  `${delta > 0 ? '+' : '−'}${figure(Math.abs(delta), metric)} ${t(delta > 0 ? 'space.high' : 'space.low')}`;
 
 /**
  * The phase a grow is in, in the two halves the rest of the app says it in: the
@@ -512,7 +528,10 @@ function Verdict({ verdict, liveness }: { verdict: ClimateVerdict; liveness: Liv
       {...(liveness === 'none' ? {} : ageAttribute(liveness))}
     >
       <TrendLine verdict={verdict} bands={[temperature?.dayBand ?? null, temperature?.nightBand ?? null]} />
-      <p className={`mono ${styles.verdictText}`}>{verdictSentence(t, verdict, zone)}</p>
+      <p className={`mono ${styles.verdictText}`}>
+        {verdictSentence(t, verdict, zone)}
+        {verdict.inBandFraction !== null && verdict.rating !== null ? <Help topic="verdict" /> : null}
+      </p>
     </div>
   );
 }

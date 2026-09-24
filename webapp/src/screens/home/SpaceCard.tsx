@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import type { HomeSpaceCard, Person, SpaceKind } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { ageLabel } from '@/ui/age';
+import { Term } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
 import { clockLabel } from '@/screens/notifications/settings';
@@ -22,6 +23,8 @@ interface SpaceCardProps {
   people: Person[];
   now: DateTime;
   compact: boolean;
+  /** The first card that shows readings: its words explain themselves, once for the whole page. */
+  explain?: boolean;
 }
 
 /** "Not now" is remembered per place and per browser; it is a preference, not a fact about the space. */
@@ -57,7 +60,7 @@ const dismiss = (key: string) => {
  * leaf no kind of place carries, and nothing on it opens a space page, because
  * there is no space to open.
  */
-export function SpaceCard({ card, people, now, compact }: SpaceCardProps) {
+export function SpaceCard({ card, people, now, compact, explain }: SpaceCardProps) {
   const { t } = useTranslation();
   const [hidden, setHidden] = useState(() => dismissed().includes(keyOf(card)));
   const liveness = livenessOf(card, now);
@@ -101,7 +104,7 @@ export function SpaceCard({ card, people, now, compact }: SpaceCardProps) {
         {growHeads ? (
           <DayCounter day={card.grow!.dayNumber} />
         ) : (
-          <LivenessPill liveness={liveness} measuredAt={measuredAtOf(card.values)} now={now} />
+          <LivenessPill liveness={liveness} measuredAt={measuredAtOf(card.values)} now={now} explain={explain} />
         )}
       </header>
 
@@ -112,7 +115,7 @@ export function SpaceCard({ card, people, now, compact }: SpaceCardProps) {
         </p>
       ) : null}
 
-      {liveness === 'none' ? growHeads ? null : <NoSensor /> : <ClimateHalf card={card} now={now} />}
+      {liveness === 'none' ? growHeads ? null : <NoSensor /> : <ClimateHalf card={card} now={now} explain={explain} />}
 
       {card.latestStill && !compact ? <Still card={card} now={now} /> : null}
 
@@ -144,15 +147,29 @@ export function SpaceCard({ card, people, now, compact }: SpaceCardProps) {
  * note on a socket nobody is listening for - and it is counted from when the
  * device was last heard, which is a different instant from its last sample.
  * Saying both with the same word put two ages for one silence on one screen.
+ *
+ * `explain` makes the word the term that says what live and stale mean, on
+ * the one pill of a page that does.
  */
-export function LivenessPill({ liveness, measuredAt, now }: { liveness: Liveness; measuredAt: string | null; now: DateTime }) {
+export function LivenessPill({
+  liveness,
+  measuredAt,
+  now,
+  explain,
+}: {
+  liveness: Liveness;
+  measuredAt: string | null;
+  now: DateTime;
+  explain?: boolean;
+}) {
   const { t } = useTranslation();
   if (liveness === 'none') return null;
+  const word = t(`home.reading.${liveness}`);
 
   return (
     <span className={ui.live} data-liveness={liveness}>
       <span className={ui.liveDot} aria-hidden />
-      {t(`home.reading.${liveness}`)}
+      {explain ? <Term topic="liveness">{word}</Term> : word}
       {measuredAt ? ` · ${ageLabel(measuredAt, now)}` : ''}
     </span>
   );

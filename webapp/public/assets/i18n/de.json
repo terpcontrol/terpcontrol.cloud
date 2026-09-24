@@ -4208,6 +4208,58 @@
     "vpd": {
       "title": "VPD – Dampfdruckdefizit",
       "text": "Wie stark die Luft den Blättern Wasser entzieht, in kPa – berechnet aus Luftfeuchte und Blatttemperatur (standardmäßig tagsüber 2 °C unter der Luft). Einen eigenen Zielwert hat es nicht: Es ergibt sich aus den Zielwerten für Temperatur und Feuchte."
+    },
+    "liveness": {
+      "title": "Live und veraltet",
+      "text": "Live: Der neueste Messwert ist jünger als 2 Minuten. Veraltet: jünger als 10 Minuten. Danach gilt das Gerät als offline, und seine Werte werden abgeblendet statt ausgeblendet – sie sind das Letzte, was es gemessen hat."
+    },
+    "band": {
+      "title": "Im Ziel",
+      "text": "Nah genug am Zielwert, um als getroffen zu gelten: bis ±1 °C, ±5 % Feuchte oder ±200 ppm CO₂. Nachts hat CO₂ kein Band, weil der Controller CO₂ nur bei Licht zugibt."
+    },
+    "sortedByAttention": {
+      "title": "Nach Dringlichkeit",
+      "text": "Orte mit offenem Alarm stehen oben, kritische vor Warnungen, danach die mit fälliger Aufgabe, dann die, deren Messwerte ausbleiben. Sonst bleibt die gewohnte Reihenfolge."
+    },
+    "verdict": {
+      "title": "Im Zielband über 24 Stunden",
+      "text": "Der Anteil der letzten 24 Stunden, in dem Temperatur, Feuchte und tagsüber CO₂ alle im Zielband lagen – gemessen an den Zielwerten, wie sie jetzt sind. Abweichungen unter 10 Minuten zählen mit, werden aber nicht einzeln genannt."
+    },
+    "climatePreset": {
+      "title": "Klima-Preset",
+      "text": "Ein fertiges Klima für ein Stadium: Temperatur und Feuchte für Tag und Nacht, Lichtstunden, Lichtgrenze und CO₂. „Auto“ ist für Autoflowers, die 18–20 Stunden Licht behalten, statt auf 12/12 zu wechseln."
+    },
+    "presetApply": {
+      "title": "Ein Preset anwenden",
+      "text": "Ein Plan, der hier läuft, wird zuerst pausiert – oder weitergeschaltet, wenn sein nächster Schritt genau dieses Stadium ist –, damit er nicht binnen einer Stunde seine eigenen Zielwerte zurückschreibt. Betritt ein Grow das Stadium, gelten außerdem dessen Alarmregeln für die Geräte hier."
+    },
+    "stage": {
+      "title": "Stadium und Phase",
+      "text": "Das Stadium sagt, wo die Pflanzen stehen, von der Keimung bis zur Reifung. Wer eines betritt, schreibt eine Phase in den Grow: ihr Startdatum, eine Tagebuchzeile und die Alarmregeln des Stadiums für die Geräte, bei denen die Pflanzen stehen (die Reifung hat keine)."
+    },
+    "stepPreset": {
+      "title": "Ein Preset im Schritt",
+      "text": "Hier benennt ein Preset nur die Phase genauer – „Auto“ für einen Autoflower, „Späte Blüte“ für die letzten Wochen. Zielwerte schickt es keine: Der Schritt schreibt die Werte unten und sonst nichts."
+    },
+    "plan": {
+      "title": "Grow-Plan",
+      "text": "Eine Liste von Schritten, jeder mit Stadium, Dauer und den Zielwerten, die der Controller halten soll. Solange er läuft, schaltet die Cloud nach Ablauf eines Schritts weiter und schickt die Zielwerte des aktuellen Schritts jede Stunde erneut, in der der Controller online ist."
+    },
+    "planMoves": {
+      "title": "Starten und pausieren",
+      "text": "Starten schickt die Zielwerte von Schritt 1 innerhalb einer halben Minute an den Controller, sofern er online ist, und setzt den Grow hier in das Stadium des Schritts, falls er eines nennt. Pausieren hält die Uhr des Schritts an und schickt nichts; der Controller behält seine Zielwerte, bis der Plan wieder läuft."
+    },
+    "dayNight": {
+      "title": "Tag und Nacht",
+      "text": "Tag ist, solange das Licht an ist, keine Uhrzeit: Der Controller schaltet Lampe und Tag- und Nachtzielwerte gemeinsam und gibt CO₂ nur tagsüber zu. „Licht an für“ verschiebt den Beginn der Nacht; wann das Licht angeht, bleibt, wie es ist."
+    },
+    "lightLimit": {
+      "title": "Lichtgrenze",
+      "text": "Das Maximum, das die Lampe geben darf, als Anteil ihrer vollen Leistung: Bei Sonnenaufgang fährt sie darauf hoch, bei Sonnenuntergang wieder herunter. 0 % hält die Lampe dunkel, so wie das Trocknungs-Preset."
+    },
+    "resumePlan": {
+      "title": "Plan fortsetzen",
+      "text": "Die Uhr des Plans läuft dort weiter, wo sie stand, und innerhalb einer Stunde werden die Werte des Schritts erneut geschickt – statt der hier eingestellten."
     }
   }
 }

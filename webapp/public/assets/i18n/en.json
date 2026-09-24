@@ -4212,6 +4212,58 @@
     "vpd": {
       "title": "VPD – vapour pressure deficit",
       "text": "How strongly the air draws water from the leaves, in kPa, worked out from humidity and leaf temperature (by default 2 °C below the air by day). It has no target of its own: it follows from the temperature and humidity targets."
+    },
+    "liveness": {
+      "title": "Live and stale",
+      "text": "Live: the newest reading is less than 2 minutes old. Stale: less than 10. After that the device counts as offline, and its figures are dimmed rather than hidden – they are the last thing it measured."
+    },
+    "band": {
+      "title": "In band",
+      "text": "Close enough to the target to count as on it: within ±1 °C, ±5 % humidity or ±200 ppm CO₂. At night CO₂ has no band, because the controller only adds CO₂ while the light is on."
+    },
+    "sortedByAttention": {
+      "title": "Sorted by attention",
+      "text": "Places with an open alarm come first, critical before warning, then those with a task due, then those whose readings have stopped. Otherwise they keep their usual order."
+    },
+    "verdict": {
+      "title": "In band over 24 hours",
+      "text": "The share of the last 24 hours in which temperature, humidity and, by day, CO₂ were all in their band – judged against the targets as they are now. Dips shorter than 10 minutes count, but are not named."
+    },
+    "climatePreset": {
+      "title": "Climate preset",
+      "text": "A ready climate for a stage: day and night temperature and humidity, the light hours, the light limit and CO₂. Auto is for autoflowers, which keep 18–20 hours of light instead of going to 12/12."
+    },
+    "presetApply": {
+      "title": "Applying a preset",
+      "text": "A plan running here is paused first – or moved on, if its next step is this same stage – so it does not put its own targets back within the hour. A grow entering the stage also sets the stage's alarm rules on the devices here."
+    },
+    "stage": {
+      "title": "Stage and phase",
+      "text": "The stage is where the plants are, from germination to curing. Entering one writes a phase on the grow: the date it began, a diary line, and the stage's alarm rules on the devices where the plants stand (curing has none)."
+    },
+    "stepPreset": {
+      "title": "A preset in a step",
+      "text": "Here a preset only names the phase more closely – Auto for an autoflower, Late flower for the last weeks. It sends no targets: the step writes the figures below and nothing else."
+    },
+    "plan": {
+      "title": "Grow plan",
+      "text": "A list of steps, each a stage, a length and the targets the controller should hold. While it runs, the cloud moves on when a step's time is up and sends the current step's targets again every hour the controller is online."
+    },
+    "planMoves": {
+      "title": "Start and pause",
+      "text": "Start sends step 1's targets to the controller within half a minute, if it is online, and puts the grow here into the step's stage if it names one. Pause stops the step's clock and sends nothing; the controller keeps the targets it has until the plan runs again."
+    },
+    "dayNight": {
+      "title": "Day and night",
+      "text": "Day is while the light is on, not a time of day: the controller switches the lamp and the day and night targets together, and adds CO₂ only by day. Light on for moves the start of the night; the time the light comes on stays as it is."
+    },
+    "lightLimit": {
+      "title": "Light limit",
+      "text": "The most the lamp may give, as a share of its full output: it ramps up to it at sunrise and down again at sunset. 0 % keeps the lamp dark, as the drying preset does."
+    },
+    "resumePlan": {
+      "title": "Resume the plan",
+      "text": "The plan's clock runs on from where it stopped, and within the hour the step's own figures are sent again, replacing those set here."
     }
   }
 }

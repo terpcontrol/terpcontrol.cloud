@@ -6,6 +6,7 @@ import { useHeardAt } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition, useStopPlan } from '@/api/plans';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
+import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -70,16 +71,19 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   const [picking, setPicking] = useState(false);
 
   const name = deviceName(device, t);
-  const title = (
+  // What a plan is, is said by the sentence under the title while there is
+  // none, and by the (i) beside it once there is one to read.
+  const title = (explained: boolean) => (
     <span className="label">
       {t('space.control.title')} · {name}
+      {explained ? <Help topic="plan" /> : null}
     </span>
   );
 
   if (plan.isPending) {
     return (
       <section className={styles.panel}>
-        {title}
+        {title(false)}
         <Waiting lines={3} />
       </section>
     );
@@ -90,7 +94,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   if (!plan.data) {
     return (
       <section className={styles.panel}>
-        {title}
+        {title(false)}
         {isMissing(plan.error) ? (
           <div className={`${ui.cardDashed} ${styles.none}`}>
             <p className={styles.noneWhat}>{t(landing === 'document' ? 'space.control.none' : 'space.control.noClimate')}</p>
@@ -133,7 +137,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
 
   return (
     <section className={styles.panel}>
-      {title}
+      {title(true)}
       <RefreshFailed failedAt={plan.isError ? plan.dataUpdatedAt : null} now={now} />
 
       {/* A plan that is already on hardware a climate cannot reach is shown
@@ -365,6 +369,7 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
             {t('space.control.move.stop')}
           </button>
         ) : null}
+        {can.resume || can.pause ? <Help topic="planMoves" /> : null}
       </div>
 
       {asking === 'extend' ? (

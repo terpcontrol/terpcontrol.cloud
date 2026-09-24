@@ -5,7 +5,22 @@
  * test can hold both catalogues to it - a topic with no German, or a German
  * text nothing opens, fails the build rather than a grower.
  */
-export const HELP_TOPICS = ['vpd'] as const;
+export const HELP_TOPICS = [
+  'vpd',
+  'liveness',
+  'band',
+  'sortedByAttention',
+  'verdict',
+  'climatePreset',
+  'presetApply',
+  'stage',
+  'stepPreset',
+  'plan',
+  'planMoves',
+  'dayNight',
+  'lightLimit',
+  'resumePlan',
+] as const;
 
 export type HelpTopic = (typeof HELP_TOPICS)[number];
 

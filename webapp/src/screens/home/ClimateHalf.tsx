@@ -2,6 +2,7 @@ import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { CardSetpoint, CardValue, HomeSpaceCard, Metric } from '@fg2/shared-types/v1';
 import { ageAttribute, valueAge } from '@/ui/age';
+import { Term } from '@/ui/Help';
 import { livenessOf } from './attention';
 import { Sparkline } from './Sparkline';
 import styles from './SpaceCard.module.css';
@@ -22,17 +23,26 @@ const target = (value: number, metric: Metric): string => (Number.isInteger(valu
  * being able to refresh goes grey rather than staying bright on a verdict that
  * has outlived its reading.
  */
-export function ClimateHalf({ card, now }: { card: HomeSpaceCard; now: DateTime }) {
+export function ClimateHalf({ card, now, explain }: { card: HomeSpaceCard; now: DateTime; explain?: boolean }) {
   const { t } = useTranslation();
   const shown = SHOWN.flatMap(metric => card.values.filter(value => value.metric === metric)).slice(0, FIGURES);
   const setpointOf = (metric: Metric): CardSetpoint | undefined => card.setpoints.find(setpoint => setpoint.metric === metric);
   const temperatureTarget = setpointOf('temperature')?.value ?? null;
+  // What "in band" means is said once, on the first figure that is judged against one.
+  const firstJudged = explain ? shown.findIndex(value => judged(value, setpointOf(value.metric) ?? null)) : -1;
 
   return (
     <div className={styles.climate} data-liveness={livenessOf(card, now)}>
       <div className={styles.values}>
-        {shown.map(value => (
-          <Figure key={value.metric} value={value} setpoint={setpointOf(value.metric) ?? null} now={now} />
+        {shown.map((value, index) => (
+          <Figure
+            key={value.metric}
+            value={value}
+            setpoint={setpointOf(value.metric) ?? null}
+            now={now}
+            explainBand={index === firstJudged}
+            explainVpd={explain}
+          />
         ))}
       </div>
       <Sparkline trend={card.trend} setpoint={temperatureTarget} label={t('home.card.sparkline', { name: card.name })} />
@@ -40,7 +50,22 @@ export function ClimateHalf({ card, now }: { card: HomeSpaceCard; now: DateTime 
   );
 }
 
-function Figure({ value, setpoint, now }: { value: CardValue; setpoint: CardSetpoint | null; now: DateTime }) {
+/** Whether a figure is said to be in its band or off it, which needs a reading, a target and a band. */
+const judged = (value: CardValue, setpoint: CardSetpoint | null): boolean => value.value !== null && setpoint?.value != null && setpoint.band != null;
+
+function Figure({
+  value,
+  setpoint,
+  now,
+  explainBand,
+  explainVpd,
+}: {
+  value: CardValue;
+  setpoint: CardSetpoint | null;
+  now: DateTime;
+  explainBand?: boolean;
+  explainVpd?: boolean;
+}) {
   const { t } = useTranslation();
   // The band is the server's, the same width the verdict judges by.
   const band = setpoint?.band ?? null;
@@ -58,7 +83,11 @@ function Figure({ value, setpoint, now }: { value: CardValue; setpoint: CardSetp
             <span>→ {target(setpoint.value, value.metric)}</span>
             {delta !== null && band !== null ? (
               Math.abs(delta) <= band ? (
-                <span className={styles.inBand}>{t('home.card.inBand')}</span>
+                <span className={styles.inBand}>{explainBand ? <Term topic="band">{t('home.card.inBand')}</Term> : t('home.card.inBand')}</span>
+              ) : explainBand ? (
+                <span className={styles.offBand}>
+                  <Term topic="band">{`${delta > 0 ? '+' : '−'}${figure(Math.abs(delta), value.metric)} ${t(delta > 0 ? 'space.high' : 'space.low')}`}</Term>
+                </span>
               ) : (
                 // The word, not only the sign: "in band" beside it is a phrase,
                 // and a slot that holds a phrase in three cases out of four and
@@ -75,7 +104,13 @@ function Figure({ value, setpoint, now }: { value: CardValue; setpoint: CardSetp
           // Two lines, as the tent page's tile says it: the column stays as
           // narrow as its figure, and a phone never breaks "no target" in two.
           <>
-            <span>{t(`home.metric.${value.metric}`, { defaultValue: value.metric })}</span>
+            <span>
+              {explainVpd && value.metric === 'vpd' ? (
+                <Term topic="vpd">{t('home.metric.vpd')}</Term>
+              ) : (
+                t(`home.metric.${value.metric}`, { defaultValue: value.metric })
+              )}
+            </span>
             <span>{t('home.card.noTarget')}</span>
           </>
         )}

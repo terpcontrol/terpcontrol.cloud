@@ -5,6 +5,7 @@ import type { Device, GrowthStage, Plan, PlanNotifyMode } from '@fg2/shared-type
 import { useSavePlan } from '@/api/plans';
 import { Sheet } from '@/log/Sheet';
 import { awaitingClimate, hasCo2Sensor } from '@/ui/climate-hardware';
+import { Help } from '@/ui/Help';
 import { presetsOf } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
@@ -201,7 +202,10 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
         autoComplete="off"
       />
 
-      <span className="label">{t('space.control.step.stage')}</span>
+      <span className="label">
+        {t('space.control.step.stage')}
+        <Help topic="stage" />
+      </span>
       <Choices label={t('space.control.step.stage')}>
         <Choice chosen={step.stage === null} onChoose={() => pickStage(null)}>
           {t('space.control.noStage')}
@@ -224,6 +228,7 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
               {t(`grow.presetName.${preset}`, { defaultValue: preset })}
             </Choice>
           ))}
+          <Help topic="stepPreset" />
         </Choices>
       ) : null}
 
