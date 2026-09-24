@@ -220,6 +220,36 @@ describe('what keeps an alarm quiet', () => {
     expect((await storedRule()).state.triggered).toBe(true);
   });
 
+  /**
+   * The quiet has to cover the repeat as well as the turn, or it only holds for
+   * an episode that has not started yet. A rule already triggered when the
+   * window opens went on announcing itself every minute right through it, which
+   * is the one case the window exists for: somebody steps into a tent that is
+   * already complaining. What is watched here is the rule's own
+   * `lastTriggeredAt`, because that instant moves for a repeat and for nothing
+   * else once the episode is open - and it moves again on the first sample after
+   * the quiet has run out, because the tent is still wrong and nobody has been
+   * told since.
+   */
+  it('holds the repeat of an episode that was already open, and repeats again once the quiet is over', async () => {
+    const announcedAt = new Date(Date.now() - 120_000);
+    await device({ state: { lastSeenAt: new Date(), maintenanceUntil: new Date(Date.now() + 60_000) } });
+    await rules.create(
+      ruleFor({
+        repeatSeconds: 60,
+        state: { triggered: true, lastTriggeredAt: announcedAt, lastResolvedAt: null, extremeValue: 32, lastSampleAt: null },
+      }),
+    );
+
+    await reads(32, new Date());
+    expect((await storedRule()).state.lastTriggeredAt).toEqual(announcedAt);
+
+    await db.devices.updateOne({ id: DEVICE }, { $set: { 'state.maintenanceUntil': null } });
+    await reads(32, new Date(Date.now() + 1_000));
+
+    expect((await storedRule()).state.lastTriggeredAt!.getTime()).toBeGreaterThan(announcedAt.getTime());
+  });
+
   it('waits out the cooldown before triggering again', async () => {
     await device();
     await rules.create(ruleFor({ cooldownSeconds: 600, state: { ...ruleFor().state, lastTriggeredAt: new Date(), lastResolvedAt: new Date() } }));

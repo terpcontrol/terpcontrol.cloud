@@ -122,6 +122,27 @@ export class AlarmEngineService {
     return !rule.enabled || (rule.state.lastSampleAt?.getTime() ?? 0) >= at.getTime();
   }
 
+  /**
+   * The three things a sample can do to a rule, and which of them the quiet of a
+   * maintenance window covers.
+   *
+   * It covers everything that would be said out loud, which is the turn and the
+   * repeat alike. Holding the turn alone kept the promise for an episode that
+   * had yet to begin and broke it for one that was already open: the repeat went
+   * on going out every minute right through the window, so a rule announced
+   * itself twenty-six times inside the twenty-five minutes that the panel asking
+   * for the window, the banner over the rules, the chip on Home and the alert's
+   * own card had all just called quiet. A repeat is not the lesser half of a
+   * raise - routed, it reaches the same phone - and the person it reaches is the
+   * one standing in the tent with their hands in it, which is the case this
+   * whole feature exists for.
+   *
+   * The worst reading is still written down, because writing it down tells
+   * nobody anything. An episode that runs through a window really does get worse
+   * while nothing is being said, and an all-clear afterwards naming a gentler
+   * extreme than the tent actually reached would be the record lying about the
+   * one stretch nobody was watching.
+   */
   private async evaluate(rule: StoredAlarmRule, device: AlarmDevice, value: number, at: Date, outOfBand: boolean): Promise<void> {
     if (this.saysNothingNew(rule, at)) return;
 
@@ -132,7 +153,7 @@ export class AlarmEngineService {
     }
 
     if (rule.state.triggered && Number.isFinite(value)) await this.worsen(rule, value, at);
-    await this.repeat(rule, device, value, at);
+    if (!workedOn) await this.repeat(rule, device, value, at);
   }
 
   /** The turn itself: what is written down first, and what is said afterwards. */
@@ -176,6 +197,12 @@ export class AlarmEngineService {
    * it stands, the all-clear included - a webhook driving somebody's home
    * automation reads the repeat as the heartbeat that says the cloud is still
    * watching. A mail is never repeated: an inbox is not a status display.
+   *
+   * The heartbeat stops for a device somebody is working on, because the screens
+   * that offer the window promise that nothing is raised on it; a heartbeat a
+   * grower cannot tell apart from the alarm it carries is not the exception that
+   * promise can afford. `evaluate()` is where that is decided, so a repeat that
+   * reaches here is one the quiet does not cover.
    */
   private async repeat(rule: StoredAlarmRule, device: AlarmDevice, value: number, at: Date): Promise<void> {
     const since = Math.max(rule.state.lastTriggeredAt?.getTime() ?? 0, rule.state.lastResolvedAt?.getTime() ?? 0);
