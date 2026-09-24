@@ -560,7 +560,14 @@ describe('the rule sheet', () => {
     expect(within(watch).queryByRole('button', { name: 'Relay' })).not.toBeInTheDocument();
   });
 
-  it('offers a plug the one output it drives and none of the climate it cannot measure', async () => {
+  /**
+   * A plug drives one relay and measures a climate as well, and the sheet used
+   * to offer the relay alone - on the grounds that a plug reports nothing but
+   * what it is driving, which its own protocol and its own live readings both
+   * contradict. Its CO2 stays an answer about this plug rather than about
+   * plugs, because whether that sensor is fitted is the device's to say.
+   */
+  it('offers a plug both the output it drives and the climate it measures', async () => {
     vi.mocked(api.get).mockImplementation(
       (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
     );
@@ -569,9 +576,35 @@ describe('the rule sheet', () => {
     fireEvent.click(await screen.findByRole('button', { name: /\+ Alarm/ }));
     const watch = within(screen.getByRole('dialog', { name: 'New alarm' })).getByRole('group', { name: 'Watch' });
 
-    expect(within(watch).getByRole('button', { name: 'Relay' })).toHaveAttribute('aria-pressed', 'true');
-    expect(within(watch).queryByRole('button', { name: 'Temp' })).not.toBeInTheDocument();
-    expect(within(watch).queryByRole('button', { name: 'VPD' })).not.toBeInTheDocument();
+    expect(within(watch).getByRole('button', { name: 'Relay' })).toBeInTheDocument();
+    expect(within(watch).getByRole('button', { name: 'Temp' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(watch).getByRole('button', { name: 'VPD' })).toBeInTheDocument();
+    expect(within(watch).queryByRole('button', { name: 'CO₂' })).not.toBeInTheDocument();
+  });
+
+  /**
+   * The one fan in Place 2 draws that whole tent's climate on Home and on the
+   * space overview, and the sheet for writing a rule on it offered no reading
+   * at all - while opening a temperature rule that already existed on the same
+   * device did offer one. So the only climate in that tent could be alarmed on
+   * only by somebody who already had an alarm on it.
+   */
+  it('offers a fan the temperature, humidity and VPD it measures, not its output alone', async () => {
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/fan-2/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+    );
+    draw([device({ id: 'fan-2', type: 'fan', name: 'Exhaust fan' })]);
+
+    fireEvent.click(await screen.findByRole('button', { name: /\+ Alarm/ }));
+    const watch = within(screen.getByRole('dialog', { name: 'New alarm' })).getByRole('group', { name: 'Watch' });
+
+    expect(within(watch).getByRole('button', { name: 'Temp' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(watch).getByRole('button', { name: 'RH' })).toBeInTheDocument();
+    expect(within(watch).getByRole('button', { name: 'VPD' })).toBeInTheDocument();
+    expect(within(watch).getByRole('button', { name: 'Fan' })).toBeInTheDocument();
+    // A fan reports no CO2 and no light, so neither is offered for it.
+    expect(within(watch).queryByRole('button', { name: 'CO₂' })).not.toBeInTheDocument();
+    expect(within(watch).queryByRole('button', { name: 'PPFD' })).not.toBeInTheDocument();
   });
 
   it('keeps an output the hardware does not report where a rule already watches it', async () => {

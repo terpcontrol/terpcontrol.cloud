@@ -105,10 +105,11 @@ const OUTPUTS_OF: Record<string, OutputMetric[]> = {
 export const outputsOf = (device: Device): OutputMetric[] => OUTPUTS_OF[device.type] ?? [];
 
 /**
- * The readings a device reports, from its own hardware report. Temperature,
- * humidity and VPD come with every controller and fridge module; the rest are
- * sensors that are fitted or not, and the device says which. `offline` is the
- * health loop's own and is never offered for a rule written here.
+ * The readings a device reports: what its kind of hardware measures, narrowed
+ * by what this one says it has. Temperature, humidity and VPD come with every
+ * type that measures anything; the rest are sensors that are fitted or not, and
+ * the device says which. `offline` is the health loop's own and is never
+ * offered for a rule written here.
  */
 export type Sensor = 'co2' | 'leaf' | 'light';
 
@@ -126,22 +127,40 @@ export const missingSensor = (watch: AlarmWatch, device: Device): Sensor | null 
   return sensor && !isFitted(device, sensor) ? sensor : null;
 };
 
-const OFFERED: Metric[] = ['temperature', 'humidity', 'vpd', 'co2', 'leafTemperature', 'lux', 'ppfd'];
-
 /**
- * The two kinds of hardware that measure a climate at all. A plug, a fan and a
- * lamp report nothing but what they are driving, so offering them a temperature
- * would be a rule that could never be evaluated.
+ * What each kind of hardware measures, from the same list of what every type
+ * reports that the outputs above come from - `docs/device-protocol.md`, section
+ * 5.4. Every type but the camera carries a temperature and a humidity sensor,
+ * and VPD follows from those two, so the climate of a place with nothing in it
+ * but a fan is measured by that fan.
+ *
+ * It used to be decided by a two-name list, "controller and fridge", on the
+ * grounds that a plug, a fan and a lamp report nothing but what they are
+ * driving. They do: the one fan in Place 2 was drawing that place's whole
+ * climate on Home and on the space overview - 22.5 °C, 42 %, 1.59 kPa, live -
+ * while the sheet for writing a rule on it offered no reading at all. Worse,
+ * opening a temperature rule that already existed on the same device did offer
+ * one, because the sheet adds a rule's own metric back; so the one climate in
+ * that tent could be alarmed on only by somebody who already had an alarm on
+ * it, and the server, the engine and every card handled the rule perfectly once
+ * it existed.
+ *
+ * The optional sensors are still asked about rather than assumed, because
+ * whether one is fitted is the device's own answer and not its type's.
  */
-const MEASURES_CLIMATE = ['controller', 'fridge'];
+const READINGS_OF: Record<string, Metric[]> = {
+  controller: ['temperature', 'humidity', 'vpd', 'co2', 'leafTemperature', 'lux', 'ppfd'],
+  fridge: ['temperature', 'humidity', 'vpd', 'co2'],
+  plug: ['temperature', 'humidity', 'vpd', 'co2'],
+  fan: ['temperature', 'humidity', 'vpd'],
+  light: ['temperature', 'humidity', 'vpd'],
+};
 
 export const readingsOf = (device: Device): Metric[] =>
-  MEASURES_CLIMATE.includes(device.type)
-    ? OFFERED.filter(metric => {
-        const sensor = SENSOR_OF[metric];
-        return sensor === undefined || isFitted(device, sensor);
-      })
-    : [];
+  (READINGS_OF[device.type] ?? []).filter(metric => {
+    const sensor = SENSOR_OF[metric];
+    return sensor === undefined || isFitted(device, sensor);
+  });
 
 /**
  * What an output's series actually carries, from `docs/device-protocol.md`
