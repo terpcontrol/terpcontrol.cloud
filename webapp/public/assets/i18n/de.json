@@ -1035,7 +1035,7 @@
   "message-device-booted:INT_WDT-text": "Dein Gerät hat neu gestartet. Der Grund war ein Interrupt-Watchdog-Timeout: Eine Interrupt-Routine in der Firmware hat zu lange gebraucht. Bitte melde dich beim Support, wenn das wiederholt auftritt.",
   "message-device-booted:WDT-text": "Dein Gerät hat neu gestartet. Der Grund war ein interner Watchdog-Timeout. Bitte melde dich beim Support, wenn das wiederholt auftritt.",
   "message-device-booted:PANIC-text": "Dein Gerät hat neu gestartet. Der Grund war ein Firmware-Absturz (Panic) - das Gerät hat sich automatisch neu gestartet. Bitte melde dich beim Support, wenn das wiederholt auftritt.",
-  "message-device-booted:SW-text": "Dein Gerät hat neu gestartet. Der Grund war ein absichtlicher software-ausgelöster Neustart (z. B. nach einer Konfigurationsänderung oder einem Firmware-Update).",
+  "message-device-booted:SW-text": "Dein Gerät hat neu gestartet. Die Firmware hat es absichtlich neu gestartet: nach einem Update, nach geänderten Netzwerkeinstellungen, über das Gerätemenü, um eine verlorene Verbindung oder knappen Speicher zu beheben, oder - bei älteren Builds - weil aus der Ferne ein Neustart angefordert wurde.",
   "message-device-booted:EXT-text": "Dein Gerät hat neu gestartet. Der Grund war ein Hardware-Reset über den Reset-Pin.",
   "message-device-booted:DEEPSLEEP-text": "Dein Gerät hat neu gestartet. Der Grund war ein Aufwachen aus dem Deep-Sleep-Modus.",
   "message-device-booted:SDIO-text": "Dein Gerät hat neu gestartet. Der Grund war ein Neustart über die SDIO-Schnittstelle.",

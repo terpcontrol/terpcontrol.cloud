@@ -22,10 +22,16 @@
 #endif
 
 
-// Set just before a portal-triggered ESP.restart(). Survives the soft reset
-// (RTC memory) but is cleared on power-on, so the next boot can report the
-// reboot reason as REMOTE instead of the generic SW software reset.
-RTC_DATA_ATTR static bool g_remote_reboot = false;
+// Set just before a portal-triggered ESP.restart(), so that the next boot can
+// report REMOTE rather than the generic SW software reset.
+//
+// RTC_NOINIT_ATTR, not RTC_DATA_ATTR: the latter survives deep sleep only. On a
+// software reset the bootloader reloads .rtc.data and startup zeroes .rtc.bss,
+// so a flag kept there was always false again when the next boot read it.
+// .rtc_noinit is left alone - which also means it holds garbage after a power
+// cycle, hence a magic word rather than a bool, cleared at every boot.
+RTC_NOINIT_ATTR static uint32_t g_remote_reboot;
+static constexpr uint32_t REMOTE_REBOOT_ASKED = 0x5245424fUL;
 
 namespace fg {
   namespace base64 = fg_base64;
@@ -154,11 +160,13 @@ namespace fg {
     client->setWriteTimeout(5);
 
     esp_reset_reason_t reset_reason = esp_reset_reason();
+    const bool asked_for = (g_remote_reboot == REMOTE_REBOOT_ASKED);
+    g_remote_reboot = 0;
+
     std::string boot_msg = "message-device-booted:";
     // A portal-triggered reboot is a software reset; surface it as its own
     // reason so it is distinguishable from other SW resets (config/firmware).
-    boot_msg += (g_remote_reboot && reset_reason == ESP_RST_SW) ? "REMOTE" : resetReasonStr(reset_reason);
-    g_remote_reboot = false;
+    boot_msg += (asked_for && reset_reason == ESP_RST_SW) ? "REMOTE" : resetReasonStr(reset_reason);
     log(boot_msg);
 
     log("hardware-info:claimcode_auth=on");
@@ -224,7 +232,7 @@ namespace fg {
       }
 
       if(doc["action"] == "reboot") {
-        g_remote_reboot = true;
+        g_remote_reboot = REMOTE_REBOOT_ASKED;
         reboot_requested = true;
         return;
       }

@@ -696,10 +696,12 @@ important property for anything new: a caller cannot tell an unimplemented actio
 
 ### 8.1 `reboot`
 
-`{ "action": "reboot" }`. The device sets an RTC-memory flag and defers the restart until the log queue has
-drained, so pending messages still reach the cloud (`fridgecloud.cpp:28,226-230,433-437`). The flag survives the
-soft reset, so the next boot reports `message-device-booted:REMOTE` instead of the generic `SW`
-(`:158-160`). Published by `device-publisher.service.ts`.
+`{ "action": "reboot" }`. The device writes a marker word into RTC memory and defers the restart until the log
+queue has drained, so pending messages still reach the cloud (`fridgecloud.cpp:33-34,234-238,441-445`). The word
+lives in `.rtc_noinit`, which a software reset leaves alone, so the next boot reports
+`message-device-booted:REMOTE` instead of the generic `SW` (`:162-169`). Builds before that change kept the flag in
+`RTC_DATA_ATTR`, which the bootloader reinitialises on a software reset: they report every portal reboot as `SW`.
+Published by `device-publisher.service.ts`.
 
 ### 8.2 `maintenance`
 
