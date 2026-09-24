@@ -26,8 +26,9 @@ import { THE_HOST, YOU } from './session';
  * with the reason, rather than sent and turned down.
  */
 
-const asked: TimelapseCreate[] = [];
 const state = vi.hoisted(() => ({
+  /** Every film asked for, by the composer's own callback and by the page's one-tap buttons alike. */
+  asked: [] as TimelapseCreate[],
   film: null as unknown,
   youMay: 'own' as AccessNeed,
   lastError: null as string | null,
@@ -75,6 +76,7 @@ vi.mock('@/api/cameras', async importOriginal => ({
     return { data: state.frames, isPending: false, isError: false, refetch: () => (state.readAgain += 1) };
   },
   useTestCapture: () => ({ mutate: () => {}, data: state.capture ?? undefined, error: null, isPending: false }),
+  useRequestTimelapse: () => ({ mutate: (body: TimelapseCreate) => state.asked.push(body), error: null, isPending: false }),
   useTimelapses: () => ({
     data: { pages: [{ items: state.films, nextCursor: state.moreFilms ? 'cursor' : null }] },
     hasNextPage: state.moreFilms,
@@ -148,7 +150,7 @@ const draw = (one: GrowListItem | null, over: Partial<Camera> = {}) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter>
-        <Composer camera={{ ...camera, ...over }} grow={one} pending={false} onRender={body => asked.push(body)} onClose={() => {}} />
+        <Composer camera={{ ...camera, ...over }} grow={one} pending={false} onRender={body => state.asked.push(body)} onClose={() => {}} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -161,7 +163,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  asked.length = 0;
+  state.asked.length = 0;
   state.film = null;
   state.youMay = 'own';
   state.lastError = null;
@@ -184,10 +186,10 @@ describe('the composer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Render · SD' }));
 
-    expect(asked).toHaveLength(1);
-    expect(asked[0].window).toBe('day');
-    expect(asked[0].endsAt).toBeUndefined();
-    expect(asked[0].quality).toBe('sd');
+    expect(state.asked).toHaveLength(1);
+    expect(state.asked[0].window).toBe('day');
+    expect(state.asked[0].endsAt).toBeUndefined();
+    expect(state.asked[0].quality).toBe('sd');
   });
 
   it('says which picture the preview is and how old, not which range was chosen', () => {
@@ -215,9 +217,9 @@ describe('the composer', () => {
     fireEvent.click(screen.getByRole('button', { name: /Phase/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Render · SD' }));
 
-    expect(asked[0].window).toBe('phase');
-    expect(asked[0].startsAt).toBe(grow.phases[1].startedAt);
-    expect(asked[0].endsAt).toBeTruthy();
+    expect(state.asked[0].window).toBe('phase');
+    expect(state.asked[0].startsAt).toBe(grow.phases[1].startedAt);
+    expect(state.asked[0].endsAt).toBeTruthy();
   });
 
   it('refuses a phase where nothing grows, with the reason, rather than asking for one', () => {
@@ -253,9 +255,9 @@ describe('the composer', () => {
     fireEvent.click(screen.getByRole('button', { name: '9 : 16 reel' }));
     fireEvent.click(screen.getByRole('button', { name: 'Render · SD' }));
 
-    expect(asked[0].overlays).toEqual({ dayCounter: false, climate: true, entries: true });
-    expect(asked[0].includeLightsOff).toBe(true);
-    expect(asked[0].aspect).toBe('9_16');
+    expect(state.asked[0].overlays).toEqual({ dayCounter: false, climate: true, entries: true });
+    expect(state.asked[0].includeLightsOff).toBe(true);
+    expect(state.asked[0].aspect).toBe('9_16');
   });
 });
 
@@ -561,6 +563,54 @@ describe('the films and the pictures behind the first page', () => {
 
     expect(screen.getByRole('button', { name: /Today/ })).toBeEnabled();
   });
+
+  /**
+   * The span of a "Week" is the server's to work out, and it works one out
+   * around whatever instant it is handed. Seven days floor against the epoch,
+   * so an instant of now names the week that opened this morning - six days of
+   * it in the future - and the button failed every Thursday on a camera holding
+   * a full week of pictures. Naming no instant is what the route documents as
+   * the most recent complete window, and is what the button now asks for.
+   */
+  it('asks for a week the server has already finished rather than the one that opened today', () => {
+    drawPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /Week/ }));
+
+    expect(state.asked).toHaveLength(1);
+    expect(state.asked[0].window).toBe('week');
+    expect(state.asked[0].startsAt).toBeUndefined();
+    expect(state.asked[0].endsAt).toBeUndefined();
+  });
+
+  /**
+   * And it is refused where that week can be proved empty, the way the day
+   * chip beside it already is. The week the server picks for itself is the one
+   * before the week holding now, so it cannot begin earlier than a fortnight
+   * ago: a camera with nothing newer than that has nothing in it. A camera
+   * dark for five days still has that week full, which is exactly the film it
+   * was being denied before.
+   */
+  it('refuses a week film only where the camera took nothing in any week the server could pick', () => {
+    const drawDarkFor = (days: number) =>
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <MemoryRouter>
+            <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: serverNow().minus({ days }).toISO()! } }} />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+    const recent = drawDarkFor(5);
+    expect(screen.getByRole('button', { name: /Today/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Week/ })).toBeEnabled();
+    recent.unmount();
+
+    const gone = drawDarkFor(20);
+    expect(screen.getByRole('button', { name: /Week/ })).toBeDisabled();
+    expect(gone.container.textContent).toContain('The camera took no picture in the week this would film.');
+  });
+
 
   /**
    * Two rows of one span with opposite verdicts, which is what a day rendered
