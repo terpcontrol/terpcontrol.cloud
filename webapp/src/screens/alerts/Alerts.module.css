@@ -94,7 +94,9 @@
 /* What is over is a record rather than a call to act, so the resolved cards
    of a day are joined into one card split by hairlines, each a row: what
    happened and when on the left, the way to the timeline at the right. The
-   stripe stays, so a night's warnings still read as warnings. */
+   stripe stays, so a night's warnings still read as warnings. Over is said by
+   the ink rather than by fading the row: the card is `data-age='stale'`, so
+   its title takes the stale ink the global age rule gives it. */
 .card[data-age] {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -110,18 +112,6 @@
 
 .card[data-age] .what {
   min-height: 0;
-}
-
-/* Over is said by the ink rather than by fading the row: the app's age
-   opacity took the grey line under a resolved title to 3.8:1 on the cream
-   card, under the 4.5 a line of text needs. The title steps down to the muted
-   ink and the rest is left at full strength. */
-.card[data-age] {
-  opacity: 1;
-}
-
-.card[data-age] .what {
-  color: var(--muted);
 }
 
 /* A finished event keeps its stripe at half strength, so the one still open
