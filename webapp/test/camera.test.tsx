@@ -31,7 +31,8 @@ const state = vi.hoisted(() => ({
   film: null as unknown,
   youMay: 'own' as AccessNeed,
   lastError: null as string | null,
-  films: [] as { id: string }[],
+  /** The films the list is served, which carry a span and a verdict of their own where a test needs them drawn. */
+  films: [] as { id: string; capturedAt?: string; endsAt?: string; render?: { status: string; error?: string | null } }[],
   moreFilms: false,
   askedForMore: 0,
   frames: { items: [] as { id: string; capturedAt: string }[], partial: false },
@@ -62,7 +63,10 @@ vi.mock('@/api/cameras', async importOriginal => ({
   ...(await importOriginal<object>()),
   useCameras: () => ({ data: { items: [], nextCursor: null } }),
   useLatestStills: () => new Map<string, string | null>(state.lastStill ? [['camera-1', state.lastStill]] : []),
-  useMedia: () => ({ data: state.film, isError: false }),
+  // One film under the microscope is `film`; a list of them is served from the
+  // rows themselves, and only those a test gave a span to - the rest stand for
+  // reads that have not answered, which is what the paging tests draw.
+  useMedia: (id: string) => ({ data: state.film ?? state.films.find(one => one.id === id && one.capturedAt) ?? null, isError: false }),
   useCameraFrames: (_id: string, day: { startsAt: string; endsAt: string }) => {
     state.askedForDay = day;
     if (state.framesPending) return { data: undefined, isPending: true, isError: false, refetch: () => (state.readAgain += 1) };
@@ -556,6 +560,30 @@ describe('the films and the pictures behind the first page', () => {
     );
 
     expect(screen.getByRole('button', { name: /Today/ })).toBeEnabled();
+  });
+
+  /**
+   * Two rows of one span with opposite verdicts, which is what a day rendered
+   * twice leaves behind: the quick button stores a `day`, the composer stores
+   * the same midnight-to-midnight span as a `custom`, and they are ordered by
+   * their span and then by a random uuid. The failure won that draw and stood
+   * as the third of the three rows the section rests at, while the film that
+   * plays sat behind "More films" - the page denying a film it was holding.
+   */
+  it('reports a span that has a film that plays as that film, not as the attempt that failed', () => {
+    const span = { capturedAt: '2026-09-19T00:00:00.000Z', endsAt: '2026-09-20T00:00:00.000Z' };
+    state.films = [
+      { id: 'film-failed', ...span, render: { status: 'failed', error: 'there are not enough pictures in that span to make a film' } },
+      { id: 'film-ready', ...span, render: { status: 'ready' } },
+      { id: 'film-other-day', capturedAt: '2026-09-18T00:00:00.000Z', endsAt: '2026-09-19T00:00:00.000Z', render: { status: 'failed', error: 'x' } },
+    ];
+    const { container } = drawPage();
+
+    expect(drawn()).toHaveLength(2);
+    expect(container.textContent).toContain('19 Sep 00:00 → 19 Sep 23:59');
+    expect(container.textContent).not.toContain('there are not enough pictures in that span to make a film');
+    // The other day failed and has nothing standing in for it, so it keeps its row.
+    expect(container.textContent).toContain('18 Sep 00:00 → 18 Sep 23:59');
   });
 
   it('shows the last picture the camera took on a day it has taken none, dimmed and dated', () => {

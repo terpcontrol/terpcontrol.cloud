@@ -137,7 +137,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   // Three films is the resting height of the section, not the whole of it: the
   // rest are behind the control below rather than dropped.
   const [everyFilm, setEveryFilm] = useState(false);
-  const made = (films.data?.pages.flatMap(page => page.items) ?? []).filter(film => film.id !== job?.id);
+  const made = filmsOfEachSpan(films.data?.pages.flatMap(page => page.items) ?? []).filter(film => film.id !== job?.id);
   const shownFilms = everyFilm ? made : made.slice(0, FILMS_AT_REST);
   const moreFilms = () => {
     if (everyFilm && films.hasNextPage) void films.fetchNextPage();
@@ -482,6 +482,36 @@ function TestImage({ cameraId, mayOwn }: { cameraId: string; mayOwn: boolean }) 
     </div>
   );
 }
+
+/**
+ * The films of this camera, one verdict per span: where a span has a film that
+ * plays, a failed attempt at the same span is left out.
+ *
+ * A camera keeps a film per span and window, and the window is what the render
+ * was asked for rather than what it covers - so "Today" and the same day
+ * composed with the lights-off frames kept are two rows of one day, and nothing
+ * on either row says which is which. They are also ordered by their span and
+ * then by their id, so which of the two comes first is decided by a random
+ * uuid: the page showed "24 Sep 00:00 -> 24 Sep 23:59 / failed" as the third of
+ * the three rows it rests at, and the finished film of that very span - the one
+ * the composer had just been watching go ready - sat behind "More films".
+ *
+ * A grower reading a span's row wants to know whether they can watch that day,
+ * and where the answer is yes, a failed attempt at it is not an answer at all.
+ * The failure is dropped rather than ranked below its twin, because two rows
+ * that name the same span and disagree are what the reader cannot tell apart.
+ */
+const filmsOfEachSpan = (films: Media[]): Media[] => {
+  const played = new Set(films.filter(film => statusOf(film) === 'ready').map(spanOf));
+
+  return films.filter(film => statusOf(film) !== 'failed' || !played.has(spanOf(film)));
+};
+
+/** A film with no render behind it is one the builder made, and those are only ever there once they are finished. */
+const statusOf = (film: Media): string => film.render?.status ?? 'ready';
+
+/** Which span a film is of, as the two ends the row itself draws. */
+const spanOf = (film: Media): string => `${film.capturedAt}|${film.endsAt ?? ''}`;
 
 /** The grow this camera films: the one still standing in its space, else the last one that did. */
 const growOf = (grows: GrowListItem[]): GrowListItem | null => grows.find(grow => grow.endedAt === null) ?? grows[0] ?? null;
