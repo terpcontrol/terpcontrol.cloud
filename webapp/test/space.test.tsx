@@ -234,6 +234,27 @@ describe('the tent overview', () => {
     expect(screen.getByText(/^Flower · day 25 \/ 50 · night 20 \/ 50/)).toBeInTheDocument();
   });
 
+  /**
+   * CO₂ is steered by day only, so the tile reads "no target" for the whole of
+   * a tent's night. The line under it stated the controller's CO₂ figure after
+   * the night pair and unlabelled, which read as one more thing the tent was
+   * being held at right then - a fridge said "311 ppm · CO₂ · no target" with
+   * "night 21 / 65 · CO₂ 400" on the next line. Inside the day half the same
+   * figure says the same thing without contradicting the tile.
+   */
+  it('puts the CO₂ figure in the half it is steered in, so it does not read as a night target', () => {
+    const withCo2: SpaceOverview = {
+      ...overview,
+      targets: { ...overview.targets!, day: [...overview.targets!.day, { metric: 'co2', value: 400, band: 200 }] },
+    };
+    draw(<Overview overview={withCo2} now={NOW} />);
+
+    expect(screen.getByText(/^Flower · day 25 \/ 50 \/ CO₂ 400 · night 20 \/ 50$/)).toBeInTheDocument();
+
+    // The tile is the running half and says so; the two no longer disagree.
+    expect(screen.getByText('980').closest('[data-age]')).toHaveTextContent('no target');
+  });
+
   it('names the preset beside the stage where the phase records one', () => {
     const refined: SpaceOverview = { ...overview, grows: [{ ...overview.grows[0], preset: 'late_flowering' }] };
     draw(<Overview overview={refined} now={NOW} />);

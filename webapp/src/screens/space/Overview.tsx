@@ -281,7 +281,7 @@ const phaseLabel = (t: Translate, grow: OverviewGrow): string =>
     : `${t(`home.stage.${grow.stage}`)} · ${t(`grow.presetName.${grow.preset}`, { defaultValue: grow.preset })}`;
 
 /**
- * "Flower · day 26 / 62 · night 21 / 58 · CO₂ 1100": what the controller is
+ * "Flower · day 26 / 62 / CO₂ 1100 · night 21 / 58": what the controller is
  * aiming at in both halves, under the phase the grow standing here is in.
  *
  * The figures are the controller's own document and not a preset's: a plan
@@ -290,25 +290,33 @@ const phaseLabel = (t: Translate, grow: OverviewGrow): string =>
  * came from, and said it wrongly for every grow whose phase records none - all
  * sixteen of the migrated ones - so the phase is named and the provenance is
  * left to the Control tab, which knows the plan step that actually wrote them.
+ *
+ * CO₂ sits inside the day half rather than after both of them. A controller
+ * holds one CO₂ figure and the server fills both halves from it, so there is no
+ * half to choose between - but there is a half it is steered in: `steering.ts`
+ * makes CO₂ day-only, and the tile above this line therefore reads "no target"
+ * all night. Stated after "night 21 / 58", the figure read as one more thing
+ * the tent was being held at right then, directly under a tile saying it was
+ * not being held at anything. Stated inside the day half it is the same fact
+ * with the half it belongs to attached, which is what the tile, the day's
+ * verdict and the timeline's bands already agree on.
  */
 function TargetsLine({ overview }: { overview: SpaceOverview }) {
   const { t } = useTranslation();
   const targets = overview.targets!;
-  const half = (row: CardSetpoint[]) =>
-    ['temperature', 'humidity']
-      .flatMap(metric => {
-        const value = row.find(setpoint => setpoint.metric === metric)?.value;
-        return value === null || value === undefined ? [] : [targetFigure(value, metric as Metric)];
-      })
-      .join(' / ');
+  const pair = (row: CardSetpoint[]): string[] =>
+    ['temperature', 'humidity'].flatMap(metric => {
+      const value = row.find(setpoint => setpoint.metric === metric)?.value;
+      return value === null || value === undefined ? [] : [targetFigure(value, metric as Metric)];
+    });
   const co2 = targets.day.find(setpoint => setpoint.metric === 'co2')?.value ?? null;
+  const day = [...pair(targets.day), ...(co2 === null ? [] : [`CO₂ ${targetFigure(co2, 'co2')}`])];
   const here = overview.grows[0] ?? null;
 
   return (
     <p className={`mono ${styles.targetsLine}`}>
       {here ? `${phaseLabel(t, here)} · ` : ''}
-      {t('space.day')} {half(targets.day)} · {t('space.night')} {half(targets.night)}
-      {co2 !== null ? ` · CO₂ ${co2}` : ''}
+      {t('space.day')} {day.join(' / ')} · {t('space.night')} {pair(targets.night).join(' / ')}
     </p>
   );
 }
