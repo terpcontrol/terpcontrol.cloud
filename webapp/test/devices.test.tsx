@@ -884,6 +884,44 @@ describe('what the Devices tab calls a device', () => {
     expect(screen.queryByText(new RegExp(build.id))).toBeNull();
   });
 
+  /** Draws the list with one device whose panel is opened, and answers its build list as given. */
+  const drawOpened = async (device: Device, firmwares: () => Promise<unknown>, title: RegExp) => {
+    list.devices = [device];
+    list.cameras = [];
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: list.devices, nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [{ id: 'space-1', name: 'Tent 1' } as Space], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
+      if (path.endsWith('/firmwares')) return firmwares() as never;
+      if (path.endsWith('/sockets'))
+        return Promise.resolve({ items: [], capabilities: { ...CAPABILITIES, socketOverride: false, lightOverride: false } }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    wrap(<DeviceList />);
+    fireEvent.click(await screen.findByRole('button', { name: title }));
+  };
+
+  /**
+   * A plug has no sockets to override on any build, so it announces no
+   * override on its newest one either - and was tagged "legacy", with a line
+   * about roles it does not have.
+   */
+  it('does not call a plug on its current build old, nor say which socket roles it takes', async () => {
+    await drawOpened(standing({ name: null, type: 'plug' }), () => Promise.resolve({ items: [], nextCursor: null }), /What Plug · C0FFEE is/);
+
+    expect(screen.queryByText(/legacy/)).toBeNull();
+    expect(screen.queryByText('Takes')).toBeNull();
+  });
+
+  it('still says a controller on a build without the override is old', async () => {
+    await drawOpened(standing({}), () => Promise.resolve({ items: [], nextCursor: null }), /What Controller · C0FFEE is/);
+
+    expect(screen.getByText(/legacy/)).toBeInTheDocument();
+    expect(screen.getByText('Takes')).toBeInTheDocument();
+  });
+
   it('draws a camera that inherited its controller´s type key by what is printed on the cam', async () => {
     list.devices = [standing({})];
     list.cameras = [hanging({ name: 'controller', did: 'TCAM00A41C' })];

@@ -4,6 +4,7 @@ import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { ActuatorRuns, Camera, ClimateVerdict, Device, Firmware, OutputMetric, SocketPage, SocketRole, ValueState } from '@fg2/shared-types/v1';
+import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useMe } from '@/api/account';
 import { useCameras, useLatestStills } from '@/api/cameras';
 import { fetchedAt } from '@/api/clock';
@@ -294,7 +295,11 @@ function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now }: De
   const [naming, setNaming] = useState(false);
   const firmwares = useDeviceFirmwares(device.id, open);
   const liveness = deviceLiveness(spokeAt, now);
-  const legacy = sockets ? !sockets.capabilities.socketOverride : false;
+  // Old is said only of a type that drives sockets at all: a plug, a fan or a
+  // light announces no override because it has nothing to override, on its
+  // newest build as on its first.
+  const drivesSockets = SOCKET_HOST_TYPES.includes(device.type);
+  const legacy = drivesSockets && sockets ? !sockets.capabilities.socketOverride : false;
   // Naming a device and moving it are both `manage`, and asked of this device
   // rather than of the screen: the whole-account list draws rows from every
   // place at once, and the same reader owns one tent and only reads the next.
@@ -358,7 +363,7 @@ function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now }: De
             <Fact label={t('devices.fact.type')} value={t(`devices.type.${device.type}`, { defaultValue: device.type })} />
             <Fact label={t('devices.fact.build')} value={buildLabel(build) ?? (firmwares.isPending ? t('home.waiting') : '—')} />
             <Fact label={t('devices.fact.channel')} value={t(`devices.channel.${device.firmware.channel}`)} />
-            {sockets ? <Fact label={t('devices.fact.can')} value={capabilityLine(t, sockets)} /> : null}
+            {drivesSockets && sockets ? <Fact label={t('devices.fact.can')} value={capabilityLine(t, sockets)} /> : null}
             {place && linked && device.spaceId ? (
               <Fact
                 label={t('devices.fact.place')}
