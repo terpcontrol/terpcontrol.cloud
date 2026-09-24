@@ -37,11 +37,7 @@
 }
 
 .weekName {
-  font-family: var(--font-display);
   font-size: 20px;
-  font-weight: var(--weight-display-sm);
-  font-variation-settings: var(--display-axes);
-  letter-spacing: var(--tracking-display);
 }
 
 .range {

@@ -43,10 +43,12 @@ p {
    A page's title is the one size a screen does not choose for itself, so the
    forty screens that never set one still get the same title. The optical-size
    axis follows the size on its own; the weight does not, so a heading under
-   about 22 px takes the lighter display weight. */
+   about 22 px takes the lighter display weight. `.name` is a name that is not
+   a heading - a grow's in a list, a week's on its card - at the name size. */
 h1,
 h2,
-.display {
+.display,
+.name {
   font-family: var(--font-display);
   font-weight: var(--weight-display);
   font-optical-sizing: auto;
@@ -60,8 +62,13 @@ h1 {
   font-size: var(--text-title);
 }
 
-h2 {
+h2,
+.name {
   font-weight: var(--weight-display-sm);
+}
+
+.name {
+  font-size: var(--text-name);
 }
 
 /* A field does not inherit the page's type on its own, and a browser's own

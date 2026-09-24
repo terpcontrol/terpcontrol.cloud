@@ -122,7 +122,7 @@ function DiaryCard({ grow, now, own }: { grow: FollowedGrowCard; now: DateTime; 
       <Link to={`/g/${grow.slug}`} className={styles.cardLink}>
         <Photo src={cover} alt="" className={styles.cardCover} fallback={<Leaf size={22} strokeWidth={1.5} aria-hidden />} />
         <span className={styles.cardText}>
-          <span className={styles.cardTitle}>{grow.name}</span>
+          <span className={`name ${styles.cardTitle}`}>{grow.name}</span>
           <span className={`mono ${styles.cardMeta}`}>
             {[
               grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null,

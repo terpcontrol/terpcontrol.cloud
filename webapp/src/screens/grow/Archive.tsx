@@ -105,7 +105,7 @@ function ArchiveRow({ grow, spaces }: { grow: GrowListItem & { endedAt: string }
       <Link to={`/grows/${grow.id}/weeks`} className={`${ui.card} ${styles.row}`}>
         <span className={styles.cover}>{cover ? <img src={cover} alt="" loading="lazy" /> : <Leaf size={22} strokeWidth={1.5} aria-hidden />}</span>
         <span className={styles.text}>
-          <span className={styles.name}>{grow.name}</span>
+          <span className="name">{grow.name}</span>
           <span className={`mono ${styles.meta}`}>
             {t('publicPage.ran', { from: day(grow.startedAt), to: day(grow.endedAt) })}
             {grow.summary.dayNumber !== null ? ` · ${t('grow.days', { count: grow.summary.dayNumber })}` : ''}

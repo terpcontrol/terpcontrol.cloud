@@ -59,7 +59,7 @@ export function DiaryWeek({ week, picture, now, current, ended, asOf }: DiaryWee
     <article className={styles.week} aria-label={t('grow.weekN', { week: week.weekNumber })}>
       <button type="button" className={styles.weekHeader} aria-expanded={open} onClick={() => setOpen(value => !value)}>
         <span className={styles.weekTitle}>
-          <span className={styles.weekName}>{t('grow.weekN', { week: week.weekNumber })}</span>
+          <span className={`name ${styles.weekName}`}>{t('grow.weekN', { week: week.weekNumber })}</span>
           <span className={`mono ${styles.weekRange}`} data-age={asOf && !windowIsCurrent(asOf, now) ? 'stale' : undefined}>
             {t('grow.dayRange', { from: week.dayFrom, to: week.dayTo })}
             {asOf ? ` · ${t('publicPage.asOf', { age: ageLabel(asOf, now) })}` : ''}

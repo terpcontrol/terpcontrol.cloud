@@ -73,7 +73,7 @@ export function SharedSpace({ space, picture, now, banner }: { space: SpaceOverv
         <ul className={styles.growRows} aria-label={t('space.growingHere')}>
           {space.grows.map(grow => (
             <li key={grow.growId} className={styles.growRow}>
-              <span className={styles.cardTitle}>{grow.name}</span>
+              <span className={`name ${styles.cardTitle}`}>{grow.name}</span>
               <span className={`mono ${styles.cardMeta}`}>
                 {[
                   grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null,

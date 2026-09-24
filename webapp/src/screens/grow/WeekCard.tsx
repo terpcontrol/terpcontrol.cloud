@@ -59,7 +59,7 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
     <article className={styles.card} aria-label={t('grow.weekN', { week: week.weekNumber })}>
       <button type="button" className={styles.header} aria-expanded={open} onClick={() => setOpen(value => !value)}>
         <span className={styles.title}>
-          <span className={styles.weekName}>{t('grow.weekN', { week: week.weekNumber })}</span>
+          <span className={`name ${styles.weekName}`}>{t('grow.weekN', { week: week.weekNumber })}</span>
           <span className={`mono ${styles.range}`}>
             {t('grow.dayRange', { from: week.dayFrom, to: week.dayTo })}
             {current ? ` · ${t('grow.thisWeek')}` : ''}
