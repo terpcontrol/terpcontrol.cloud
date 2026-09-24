@@ -84,12 +84,9 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
         spaces={spaces.data?.items ?? []}
         now={now}
         onShare={mayOwn ? () => setSharing(true) : null}
+        actions={mayManage ? <GrowLifecycle grow={grow.data} plants={plants.data?.items ?? []} spaces={spaces.data?.items ?? []} /> : null}
       />
-      {mayManage ? (
-        <GrowLifecycle grow={grow.data} plants={plants.data?.items ?? []} spaces={spaces.data?.items ?? []} />
-      ) : enough(youMay, 'log') ? (
-        <p className={`mono ${styles.role}`}>{t('grow.youMayLog')}</p>
-      ) : null}
+      {!mayManage && enough(youMay, 'log') ? <p className={`mono ${styles.role}`}>{t('grow.youMayLog')}</p> : null}
       <RefreshFailed failedAt={grow.isError ? grow.dataUpdatedAt : null} now={now} />
       <Tabs items={tabs} label={t('grow.tabsLabel')} />
       {tab === 'weeks' ? <Weeks grow={grow.data} now={now} /> : null}
@@ -117,6 +114,12 @@ interface HeaderProps {
   now: ReturnType<typeof useNow>;
   /** Null for a session that may only look: sharing a diary is the owner's, and a button that would be refused is not offered. */
   onShare: (() => void) | null;
+  /**
+   * The lifecycle row, for a session that may move the grow. It is drawn in
+   * the header's own row of ways out rather than as a second row under it, so
+   * the page opens on one line of chips instead of three stacked ones.
+   */
+  actions?: ReactNode;
 }
 
 /**
@@ -130,7 +133,7 @@ interface HeaderProps {
  * the name and the figure is labelled as the last day rather than as the count
  * so far.
  */
-export function GrowHeader({ grow, plants, spaces, now, onShare }: HeaderProps) {
+export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null }: HeaderProps) {
   const { t } = useTranslation();
   const zone = useZone();
   const { summary } = grow;
@@ -192,12 +195,6 @@ export function GrowHeader({ grow, plants, spaces, now, onShare }: HeaderProps) 
             ) : null}
           </p>
         </div>
-        {onShare ? (
-          <button type="button" className={`${ui.chip} ${styles.share}`} onClick={onShare}>
-            <Share2 size={13} strokeWidth={1.75} aria-hidden />
-            {t('sharing.share')}
-          </button>
-        ) : null}
         {summary.dayNumber !== null ? (
           <div className={styles.day}>
             <span className={`figure ${styles.dayFigure}`}>{summary.dayNumber}</span>
@@ -248,6 +245,13 @@ export function GrowHeader({ grow, plants, spaces, now, onShare }: HeaderProps) 
             <LineChart size={13} strokeWidth={1.75} aria-hidden />
             {t('charts.title')}
           </Link>
+        ) : null}
+        {actions}
+        {onShare ? (
+          <button type="button" className={`${ui.chip} ${styles.share}`} onClick={onShare}>
+            <Share2 size={13} strokeWidth={1.75} aria-hidden />
+            {t('sharing.share')}
+          </button>
         ) : null}
       </div>
     </header>

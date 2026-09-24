@@ -2,10 +2,10 @@
    open. The sheet itself, the chips, the cards and the buttons are the app's
    own, so nothing here restates a surface, a radius or a colour. */
 
+/* Its chips join the row of the grow page's header they are drawn into, and
+   wrap with the rest of it rather than as a block of their own. */
 .actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  display: contents;
 }
 
 .action {

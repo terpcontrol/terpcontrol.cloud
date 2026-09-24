@@ -22,12 +22,17 @@
 }
 
 .titleRow {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'back name name'
+    '. sub day';
+  column-gap: var(--space-2);
+  align-items: start;
 }
 
 .back {
+  grid-area: back;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -37,17 +42,25 @@
   color: var(--muted);
 }
 
+/* The name and the line under it are grid cells of the row rather than a
+   block of their own, so on a phone the name takes the whole width and the
+   day counter moves down beside the line under it - a long grow name then
+   breaks once, if at all, instead of into a narrow column beside the figure. */
 .titles {
-  flex: 1;
-  min-width: 0;
+  display: contents;
 }
 
 .name {
+  grid-area: name;
+  /* A step under a phone's page title: a grow is named for its strain and
+     its run, and "Mimosa Sunrise XXL Auto [8]" should still be one line. */
   font-size: 23px;
   line-height: var(--line-tight);
 }
 
 .subtitle {
+  grid-area: sub;
+  align-self: end;
   margin-top: var(--space-1);
   font-size: var(--text-sm);
   color: var(--muted);
@@ -59,6 +72,7 @@
 
 /* "34 / DAY" */
 .day {
+  grid-area: day;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -107,7 +121,7 @@
 .phaseName,
 .phaseDetail {
   overflow: hidden;
-  font-size: 10px;
+  font-size: var(--text-2xs);
   line-height: 1.3;
   color: var(--label);
   text-overflow: ellipsis;
@@ -127,12 +141,54 @@
   color: var(--ink);
 }
 
-/* The ways out of the grow page that are not tabs: what it measures, and
-   whatever later stands beside it. */
+/* The ways out of the grow page that are not tabs - what it measures, the
+   moves a grow goes through, and sharing it - as one row of chips. Sharing
+   stands at the far end, apart from the moves, because it changes who reads
+   the grow rather than the grow. */
 .ways {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  padding-top: var(--space-1);
+}
+
+/* On a phone the nine of them would stack three rows deep above the tabs, so
+   they run as one row that scrolls, fading at the edge while there is more of
+   it - the same affordance the tabs under it use. */
+@media (max-width: 899px) {
+  .ways {
+    flex-wrap: nowrap;
+    /* Room for a focused chip's ring, which a scrolling row would clip. */
+    padding: var(--space-1) 4px;
+    margin-inline: -4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .ways::-webkit-scrollbar {
+    display: none;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    .ways {
+      animation: ways-more linear both;
+      animation-timeline: scroll(self inline);
+    }
+  }
+}
+
+@keyframes ways-more {
+  from {
+    mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+  }
+
+  99% {
+    mask-image: linear-gradient(to right, transparent 0, #000 40px, #000 calc(100% - 40px), transparent);
+  }
+
+  to {
+    mask-image: linear-gradient(to right, transparent 0, #000 40px);
+  }
 }
 
 .muted {
@@ -230,8 +286,18 @@
     padding-top: 0;
   }
 
+  .titleRow {
+    grid-template-areas:
+      'back name day'
+      '. sub day';
+  }
+
   .name {
-    font-size: 32px;
+    font-size: var(--text-title);
+  }
+
+  .subtitle {
+    align-self: start;
   }
 
   .phaseName,
@@ -244,7 +310,16 @@
    says the diary already has an address of its own and leads to it. */
 .share {
   flex-shrink: 0;
-  align-self: center;
+}
+
+.ways > * {
+  flex-shrink: 0;
+}
+
+@media (min-width: 900px) {
+  .share {
+    margin-left: auto;
+  }
 }
 
 /* "ended 24 Aug 2026", beside the name of a grow that is over. It carries no
@@ -277,12 +352,18 @@
   vertical-align: middle;
 }
 
-/* A grow is its pictures: on a wide screen the weeks take the page, so a
-   day's photograph is a photograph rather than a thumbnail, and the feeding
-   chart gets its columns. The plants and the report stay a reading column. */
+/* A grow is its pictures: on a wide screen the page takes the width, so a
+   day's photograph is a photograph rather than a thumbnail, the feeding chart
+   gets its columns and the report lays its chapters two across. Every tab
+   takes it, not only the wide ones - the header is the same header on all
+   four, and a page whose title jumped sideways between two tabs read as a
+   different page. A tab that is a list keeps its list to a reading column. */
 @media (min-width: 1200px) {
-  .page[data-tab='weeks'],
-  .page[data-tab='feeding'] {
+  .page {
     max-width: var(--page-width);
+  }
+
+  .page[data-tab='plants'] .rows {
+    max-width: var(--reading-width);
   }
 }
