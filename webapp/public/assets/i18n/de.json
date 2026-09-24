@@ -3891,13 +3891,14 @@
     "hardware": {
       "next": "Steckdosen und Cam?",
       "title": "Steckdosen und Cam",
-      "text": "Tasmota-Steckdosen koppeln und ihnen Rollen geben; die Terp Cam am Controller koppeln. Beides hat Zeit.",
+      "text": "Was der Controller gefunden hat: die Steckdosen, die er schaltet, und die Cam, für die er antwortet. Beides hat Zeit.",
       "sockets": "Gemeldete Steckdosen",
       "noSockets": "noch keine",
       "notReported": "noch nicht gemeldet",
       "cam": "Cam",
       "noCam": "keine",
-      "pairThere": "Im Tab Geräte koppeln",
+      "socketsAtTheDevice": "Eine Steckdose wird am Controller selbst gekoppelt - er sucht sie im Netzwerk - und taucht in dieser Liste auf, sobald er sie meldet. Die App kann sie danach schalten; hinzufügen oder ihr eine Aufgabe geben kann sie nicht.",
+      "pairTheCam": "Terp Cam koppeln",
       "bothCanWait": "Beides hat Zeit: ein Controller misst den Ort, an dem er steht, auch wenn nichts eingesteckt ist."
     }
   },

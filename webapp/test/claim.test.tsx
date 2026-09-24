@@ -206,6 +206,20 @@ describe('adding a device', () => {
     expect(screen.getByText('The preset can be changed later from Control, the sockets and the cam from Devices.')).toBeInTheDocument();
   });
 
+  /**
+   * The step named two things and sent both to a tent's Devices tab, which
+   * pairs neither: a socket has no control there at all, and the chip that
+   * pairs a cam is drawn only on the account-wide list. The cam is the half the
+   * app can help with, so that is the half it links.
+   */
+  it('sends the last step to the screen that really pairs a cam, and says where a socket is paired', async () => {
+    draw('/claim?device=sim-controller-7f3a&at=3');
+
+    expect(await screen.findByRole('link', { name: 'Pair a Terp Cam' })).toHaveAttribute('href', '/cameras/add');
+    expect(screen.getByText(/A socket is paired on the controller itself/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Devices tab/ })).not.toBeInTheDocument();
+  });
+
   it('renames the space the claim already made rather than making another', async () => {
     await drawClaimed();
     fireEvent.change(screen.getByRole('textbox', { name: 'Name of the space' }), { target: { value: 'Blue room' } });

@@ -3895,13 +3895,14 @@
     "hardware": {
       "next": "sockets and cam?",
       "title": "Sockets and cam",
-      "text": "Pair Tasmota sockets and give them roles; pair the Terp Cam at the controller. Both can wait.",
+      "text": "What the controller has found: the sockets it drives and the cam it answers for. Both can wait.",
       "sockets": "Reported sockets",
       "noSockets": "none yet",
       "notReported": "not reported yet",
       "cam": "Cam",
       "noCam": "none",
-      "pairThere": "Pair them on the Devices tab",
+      "socketsAtTheDevice": "A socket is paired on the controller itself, which searches the network for it; it turns up in this list once the controller reports it. The app can then switch it - it cannot add one or say what it is for.",
+      "pairTheCam": "Pair a Terp Cam",
       "bothCanWait": "Both can wait: a controller with nothing plugged into it still measures the place it stands in."
     }
   },

@@ -244,7 +244,7 @@ export function Claim() {
         title={t('claim.hardware.title')}
         text={said(3, hardwareSummary(claimed, sockets, t), t('claim.hardware.text'))}
       >
-        <HardwareStep device={claimed} sockets={sockets} spaceId={spaceId} />
+        <HardwareStep device={claimed} sockets={sockets} />
       </Step>
 
       <footer className={styles.foot}>
