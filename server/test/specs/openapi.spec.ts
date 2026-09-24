@@ -373,7 +373,7 @@ describe('the document', () => {
     // A route that asks for no credential does not claim it can refuse one, and
     // a route with nothing to look up does not claim it can fail to find it.
     expect(declaredRefusal('/v1/sessions', 'post', '401')).toBeUndefined();
-    expect(declaredRefusal('/v1/devices', 'get', '404')).toBeUndefined();
+    expect(declaredRefusal('/v1/share-links', 'get', '404')).toBeUndefined();
 
     // The routes beside `/v1` answer the other half's shape and are left alone.
     expect(document.paths['/readyz']?.get?.responses?.default).toBeUndefined();
@@ -414,6 +414,36 @@ describe('the document', () => {
       expect(refused.body.code).toBe('validation_failed');
     }
     await owner.client.get(`/v1/cameras/${cameraId}/frames?startsAt=2026-03-01T00:00:00.000Z`).expect(200);
+  });
+
+  it('refuses a list filter naming something the caller cannot see as the path that names it would, and says so', async () => {
+    const nothing = '00000000-0000-0000-0000-000000000000';
+    const filters = [
+      'alerts?spaceId',
+      'alerts?deviceId',
+      'tasks?growId',
+      'tasks?spaceId',
+      'reminders?growId',
+      'reminders?spaceId',
+      'entries?growId',
+      'entries?plantId',
+      'entries?spaceId',
+      'entries?deviceId',
+      'devices?spaceId',
+      'cameras?spaceId',
+      'cameras?deviceId',
+      'spaces?roomId',
+      'grows?spaceId',
+    ];
+    for (const filter of filters) {
+      const refused = await owner.client.get(`/v1/${filter}=${nothing}`);
+      expect({ filter, status: refused.status }).toEqual({ filter, status: 404 });
+      expect(declaredRefusal(`/v1/${filter.split('?')[0]}`, 'get', '404')).toBeDefined();
+    }
+    await admin.client.get(`/v1/admin/firmwares?classId=${nothing}`).expect(404);
+
+    // What the filters name is still what a page is narrowed to when it is there.
+    await owner.client.get(`/v1/devices?spaceId=${(await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId}`).expect(200);
   });
 
   it('declares the 200 a job that is already there answers, beside the 202 of one that was just started', () => {

@@ -91,6 +91,7 @@ export function Charts() {
   // the screen has not been told which grow rather than been told about a place
   // that has none, and the account's own grows are the answer to that.
   if (growId === null) {
+    if (spaceId !== null && noLongerThere(here.error)) return <NoLongerHere what="space" />;
     return spaceId === null ? <PickGrow /> : <NoGrow spaceId={spaceId} />;
   }
 

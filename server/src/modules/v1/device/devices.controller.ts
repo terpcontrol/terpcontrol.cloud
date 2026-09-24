@@ -106,7 +106,9 @@ export class DevicesController {
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'The devices this account can see' })
   @V1Answer(devicePage)
-  public list(@Caller() ctx: AccessContext, @V1Query(deviceListQuery) query: z.infer<typeof deviceListQuery>): Promise<DevicePage> {
+  public async list(@Caller() ctx: AccessContext, @V1Query(deviceListQuery) query: z.infer<typeof deviceListQuery>): Promise<DevicePage> {
+    if (query.spaceId) await this.access.require(ctx, subjectRef('space', query.spaceId), 'view');
+
     return this.devices.list(ctx, query, query.spaceId);
   }
 

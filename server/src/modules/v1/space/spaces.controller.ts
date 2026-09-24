@@ -53,7 +53,9 @@ export class SpacesController {
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'The spaces this account can see' })
   @V1Answer(spacePage)
-  public list(@Caller() ctx: AccessContext, @V1Query(spaceListQuery) query: z.infer<typeof spaceListQuery>): Promise<SpacePage> {
+  public async list(@Caller() ctx: AccessContext, @V1Query(spaceListQuery) query: z.infer<typeof spaceListQuery>): Promise<SpacePage> {
+    if (query.roomId) await this.access.require(ctx, subjectRef('space', query.roomId), 'view');
+
     return this.spaces.list(ctx, query, { roomId: query.roomId, archived: query.archived === 'true' });
   }
 

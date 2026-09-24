@@ -119,7 +119,12 @@ const declareRefusals = (document: OpenAPIObject): void => {
       const answers = operation.responses;
       if (validated) answers['400'] ??= refers('BadRequest');
       if (secured) answers['401'] ??= refers('Unauthenticated');
-      if (byName) answers['404'] ??= refers('NotFound');
+      // A list filter that names something is refused exactly as a path that
+      // names it is, when it is nothing this caller may see.
+      const filtersByName = (operation.parameters ?? []).some(
+        parameter => 'in' in parameter && parameter.in === 'query' && parameter.name.endsWith('Id'),
+      );
+      if (byName || filtersByName) answers['404'] ??= refers('NotFound');
       answers.default ??= refers('Problem');
     }
   }

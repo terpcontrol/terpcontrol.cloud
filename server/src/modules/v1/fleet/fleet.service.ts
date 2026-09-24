@@ -150,6 +150,8 @@ export class FleetService implements OnModuleInit, OnApplicationShutdown {
   // -------------------------------------------------------------- firmwares
 
   public async listFirmwares(query: PageQuery, classId?: string): Promise<CursorPage<Firmware>> {
+    if (classId) await this.requireClass(classId);
+
     const limit = pageLimit(query.limit);
     const rows = await this.firmwares
       .find({ ...(classId ? { classId } : {}), ...afterCursor('createdAt', query.cursor) })

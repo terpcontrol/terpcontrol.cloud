@@ -121,7 +121,9 @@ export class GrowsController {
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'The grows this account can see' })
   @V1Answer(growPage)
-  public list(@Caller() ctx: AccessContext, @V1Query(growListQuery) query: z.infer<typeof growListQuery>): Promise<GrowPage> {
+  public async list(@Caller() ctx: AccessContext, @V1Query(growListQuery) query: z.infer<typeof growListQuery>): Promise<GrowPage> {
+    if (query.spaceId) await this.access.require(ctx, subjectRef('space', query.spaceId), 'view');
+
     return this.grows.list(ctx, query, query.spaceId, query.including === 'ended');
   }
 

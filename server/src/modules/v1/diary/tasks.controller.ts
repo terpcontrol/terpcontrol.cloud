@@ -25,7 +25,10 @@ import { TasksService } from './tasks.service';
 const taskQuery = pageQuery.extend({
   growId: z.string().optional(),
   spaceId: z.string().optional(),
-  assigneeId: z.string().optional(),
+  assigneeId: z
+    .string()
+    .optional()
+    .describe('Only the tasks given to this person. It names a person rather than something to be let into, so nobody by that id is an empty page.'),
   done: z.enum(['true', 'false']).optional(),
 });
 

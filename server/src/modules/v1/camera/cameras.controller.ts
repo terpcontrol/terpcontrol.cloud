@@ -101,7 +101,10 @@ export class CamerasController {
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'The cameras this account can see' })
   @V1Answer(cameraPage)
-  public list(@Caller() ctx: AccessContext, @V1Query(cameraListQuery) query: z.infer<typeof cameraListQuery>) {
+  public async list(@Caller() ctx: AccessContext, @V1Query(cameraListQuery) query: z.infer<typeof cameraListQuery>) {
+    if (query.spaceId) await this.access.require(ctx, subjectRef('space', query.spaceId), 'view');
+    if (query.deviceId) await this.access.require(ctx, subjectRef('device', query.deviceId), 'view');
+
     return this.cameras.list(ctx, { spaceId: query.spaceId, deviceId: query.deviceId, includeRemoved: query.includeRemoved === 'true' }, query);
   }
 
