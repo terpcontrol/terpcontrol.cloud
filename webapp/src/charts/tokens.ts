@@ -15,6 +15,7 @@ const TOKENS = [
   'green',
   'band',
   'night',
+  'night-long',
   'brand',
   'wordmark',
   'temperature',

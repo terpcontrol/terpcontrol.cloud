@@ -96,7 +96,7 @@ export const AXIS_GUTTER = 38;
  */
 export const plotOption = (palette: ChartPalette, plot: Plot): ChartOption => {
   const filled = plot.lines.findIndex(line => (line.bands ?? []).length > 0);
-  const night = { color: palette.night, opacity: nightStrength(plot.nights.length) };
+  const night = { color: nightColour(palette, plot.nights.length) };
 
   return {
     animation: false,
@@ -156,10 +156,10 @@ export const plotOption = (palette: ChartPalette, plot: Plot): ChartOption => {
  * has a handful, and each is a stretch of the chart worth seeing as dark; a
  * grow has thirty and more, and at full strength they drew a barcode of
  * stripes across the whole plot that the curves had to be read through. Past
- * about a fortnight they are kept at half strength: still there, no longer the
- * loudest thing on the card.
+ * about a fortnight they take `--night-long`, the same shade at half strength:
+ * still there, no longer the loudest thing on the card.
  */
-export const nightStrength = (nights: number): number => (nights > 14 ? 0.5 : 1);
+export const nightColour = (palette: ChartPalette, nights: number): string => (nights > 14 ? palette['night-long'] : palette.night);
 
 /** What a line read at the cursor: the last point at or before it, which is what was true there. */
 export const valueAt = (points: readonly [number, number | null][], x: number): number | null => {

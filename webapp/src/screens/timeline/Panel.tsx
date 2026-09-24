@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Metric, TimelineAlarm, TimelinePanel, TimelineSpan } from '@fg2/shared-types/v1';
 import { Chart, type ChartOption } from '@/charts/Chart';
-import { nightStrength } from '@/charts/series';
+import { nightColour } from '@/charts/series';
 import type { ChartPalette, ChartToken } from '@/charts/tokens';
 import { figure, targetFigure, UNIT } from '../home/units';
 import { alarmsOf, at, fractionOf, pointAt, scaleOf, stretchesOf, targetAt, type Stretch } from './window';
@@ -103,7 +103,7 @@ const optionOf = (
         silent: true,
         data: [
           ...nights.map(night => [
-            { xAxis: at(night.startsAt), itemStyle: { color: palette.night, opacity: nightStrength(nights.length) } },
+            { xAxis: at(night.startsAt), itemStyle: { color: nightColour(palette, nights.length) } },
             { xAxis: at(night.endsAt) },
           ]),
           ...stretches.map(stretch => [

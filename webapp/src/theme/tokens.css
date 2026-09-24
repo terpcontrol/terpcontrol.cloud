@@ -71,6 +71,10 @@
      the syntax every chart parser knows. */
   --band: rgba(59, 122, 52, 0.13);
   --night: rgba(120, 96, 52, 0.07);
+  /* The nights of a long range - a grow's thirty and more - at half that: at
+     full strength they drew a barcode of stripes the curves had to be read
+     through. */
+  --night-long: rgba(120, 96, 52, 0.035);
   --grid: rgba(96, 89, 76, 0.16);
 
   /* Light coming in from the top of the page: a warm wash, nothing more. */
@@ -237,6 +241,7 @@
 
   --band: rgba(143, 205, 111, 0.12);
   --night: rgba(0, 0, 0, 0.22);
+  --night-long: rgba(0, 0, 0, 0.11);
   --grid: rgba(241, 235, 224, 0.09);
   --glow: radial-gradient(1200px 520px at 70% -180px, rgb(230 170 80 / 9%), transparent 70%);
 
@@ -283,6 +288,7 @@
 
     --band: rgba(143, 205, 111, 0.12);
     --night: rgba(0, 0, 0, 0.22);
+    --night-long: rgba(0, 0, 0, 0.11);
     --grid: rgba(241, 235, 224, 0.09);
     --glow: radial-gradient(1200px 520px at 70% -180px, rgb(230 170 80 / 9%), transparent 70%);
 
