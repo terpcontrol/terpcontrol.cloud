@@ -1250,7 +1250,9 @@ export const climateVerdict = named(
     inBandFraction: z
       .number()
       .nullable()
-      .describe('0 to 1 over every metric that has a band, of the time that was measured; the "91 % in band" of the headline. Null when nothing here is steered.'),
+      .describe(
+        '0 to 1: the share of the measured time in which every steered metric that was measured stood in its band; the "91 % in band" of the headline. Null when nothing here is steered.',
+      ),
     metrics: z.array(climateVerdictMetric),
     actuators: z.array(actuatorRuns),
     trend: cardTrend.nullable().describe('The same window as a line, coarsened; it comes out of the aggregation that was read anyway.'),

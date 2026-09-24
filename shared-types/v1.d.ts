@@ -3267,7 +3267,7 @@ export interface ClimateVerdict {
   stepSeconds: number;
   rating: VerdictRating | null;
   /**
-   * 0 to 1 over every metric that has a band, of the time that was measured; the "91 % in band" of the headline. Null when nothing here is steered.
+   * 0 to 1: the share of the measured time in which every steered metric that was measured stood in its band; the "91 % in band" of the headline. Null when nothing here is steered.
    */
   inBandFraction: number | null;
   metrics: ClimateVerdictMetric[];

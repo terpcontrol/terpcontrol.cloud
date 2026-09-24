@@ -674,8 +674,20 @@ describe('the 24 h verdict', () => {
     const verdict = verdictOf(seriesOf({ temperature, humidity }, { light: day }), targets, window);
 
     expect(verdict.rating).toBe('watch');
-    expect(verdict.inBandFraction).toBeCloseTo(22 / 24, 5);
+    // Ten of the twelve windows had every metric in band.
+    expect(verdict.inBandFraction).toBeCloseTo(10 / 12, 5);
     expect(verdict).toMatchObject({ deviceId: CONTROLLER, forSeconds: 12 * STEP, stepSeconds: STEP });
+  });
+
+  it('counts a window in band only when every metric judged in it was, not the metrics´ pooled seconds', () => {
+    const hot = Array(12).fill(28);
+    const dry = Array(12).fill(20);
+    const co2 = Array(12).fill(800);
+    const steered: Setpoints = { day: { temperature: 25, humidity: 50, co2: 800 }, night: { temperature: 25, humidity: 50 }, active: 'day' };
+    const verdict = verdictOf(seriesOf({ temperature: hot, humidity: dry, co2 }, { light: Array(12).fill(1) }), steered, window);
+
+    expect(verdict.metrics.find(row => row.metric === 'co2')).toMatchObject({ outOfBandSeconds: 0 });
+    expect(verdict.inBandFraction).toBe(0);
   });
 
   it('counts how often each actuator came on, and says nothing about one the device never wrote', () => {

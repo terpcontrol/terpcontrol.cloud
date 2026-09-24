@@ -183,6 +183,22 @@ const countMetric = (
   };
 };
 
+/**
+ * Each window of one metric as the verdict judges it: in its band, out of it,
+ * or not judged at all - no reading, or a half of the cycle the metric is not
+ * steered in. The same rule `countMetric` counts by, kept per window so the
+ * headline share can ask of each window whether everything judged in it held.
+ */
+const judgedWindows = (points: SeriesPoint[], metric: Metric, isDay: (index: number) => boolean, targets: Setpoints | null): (boolean | null)[] => {
+  const dayBand = bandOf(targets?.day[metric], metric);
+  const nightBand = DAY_ONLY.includes(metric) ? null : bandOf(targets?.night[metric], metric);
+
+  return points.map((point, index) => {
+    const band = isDay(index) ? dayBand : nightBand;
+    return point.value === null || band === null ? null : point.value >= band.low && point.value <= band.high;
+  });
+};
+
 const runsOf = (output: DeviceSeries['outputs'][number], stepSeconds: number): ActuatorRuns | null => {
   if (!output.points.some(point => point.value !== null)) return null;
 
@@ -269,13 +285,27 @@ export const verdictOf = (series: DeviceSeries | null, targets: Setpoints | null
     countMetric(metric, series.metrics.find(row => row.metric === metric)?.points ?? [], series.stepSeconds, isDay, targets),
   ).filter(row => row.minValue !== null || row.dayBand !== null || row.nightBand !== null);
 
-  const inBand = metrics.reduce((sum, row) => sum + row.inBandSeconds, 0);
-  const judged = inBand + metrics.reduce((sum, row) => sum + row.outOfBandSeconds, 0);
+  // The share is of the time, not of the metrics: a window counts as in band
+  // only when every metric judged in it was. Pooling the metrics' seconds made
+  // a tent too warm and too dry the whole time, with only its CO2 in band,
+  // read "33 % in band" - a third of the day, to anybody reading the sentence.
+  const judged = STEERED.map(metric =>
+    judgedWindows(series.metrics.find(row => row.metric === metric)?.points ?? [], metric, isDay, targets),
+  );
+  const length = Math.max(0, ...judged.map(states => states.length));
+  let inBand = 0;
+  let counted = 0;
+  for (let index = 0; index < length; index += 1) {
+    const states = judged.map(row => row[index] ?? null).filter((state): state is boolean => state !== null);
+    if (states.length === 0) continue;
+    counted += 1;
+    if (states.every(Boolean)) inBand += 1;
+  }
 
   return {
     ...empty,
     rating: worstOf(metrics.map(row => row.rating)),
-    inBandFraction: judged === 0 ? null : inBand / judged,
+    inBandFraction: counted === 0 ? null : inBand / counted,
     metrics,
     actuators: series.outputs.flatMap(output => runsOf(output, series.stepSeconds) ?? []),
     trend: trendOf(series.metrics.find(row => row.metric === 'temperature')?.points ?? [], 'temperature', series.endsAt, series.stepSeconds),
