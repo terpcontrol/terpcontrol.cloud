@@ -1,6 +1,6 @@
 import type { DateTime } from 'luxon';
 import type { GrowListItem, GrowOrSpaceRef, Reminder, Space, Task } from '@fg2/shared-types/v1';
-import { nowThere, WEEKDAY_DAY, zoned } from '@/ui/zone';
+import { DAY, nowThere, WEEKDAY_DAY, zoned } from '@/ui/zone';
 
 /**
  * The arithmetic of the Tasks tab, kept apart from the drawing so it can be
@@ -96,6 +96,18 @@ export const storeScope = (scope: Scope): void => {
  * why.
  */
 export const dateLabel = (at: DateTime, language: string): string => at.setLocale(language).toFormat(WEEKDAY_DAY);
+
+/**
+ * "30 Sep 2026": the one day a one-off rhythm falls on, read where the account
+ * is.
+ *
+ * It is the same day the card above it counts to, and it has to be read in the
+ * same zone to stay that day: the rhythm line wrote the instant on whatever
+ * calendar the browser was in, so a reader west of their account was told
+ * "in 7 d" on one row and the day before that one on the next - one reminder,
+ * one read of one screen, two days.
+ */
+export const onceLabel = (instant: string, language: string, zone: string | null): string => zoned(instant, zone).setLocale(language).toFormat(DAY);
 
 /** "today", "yesterday", or the day itself for a tick older than that. */
 export const dayLabel = (t: Translate, at: string, now: DateTime, language: string, zone: string | null): string => {

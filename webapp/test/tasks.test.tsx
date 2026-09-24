@@ -400,6 +400,16 @@ describe('a one-off rhythm read from behind the account', () => {
     Settings.defaultZone = 'system';
   });
 
+  it('names one day for it, and it is the day the card above counts to', async () => {
+    await drawLoaded();
+
+    // A week from the account's own today, and the day a week from it. Read on
+    // the reader's calendar the line said "29 Sep 2026" beside the same card's
+    // "in 7 d", which is one reminder on two days in one glance.
+    expect(section('This week').getByText(/^once · Spring run · chore · in 7 d$/)).toBeInTheDocument();
+    expect(section('Rhythms').getByText(/^once on 30 Sep 2026 · Spring run · chore$/)).toBeInTheDocument();
+  });
+
   it('opens the sheet on the day it falls on, above a floor the account has reached', async () => {
     await drawLoaded();
 

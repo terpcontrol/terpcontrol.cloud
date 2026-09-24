@@ -1,5 +1,5 @@
 import { UserRound } from 'lucide-react';
-import { DateTime } from 'luxon';
+import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Reminder, SessionUser, Task } from '@fg2/shared-types/v1';
@@ -8,7 +8,7 @@ import { initials } from '@/app/shell/tabs';
 import { nextStepIndex } from '@/screens/control/plan-clock';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
-import { dayLabel, daysUntil, litresOf, type Translate } from './tasks';
+import { dayLabel, daysUntil, litresOf, onceLabel, type Translate } from './tasks';
 import styles from './Tasks.module.css';
 
 interface TaskCardProps {
@@ -183,10 +183,12 @@ export function RhythmCard({
   onEdit: (() => void) | null;
 }) {
   const { t } = useTranslation();
+  // The day the rhythm falls on, where the account is: the card above this list
+  // counts the days to the same reminder in that zone, and the two rows named
+  // different days for one reminder to every reader behind their account.
+  const zone = useZone();
   const parts = [
-    reminder.everyDays
-      ? t('tasks.every', { count: reminder.everyDays })
-      : t('tasks.onceOn', { date: DateTime.fromISO(reminder.onceAt!).setLocale(language).toFormat('d LLL yyyy') }),
+    reminder.everyDays ? t('tasks.every', { count: reminder.everyDays }) : t('tasks.onceOn', { date: onceLabel(reminder.onceAt!, language, zone) }),
     name,
     reminder.kind === 'custom' ? null : t(`tasks.kindMeta.${reminder.kind}`),
   ];
