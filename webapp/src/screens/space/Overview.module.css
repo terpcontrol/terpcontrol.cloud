@@ -145,31 +145,17 @@
 }
 
 /* The label gives way to what the section offers: a long place name in it is
-   cut rather than wrapping the header, and the page title says it whole. */
-.sectionActions,
-.sectionLink {
+   cut rather than wrapping the header, and the page title says it whole. The
+   offers themselves are `ui.headLink`, a button that opens a sheet drawn the
+   same as a link, because to a thumb they are the same offer. */
+.sectionActions {
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-1);
   font-size: var(--text-xs);
   color: var(--muted);
   white-space: nowrap;
-}
-
-.sectionActions a,
-.sectionButton {
-  color: var(--ink);
-}
-
-/* An action that opens a sheet rather than going somewhere: it reads like the
-   link beside it, because to a thumb they are the same offer. */
-.sectionButton {
-  background: none;
-  border: 0;
-  padding: 0;
-  font-family: inherit;
-  font-size: inherit;
 }
 
 /* The tent's own actions, under what it is aiming at. */

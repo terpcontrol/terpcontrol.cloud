@@ -152,7 +152,7 @@ button.circle:hover {
    because it is filtered. */
 .none {
   width: 100%;
-  text-align: center;
+  text-align: left;
 }
 
 button.none {

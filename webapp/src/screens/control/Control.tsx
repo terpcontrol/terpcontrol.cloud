@@ -87,9 +87,13 @@ export function Control({ spaceId, sub }: { spaceId: string; sub: string | null 
             <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
           </Link>
           <p className={`mono ${styles.advancedNote}`}>
-            <Link to={`/spaces/${spaceId}/control/alarms`}>{t('space.control.advancedAlarms')}</Link>
+            <Link to={`/spaces/${spaceId}/control/alarms`} className={ui.headLink}>
+              {t('space.control.advancedAlarms')}
+            </Link>
             {' · '}
-            <Link to={`/spaces/${spaceId}/devices`}>{t('space.control.advancedSockets')}</Link>
+            <Link to={`/spaces/${spaceId}/devices`} className={ui.headLink}>
+              {t('space.control.advancedSockets')}
+            </Link>
           </p>
         </nav>
       ) : null}

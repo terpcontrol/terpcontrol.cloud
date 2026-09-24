@@ -408,7 +408,7 @@ describe('the geometry of a mark on the rail', () => {
     // Anything but a negative offset puts the opaque badge back inside the 20px
     // circle, where it covers the glyph that says what kind of line this is.
     expect(pixels('markCount', 'right')).toBeLessThan(0);
-    expect(pixels('markCount', 'bottom')).toBeLessThan(0);
+    expect(pixels('markCount', 'top')).toBeLessThan(0);
   });
 });
 

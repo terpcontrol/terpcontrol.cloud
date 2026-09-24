@@ -190,7 +190,7 @@ export function EntryRow({
           first, and the two lines read as though the list had them the wrong
           way round. The date is what tells them apart, and nothing else on
           either row carries it. */}
-      <span className={`mono ${styles.stamp}`}>
+      <span className={day === null ? `mono ${styles.stamp}` : `mono ${styles.stamp} ${styles.dayStamp}`}>
         {day === null ? at.toFormat(now ? stampOf(at, nowThere(now, zone)) : CLOCK) : `${t('grow.dayShort', { day })} · ${at.toFormat(DATED_CLOCK)}`}
       </span>
       <span className={styles.kind} aria-label={t(`home.entryKind.${entry.kind}`)}>

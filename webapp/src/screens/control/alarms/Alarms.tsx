@@ -82,7 +82,7 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
       <header className={ui.subhead}>
         <span className="label">{[t('alarms.title'), overview.data?.name].filter(Boolean).join(' · ')}</span>
         {watched.length > 0 ? (
-          <Link to={`/spaces/${spaceId}/control`} className={`mono ${styles.back}`}>
+          <Link to={`/spaces/${spaceId}/control`} className={`mono ${ui.headLink}`}>
             {t('alarms.backToPlan')}
           </Link>
         ) : null}

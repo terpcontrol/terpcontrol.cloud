@@ -222,7 +222,7 @@ function OwnerRow({ isYou, handle, name, lastLogged }: { isYou: boolean; handle:
       </span>
       <span className={styles.who}>
         <span className={styles.handle}>{isYou ? t('space.members.you') : handle ? `@${handle}` : t('space.members.theOwner')}</span>
-        <span className={`mono ${styles.how}`}>
+        <span className={`mono ${ui.dots} ${styles.how}`}>
           <span className={styles.howProse}>{t('space.members.owns', { name })}</span>
           {/*
             The owner writes in their own tent like anybody else, and a list

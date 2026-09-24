@@ -172,13 +172,15 @@
   color: var(--warning);
 }
 
-/* The newest picture, 16:9, with its caption in the corner. Where the card
-   beside it is taller and this one is stretched to match, the picture takes
-   the extra height rather than leaving a hole above the actions. */
+/* The newest picture, held at the camera's own 16:9 with its caption in the
+   corner. A card stretched to the taller one beside it does not stretch the
+   picture: cropped to a taller box it lost its sides, and with them the
+   time the camera burns into its corner. The extra height goes above the
+   actions, which keep to the card's foot. */
 .still {
   position: relative;
   display: flex;
-  flex: 1 0 auto;
+  flex: none;
   flex-direction: column;
   margin: 0;
   overflow: hidden;
@@ -188,7 +190,7 @@
 
 .still img {
   display: block;
-  flex: 1 0 auto;
+  flex: none;
   width: 100%;
   aspect-ratio: 16 / 9;
   object-fit: cover;

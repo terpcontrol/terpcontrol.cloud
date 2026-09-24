@@ -92,7 +92,7 @@ export function Targets({ spaceId, devices, mayManage }: { spaceId: string; devi
     <div className={styles.page}>
       <header className={ui.subhead}>
         <span className="label">{t('targets.title')}</span>
-        <Link to={`/spaces/${spaceId}/control`} className={`mono ${styles.back}`}>
+        <Link to={`/spaces/${spaceId}/control`} className={`mono ${ui.headLink}`}>
           {t('targets.backToPlan')}
         </Link>
       </header>
@@ -103,9 +103,13 @@ export function Targets({ spaceId, devices, mayManage }: { spaceId: string; devi
 
       <p className={`mono ${styles.advanced}`}>
         <span className="label">{t('space.control.advanced')} ›</span>
-        <Link to={`/spaces/${spaceId}/control/alarms`}>{t('space.control.advancedAlarms')}</Link>
+        <Link to={`/spaces/${spaceId}/control/alarms`} className={ui.headLink}>
+          {t('space.control.advancedAlarms')}
+        </Link>
         {' · '}
-        <Link to={`/spaces/${spaceId}/devices`}>{t('targets.sockets')}</Link>
+        <Link to={`/spaces/${spaceId}/devices`} className={ui.headLink}>
+          {t('targets.sockets')}
+        </Link>
       </p>
     </div>
   );

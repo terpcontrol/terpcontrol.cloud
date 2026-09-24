@@ -493,7 +493,8 @@ describe('the inbox', () => {
     await screen.findByText('Now');
     const cards = within(screen.getAllByRole('list')[0]).getAllByRole('listitem');
     expect(cards.map(card => card.getAttribute('data-severity'))).toEqual(['critical', 'critical', 'warning', 'info']);
-    expect(cards[0].textContent).toContain(`since ${clock(NOW.minus({ hours: 1 }))}`);
+    // The pieces of the time are held together with no-break spaces, which read as spaces.
+    expect(cards[0].textContent?.replace(/\u00a0/g, ' ')).toContain(`since ${clock(NOW.minus({ hours: 1 }))}`);
   });
 
   it('names the device as well as the tent where the tent holds more than one', async () => {

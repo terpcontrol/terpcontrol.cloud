@@ -14,11 +14,17 @@
     var(--bg);
 }
 
+/* The bar heads the column it sits over: the wordmark on the column's left
+   edge and the switch on its right, rather than at the window's corners with
+   a field of nothing between them and the page. */
 .bar {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  width: 100%;
+  max-width: var(--reading-width);
   min-height: calc(var(--topbar-height) + env(safe-area-inset-top));
+  margin: 0 auto;
   padding: env(safe-area-inset-top) max(var(--space-4), env(safe-area-inset-right)) 0 max(var(--space-4), env(safe-area-inset-left));
 }
 
@@ -33,11 +39,13 @@
   color: var(--wordmark);
 }
 
+/* The glyph, not the 40 px target round it, stands on the column's edge. */
 .themeSwitch {
   display: grid;
   place-items: center;
   width: 40px;
   height: 40px;
+  margin-right: -11px;
   background: none;
   border: 0;
   color: var(--muted);
@@ -388,7 +396,7 @@
   width: 100%;
   aspect-ratio: 1;
   overflow: hidden;
-  border: var(--rule-dashed);
+  border: var(--rule-solid);
   border-radius: var(--radius-sm);
   background: var(--card-2);
 }
@@ -407,6 +415,7 @@
 /* A day that has not happened yet is drawn and left empty, so the week keeps its shape. */
 .dayTile[data-future='true'] .thumb {
   background: transparent;
+  border: var(--rule-dashed);
 }
 
 .dayName {
@@ -696,10 +705,15 @@
 
 @media (min-width: 900px) {
   .bar,
-  .column,
-  .foot {
+  .column {
     padding-left: var(--space-5);
     padding-right: var(--space-5);
+  }
+
+  /* The foot's rule keeps to the text column at the wider gutter too. */
+  .foot {
+    width: calc(100% - 2 * var(--space-5));
+    max-width: calc(var(--reading-width) - 2 * var(--space-5));
   }
 
   .title {

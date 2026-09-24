@@ -304,6 +304,17 @@ const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): Wh
  * stays behind one, and a card whose rule is merely not in hand goes on saying
  * nothing about delivery at all.
  */
+/**
+ * Each "·"-separated piece of a short phrase kept on one line - "resolved 18:08",
+ * "lasted 56 min" - so the line breaks at a dot and never splits a figure from
+ * the word it belongs to.
+ */
+const whole = (phrase: string): string =>
+  phrase
+    .split(' · ')
+    .map(piece => piece.replace(/ /g, '\u00a0'))
+    .join(' · ');
+
 const metaOf = (
   t: Translate,
   alert: Alert,
@@ -317,9 +328,11 @@ const metaOf = (
   const parts = [
     ruleName(t, alert, rule, device),
     severity,
-    alert.resolvedAt
-      ? t('alerts.meta.resolved', { time: clock(alert.resolvedAt, zone), age: lastedLabel(alert, now) })
-      : t('alerts.meta.since', { time: clock(alert.startedAt, zone), age: lastedLabel(alert, now) }),
+    whole(
+      alert.resolvedAt
+        ? t('alerts.meta.resolved', { time: clock(alert.resolvedAt, zone), age: lastedLabel(alert, now) })
+        : t('alerts.meta.since', { time: clock(alert.startedAt, zone), age: lastedLabel(alert, now) }),
+    ),
   ].filter((part): part is string => part !== null);
 
   if (!alert.resolvedAt) {

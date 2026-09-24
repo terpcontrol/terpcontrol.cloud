@@ -61,6 +61,32 @@
   line-height: var(--line-tight);
 }
 
+/* On a phone the camera's name has the row to itself at the size a place's
+   name has on its own page, and the pill goes under it - the same header the
+   space page gives the same name one tap away, where beside the pill
+   "Plantalytix Fridgegrow 2.0" broke in two. */
+@media (max-width: 599px) {
+  .header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-1);
+  }
+
+  .header > :first-child {
+    margin-top: -1px;
+  }
+
+  .name {
+    font-size: 23px;
+  }
+
+  .header > :nth-child(3) {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
 /* The picture on the shared mat, whole at whatever shape it has: an RTSP
    camera that sends 4:3 was cropped top and bottom, and the stamp burnt into
    its corner with it. Raised off the page, and never taller than most of the

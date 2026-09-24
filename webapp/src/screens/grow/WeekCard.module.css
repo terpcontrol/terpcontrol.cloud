@@ -78,7 +78,7 @@
   width: 100%;
   aspect-ratio: 1;
   overflow: hidden;
-  border: var(--rule-dashed);
+  border: var(--rule-solid);
   border-radius: var(--radius-sm);
   background: var(--card-2);
 }
@@ -96,6 +96,7 @@
 
 .dayTile[data-future='true'] .thumb {
   background: transparent;
+  border: var(--rule-dashed);
 }
 
 .dayName {
@@ -104,7 +105,9 @@
   color: var(--label);
 }
 
-/* A day still to come is told by its dashed, empty tile; its name keeps the
+/* A day still to come is told by its dashed, empty tile, and a past day with
+   no picture by a filled one on a solid hairline - two different edges, so in
+   a dark tent the two are not the same faint grey square. The name keeps the
    label ink so it still reads. */
 .dayTile[data-future='true'] .dayName {
   font-weight: var(--weight-regular);

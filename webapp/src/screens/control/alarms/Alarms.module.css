@@ -8,12 +8,6 @@
   gap: var(--space-4);
 }
 
-.back {
-  flex-shrink: 0;
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
 /* A device's groups are sections of the page, a section's step apart; a
    group's own cards stay close under its label. */
 .device {

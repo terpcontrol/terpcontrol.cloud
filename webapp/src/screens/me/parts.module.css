@@ -58,8 +58,12 @@
   gap: var(--space-3);
 }
 
+/* The control beside the text while the text keeps a readable measure; on a
+   phone, a wide control beside a long explanation drops under it, left, so the
+   sentence is not squeezed into a column a word or two wide. */
 .rowHead {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
 }
@@ -71,7 +75,7 @@
 
 .rowText {
   display: flex;
-  flex: 1;
+  flex: 1 1 14rem;
   flex-direction: column;
   min-width: 0;
   gap: 2px;

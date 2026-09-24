@@ -1,4 +1,4 @@
-import { Bell, ChevronRight } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
@@ -100,7 +100,6 @@ export function Rail() {
           <span className={styles.handle}>{user?.handle ?? ''}</span>
           <span className={styles.accountNote}>{t('shell.accountNote')}</span>
         </span>
-        <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
       </NavLink>
     </nav>
   );

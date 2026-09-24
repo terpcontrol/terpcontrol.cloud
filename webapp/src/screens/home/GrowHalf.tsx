@@ -172,20 +172,26 @@ export function NoGrow({ card, onNotNow }: { card: HomeSpaceCard; onNotNow: () =
 
   return (
     <>
-      <p className={styles.invite}>
+      <p className={`${styles.invite} ${ui.dots}`}>
         {t('home.invite.noGrow')}
-        {' · '}
-        <Link to={`/grows/new?space=${card.spaceId}`} className={styles.inviteAction}>
-          {t('home.invite.startGrow')}
-        </Link>
-        {' · '}
-        <button type="button" className={styles.inviteAction} onClick={() => setMoving(true)}>
-          {t('home.invite.moveGrow')}
-        </button>
-        {' · '}
-        <button type="button" className={styles.inviteDismiss} onClick={onNotNow} aria-label={t('home.invite.notNowFor', { name: card.name })}>
-          {t('home.invite.notNow')}
-        </button>
+        <span className={ui.dot}>
+          {' · '}
+          <Link to={`/grows/new?space=${card.spaceId}`} className={styles.inviteAction}>
+            {t('home.invite.startGrow')}
+          </Link>
+        </span>
+        <span className={ui.dot}>
+          {' · '}
+          <button type="button" className={styles.inviteAction} onClick={() => setMoving(true)}>
+            {t('home.invite.moveGrow')}
+          </button>
+        </span>
+        <span className={ui.dot}>
+          {' · '}
+          <button type="button" className={styles.inviteDismiss} onClick={onNotNow} aria-label={t('home.invite.notNowFor', { name: card.name })}>
+            {t('home.invite.notNow')}
+          </button>
+        </span>
       </p>
       {moving && card.spaceId !== null ? <MoveHereSheet spaceId={card.spaceId} spaceName={card.name} onClose={() => setMoving(false)} /> : null}
     </>
@@ -210,18 +216,20 @@ export function NoSensor() {
   const mayLog = useMayLog();
 
   return (
-    <p className={styles.invite}>
+    <p className={`${styles.invite} ${ui.dots}`}>
       {t('home.invite.noSensor')}
       {mayLog ? (
-        <>
+        <span className={ui.dot}>
           {' · '}
           <LogReading />
-        </>
+        </span>
       ) : null}
-      {' · '}
-      <Link to="/devices" className={styles.inviteAction}>
-        {t('home.invite.addDevice')}
-      </Link>
+      <span className={ui.dot}>
+        {' · '}
+        <Link to="/devices" className={styles.inviteAction}>
+          {t('home.invite.addDevice')}
+        </Link>
+      </span>
     </p>
   );
 }

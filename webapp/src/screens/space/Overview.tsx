@@ -108,9 +108,11 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
               {/* Both of these put a grow into this place, which is managing it. */}
               {mayManage ? (
                 <>
-                  <Link to={`/log?kind=phase&space=${overview.spaceId}`}>+ {t('space.newGrow')}</Link>
+                  <Link to={`/log?kind=phase&space=${overview.spaceId}`} className={ui.headLink}>
+                    + {t('space.newGrow')}
+                  </Link>
                   {' · '}
-                  <button type="button" className={styles.sectionButton} onClick={() => setSheet('move')}>
+                  <button type="button" className={ui.headLink} onClick={() => setSheet('move')}>
                     {t('space.moveHere')}
                   </button>
                 </>
@@ -156,7 +158,10 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
             // the section a grower is already reading the climate in.
             actions={
               <span className={`mono ${styles.sectionActions}`}>
-                <Link to={`/charts?space=${overview.spaceId}`}>{t('charts.title')}</Link>
+                <Link to={`/charts?space=${overview.spaceId}`} className={ui.headLink}>
+                  {t('charts.title')}
+                  <ChevronRight size={12} strokeWidth={2} aria-hidden />
+                </Link>
               </span>
             }
             link={{ to: `/spaces/${overview.spaceId}/timeline`, label: t('space.tabs.timeline') }}
@@ -215,7 +220,7 @@ function Section({
         <span className="label">{label}</span>
         {actions}
         {link ? (
-          <Link to={link.to} className={`mono ${styles.sectionLink}`}>
+          <Link to={link.to} className={`mono ${ui.headLink}`}>
             {link.label}
             <ChevronRight size={12} strokeWidth={2} aria-hidden />
           </Link>

@@ -74,7 +74,7 @@ export function PersonRow({
       </span>
       <span className={styles.who}>
         <span className={styles.handle}>{isYou ? t('space.members.you') : `@${name}`}</span>
-        <span className={`mono ${styles.how}`}>
+        <span className={`mono ${ui.dots} ${styles.how}`}>
           <span className={styles.howProse}>{origin}</span>
           {figure ? <span className={styles.howFigure}>· {figure}</span> : null}
         </span>

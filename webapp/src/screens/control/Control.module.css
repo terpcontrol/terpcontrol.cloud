@@ -457,10 +457,6 @@
   color: var(--muted);
 }
 
-.advancedNote a {
-  color: inherit;
-}
-
 /* The way out of an empty tent, inside the dashed note: underlined rather than
    coloured, so it reads as the link it is without shouting from a quiet note. */
 .addDevice {

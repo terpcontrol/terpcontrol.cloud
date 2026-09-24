@@ -270,6 +270,20 @@
   font-size: var(--text-sm);
 }
 
+/* With nothing heard in the window the header holds only the time, and a
+   card around one clock read as a reading gone missing. It stands as a plain
+   line instead, over the empty box that says why. */
+.scrubHead:not(:has(.scrubValue, .scrubOutputs)) {
+  position: static;
+  padding: 0 var(--space-1);
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 0;
+  box-shadow: none;
+  color: var(--muted);
+}
+
 .scrubTime {
   font-weight: var(--weight-semibold);
   white-space: nowrap;
@@ -293,16 +307,12 @@
   color: var(--muted);
 }
 
-/* Nothing heard in the window, said where the panels would stand and at about
-   their height, as the Charts say it, so the stack keeps its shape. */
+/* Nothing heard in the window, said where the panels would stand: the app's
+   empty state, one sentence left at the card's padding in a box its own
+   height, over the lanes that may still hold something. */
 .empty {
-  display: grid;
-  place-items: center;
-  min-height: 140px;
   margin: 0;
-  padding: var(--space-5);
-  text-align: center;
-  text-wrap: balance;
+  text-wrap: pretty;
 }
 
 /* --------------------------------------------------------------- a panel */
@@ -530,19 +540,29 @@
  * How many lines the mark stands for, beside the kind it stands for rather than
  * over it. The badge is opaque and the glyph is 12px, so sitting inside the
  * circle it covered almost all of it: a mark of 28 notes drew a "28" and no note
- * at all, and the mark's own hit test answered the badge. Pushed off the corner
- * it clears the glyph, and the card's own padding leaves it the room.
+ * at all, and the mark's own hit test answered the badge. Anchored off the top
+ * right corner it clears the glyph, and it is drawn as the app's count badge -
+ * a filled pill, as the rail's Alerts count is - in the muted ink rather than
+ * the alarm red or the brand, because a count of notes is neither a warning
+ * nor a choice, and a lane of twenty green dots shouted over the lines. A ring
+ * in the card's colour lifts it off the circle it overlaps.
  */
 .markCount {
   position: absolute;
-  right: -5px;
-  bottom: -6px;
-  padding: 0 2px;
-  background: var(--card);
+  top: -7px;
+  right: -9px;
+  display: inline-grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  background: var(--muted);
   border-radius: var(--radius-pill);
-  font-size: 9px;
+  box-shadow: 0 0 0 1.5px var(--card);
+  font-size: 10px;
+  font-weight: var(--weight-bold);
   line-height: 1;
-  color: var(--ink);
+  color: var(--card);
 }
 
 .noEvents {

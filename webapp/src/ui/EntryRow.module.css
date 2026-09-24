@@ -22,6 +22,15 @@
   color: var(--muted);
 }
 
+/* Under a day of the grow the stamp is "D 31 · 24 Sep 01:24": the column is
+   as wide as the day and the date, and too narrow for the hour as well, so
+   the hour takes the second line and the date is never torn from its day
+   ("D 31 · 24" over "Sep"). The widest day and date, "D 100 · 30 Sep", is
+   6.8em; the narrowest whole stamp, "D 1 · 1 Sep 00:00", 7.5em. */
+.dayStamp {
+  width: 7.2em;
+}
+
 /*
  * The kind as a small bordered mark, the way the boards draw it. It sits
  * against the first line rather than in the middle of the row, because a row

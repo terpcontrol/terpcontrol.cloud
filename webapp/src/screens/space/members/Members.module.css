@@ -73,10 +73,9 @@
    no room for them beside the menu, and the figure - the one part a reader
    cannot reconstruct - drops whole onto a line of its own rather than losing
    its unit to an ellipsis. */
+/* How they came in, then when they last logged: `ui.dots`, so the figure
+   drops to its own line whole and its dot does not start that line. */
 .how {
-  display: flex;
-  flex-wrap: wrap;
-  column-gap: var(--space-1);
   font-size: var(--text-xs);
   color: var(--muted);
 }
@@ -149,8 +148,11 @@
   font-size: var(--text-sm);
 }
 
+/* Each head stands over its own column with room either side, so three
+   tracked heads never run into one line ("BESITZER:INSTEUERN"); on a phone
+   the tracking comes off, which is what the German ones need to fit. */
 .column {
-  padding-bottom: var(--space-2);
+  padding: 0 var(--space-2) var(--space-2);
   font-family: var(--font-text);
   font-size: var(--text-2xs);
   font-weight: var(--weight-bold);
@@ -172,7 +174,19 @@
 
 .mark {
   width: 64px;
+  padding-inline: var(--space-2);
   text-align: center;
+}
+
+@media (max-width: 599px) {
+  .column {
+    padding-inline: var(--space-1);
+    letter-spacing: 0.02em;
+  }
+
+  .mark {
+    padding-inline: var(--space-1);
+  }
 }
 
 /* Read aloud but not drawn: a bullet says nothing to a screen reader, and the

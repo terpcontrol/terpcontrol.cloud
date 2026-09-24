@@ -117,15 +117,14 @@
 
 /* Nothing to draw, said where the chart would stand and at its height, so the
    screen keeps its shape between a range that has readings and one that has
-   none rather than collapsing to a line of text. */
+   none rather than collapsing to a line of text. Left-aligned at the card's
+   padding, as every empty state in the app is. */
 .empty {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
   min-height: 140px;
   margin: 0;
-  padding: var(--space-5);
-  text-align: center;
-  text-wrap: balance;
+  text-wrap: pretty;
 }
 
 .cardHead {

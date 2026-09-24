@@ -32,4 +32,13 @@
   .main {
     padding: var(--space-6) var(--space-7);
   }
+
+  /* Beside the rail there is one frame, the page's width, centred in what
+     the rail leaves. A wide page fills it; a reading-width page - a list, a
+     settings screen - starts on the frame's left edge rather than in the
+     middle, so every page's title stands at the same place and moving from
+     Home to Tasks does not throw the title sideways. */
+  .main > * {
+    margin-inline: max(0px, calc((100% - var(--page-width)) / 2)) auto;
+  }
 }
