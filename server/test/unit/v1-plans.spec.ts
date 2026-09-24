@@ -151,7 +151,7 @@ beforeEach(async () => {
 
   engine = new PlanEngineService(plans, db.devices, configuration, progress);
   engineWith = announcer => new PlanEngineService(plans, db.devices, configuration, progressWith(announcer));
-  transitions = new PlanService(plans, progress);
+  transitions = new PlanService(plans, db.devices, progress);
 
   await db.users.create({ id: OWNER, email: 'grower@example.com', passwordHash: 'x', handle: 'grower' });
 });

@@ -129,6 +129,7 @@ const presetsOf = (): PresetApplicationsService => {
   );
   const plans = new PlanService(
     db.plans,
+    db.devices,
     new PlanProgressService(db.plans, db.devices, db.users, written, phases, { send: async () => undefined } as unknown as MailService),
   );
 
