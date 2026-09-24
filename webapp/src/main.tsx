@@ -1,5 +1,7 @@
 import '@fontsource-variable/nunito-sans/opsz.css';
-import '@fontsource-variable/fraunces/soft.css';
+// Every axis Fraunces has: optical size so a small name takes the sturdier
+// text cut, softness for the look, and weight. `tokens.css` pins WONK off.
+import '@fontsource-variable/fraunces/full.css';
 import './theme/tokens.css';
 import './styles/global.css';
 

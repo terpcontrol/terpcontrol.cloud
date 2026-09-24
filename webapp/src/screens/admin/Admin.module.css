@@ -31,8 +31,8 @@
 }
 
 .title {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
   line-height: var(--line-tight);
 }
 

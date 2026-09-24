@@ -4,8 +4,8 @@
 }
 
 .title {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
   line-height: var(--line-tight);
 }
 
@@ -108,7 +108,7 @@
    phone's width and the phone's top padding kept on a wide window. */
 @media (min-width: 900px) {
   .screen {
-    max-width: 720px;
+    max-width: var(--reading-width);
     padding-top: 0;
   }
 }

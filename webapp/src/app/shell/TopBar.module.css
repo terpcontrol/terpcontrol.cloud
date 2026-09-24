@@ -19,9 +19,9 @@
 
 .wordmark {
   font-family: var(--font-display);
-  font-size: var(--text-xl);
-  font-weight: var(--weight-display);
-  font-variation-settings: 'SOFT' 100;
+  font-size: 22px;
+  font-weight: var(--weight-display-sm);
+  font-variation-settings: var(--display-axes);
   letter-spacing: var(--tracking-display);
   line-height: var(--line-tight);
   color: var(--wordmark);

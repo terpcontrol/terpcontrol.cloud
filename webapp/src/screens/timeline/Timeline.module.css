@@ -17,12 +17,12 @@
 }
 
 .title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
   min-width: 0;
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
   line-height: var(--line-tight);
 }
 
@@ -129,7 +129,7 @@
 .chip[aria-pressed='true'] {
   background: var(--brand);
   border-color: var(--brand);
-  color: var(--on-green);
+  color: var(--on-brand);
   font-weight: var(--weight-semibold);
 }
 
@@ -240,11 +240,15 @@
   color: var(--toast-ink);
 }
 
+/* Over the picture, so on a plate of its own: a shadow alone lets a bright
+   frame swallow the figures. */
 .transportTime {
   flex-shrink: 0;
+  padding: 2px var(--space-2);
+  background: var(--overlay);
+  border-radius: var(--radius-pill);
   font-size: var(--text-xs);
-  color: var(--toast-ink);
-  text-shadow: 0 0 4px var(--toast);
+  color: var(--on-overlay);
 }
 
 /* The window as a control a thumb can drag; it is the only scrubber on a tent
@@ -482,6 +486,10 @@
 .laneName {
   flex-shrink: 0;
   width: var(--gutter);
+  /* A lane's name lives in the plot's gutter, which has no room for the
+     tracked capitals a section label takes. */
+  letter-spacing: 0;
+  text-transform: none;
   padding-right: 10px;
   overflow: hidden;
   text-align: right;
@@ -615,7 +623,7 @@
 
 @media (min-width: 900px) {
   .screen {
-    max-width: 720px;
+    max-width: var(--reading-width);
     padding-top: 0;
   }
 
@@ -630,5 +638,12 @@
 
   .plot {
     height: 140px;
+  }
+}
+
+/* A plot is read along its width: on a wide screen the Timeline takes the page. */
+@media (min-width: 1200px) {
+  .screen {
+    max-width: var(--page-width);
   }
 }

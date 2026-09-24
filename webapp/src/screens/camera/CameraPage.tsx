@@ -192,40 +192,43 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
         </div>
       ) : null}
 
-      <div className={styles.frame}>
-        {shown ? (
-          <img
-            className={styles.still}
-            src={mediaUrl(shown.id, THUMBNAIL_WIDTH.frame) ?? undefined}
-            // The same instant the label under the frame carries. A reader who
-            // gets the picture through its alt text alone was told "just now"
-            // about a still four days old, which is the one thing the frame's
-            // own dimming and dated label were there to stop it saying.
-            alt={t('camera.frameAlt', { name: camera.name, time: zonedAt(at(shown.capturedAt), zone).toFormat(STAMPS[stampFor(to - from)]) })}
-          />
-        ) : older && camera.state.lastStillAt ? (
-          <img
-            className={styles.still}
-            data-age="offline"
-            src={mediaUrl(older, THUMBNAIL_WIDTH.frame) ?? undefined}
-            // Its day, not just its hour: a picture from four days ago named by
-            // the clock alone reads as this morning's.
-            alt={t('camera.frameAlt', { name: camera.name, time: zonedAt(at(camera.state.lastStillAt), zone).toFormat(DATED_CLOCK) })}
-          />
-        ) : (
-          // A read that failed is not a day with no picture in it. Told apart,
-          // because the two ask for different things of whoever is reading:
-          // one is a camera to go and look at, the other is this page to try
-          // again - and a day the camera filled can be behind a read that
-          // simply did not arrive.
-          <p className={`mono ${styles.noFrame}`}>
-            {dayPictures === 'waiting' ? t('home.waiting') : dayPictures === 'unread' ? t('camera.framesUnread') : t('camera.noFramesToday')}
-          </p>
-        )}
-        {shown ? (
-          <span className={`mono ${styles.frameLabel}`}>
-            {zonedAt(at(shown.capturedAt), zone).toFormat(STAMPS[stampFor(to - from)])}
-            {/* "live" is a claim about how late the picture is, so it is the
+      {/* The picture and its films, and beside them on a wide screen what the
+          camera is set to: two columns of one page. */}
+      <div className={styles.watch}>
+        <div className={styles.frame}>
+          {shown ? (
+            <img
+              className={styles.still}
+              src={mediaUrl(shown.id, THUMBNAIL_WIDTH.frame) ?? undefined}
+              // The same instant the label under the frame carries. A reader who
+              // gets the picture through its alt text alone was told "just now"
+              // about a still four days old, which is the one thing the frame's
+              // own dimming and dated label were there to stop it saying.
+              alt={t('camera.frameAlt', { name: camera.name, time: zonedAt(at(shown.capturedAt), zone).toFormat(STAMPS[stampFor(to - from)]) })}
+            />
+          ) : older && camera.state.lastStillAt ? (
+            <img
+              className={styles.still}
+              data-age="offline"
+              src={mediaUrl(older, THUMBNAIL_WIDTH.frame) ?? undefined}
+              // Its day, not just its hour: a picture from four days ago named by
+              // the clock alone reads as this morning's.
+              alt={t('camera.frameAlt', { name: camera.name, time: zonedAt(at(camera.state.lastStillAt), zone).toFormat(DATED_CLOCK) })}
+            />
+          ) : (
+            // A read that failed is not a day with no picture in it. Told apart,
+            // because the two ask for different things of whoever is reading:
+            // one is a camera to go and look at, the other is this page to try
+            // again - and a day the camera filled can be behind a read that
+            // simply did not arrive.
+            <p className={`mono ${styles.noFrame}`}>
+              {dayPictures === 'waiting' ? t('home.waiting') : dayPictures === 'unread' ? t('camera.framesUnread') : t('camera.noFramesToday')}
+            </p>
+          )}
+          {shown ? (
+            <span className={`mono ${styles.frameLabel}`}>
+              {zonedAt(at(shown.capturedAt), zone).toFormat(STAMPS[stampFor(to - from)])}
+              {/* "live" is a claim about how late the picture is, so it is the
                 pill's own verdict that decides it and not the frame's position
                 in the day. This camera misses most of its captures, and the
                 header read "4 min · stale" over a frame that called itself
@@ -233,23 +236,24 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
                 in the words the stale label four lines below uses - and from
                 the instant of the picture actually on screen, which can be
                 older than the camera row while that read is cached. */}
-            {newest && shown.id === newest.id
-              ? ` · ${liveness === 'live' ? t('camera.live') : t('devices.ago', { age: ageLabel(shown.capturedAt, now) })}`
-              : ''}
-          </span>
-        ) : older && camera.state.lastStillAt ? (
-          // Its own label rather than the one above: that stamp is scaled to
-          // today's window and would date a picture from four days ago by the
-          // clock alone. This one names its day and says how long ago it was,
-          // exactly as the tent's card says it.
-          <span className={`mono ${styles.frameLabel}`} data-age="offline">
-            {zonedAt(at(camera.state.lastStillAt), zone).toFormat(DATED_CLOCK)} · {t('devices.ago', { age: ageLabel(camera.state.lastStillAt, now) })}
-          </span>
-        ) : null}
-        {mayManage ? <TestImage cameraId={camera.id} mayOwn={mayOwn} /> : null}
-      </div>
+              {newest && shown.id === newest.id
+                ? ` · ${liveness === 'live' ? t('camera.live') : t('devices.ago', { age: ageLabel(shown.capturedAt, now) })}`
+                : ''}
+            </span>
+          ) : older && camera.state.lastStillAt ? (
+            // Its own label rather than the one above: that stamp is scaled to
+            // today's window and would date a picture from four days ago by the
+            // clock alone. This one names its day and says how long ago it was,
+            // exactly as the tent's card says it.
+            <span className={`mono ${styles.frameLabel}`} data-age="offline">
+              {zonedAt(at(camera.state.lastStillAt), zone).toFormat(DATED_CLOCK)} ·{' '}
+              {t('devices.ago', { age: ageLabel(camera.state.lastStillAt, now) })}
+            </span>
+          ) : null}
+          {mayManage ? <TestImage cameraId={camera.id} mayOwn={mayOwn} /> : null}
+        </div>
 
-      {/* The scrubber walks between the day's pictures, so it is drawn where
+        {/* The scrubber walks between the day's pictures, so it is drawn where
           there are pictures to walk between. A camera dark for days drew one
           anyway, spanning midnight to now over a day that held nothing: the
           handle moved, the picture under it and its caption and the count
@@ -258,77 +262,80 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           change what it points at is worse than no control, and the same is
           true before the read has answered - the ends would be the whole day
           and then jump to the first picture as soon as it did. */}
-      {dayPictures === 'filled' ? (
-        <div className={`${timeline.bareSlider} ${styles.transport}`}>
-          <span className={`mono ${styles.edge}`}>{zonedAt(from, zone).toFormat(CLOCK)}</span>
-          <Slider from={from} to={to} cursor={Math.min(Math.max(time, from), to)} onScrub={setCursor} />
-          <span className={`mono ${styles.edge}`}>{t('camera.now')}</span>
-        </div>
-      ) : null}
-      {/* A read still out has no count in it and nothing here may invent one:
+        {dayPictures === 'filled' ? (
+          <div className={`${timeline.bareSlider} ${styles.transport}`}>
+            <span className={`mono ${styles.edge}`}>{zonedAt(from, zone).toFormat(CLOCK)}</span>
+            <Slider from={from} to={to} cursor={Math.min(Math.max(time, from), to)} onScrub={setCursor} />
+            <span className={`mono ${styles.edge}`}>{t('camera.now')}</span>
+          </div>
+        ) : null}
+        {/* A read still out has no count in it and nothing here may invent one:
           "0 pictures today" under a frame still saying it is loading is the
           page contradicting itself in two adjacent lines. Nor does this line
           say "loading" a second time - by the same rule the failed read
           follows below, the frame above has the room and is already saying it,
           and while the read is out no older picture can be standing in that
           space instead. */}
-      {dayPictures === 'waiting' ? null : dayPictures === 'unread' ? (
-        // "0 pictures today" is a figure taken from a read that never arrived,
-        // and a camera that has been filling the day all morning is the likeliest
-        // thing behind it. So the day's count gives way to the read again, which
-        // is the one move that gets the day back. The reason is said once: the
-        // frame above carries it where it has the room, and this line takes it
-        // over where an older picture is standing in that space instead.
-        <p className={`mono ${styles.count}`} role="status">
-          {shown || older ? `${t('camera.framesUnread')} ` : ''}
-          <button type="button" className={styles.retryFrames} onClick={() => void frames.refetch()}>
-            {t('home.retry')}
-          </button>
-        </p>
-      ) : (
-        <p className={`mono ${styles.count}`}>
-          {/* A count the walk stopped short of is said as the floor it is, because
-              a page size drawn as the day's total is a figure that is simply wrong. */}
-          {t(frames.data?.partial ? 'camera.framesTodayAtLeast' : 'camera.framesToday', { count: shots.length })}
-          {/* A free camera's picture is smaller than the one stored, and the line under it says so rather than leaving the blur unexplained. */}
-          {camera.entitlement.tier === 'free' ? ` · ${t('camera.reduced')}` : ''}
-        </p>
-      )}
-
-      <section className={styles.section}>
-        <span className="label">{t('camera.timelapses')}</span>
-        {mayManage ? <Quick buttons={quickFilms(t, camera, grow, now)} onPick={request} /> : null}
-        {mayManage ? (
-          <button type="button" className={`${ui.button} ${styles.compose}`} onClick={() => setComposing(true)}>
-            {t('camera.makeOne')}
-          </button>
-        ) : null}
-        {ask.error ? (
-          <p className={ui.problem} role="alert">
-            {ask.error instanceof ApiError ? ask.error.problem.detail || ask.error.problem.title : t('camera.askFailed')}
+        {dayPictures === 'waiting' ? null : dayPictures === 'unread' ? (
+          // "0 pictures today" is a figure taken from a read that never arrived,
+          // and a camera that has been filling the day all morning is the likeliest
+          // thing behind it. So the day's count gives way to the read again, which
+          // is the one move that gets the day back. The reason is said once: the
+          // frame above carries it where it has the room, and this line takes it
+          // over where an older picture is standing in that space instead.
+          <p className={`mono ${styles.count}`} role="status">
+            {shown || older ? `${t('camera.framesUnread')} ` : ''}
+            <button type="button" className={styles.retryFrames} onClick={() => void frames.refetch()}>
+              {t('home.retry')}
+            </button>
           </p>
-        ) : null}
-        {job ? <Film mediaId={job.id} mayOwn={mayOwn} /> : null}
-        {shownFilms.length > 0 ? (
-          <ul className={styles.films} aria-label={t('camera.timelapses')}>
-            {shownFilms.map(film => (
-              <li key={film.id}>
-                <Film mediaId={film.id} mayOwn={mayOwn} collapsed />
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {made.length > shownFilms.length || films.hasNextPage ? (
-          <button type="button" className={`${ui.button} ${styles.moreFilms}`} disabled={films.isFetchingNextPage} onClick={moreFilms}>
-            {films.isFetchingNextPage ? t('home.waiting') : t('camera.moreFilms')}
-          </button>
-        ) : null}
-        {!mayManage && made.length === 0 && !job ? <p className={ui.note}>{t('camera.noFilms')}</p> : null}
-      </section>
+        ) : (
+          <p className={`mono ${styles.count}`}>
+            {/* A count the walk stopped short of is said as the floor it is, because
+              a page size drawn as the day's total is a figure that is simply wrong. */}
+            {t(frames.data?.partial ? 'camera.framesTodayAtLeast' : 'camera.framesToday', { count: shots.length })}
+            {/* A free camera's picture is smaller than the one stored, and the line under it says so rather than leaving the blur unexplained. */}
+            {camera.entitlement.tier === 'free' ? ` · ${t('camera.reduced')}` : ''}
+          </p>
+        )}
 
-      {!mayManage && enough(youMay, 'log') ? <p className={`mono ${styles.role}`}>{t('camera.youMayLog')}</p> : null}
+        <section className={styles.section}>
+          <span className="label">{t('camera.timelapses')}</span>
+          {mayManage ? <Quick buttons={quickFilms(t, camera, grow, now)} onPick={request} /> : null}
+          {mayManage ? (
+            <button type="button" className={`${ui.button} ${styles.compose}`} onClick={() => setComposing(true)}>
+              {t('camera.makeOne')}
+            </button>
+          ) : null}
+          {ask.error ? (
+            <p className={ui.problem} role="alert">
+              {ask.error instanceof ApiError ? ask.error.problem.detail || ask.error.problem.title : t('camera.askFailed')}
+            </p>
+          ) : null}
+          {job ? <Film mediaId={job.id} mayOwn={mayOwn} /> : null}
+          {shownFilms.length > 0 ? (
+            <ul className={styles.films} aria-label={t('camera.timelapses')}>
+              {shownFilms.map(film => (
+                <li key={film.id}>
+                  <Film mediaId={film.id} mayOwn={mayOwn} collapsed />
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {made.length > shownFilms.length || films.hasNextPage ? (
+            <button type="button" className={`${ui.button} ${styles.moreFilms}`} disabled={films.isFetchingNextPage} onClick={moreFilms}>
+              {films.isFetchingNextPage ? t('home.waiting') : t('camera.moreFilms')}
+            </button>
+          ) : null}
+          {!mayManage && made.length === 0 && !job ? <p className={ui.note}>{t('camera.noFilms')}</p> : null}
+        </section>
+      </div>
 
-      <CameraSettings camera={camera} mayManage={mayManage} mayOwn={mayOwn} />
+      <div className={styles.aside}>
+        {!mayManage && enough(youMay, 'log') ? <p className={`mono ${styles.role}`}>{t('camera.youMayLog')}</p> : null}
+
+        <CameraSettings camera={camera} mayManage={mayManage} mayOwn={mayOwn} />
+      </div>
 
       {composing ? <Composer camera={camera} grow={grow} pending={ask.isPending} onRender={request} onClose={() => setComposing(false)} /> : null}
     </section>

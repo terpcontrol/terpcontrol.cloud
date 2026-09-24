@@ -1,30 +1,70 @@
 .overview {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
   padding-top: var(--space-2);
 }
 
-/* Four across, however narrow the phone. */
-.tiles {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-2);
+/* The tent now, and what was written in it. One column on a phone; side by
+   side once the page is wide enough that the diary is not squeezed, with the
+   diary the narrower of the two because its lines are read, not scanned. */
+.now,
+.written {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
 }
 
-.tile {
+@media (min-width: 1200px) {
+  .overview {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-6);
+  }
+}
+
+/* All across, however narrow the phone: one card, split by hairlines, the
+   way a panel of meters reads. */
+.tiles {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* The card is the strip; a tile is only its quarter of it. */
+.tiles > .tile {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
   padding: var(--space-3) var(--space-2) var(--space-3) var(--space-3);
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.tiles > .tile + .tile {
+  border-left: var(--rule-solid);
+}
+
+@media (min-width: 900px) {
+  .tiles > .tile {
+    padding: var(--space-3) var(--space-4);
+  }
 }
 
 .tileFigure {
   display: flex;
   align-items: baseline;
   gap: 2px;
-  font-size: clamp(var(--text-lg), 4.6vw, var(--text-xl));
+  font-size: clamp(var(--text-lg), 5.4vw, var(--text-figure));
   font-weight: var(--weight-figure);
   letter-spacing: -0.01em;
   line-height: 1.15;
@@ -69,8 +109,13 @@
 .sectionHeader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
+}
+
+/* The label holds the left; whatever the section offers - an action, a link,
+   Charts beside Timeline - sits together at the right. */
+.sectionHeader > :first-child {
+  margin-right: auto;
 }
 
 .sectionActions,
@@ -257,7 +302,9 @@
 
 .stillTile {
   position: relative;
-  flex: 0 0 112px;
+  /* As many as the row holds, grown to fill it; past that the row scrolls. */
+  flex: 1 0 112px;
+  max-width: 220px;
   aspect-ratio: 4 / 3;
   overflow: hidden;
   border-radius: var(--radius-sm);
@@ -295,13 +342,13 @@
 .trend {
   display: block;
   width: 100%;
-  height: 64px;
+  height: 44px;
   overflow: visible;
 }
 
 .band {
   fill: var(--green);
-  opacity: 0.14;
+  opacity: 0.1;
 }
 
 .line {

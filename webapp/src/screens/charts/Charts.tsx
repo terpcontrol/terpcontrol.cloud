@@ -28,6 +28,7 @@ import {
   defaultPick,
   droppedBy,
   isEmpty,
+  metricColour,
   offeredBy,
   prunedTo,
   type Card,
@@ -354,7 +355,12 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
 
       <div className={styles.chips} role="group" aria-label={t('charts.seriesLabel')}>
         {offered.metrics.map(metric => (
-          <Pick key={metric} on={chosen.metrics.includes(metric)} onPick={() => change({ metrics: toggle(chosen.metrics, metric) })}>
+          <Pick
+            key={metric}
+            on={chosen.metrics.includes(metric)}
+            colour={metricColour(metric)}
+            onPick={() => change({ metrics: toggle(chosen.metrics, metric) })}
+          >
             {t(`charts.metric.${metric}`, { defaultValue: metric })}
           </Pick>
         ))}
@@ -369,7 +375,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
           </Pick>
         ))}
         {(moreOutputs ? offered.outputs : offered.outputs.slice(0, OUTPUTS_SHOWN)).map(output => (
-          <Pick key={output} on={chosen.outputs.includes(output)} onPick={() => change({ outputs: toggle(chosen.outputs, output) })}>
+          <Pick key={output} on={chosen.outputs.includes(output)} colour="warning" onPick={() => change({ outputs: toggle(chosen.outputs, output) })}>
             {t(`timeline.output.${output}`, { defaultValue: output })}
           </Pick>
         ))}
@@ -659,10 +665,14 @@ function Header({ spaceId, growId, subject }: { spaceId: string | null; growId: 
   );
 }
 
-/** A series chip. A measurement carries the board's dot, which is what says it was written down rather than measured. */
-function Pick({ on, dot, onPick, children }: { on: boolean; dot?: boolean; onPick: () => void; children: React.ReactNode }) {
+/**
+ * A series chip. A measurement carries the board's dot, which is what says it
+ * was written down rather than measured. The colour is the line's, which the
+ * chip is filled with while it is on: the chip row is the chart's legend.
+ */
+function Pick({ on, dot, colour, onPick, children }: { on: boolean; dot?: boolean; colour?: string; onPick: () => void; children: React.ReactNode }) {
   return (
-    <button type="button" className={`${ui.chip} ${styles.chip}`} aria-pressed={on} onClick={onPick}>
+    <button type="button" className={`${ui.chip} ${styles.chip}`} aria-pressed={on} data-colour={colour} onClick={onPick}>
       {children}
       {dot ? <span className={styles.dot} aria-hidden /> : null}
     </button>

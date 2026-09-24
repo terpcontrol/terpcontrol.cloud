@@ -23,22 +23,28 @@
 }
 
 .name {
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
   display: flex;
   flex: 1;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-  font-size: 26px;
   line-height: var(--line-tight);
 }
 
 @media (min-width: 900px) {
   .page {
-    max-width: 720px;
+    max-width: var(--reading-width);
     padding-top: 0;
   }
+}
 
-  .name {
-    font-size: 30px;
+/* The overview is two columns of one page on a wide screen, and the Timeline
+   is read along its width; the settings tabs stay a reading column. */
+@media (min-width: 1200px) {
+  .page[data-tab='overview'],
+  .page[data-tab='timeline'] {
+    max-width: var(--page-width);
   }
 }

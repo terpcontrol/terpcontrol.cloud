@@ -258,7 +258,7 @@ function LogAction({
   return (
     <button
       type="button"
-      className={[ui.button, primary ? ui.primary : '', styles.action].filter(Boolean).join(' ')}
+      className={[ui.button, primary ? ui.primary : ui.quiet, styles.action].join(' ')}
       onClick={() => openSheet({ kind, growId, spaceId })}
     >
       <Icon size={16} strokeWidth={1.75} aria-hidden />

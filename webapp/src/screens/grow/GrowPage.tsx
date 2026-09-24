@@ -77,7 +77,7 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
   const tabs = TABS.map(key => ({ key, label: t(`grow.tabs.${key}`), to: `/grows/${growId}/${key}` }));
 
   return (
-    <section className={styles.page}>
+    <section className={styles.page} data-tab={tab}>
       <GrowHeader
         grow={grow.data}
         plants={plants.data?.items ?? []}

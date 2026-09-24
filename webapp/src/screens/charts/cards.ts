@@ -41,6 +41,9 @@ const TOGETHER: Metric[] = ['temperature', 'humidity'];
 /** The colour a line is drawn in. VPD and a grower's own measurements are ink: they are figures rather than signals. */
 const METRIC_COLOUR: Partial<Record<Metric, ChartToken>> = { temperature: 'temperature', humidity: 'humidity', co2: 'co2' };
 
+/** The colour a metric's line is drawn in, which its chip is filled with once it is on. */
+export const metricColour = (metric: Metric): ChartToken => METRIC_COLOUR[metric] ?? 'ink';
+
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** How far the leaf sits under the air in either half of the cycle, which is what turns a pair of targets into a deficit. */
@@ -360,7 +363,7 @@ const metricDrawn = (t: Translate, metric: Metric, panel: TimelinePanel, series:
         unit,
         metric,
         shape: 'line',
-        colour: METRIC_COLOUR[metric] ?? 'ink',
+        colour: metricColour(metric),
         axis: 0,
         points,
         bands: stretches.map(stretch => ({ from: stretch.from, to: stretch.to, low: stretch.target.band.low, high: stretch.target.band.high })),

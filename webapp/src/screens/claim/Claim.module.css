@@ -19,8 +19,8 @@
 }
 
 .title {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
   line-height: var(--line-tight);
 }
 
@@ -108,7 +108,7 @@
 
 .stepTitle {
   font-size: var(--text-lg);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-display-sm);
   line-height: var(--line-tight);
   text-align: left;
 }
@@ -231,7 +231,7 @@
 
 @media (min-width: 900px) {
   .screen {
-    max-width: 720px;
+    max-width: var(--reading-width);
     padding-top: 0;
   }
 }

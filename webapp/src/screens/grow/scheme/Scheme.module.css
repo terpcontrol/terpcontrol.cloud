@@ -289,7 +289,7 @@
 
 @media (min-width: 900px) {
   .page {
-    max-width: 720px;
+    max-width: var(--reading-width);
     padding-top: 0;
   }
 }

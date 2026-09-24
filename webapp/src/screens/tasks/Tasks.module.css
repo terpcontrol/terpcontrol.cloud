@@ -17,8 +17,8 @@
 }
 
 .title {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
   line-height: var(--line-tight);
 }
 
@@ -298,7 +298,7 @@ button.none {
    moving between Devices and Tasks does not move the list under the cursor. */
 @media (min-width: 900px) {
   .page {
-    max-width: 720px;
+    max-width: var(--reading-width);
     padding-top: 0;
   }
 }

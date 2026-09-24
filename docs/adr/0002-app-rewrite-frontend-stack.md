@@ -1,8 +1,9 @@
 # ADR 0002: The libraries the rewritten web app is built from
 
-- **Status:** accepted on 2026-09-18. The choices below are what `webapp/` is scaffolded on; the screens are not
-  drawn yet and nothing here depends on how they look.
-- **Date:** 2026-09-18
+- **Status:** accepted on 2026-09-18. The choices below are what `webapp/` is scaffolded on. Amended on
+  2026-09-24: the look the libraries carry is now "Greenhouse", recorded under [The look](#the-look-greenhouse);
+  it replaces "Instrument" and its two fonts.
+- **Date:** 2026-09-18, amended 2026-09-24
 - **Touches:** `webapp/`
 - **Builds on:** [ADR 0001](0001-app-rewrite-data-model.md), which fixes the model, the `/v1` API and the
   contract in `@fg2/shared-types/v1`.
@@ -14,8 +15,8 @@ reach every choice below: it is **mobile first**, desktop second, tablet third; 
 with no persona or mode selection; and **every value carries an age** and is dimmed rather than hidden when it is
 old. Two more come from outside the screens: the app must be **installable as a progressive web app**, because a
 native store build may follow, and it **consumes the contract's types directly**, so no shape is written down
-twice. The look is "Instrument" in two modes, with a closed palette, IBM Plex Sans for text, JetBrains Mono for
-every figure, 8 px corners, 1 px rules and no shadows.
+twice. The look was first "Instrument" - IBM Plex Sans, JetBrains Mono for every figure, 8 px corners, 1 px rules
+and no shadows - and is now "Greenhouse", a warm paper-and-soil look described [below](#the-look-greenhouse).
 
 A library is worth a dependency here when it does something the platform does not, and cheap enough that a phone
 on a bad connection does not pay for it. That is the test each choice below had to pass.
@@ -134,9 +135,103 @@ JavaScript bundle and make the theme a React concern, which it is not. The one p
 ECharts' canvas, so `src/charts/tokens.ts` reads the computed values off the document and hands them over —
 still one source, read rather than duplicated.
 
-Fonts are self-hosted through `@fontsource-variable`, weight axis only and latin subsets precached. Google Fonts
-would be a third-party request on every load, which an installed app cannot rely on and which tells somebody else
-who opened the app.
+Fonts are self-hosted through `@fontsource-variable`, with the axes the look uses (see below) and latin subsets
+precached. Google Fonts would be a third-party request on every load, which an installed app cannot rely on and
+which tells somebody else who opened the app.
+
+### The look: Greenhouse
+
+The first look, "Instrument", read as a terminal: a monospaced face on every figure, label and sentence, every
+string at one weight, flat grey-on-grey surfaces, and on a wide screen a phone's column with half the window
+empty. Three directions were drawn over the real screens - a calm editorial one, a precise dark-first one and a
+warm organic one - and the organic one was chosen, with parts of the other two grafted onto it. It is the one
+that looks like a grower's journal rather than an admin panel, and its character lives in tokens (the page
+colour, the serif titles, the pill shapes, the green wash) rather than in per-screen layouts, so the forty
+screens nobody polishes by hand still inherit it. `webapp/src/theme/tokens.css` is where every value below is
+written; this section says what they are and why, and the two change together.
+
+**Faces.** Two families, both OFL and self-hosted:
+
+- **Nunito Sans Variable** (`@fontsource-variable/nunito-sans`, weight and optical-size axes) for every word and
+  every figure. Its digits are tabular by default, so a column of readings lines up without a second, monospaced
+  face; `.figure` and `.mono` only turn on `tabular-nums`, and `--font-figure` is the same family.
+- **Fraunces Variable** (`@fontsource-variable/fraunces`, the full axis set) for the names a person gave things:
+  the wordmark, page titles, place names on cards, week headings, sheet titles - every `h1` and `h2`. It is set
+  at full softness and never wonky (`--display-axes: 'SOFT' 100, 'WONK' 0`). The optical-size axis is what makes
+  one serif work from 15 to 32 px: the browser picks the sturdier text cut for a 17 px card name and the finer
+  display cut for a 32 px title. The weight does not follow on its own, so a title is 540 and anything under
+  about 22 px steps down to 480; at one weight the small names read as blots.
+
+**Scale** (px): 11.5 for section labels only; 12 / 13.5 / 15 / 17 / 24 for text (`--text-xs` to `--text-xl`,
+15 is body); names on cards 17 on a phone and 19 on a desktop; page titles 26 and 32; the big card figure 25 and
+28 - sized so that temperature, humidity and VPD with their units fit one line of a 390 px phone card. Body line
+height is 1.5, tight lines 1.2. Weights: 420 regular, 560 medium, 680 semibold, 780 bold, 650 for figures.
+
+**Section labels** are the one thing set in capitals: 11.5 px, bold, tracked 0.08 em, in the label colour. A
+`header` whose first child is a `.label`, or a label straight inside a `section`, stands on a hairline rule.
+Sentence-case labels at 12 px read as body text and a long page lost its sections; the capitals on a rule give
+it structure without competing with the figures.
+
+**Palette.** One green means growing, live and "go"; the signal colours are earthy but exact because a chart is
+read against them. Every text colour clears WCAG AA with a margin - at least 5:1 on the page, the card and the
+inset surface of its own mode - because values that sat at 4.6 were legal and still thin on a real screen.
+
+| Token | Light | Dark | Used for |
+| --- | --- | --- | --- |
+| `--bg` | `#f4efe6` | `#13120f` | the page: oat paper / warm charcoal |
+| `--card` | `#fffcf7` | `#1d1b17` | cards, sheets |
+| `--card-2` | `#f1ebdf` | `#27241f` | inset surfaces, fields |
+| `--rule` | `#e5ddcd` | `#34302a` | hairlines |
+| `--rule-strong` | `#d6ccb8` | `#484238` | a field's edge, a dashed outline |
+| `--ink` | `#22271f` | `#f1ebe0` | text |
+| `--muted` | `#60594c` | `#b5ad9e` | secondary text |
+| `--label` | `#655d4d` | `#a39a89` | labels, captions |
+| `--brand` | `#2c5a37` | `#a9d98d` | active tab, pressed chip, wordmark (light) |
+| `--brand-wash` | `#e3ebdc` | `#283523` | behind whatever is selected, the live pill |
+| `--green` | `#3b7a34` | `#8fcd6f` | live dots, in-band marks, target lines |
+| `--green-ink` | `#2c6427` | `#9fd782` | green text |
+| `--green-fill` | `#3b7a34` | `#6aa651` | the primary action's fill, switches |
+| `--on-green` | `#ffffff` | `#10190b` | text on the fill |
+| `--tint` | `#f1ebdf` | `#2b2822` | quiet actions inside a card |
+| `--temperature` | `#9a4212` | `#f0935c` | terracotta |
+| `--humidity` | `#1b6590` | `#6bb6dc` | sky |
+| `--co2` | `#7447a0` | `#bf9be6` | plum |
+| `--warning` | `#7a5405` | `#e3b457` | ochre |
+| `--alarm` | `#a82e27` | `#f27e6f` | brick |
+
+The dark green fill is a step below the dark green itself: a large lit fill glares in a dark tent where a dot or a
+line does not. Captions over photographs sit on smoked glass (`--overlay`, `rgb(24 21 16 / 70%)`, text
+`#fbf7ee`) in both modes, because the picture does not change with the theme; a button over a photograph is solid
+(`--overlay-solid`, `#2a2620`), because glass under a control lets a bright frame wash it out.
+
+**Charts** take every colour from these tokens through `src/charts/tokens.ts`: a line in its signal colour (VPD
+and hand-written readings in ink, outputs in warning), the target band `--band` (the green at 13 % / 12 %), the
+nights `--night` as a faint wash rather than a solid block so a month of nights does not read as a barcode, and
+three faint rules across each plot in `--grid`. A series chip is filled with its line's colour when it is on, and
+the pinned reading draws a short stroke in each line's colour before its name, so the chips and the header are
+the legend.
+
+**Shape.** Cards 16 px, inner tiles, photos and fields 10 px, small tags 6 px; buttons and chips are pills.
+1 px rules, and a low warm two-layer shadow under a card in light mode (an inset top highlight and a deep drop
+shadow in dark mode) - paper lying on paper. A field is 44 px tall, a card's repeated action 36, a chip 30. The
+one primary action on a screen is filled green; the quieter actions a card repeats (Photo, Note, Alarms off) are
+a filled tint with no outline, so they sit under the readings instead of over them; everything else is an
+outlined pill. A pressed chip is filled with the brand, so which one is on can be seen from across the room.
+
+**Spacing.** A 4 px unit: 4, 8, 12, 16, 24 and 36 inside a page, 48 and 64 between the sections of a long one.
+
+**Layout.** Phone first, with a frosted top bar and tab bar; from 900 px a rail replaces both and each screen is
+centred in the space it leaves. Three widths: 560 px for a form or sheet, 760 px for a reading column (settings,
+lists, Me, Tasks, Alerts), and 1180 px for a page that uses the screen - Home (two columns of cards from 1200 px,
+the two of a row stretched to one height with their actions at the foot, so a short card never leaves a hole),
+a space's overview (the tent now beside what was written), its Timeline, a grow's weeks and feeding chart,
+Charts, and a camera (the picture and its films beside its settings).
+
+**Why not the other two.** The calm editorial direction had the finest type, but its serif figures were thin
+at a glance and it kept one narrow column on a wide screen; its section labels and its paired header links were
+taken. The precise direction was the most legible and fitted three figures on a phone, but it was a better-made
+version of the instrument look that was being replaced; its hairline readout strips, its quiet filled actions
+and its figure sizing were taken.
 
 ### Icons: lucide-react
 
@@ -147,7 +242,8 @@ something that has to take `currentColor` and a stroke width.
 ### Progressive web app: vite-plugin-pwa
 
 Workbox generates the service worker; the manifest is the one the Angular app already had, kept in `public/`
-because it still fits — same name, same icons, the brand blue as theme colour. Precached is the shell, the two
+because it still fits — same name, same icons; its theme and background colours follow the look's forest
+green and paper. Precached is the shell, the two
 catalogues and the latin fonts, about 680 KiB; the drawings under `assets/` and the onboarding videos are tens of
 megabytes and are cached once they are actually looked at. The app updates itself (`registerType: 'autoUpdate'`)
 rather than asking. A native store build, if it comes, wraps this same bundle — which is why the build stays a

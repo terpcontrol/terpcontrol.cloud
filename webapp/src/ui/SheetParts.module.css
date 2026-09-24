@@ -8,9 +8,9 @@
 }
 
 .choice[data-chosen='true'] {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--bg);
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-brand);
 }
 
 .choice:disabled {

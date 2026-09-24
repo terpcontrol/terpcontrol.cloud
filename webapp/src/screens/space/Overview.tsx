@@ -64,122 +64,129 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
 
   return (
     <div className={styles.overview}>
-      {hasDevice ? <Values overview={overview} now={now} /> : <p className={`${ui.cardDashed} ${ui.note}`}>{t('home.invite.noSensor')}</p>}
-      {overview.targets ? <TargetsLine overview={overview} /> : null}
+      {/* The tent now - its readings, what grows in it, today's pictures and
+          the day's climate - and beside it on a wide screen, what was
+          written: two columns of one page rather than one long one. */}
+      <div className={styles.now}>
+        {hasDevice ? <Values overview={overview} now={now} /> : <p className={`${ui.cardDashed} ${ui.note}`}>{t('home.invite.noSensor')}</p>}
+        {overview.targets ? <TargetsLine overview={overview} /> : null}
 
-      {/* The phase tiles, as one sheet: what a tent is put on is a stage with a
+        {/* The phase tiles, as one sheet: what a tent is put on is a stage with a
           climate on top of it, and what that comes to is said in the sheet. */}
-      {mayManage ? (
-        <div className={styles.spaceActions}>
-          <button type="button" className={`${ui.chip} ${styles.spaceAction}`} onClick={() => setSheet('preset')}>
-            <Sliders size={13} strokeWidth={1.75} aria-hidden />
-            {t('space.presets.open')}
-          </button>
-        </div>
-      ) : mayLog ? (
-        /* The chips above are gone rather than refused, and their absence is
+        {mayManage ? (
+          <div className={styles.spaceActions}>
+            <button type="button" className={`${ui.chip} ${styles.spaceAction}`} onClick={() => setSheet('preset')}>
+              <Sliders size={13} strokeWidth={1.75} aria-hidden />
+              {t('space.presets.open')}
+            </button>
+          </div>
+        ) : mayLog ? (
+          /* The chips above are gone rather than refused, and their absence is
            the kind somebody would look for - so this says what this person may
            do here instead, once, where the missing row was. */
-        <p className={`mono ${styles.role}`}>{t('space.youMayLog')}</p>
-      ) : null}
+          <p className={`mono ${styles.role}`}>{t('space.youMayLog')}</p>
+        ) : null}
 
-      {overview.dueTasks.length > 0 ? (
-        <Section label={t('space.dueNow')} link={{ to: '/tasks', label: t('shell.tabs.tasks') }}>
-          <ul className={styles.list}>
-            {overview.dueTasks.map(task => (
-              <DueCard key={task.id} task={task} overview={overview} now={now} />
-            ))}
-          </ul>
-        </Section>
-      ) : null}
+        {overview.dueTasks.length > 0 ? (
+          <Section label={t('space.dueNow')} link={{ to: '/tasks', label: t('shell.tabs.tasks') }}>
+            <ul className={styles.list}>
+              {overview.dueTasks.map(task => (
+                <DueCard key={task.id} task={task} overview={overview} now={now} />
+              ))}
+            </ul>
+          </Section>
+        ) : null}
 
-      <Section
-        label={t('space.growingHere')}
-        actions={
-          <span className={`mono ${styles.sectionActions}`}>
-            {/* Both of these put a grow into this place, which is managing it. */}
-            {mayManage ? (
-              <>
-                <Link to={`/log?kind=phase&space=${overview.spaceId}`}>+ {t('space.newGrow')}</Link>
-                {' · '}
-                <button type="button" className={styles.sectionButton} onClick={() => setSheet('move')}>
-                  {t('space.moveHere')}
-                </button>
-              </>
-            ) : null}
-          </span>
-        }
-      >
-        {overview.grows.length === 0 ? (
-          <p className={ui.note}>{t('home.invite.noGrow')}</p>
-        ) : (
-          <ul className={styles.list}>
-            {overview.grows.map(grow => (
-              <GrowRow key={grow.growId} grow={grow} still={overview.cameras[0]?.stills.at(-1)?.mediaId ?? null} />
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      {overview.cameras.map(camera => (
-        // The strip is one picture per slot of the day, so it spans the day
-        // rather than the last few minutes of it - which leaves everything
-        // between the tiles somewhere else, and the camera's own page is where.
         <Section
-          key={camera.cameraId}
-          label={`${camera.name} · ${t('space.today')}`}
-          link={{ to: `/cameras/${camera.cameraId}`, label: t('space.everyPicture') }}
-        >
-          <CameraStrip camera={camera} now={now} />
-        </Section>
-      ))}
-
-      {hasDevice ? (
-        <Section
-          // Always the last 24 h, because that is the window the verdict below
-          // is read over: the server grades from now backwards whatever the
-          // tent has been doing, so a heading naming the hour the last reading
-          // came in was a window nothing had been computed for - and it sat
-          // over a panel saying nothing had been heard in the last 24 h. How
-          // old the tent is, this page says three other ways: the header pill,
-          // the dimmed tiles, and that sentence in the panel itself.
-          label={t('space.climate24h')}
-          // Charts opens from here as well as from the Timeline header: this is
-          // the section a grower is already reading the climate in.
+          label={t('space.growingHere')}
           actions={
             <span className={`mono ${styles.sectionActions}`}>
-              <Link to={`/charts?space=${overview.spaceId}`}>{t('charts.title')}</Link>
+              {/* Both of these put a grow into this place, which is managing it. */}
+              {mayManage ? (
+                <>
+                  <Link to={`/log?kind=phase&space=${overview.spaceId}`}>+ {t('space.newGrow')}</Link>
+                  {' · '}
+                  <button type="button" className={styles.sectionButton} onClick={() => setSheet('move')}>
+                    {t('space.moveHere')}
+                  </button>
+                </>
+              ) : null}
             </span>
           }
-          link={{ to: `/spaces/${overview.spaceId}/timeline`, label: t('space.tabs.timeline') }}
         >
-          <Verdict verdict={overview.verdict} liveness={liveness} />
+          {overview.grows.length === 0 ? (
+            <p className={ui.note}>{t('home.invite.noGrow')}</p>
+          ) : (
+            <ul className={styles.list}>
+              {overview.grows.map(grow => (
+                <GrowRow key={grow.growId} grow={grow} still={overview.cameras[0]?.stills.at(-1)?.mediaId ?? null} />
+              ))}
+            </ul>
+          )}
         </Section>
-      ) : null}
+
+        {overview.cameras.map(camera => (
+          // The strip is one picture per slot of the day, so it spans the day
+          // rather than the last few minutes of it - which leaves everything
+          // between the tiles somewhere else, and the camera's own page is where.
+          <Section
+            key={camera.cameraId}
+            label={`${camera.name} · ${t('space.today')}`}
+            link={{ to: `/cameras/${camera.cameraId}`, label: t('space.everyPicture') }}
+          >
+            <CameraStrip camera={camera} now={now} />
+          </Section>
+        ))}
+
+        {hasDevice ? (
+          <Section
+            // Always the last 24 h, because that is the window the verdict below
+            // is read over: the server grades from now backwards whatever the
+            // tent has been doing, so a heading naming the hour the last reading
+            // came in was a window nothing had been computed for - and it sat
+            // over a panel saying nothing had been heard in the last 24 h. How
+            // old the tent is, this page says three other ways: the header pill,
+            // the dimmed tiles, and that sentence in the panel itself.
+            label={t('space.climate24h')}
+            // Charts opens from here as well as from the Timeline header: this is
+            // the section a grower is already reading the climate in.
+            actions={
+              <span className={`mono ${styles.sectionActions}`}>
+                <Link to={`/charts?space=${overview.spaceId}`}>{t('charts.title')}</Link>
+              </span>
+            }
+            link={{ to: `/spaces/${overview.spaceId}/timeline`, label: t('space.tabs.timeline') }}
+          >
+            <Verdict verdict={overview.verdict} liveness={liveness} />
+          </Section>
+        ) : null}
+      </div>
 
       {/* Named for where it goes rather than for what it promises: the strip is
           the last eight lines whatever their age, while the Timeline opens on a
           fixed 24 hours, so on a quiet tent "All" led to a window holding two of
           the eight lines it was pressed from. The climate section three above
           links to the same screen and already calls it by its name. */}
-      <Section label={t('space.latest')} link={{ to: `/spaces/${overview.spaceId}/timeline`, label: t('space.tabs.timeline') }}>
-        {overview.entries.length === 0 ? (
-          <p className={ui.note}>{t('home.card.noEntries')}</p>
-        ) : (
-          <ul className={styles.entries}>
-            {overview.entries.map(entry => (
-              <EntryRow
-                key={entry.id}
-                entry={entry}
-                people={overview.people}
-                measurements={readingNamesOf(overview.readingNames, entry.growId)}
-                now={now}
-                onOpen={correcting(entry, { label: overview.name, spaceId: overview.spaceId })}
-              />
-            ))}
-          </ul>
-        )}
-      </Section>
+      <div className={styles.written}>
+        <Section label={t('space.latest')} link={{ to: `/spaces/${overview.spaceId}/timeline`, label: t('space.tabs.timeline') }}>
+          {overview.entries.length === 0 ? (
+            <p className={ui.note}>{t('home.card.noEntries')}</p>
+          ) : (
+            <ul className={styles.entries}>
+              {overview.entries.map(entry => (
+                <EntryRow
+                  key={entry.id}
+                  entry={entry}
+                  people={overview.people}
+                  measurements={readingNamesOf(overview.readingNames, entry.growId)}
+                  now={now}
+                  onOpen={correcting(entry, { label: overview.name, spaceId: overview.spaceId })}
+                />
+              ))}
+            </ul>
+          )}
+        </Section>
+      </div>
 
       {sheet === 'preset' ? <PresetSheet overview={overview} onClose={() => setSheet(null)} /> : null}
       {sheet === 'move' ? <MoveHereSheet spaceId={overview.spaceId} spaceName={overview.name} onClose={() => setSheet(null)} /> : null}

@@ -1,12 +1,14 @@
 /*
  * "Greenhouse", the decided look, as the only place a colour, a size or a
  * radius is written down. Components name a token and never a literal, so the
- * two modes are this file and nothing else.
+ * two modes are this file and nothing else. ADR 0002 records why each of these
+ * is what it is; change the two together.
  *
  * Warm paper and soil for the frame, a living green for what is growing and
  * the one primary action, and signal colours that stay exact because a chart
- * is read against them. Every text colour here clears WCAG AA (4.5:1) on the
- * page, the card and the inset surface of its own mode.
+ * is read against them. Every text colour here clears WCAG AA with room to
+ * spare - 5:1 or better on the page, the card and the inset surface of its own
+ * mode, so a thin 12 px label still holds on a cheap screen.
  *
  * Light is the default set; dark replaces the colours under the same names. It
  * is declared twice on purpose: once for a system that asks for dark and has
@@ -23,66 +25,97 @@
   --card: #fffcf7;
   --card-2: #f1ebdf;
   --rule: #e5ddcd;
+  /* A rule that has to be seen rather than felt: a field's edge, an empty segment. */
+  --rule-strong: #d6ccb8;
   --ink: #22271f;
   --muted: #60594c;
-  --label: #6c6454;
+  --label: #655d4d;
 
   /* The active range chip and the active tab: a deep forest. */
   --brand: #2c5a37;
+  --on-brand: #fffcf7;
   --wordmark: var(--brand);
   /* A tint of the brand, behind whatever is selected. */
   --brand-wash: #e3ebdc;
 
-  /* Live, and the one primary action. `--green-ink` is the shade green text
-     needs to stay readable on a cream card. */
+  /* Live, in band, a dot that says growing. `--green-ink` is the shade green
+     text needs to stay readable on a cream card. */
   --green: #3b7a34;
-  --green-ink: #2f6a29;
+  --green-ink: #2c6427;
+  /* The one primary action, filled. In light mode it is the green itself; in
+     dark mode it is a step down from it, because a large lit fill glares in a
+     dark tent where a dot or a line does not. */
+  --green-fill: #3b7a34;
   --on-green: #ffffff;
 
-  /* Signals. Earthy but exact: terracotta, sky, plum, ochre, brick. */
-  --temperature: #a84b1a;
-  --humidity: #22709a;
-  --co2: #7c4ca8;
-  --warning: #855c08;
-  --alarm: #b3322b;
+  /* A quiet action - a card's Photo, Note, Alarms off - is a filled tint
+     rather than an outline, so a row of them sits under the readings instead
+     of over them. */
+  --tint: var(--card-2);
+  --tint-hover: #e8e0d0;
 
-  /* The target band behind a chart line, and the night behind it. A canvas
-     reads these, so they are written in the syntax every chart parser knows. */
-  --band: rgba(59, 122, 52, 0.14);
-  --night: #ede6d8;
+  /* Signals. Earthy but exact: terracotta, sky, plum, ochre, brick. */
+  --temperature: #9a4212;
+  --humidity: #1b6590;
+  --co2: #7447a0;
+  --warning: #7a5405;
+  --alarm: #a82e27;
+  /* Text laid on a filled signal - a pressed series chip, a count badge. */
+  --on-signal: var(--card);
+
+  /* The target band behind a chart line, the night behind it, and the faint
+     rule a plot is read across. A canvas reads these, so they are written in
+     the syntax every chart parser knows. */
+  --band: rgba(59, 122, 52, 0.13);
+  --night: rgba(120, 96, 52, 0.07);
+  --grid: rgba(96, 89, 76, 0.16);
 
   /* Light coming in from the top of the page: a warm wash, nothing more. */
   --glow: radial-gradient(1200px 520px at 70% -180px, rgb(247 205 130 / 28%), transparent 70%);
 
   /* Type. Nunito Sans for words and figures - its digits are tabular by
      design, so a column of numbers lines up without a second face. Fraunces,
-     softened, for the names a person gave things: pages, places, grows. */
+     softened, for the names a person gave things: pages, places, grows. Both
+     carry an optical-size axis, so a 17 px card name gets the sturdier text
+     cut and a 32 px page title the finer display one without anybody asking. */
   --font-text: 'Nunito Sans Variable', system-ui, sans-serif;
   --font-display: 'Fraunces Variable', Georgia, serif;
   /* Figures, timestamps and captions: the same face, whose tabular digits do
      the aligning a monospaced face used to. */
   --font-figure: var(--font-text);
+  /* Fraunces at full softness, never wonky. */
+  --display-axes: 'SOFT' 100, 'WONK' 0;
 
+  /* The scale. 11.5 is only ever the tracked capitals of a section label. */
+  --text-2xs: 11.5px;
   --text-xs: 12px;
   --text-sm: 13.5px;
   --text-md: 15px;
   --text-lg: 17px;
   --text-xl: 24px;
-  /* The big figure on a card: "25.1", "34". */
-  --text-figure: 28px;
+  /* A thing's name in a list or on a card: Fraunces at its lighter small weight. */
+  --text-name: 17px;
+  /* A page's own title. A phone's here, a desktop's below. */
+  --text-title: 26px;
+  /* The big figure on a card: "25.1", "34". Sized so that three of them and
+     their units sit on one line of a 390 px phone card. */
+  --text-figure: 25px;
 
   --weight-regular: 420;
   --weight-medium: 560;
   --weight-semibold: 680;
   --weight-bold: 780;
   --weight-figure: 650;
-  --weight-display: 560;
+  /* Fraunces at a title's size, and one step lighter under about 22 px, where
+     the same weight reads as a blot rather than a name. */
+  --weight-display: 540;
+  --weight-display-sm: 480;
 
   --line-tight: 1.2;
   --line-body: 1.5;
 
-  /* Small labels are sentence case now; a touch of tracking keeps them open. */
-  --tracking-label: 0.01em;
+  /* A section label is small capitals, tracked open. */
+  --tracking-label: 0.08em;
   --tracking-caption: 0.01em;
   --tracking-display: -0.01em;
 
@@ -90,23 +123,29 @@
      paper lying on paper, not a panel floating over glass. */
   --radius: 16px;
   --radius-sm: 10px;
+  --radius-xs: 6px;
   --radius-pill: 999px;
   --rule-width: 1px;
   --rule-solid: var(--rule-width) solid var(--rule);
-  --rule-dashed: var(--rule-width) dashed var(--rule);
+  --rule-dashed: var(--rule-width) dashed var(--rule-strong);
   --shadow: 0 1px 2px rgb(80 62 30 / 6%), 0 8px 24px -12px rgb(80 62 30 / 16%);
   --shadow-raised: 0 2px 4px rgb(80 62 30 / 8%), 0 16px 32px -12px rgb(80 62 30 / 24%);
 
-  /* A 4 px rhythm, roomier at the top end. */
+  /* A 4 px rhythm, roomier at the top end: 48 and 64 separate the sections of
+     a long page rather than the parts of a card. */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 24px;
   --space-6: 36px;
+  --space-7: 48px;
+  --space-8: 64px;
 
-  /* A finger's worth for a field or a button; a chip is smaller. */
+  /* A finger's worth for a field or a button; a chip is smaller, and a card's
+     repeated quiet actions smaller again. */
   --control-height: 44px;
+  --action-height: 36px;
   --chip-height: 30px;
 
   --tabbar-height: 62px;
@@ -115,8 +154,12 @@
   --log-button: 56px;
   /* The desktop rail replaces the tab bar from here up. */
   --rail-width: 248px;
-  /* A phone's column, kept on a wide screen so a card never stretches. */
+  /* A phone's column, kept on a wide screen for a form or a sheet. */
   --column-width: 560px;
+  /* One column of reading on a wide screen: a settings page, a list. */
+  --reading-width: 760px;
+  /* A whole page on a wide screen: two columns, or one wide plot. */
+  --page-width: 1180px;
 
   /* The screen behind a sheet, and the bar that says what was just logged: one
      dark surface in light mode, a raised one in dark mode, because a toast has
@@ -126,9 +169,12 @@
   --toast-ink: #f6f1e7;
 
   /* A caption laid over a photograph: smoked glass, the same in both modes
-     because the picture under it does not change with the theme. */
+     because the picture under it does not change with the theme. A button over
+     a photograph is solid instead - glass under a control lets a bright frame
+     wash the control out. */
   --overlay: rgb(24 21 16 / 70%);
   --on-overlay: #fbf7ee;
+  --overlay-solid: #2a2620;
 
   /* A value whose age says it is old is dimmed, never hidden. */
   --age-live: 1;
@@ -143,6 +189,16 @@
   --qr-paper: #ffffff;
 }
 
+/* A desktop's title and figures: the rail frees the width, and the reader sits
+   further back. */
+@media (min-width: 900px) {
+  :root {
+    --text-title: 32px;
+    --text-name: 19px;
+    --text-figure: 28px;
+  }
+}
+
 :root[data-theme='dark'] {
   color-scheme: dark;
 
@@ -151,19 +207,26 @@
   --card: #1d1b17;
   --card-2: #27241f;
   --rule: #34302a;
+  --rule-strong: #484238;
   --ink: #f1ebe0;
   --muted: #b5ad9e;
   --label: #a39a89;
 
   --brand: #a9d98d;
+  --on-brand: #13200d;
   --wordmark: var(--ink);
   --brand-wash: #283523;
   --green: #8fcd6f;
   --green-ink: #9fd782;
-  --on-green: #13200d;
+  --green-fill: #6aa651;
+  --on-green: #10190b;
 
-  --band: rgba(143, 205, 111, 0.13);
-  --night: #23211c;
+  --tint: #2b2822;
+  --tint-hover: #353128;
+
+  --band: rgba(143, 205, 111, 0.12);
+  --night: rgba(0, 0, 0, 0.22);
+  --grid: rgba(241, 235, 224, 0.09);
   --glow: radial-gradient(1200px 520px at 70% -180px, rgb(230 170 80 / 9%), transparent 70%);
 
   --shadow: 0 1px 0 rgb(255 240 210 / 3%) inset, 0 10px 28px -14px rgb(0 0 0 / 70%);
@@ -178,6 +241,7 @@
   --co2: #bf9be6;
   --warning: #e3b457;
   --alarm: #f27e6f;
+  --on-signal: var(--bg);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -188,19 +252,26 @@
     --card: #1d1b17;
     --card-2: #27241f;
     --rule: #34302a;
+    --rule-strong: #484238;
     --ink: #f1ebe0;
     --muted: #b5ad9e;
     --label: #a39a89;
 
     --brand: #a9d98d;
+    --on-brand: #13200d;
     --wordmark: var(--ink);
     --brand-wash: #283523;
     --green: #8fcd6f;
     --green-ink: #9fd782;
-    --on-green: #13200d;
+    --green-fill: #6aa651;
+    --on-green: #10190b;
 
-    --band: rgba(143, 205, 111, 0.13);
-    --night: #23211c;
+    --tint: #2b2822;
+    --tint-hover: #353128;
+
+    --band: rgba(143, 205, 111, 0.12);
+    --night: rgba(0, 0, 0, 0.22);
+    --grid: rgba(241, 235, 224, 0.09);
     --glow: radial-gradient(1200px 520px at 70% -180px, rgb(230 170 80 / 9%), transparent 70%);
 
     --shadow: 0 1px 0 rgb(255 240 210 / 3%) inset, 0 10px 28px -14px rgb(0 0 0 / 70%);
@@ -215,5 +286,6 @@
     --co2: #bf9be6;
     --warning: #e3b457;
     --alarm: #f27e6f;
+    --on-signal: var(--bg);
   }
 }

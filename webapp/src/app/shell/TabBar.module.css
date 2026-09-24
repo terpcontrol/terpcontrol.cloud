@@ -52,7 +52,7 @@
   height: var(--log-button);
   margin-top: calc(var(--log-button) * -0.5);
   border-radius: 50%;
-  background: var(--green);
+  background: var(--green-fill);
   color: var(--on-green);
   /* The bar's own background around it, so the rule stops short of the circle. */
   box-shadow:

@@ -23,7 +23,7 @@
     font-family: var(--font-display);
     font-size: var(--text-xl);
     font-weight: var(--weight-display);
-    font-variation-settings: 'SOFT' 100;
+    font-variation-settings: var(--display-axes);
     letter-spacing: var(--tracking-display);
     line-height: var(--line-tight);
     color: var(--wordmark);
@@ -39,7 +39,7 @@
     margin-bottom: var(--space-4);
     padding: 0 var(--space-3) 0 var(--space-4);
     border-radius: var(--radius-pill);
-    background: var(--green);
+    background: var(--green-fill);
     color: var(--on-green);
     font-weight: var(--weight-bold);
     box-shadow: var(--shadow);
@@ -78,6 +78,12 @@
     color: var(--brand);
     background: var(--brand-wash);
     font-weight: var(--weight-semibold);
+  }
+
+  /* The label colour is measured against the page and the cards, not the
+     wash; on the wash the quieter line takes the muted ink instead. */
+  .active .accountNote {
+    color: var(--muted);
   }
 
   .spacer {

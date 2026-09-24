@@ -34,7 +34,8 @@
 }
 
 .title {
-  font-size: 26px;
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
   line-height: var(--line-tight);
 }
 
@@ -65,7 +66,7 @@
 .chip[aria-pressed='true'] {
   background: var(--brand);
   border-color: var(--brand);
-  color: var(--on-green);
+  color: var(--on-brand);
   font-weight: var(--weight-semibold);
 }
 
@@ -166,6 +167,12 @@
 
 .plot {
   position: relative;
+  /* Three faint rules across the drawn area - its top, middle and foot - to
+     read a curve against; the two corner figures sit on the outer two. */
+  background:
+    linear-gradient(var(--grid), var(--grid)) var(--gutter) 0 / calc(100% - var(--gutter) - var(--gutter-right)) 1px no-repeat,
+    linear-gradient(var(--grid), var(--grid)) var(--gutter) 50% / calc(100% - var(--gutter) - var(--gutter-right)) 1px no-repeat,
+    linear-gradient(var(--grid), var(--grid)) var(--gutter) 100% / calc(100% - var(--gutter) - var(--gutter-right)) 1px no-repeat;
   /* Three cards and the footer fit a phone without the chips scrolling away. */
   height: 104px;
 }
@@ -277,8 +284,23 @@
 }
 
 .scrubValue {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
   font-weight: var(--weight-semibold);
   white-space: nowrap;
+}
+
+/* The key: a short stroke in the line's own colour ahead of its name, so the
+   header says which curve is which even where the cursor reads nothing. It is
+   drawn from the value's colour, which each line sets below. */
+.scrubValue::before {
+  content: '';
+  align-self: center;
+  width: 14px;
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: currentcolor;
 }
 
 /* The line's name is what the figure belongs to rather than the figure itself. */
@@ -356,7 +378,7 @@
 
 .segment[aria-pressed='true'] {
   background: var(--brand);
-  color: var(--on-green);
+  color: var(--on-brand);
   font-weight: var(--weight-semibold);
 }
 
@@ -403,15 +425,22 @@
 
 @media (min-width: 900px) {
   .screen {
-    max-width: 720px;
+    max-width: var(--reading-width);
     padding-top: 0;
   }
 
   .plot {
     height: 160px;
   }
+}
 
-  .title {
-    font-size: 32px;
+/* A chart is the one thing on this screen, so on a wide one it takes the page. */
+@media (min-width: 1200px) {
+  .screen {
+    max-width: var(--page-width);
+  }
+
+  .plot {
+    height: 200px;
   }
 }

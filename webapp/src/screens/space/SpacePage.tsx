@@ -86,7 +86,7 @@ function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; su
   const Icon = KIND_ICON[current.kind];
 
   return (
-    <section className={styles.page}>
+    <section className={styles.page} data-tab={tab}>
       <header className={styles.header}>
         <Link to="/" className={styles.back} aria-label={t('shell.tabs.home')}>
           <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />

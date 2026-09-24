@@ -6,6 +6,30 @@
   scrollbar-width: none;
 }
 
+/* A row wider than the phone scrolls, and says so: the far edge fades while
+   there is more of it to reach, and stops fading at the end. A row that fits
+   has nothing to scroll, the timeline never starts, and nothing fades. */
+@supports (animation-timeline: scroll()) {
+  .tabs {
+    animation: tabs-more linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+
+@keyframes tabs-more {
+  from {
+    mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+  }
+
+  99% {
+    mask-image: linear-gradient(to right, transparent 0, #000 40px, #000 calc(100% - 40px), transparent);
+  }
+
+  to {
+    mask-image: linear-gradient(to right, transparent 0, #000 40px);
+  }
+}
+
 .tab {
   flex-shrink: 0;
   padding: var(--space-3) 0 var(--space-2);
@@ -15,6 +39,10 @@
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
   color: var(--muted);
+}
+
+.tab:hover {
+  color: var(--ink);
 }
 
 @media (min-width: 900px) {
@@ -27,7 +55,8 @@
   }
 }
 
-.active {
+.active,
+.active:hover {
   border-bottom-color: var(--brand);
   color: var(--brand);
 }

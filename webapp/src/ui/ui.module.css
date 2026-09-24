@@ -55,10 +55,27 @@
 /* The one primary action on a screen. */
 .primary,
 .primary:hover:not(:disabled) {
-  background: var(--green);
-  border-color: var(--green);
+  background: var(--green-fill);
+  border-color: var(--green-fill);
   color: var(--on-green);
   box-shadow: var(--shadow);
+}
+
+/* A quiet action inside a card - the Photo, Note and Alarms off a card
+   repeats: a filled tint with no outline, a step shorter than a field, so a
+   row of them sits under the readings rather than over them. It only works on
+   a card; on the bare page a tint is the page, and the outlined button above
+   is the one to use there. */
+.quiet {
+  height: var(--action-height);
+  padding: 0 var(--space-3);
+  background: var(--tint);
+  border-color: transparent;
+  font-size: var(--text-sm);
+}
+
+.quiet:hover:not(:disabled) {
+  background: var(--tint-hover);
 }
 
 /* A primary that cannot be pressed gives the green up rather than fading it.
@@ -91,6 +108,74 @@
   white-space: nowrap;
 }
 
+/* A chip that is on: filled with the brand, so "which one is on" is answered
+   from across the room. A chip that stands for a line on a chart names the
+   line's colour in `data-colour` and is filled with that instead, which is
+   what makes the chip its own legend. */
+.chip[aria-pressed='true'],
+.chip[data-chosen='true'] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-brand);
+}
+
+.chip[aria-pressed='true'][data-colour='temperature'] {
+  background: var(--temperature);
+  border-color: var(--temperature);
+  color: var(--on-signal);
+}
+
+.chip[aria-pressed='true'][data-colour='humidity'] {
+  background: var(--humidity);
+  border-color: var(--humidity);
+  color: var(--on-signal);
+}
+
+.chip[aria-pressed='true'][data-colour='co2'] {
+  background: var(--co2);
+  border-color: var(--co2);
+  color: var(--on-signal);
+}
+
+.chip[aria-pressed='true'][data-colour='warning'] {
+  background: var(--warning);
+  border-color: var(--warning);
+  color: var(--on-signal);
+}
+
+.chip[aria-pressed='true'][data-colour='ink'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-signal);
+}
+
+/* Off, a line's chip keeps a small mark of its colour, so the chip still says
+   which line it would draw. */
+.chip[aria-pressed='false'][data-colour]::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  margin-right: 2px;
+  border-radius: 50%;
+  background: var(--chip-colour, var(--ink));
+}
+
+.chip[data-colour='temperature'] {
+  --chip-colour: var(--temperature);
+}
+
+.chip[data-colour='humidity'] {
+  --chip-colour: var(--humidity);
+}
+
+.chip[data-colour='co2'] {
+  --chip-colour: var(--co2);
+}
+
+.chip[data-colour='warning'] {
+  --chip-colour: var(--warning);
+}
+
 /* A chip out of reach, turned down as far as every other control the app
    refuses. The rule above says the outlined chips do this, and until now they
    did not: a chip never carries `.button`, so the only thing that reached a
@@ -107,7 +192,7 @@
   height: var(--control-height);
   padding: 0 var(--space-3);
   background: var(--card-2);
-  border: var(--rule-solid);
+  border: var(--rule-width) solid var(--rule-strong);
   border-radius: var(--radius-sm);
   color: var(--ink);
 }
@@ -165,13 +250,13 @@
   height: 24px;
   padding: 0;
   background: var(--card-2);
-  border: var(--rule-solid);
+  border: var(--rule-width) solid var(--rule-strong);
   border-radius: var(--radius-pill);
 }
 
 .switch[aria-checked='true'] {
-  background: var(--green);
-  border-color: var(--green);
+  background: var(--green-fill);
+  border-color: var(--green-fill);
 }
 
 /* A switch that cannot be moved is turned down, not recoloured: the outline stays

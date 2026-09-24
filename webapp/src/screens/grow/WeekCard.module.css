@@ -39,8 +39,8 @@
 .weekName {
   font-family: var(--font-display);
   font-size: 20px;
-  font-weight: var(--weight-display);
-  font-variation-settings: 'SOFT' 100;
+  font-weight: var(--weight-display-sm);
+  font-variation-settings: var(--display-axes);
   letter-spacing: var(--tracking-display);
 }
 

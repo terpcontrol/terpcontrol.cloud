@@ -226,7 +226,7 @@
 
 @media (min-width: 900px) {
   .page {
-    max-width: 720px;
+    max-width: var(--reading-width);
     padding-top: 0;
   }
 
@@ -275,4 +275,14 @@
   font-size: var(--text-xs);
   color: var(--green-ink);
   vertical-align: middle;
+}
+
+/* A grow is its pictures: on a wide screen the weeks take the page, so a
+   day's photograph is a photograph rather than a thumbnail, and the feeding
+   chart gets its columns. The plants and the report stay a reading column. */
+@media (min-width: 1200px) {
+  .page[data-tab='weeks'],
+  .page[data-tab='feeding'] {
+    max-width: var(--page-width);
+  }
 }

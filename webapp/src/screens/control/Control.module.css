@@ -29,7 +29,7 @@
 
 .planName {
   font-size: var(--text-lg);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-display-sm);
   line-height: var(--line-tight);
 }
 

@@ -3,9 +3,9 @@
 }
 
 .title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
   margin: 0;
-  font-size: 22px;
-  font-weight: 600;
 }
 
 .note {
