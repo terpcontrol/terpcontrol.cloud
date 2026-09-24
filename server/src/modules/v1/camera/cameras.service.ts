@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Camera, CameraCreate, CameraUpdate } from '@fg2/shared-types/v1';
 import { withoutCredentials } from '@common/log-path';
 import { demoCamera } from '@utils/demo';
-import { AccessContext, Grantee } from '@common/v1/access.types';
+import { AccessContext, AccessRange, Grantee } from '@common/v1/access.types';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -220,8 +220,14 @@ export class CamerasService {
    * server reached it over. None of it is part of seeing the tent, and the
    * invitation promises the guest the tent and the cams, not the house they
    * stand in.
+   *
+   * `seen` is the window the reader holds, where they hold one. A window that
+   * has closed is a tent as it stood and not a tent now, so when the camera last
+   * fired and what firmware it is running are dated after the reader's window
+   * and are none of their business - which is what the tent page next door
+   * already answers for the same camera through the same kind of link.
    */
-  public serialise(camera: CameraDocument, to: Grantee = 'owner', now: Date = new Date()): Camera {
+  public serialise(camera: CameraDocument, to: Grantee = 'owner', now: Date = new Date(), seen: AccessRange = OPEN_ENDED): Camera {
     const served: Camera = {
       id: camera.id,
       createdAt: camera.createdAt.toISOString(),
@@ -250,11 +256,13 @@ export class CamerasService {
       entitlement: this.entitlement.serialise(camera, now),
       isDemo: camera.isDemo,
       removedAt: camera.removedAt?.toISOString() ?? null,
-      state: {
-        lastStillAt: camera.state.lastStillAt?.toISOString() ?? null,
-        lastError: camera.state.lastError,
-        firmwareVersion: camera.state.firmwareVersion,
-      },
+      state: stillOpen(seen, now)
+        ? {
+            lastStillAt: camera.state.lastStillAt?.toISOString() ?? null,
+            lastError: camera.state.lastError,
+            firmwareVersion: camera.state.firmwareVersion,
+          }
+        : { lastStillAt: null, lastError: null, firmwareVersion: null },
     };
 
     if (to === 'demo') return demoCamera(served);
@@ -262,6 +270,12 @@ export class CamerasService {
     return to === 'owner' || to === 'admin' ? served : withoutTheOwnersAddress(served);
   }
 }
+
+/** What an owner, a member and an admin read their own hardware through: no window at all. */
+const OPEN_ENDED: AccessRange = { startsAt: null, endsAt: null };
+
+/** Whether the reader's window still reaches the present, which is the only thing that makes a "now" theirs to be told. */
+const stillOpen = (seen: AccessRange, now: Date): boolean => seen.endsAt === null || seen.endsAt >= now;
 
 /**
  * A camera as somebody who does not own it is answered: still a camera, with a

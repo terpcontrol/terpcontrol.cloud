@@ -137,13 +137,19 @@ export class CamerasController {
     return this.cameras.serialise(camera, this.cameras.granteeOf(ctx, camera));
   }
 
+  /**
+   * One camera, as far as the caller's own window reaches. A link carries a
+   * window, and when the camera last fired is a fact about now: a reader whose
+   * fortnight closed in March is not told that the lens was still working in
+   * September, exactly as the tent page refuses to tell them.
+   */
   @Get(':id')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'camera')
   @ApiOperation({ summary: 'One camera' })
   @V1Answer(camera)
   public async read(@CurrentGrant() grant: Grant, @Param('id') id: string): Promise<Camera> {
-    return this.cameras.serialise(await this.require(id), grant.grantee);
+    return this.cameras.serialise(await this.require(id), grant.grantee, new Date(), clampRange(grant));
   }
 
   /**

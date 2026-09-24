@@ -1,7 +1,7 @@
 import { anonymous, createAccount, Session, unique } from '../support/api';
 import { seedMeasurements } from '../support/control';
 import { provisionDevice } from '../support/device';
-import { remindSpace, storeCameraStill } from '../support/fixtures';
+import { remindSpace, setRow, storeCameraStill } from '../support/fixtures';
 
 /**
  * What somebody who is not in a diary can read: through its public address, and
@@ -366,6 +366,40 @@ describe('one still of a shared camera', () => {
       .expect(200);
 
     await anonymous().get(`/v1/media/${noted}`).set('X-Share-Token', link.token).expect(404);
+  });
+
+  /**
+   * A camera read through a link that has closed is a camera as it stood, not a
+   * camera now. When it last fired is dated after the window, and the tent page
+   * next door has withheld it from the same reader since it was written.
+   */
+  it('says nothing about when the camera last fired to a reader whose window has closed', async () => {
+    const tentOfIts = (
+      await owner.client
+        .post('/v1/spaces')
+        .send({ kind: 'tent', name: unique('watched') })
+        .expect(201)
+    ).body.id;
+    const lens = (
+      await owner.client.post('/v1/cameras').send({ kind: 'rtsp', spaceId: tentOfIts, name: 'Lens', url: 'rtsp://10.0.0.32:554/s' }).expect(201)
+    ).body.id;
+    await storeCameraStill(lens, A_PICTURE, new Date());
+    await setRow('cameras', { id: lens }, { 'state.lastStillAt': new Date(), 'state.firmwareVersion': '1.4.2' });
+
+    const closed = await linkOnto(
+      { type: 'space', id: tentOfIts },
+      { range: { startsAt: daysAgo(45).toISOString(), endsAt: daysAgo(35).toISOString() }, includeCameras: true },
+    );
+    const open = await linkOnto({ type: 'space', id: tentOfIts }, { includeCameras: true });
+
+    const stale = await anonymous().get(`/v1/cameras/${lens}`).set('X-Share-Token', closed.token).expect(200);
+    expect(stale.body.state).toEqual({ lastStillAt: null, lastError: null, firmwareVersion: null });
+
+    // A window that still reaches the present is a tent now, and says so; and so
+    // does the owner's own read of their own hardware.
+    const live = await anonymous().get(`/v1/cameras/${lens}`).set('X-Share-Token', open.token).expect(200);
+    expect(live.body.state.lastStillAt).toEqual(expect.any(String));
+    expect((await owner.client.get(`/v1/cameras/${lens}`).expect(200)).body.state.lastStillAt).toEqual(expect.any(String));
   });
 
   /**
