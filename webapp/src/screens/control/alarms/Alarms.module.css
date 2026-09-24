@@ -73,15 +73,35 @@
   padding: var(--space-3) var(--space-4);
 }
 
+/* A group's rules are one card with a rule between them, as the camera's
+   settings and the plan's steps are, rather than a stack of cards. */
+.list {
+  gap: 0;
+  overflow: hidden;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.list > .card {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.list > .card + .card {
+  border-top: var(--rule-solid);
+}
+
 /* The rule an alert linked to. "The one you followed" is not a state the rule
    is in, so it is not drawn as one: green all round the card is how the app
    says something is running now, and a ring in it here would read as a rule
    that has just gone off. A bar down the left edge in plain ink is a pointing
    finger instead, and says the same thing in both modes without borrowing a
    colour that already means something else. */
-.card[data-highlight] {
-  border-left: 3px solid var(--ink);
-  padding-left: calc(var(--space-4) - 2px);
+.list > .card[data-highlight] {
+  box-shadow: inset 3px 0 0 var(--ink);
 }
 
 /* The tap that opens the sheet is the whole of the card but the switch, drawn

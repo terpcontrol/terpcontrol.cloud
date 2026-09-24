@@ -37,22 +37,25 @@
    the app emphasises with, paused and completed are quiet, and a plan at rest
    is quieter still. */
 .status {
+  display: inline-flex;
+  align-items: center;
   flex-shrink: 0;
-  padding: 0 var(--space-2);
-  border: var(--rule-solid);
+  height: 24px;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
+  background: var(--card-2);
   font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   color: var(--muted);
-  line-height: calc(var(--chip-height) - 2 * var(--rule-width));
 }
 
 .status[data-status='running'] {
-  border-color: var(--green);
+  background: var(--brand-wash);
   color: var(--green-ink);
 }
 
 .status[data-status='paused'] {
-  border-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 14%, var(--card));
   color: var(--warning);
 }
 
@@ -189,6 +192,17 @@
   list-style: none;
 }
 
+/* The steps are one list, the way the camera's settings are: a card with a
+   rule between rows, not a stack of twenty cards. */
+.steps {
+  gap: 0;
+  overflow: hidden;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
 .step,
 .editStep {
   display: flex;
@@ -200,17 +214,29 @@
   border-radius: var(--radius);
 }
 
+.steps > .step {
+  padding: 10px var(--space-4);
+  border: 0;
+  border-radius: 0;
+}
+
+.steps > .step + .step {
+  border-top: var(--rule-solid);
+}
+
 /* The step the device is standing on, marked as that rather than dimmed: the
    others are not old, they are simply not now. It carries the colour of what
    the plan is doing, so a step that is paused or waiting reads as that here as
    well as on the card above. */
-.step[data-active='true'] {
-  border-color: var(--green);
+.steps > .step[data-active='true'] {
+  background: var(--brand-wash);
+  box-shadow: inset 3px 0 0 var(--green);
 }
 
-.step[data-status='paused'],
-.step[data-status='waiting'] {
-  border-color: var(--warning);
+.steps > .step[data-status='paused'],
+.steps > .step[data-status='waiting'] {
+  background: color-mix(in srgb, var(--warning) 10%, var(--card));
+  box-shadow: inset 3px 0 0 var(--warning);
 }
 
 .here[data-status='paused'],
@@ -232,6 +258,7 @@
 .stepIndex {
   flex-shrink: 0;
   width: 18px;
+  text-align: right;
   font-size: var(--text-xs);
   color: var(--label);
 }
@@ -256,6 +283,7 @@
 .here {
   flex-shrink: 0;
   font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
   color: var(--green-ink);
 }
 

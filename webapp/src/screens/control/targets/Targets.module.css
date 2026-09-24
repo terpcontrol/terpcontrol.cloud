@@ -48,6 +48,37 @@
   font-size: var(--text-sm);
 }
 
+/* A block's rows are one card with a rule between them, so the day and the
+   night read as two panels rather than sliders loose on the page. The block
+   is the shared sheet part, so the card is drawn from the rows' side. */
+.panel > section:has(> .row) {
+  gap: 0;
+  margin-top: var(--space-3);
+}
+
+.panel > section > .row {
+  padding: var(--space-1) var(--space-3);
+  background: var(--card);
+  border-inline: var(--rule-solid);
+}
+
+.panel > section > header + .row {
+  margin-top: var(--space-3);
+  border-top: var(--rule-solid);
+  border-top-left-radius: var(--radius);
+  border-top-right-radius: var(--radius);
+}
+
+.panel > section > .row + .row {
+  border-top: var(--rule-solid);
+}
+
+.panel > section > .row:last-child {
+  border-bottom: var(--rule-solid);
+  border-bottom-left-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+}
+
 .value {
   display: flex;
   flex-wrap: wrap;
@@ -280,5 +311,9 @@
 @media (min-width: 900px) {
   .bar {
     bottom: var(--space-5);
+  }
+
+  .panel > section > .row {
+    padding-inline: var(--space-4);
   }
 }
