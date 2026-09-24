@@ -627,6 +627,28 @@ describe('a week card', () => {
     expect(page.items.map(week => week.deviceIds)).toEqual([[CONTROLLER], [CONTROLLER]]);
   });
 
+  /**
+   * A tent lit by a Light and steered by nothing else: Charts drew the lamp and
+   * its sensors for the grow, while the week card said nothing stood there to
+   * average and never counted an hour of light.
+   */
+  it('reads a Light where it stands, for the hours of light and for the air under it', async () => {
+    await db.devices.deleteOne({ id: CONTROLLER });
+    await db.devices.create({
+      id: 'device-lamp',
+      type: 'light',
+      ownerId: OWNER,
+      spaceId: TENT,
+      configuration: { day: 21600, night: 79200, limit: 80 },
+    });
+
+    const week = await weekFive();
+
+    expect(week.deviceIds).toEqual(['device-lamp']);
+    expect(week.lightHours).toBeGreaterThan(0);
+    expect(week.climate.map(one => one.metric)).toContain('temperature');
+  });
+
   it('names no controller for a grow with no fixed place, so the card can say why it has no averages', async () => {
     await db.grows.updateOne({ id: GROW }, { $set: { 'placements.$[].spaceId': null } });
 

@@ -29,6 +29,9 @@ import { ClimateSummary, CLIMATE_METRICS, summariseClimate } from './week-climat
  * them.
  */
 
+/** The device type that is a lamp, and switches a tent's day without stating a climate. */
+const LIGHT_TYPE = 'light';
+
 /** Narrow enough that a week is a readable curve, wide enough that a week is one query; a longer stretch widens it. */
 const CLIMATE_STEP_SECONDS = 900;
 
@@ -55,10 +58,14 @@ export class GrowClimateService {
   ) {}
 
   /**
-   * The controllers standing in these spaces. A device that states no targets at
-   * all - a plug, a light - is not one: a week's averages are what the tent was
-   * held at, and the device that says what it was aiming for is the one that was
-   * holding it there.
+   * The devices a stretch of these spaces is read from: every one that states
+   * targets, because a week's averages are what the tent was held at and the
+   * device that says what it was aiming for is the one that was holding it
+   * there - and a Light, which states none but is the lamp itself. It is what
+   * switches the tent's day, so its output is what the hours of light are, and
+   * its own sensors are the air under it; Charts has always drawn both for the
+   * same grow, while the week card said nothing stood there to average. A plug
+   * steers neither and is left out.
    *
    * A device knows only where it stands now, so a controller that has since been
    * moved out of the tent is not read for the weeks it kept.
@@ -67,11 +74,11 @@ export class GrowClimateService {
     const named = spaceIds.filter((id): id is string => id !== null);
     if (named.length === 0) return [];
 
-    const rows = await this.devices.find({ spaceId: { $in: named } }, { id: 1, spaceId: 1, configuration: 1 }).lean<StoredDevice[]>();
+    const rows = await this.devices.find({ spaceId: { $in: named } }, { id: 1, type: 1, spaceId: 1, configuration: 1 }).lean<StoredDevice[]>();
 
     return rows.flatMap(device => {
       const targets = targetsOf(device.configuration);
-      return targets ? [{ deviceId: device.id, spaceId: device.spaceId, targets }] : [];
+      return targets || device.type === LIGHT_TYPE ? [{ deviceId: device.id, spaceId: device.spaceId, targets }] : [];
     });
   }
 
