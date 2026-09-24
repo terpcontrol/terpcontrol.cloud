@@ -50,6 +50,29 @@ describe('a body, against the contract itself', () => {
   it('refuses what the contract does not describe at all', () => {
     expect(refusal({ text: 'no kind at all' }).problem.errors.length).toBeGreaterThan(0);
   });
+
+  /**
+   * One pipe checks bodies and query strings alike, and it stated the body for
+   * both - so a GET that carries no body at all was refused with a sentence
+   * about the body it never sent, while `errors[]` correctly named a query
+   * parameter.
+   */
+  it('names the part of the request that did not fit, not always the body', () => {
+    const bad = { ...body, kind: 'water', values: { kind: 'water', litres: 'a canful' } };
+    const detailOf = (type: 'body' | 'query' | 'param'): string => {
+      try {
+        new ZodValidationPipe(entryCreate, 'problem').transform(bad, { type });
+      } catch (error) {
+        return (error as ProblemException).problem.detail;
+      }
+      throw new Error('The value was accepted.');
+    };
+
+    expect(detailOf('body')).toContain('request body');
+    expect(detailOf('query')).toContain('query string');
+    expect(detailOf('query')).not.toContain('body');
+    expect(detailOf('param')).toContain('path');
+  });
 });
 
 describe('a page', () => {

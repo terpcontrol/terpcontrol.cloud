@@ -14,6 +14,23 @@ import { badRequest } from './v1/problem';
  */
 export type ErrorKey = 'message' | 'problem';
 
+/**
+ * What a refusal says did not fit, named after the part of the request that did
+ * not.
+ *
+ * One pipe checks bodies and query strings alike - `@V1Body` builds it for one
+ * and `@V1Query` for the other - and it used to state the body whichever it had
+ * just read. A third of the validated surface of `/v1` is query strings, and
+ * most of those are GETs that carry no body at all, so the sentence sent a
+ * client looking for a mistake in something they had never sent. Nest says
+ * which part it handed over, so the sentence follows it.
+ */
+const DID_NOT_FIT: Partial<Record<ArgumentMetadata['type'], string>> = {
+  body: 'The request body does not match what this route accepts.',
+  query: 'The query string does not match what this route accepts.',
+  param: 'The path does not match what this route accepts.',
+};
+
 @Injectable()
 export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
   constructor(
@@ -21,14 +38,14 @@ export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
     private readonly errorKey: ErrorKey = 'message',
   ) {}
 
-  public transform(value: unknown, _metadata: ArgumentMetadata): T {
+  public transform(value: unknown, metadata: ArgumentMetadata): T {
     const result = this.schema.safeParse(value);
 
     if (!result.success) {
       if (this.errorKey === 'problem') {
         throw badRequest(
           'validation_failed',
-          'The request body does not match what this route accepts.',
+          DID_NOT_FIT[metadata?.type] ?? 'The request does not match what this route accepts.',
           result.error.issues.map(issue => ({ field: issue.path.join('.'), code: issue.code, detail: issue.message })),
         );
       }

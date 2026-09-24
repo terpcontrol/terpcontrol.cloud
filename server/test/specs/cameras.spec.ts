@@ -174,6 +174,8 @@ describe('asking for the cameras that are gone', () => {
     const refused = await owner.client.get('/v1/cameras?includeRemoved=yes').expect(400);
     expect(refused.body.code).toBe('validation_failed');
     expect(refused.body.errors[0].field).toBe('includeRemoved');
+    // And it says what did not fit. This is a GET with no body to be wrong.
+    expect(refused.body.detail).toContain('query string');
   });
 });
 

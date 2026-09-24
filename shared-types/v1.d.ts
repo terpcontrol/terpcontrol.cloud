@@ -234,7 +234,7 @@ export type SharedSubject = SharedGrow | SharedSpace;
 
 export interface ProblemError {
   /**
-   * Dotted path into the request body.
+   * Dotted path into whatever did not fit: a body, or the name of a query parameter. `detail` above says which.
    */
   field: string;
   code: string;

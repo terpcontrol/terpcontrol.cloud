@@ -17,7 +17,7 @@ export class ApiError extends Error {
     return this.problem.status;
   }
 
-  /** The field errors a form shows beside its inputs, keyed by the dotted path into the body. */
+  /** The field errors a form shows beside its inputs, keyed by the dotted path into whatever did not fit: a body, or a query parameter's name. */
   public get fieldErrors(): Record<string, string> {
     const errors: Record<string, string> = {};
     for (const error of this.problem.errors) errors[error.field] = error.detail;

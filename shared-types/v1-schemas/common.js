@@ -56,7 +56,7 @@ const page = (item) => zod_1.z.object({
 });
 exports.page = page;
 exports.problemError = (0, exports.named)('ProblemError', zod_1.z.object({
-    field: zod_1.z.string().describe('Dotted path into the request body.'),
+    field: zod_1.z.string().describe('Dotted path into whatever did not fit: a body, or the name of a query parameter. `detail` above says which.'),
     code: zod_1.z.string(),
     detail: zod_1.z.string(),
 }));

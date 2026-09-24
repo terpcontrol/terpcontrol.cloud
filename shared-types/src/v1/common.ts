@@ -60,7 +60,7 @@ export const page = <T extends z.ZodType>(item: T) =>
 export const problemError = named(
   'ProblemError',
   z.object({
-    field: z.string().describe('Dotted path into the request body.'),
+    field: z.string().describe('Dotted path into whatever did not fit: a body, or the name of a query parameter. `detail` above says which.'),
     code: z.string(),
     detail: z.string(),
   }),

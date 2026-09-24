@@ -4,7 +4,7 @@
     "properties": {
       "field": {
         "type": "string",
-        "description": "Dotted path into the request body."
+        "description": "Dotted path into whatever did not fit: a body, or the name of a query parameter. `detail` above says which."
       },
       "code": {
         "type": "string"
