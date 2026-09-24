@@ -189,6 +189,14 @@ describe('the callers that are not a user session', () => {
     await anonymous().get(`/v1/media/${picture.id}/content?token=${user.imageToken}`).expect(200);
     await anonymous().get(`/v1/media/${picture.id}?token=${user.imageToken}`).expect(200);
 
+    // It opens the picture and nothing else, even carried as a bearer: the
+    // diary, report and weeks around that picture are nobody's to that key.
+    const asBearer = { Authorization: `Bearer ${user.imageToken}` };
+    await anonymous().get(`/v1/media/${picture.id}/content`).set(asBearer).expect(200);
+    await anonymous().get(`/v1/entries?growId=${grow.id}`).set(asBearer).expect(404);
+    await anonymous().get(`/v1/grows/${grow.id}/report`).set(asBearer).expect(404);
+    await anonymous().get(`/v1/grows/${grow.id}/weeks`).set(asBearer).expect(404);
+
     // And it is the session's, not a thirty-day key of its own: ending the
     // session ends what the URL can ask for too.
     await user.client.delete(`/v1/sessions/${user.sessionId}`).expect(204);

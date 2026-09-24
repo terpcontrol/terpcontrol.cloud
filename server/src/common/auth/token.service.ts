@@ -43,8 +43,9 @@ export interface AuthenticatedRequest extends FastifyRequest {
 
 // A picture is fetched by <img>, which cannot set headers, so those URLs may
 // carry the token in the query string. Nothing else accepts one there - and the
-// router matches whatever the case, so this compares the path in one.
-const isMediaQueryTokenAllowed = (request: FastifyRequest): boolean =>
+// router matches whatever the case, so this compares the path in one. These are
+// also the only reads the image token opens at all, wherever it is carried.
+export const isMediaRead = (request: FastifyRequest): boolean =>
   request.method === 'GET' && (request.url ?? '').split('?')[0].toLowerCase().startsWith('/v1/media/');
 
 // A full user session is at least as privileged as the URL-embeddable image token.
@@ -82,7 +83,7 @@ export class TokenService {
       if (bearer) found.push(bearer);
     }
 
-    if (isMediaQueryTokenAllowed(request)) {
+    if (isMediaRead(request)) {
       const queryToken = (request.query as Record<string, unknown> | undefined)?.token;
       if (typeof queryToken === 'string') found.push(queryToken);
     }
