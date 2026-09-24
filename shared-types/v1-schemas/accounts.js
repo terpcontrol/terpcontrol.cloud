@@ -27,6 +27,10 @@ exports.userPreferences = (0, common_js_1.named)('UserPreferences', zod_1.z.obje
     units: common_js_1.unitPreference,
     locale: zod_1.z.string(),
     timezone: zod_1.z.string(),
+    timezoneChosen: zod_1.z
+        .boolean()
+        .optional()
+        .describe('Whether a person picked `timezone`. False while it is still the UTC every account starts on and every migrated account was given, because the old cloud never knew a zone; the app then adopts the zone of the device it is signed in on, once, and says so. Any change of `timezone` sets it, and a client may set it to keep UTC deliberately. It is never set back.'),
 }));
 /** How long raw climate points are kept; `null` keeps them for as long as the install does. */
 exports.userRetention = (0, common_js_1.named)('UserRetention', zod_1.z.object({

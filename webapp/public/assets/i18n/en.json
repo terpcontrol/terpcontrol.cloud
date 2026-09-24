@@ -1425,7 +1425,10 @@
       "why": "Something in it went wrong half way through. Nothing that was measured or written down is affected, and the rest of the app still works.",
       "again": "Try it again",
       "home": "Home"
-    }
+    },
+    "zoneAdopted": "Clock times now follow {{zone}}, the zone this device is in. Your account was still on {{from}}, which every account starts on - quiet hours are read in the new zone too.",
+    "zoneAdoptedChange": "Change it",
+    "zoneAdoptedDismiss": "Got it"
   },
   "home": {
     "empty": {

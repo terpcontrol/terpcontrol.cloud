@@ -1421,7 +1421,10 @@
       "why": "Mitten im Zeichnen ist etwas schiefgegangen. An Messwerten und Einträgen ändert das nichts, und der Rest der App läuft weiter.",
       "again": "Noch einmal versuchen",
       "home": "Start"
-    }
+    },
+    "zoneAdopted": "Uhrzeiten richten sich jetzt nach {{zone}}, der Zeitzone dieses Geräts. Dein Konto stand noch auf {{from}}, womit jedes Konto beginnt – auch die Ruhezeiten gelten jetzt in der neuen Zone.",
+    "zoneAdoptedChange": "Ändern",
+    "zoneAdoptedDismiss": "Verstanden"
   },
   "home": {
     "empty": {

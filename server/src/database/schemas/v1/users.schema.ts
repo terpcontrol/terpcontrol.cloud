@@ -96,6 +96,10 @@ export const usersSchema = new Schema<StoredUser>(
       locale: { type: String, required: true, default: 'en' },
       // An IANA name, and what quiet hours are read in, so the server needs it.
       timezone: { type: String, required: true, default: 'UTC' },
+      // Whether a person picked it, rather than it being the UTC an account
+      // starts on - which is every migrated account, the old cloud never having
+      // known a zone. The app adopts the device's zone while this is false.
+      timezoneChosen: { type: Boolean, default: false },
     },
     retention: {
       climateDays: { type: Number, default: null },

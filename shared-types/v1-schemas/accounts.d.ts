@@ -36,6 +36,7 @@ export declare const userPreferences: z.ZodObject<{
     }, z.core.$strip>;
     locale: z.ZodString;
     timezone: z.ZodString;
+    timezoneChosen: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 /** How long raw climate points are kept; `null` keeps them for as long as the install does. */
 export declare const userRetention: z.ZodObject<{
@@ -204,6 +205,7 @@ export declare const user: z.ZodObject<{
         }, z.core.$strip>;
         locale: z.ZodString;
         timezone: z.ZodString;
+        timezoneChosen: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>;
     retention: z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
@@ -365,6 +367,7 @@ export declare const me: z.ZodObject<{
         }, z.core.$strip>;
         locale: z.ZodString;
         timezone: z.ZodString;
+        timezoneChosen: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>;
     retention: z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
@@ -457,6 +460,7 @@ export declare const meUpdate: z.ZodObject<{
         }, z.core.$strip>;
         locale: z.ZodString;
         timezone: z.ZodString;
+        timezoneChosen: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>>;
     retention: z.ZodOptional<z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
@@ -784,6 +788,7 @@ export declare const adminUserPage: z.ZodObject<{
             }, z.core.$strip>;
             locale: z.ZodString;
             timezone: z.ZodString;
+            timezoneChosen: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>;
         retention: z.ZodObject<{
             climateDays: z.ZodNullable<z.ZodNumber>;

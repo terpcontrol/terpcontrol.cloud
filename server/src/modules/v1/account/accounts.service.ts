@@ -156,8 +156,21 @@ export class AccountsService implements OnModuleInit {
     const { notifications, ...rest } = body;
     const changes: Partial<StoredUser> = { ...rest };
     if (notifications !== undefined) changes.notifications = stored(notifications);
+    if (rest.preferences !== undefined) changes.preferences = { ...rest.preferences, timezoneChosen: await this.zoneChosen(id, rest.preferences) };
 
     return this.apply(id, changes);
+  }
+
+  /**
+   * Whether the zone is now one a person picked. Changing it is picking it, and
+   * so is saying so outright - keeping UTC on purpose. Once picked it stays
+   * picked: a body that sends the preferences back without the flag, as a
+   * change of units does, is not a person un-choosing their zone.
+   */
+  private async zoneChosen(id: string, wanted: NonNullable<MeUpdate['preferences']>): Promise<boolean> {
+    const current = (await this.require(id)).preferences;
+
+    return current.timezoneChosen === true || wanted.timezoneChosen === true || wanted.timezone !== current.timezone;
   }
 
   /** The same fields an administrator may create, each only if it changes. */
@@ -254,7 +267,12 @@ export class AccountsService implements OnModuleInit {
       avatarMediaId: user.avatarMediaId,
       publicProfile: user.publicProfile,
       privacy: { hideWeights: user.privacy.hideWeights, hideCounts: user.privacy.hideCounts },
-      preferences: { units: { ...user.preferences.units }, locale: user.preferences.locale, timezone: user.preferences.timezone },
+      preferences: {
+        units: { ...user.preferences.units },
+        locale: user.preferences.locale,
+        timezone: user.preferences.timezone,
+        timezoneChosen: user.preferences.timezoneChosen === true,
+      },
       retention: { climateDays: user.retention.climateDays },
       notifications: {
         channels: {

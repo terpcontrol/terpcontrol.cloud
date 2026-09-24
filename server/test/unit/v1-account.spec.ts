@@ -281,6 +281,31 @@ describe('changing an account', () => {
     });
   });
 
+  /**
+   * Every account starts on UTC, and every migrated one was given it, because
+   * the old cloud never knew a zone. Whether a person has picked the zone since
+   * is what lets the app adopt the device's zone once rather than on every
+   * sign-in - and never over a zone somebody chose, UTC included.
+   */
+  it('says whether the zone was picked: not at first, then for good once it is changed or kept on purpose', async () => {
+    const user = await signUp('zone');
+    const units = { temperature: 'celsius' as const, weight: 'grams' as const, volume: 'liters' as const };
+    expect((await accounts.serialiseMe(user)).preferences.timezoneChosen).toBe(false);
+
+    const unitsOnly = await accounts.updateOwn(user.id, { preferences: { units, locale: 'en', timezone: 'UTC', timezoneChosen: false } });
+    expect(unitsOnly.preferences.timezoneChosen).toBe(false);
+
+    const moved = await accounts.updateOwn(user.id, { preferences: { units, locale: 'en', timezone: 'Europe/Berlin' } });
+    expect(moved.preferences.timezoneChosen).toBe(true);
+
+    const back = await accounts.updateOwn(user.id, { preferences: { units, locale: 'en', timezone: 'Europe/Berlin', timezoneChosen: false } });
+    expect(back.preferences.timezoneChosen).toBe(true);
+
+    const kept = await signUp('zone-kept');
+    const onPurpose = await accounts.updateOwn(kept.id, { preferences: { units, locale: 'en', timezone: 'UTC', timezoneChosen: true } });
+    expect(onPurpose.preferences.timezoneChosen).toBe(true);
+  });
+
   it('answers the account as it stands when the body names no field', async () => {
     const user = await signUp('unchanged');
 
