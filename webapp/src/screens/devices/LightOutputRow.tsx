@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ActuatorRuns, SocketOverrideState } from '@fg2/shared-types/v1';
 import { useSaveConfiguration, useSetOverride } from '@/api/devices';
+import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { ApiError } from '@/api/problem';
 import { ageLabel } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
@@ -37,12 +38,23 @@ interface LightOutputRowProps {
  * What the lamp is actually doing is a reading, and it is the only fact here the
  * device vouches for: a setting is never acknowledged and an override is never
  * reported, so the level above the dimmer is what the row is honest with.
+ *
+ * The brightness is a key of the same document a grow plan's steps are written
+ * into, so this slider and a running plan are two hands on one figure: the
+ * engine re-sends the step it stands on every hour, which would undo a
+ * brightness set here without a word. The Manual targets page has always said
+ * that before a save and paused the plan to make it true, and this row is the
+ * quicker way to the same figure - so it asks the same question, says the same
+ * sentence in the same amber, and pauses the same way. A row that did less would
+ * be the shortcut that costs the grower their setting.
  */
 export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightOutputRowProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const override = useSetOverride();
   const save = useSaveConfiguration();
+  const plan = useDevicePlan(output.deviceId);
+  const move = usePlanTransition(output.deviceId);
 
   // A level is a reading and carries the verdict the server passed on it, so a
   // lamp nobody has heard from in ten minutes is dimmed and dated rather than
@@ -75,9 +87,26 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
   // refusal beside a control that works.
   const why = cannotForce && unheard && !cannotSetLevel ? t('devices.lightOutput.keptForLater') : cannotForce;
 
-  const commit = () => {
-    if (level === stored || !output.configuration) return;
-    save.mutate({ deviceId: output.deviceId, configuration: withLightLimit(output.configuration, level) });
+  // Whether a plan is standing over this document is not something to guess at:
+  // until the read lands the slider is left where it is, and a device that is
+  // being run by nothing answers `plan_not_found`, which is a fact and not a
+  // failure.
+  const planStatus = plan.data?.state.status ?? null;
+  const planUnread = plan.isPending || (!plan.data && !isMissing(plan.error));
+
+  // Saving over a running plan pauses it first, exactly as the Manual targets
+  // page does, because the engine would otherwise put the step's own brightness
+  // back within the hour. Both errors are the mutations' own and are shown from
+  // there.
+  const commit = async () => {
+    if (level === stored || !output.configuration || planUnread) return;
+
+    try {
+      if (planStatus === 'running') await move.mutateAsync({ kind: 'pause', reason: t('devices.lightOutput.pauseReason') });
+      await save.mutateAsync({ deviceId: output.deviceId, configuration: withLightLimit(output.configuration, level) });
+    } catch {
+      // Said under the row, by whichever of the two refused.
+    }
   };
 
   const force = (state: SocketOverrideState) =>
@@ -128,9 +157,9 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
             disabled={cannotSetLevel !== null}
             aria-valuetext={stated}
             onChange={event => setDraft({ percent: Number(event.target.value), against: stored })}
-            onPointerUp={commit}
-            onKeyUp={commit}
-            onBlur={commit}
+            onPointerUp={() => void commit()}
+            onKeyUp={() => void commit()}
+            onBlur={() => void commit()}
           />
           <span className={`mono ${styles.level}`}>{stated}</span>
           <span className={styles.forces} role="group" aria-label={t('devices.lightOutput.force')}>
@@ -143,9 +172,26 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
         </div>
       ) : null}
 
+      {/* What a save costs, said before the drag rather than after it. The card
+          is the amber the app keeps for a state somebody chose, and carries the
+          way back out of it while the plan is standing still. */}
+      {mayManage && !cannotSetLevel && planStatus === 'running' ? (
+        <div className={`${ui.card} ${styles.planCard}`} data-status="running" role="status">
+          <p className={styles.planText}>{t('devices.lightOutput.planRunning')}</p>
+        </div>
+      ) : null}
+      {mayManage && !cannotSetLevel && planStatus === 'paused' ? (
+        <div className={`${ui.card} ${styles.planCard}`} data-status="paused" role="status">
+          <p className={styles.planText}>{t('devices.lightOutput.planPaused')}</p>
+          <button type="button" className={ui.button} disabled={move.isPending} onClick={() => move.mutate({ kind: 'resume' })}>
+            {t('devices.lightOutput.resume')}
+          </button>
+        </div>
+      ) : null}
+
       {mayManage && cannotSetLevel ? <p className={ui.note}>{cannotSetLevel}</p> : null}
       {mayManage && why ? <p className={ui.note}>{why}</p> : null}
-      <Saved save={save} />
+      <Saved save={save} paused={move} />
       <Asked ask={override} />
 
       {open ? (
@@ -174,15 +220,20 @@ type Mutation = { isPending: boolean; error: Error | null };
  * What a saved brightness amounts to. The device acknowledges no setting at all,
  * so the line says it was stored and sent, and points at the level above - which
  * is the device's own word and the only one there is.
+ *
+ * The pause that goes before the save is drawn from here too, because a pause
+ * the server refused means the brightness was never sent either: two lines under
+ * one drag would leave it to the reader to work out which half happened.
  */
-function Saved({ save }: { save: Mutation & { isSuccess: boolean } }) {
+function Saved({ save, paused }: { save: Mutation & { isSuccess: boolean }; paused: Mutation }) {
   const { t } = useTranslation();
 
-  if (save.isPending) return <p className={`${ui.note} ${styles.socketWhy}`}>{t('devices.lightOutput.saving')}</p>;
-  if (save.error) {
+  if (save.isPending || paused.isPending) return <p className={`${ui.note} ${styles.socketWhy}`}>{t('devices.lightOutput.saving')}</p>;
+  const failed = save.error ?? paused.error;
+  if (failed) {
     return (
       <p className={`${ui.problem} ${styles.socketWhy}`} role="alert">
-        {save.error instanceof ApiError ? save.error.problem.detail || save.error.problem.title : t('devices.lightOutput.saveFailed')}
+        {failed instanceof ApiError ? failed.problem.detail || failed.problem.title : t('devices.lightOutput.saveFailed')}
       </p>
     );
   }

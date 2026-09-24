@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AccessNeed, Camera, Device, DeviceCapabilities, DeviceConfiguration, Socket, Space } from '@fg2/shared-types/v1';
+import type { AccessNeed, Camera, Device, DeviceCapabilities, DeviceConfiguration, PlanTransition, Socket, Space } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { DeviceList } from '@/screens/devices/DeviceList';
 import { LightOutputRow } from '@/screens/devices/LightOutputRow';
@@ -55,11 +55,48 @@ vi.mock('@/api/devices', async importOriginal => ({
   useTestSocket: () => ({ mutate: () => {}, data: undefined, error: null, isPending: false }),
   useSaveConfiguration: () => ({
     mutate: (request: { deviceId: string; configuration: DeviceConfiguration }) => saved.push(request),
+    mutateAsync: (request: { deviceId: string; configuration: DeviceConfiguration }) => {
+      saved.push(request);
+      return Promise.resolve(true);
+    },
     isPending: false,
     isSuccess: false,
     error: null,
   }),
 }));
+
+/**
+ * The plan the light output's own device is being run by. The dimmer writes the
+ * same document a plan's steps write, so the row reads the plan before it saves
+ * - and by default there is none, which is the answer the route gives for a
+ * device nothing is steering.
+ */
+const moves: PlanTransition[] = [];
+const planState = vi.hoisted(() => ({ status: null as string | null }));
+
+vi.mock('@/api/plans', async importOriginal => {
+  const { ApiError } = await import('@/api/problem');
+  const missing = new ApiError({ status: 404, code: 'plan_not_found', title: 'Not found', detail: '', errors: [] });
+
+  return {
+    ...(await importOriginal<object>()),
+    useDevicePlan: () => ({
+      data: planState.status === null ? undefined : { state: { status: planState.status } },
+      isPending: false,
+      isError: planState.status === null,
+      error: planState.status === null ? missing : null,
+    }),
+    usePlanTransition: () => ({
+      mutate: (body: PlanTransition) => moves.push(body),
+      mutateAsync: (body: PlanTransition) => {
+        moves.push(body);
+        return Promise.resolve(undefined);
+      },
+      error: null,
+      isPending: false,
+    }),
+  };
+});
 
 const NOW = DateTime.fromISO('2026-09-19T12:00:00.000Z');
 
@@ -122,6 +159,8 @@ beforeAll(async () => {
 beforeEach(() => {
   sent.length = 0;
   saved.length = 0;
+  moves.length = 0;
+  planState.status = null;
   state.answer = { deviceOnline: true };
 });
 
@@ -285,6 +324,51 @@ describe("the controller's own light output", () => {
     fireEvent.blur(slider);
 
     expect(saved).toEqual([{ deviceId: 'device-1', configuration: { lights: { sunrise: 15, sunset: 15, limit: 40 } } }]);
+  });
+
+  /**
+   * The brightness is a key of the same document a plan's steps are written
+   * into, and the engine re-sends the step it stands on every hour - so a
+   * brightness dialled in over a running plan is undone within the hour unless
+   * the plan is paused. The Manual targets page, one tab away, says that in
+   * amber before the save and pauses first; this row is the quicker way to the
+   * same figure and used to do neither.
+   */
+  it('says what a save costs a running plan before the drag, and pauses it first', async () => {
+    planState.status = 'running';
+    drawOutput();
+
+    expect(screen.getByText(/Saving pauses the running plan/)).toBeInTheDocument();
+
+    const slider = screen.getByRole('slider', { name: 'Brightness' });
+    fireEvent.change(slider, { target: { value: '55' } });
+    fireEvent.blur(slider);
+    await screen.findByText(/Saving pauses the running plan/);
+
+    expect(moves).toEqual([{ kind: 'pause', reason: 'Brightness set by hand' }]);
+    expect(saved).toEqual([{ deviceId: 'device-1', configuration: { lights: { sunrise: 15, sunset: 15, limit: 55 } } }]);
+  });
+
+  it('says a plan it paused is paused, and offers the way back out of it', () => {
+    planState.status = 'paused';
+    drawOutput();
+
+    expect(screen.getByText(/The plan is paused while this brightness is set by hand/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Resume plan' }));
+
+    expect(moves).toEqual([{ kind: 'resume' }]);
+  });
+
+  it('pauses nothing where no plan is running, which is every device nothing is steering', () => {
+    drawOutput();
+
+    expect(screen.queryByText(/Saving pauses the running plan/)).not.toBeInTheDocument();
+    const slider = screen.getByRole('slider', { name: 'Brightness' });
+    fireEvent.change(slider, { target: { value: '45' } });
+    fireEvent.blur(slider);
+
+    expect(moves).toEqual([]);
+    expect(saved).toHaveLength(1);
   });
 
   it('holds the output on for a while, and hands it back with no duration at all', () => {
