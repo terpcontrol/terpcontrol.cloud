@@ -149,6 +149,10 @@
   --space-7: 48px;
   --space-8: 64px;
 
+  /* The inside of a card, solid or dashed: 16 on a phone, and 20 from the
+     rail's width up, where a card is wider and 16 read as cramped. */
+  --card-padding: var(--space-4);
+
   /* A finger's worth for a field or a button; a chip is smaller, and a card's
      repeated quiet actions smaller again. */
   --control-height: 44px;
@@ -210,6 +214,7 @@
     --text-title: 32px;
     --text-name: 19px;
     --text-figure: 28px;
+    --card-padding: 20px;
   }
 }
 

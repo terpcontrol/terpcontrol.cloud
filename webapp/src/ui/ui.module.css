@@ -3,7 +3,7 @@
    adds its own layout; it never restates a colour or a radius. */
 
 .card {
-  padding: var(--space-4);
+  padding: var(--card-padding);
   background: var(--card);
   border: var(--rule-solid);
   border-radius: var(--radius);
@@ -12,7 +12,7 @@
 
 /* The lesser option beside bordered ones: outlined, not filled. */
 .cardDashed {
-  padding: var(--space-4);
+  padding: var(--card-padding);
   background: transparent;
   border: var(--rule-dashed);
   border-radius: var(--radius);
