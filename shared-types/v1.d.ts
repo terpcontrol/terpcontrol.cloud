@@ -3638,6 +3638,10 @@ export interface GrowReportPhase {
   coverMediaId: string | null;
   climate: WeekClimate[];
   /**
+   * Hours of light per day over the phase, from the controller’s light output, as a week card states it for its own seven days; null over a stretch too short or too quiet to say.
+   */
+  lightHours: number | null;
+  /**
    * The share of the phase in which every metric with a target sat inside `TARGET_BAND`; null where nothing held a target.
    */
   inBandPercent: number | null;

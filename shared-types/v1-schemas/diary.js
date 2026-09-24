@@ -1303,6 +1303,10 @@ exports.growReportPhase = (0, common_js_1.named)('GrowReportPhase', zod_1.z.obje
         .describe('Where the plants stood during it, in the order they arrived; null on a shared or public read, which is told the story and not the address.'),
     coverMediaId: (0, common_js_1.id)().nullable().describe('The still nearest the middle of the phase, which is the chapter’s picture.'),
     climate: zod_1.z.array(exports.weekClimate),
+    lightHours: zod_1.z
+        .number()
+        .nullable()
+        .describe('Hours of light per day over the phase, from the controller’s light output, as a week card states it for its own seven days; null over a stretch too short or too quiet to say.'),
     inBandPercent: zod_1.z
         .number()
         .nullable()

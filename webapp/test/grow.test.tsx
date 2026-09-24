@@ -208,7 +208,15 @@ const EXPORT_ROW = (status: MediaRenderStatus, error: string | null = null): Med
     render: null,
   }) as unknown as Media;
 
-const wire = { calls: [] as string[], job: EXPORT_ROW('queued'), grows: [] as GrowListItem[], entries: [] as Entry[] };
+const REPORT = { dayCount: 35, totals: { entryCount: 4, waterCount: 1, feedCount: 2, photoCount: 1 }, harvest: null, phases: [], people: [] };
+
+const wire = {
+  calls: [] as string[],
+  job: EXPORT_ROW('queued'),
+  grows: [] as GrowListItem[],
+  entries: [] as Entry[],
+  report: REPORT as unknown,
+};
 
 const jsonOf = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -218,9 +226,7 @@ vi.stubGlobal(
     const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
     wire.calls.push(path);
 
-    if (path === '/grows/grow-1/report') {
-      return jsonOf({ dayCount: 35, totals: { entryCount: 4, waterCount: 1, feedCount: 2, photoCount: 1 }, harvest: null, phases: [], people: [] });
-    }
+    if (path === '/grows/grow-1/report') return jsonOf(wire.report);
     if (path === '/grows') return jsonOf({ items: wire.grows, nextCursor: null });
     if (path === '/entries') return jsonOf({ items: wire.entries, nextCursor: null });
     if (path === '/spaces') return jsonOf({ items: [{ id: 'space-1', name: 'Tent 1', kind: 'tent', roomId: null }], nextCursor: null });
@@ -234,6 +240,7 @@ vi.stubGlobal(
 beforeEach(() => {
   wire.calls = [];
   wire.job = EXPORT_ROW('queued');
+  wire.report = REPORT;
   wire.grows = [];
   wire.entries = [];
   session.user = SIGNED_IN;
@@ -243,6 +250,41 @@ describe('the report tab', () => {
   // Getting a whole grow out as a zip is the owner's; the grow page works out
   // whose the grow is and hands the answer down.
   const drawReport = (mayOwn = true) => draw(<Report grow={grow} spaces={[]} mayOwn={mayOwn} now={NOW} />);
+
+  /**
+   * A chapter states the same three figures a week card of the same grow does.
+   * The hours of light were the one it dropped: the server measures the lamp's
+   * switchings to split the day from the night averages beside them, so the
+   * photoperiod was worked out for every chapter and then thrown away.
+   */
+  it('states the hours of light of the chapter, beside the climate it was kept at', async () => {
+    wire.report = {
+      ...REPORT,
+      phases: [
+        {
+          phaseId: 'phase-1',
+          stage: 'flowering',
+          preset: 'flower',
+          startedAt: at(10),
+          endedAt: null,
+          dayFrom: 25,
+          dayTo: null,
+          dayCount: 11,
+          spaceIds: [],
+          coverMediaId: null,
+          climate: week.climate,
+          lightHours: 12.2,
+          inBandPercent: 91,
+          waterCount: 1,
+          feedCount: 2,
+          training: [],
+        },
+      ],
+    };
+    drawReport();
+
+    expect(await screen.findByText(/26.4 \/ 20.8 °C · 60 % · 12 h · 91 % in band/)).toBeInTheDocument();
+  });
 
   it('asks for the zip and says where the job has got to, with nothing to download until there is', async () => {
     wire.job = EXPORT_ROW('rendering');

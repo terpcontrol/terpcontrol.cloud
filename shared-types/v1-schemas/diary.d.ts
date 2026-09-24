@@ -4685,6 +4685,7 @@ export declare const growReportPhase: z.ZodObject<{
         dayAverage: z.ZodNullable<z.ZodNumber>;
         nightAverage: z.ZodNullable<z.ZodNumber>;
     }, z.core.$strip>>;
+    lightHours: z.ZodNullable<z.ZodNumber>;
     inBandPercent: z.ZodNullable<z.ZodNumber>;
     waterCount: z.ZodNumber;
     feedCount: z.ZodNumber;
@@ -4882,6 +4883,7 @@ export declare const growReport: z.ZodObject<{
             dayAverage: z.ZodNullable<z.ZodNumber>;
             nightAverage: z.ZodNullable<z.ZodNumber>;
         }, z.core.$strip>>;
+        lightHours: z.ZodNullable<z.ZodNumber>;
         inBandPercent: z.ZodNullable<z.ZodNumber>;
         waterCount: z.ZodNumber;
         feedCount: z.ZodNumber;

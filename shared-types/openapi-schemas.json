@@ -12556,6 +12556,13 @@
           "$ref": "#/components/schemas/WeekClimate"
         }
       },
+      "lightHours": {
+        "description": "Hours of light per day over the phase, from the controller’s light output, as a week card states it for its own seven days; null over a stretch too short or too quiet to say.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
       "inBandPercent": {
         "description": "The share of the phase in which every metric with a target sat inside `TARGET_BAND`; null where nothing held a target.",
         "type": [
@@ -12593,6 +12600,7 @@
       "spaceIds",
       "coverMediaId",
       "climate",
+      "lightHours",
       "inBandPercent",
       "waterCount",
       "feedCount",

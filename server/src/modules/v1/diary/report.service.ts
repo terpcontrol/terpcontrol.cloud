@@ -167,6 +167,14 @@ export class GrowReportService {
       spaceIds: world.grant.redacted ? null : spaceIds.filter((id): id is string => id !== null),
       coverMediaId,
       climate: climate.climate,
+      // The photoperiod the chapter was kept on, which the summariser has
+      // already worked out: the read above asks for the lamp's switchings
+      // because the day and night averages are split by them, so the hours were
+      // paid for and then dropped, and the report said nothing about light
+      // while the week cards of the same grow printed it. A phase is the
+      // stretch over which a photoperiod is constant, which is the figure this
+      // states better than any week does.
+      lightHours: climate.lightHours,
       inBandPercent: climate.inBandPercent,
       waterCount: counted('water'),
       feedCount: counted('feed'),

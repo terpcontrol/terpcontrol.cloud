@@ -175,12 +175,18 @@ function Chapter({
           {` · ${t('grow.days', { count: chapter.dayCount })}`}
           {where ? ` · ${where}` : ''}
         </p>
+        {/* The same three figures a week card of this grow carries, in the same
+            order - the temperatures, the humidity and the hours of light - and
+            then how much of the chapter sat inside its own band. The light was
+            the one the report left out, though the server had measured it for
+            the day and night split this line is already drawn from. */}
         {temperature ? (
           <p className={`mono ${styles.chapterMeta}`}>
             {temperature.dayAverage !== null
               ? `${decimalFigure(temperature.dayAverage, 1)} / ${temperature.nightAverage === null ? '–' : decimalFigure(temperature.nightAverage, 1)} °C`
               : `${temperature.averageValue === null ? '–' : decimalFigure(temperature.averageValue, 1)} °C`}
             {humidity?.averageValue !== null && humidity !== undefined ? ` · ${decimalFigure(humidity.averageValue, 0)} %` : ''}
+            {chapter.lightHours !== null ? ` · ${decimalFigure(chapter.lightHours, 0)} h` : ''}
             {chapter.inBandPercent !== null ? ` · ${t('space.inBand', { percent: Math.round(chapter.inBandPercent) })}` : ''}
           </p>
         ) : null}

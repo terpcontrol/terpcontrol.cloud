@@ -1710,6 +1710,12 @@ export const growReportPhase = named(
       .describe('Where the plants stood during it, in the order they arrived; null on a shared or public read, which is told the story and not the address.'),
     coverMediaId: id().nullable().describe('The still nearest the middle of the phase, which is the chapter’s picture.'),
     climate: z.array(weekClimate),
+    lightHours: z
+      .number()
+      .nullable()
+      .describe(
+        'Hours of light per day over the phase, from the controller’s light output, as a week card states it for its own seven days; null over a stretch too short or too quiet to say.',
+      ),
     inBandPercent: z
       .number()
       .nullable()

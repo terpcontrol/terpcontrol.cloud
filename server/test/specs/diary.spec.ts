@@ -127,6 +127,17 @@ describe('the report', () => {
     expect(report.phases[0].inBandPercent).toBe(100);
   });
 
+  it('states the photoperiod it measured, as the week cards of the same grow do', async () => {
+    // The chapter's day and night averages are split by the lamp's switchings,
+    // so the hours were read for every chapter and then dropped: the report
+    // said nothing about light while a week card of the same grow printed it.
+    const report = (await owner.client.get(`/v1/grows/${growId}/report`).expect(200)).body;
+    const weeks = (await owner.client.get(`/v1/grows/${growId}/weeks?limit=1`).expect(200)).body;
+
+    expect(report.phases[0].lightHours).toBeCloseTo(12, 0);
+    expect(report.phases[0].lightHours).toBeCloseTo(weeks.items[0].lightHours, 0);
+  });
+
   it('is not there for a stranger', async () => {
     await stranger.client.get(`/v1/grows/${growId}/report`).expect(404);
   });
