@@ -179,8 +179,9 @@ static const char* TERP_CAM_AP_BASE = "http://192.168.168.1:81"; // CGI server i
 // still has it: pairing replaces it with a per-camera secret straight away.
 static const char* TERP_CAM_AUTH = "loginuse=admin&loginpas=888888";
 static const char* TERP_CAM_URL_NVS_KEY = "terpcam_url";         // legacy (RTSP url)
-static const char* TERP_CAM_DID_NVS_KEY = "webcam_did";          // VStarcam P2P device id
+static const char* TERP_CAM_DID_NVS_KEY = "webcam_did";          // its printed id (realdeviceid)
 static const char* TERP_CAM_IP_NVS_KEY = "webcam_ip";            // last address it answered on
+static const char* TERP_CAM_UID_NVS_KEY = "webcam_uid";          // its P2P id (VSTH...)
 
 std::string primary_ssid;
 std::string primary_password;
@@ -1166,6 +1167,10 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   if(did.empty()) {
     return fail_with_reconnect("cam id fail");
   }
+  // The P2P id is what the camera answers discovery with. Knowing it from the
+  // start means the controller never mistakes another camera on this network -
+  // the one this replaces, a neighbour's - for this one.
+  const std::string uid = fg::terpCamCanonicalUid(parseCamVar(status_body, "deviceid"));
 
   emit_status("scan cam wifi...");
   std::string scan_url = std::string(TERP_CAM_AP_BASE) + "/wifi_scan.cgi?" + TERP_CAM_AUTH;
@@ -1195,6 +1200,9 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
 
   fg::settings().setStr(TERP_CAM_DID_NVS_KEY, did.c_str());
   fg::settings().erase(fg::TERP_CAM_PWD_NVS_KEY);   // a freshly paired camera has the default
+  fg::settings().erase(TERP_CAM_IP_NVS_KEY);        // where the previous camera answered
+  if(uid.empty()) fg::settings().erase(TERP_CAM_UID_NVS_KEY);  // discovery reads it instead
+  else fg::settings().setStr(TERP_CAM_UID_NVS_KEY, uid.c_str());
   fg::settings().commit();
 
   // Replace the manufacturer's published password now that the camera is on the
@@ -1205,6 +1213,7 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   if(smart_socket_cloud_handle != nullptr) {
     smart_socket_cloud_handle->log("message-terp-cam-connected", 0);
     smart_socket_cloud_handle->log(std::string("hardware-info:webcam_did=") + did, 0);
+    if(!uid.empty()) smart_socket_cloud_handle->log("hardware-info:webcam_uid=" + uid, 0);
   }
 
   emit_status("cam configured");
@@ -1330,6 +1339,7 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
       fg::settings().erase(TERP_CAM_DID_NVS_KEY);
       fg::settings().erase(TERP_CAM_IP_NVS_KEY);    // and where it used to answer
+      fg::settings().erase(TERP_CAM_UID_NVS_KEY);   // and who it was on the wire
       fg::settings().erase(fg::TERP_CAM_PWD_NVS_KEY);   // reset restores the default
       fg::settings().erase(TERP_CAM_URL_NVS_KEY);   // clear legacy slot too
       fg::settings().commit();

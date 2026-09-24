@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <esp_task_wdt.h>
+#include <algorithm>
 
 #include "terpcam.h"
 #include "settings.h"
@@ -159,12 +160,7 @@ namespace fg {
     // does: a session that opens proves the stored address still reaches it.
     uint8_t g_camera_misses = 0;
 
-    // Whether a camera is paired at all. Note that the stored id cannot be used
-    // to tell responders apart: it is the camera's `realdeviceid`
-    // (e.g. AAC2852199TWVA), while the id inside a PunchPkt is the CS2 P2P id
-    // in its packed wire form ("VSTH" + a binary number + five characters).
-    // They are different identifiers, so discovery takes the first camera that
-    // answers, exactly as it always has.
+    // Whether a camera is paired at all.
     bool camIsPaired() {
       const std::string stored(fg::settings().getStr("webcam_did").c_str());
       return !stored.empty() && stored != "none";
@@ -199,12 +195,49 @@ namespace fg {
       return std::string(out);
     }
 
+    // Only called once a session has proven the camera is ours (see
+    // authenticate): a uid or address read off a neighbour's camera would
+    // otherwise steer every later session there.
     void rememberCamUid(const uint8_t* did) {
       const std::string uid = formatCamUid(did);
       if(uid.size() < 6 || uid == std::string(fg::settings().getStr("webcam_uid").c_str())) return;
       fg::settings().setStr("webcam_uid", uid.c_str());
       fg::settings().commit();
       g_cam_uid_to_report = uid;
+    }
+
+    // Who discovery accepts. A camera whose P2P id is known is the only one that
+    // counts; before that, any camera does except those a session has already
+    // found to be somebody else's. Every camera on the LAN answers a broadcast,
+    // and a second one - the old camera, a neighbour's - used to be taken by
+    // whichever answered first.
+    constexpr uint8_t MAX_FOREIGN = 3;
+    std::string g_want_uid;
+    uint8_t g_foreign[MAX_FOREIGN][20];
+    uint8_t g_foreign_n = 0;
+
+    bool acceptable(const uint8_t* did) {
+      for(uint8_t i = 0; i < g_foreign_n; i++) {
+        if(memcmp(g_foreign[i], did, 20) == 0) return false;
+      }
+      return g_want_uid.empty() || formatCamUid(did) == g_want_uid;
+    }
+
+    // A camera that turned out to be somebody else's must not stay where the
+    // controller looks first.
+    void forgetForeign(const uint8_t* did, const IPAddress& ip) {
+      bool changed = false;
+      if(formatCamUid(did) == g_want_uid) {
+        fg::settings().erase("webcam_uid");
+        g_want_uid.clear();
+        changed = true;
+      }
+      if(std::string(ip.toString().c_str()) == cachedCamIp()) {
+        fg::settings().erase("webcam_ip");
+        changed = true;
+      }
+      if(changed) fg::settings().commit();
+      if(g_foreign_n < MAX_FOREIGN) memcpy(g_foreign[g_foreign_n++], did, 20);
     }
 
     void rememberCamIp(const IPAddress& ip) {
@@ -318,12 +351,9 @@ namespace fg {
       return "name=admin&loginuse=admin&loginpas=" + password + "&user=admin&pwd=" + password + "&";
     }
 
-    // Discover the camera and authenticate a P2P session on `udp`. Shared by the
-    // capture and factory-reset paths. The DevLgn is what authenticates the
-    // session: without it the camera acks DRW at the transport level but
-    // silently drops every command.
     // One LanSearch round against `target`, which is either the address the
-    // camera last answered on or the broadcast address.
+    // camera last answered on or the broadcast address. Only a camera that
+    // acceptable() lets through ends the round; others are ignored.
     bool lanSearch(WiFiUDP& udp, const IPAddress& target, uint32_t window_ms,
                    uint8_t* did, IPAddress& peer_ip, uint16_t& peer_port) {
       sendPacket(udp, target, DISCOVERY_PORT, buildPacket(0x30, nullptr, 0));
@@ -335,9 +365,8 @@ namespace fg {
           int len = udp.read(g_rx, sizeof(g_rx));
           if(len >= 24) {
             deobfuscate(g_rx, len);
-            if(g_rx[0] == 0xf1 && g_rx[1] == 0x41) {
+            if(g_rx[0] == 0xf1 && g_rx[1] == 0x41 && acceptable(g_rx + 4)) {
               memcpy(did, g_rx + 4, 20);
-              rememberCamUid(did);
               peer_ip = udp.remoteIP();
               peer_port = udp.remotePort();
               esp_task_wdt_reset();
@@ -351,79 +380,157 @@ namespace fg {
       return false;
     }
 
+    // What a get_status reply says about the camera that sent it.
+    enum : uint8_t { REPLY_PENDING, REPLY_OURS, REPLY_FOREIGN, REPLY_REFUSED };
+
+    // Every get_status reply names the camera's `realdeviceid` - the id pairing
+    // stored as webcam_did - as `vuid=<id>;` when it refused the password and as
+    // `var realdeviceid="<id>";` when it accepted it. So a controller can tell its
+    // own camera from a neighbour's without knowing the neighbour's password.
+    uint8_t checkReply(const char* text, const std::string& ours, bool& refused) {
+      if(strstr(text, "result=-1") != nullptr) refused = true;
+      for(const char* key : { "realdeviceid=", "vuid=" }) {
+        const char* p = strstr(text, key);
+        if(p == nullptr) continue;
+        p += strlen(key);
+        if(*p == '"') p++;
+        const size_t n = strcspn(p, "\";");
+        if(p[n] == 0) continue;               // the id runs on into the next fragment
+        if(n != ours.size() || memcmp(p, ours.data(), n) != 0) return REPLY_FOREIGN;
+        return refused ? REPLY_REFUSED : REPLY_OURS;
+      }
+      return REPLY_PENDING;
+    }
+
+    // Handshake until get_status answers, then read the answer until it says
+    // which camera this is and whether it took the password. The DevLgn is what
+    // authenticates the session: without it the camera acks DRW at the transport
+    // level but silently drops every command.
+    //
+    // Any channel-0 answer used to count as success, `result=-1` included, so a
+    // session to the wrong camera looked open and failed later as a timeout.
+    // The reply is scanned in g_b64, which is idle until a capture publishes.
+    uint8_t authenticate(WiFiUDP& udp, const uint8_t* did, const IPAddress& peer_ip, uint16_t peer_port,
+                         const std::string& ours) {
+      constexpr size_t CARRY = 48;          // longer than `realdeviceid="<id>"`
+      char cgi[192];
+      bool answered = false;
+      bool refused = false;
+      size_t kept = 0;
+      uint8_t verdict = REPLY_PENDING;
+      const uint32_t started = millis();
+      while(verdict == REPLY_PENDING && (millis() - started) < AUTH_MS) {
+        if(!answered) {
+          uint8_t devlgn[36];
+          memcpy(devlgn, did, 20);
+          static const uint8_t trailer[16] = {
+            0x00,0x02,0x12,0x64,0x10,0x02,0x00,0x0a,0,0,0,0,0,0,0,0 };
+          memcpy(devlgn + 20, trailer, sizeof(trailer));
+
+          sendPacket(udp, peer_ip, peer_port, buildPacket(0x00, nullptr, 0));
+          sendPacket(udp, peer_ip, peer_port, buildPacket(0x05, did, 20));
+          sendPacket(udp, peer_ip, peer_port, buildPacket(0x20, devlgn, sizeof(devlgn)));
+          sendPacket(udp, peer_ip, peer_port, buildPacket(0x41, did, 20));
+          snprintf(cgi, sizeof(cgi), "get_status.cgi?%s", camAuth().c_str());
+          sendPacket(udp, peer_ip, peer_port, buildCgi(0, 0, cgi));
+        }
+
+        const uint32_t wait_until = millis() + 500;
+        while(verdict == REPLY_PENDING && (int32_t)(wait_until - millis()) > 0) {
+          int sz = udp.parsePacket();
+          if(sz > 0 && sz <= (int)sizeof(g_rx)) {
+            int len = udp.read(g_rx, sizeof(g_rx));
+            if(len >= 4) {
+              deobfuscate(g_rx, len);
+              if(g_rx[1] == 0x42 || g_rx[1] == 0x43) {
+                // echo the readiness packet back
+                memcpy(g_tx, g_rx, len);
+                obfuscate(g_tx, len);
+                sendPacket(udp, peer_ip, peer_port, len);
+              }
+              else if(g_rx[1] == 0xd0 && len > 8 && g_rx[5] == 0) {
+                answered = true;
+                sendPacket(udp, peer_ip, peer_port,
+                           buildAck(0, (uint16_t)((g_rx[6] << 8) | g_rx[7])));
+                // Append as text: NULs (the reply's binary header) become spaces,
+                // and the tail of the previous fragment is kept in front so an
+                // id split across two fragments is still found.
+                const size_t n = (size_t)len - 8;
+                for(size_t i = 0; i < n; i++) g_b64[kept + i] = g_rx[8 + i] ? (char)g_rx[8 + i] : ' ';
+                const size_t total = kept + n;
+                g_b64[total] = 0;
+                verdict = checkReply(g_b64, ours, refused);
+                kept = total < CARRY ? total : CARRY;
+                memmove(g_b64, g_b64 + total - kept, kept);
+              }
+            }
+          }
+          delay(5);
+        }
+        esp_task_wdt_reset();
+      }
+      if(verdict == REPLY_PENDING && refused) verdict = REPLY_REFUSED;
+      return verdict;
+    }
+
+    // Set when the last openSession() reached our camera and it refused the
+    // password, so the capture can say so instead of failing silently.
+    bool g_session_refused = false;
+
+    // Discover the paired camera and authenticate a P2P session on `udp`.
+    // Shared by the capture, securing and factory-reset paths, so none of them
+    // ever acts on a camera that is not the one paired to this controller.
     bool openSession(WiFiUDP& udp, IPAddress& peer_ip, uint16_t& peer_port) {
+      const std::string ours(fg::settings().getStr("webcam_did").c_str());
+      g_want_uid = std::string(fg::settings().getStr("webcam_uid").c_str());
+      g_foreign_n = 0;
+      g_session_refused = false;
       uint8_t did[20];
-      bool have_did = false;
 
-    // --- 1. discover: LanSearch until the camera answers with its DID -----
-    // Ask the address it answered on last first. That is both the fast path and
-    // the only one that works where the access point keeps clients from seeing
-    // each other's broadcasts. A stale address costs one short round and the
-    // broadcast below takes over.
-    IPAddress cached_ip;
-    if(cached_ip.fromString(cachedCamIp().c_str())) {
-      have_did = lanSearch(udp, cached_ip, CACHED_PEER_MS, did, peer_ip, peer_port);
-    }
+      // Ask the address it answered on last first. That is both the fast path
+      // and the only one that works where the access point keeps clients from
+      // seeing each other's broadcasts. A stale address costs one short round
+      // and the broadcast takes over.
+      IPAddress cached_ip;
+      bool ask_cached = cached_ip.fromString(cachedCamIp().c_str());
+      const IPAddress broadcast(255, 255, 255, 255);
+      const uint32_t started = millis();
+      for(;;) {
+        bool found = false;
+        if(ask_cached) {
+          found = lanSearch(udp, cached_ip, CACHED_PEER_MS, did, peer_ip, peer_port);
+          ask_cached = false;
+        }
+        while(!found && (millis() - started) < DISCOVER_MS) {
+          found = lanSearch(udp, broadcast, 400, did, peer_ip, peer_port);
+        }
+        if(!found) break;
 
-    uint32_t started = millis();
-    const IPAddress broadcast(255, 255, 255, 255);
-    while(!have_did && (millis() - started) < DISCOVER_MS) {
-      have_did = lanSearch(udp, broadcast, 400, did, peer_ip, peer_port);
-    }
+        const uint8_t verdict = authenticate(udp, did, peer_ip, peer_port, ours);
+        if(verdict == REPLY_OURS) {
+          g_camera_misses = 0;
+          rememberCamUid(did);
+          rememberCamIp(peer_ip);
+          return true;
+        }
+        if(verdict != REPLY_FOREIGN) {
+          // Our camera, or one that never said who it is: either way it is on the
+          // network, so this is no reason to go searching for it.
+          g_camera_misses = 0;
+          g_session_refused = verdict == REPLY_REFUSED;
+          return false;
+        }
+        // Somebody else's camera: leave it alone and keep looking. Closing the
+        // session frees the slot it took on that camera.
+        sendPacket(udp, peer_ip, peer_port, buildPacket(0xf0, nullptr, 0));
+        Serial.printf("[cam] %s is not the paired camera\n", formatCamUid(did).c_str());
+        forgetForeign(did, peer_ip);
+        if(g_foreign_n >= MAX_FOREIGN) break;
+      }
 
-    if(!have_did) {
       if(g_camera_misses < 255) ++g_camera_misses;
       return false;
     }
-    g_camera_misses = 0;
-    rememberCamIp(peer_ip);
-
-    char cgi[192];
-
-    // --- 2. authenticate: handshake until a CGI actually answers ----------
-    bool authed = false;
-    started = millis();
-    while(!authed && (millis() - started) < AUTH_MS) {
-      uint8_t devlgn[36];
-      memcpy(devlgn, did, sizeof(did));
-      static const uint8_t trailer[16] = {
-        0x00,0x02,0x12,0x64,0x10,0x02,0x00,0x0a,0,0,0,0,0,0,0,0 };
-      memcpy(devlgn + sizeof(did), trailer, sizeof(trailer));
-
-      sendPacket(udp, peer_ip, peer_port, buildPacket(0x00, nullptr, 0));
-      sendPacket(udp, peer_ip, peer_port, buildPacket(0x05, did, sizeof(did)));
-      sendPacket(udp, peer_ip, peer_port, buildPacket(0x20, devlgn, sizeof(devlgn)));
-      sendPacket(udp, peer_ip, peer_port, buildPacket(0x41, did, sizeof(did)));
-      snprintf(cgi, sizeof(cgi), "get_status.cgi?%s", camAuth().c_str());
-      sendPacket(udp, peer_ip, peer_port, buildCgi(0, 0, cgi));
-
-      const uint32_t wait_until = millis() + 500;
-      while((int32_t)(wait_until - millis()) > 0) {
-        int sz = udp.parsePacket();
-        if(sz > 0 && sz <= (int)sizeof(g_rx)) {
-          int len = udp.read(g_rx, sizeof(g_rx));
-          if(len >= 4) {
-            deobfuscate(g_rx, len);
-            if(g_rx[1] == 0x42 || g_rx[1] == 0x43) {
-              // echo the readiness packet back
-              memcpy(g_tx, g_rx, len);
-              obfuscate(g_tx, len);
-              sendPacket(udp, peer_ip, peer_port, len);
-            }
-            else if(g_rx[1] == 0xd0 && len >= 8 && g_rx[5] == 0) {
-              authed = true;
-              break;
-            }
-          }
-        }
-        delay(5);
-      }
-      esp_task_wdt_reset();
-    }
-
-    return authed;
-
-  }
 
   } // namespace
 
@@ -451,28 +558,56 @@ namespace fg {
       return false;
     }
 
-    uint8_t did[20];
-    IPAddress peer_ip;
-    uint16_t peer_port = 0;
+    // Only a camera whose id is known can be recognised without opening a
+    // session. Without one, whatever answers could be a neighbour's, and the
+    // next capture's own broadcast finds and checks the camera properly.
+    g_want_uid = std::string(fg::settings().getStr("webcam_uid").c_str());
+    g_foreign_n = 0;
     bool found = false;
-    const IPAddress broadcast(255, 255, 255, 255);
-    const uint32_t started = millis();
-    while(!found && (millis() - started) < SEARCH_MS) {
-      found = lanSearch(udp, broadcast, 500, did, peer_ip, peer_port);
+    if(!g_want_uid.empty()) {
+      uint8_t did[20];
+      IPAddress peer_ip;
+      uint16_t peer_port = 0;
+      const IPAddress broadcast(255, 255, 255, 255);
+      const uint32_t started = millis();
+      while(!found && (millis() - started) < SEARCH_MS) {
+        found = lanSearch(udp, broadcast, 500, did, peer_ip, peer_port);
+      }
+      if(found) {
+        Serial.printf("[cam] found at %s\n", peer_ip.toString().c_str());
+        rememberCamIp(peer_ip);
+        reportCamIp(cloud);
+      }
+      else {
+        // An id that nothing answers to may be wrong rather than the camera
+        // off. Dropping it lets the next session find the camera by its
+        // printed id instead, and store the P2P id it really has.
+        fg::settings().erase("webcam_uid");
+        fg::settings().commit();
+      }
     }
 
     udp.stop();
     WiFi.setSleep(wifi_was_asleep);
 
-    if(found) {
-      Serial.printf("[cam] found at %s\n", peer_ip.toString().c_str());
-      rememberCamIp(peer_ip);
-      reportCamIp(cloud);
-    }
     if(cloud != nullptr) {
       cloud->log(found ? "message-terp-cam-found" : "message-terp-cam-not-found", found ? 0 : 1);
     }
     return found;
+  }
+
+  std::string terpCamCanonicalUid(std::string uid) {
+    uid.erase(std::remove(uid.begin(), uid.end(), '-'), uid.end());
+    if(uid.size() < 10 || uid.size() > 28) return "";
+    for(size_t i = 0; i < uid.size(); i++) {
+      const unsigned char c = (unsigned char)uid[i];
+      const bool ok = i < 4 ? isalpha(c) : i < uid.size() - 5 ? isdigit(c) : isalnum(c);
+      if(!ok) return "";
+    }
+    char out[40];
+    snprintf(out, sizeof(out), "%.4s%llu%s", uid.c_str(),
+             strtoull(uid.substr(4, uid.size() - 9).c_str(), nullptr, 10), uid.c_str() + uid.size() - 5);
+    return std::string(out);
   }
 
   // Alphanumeric, 12 characters: comfortably inside what the camera accepts, and
@@ -684,6 +819,9 @@ namespace fg {
     uint32_t started = millis();
 
     if(!openSession(udp, peer_ip, peer_port)) {
+      // Our camera, refusing the password it should have: not a transfer
+      // problem, and nothing a retry fixes, so it gets a line of its own.
+      if(g_session_refused) cloud->log("message-cam-capture:auth-failed", 1);
       udp.stop();
       WiFi.setSleep(wifi_was_asleep);
       releaseBuffer();

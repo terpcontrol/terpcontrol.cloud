@@ -69,7 +69,9 @@ namespace fg {
    *
    * The camera announces itself, so this is a longer LanSearch round rather
    * than a subnet sweep: it broadcasts for several seconds and caches the
-   * address of whatever answers, which is what a later capture tries first.
+   * address the camera answers from, which is what a later capture tries first.
+   * Only a camera with the stored P2P id counts; without one nothing is searched,
+   * since only a session can tell which camera answered.
    * Blocking (watchdog-fed) for up to a few seconds, so callers run it while
    * the display is idle.
    *
@@ -89,6 +91,12 @@ namespace fg {
 
   /** Whether a camera is paired and still on the manufacturer's password. */
   bool terpCamNeedsSecuring();
+
+  /**
+   * A P2P id as the camera writes it (`VSTH-828707-TXVEW`) in the form discovery
+   * reads it off the wire (`VSTH828707TXVEW`), or "" if it is not one.
+   */
+  std::string terpCamCanonicalUid(std::string uid);
 
   /*
    * ---------------------------------------------------------------------------

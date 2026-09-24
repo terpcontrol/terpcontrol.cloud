@@ -72,6 +72,12 @@ const ALIVE_MS = 2_000;
 const SESSION_IDLE_MS = 10 * 60_000;
 /** A malfunctioning camera must not stream without end. */
 const MAX_FRAME_BYTES = 4 * 1024 * 1024;
+/**
+ * How long a camera that refused us is left alone. Every attempt takes one of
+ * its few session slots, and when the uid is a neighbour's camera, the slot is
+ * taken from its real owner. The controller captures meanwhile.
+ */
+const REFUSED_BACKOFF_MS = 30 * 60_000;
 
 type Endpoint = { address: string; port: number };
 type Inbox = { message: Buffer; from: Endpoint }[];
@@ -165,7 +171,24 @@ export function packDeviceId(uid: string): Buffer {
   return out;
 }
 
-/** RFC1918, i.e. an address that only means something on our own network. */
+/**
+ * Which camera answered a `get_status.cgi`, and whether it took the password.
+ * Every reply names the camera's printed id (the controller's `webcam_did`):
+ * `vuid=<id>;` when it refused, `var realdeviceid="<id>";` when it accepted. So
+ * the check works without knowing the password of a camera that is not ours.
+ */
+type StatusVerdict = 'ours' | 'foreign' | 'refused' | 'pending';
+
+export function checkStatusReply(text: string, label: string): StatusVerdict {
+  const id = /(?:realdeviceid|vuid)="?([^";]+)[";]/.exec(text)?.[1];
+  if (id === undefined) return 'pending';
+  if (id !== label) return 'foreign';
+  return /result=-1/.test(text) ? 'refused' : 'ours';
+}
+
+/** Thrown when a camera must not be asked again for a while; see REFUSED_BACKOFF_MS. */
+export class CameraRefusedError extends Error {}
+
 /** The inclusive range of UDP ports to bind, ignoring a range that makes no sense. */
 function portRange(from: number, to: number): number[] {
   if (!Number.isInteger(from) || from <= 0 || from > 65535) return [];
@@ -173,6 +196,7 @@ function portRange(from: number, to: number): number[] {
   return Array.from({ length: last - from + 1 }, (_, index) => from + index);
 }
 
+/** RFC1918, i.e. an address that only means something on our own network. */
 function isPrivate(address: string): boolean {
   return /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(address);
 }
@@ -260,8 +284,12 @@ export class TerpCamDirectService implements OnApplicationShutdown {
    */
   private sessions = new Map<string, Session>();
 
+  /** Devices whose camera refused us, and until when it is left alone. */
+  private refused = new Map<string, number>();
+
   /** The camera a device says is its own. `none` forgets it. */
   public rememberCamera(deviceId: string, label: string): void {
+    this.refused.delete(deviceId);
     if (!label || label === 'none') {
       this.cameras.delete(deviceId);
       return;
@@ -273,12 +301,14 @@ export class TerpCamDirectService implements OnApplicationShutdown {
 
   /** Empty means the camera still has the manufacturer's default. */
   public rememberPassword(deviceId: string, password: string): void {
+    this.refused.delete(deviceId);
     const camera = this.cameras.get(deviceId);
     if (camera) camera.password = password || undefined;
   }
 
   /** The camera's P2P id, read off the camera by its controller. */
   public rememberUid(deviceId: string, uid: string): void {
+    this.refused.delete(deviceId);
     const camera = this.cameras.get(deviceId);
     if (camera && uid && uid !== 'none') camera.uid = uid;
   }
@@ -379,7 +409,7 @@ export class TerpCamDirectService implements OnApplicationShutdown {
   }
 
   /** Open a session (one rendezvous) or reuse the one already held. */
-  private async session(deviceId: string, camera: { uid: string; password?: string }) {
+  private async session(deviceId: string, camera: Camera & { uid: string }) {
     const existing = this.sessions.get(deviceId);
     if (existing) return existing;
 
@@ -396,7 +426,7 @@ export class TerpCamDirectService implements OnApplicationShutdown {
       const punched = await this.rendezvous(socket, inbox, did);
       const auth = authFor(camera.password ?? DEFAULT_PASSWORD);
       // login consumes channel-0 index 0, so requests continue from 1
-      await this.login(socket, inbox, did, punched, auth);
+      await this.login(socket, inbox, did, punched, auth, camera.label);
       const session: Session = { socket, peer: punched, inbox, auth, next: 1 };
       session.alive = this.startHeartbeat(session);
       this.sessions.set(deviceId, session);
@@ -420,8 +450,16 @@ export class TerpCamDirectService implements OnApplicationShutdown {
    * attempts before taking it.
    */
   public async canReachCamera(deviceId: string): Promise<boolean> {
-    if (!this.rendezvousHosts.length) return false;
+    if (!this.rendezvousHosts.length || this.isRefused(deviceId)) return false;
     return !!(await this.cameraFor(deviceId))?.uid;
+  }
+
+  private isRefused(deviceId: string): boolean {
+    const until = this.refused.get(deviceId);
+    if (until === undefined) return false;
+    if (Date.now() < until) return true;
+    this.refused.delete(deviceId);
+    return false;
   }
 
   /** Pull one still as a ready JPEG, decoding the keyframe when there is one. */
@@ -437,7 +475,7 @@ export class TerpCamDirectService implements OnApplicationShutdown {
    * The keepalive stands down while reading: it and the reader drain the same
    * inbox, so leaving it running would let it swallow video fragments.
    */
-  private async readStill(deviceId: string, identity: { uid: string; password?: string }): Promise<Buffer | undefined> {
+  private async readStill(deviceId: string, identity: Camera & { uid: string }): Promise<Buffer | undefined> {
     const session = await this.session(deviceId, identity);
     clearInterval(session.alive);
     try {
@@ -463,7 +501,10 @@ export class TerpCamDirectService implements OnApplicationShutdown {
     if (!this.rendezvousHosts.length) {
       throw new Error('TERPCAM_RENDEZVOUS_HOSTS is unset, so cameras can only be reached by their controller');
     }
-    const identity = { uid: camera.uid, password: camera.password };
+    if (this.isRefused(deviceId)) {
+      throw new Error('the camera refused this server recently, leaving it to the controller');
+    }
+    const identity = { label: camera.label, uid: camera.uid, password: camera.password };
 
     // A held session that has gone stale fails exactly like a broken one, so a
     // reused session gets a second attempt on a freshly opened one.
@@ -476,6 +517,11 @@ export class TerpCamDirectService implements OnApplicationShutdown {
         return { data: keyframe, h264: true };
       } catch (error) {
         this.dropSession(deviceId);
+        if (error instanceof CameraRefusedError) {
+          logger.warn(`[terpcam] ${deviceId}: ${error.message}, not asking again for ${REFUSED_BACKOFF_MS / 60_000} min`);
+          this.refused.set(deviceId, Date.now() + REFUSED_BACKOFF_MS);
+          throw error;
+        }
         if (attempt >= attempts) throw error;
         logger.info(`[terpcam] ${deviceId}: held session went stale, opening a new one`);
       }
@@ -531,33 +577,54 @@ export class TerpCamDirectService implements OnApplicationShutdown {
     return peer;
   }
 
-  /** Authenticate the punched session. */
-  private async login(socket: dgram.Socket, inbox: Inbox, did: Buffer, peer: Endpoint, auth: string): Promise<void> {
+  /**
+   * Authenticate the punched session, and make sure it is the camera the device
+   * paired. Any answer used to count as success, `result=-1` included, so a uid
+   * pointing at the wrong camera held a session that could never deliver. That
+   * is also a tenant boundary: the server must not hold a session to a camera
+   * the device did not pair, whoever's it is.
+   */
+  private async login(socket: dgram.Socket, inbox: Inbox, did: Buffer, peer: Endpoint, auth: string, label: string): Promise<void> {
     const trailer = Buffer.from([0x00, 0x02, 0x12, 0x64, 0x10, 0x02, 0x00, 0x0a, 0, 0, 0, 0, 0, 0, 0, 0]);
     const devlgn = Buffer.concat([did, trailer]);
+    // The reply can span fragments; kept by index so they join in order.
+    const reply = new Map<number, Buffer>();
+    // Held in an object because it is assigned from inside a callback.
+    const state: { verdict: StatusVerdict } = { verdict: 'pending' };
     const until = Date.now() + LOGIN_MS;
     while (Date.now() < until) {
-      for (const packet of [buildPacket(0x00), buildPacket(0x05, did), buildPacket(0x20, devlgn), buildPacket(0x41, did)]) {
-        send(socket, peer, packet);
+      // Asked once it answers: a second get_status would restart the reply.
+      if (reply.size === 0) {
+        for (const packet of [buildPacket(0x00), buildPacket(0x05, did), buildPacket(0x20, devlgn), buildPacket(0x41, did)]) {
+          send(socket, peer, packet);
+        }
+        send(socket, peer, buildCgi(CMD_CHANNEL, 0, `get_status.cgi?${auth}`));
       }
-      send(socket, peer, buildCgi(CMD_CHANNEL, 0, `get_status.cgi?${auth}`));
 
-      let authed = false;
       await this.drain(inbox, 1_000, entry => {
         const m = entry.message;
         if (m.length >= 4 && (m[1] === 0x42 || m[1] === 0x43)) {
           send(socket, entry.from, obfuscate(m));
           return false;
         }
-        if (m.length >= 8 && m[1] === 0xd0 && m[5] === CMD_CHANNEL) {
-          authed = true;
-          return true;
+        if (m.length > 8 && m[1] === 0xd0 && m[5] === CMD_CHANNEL) {
+          const index = m.readUInt16BE(6);
+          send(socket, peer, buildAck(CMD_CHANNEL, index));
+          if (!reply.has(index)) reply.set(index, m.subarray(8));
+          const ordered = [...reply.keys()].sort((a, b) => a - b).map(key => reply.get(key) as Buffer);
+          state.verdict = checkStatusReply(Buffer.concat(ordered).toString('latin1'), label);
+          return state.verdict !== 'pending';
         }
         return false;
       });
-      if (authed) return;
+
+      if (state.verdict === 'ours') return;
+      // Anything else gives the camera its slot back before giving up.
+      if (state.verdict !== 'pending') send(socket, peer, buildPacket(0xf0));
+      if (state.verdict === 'refused') throw new CameraRefusedError('camera rejected the password');
+      if (state.verdict === 'foreign') throw new CameraRefusedError(`UID belongs to a different camera than ${label}`);
     }
-    throw new Error('camera did not accept the session');
+    throw new Error(reply.size ? 'camera did not say which camera it is' : 'camera did not accept the session');
   }
 
   /**
