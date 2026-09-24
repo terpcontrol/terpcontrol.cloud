@@ -103,6 +103,7 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
               current={current}
               ended={page.endedAt !== null}
               asOf={current ? page.range.endsAt : null}
+              explain={index === 0}
             />
           );
         })}

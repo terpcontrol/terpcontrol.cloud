@@ -283,7 +283,10 @@ describe('the report tab', () => {
     };
     drawReport();
 
-    expect(await screen.findByText(/26.4 \/ 20.8 °C · 60 % · 12 h · 91 % in band/)).toBeInTheDocument();
+    // Read as the line reads: "in band" is a term of its own, so the figures span more than one element.
+    const line = (_: string, element: Element | null) =>
+      element?.tagName === 'P' && /26.4 \/ 20.8 °C · 60 % · 12 h · 91 % in band/.test(element.textContent ?? '');
+    expect(await screen.findByText(line)).toBeInTheDocument();
   });
 
   it('asks for the zip and says where the job has got to, with nothing to download until there is', async () => {

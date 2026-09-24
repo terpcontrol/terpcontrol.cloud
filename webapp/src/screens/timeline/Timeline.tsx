@@ -188,8 +188,18 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
           {data.lastReadingAt === null ? t('timeline.noPanels') : t('timeline.quietWindow', { age: ageLabel(data.lastReadingAt, now) })}
         </p>
       ) : null}
-      {data.panels.map(panel => (
-        <Panel key={panel.metric} panel={panel} nights={data.nights} alarms={data.alarms} from={from} to={to} cursor={here} scrub={scrub} />
+      {data.panels.map((panel, index) => (
+        <Panel
+          key={panel.metric}
+          panel={panel}
+          nights={data.nights}
+          alarms={data.alarms}
+          from={from}
+          to={to}
+          cursor={here}
+          scrub={scrub}
+          explain={index === 0}
+        />
       ))}
 
       <Lanes timeline={data} from={from} to={to} cursor={here} now={now} selected={opened} onSelect={setOpened} onScrub={setCursor} scrub={scrub} />

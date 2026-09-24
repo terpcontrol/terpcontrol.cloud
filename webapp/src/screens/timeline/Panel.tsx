@@ -6,6 +6,7 @@ import { nightColour } from '@/charts/series';
 import type { ChartPalette, ChartToken } from '@/charts/tokens';
 import { figure, targetFigure, UNIT } from '../home/units';
 import { alarmsOf, at, fractionOf, pointAt, scaleOf, stretchesOf, targetAt, type Stretch } from './window';
+import { Term } from '@/ui/Help';
 import styles from './Timeline.module.css';
 
 /** The signal colour a curve is drawn in. Only the three steered metrics have a panel, so only they have one. */
@@ -19,6 +20,8 @@ interface PanelProps {
   to: number;
   cursor: number;
   scrub: React.HTMLAttributes<HTMLDivElement>;
+  /** The first panel, whose band says what a band is. */
+  explain?: boolean;
 }
 
 /**
@@ -27,7 +30,7 @@ interface PanelProps {
  * drawn once per answer and the cursor is an overlay over it, so scrubbing
  * costs no redraw.
  */
-export function Panel({ panel, nights, alarms, from, to, cursor, scrub }: PanelProps) {
+export function Panel({ panel, nights, alarms, from, to, cursor, scrub, explain }: PanelProps) {
   const { t } = useTranslation();
   const stretches = useMemo(() => stretchesOf(panel, nights, from, to), [panel, nights, from, to]);
   const scale = useMemo(() => scaleOf(panel, stretches), [panel, stretches]);
@@ -41,6 +44,9 @@ export function Panel({ panel, nights, alarms, from, to, cursor, scrub }: PanelP
   const target = targetAt(panel, nights, from, to, cursor);
   const left = `${fractionOf(cursor, from, to) * 100}%`;
   const unit = UNIT[panel.metric] ?? '';
+  const bandLabel = target
+    ? t('timeline.band', { low: targetFigure(target.band.low, panel.metric), high: targetFigure(target.band.high, panel.metric) })
+    : null;
 
   return (
     <section className={styles.panel}>
@@ -51,9 +57,7 @@ export function Panel({ panel, nights, alarms, from, to, cursor, scrub }: PanelP
         <span className={`figure ${styles.panelValue}`}>{value === null ? '—' : figure(value, panel.metric)}</span>
         <span className={`mono ${styles.panelUnit}`}>{unit}</span>
         <span className={`label ${styles.band}`}>
-          {target
-            ? t('timeline.band', { low: targetFigure(target.band.low, panel.metric), high: targetFigure(target.band.high, panel.metric) })
-            : t('timeline.noTarget')}
+          {target && bandLabel ? explain ? <Term topic="band">{bandLabel}</Term> : bandLabel : t('timeline.noTarget')}
         </span>
       </header>
       <div className={styles.plot}>

@@ -1,6 +1,6 @@
 import { ChevronDown, Film, Leaf } from 'lucide-react';
 import { DateTime } from 'luxon';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowWeekCard, WeekClimate } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
@@ -8,12 +8,15 @@ import { ageLabel, unitSymbol } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
 import { decimalFigure } from '@/ui/figures';
 import { readingFigure, weekDayOf } from '@/ui/entries';
+import { Term } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { Photo } from '@/ui/Photo';
 import { windowIsCurrent } from './window';
 import styles from './Public.module.css';
 
 interface DiaryWeekProps {
+  /** The newest card, whose words explain themselves once for the page. */
+  explain?: boolean;
   week: GrowWeekCard;
   picture: Picture;
   now: DateTime;
@@ -49,7 +52,7 @@ const dayNight = (row: WeekClimate | undefined, decimals: number): string =>
  * things a stranger is not given and which the public answer therefore does not
  * carry. A card that took the owner's shape would have to invent all three.
  */
-export function DiaryWeek({ week, picture, now, current, ended, asOf }: DiaryWeekProps) {
+export function DiaryWeek({ week, picture, now, current, ended, asOf, explain }: DiaryWeekProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(current);
   const temperature = week.climate.find(row => row.metric === 'temperature');
@@ -105,7 +108,19 @@ export function DiaryWeek({ week, picture, now, current, ended, asOf }: DiaryWee
         <p className={`mono ${styles.quiet}`}>{t('grow.nothingMeasured')}</p>
       ) : (
         <dl className={`${ui.strip} ${styles.stats}`}>
-          <Stat value={dayNight(temperature, 1)} unit="°C" label={temperature?.dayAverage != null ? t('grow.dayNight') : t('grow.average')} />
+          <Stat
+            value={dayNight(temperature, 1)}
+            unit="°C"
+            label={
+              temperature?.dayAverage == null ? (
+                t('grow.average')
+              ) : explain ? (
+                <Term topic="dayNightAverages">{t('grow.dayNight')}</Term>
+              ) : (
+                t('grow.dayNight')
+              )
+            }
+          />
           <Stat value={figure(humidity?.averageValue ?? null, 0)} unit="%" label={t('grow.humidity')} />
           <Stat value={figure(week.lightHours, 0)} unit={unitSymbol('h')} label={t('grow.light')} />
         </dl>
@@ -200,7 +215,7 @@ function WeekFilm({ src }: { src: string }) {
   return <video className={styles.weekFilm} src={src} controls autoPlay muted playsInline />;
 }
 
-function Stat({ value, unit, label }: { value: string; unit: string; label: string }) {
+function Stat({ value, unit, label }: { value: string; unit: string; label: ReactNode }) {
   return (
     <div>
       <dd className={ui.stripValue}>

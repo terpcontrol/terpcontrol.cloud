@@ -11,6 +11,7 @@ import { useCorrecting } from '@/log/corrections';
 import { durationFigure } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 import { growDayOf } from '@/ui/entries';
+import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { standsIn } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -33,6 +34,9 @@ export function Report({ grow, spaces, mayOwn, now }: { grow: GrowListItem; spac
   if (!report.data) return <LoadFailed retry={() => void report.refetch()} />;
 
   const { totals, harvest } = report.data;
+  // What "in band" means is said on the first chapter that states a share of it.
+  const bandTeacher =
+    report.data.phases.find(chapter => chapter.inBandPercent !== null && chapter.climate.some(row => row.metric === 'temperature')) ?? null;
 
   return (
     <div className={styles.report}>
@@ -57,7 +61,15 @@ export function Report({ grow, spaces, mayOwn, now }: { grow: GrowListItem; spac
       {report.data.phases.length === 0 ? <p className={styles.empty}>{t('grow.noWeeks')}</p> : null}
 
       {report.data.phases.map(chapter => (
-        <Chapter key={chapter.phaseId} chapter={chapter} grow={grow} people={report.data.people} spaces={spaces} measurements={grow.measurements} />
+        <Chapter
+          key={chapter.phaseId}
+          chapter={chapter}
+          grow={grow}
+          people={report.data.people}
+          spaces={spaces}
+          measurements={grow.measurements}
+          explainBand={chapter === bandTeacher}
+        />
       ))}
 
       <Export growId={grow.id} mayOwn={mayOwn} />
@@ -150,12 +162,15 @@ function Chapter({
   people,
   spaces,
   measurements,
+  explainBand,
 }: {
   chapter: GrowReportPhase;
   grow: GrowListItem;
   people: { id: string; handle: string }[];
   spaces: Space[];
   measurements: GrowListItem['measurements'];
+  /** The first chapter that states its share in band, which says once what the band is. */
+  explainBand: boolean;
 }) {
   const { t } = useTranslation();
   const correcting = useCorrecting();
@@ -188,7 +203,16 @@ function Chapter({
               : `${temperature.averageValue === null ? '–' : decimalFigure(temperature.averageValue, 1)} °C`}
             {humidity?.averageValue !== null && humidity !== undefined ? ` · ${decimalFigure(humidity.averageValue, 0)} %` : ''}
             {chapter.lightHours !== null ? ` · ${durationFigure(decimalFigure(chapter.lightHours, 0), 'h')}` : ''}
-            {chapter.inBandPercent !== null ? ` · ${t('space.inBand', { percent: Math.round(chapter.inBandPercent) })}` : ''}
+            {chapter.inBandPercent !== null ? (
+              <>
+                {' · '}
+                {explainBand ? (
+                  <Term topic="band">{t('space.inBand', { percent: Math.round(chapter.inBandPercent) })}</Term>
+                ) : (
+                  t('space.inBand', { percent: Math.round(chapter.inBandPercent) })
+                )}
+              </>
+            ) : null}
           </p>
         ) : null}
         <p className={`mono ${styles.chapterMeta}`}>
