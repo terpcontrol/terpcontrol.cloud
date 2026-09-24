@@ -279,6 +279,13 @@
   opacity: 0.45;
 }
 
+/* Why the chips above it are grey, on its own line under them rather than
+   between two of them. */
+.whyGrey {
+  flex-basis: 100%;
+  margin: 0;
+}
+
 .socketWhy {
   margin-top: var(--space-2);
   font-size: var(--text-xs);

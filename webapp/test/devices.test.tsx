@@ -234,12 +234,15 @@ describe('the switch on a socket row', () => {
     expect(screen.getByRole('button', { name: 'Find it' })).toBeEnabled();
   });
 
-  it('refuses to find a socket only where nobody is listening', () => {
-    draw(socket(), 'Offline', true, 'Offline');
+  it('refuses to find a socket only where nobody is listening, and says so beside it', () => {
+    draw(socket(), 'Offline · nothing is listening, so nothing is sent.', true, 'Offline · nothing is listening, so nothing is sent.');
 
     fireEvent.click(screen.getByRole('button', { name: /What Heater is/ }));
 
     expect(screen.getByRole('button', { name: 'Find it' })).toBeDisabled();
+    // The reason is what makes a grey chip something other than a broken one,
+    // and this is the chip the oldest build in the field still takes.
+    expect(screen.getByText('Offline · nothing is listening, so nothing is sent.')).toBeInTheDocument();
   });
 
   it('opens the times, the address and the way back when the row is opened', () => {
@@ -518,6 +521,40 @@ describe('what the sockets offer, by who is reading', () => {
     expect(await screen.findByRole('slider', { name: 'Brightness' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'auto' }).length).toBeGreaterThan(0);
     expect(screen.queryByText(/A socket or the lamp is switched by whoever steers this space\./)).not.toBeInTheDocument();
+  });
+
+  /**
+   * A restored account announces no capabilities at all, so every device in it
+   * reads as a build too old to hold a socket on - and the section said exactly
+   * that about a fridge that had been unplugged for four days, with no word
+   * anywhere that it was offline. Being unreachable stops more than an old
+   * build does, so it is said first and the old build is said after it.
+   */
+  it('says a device is offline before it says its build is old, and says both', async () => {
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices')
+        return Promise.resolve({
+          items: [{ ...standing, state: { lastSeenAt: NOW.minus({ days: 4 }).toISO()!, firmwareId: null } }],
+          nextCursor: null,
+        }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [spaceWhere('own')], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
+      if (path.endsWith('/sockets'))
+        return Promise.resolve({
+          items: [socket({ role: 'heater' })],
+          capabilities: { ...CAPABILITIES, socketOverride: false },
+        }) as never;
+      if (path.endsWith('/series')) return Promise.resolve({ readings: [], outputs: [] }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    wrap(<DeviceList spaceId="space-1" />);
+
+    const offline = await screen.findByText('Offline · nothing is listening, so nothing is sent.');
+    const build = screen.getByText(/This build takes no override\./);
+
+    expect(offline.compareDocumentPosition(build)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it('gives a member the readings, no switch at all, and the reason once', async () => {

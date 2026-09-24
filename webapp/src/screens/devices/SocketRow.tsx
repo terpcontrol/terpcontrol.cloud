@@ -21,7 +21,8 @@ interface SocketRowProps {
    * Why nothing on this row can be switched, or null when it can. It is the
    * device's answer rather than the row's - an old build and a device nobody is
    * listening on are both true of every row it has - so it is said once above
-   * the list and only drawn into the controls here.
+   * the list, and again under the times behind the chevron, where it is the
+   * reason those chips and "Find it" are grey.
    */
   refusal: string | null;
   /**
@@ -162,6 +163,12 @@ export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, no
                   {t('devices.socket.findIt')}
                 </button>
               ) : null}
+              {/* A control that stops working with its reason a scroll away is
+                  a control with no reason at all, and these are the ones a
+                  person opens the row to reach. The list above says it for the
+                  switches on the rows that are shut; this says it here, where
+                  the grey chips are. */}
+              {refusal ? <p className={`${ui.note} ${styles.whyGrey}`}>{refusal}</p> : null}
             </div>
           ) : null}
           <Receipt result={test.data} error={test.error} pending={test.isPending} />

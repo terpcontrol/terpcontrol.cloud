@@ -165,8 +165,19 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
         // noise. A device nobody is listening on hears nothing at all; one whose
         // build predates the override still takes every command it always did,
         // so that reason is kept apart from this one.
+        //
+        // Both are said where both are true, and the silence comes first. Only
+        // the older build was ever drawn, and because no device restored from
+        // the old cloud announces what it can do, a fridge that had been
+        // unplugged for four days told its owner to wait for a firmware update
+        // and never once said it was offline - while the light output printed
+        // directly above it, which works this out for itself, said so plainly.
+        // Being unreachable stops strictly more than an old build does,
+        // including the one command every build in the field still takes.
         const unheard = deviceLiveness(spokeAt(device), now) === 'offline' ? t('devices.socket.offline') : null;
-        const refusal = !table.capabilities.socketOverride ? t('devices.socket.needsFirmware') : unheard;
+        const needsFirmware = !table.capabilities.socketOverride ? t('devices.socket.needsFirmware') : null;
+        const refusal = unheard ?? needsFirmware;
+        const refusals = [unheard, needsFirmware].filter((one): one is string => one !== null);
         const place = placeOf(device.spaceId) ?? deviceTitle(device, t);
         // A socket and the lamp above it are this device's configuration, which
         // is `manage` where the device stands.
@@ -193,7 +204,13 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
                 <span className="label">
                   {t('devices.lights')} · {place}
                 </span>
-                {refusal && mayManage && lamps.length > 0 ? <p className={ui.note}>{refusal}</p> : null}
+                {mayManage && lamps.length > 0
+                  ? refusals.map(one => (
+                      <p key={one} className={ui.note}>
+                        {one}
+                      </p>
+                    ))
+                  : null}
                 <ul className={styles.rows}>
                   {light ? <LightOutputRow output={light} unheard={unheard} mayManage={mayManage} runs={runsOf(verdict, 'light')} now={now} /> : null}
                   {plugs(lamps)}
@@ -206,7 +223,13 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
                 <span className="label">
                   {t('devices.sockets')} · {place}
                 </span>
-                {refusal && mayManage ? <p className={ui.note}>{refusal}</p> : null}
+                {mayManage
+                  ? refusals.map(one => (
+                      <p key={one} className={ui.note}>
+                        {one}
+                      </p>
+                    ))
+                  : null}
                 <ul className={styles.rows}>{plugs(rest)}</ul>
               </section>
             ) : null}
