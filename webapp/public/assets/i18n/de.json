@@ -816,6 +816,7 @@
       "saveFailed": "Diese Helligkeit wurde nicht gespeichert.",
       "noSettings": "Dieses Gerät hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin eine Helligkeit stehen könnte. Wird am Gerät selbst eine beliebige Einstellung geändert, schickt es sie; ein neuer Verbindungsaufbau allein tut das nicht.",
       "needsFirmware": "Diesem Build lässt sich der Lichtausgang nicht von Hand halten. Die Helligkeit erreicht ihn trotzdem — sie ist eine Einstellung und kein Befehl.",
+      "needsFirmwareAlone": "Diesem Build lässt sich der Lichtausgang nicht von Hand halten.",
       "keptForLater": "Niemand hört zu, die Tasten erreichen also nichts — eine Helligkeit wird trotzdem gespeichert, und das Gerät bekommt sie, sobald es sich wieder verbindet.",
       "explained": "Das Gerät dimmt diesen Ausgang selbst und fährt ihn über Sonnenauf- und -untergang hoch und runter; die Helligkeit ist das Maximum, das es gibt. Eine smarte Steckdose mit Licht-Rolle hat keine eigene Stufe — sie folgt diesem Ausgang an oder aus, solange sie nicht von Hand gehalten wird. Lichtstunden zählen jede Stunde, in der die Lampe über null liegt: Dimmen ändert, wie hell der Tag ist, nicht wie lang."
     },

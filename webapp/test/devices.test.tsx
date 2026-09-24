@@ -418,6 +418,24 @@ describe("the controller's own light output", () => {
     expect(screen.getByText(/has not sent its settings yet/)).toBeInTheDocument();
   });
 
+  it('does not promise a brightness will arrive at a device there is nothing to send one to', () => {
+    // The old build's refusal ends by pointing at the brightness as the half
+    // that gets through anyway. With no configuration stored there is no
+    // brightness to send, so that clause contradicted the line directly above
+    // it - the two notes are drawn one under the other.
+    drawOutput(null, { ...CAPABILITIES, lightOverride: false });
+
+    expect(screen.getByText(/has not sent its settings yet/)).toBeInTheDocument();
+    expect(screen.getByText('This build cannot be told to hold its light output.')).toBeInTheDocument();
+    expect(screen.queryByText(/The brightness still reaches it/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the brightness half of that refusal where there is a document to store one in', () => {
+    drawOutput({ lights: LIGHTS }, { ...CAPABILITIES, lightOverride: false });
+
+    expect(screen.getByText(/The brightness still reaches it/)).toBeInTheDocument();
+  });
+
   it('states no brightness where none is stored, rather than the top of the slider´s scale', () => {
     // The slider has to stand somewhere; 100 % printed beside it in the same
     // weight as a real setting read as a ceiling the lamp was running at.

@@ -81,7 +81,17 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
   const stated = dragged || stored !== null ? percentLabel(level) : t('devices.lightOutput.noLimit');
 
   const cannotSetLevel = output.configuration === null ? t('devices.lightOutput.noSettings') : null;
-  const cannotForce = !output.takesOverride ? t('devices.lightOutput.needsFirmware') : unheard;
+  // Why the buttons are out of reach. The old build's refusal ends by pointing
+  // at the brightness as the half that gets through anyway, which is the whole
+  // of its comfort - and on a device that has sent no settings there is no
+  // document to write a brightness into, so that half is a promise the line
+  // above it has just withdrawn. The two notes stand one under the other, so a
+  // reader met "there is nothing to write a brightness into" and "the
+  // brightness still reaches it" in consecutive sentences. Where there is
+  // nothing to send, the refusal says only that this build cannot be held.
+  const cannotForce = !output.takesOverride
+    ? t(cannotSetLevel ? 'devices.lightOutput.needsFirmwareAlone' : 'devices.lightOutput.needsFirmware')
+    : unheard;
   // "Nothing is listening" is true of the buttons and not of the slider, so a
   // device nobody can reach says the whole of it in one line rather than a
   // refusal beside a control that works.
