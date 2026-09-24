@@ -1,0 +1,142 @@
+/* The app explaining itself (Help.tsx): the (i) beside a control, the word
+   with a dotted underline, and the bubble either of them opens. */
+
+/* A small mark in the label ink, so it sits beside a heading without
+   competing with it; it turns brand blue under the pointer and while its
+   bubble is open, as a link does. The mark is 20 px, the target round it a
+   finger's worth, laid over its neighbours' margins rather than pushing them
+   apart. */
+.info {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: -2px 0 -2px var(--space-1);
+  padding: 0;
+  vertical-align: middle;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--label);
+  transition: color 120ms ease-out;
+}
+
+.info::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+}
+
+.info:hover,
+.info[aria-expanded='true'] {
+  color: var(--brand);
+}
+
+/* A term stays the word it is in its sentence - the same face, size, weight
+   and ink - and says it can be asked about by its dotted underline alone. */
+.term {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  text-transform: inherit;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--label);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.22em;
+  cursor: help;
+}
+
+.term:hover,
+.term[aria-expanded='true'] {
+  color: var(--brand);
+  text-decoration-color: var(--brand);
+}
+
+/* The bubble: a raised card in the card's own colours, edged in the strong
+   rule so it still stands off a card of the same navy in dark mode. Fixed to
+   the window and placed by the component; a phone's width less its gutters,
+   and no wider than a comfortable line on a desktop. Whatever it stands in,
+   it resets the type to the body's: a label's capitals and tracking are not
+   the explanation's. */
+.bubble {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 40;
+  width: min(20rem, calc(100vw - 2 * var(--space-4)));
+  background: var(--card);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-raised);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  line-height: var(--line-body);
+  letter-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+  animation: appear 120ms ease-out;
+}
+
+.bubble:focus {
+  outline: none;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}
+
+/* A bubble taller than the room on its side scrolls inside itself, so the
+   arrow outside the scrolling part is never cut off. */
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: calc(var(--room, 100vh) - 2 * var(--rule-width));
+  padding: var(--space-3) var(--space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.title {
+  color: var(--heading);
+  font-weight: var(--weight-semibold);
+}
+
+/* The arrow points at whatever opened the bubble, from the edge that faces it. */
+.arrow {
+  position: absolute;
+  left: calc(var(--arrow, 50%) - 6px);
+  width: 12px;
+  height: 12px;
+  background: var(--card);
+  border: 0 solid var(--rule-strong);
+  transform: rotate(45deg);
+}
+
+.bubble[data-side='above'] .arrow {
+  bottom: -6.5px;
+  border-right-width: var(--rule-width);
+  border-bottom-width: var(--rule-width);
+}
+
+.bubble[data-side='below'] .arrow {
+  top: -6.5px;
+  border-top-width: var(--rule-width);
+  border-left-width: var(--rule-width);
+}

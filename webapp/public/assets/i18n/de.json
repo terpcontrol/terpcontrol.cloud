@@ -4202,5 +4202,12 @@
     "silentFor": "{{span}} ohne Meldung",
     "backAfter": "wieder da nach {{span}}",
     "back": "wieder da"
+  },
+  "help": {
+    "about": "Hilfe zu {{title}}",
+    "vpd": {
+      "title": "VPD – Dampfdruckdefizit",
+      "text": "Wie stark die Luft den Blättern Wasser entzieht, in kPa – berechnet aus Luftfeuchte und Blatttemperatur (standardmäßig tagsüber 2 °C unter der Luft). Einen eigenen Zielwert hat es nicht: Es ergibt sich aus den Zielwerten für Temperatur und Feuchte."
+    }
   }
 }

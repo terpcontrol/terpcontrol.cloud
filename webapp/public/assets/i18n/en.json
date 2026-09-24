@@ -4206,5 +4206,12 @@
     "silentFor": "silent for {{span}}",
     "backAfter": "back after {{span}}",
     "back": "back"
+  },
+  "help": {
+    "about": "About {{title}}",
+    "vpd": {
+      "title": "VPD – vapour pressure deficit",
+      "text": "How strongly the air draws water from the leaves, in kPa, worked out from humidity and leaf temperature (by default 2 °C below the air by day). It has no target of its own: it follows from the temperature and humidity targets."
+    }
   }
 }

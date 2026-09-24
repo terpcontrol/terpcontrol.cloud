@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { serverNow } from '@/api/clock';
 import { dayOf, momentOn } from './days';
+import type { HelpTopic } from './explain';
+import { Help } from './Help';
 import ui from './ui.module.css';
 import { useZone } from './zone';
 import styles from './SheetParts.module.css';
@@ -80,12 +82,30 @@ export function WhenField({ label, at, onChange, until }: { label: string; at: D
  * A block whose children are the rows of one list - the day's targets, the
  * night's - says `grouped`, and they are drawn as the app's one group: a card
  * with a rule between the rows, rather than rows loose on the page.
+ *
+ * A block whose question needs more than its label names the `help` that
+ * explains it, and the (i) stands beside the label.
  */
-export function Block({ label, aside, grouped, children }: { label: string; aside?: ReactNode; grouped?: boolean; children: ReactNode }) {
+export function Block({
+  label,
+  aside,
+  grouped,
+  help,
+  children,
+}: {
+  label: string;
+  aside?: ReactNode;
+  grouped?: boolean;
+  help?: HelpTopic;
+  children: ReactNode;
+}) {
   return (
     <section className={styles.block}>
       <header className={styles.blockHeader}>
-        <span className="label">{label}</span>
+        <span className="label">
+          {label}
+          {help ? <Help topic={help} /> : null}
+        </span>
         {aside ? <span className={styles.blockAside}>{aside}</span> : null}
       </header>
       {grouped ? <div className={ui.group}>{children}</div> : children}
