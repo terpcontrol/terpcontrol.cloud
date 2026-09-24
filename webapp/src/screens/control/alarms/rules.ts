@@ -20,6 +20,7 @@ import { UNIT, targetFigure } from '@/screens/home/units';
 import { looseFigure } from '@/ui/figures';
 import { isAhead } from '@/ui/age';
 import { zoneOf } from '@/ui/zone';
+import { deviceName } from '@/screens/devices/naming';
 
 /**
  * What the alarm screen knows about a rule that the contract does not say in so
@@ -79,7 +80,7 @@ const presetTitle = (watch: AlarmWatch): string | null => {
  * anybody to type it.
  */
 export const ruleTitle = (t: Translate, rule: AlarmRule, device: Device): string => {
-  if (rule.origin === 'always') return t('alarms.offlineRule', { device: t(`devices.type.${device.type}`, { defaultValue: device.type }) });
+  if (rule.origin === 'always') return t('alarms.offlineRule', { device: deviceName(device, t) });
   if (rule.origin === 'preset') {
     const title = presetTitle(rule.watch);
     if (title) return t(`alarms.presetRule.${title}`);

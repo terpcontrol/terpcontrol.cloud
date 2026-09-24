@@ -31,6 +31,7 @@ import {
   type TargetsDraft,
 } from './targets-draft';
 import styles from './Targets.module.css';
+import { deviceName } from '@/screens/devices/naming';
 
 /**
  * The targets a tent is held at, set by hand.
@@ -152,7 +153,7 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
   const status = plan.data?.state.status ?? null;
   const liveness = deviceLiveness(device.state.lastSeenAt, now);
   const busy = save.isPending || move.isPending;
-  const name = device.name ?? t(`devices.type.${device.type}`, { defaultValue: device.type });
+  const name = deviceName(device, t);
 
   // Saving over a running plan pauses it first: a plan that kept running would
   // write its step's targets over these within the hour. The errors of either

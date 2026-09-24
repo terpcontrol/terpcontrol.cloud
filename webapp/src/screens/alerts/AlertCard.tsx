@@ -17,6 +17,7 @@ import { crossedBound, deliveryOf, lastedLabel } from './inbox';
 import type { AlertNames } from './names';
 import ask from './AlertCard.module.css';
 import styles from './Alerts.module.css';
+import { deviceName } from '@/screens/devices/naming';
 
 /** How long a silence from the card holds, and how long maintenance does. */
 export const SILENCE_SECONDS = 3600;
@@ -125,17 +126,16 @@ const placeOf = (t: Translate, alert: Alert, names: AlertNames, device: Device |
     const space = nameOrId(names.spaces.get(alert.spaceId), alert.spaceId, names);
     const crowded = (names.devicesInSpace.get(alert.spaceId) ?? 0) > 1;
 
-    return [space, device && crowded ? { text: deviceName(t, device), known: true } : null].filter(part => part !== null);
+    return [space, device && crowded ? { text: deviceName(device, t), known: true } : null].filter(part => part !== null);
   }
   if (alert.deviceId)
-    return [device ? { text: deviceName(t, device), known: true } : nameOrId(undefined, alert.deviceId, names)].filter(part => part !== null);
+    return [device ? { text: deviceName(device, t), known: true } : nameOrId(undefined, alert.deviceId, names)].filter(part => part !== null);
   if (alert.cameraId) return [nameOrId(names.cameras.get(alert.cameraId), alert.cameraId, names)].filter(part => part !== null);
 
   return [];
 };
 
 /** What a device is called, or what kind of thing it is where nobody has named it. */
-const deviceName = (t: Translate, device: Device): string => device.name ?? t(`devices.type.${device.type}`, { defaultValue: device.type });
 
 // The inbox writes a metric out in full - "humidity" rather than "RH" - so its
 // own words come first and the short ones the dense cards elsewhere use stand

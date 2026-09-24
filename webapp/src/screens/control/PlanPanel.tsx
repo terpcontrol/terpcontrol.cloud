@@ -31,6 +31,7 @@ import {
 import { draftOf, emptyDraft, type PlanDraft } from './plan-edit';
 import { durationLabel, stepMeta } from './plan-labels';
 import styles from './Control.module.css';
+import { deviceName } from '@/screens/devices/naming';
 
 /**
  * What one controller is being run by, and the five moves that can be made to
@@ -67,7 +68,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   const [keeping, setKeeping] = useState(false);
   const [picking, setPicking] = useState(false);
 
-  const name = device.name ?? t(`devices.type.${device.type}`, { defaultValue: device.type });
+  const name = deviceName(device, t);
   const title = (
     <span className="label">
       {t('space.control.title')} · {name}

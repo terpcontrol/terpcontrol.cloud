@@ -29,6 +29,7 @@ import {
   watchLabel,
 } from './rules';
 import styles from './Alarms.module.css';
+import { deviceName } from '@/screens/devices/naming';
 
 /**
  * The alarm rules of the tent, under Control › Advanced.
@@ -146,7 +147,7 @@ function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: D
   const unsilence = useUnsilenceAlarmRule(device.id);
   const [open, setOpen] = useState<AlarmRule | 'new' | null>(null);
 
-  const name = device.name ?? t(`devices.type.${device.type}`, { defaultValue: device.type });
+  const name = deviceName(device, t);
   const title = named ? <h2 className={styles.deviceName}>{name}</h2> : null;
 
   if (rules.isPending) {
