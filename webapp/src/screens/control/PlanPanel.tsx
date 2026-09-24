@@ -2,6 +2,7 @@ import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify, StepDuration } from '@fg2/shared-types/v1';
+import { useHeardAt } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition, useStopPlan } from '@/api/plans';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
@@ -212,7 +213,8 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
   const ahead = startsInMs(plan.state, now);
   const through = throughStep(plan, now);
   const next = nextStepIndex(plan);
-  const liveness = deviceLiveness(device.state.lastSeenAt, now);
+  const heard = useHeardAt(device);
+  const liveness = deviceLiveness(heard, now);
   // A plan at rest has no clock, so it is not given one: the step it stands at
   // is where starting it would begin, and a bar filling up beside a tent that
   // is being run by nothing would be the screen inventing a state.
@@ -301,7 +303,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
         {plan.state.lastAppliedAt
           ? t('space.control.applied.at', { age: ageLabel(plan.state.lastAppliedAt, now) })
           : t(going ? 'space.control.applied.never' : 'space.control.applied.atRest')}
-        {liveness === 'offline' ? ` · ${t('space.control.applied.quiet', { age: ageLabel(device.state.lastSeenAt, now) })}` : ''}
+        {liveness === 'offline' ? ` · ${t('space.control.applied.quiet', { age: ageLabel(heard, now) })}` : ''}
       </p>
     </>
   );

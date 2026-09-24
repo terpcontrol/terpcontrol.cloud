@@ -1,5 +1,6 @@
 import type { Metric, OpenAlert } from '@fg2/shared-types/v1';
-import { spanLabel } from '@/ui/age';
+import type { DateTime } from 'luxon';
+import { ageLabel, silentSince } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 
 /** How a card writes a figure: the unit beside it, and as many decimals as the sensor is good for. */
@@ -54,9 +55,11 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * heard", and never as a silence of readings: calling it that put "quiet for
  * 4 d" on a card whose own figures were dated three days ago.
  */
-export const alertLabel = (t: Translate, alert: OpenAlert): string => {
-  if (alert.metric === 'offline') {
-    const quiet = alert.value === null ? null : t('home.alert.quietFor', { age: spanLabel(alert.value) });
+export const alertLabel = (t: Translate, alert: OpenAlert, now: DateTime): string => {
+  if (isSilence(alert)) {
+    // Counted on from when the silence began, not frozen at the raise, so this
+    // agrees with the Alerts card and the Devices row on every later day too.
+    const quiet = alert.value === null ? null : t('home.alert.quietFor', { age: ageLabel(silentSince(alert), now) });
     return [t(`home.alert.${alert.kind}`), quiet].filter(Boolean).join(' · ');
   }
 
@@ -69,3 +72,9 @@ export const alertLabel = (t: Translate, alert: OpenAlert): string => {
 
   return [t(`home.alert.${alert.kind}`), reading].filter(Boolean).join(' · ');
 };
+
+/**
+ * Whether an alert is about a device gone quiet. Its age is already in its label,
+ * counted from the silence, so a line does not add how long ago the cloud noticed.
+ */
+export const isSilence = (alert: Pick<OpenAlert, 'kind' | 'metric'>): boolean => alert.kind === 'offline' || alert.metric === 'offline';

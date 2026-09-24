@@ -13,7 +13,7 @@ import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from './attenti
 import { ClimateHalf } from './ClimateHalf';
 import { DayCounter, DeviceActions, GrowHalf, NewestEntry, NoGrow, NoSensor, PhaseLine } from './GrowHalf';
 import styles from './SpaceCard.module.css';
-import { alertLabel } from './units';
+import { alertLabel, isSilence } from './units';
 
 const KIND_ICON: Record<SpaceKind, LucideIcon> = { tent: Box, fridge: Refrigerator, room: Fan, balcony: Sun, other: Leaf };
 
@@ -107,7 +107,8 @@ export function SpaceCard({ card, people, now, compact }: SpaceCardProps) {
 
       {alert ? (
         <p className={`mono ${styles.alert}`} data-severity={alert.severity}>
-          {alertLabel(t, alert)} · {t('home.card.ago', { age: ageLabel(alert.startedAt, now) })}
+          {alertLabel(t, alert, now)}
+          {isSilence(alert) ? null : ` · ${t('home.card.ago', { age: ageLabel(alert.startedAt, now) })}`}
         </p>
       ) : null}
 

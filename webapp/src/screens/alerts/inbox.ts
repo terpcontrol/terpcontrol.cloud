@@ -2,7 +2,7 @@ import { DateTime } from 'luxon';
 import type { AlarmRule, Alert, Me, OutputLevelWatch, ReadingWatch, Severity } from '@fg2/shared-types/v1';
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { routedChannels } from '@/screens/control/alarms/rules';
-import { ageLabel } from '@/ui/age';
+import { ageLabel, silentSince } from '@/ui/age';
 import { nowThere, zoned } from '@/ui/zone';
 
 /**
@@ -97,9 +97,17 @@ export const crossedBound = (
   return null;
 };
 
+/**
+ * When what an alert is about began: the reading that crossed the edge, or for
+ * a device gone offline the moment it fell silent rather than the moment the
+ * cloud noticed - a card that said "since 20:26 · for 16 min" beside "last
+ * heard 5 d ago" was dating one silence two ways.
+ */
+export const beganAt = (alert: Alert): string => (alert.kind === 'offline' ? silentSince(alert) : alert.startedAt);
+
 /** How long an alert has stood: until now while it is open, until it resolved once it has. */
 export const lastedLabel = (alert: Alert, now: DateTime): string =>
-  ageLabel(alert.startedAt, alert.resolvedAt ? DateTime.fromISO(alert.resolvedAt) : now);
+  ageLabel(beganAt(alert), alert.resolvedAt ? DateTime.fromISO(alert.resolvedAt) : now);
 
 /** What the card says will happen about this alert, as the key it is said in. */
 export type Delivery = 'notAnnounced' | 'unheard' | 'once' | 'repeats';

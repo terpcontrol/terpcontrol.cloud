@@ -11,7 +11,7 @@ import { ageLabel } from '@/ui/age';
 import { useZone } from '@/ui/zone';
 import { daysUntil } from '@/screens/tasks/tasks';
 import styles from './Strips.module.css';
-import { alertLabel } from './units';
+import { alertLabel, isSilence } from './units';
 
 /**
  * The three strips around the cards. Each is there only while it has something
@@ -31,9 +31,9 @@ export function AttentionStrip({ cards, now }: { cards: HomeSpaceCard[]; now: Da
         <li key={alert.alertId}>
           <Link to="/alerts" className={`${styles.chip} ${styles.alert}`} data-severity={alert.severity}>
             <span className={styles.chipText}>
-              <strong>{alertLabel(t, alert)}</strong> · {card.name}
+              <strong>{alertLabel(t, alert, now)}</strong> · {card.name}
             </span>
-            <span className={`mono ${styles.chipMeta}`}>{t('home.card.ago', { age: ageLabel(alert.startedAt, now) })}</span>
+            {isSilence(alert) ? null : <span className={`mono ${styles.chipMeta}`}>{t('home.card.ago', { age: ageLabel(alert.startedAt, now) })}</span>}
           </Link>
         </li>
       ))}

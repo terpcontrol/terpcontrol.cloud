@@ -8,12 +8,12 @@ import { useDeviceCommand } from '@/api/commands';
 import { clockLabel } from '@/screens/notifications/settings';
 import { maintenanceQuiet, parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES } from '@/ui/maintenance';
 import { levelFigure, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
-import { ageAttribute, ageLabel, isAhead, spanLabel } from '@/ui/age';
+import { ageAttribute, ageLabel, isAhead, silentSince, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { figure, targetFigure } from '../home/units';
-import { crossedBound, deliveryOf, lastedLabel } from './inbox';
+import { beganAt, crossedBound, deliveryOf, lastedLabel } from './inbox';
 import type { AlertNames } from './names';
 import ask from './AlertCard.module.css';
 import styles from './Alerts.module.css';
@@ -184,7 +184,7 @@ const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Devi
   switch (alert.kind) {
     case 'offline': {
       if (alert.resolvedAt) return { label: t('alerts.what.wasOffline'), figure: null };
-      const quietSince = device?.state.lastSeenAt || alert.startedAt;
+      const quietSince = alert.value !== null ? silentSince(alert) : device?.state.lastSeenAt || alert.startedAt;
       return { label: t('alerts.what.offline', { age: ageLabel(quietSince, now) }), figure: null };
     }
     case 'camera_stale': {
@@ -332,7 +332,7 @@ const metaOf = (
     whole(
       alert.resolvedAt
         ? t('alerts.meta.resolved', { time: clock(alert.resolvedAt, zone), age: lastedLabel(alert, now) })
-        : t('alerts.meta.since', { time: clock(alert.startedAt, zone), age: lastedLabel(alert, now) }),
+        : t('alerts.meta.since', { time: clockLabel(beganAt(alert), now, zone), age: lastedLabel(alert, now) }),
     ),
   ].filter((part): part is string => part !== null);
 

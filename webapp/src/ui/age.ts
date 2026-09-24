@@ -165,6 +165,20 @@ export const isStale = (value: Pick<MetricValue, 'state' | 'measuredAt'>, now: D
  * makes it safe to prefer over the raw field: no device is made to look present
  * by a reading older than the last message from it.
  */
+/**
+ * When the silence an offline alert is about began.
+ *
+ * The health loop raises it with the seconds since the device was last heard -
+ * counted by the server's own `heardAt`, the later of its last message and its
+ * newest stored reading - so the start of the silence is that many seconds
+ * before the raise. Every screen that says how long a device has been quiet
+ * counts from this one instant: the raise itself is only when the cloud noticed,
+ * which after a restore is minutes ago about a device silent for days, and the
+ * figure in the alert is frozen at the raise while this goes on counting.
+ */
+export const silentSince = (alert: { startedAt: string; value: number | null }): string =>
+  alert.value === null ? alert.startedAt : (DateTime.fromISO(alert.startedAt).minus({ seconds: alert.value }).toUTC().toISO() ?? alert.startedAt);
+
 export const heardAt = (lastSeenAt: string | null, measuredAt: string | null): string | null => {
   if (!lastSeenAt) return measuredAt;
   if (!measuredAt) return lastSeenAt;

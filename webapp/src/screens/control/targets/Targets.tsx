@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
-import { useSaveConfiguration } from '@/api/devices';
+import { useHeardAt, useSaveConfiguration } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import { awaitingClimate, hasCo2Sensor, statesTargets } from '@/ui/climate-hardware';
@@ -151,7 +151,8 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
 
   const hasCo2 = hasCo2Sensor(device);
   const status = plan.data?.state.status ?? null;
-  const liveness = deviceLiveness(device.state.lastSeenAt, now);
+  const heard = useHeardAt(device);
+  const liveness = deviceLiveness(heard, now);
   const busy = save.isPending || move.isPending;
   const name = deviceName(device, t);
 
@@ -365,7 +366,7 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
 
       {liveness === 'offline' ? (
         <p className={`mono ${styles.quiet}`} {...ageAttribute(liveness)}>
-          {t('space.control.applied.quiet', { age: ageLabel(device.state.lastSeenAt, now) })}
+          {t('space.control.applied.quiet', { age: ageLabel(heard, now) })}
         </p>
       ) : null}
 

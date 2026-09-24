@@ -14,6 +14,7 @@ import type {
   SocketPage,
   ValueState,
 } from '@fg2/shared-types/v1';
+import { heardAt } from '@/ui/age';
 import { api, apiRequest } from './client';
 
 /**
@@ -104,6 +105,17 @@ export const useLiveReads = (deviceIds: string[]) =>
       isPending: results.some(isFirstLoad),
     }),
   });
+
+/**
+ * When one device was last heard, as the Devices row and the server count it:
+ * the later of its last message and its newest reading. The Control panels
+ * aged `lastSeenAt` alone, which on a migrated device is half a day older, so
+ * one silence read "6 d" there and "5 d" on the Devices tab.
+ */
+export const useHeardAt = (device: { id: string; state: { lastSeenAt: string | null } }): string | null => {
+  const reads = useLiveReads([device.id]);
+  return heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null);
+};
 
 /** A device that has never driven a light output answers none, which is not the same as one at nothing. */
 const lightLevel = (live: DeviceLive | undefined): OutputLevel | null => {

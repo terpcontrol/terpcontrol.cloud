@@ -1016,18 +1016,22 @@ describe('the arithmetic behind the cards', () => {
       ...over,
     });
 
-    expect(alertLabel(i18next.t, open({}))).toBe('Alarm · 68 % RH');
+    expect(alertLabel(i18next.t, open({}), NOW)).toBe('Alarm · 68 % RH');
     // A rule watching an output leaves a number with no unit and no name, and
     // "Alarm · 1" reads as a count of something.
-    expect(alertLabel(i18next.t, open({ metric: null, value: 1 }))).toBe('Alarm');
-    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: null, value: null }))).toBe('Offline');
+    expect(alertLabel(i18next.t, open({ metric: null, value: 1 }), NOW)).toBe('Alarm');
+    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: null, value: null }), NOW)).toBe('Offline');
     // `offline` is a metric so the health loop's rule can be an ordinary
     // reading rule, and the reading is a number of seconds. Drawn as a figure
     // it said "337256 offline" on a real tent nobody had heard from in days.
     // Counted from when the device was last heard, which is not the instant of
     // its last sample and is worded so rather than as a silence of readings.
-    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 337_255.9 }))).toBe('Offline · last heard 3 d ago');
-    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 900 }))).toBe('Offline · last heard 15 min ago');
+    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 337_255.9 }), NOW)).toBe('Offline · last heard 3 d ago');
+    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 900 }), NOW)).toBe('Offline · last heard 15 min ago');
+    // Counted on from the start of the silence rather than frozen at the raise.
+    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 337_255.9 }), NOW.plus({ days: 1 }))).toBe(
+      'Offline · last heard 4 d ago',
+    );
   });
 
   it('keeps an open alert under NOW however long ago it began', () => {
