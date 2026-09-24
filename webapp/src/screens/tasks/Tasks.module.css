@@ -51,27 +51,6 @@
   color: var(--muted);
 }
 
-.cards {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* A group's tasks are one card split by hairlines: a list to work down, not a
-   pile of separate things. */
-.cards > .card:not(:last-child) {
-  border-bottom-right-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.cards > .card + .card {
-  border-top: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-
 /* A card is the one row, and under it the question a plan step's circle asks
    before it is answered. */
 .card {

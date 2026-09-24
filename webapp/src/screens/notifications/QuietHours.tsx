@@ -51,7 +51,7 @@ export function QuietHoursCard({ me, held, locked }: { me: Me; held: boolean; lo
   };
 
   return (
-    <div className={`${ui.card} ${styles.channel}`}>
+    <div className={`${ui.card} ${ui.joined} ${styles.channel}`}>
       <div className={styles.channelHead}>
         <div className={styles.channelText}>
           <span className={`${styles.channelTitle} ${shown ? 'mono' : ''}`}>

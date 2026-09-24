@@ -42,31 +42,7 @@
   color: var(--muted);
 }
 
-.people {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-/* The people are one card with a rule between them, not a stack of cards. */
-.people > .person {
-  background: none;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.people > .person + .person {
-  border-top: var(--rule-solid);
-}
-
+/* A person, a row of the one card the people are, not a card of their own. */
 .person {
   display: flex;
   align-items: center;

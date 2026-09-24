@@ -99,7 +99,7 @@ const originLabel = (t: (key: string, options?: Record<string, unknown>) => stri
 /** One scheme on a shelf: its name, one mono line about it, and the chevron that opens it. */
 function SchemeRow({ title, line, onOpen }: { title: string; line: string; onOpen: () => void }) {
   return (
-    <button type="button" className={`${ui.card} ${styles.schemeRow}`} onClick={onOpen}>
+    <button type="button" className={`${ui.card} ${ui.joined} ${styles.schemeRow}`} onClick={onOpen}>
       <span className={styles.schemeText}>
         <span className={styles.schemeTitle}>{title}</span>
         <span className={`mono ${styles.schemeLine}`}>{line}</span>

@@ -18,6 +18,84 @@
   border-radius: var(--radius);
 }
 
+/* A list read top to bottom - a section's devices, a plan's steps, a camera's
+   settings: one card, its rows a hairline apart, rather than a pile of cards
+   each as loud as the next. A row may itself carry `.card` for its padding;
+   inside a group it gives up its own edge, corners and shadow. The card clips
+   its rows, so a row's hover fill keeps the rounded corner, and a focus ring
+   is drawn inside the row rather than cut off at the card's edge.
+
+   A row that marks where something stands now - the step a plan is on - says
+   `data-current`, and is tinted with a bar down its edge in the green; one
+   held where it stands, paused or waiting, says `data-current='held'` and
+   takes the warning colour instead. */
+.group {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* A list with nothing in it yet draws nothing, not an empty card. */
+.group:empty {
+  display: none;
+}
+
+.group > * {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.group > * + * {
+  border-top: var(--rule-solid);
+}
+
+.group :focus-visible {
+  outline-offset: -2px;
+}
+
+.group > [data-current] {
+  background: var(--brand-wash);
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
+.group > [data-current='held'] {
+  background: color-mix(in srgb, var(--warning) 10%, var(--card));
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+
+/* The same, for cards that stand in a page's own column with no list round
+   them - the rows of a settings page: each `.joined` card closes up on the
+   one before it, and the run reads as one card. The page's gap is taken back
+   in `--join-gap`, 12 px unless the column round it says otherwise. A card
+   whose outcome cannot be taken back says `data-danger` and stands on its own,
+   a little apart. */
+.joined:not([data-danger]):has(+ .joined:not([data-danger])) {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.joined:not([data-danger]) + .joined:not([data-danger]) {
+  margin-top: calc(var(--join-gap, var(--space-3)) * -1);
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* The row whose outcome cannot be taken back wears the alarm colour on its
+   rule, the only place a settings page colours anything at all. */
+.joined[data-danger] {
+  margin-top: var(--space-2);
+  border-color: var(--alarm);
+}
+
 /* The way to add one more to a list - a device, a camera, a grow: a dashed
    row that closes the list it adds to, its words in the middle. */
 .addRow {

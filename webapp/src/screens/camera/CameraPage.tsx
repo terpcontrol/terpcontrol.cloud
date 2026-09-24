@@ -314,7 +314,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           ) : null}
           {job ? <Film mediaId={job.id} mayOwn={mayOwn} /> : null}
           {shownFilms.length > 0 ? (
-            <ul className={styles.films} aria-label={t('camera.timelapses')}>
+            <ul className={`${ui.group} ${styles.films}`} aria-label={t('camera.timelapses')}>
               {shownFilms.map(film => (
                 <li key={film.id}>
                   <Film mediaId={film.id} mayOwn={mayOwn} collapsed />

@@ -12,20 +12,6 @@
   color: var(--ink);
 }
 
-/* A shelf is one card split by hairlines, as every list under Me is. The page's
-   own gap is taken back between two rows so that they touch. */
-.schemeRow:has(+ .schemeRow) {
-  border-bottom-right-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.schemeRow + .schemeRow {
-  margin-top: calc(var(--space-3) * -1);
-  border-top: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-
 .schemeRow:hover {
   background: var(--card-2);
 }

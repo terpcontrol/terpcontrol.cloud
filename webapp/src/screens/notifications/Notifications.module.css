@@ -25,19 +25,6 @@
   gap: var(--space-3);
 }
 
-/* The channels are one card split by hairlines, as every list under Me is. */
-.channel:has(+ .channel) {
-  border-bottom-right-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.channel + .channel {
-  margin-top: calc(var(--space-3) * -1);
-  border-top: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-
 .channelHead {
   display: flex;
   align-items: center;

@@ -52,41 +52,13 @@
   white-space: nowrap;
 }
 
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
+/* A rule, a row of its group's one card, as the camera's settings and the
+   plan's steps are, rather than a stack of cards. */
 .card {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-}
-
-/* A group's rules are one card with a rule between them, as the camera's
-   settings and the plan's steps are, rather than a stack of cards. */
-.list {
-  gap: 0;
-  overflow: hidden;
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-.list > .card {
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.list > .card + .card {
-  border-top: var(--rule-solid);
 }
 
 /* The rule an alert linked to. "The one you followed" is not a state the rule
@@ -95,7 +67,7 @@
    that has just gone off. A bar down the left edge in plain ink is a pointing
    finger instead, and says the same thing in both modes without borrowing a
    colour that already means something else. */
-.list > .card[data-highlight] {
+.card[data-highlight] {
   box-shadow: inset 3px 0 0 var(--ink);
 }
 

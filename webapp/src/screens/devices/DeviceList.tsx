@@ -222,7 +222,7 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
                         </p>
                       ))
                     : null}
-                  <ul className={styles.rows}>
+                  <ul className={ui.group}>
                     {light ? (
                       <LightOutputRow
                         output={light}
@@ -249,7 +249,7 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
                         </p>
                       ))
                     : null}
-                  <ul className={styles.rows}>{plugs(rest)}</ul>
+                  <ul className={ui.group}>{plugs(rest)}</ul>
                 </section>
               ) : null}
             </Fragment>
@@ -270,7 +270,7 @@ function Section({ label, empty, children }: { label: string; empty: string | nu
       <div className={styles.sectionHead}>
         <span className="label">{label}</span>
       </div>
-      {empty ? <p className={`${ui.cardDashed} ${ui.note}`}>{empty}</p> : <ul className={styles.rows}>{children}</ul>}
+      {empty ? <p className={`${ui.cardDashed} ${ui.note}`}>{empty}</p> : <ul className={ui.group}>{children}</ul>}
     </section>
   );
 }

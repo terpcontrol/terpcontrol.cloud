@@ -55,9 +55,11 @@
 }
 
 .list {
+  --join-gap: var(--space-2);
+
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--join-gap);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -90,27 +92,15 @@
 }
 
 /* What is over is a record rather than a call to act, so the resolved cards
-   of a day are one card split by hairlines, each a row: what happened and when
-   on the left, the way to the timeline at the right. The stripe stays, so a
-   night's warnings still read as warnings. */
+   of a day are joined into one card split by hairlines, each a row: what
+   happened and when on the left, the way to the timeline at the right. The
+   stripe stays, so a night's warnings still read as warnings. */
 .card[data-age] {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-3);
   padding-block: var(--space-3);
-}
-
-.card[data-age]:has(+ .card[data-age]) {
-  border-bottom-right-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.card[data-age] + .card[data-age] {
-  margin-top: calc(var(--space-2) * -1);
-  border-top: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
 }
 
 .card[data-age] .lines {

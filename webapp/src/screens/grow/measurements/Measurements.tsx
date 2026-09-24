@@ -97,7 +97,7 @@ function MeasurementsScreen({ growId }: { growId: string }) {
       {definitions.length === 0 ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('grow.measurements.none')}</p>
       ) : (
-        <ul className={styles.list} aria-label={t('grow.measurements.yours')}>
+        <ul className={ui.group} aria-label={t('grow.measurements.yours')}>
           {definitions.map(definition => (
             <Card
               key={definition.key}

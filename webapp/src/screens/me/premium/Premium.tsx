@@ -131,7 +131,7 @@ function Account({ title }: { title: string }) {
       {list.length === 0 ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.premium.noCameras')}</p>
       ) : (
-        <ul className={styles.cameras}>
+        <ul className={ui.group}>
           {list.map(camera => (
             <CameraCard
               key={camera.id}

@@ -143,7 +143,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
         </span>
       </header>
 
-      <ul className={styles.people}>
+      <ul className={ui.group}>
         <OwnerRow isYou={isYou} handle={ownerHandle} name={name} lastLogged={ownerId ? lastLoggedOf(page, ownerId) : null} />
         {guestsOf(page, spaceId).map(guest => (
           <PersonRow

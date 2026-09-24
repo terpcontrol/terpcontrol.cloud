@@ -60,7 +60,7 @@ export function Me() {
 
       {isDemo ? <DemoDoors handle={user?.handle ?? '?'} /> : <AccountDoors handle={user?.handle ?? '?'} />}
 
-      <div className={styles.doors}>
+      <div className={ui.group}>
         <Door to="/me/appearance" title={t('me.appearance.title')} line={<AppearanceLine language={i18n.resolvedLanguage ?? i18n.language} />} />
         <Door to="/me/about" title={t('me.about.title')} line={versionLine(t, APP_VERSION, BUILD_MODE)} />
       </div>
@@ -111,7 +111,7 @@ function AccountDoors({ handle }: { handle: string }) {
         {line([me], () => [me.data!.email, t(me.data!.publicProfile ? 'me.identity.profileOn' : 'me.identity.profileOff')].join(' · '))}
       </Identity>
 
-      <div className={styles.doors}>
+      <div className={ui.group}>
         <Door
           to="/me/public"
           title={t('me.public.title')}
@@ -141,7 +141,7 @@ function DemoDoors({ handle }: { handle: string }) {
     <>
       <Identity handle={handle}>{t('me.demo')}</Identity>
 
-      <div className={styles.doors}>
+      <div className={ui.group}>
         <Closed title={t('me.public.title')} note={t('me.demo')} />
         <Closed title={t('me.following.title')} note={t('me.demo')} />
         <Closed title={t('me.shareLinks.title')} note={t('me.demo')} />

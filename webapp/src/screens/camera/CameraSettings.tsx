@@ -76,7 +76,7 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
     <section className={styles.section}>
       <span className="label">{t('camera.thisCamera')}</span>
 
-      <ul className={styles.settings}>
+      <ul className={ui.group}>
         <Row label={t('camera.connectedVia')}>
           <span className={`mono ${styles.settingValue}`}>{[connection(t, camera, through), place].filter(Boolean).join(' · ')}</span>
         </Row>

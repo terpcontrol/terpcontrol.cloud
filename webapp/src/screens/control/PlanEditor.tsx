@@ -97,7 +97,7 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
         >
           {draft.steps.length === 0 ? <p className={ui.note}>{t('space.control.editor.noSteps')}</p> : null}
 
-          <ol className={styles.editSteps}>
+          <ol className={ui.group}>
             {draft.steps.map((step, index) => (
               <li key={step.key} className={styles.editStep}>
                 <div className={styles.editHead}>

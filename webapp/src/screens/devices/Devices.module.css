@@ -22,9 +22,6 @@
   line-height: var(--line-tight);
 }
 
-/* The way to a device this account has not got yet: a row in the shape of the
-   rows above it, outlined rather than filled, because nothing stands here yet. */
-
 .list,
 .column {
   display: flex;
@@ -62,27 +59,6 @@
   gap: var(--space-3);
   padding-bottom: 7px;
   border-bottom: var(--rule-solid);
-}
-
-.rows {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* A section's rows are one card split by hairlines: a list of things, read
-   down, rather than a pile of cards each as loud as the next. */
-.rows > li:not(:last-child) {
-  border-bottom-right-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.rows > li + li {
-  border-top: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
 }
 
 .row,

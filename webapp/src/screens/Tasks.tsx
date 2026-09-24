@@ -279,7 +279,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
               <span className="label">{t(`tasks.group.${group}`)}</span>
               {group === 'today' ? <span className={`mono ${styles.groupAside}`}>{dateLabel(nowThere(now, zone), i18n.language)}</span> : null}
             </header>
-            <ul className={styles.cards}>
+            <ul className={ui.group}>
               {members.map(task => {
                 const reminder = reminderOf(task, reminders.data?.items);
                 return (
@@ -310,7 +310,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
               {dayLabel(t, ticked[0].completion?.occurredAt ?? now.toISO()!, now, i18n.language, zone)}
             </span>
           </header>
-          <ul className={styles.cards}>
+          <ul className={ui.group}>
             {ticked.map(task => (
               <DoneCard key={task.id} task={task} name={nameOf(task)} me={user} now={now} />
             ))}
@@ -330,7 +330,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
             <span className="label">{t('tasks.group.rhythms')}</span>
             <span className={`mono ${styles.groupAside}`}>{t('tasks.rhythmsAside')}</span>
           </header>
-          <ul className={styles.cards}>
+          <ul className={ui.group}>
             {rhythms.map(reminder => (
               <RhythmCard
                 key={reminder.id}

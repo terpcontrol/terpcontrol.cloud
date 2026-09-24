@@ -65,7 +65,7 @@ export function AlertCard({ alert, rule, names, me, mayManage, now }: AlertCardP
 
   return (
     <li
-      className={`${ui.card} ${styles.card}`}
+      className={open ? `${ui.card} ${styles.card}` : `${ui.card} ${ui.joined} ${styles.card}`}
       data-severity={alert.severity}
       aria-label={[severity, ...parts.map(part => part.text), reading].filter(Boolean).join(' · ')}
       {...(open ? {} : ageAttribute('stale'))}

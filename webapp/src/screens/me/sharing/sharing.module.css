@@ -21,26 +21,6 @@
   color: var(--muted);
 }
 
-.cards {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* The links are one card split by hairlines, as every list under Me is. */
-.cards > .card:not(:last-child) {
-  border-bottom-right-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.cards > .card + .card {
-  border-top: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-
 .card {
   display: flex;
   align-items: center;

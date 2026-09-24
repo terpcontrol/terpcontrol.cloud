@@ -69,7 +69,7 @@ export function Row({
   below?: ReactNode;
 }) {
   return (
-    <div className={`${ui.card} ${styles.row}`} data-danger={danger ? '' : undefined}>
+    <div className={`${ui.card} ${ui.joined} ${styles.row}`} data-danger={danger ? '' : undefined}>
       <div className={styles.rowHead}>
         <div className={styles.rowText}>
           <span className={styles.rowTitle}>{title}</span>

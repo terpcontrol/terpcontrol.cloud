@@ -195,7 +195,7 @@ function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: D
             </span>
             {group.origin === 'preset' ? <span className={`mono ${styles.groupAside}`}>{t('alarms.group.presetAside')}</span> : null}
           </header>
-          <ul className={styles.list}>
+          <ul className={ui.group}>
             {group.rules.map(rule => (
               <RuleCard
                 key={rule.id}

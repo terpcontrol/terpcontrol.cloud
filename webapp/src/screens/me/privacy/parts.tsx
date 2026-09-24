@@ -10,7 +10,7 @@ import styles from './Privacy.module.css';
  */
 export function Row({ title, line, danger, children }: { title: string; line: ReactNode; danger?: boolean; children: ReactNode }) {
   return (
-    <div className={`${ui.card} ${styles.row}`} data-danger={danger ? '' : undefined}>
+    <div className={`${ui.card} ${ui.joined} ${styles.row}`} data-danger={danger ? '' : undefined}>
       <div className={styles.rowText}>
         <span className={styles.rowTitle}>{title}</span>
         <span className={`${ui.note} ${styles.rowLine}`}>{line}</span>

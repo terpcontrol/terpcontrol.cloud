@@ -142,7 +142,7 @@ function Links({ userId }: { userId: string | null }) {
       {active.length === 0 ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.shareLinks.none')}</p>
       ) : (
-        <ul className={styles.cards} aria-label={t('me.shareLinks.active')}>
+        <ul className={ui.group} aria-label={t('me.shareLinks.active')}>
           {active.map(link => (
             <LinkCard key={link.id} link={link} {...describe(link)} onOpen={() => setOpenId(link.id)} />
           ))}
@@ -152,7 +152,7 @@ function Links({ userId }: { userId: string | null }) {
       {dead.length > 0 ? (
         <>
           <SectionHead label={t('me.shareLinks.dead')} count={dead.length} />
-          <ul className={styles.cards} aria-label={t('me.shareLinks.dead')}>
+          <ul className={ui.group} aria-label={t('me.shareLinks.dead')}>
             {dead.map(link => (
               <LinkCard key={link.id} link={link} dead {...describe(link)} onOpen={() => setOpenId(link.id)} />
             ))}

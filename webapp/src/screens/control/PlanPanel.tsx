@@ -453,7 +453,7 @@ function Steps({ plan, now }: { plan: Plan; now: DateTime }) {
   if (plan.steps.length === 0) return null;
 
   return (
-    <ol className={styles.steps}>
+    <ol className={ui.group}>
       {plan.steps.map((step, index) => {
         const active = running && index === plan.state.activeStepIndex;
         // A step that is standing still is marked as that rather than as
@@ -461,7 +461,7 @@ function Steps({ plan, now }: { plan: Plan; now: DateTime }) {
         const how = isWaiting(plan, now) ? 'waiting' : plan.state.status;
 
         return (
-          <li key={step.id} className={styles.step} data-active={active} data-status={active ? how : undefined}>
+          <li key={step.id} className={styles.step} data-current={active ? (how === 'running' ? 'now' : 'held') : undefined}>
             <span className={`mono ${styles.stepIndex}`}>{index + 1}</span>
             <span className={styles.stepText}>
               <span className={styles.stepTitle}>{step.name}</span>

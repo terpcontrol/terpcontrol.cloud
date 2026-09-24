@@ -363,25 +363,9 @@
 
 /* ------------------------------------------------------------------ films */
 
-/* The films as one list, a rule between each, the way the settings beside
-   them read: three stacked cards made a column of boxes of equal weight. */
-.films {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  list-style: none;
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-.films > li + li {
-  border-top: var(--rule-solid);
-}
-
+/* The films are one group, a rule between each, the way the settings beside
+   them read: three stacked cards made a column of boxes of equal weight. A
+   film drawn in the list is its row, not a card inside it. */
 .films .film {
   background: none;
   border: 0;
@@ -464,19 +448,8 @@
 
 /* --------------------------------------------------------------- settings */
 
-.settings {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-/* A row gives its controls a line of their own under the label where a phone
+/* The settings are one group, a rule apart, the way a settings list is read.
+   A row gives its controls a line of their own under the label where a phone
    has no room for both, rather than breaking "night off" into two words. */
 .setting {
   display: flex;
@@ -486,19 +459,6 @@
   gap: var(--space-2) var(--space-3);
   padding: var(--space-2) var(--space-4);
   min-height: 56px;
-}
-
-/* The rows are one group on one card, a rule apart, the way a settings list is read. */
-.settings .setting {
-  background: none;
-  border: 0;
-  border-top: var(--rule-solid);
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.settings .setting:first-child {
-  border-top: 0;
 }
 
 /* Every label holds the same width, so the fields beside them start on one

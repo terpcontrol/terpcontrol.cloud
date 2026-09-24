@@ -36,7 +36,7 @@ export function ChannelCard({
   children?: ReactNode;
 }) {
   return (
-    <div className={`${ui.card} ${styles.channel}`}>
+    <div className={`${ui.card} ${ui.joined} ${styles.channel}`}>
       <div className={styles.channelHead}>
         <div className={styles.channelText}>
           <span className={styles.channelTitle}>{title}</span>

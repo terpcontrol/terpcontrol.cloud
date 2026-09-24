@@ -8,25 +8,6 @@
   gap: var(--space-3);
 }
 
-/* A run of rows is one card split by hairlines, as on every page under Me. */
-.row:not([data-danger]):has(+ .row:not([data-danger])) {
-  border-bottom-right-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.row:not([data-danger]) + .row:not([data-danger]) {
-  margin-top: calc(var(--space-3) * -1);
-  border-top: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-
-/* The one row whose outcome cannot be taken back wears the alarm colour on its
-   rule, which is the only place on this screen anything is coloured at all. */
-.row[data-danger] {
-  border-color: var(--alarm);
-}
-
 .rowText {
   display: flex;
   flex: 1;

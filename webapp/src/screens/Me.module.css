@@ -62,24 +62,10 @@
   white-space: nowrap;
 }
 
-/* A run of doors is one card, each door a hairline below the last - a list
-   read top to bottom rather than a stack of separate things. */
-.doors {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
+/* A door, a row of a run of doors that is one group - a list read top to
+   bottom rather than a stack of separate things. */
 .row {
   padding: var(--space-3) var(--space-4);
-}
-
-.row + .row {
-  border-top: var(--rule-solid);
 }
 
 .rowTitle {
