@@ -70,6 +70,27 @@
   opacity: 0;
 }
 
+/* On a phone the place gets a line of its own under the title, at a name's
+   size, rather than being squeezed between the title and the pill down to
+   "Plantalyt...": which place this is matters more than the word "Timeline". */
+@media (max-width: 899px) {
+  .title {
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+  }
+
+  .titleDot {
+    display: none;
+  }
+
+  .picker {
+    order: 1;
+    flex-basis: 100%;
+    font-size: var(--text-name);
+    font-weight: var(--weight-display-sm);
+  }
+}
+
 .subject {
   font-size: var(--text-sm);
   color: var(--muted);
