@@ -870,6 +870,25 @@ describe('what a plot is made of', () => {
     ]);
   });
 
+  /**
+   * A lamp still running at the edge of the window ended in a drop at that same
+   * instant, and the readout at "now" - the last point at or before the cursor -
+   * said the light was off while the device reported 91 %.
+   */
+  it('ends high where the output is still running at the last instant heard', () => {
+    const points = stepPoints([{ from: 10, to: 30 }], 0, 30);
+
+    expect(points).toEqual([
+      [0, 0],
+      [10, 0],
+      [10, 1],
+      [30, 1],
+      [30, 1],
+    ]);
+    expect(readAt({ shape: 'step', points }, 30, 30)).toBe(1);
+    expect(readAt({ shape: 'step', points }, 25, 30)).toBe(1);
+  });
+
   it('cuts a pooled wave where the last of its controllers was heard, not the first', () => {
     const lanes: GrowSeries['outputs'] = [
       { output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(2), endsAt: at(4) }], heardUntil: at(6) },

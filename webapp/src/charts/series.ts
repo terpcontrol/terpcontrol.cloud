@@ -224,12 +224,19 @@ export const readAt = (line: Pick<PlotLine, 'shape' | 'points'>, x: number, span
 export const stepPoints = (spans: readonly PlotSpan[], from: number, to: number, heardUntil = to): [number, number | null][] => {
   const known = Math.max(from, Math.min(to, heardUntil));
   const points: [number, number | null][] = [[from, 0]];
+  // A span that reaches the last instant heard was still running then, so the
+  // wave ends high: dropped at that same instant, the readout at "now" - the
+  // last point at or before the cursor - said the lamp was off while it ran.
+  let running = false;
   for (const span of spans) {
     const left = Math.max(from, span.from);
     const right = Math.min(known, span.to);
-    if (right > left) points.push([left, 0], [left, 1], [right, 1], [right, 0]);
+    if (right <= left) continue;
+    running = right >= known;
+    points.push([left, 0], [left, 1], [right, 1]);
+    if (!running) points.push([right, 0]);
   }
-  points.push([known, 0]);
+  points.push([known, running ? 1 : 0]);
   if (known < to) points.push([known + 1, null]);
 
   return points;
