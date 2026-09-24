@@ -30,10 +30,10 @@ const fetchStub = vi.fn(
   async () => new Response(JSON.stringify(refusal.body), { status: refusal.body.status, headers: { 'Content-Type': 'application/json' } }),
 ) as unknown as typeof fetch;
 
-const draw = () =>
+const draw = (state: unknown = null) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/sign-in']}>
+      <MemoryRouter initialEntries={[{ pathname: '/sign-in', state }]}>
         <ThemeProvider>
           <Routes>
             <Route path="/sign-in" element={<SignIn />} />
@@ -72,6 +72,17 @@ afterEach(async () => {
   await session.logOut();
   localStorage.clear();
   vi.unstubAllGlobals();
+});
+
+describe('a session that lapsed', () => {
+  it('says it ended when the guard sent the reader here for that, and nothing on a plain visit', () => {
+    const { unmount } = draw({ from: '/devices', ended: true });
+    expect(screen.getByRole('status')).toHaveTextContent('Your session has ended');
+    unmount();
+
+    draw();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
 });
 
 describe('a sign-in the server refuses', () => {

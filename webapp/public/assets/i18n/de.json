@@ -227,6 +227,7 @@
     "saveButton": "Speichern (im Demo nicht möglich)"
   },
   "login": {
+    "sessionEnded": "Deine Sitzung ist abgelaufen, deshalb wurdest du abgemeldet. Melde dich erneut an, um zur vorherigen Seite zurückzukehren.",
     "welcomeTitle": "Willkommen zurück",
     "welcomeSubtitle": "Überwache und steuere deinen Grow — von überall.",
     "registerTitle": "Konto erstellen",

@@ -276,7 +276,8 @@ describe('a refresh the server could not answer', () => {
 
     expect(localStorage.getItem('terp.session')).toBeNull();
     expect(sessionStorage.getItem('terp.session')).toBeNull();
-    expect(session.snapshot()).toMatchObject({ user: null, restored: true, unreachable: false });
+    // Marked as ended, so the sign-in form it lands on says the session ran out.
+    expect(session.snapshot()).toMatchObject({ user: null, restored: true, unreachable: false, ended: true });
   });
 
   it('leaves an open tab signed in when a renewal in the middle of a session hits a fault', async () => {

@@ -29,7 +29,7 @@ import styles from './RouteError.module.css';
  * version of what they were sent.
  */
 export function RequireSession({ children }: { children: ReactNode }) {
-  const { user, restored, unreachable } = useSession();
+  const { user, restored, unreachable, ended } = useSession();
   const location = useLocation();
   const from = `${location.pathname}${location.search}${location.hash}`;
   const [asking, setAsking] = useState(false);
@@ -49,7 +49,7 @@ export function RequireSession({ children }: { children: ReactNode }) {
   // refused to answer.
   if (asking || (restored && !user && unreachable)) return <CannotReach asking={asking} onAskAgain={askAgain} from={from} />;
   if (!restored) return null;
-  if (!user) return <Navigate to="/sign-in" replace state={{ from }} />;
+  if (!user) return <Navigate to="/sign-in" replace state={{ from, ended }} />;
   return children;
 }
 

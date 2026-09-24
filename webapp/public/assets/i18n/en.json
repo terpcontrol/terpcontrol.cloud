@@ -227,6 +227,7 @@
     "saveButton": "Save (not possible in the demo)"
   },
   "login": {
+    "sessionEnded": "Your session has ended, so you were signed out. Sign in again to return to the page you were on.",
     "welcomeTitle": "Welcome back",
     "welcomeSubtitle": "Monitor and control your grow — from anywhere.",
     "registerTitle": "Create your account",

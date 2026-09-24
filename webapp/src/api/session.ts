@@ -42,6 +42,13 @@ export interface SessionState {
    * instead asks them for a password to solve an outage.
    */
   unreachable: boolean;
+  /**
+   * True once the server refused the session this tab was using, rather than
+   * somebody signing out or never having signed in. The sign-in form says so:
+   * a page that turns into a bare form a second after a refusal otherwise
+   * looks like the app broke.
+   */
+  ended: boolean;
 }
 
 const STORAGE_KEY = 'terp.session';
@@ -157,7 +164,7 @@ const tokensOf = (result: SessionTokens, held: Tokens | null): Tokens => {
 };
 
 class SessionStore {
-  private state: SessionState = { user: null, tokens: null, sessionId: null, restored: false, unreachable: false };
+  private state: SessionState = { user: null, tokens: null, sessionId: null, restored: false, unreachable: false, ended: false };
   private listeners = new Set<() => void>();
   private stayLoggedIn = false;
   private inFlight: Promise<Tokens | null> | null = null;
@@ -197,7 +204,7 @@ class SessionStore {
     // Nothing is carried over: whoever signs in here gets their own media
     // token, and never the one the last person to use this tab was given.
     const tokens = tokensOf(result, null);
-    this.publish({ user: result.user, tokens, sessionId: result.sessionId, restored: true, unreachable: false });
+    this.publish({ user: result.user, tokens, sessionId: result.sessionId, restored: true, unreachable: false, ended: false });
     writeStored({
       refreshToken: tokens.refreshToken,
       refreshTokenUntil: tokens.refreshTokenUntil,
@@ -226,9 +233,9 @@ class SessionStore {
    * where they are, because a session nobody could ask about is not a session
    * that ended.
    */
-  private forget() {
+  private forget(ended = false) {
     writeStored(null);
-    this.publish({ user: null, tokens: null, sessionId: null, restored: true, unreachable: false });
+    this.publish({ user: null, tokens: null, sessionId: null, restored: true, unreachable: false, ended });
   }
 
   /**
@@ -309,7 +316,7 @@ class SessionStore {
     }
 
     if (!response.ok) {
-      if (response.status === SESSION_IS_GONE) this.forget();
+      if (response.status === SESSION_IS_GONE) this.forget(true);
       else this.publish({ unreachable: true });
       return null;
     }

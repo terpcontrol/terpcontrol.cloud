@@ -34,7 +34,11 @@ export function SignIn() {
   // Where the guard said this person was going, and a whole address rather than
   // a path: the query is what a deep link is about, so it is replayed untouched
   // and never rebuilt from its parts.
-  const destination = (location.state as { from?: string } | null)?.from ?? '/';
+  const arrival = location.state as { from?: string; ended?: boolean } | null;
+  const destination = arrival?.from ?? '/';
+  // Sent here because the server refused the session in use, not because
+  // nobody had signed in: said, so the form is not read as the app failing.
+  const ended = arrival?.ended === true;
 
   if (user) return <Navigate to={destination} replace />;
 
@@ -69,6 +73,12 @@ export function SignIn() {
     <main className={styles.page}>
       <form className={styles.card} onSubmit={submit} noValidate>
         <h1 className={styles.wordmark}>Terp Control</h1>
+
+        {ended ? (
+          <p className={ui.note} role="status">
+            {t('login.sessionEnded')}
+          </p>
+        ) : null}
 
         <label className={`label ${styles.fieldLabel}`} htmlFor="email">
           {t('login.email')}
