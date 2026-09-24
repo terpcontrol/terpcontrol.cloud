@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.captureStillCommand = exports.stopTestCommand = exports.testCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.adminDeviceCreate = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.devicePage = exports.device = exports.deviceState = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
-exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = void 0;
+exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 const socket_report_js_1 = require("./socket-report.js");
@@ -599,6 +599,21 @@ exports.alarmRuleUpdate = (0, common_js_1.named)('AlarmRuleUpdate', exports.alar
  */
 exports.alarmSilence = (0, common_js_1.named)('AlarmSilence', zod_1.z.object({ forSeconds: zod_1.z.number().int().positive() }));
 /**
+ * What the rule was called and what it watched, copied onto the episode as it
+ * opens.
+ *
+ * A rule does not stay what it was when it raised an episode. Its band may be
+ * moved while the episode is open, and a card that measured the episode's
+ * reading against today's band printed crossings that never happened; it may be
+ * deleted, and the episode - the account of something that really happened in
+ * somebody's tent, worth reading after the rule that caught it is retired -
+ * was left naming a rule nothing could resolve, so the inbox drew "alarm" and a
+ * bare figure with no metric, no unit and no name. Neither can be answered by
+ * looking the rule up afterwards, which is why the answer is written down here
+ * at the moment the episode opens, when it is still the episode's own.
+ */
+exports.alertWatched = (0, common_js_1.named)('AlertWatched', zod_1.z.object({ name: zod_1.z.string(), watch: exports.alarmWatch }));
+/**
  * One document from trigger to resolution, which is what the alerts inbox shows.
  * An open alert has `resolvedAt: null`.
  */
@@ -615,6 +630,9 @@ exports.alert = (0, common_js_1.named)('Alert', zod_1.z.object({
     resolvedAt: (0, common_js_1.instant)().nullable(),
     value: zod_1.z.number().nullable().describe('The reading that triggered it.'),
     extremeValue: zod_1.z.number().nullable().describe('The worst reading while it was open.'),
+    watched: exports.alertWatched
+        .nullable()
+        .describe('What the rule was called and watched when this opened; null where no rule raised it, and on episodes older than the field.'),
 }));
 exports.alertPage = (0, common_js_1.named)('AlertPage', (0, common_js_1.page)(exports.alert));
 /* --------------------------------------------------------------- live, series */

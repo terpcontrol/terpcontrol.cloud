@@ -1789,6 +1789,66 @@ export declare const alarmSilence: z.ZodObject<{
     forSeconds: z.ZodNumber;
 }, z.core.$strip>;
 /**
+ * What the rule was called and what it watched, copied onto the episode as it
+ * opens.
+ *
+ * A rule does not stay what it was when it raised an episode. Its band may be
+ * moved while the episode is open, and a card that measured the episode's
+ * reading against today's band printed crossings that never happened; it may be
+ * deleted, and the episode - the account of something that really happened in
+ * somebody's tent, worth reading after the rule that caught it is retired -
+ * was left naming a rule nothing could resolve, so the inbox drew "alarm" and a
+ * bare figure with no metric, no unit and no name. Neither can be answered by
+ * looking the rule up afterwards, which is why the answer is written down here
+ * at the moment the episode opens, when it is still the episode's own.
+ */
+export declare const alertWatched: z.ZodObject<{
+    name: z.ZodString;
+    watch: z.ZodDiscriminatedUnion<[z.ZodObject<{
+        kind: z.ZodLiteral<"reading">;
+        metric: z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>;
+        upper: z.ZodNullable<z.ZodNumber>;
+        lower: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"output_level">;
+        output: z.ZodEnum<{
+            dehumidifier: "dehumidifier";
+            heater: "heater";
+            light: "light";
+            co2: "co2";
+            fan: "fan";
+            relais: "relais";
+            fanInternal: "fanInternal";
+            fanExternal: "fanExternal";
+            fanBackwall: "fanBackwall";
+        }>;
+        upper: z.ZodNullable<z.ZodNumber>;
+        lower: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"output_running">;
+        output: z.ZodEnum<{
+            dehumidifier: "dehumidifier";
+            heater: "heater";
+            light: "light";
+            co2: "co2";
+            fan: "fan";
+            relais: "relais";
+            fanInternal: "fanInternal";
+            fanExternal: "fanExternal";
+            fanBackwall: "fanBackwall";
+        }>;
+    }, z.core.$strip>], "kind">;
+}, z.core.$strip>;
+/**
  * One document from trigger to resolution, which is what the alerts inbox shows.
  * An open alert has `resolvedAt: null`.
  */
@@ -1813,6 +1873,52 @@ export declare const alert: z.ZodObject<{
     resolvedAt: z.ZodNullable<z.ZodISODateTime>;
     value: z.ZodNullable<z.ZodNumber>;
     extremeValue: z.ZodNullable<z.ZodNumber>;
+    watched: z.ZodNullable<z.ZodObject<{
+        name: z.ZodString;
+        watch: z.ZodDiscriminatedUnion<[z.ZodObject<{
+            kind: z.ZodLiteral<"reading">;
+            metric: z.ZodEnum<{
+                offline: "offline";
+                co2: "co2";
+                temperature: "temperature";
+                humidity: "humidity";
+                leafTemperature: "leafTemperature";
+                lux: "lux";
+                vpd: "vpd";
+                ppfd: "ppfd";
+            }>;
+            upper: z.ZodNullable<z.ZodNumber>;
+            lower: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"output_level">;
+            output: z.ZodEnum<{
+                dehumidifier: "dehumidifier";
+                heater: "heater";
+                light: "light";
+                co2: "co2";
+                fan: "fan";
+                relais: "relais";
+                fanInternal: "fanInternal";
+                fanExternal: "fanExternal";
+                fanBackwall: "fanBackwall";
+            }>;
+            upper: z.ZodNullable<z.ZodNumber>;
+            lower: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"output_running">;
+            output: z.ZodEnum<{
+                dehumidifier: "dehumidifier";
+                heater: "heater";
+                light: "light";
+                co2: "co2";
+                fan: "fan";
+                relais: "relais";
+                fanInternal: "fanInternal";
+                fanExternal: "fanExternal";
+                fanBackwall: "fanBackwall";
+            }>;
+        }, z.core.$strip>], "kind">;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const alertPage: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
@@ -1836,6 +1942,52 @@ export declare const alertPage: z.ZodObject<{
         resolvedAt: z.ZodNullable<z.ZodISODateTime>;
         value: z.ZodNullable<z.ZodNumber>;
         extremeValue: z.ZodNullable<z.ZodNumber>;
+        watched: z.ZodNullable<z.ZodObject<{
+            name: z.ZodString;
+            watch: z.ZodDiscriminatedUnion<[z.ZodObject<{
+                kind: z.ZodLiteral<"reading">;
+                metric: z.ZodEnum<{
+                    offline: "offline";
+                    co2: "co2";
+                    temperature: "temperature";
+                    humidity: "humidity";
+                    leafTemperature: "leafTemperature";
+                    lux: "lux";
+                    vpd: "vpd";
+                    ppfd: "ppfd";
+                }>;
+                upper: z.ZodNullable<z.ZodNumber>;
+                lower: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"output_level">;
+                output: z.ZodEnum<{
+                    dehumidifier: "dehumidifier";
+                    heater: "heater";
+                    light: "light";
+                    co2: "co2";
+                    fan: "fan";
+                    relais: "relais";
+                    fanInternal: "fanInternal";
+                    fanExternal: "fanExternal";
+                    fanBackwall: "fanBackwall";
+                }>;
+                upper: z.ZodNullable<z.ZodNumber>;
+                lower: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"output_running">;
+                output: z.ZodEnum<{
+                    dehumidifier: "dehumidifier";
+                    heater: "heater";
+                    light: "light";
+                    co2: "co2";
+                    fan: "fan";
+                    relais: "relais";
+                    fanInternal: "fanInternal";
+                    fanExternal: "fanExternal";
+                    fanBackwall: "fanBackwall";
+                }>;
+            }, z.core.$strip>], "kind">;
+        }, z.core.$strip>>;
     }, z.core.$strip>>;
     nextCursor: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;

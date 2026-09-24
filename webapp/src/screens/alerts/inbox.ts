@@ -64,18 +64,36 @@ export const groupsOf = (alerts: Alert[], now: DateTime, zone: string | null): A
 
 /**
  * The bound the reading went past, so the card can say "68 % › 60" rather than
- * both edges. A reading below the lower edge names that edge; anything else
- * names the upper one where there is one, because a rule with both edges is
- * nearly always tripped from above. Without a reading the rule's first edge
- * stands in.
+ * both edges. A reading below the lower edge names that edge, one above the
+ * upper edge names that one, and a reading that is inside the band names
+ * neither - the card then shows the reading alone.
+ *
+ * That last case is not a curiosity. A band may be moved while the episode it
+ * raised is still open, which the card's own "Edit rule" chip is the supported
+ * way to do. An episode now keeps the band it was raised against and the card
+ * reads that one, but an episode older than that copy has only today's rule to
+ * be measured against - and naming the upper edge whenever there was one then
+ * printed "humidity 41 % › 60", a crossing that never happened, on a card whose
+ * whole job is to say what did. With no band of the episode's own to name, the
+ * honest answer is to say nothing about an edge rather than to assert the wrong
+ * one.
+ *
+ * The comparison is the engine's: `isOutOfBounds` counts a reading as out of
+ * band only strictly past the edge, so a reading sitting exactly on it has
+ * crossed nothing here either. Without a reading at all there is no comparison
+ * to make and the rule's first edge stands in, as it always has.
  */
 export const crossedBound = (
   { upper, lower }: Pick<ReadingWatch | OutputLevelWatch, 'upper' | 'lower'>,
   value: number | null,
 ): { over: boolean; bound: number } | null => {
-  if (value !== null && lower !== null && value < lower) return { over: false, bound: lower };
-  if (upper !== null) return { over: true, bound: upper };
-  if (lower !== null) return { over: false, bound: lower };
+  if (value === null) {
+    if (upper !== null) return { over: true, bound: upper };
+    return lower !== null ? { over: false, bound: lower } : null;
+  }
+
+  if (lower !== null && value < lower) return { over: false, bound: lower };
+  if (upper !== null && value > upper) return { over: true, bound: upper };
   return null;
 };
 

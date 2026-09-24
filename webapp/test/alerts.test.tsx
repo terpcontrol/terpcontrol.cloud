@@ -74,6 +74,7 @@ const alert = (over: Partial<Alert>): Alert => ({
   resolvedAt: null,
   value: 68,
   extremeValue: 71,
+  watched: null,
   ...over,
 });
 
@@ -928,12 +929,53 @@ describe('the bell', () => {
 });
 
 describe('the arithmetic behind the cards', () => {
-  it('names the edge a reading crossed, and the upper one when it is in between', () => {
+  /**
+   * A band that is moved while its episode is open leaves the alert with the
+   * reading it was raised on and the rule with an edge that reading never went
+   * past, and the card used to print the pair as a crossing: "humidity 41 % ›
+   * 60". Nothing on the alert can name the edge it really crossed, so the edge
+   * is dropped and the reading stands alone. A reading exactly on the edge is
+   * inside the band, because that is where the engine puts it.
+   */
+  it('names the edge a reading crossed, and no edge at all for a reading inside the band', () => {
     expect(crossedBound({ upper: 60, lower: 40 }, 68)).toEqual({ over: true, bound: 60 });
     expect(crossedBound({ upper: 60, lower: 40 }, 32)).toEqual({ over: false, bound: 40 });
-    expect(crossedBound({ upper: 60, lower: 40 }, 50)).toEqual({ over: true, bound: 60 });
+    expect(crossedBound({ upper: 60, lower: 40 }, 50)).toBeNull();
+    expect(crossedBound({ upper: 60, lower: 40 }, 60)).toBeNull();
     expect(crossedBound({ upper: null, lower: 40 }, null)).toEqual({ over: false, bound: 40 });
     expect(crossedBound({ upper: null, lower: null }, 50)).toBeNull();
+  });
+
+  /**
+   * The whole card, because the arithmetic alone does not say what a reader
+   * sees: a rule widened past the reading its open episode was raised on leaves
+   * the reading and drops the claim, rather than asserting a bound the reading
+   * is nowhere near.
+   */
+  it('drops the bound from a card whose rule was widened while the episode was open', async () => {
+    server.alerts = [alert({ value: 41, extremeValue: 68 })];
+    server.rules = [rule({ watch: { kind: 'reading', metric: 'humidity', upper: 60, lower: null } })];
+    draw();
+
+    expect(await screen.findByText(title('Flower room B · humidity 41 %'))).toBeInTheDocument();
+    expect(screen.queryByText(/› 60/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * An episode that kept the band it was raised against is measured against
+   * that band, not the one its rule has been moved to since: the card names the
+   * edge the reading really crossed, while the rule it can still be edited from
+   * says something else.
+   */
+  it('names the edge the episode was raised against after its rule was moved', async () => {
+    server.alerts = [
+      alert({ value: 41, extremeValue: 44, watched: { name: 'Too humid', watch: { kind: 'reading', metric: 'humidity', upper: 30, lower: null } } }),
+    ];
+    server.rules = [rule({ watch: { kind: 'reading', metric: 'humidity', upper: 60, lower: null } })];
+    draw();
+
+    expect(await screen.findByText(title('Flower room B · humidity 41 % › 30'))).toBeInTheDocument();
+    expect(screen.queryByText(/› 60/)).not.toBeInTheDocument();
   });
 
   it('says the kind alone where an alarm watched an output and carries no metric', () => {

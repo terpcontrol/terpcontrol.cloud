@@ -63,4 +63,9 @@ export const alertOf = (alert: StoredAlert): Alert => ({
   resolvedAt: iso(alert.resolvedAt),
   value: alert.value,
   extremeValue: alert.extremeValue,
+  // The copy goes out through the same narrowing the rule's own watch does, so
+  // a stored document that carries a column per arm reaches a reader as the one
+  // arm its kind has. An episode from before the field was written, or one no
+  // rule raised, has nothing to say here.
+  watched: alert.watched ? { name: alert.watched.name, watch: watchOf(alert.watched.watch) } : null,
 });

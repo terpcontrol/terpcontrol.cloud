@@ -824,6 +824,22 @@ export const alarmRuleUpdate = named('AlarmRuleUpdate', alarmRuleCreate.partial(
 export const alarmSilence = named('AlarmSilence', z.object({ forSeconds: z.number().int().positive() }));
 
 /**
+ * What the rule was called and what it watched, copied onto the episode as it
+ * opens.
+ *
+ * A rule does not stay what it was when it raised an episode. Its band may be
+ * moved while the episode is open, and a card that measured the episode's
+ * reading against today's band printed crossings that never happened; it may be
+ * deleted, and the episode - the account of something that really happened in
+ * somebody's tent, worth reading after the rule that caught it is retired -
+ * was left naming a rule nothing could resolve, so the inbox drew "alarm" and a
+ * bare figure with no metric, no unit and no name. Neither can be answered by
+ * looking the rule up afterwards, which is why the answer is written down here
+ * at the moment the episode opens, when it is still the episode's own.
+ */
+export const alertWatched = named('AlertWatched', z.object({ name: z.string(), watch: alarmWatch }));
+
+/**
  * One document from trigger to resolution, which is what the alerts inbox shows.
  * An open alert has `resolvedAt: null`.
  */
@@ -842,6 +858,9 @@ export const alert = named(
     resolvedAt: instant().nullable(),
     value: z.number().nullable().describe('The reading that triggered it.'),
     extremeValue: z.number().nullable().describe('The worst reading while it was open.'),
+    watched: alertWatched
+      .nullable()
+      .describe('What the rule was called and watched when this opened; null where no rule raised it, and on episodes older than the field.'),
   }),
 );
 

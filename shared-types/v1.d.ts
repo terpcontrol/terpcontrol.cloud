@@ -1362,6 +1362,11 @@ export interface AlarmSilence {
   forSeconds: number;
 }
 
+export interface AlertWatched {
+  name: string;
+  watch: AlarmWatch;
+}
+
 export interface Alert {
   id: string;
   createdAt: string;
@@ -1384,6 +1389,10 @@ export interface Alert {
    * The worst reading while it was open.
    */
   extremeValue: number | null;
+  /**
+   * What the rule was called and watched when this opened; null where no rule raised it, and on episodes older than the field.
+   */
+  watched: AlertWatched | null;
 }
 
 export interface AlertPage {

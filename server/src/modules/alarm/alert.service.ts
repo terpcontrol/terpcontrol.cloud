@@ -56,7 +56,15 @@ export class AlertService {
     return this.alerts.findOne({ cameraId, resolvedAt: null }).sort({ startedAt: -1 }).lean();
   }
 
-  /** Something is wrong, from now until it is not. */
+  /**
+   * Something is wrong, from now until it is not.
+   *
+   * What the rule was called and what it watched is copied onto the episode
+   * here, because here is the only moment it is the episode's own: a band may be
+   * moved while the alert is open and the rule may be deleted afterwards
+   * entirely, and neither of those should be able to change or erase what this
+   * one was about.
+   */
   public async raise(subject: AlertSubject, value: number | null, at: Date): Promise<StoredAlert> {
     const alert: StoredAlert = {
       id: uuidv4(),
@@ -71,6 +79,7 @@ export class AlertService {
       resolvedAt: null,
       value,
       extremeValue: value,
+      watched: subject.rule ? { name: subject.rule.name, watch: subject.rule.watch } : null,
     };
 
     await this.alerts.create(alert);

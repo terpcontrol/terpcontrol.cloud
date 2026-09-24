@@ -32,6 +32,12 @@ export const alertsSchema = new Schema<StoredAlert>(
     resolvedAt: { type: Date, default: null },
     value: { type: Number, default: null },
     extremeValue: { type: Number, default: null },
+    // The rule's name and watch as they were when the episode opened, so the
+    // record still says what it was about once the rule is edited or deleted. Stored
+    // whole rather than as a sub-schema because a watch is a union of three
+    // shapes and the contract is what says which of them is valid; null on an
+    // alert no rule raised, and on every episode older than the field.
+    watched: { type: Object, default: null },
   },
   { collection: 'alerts', versionKey: false },
 );

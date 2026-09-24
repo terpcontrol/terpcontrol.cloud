@@ -9,6 +9,7 @@ import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { AlarmDeliveryService } from '@modules/alarm/alarm-delivery.service';
 import { AlarmEngineService } from '@modules/alarm/alarm-engine.service';
 import { AlarmHealthService } from '@modules/alarm/alarm-health.service';
+import { AlarmRuleService } from '@modules/alarm/alarm-rule.service';
 import { AlertService } from '@modules/alarm/alert.service';
 import { DataService, DeviceSince } from '@modules/data/data.service';
 import { MailService } from '@modules/mail/mail.service';
@@ -642,5 +643,34 @@ describe('the line an alarm writes into the diary', () => {
     await reads(32, new Date());
 
     expect(await said()).toEqual(['Too warm (temperature), value=32, upper threshold=30, lower threshold=n/a']);
+  });
+});
+
+/**
+ * What an episode keeps of the rule that raised it: the rule's name and watch as
+ * they stood when it opened, so that editing the rule afterwards or deleting it
+ * cannot change or erase what the record says it was about.
+ */
+describe('what an episode keeps of the rule that raised it', () => {
+  const ruleService = () => new AlarmRuleService(rules, alerts);
+
+  /**
+   * The copy is taken as the episode opens and is never rewritten by an edit:
+   * a band moved while the episode is still open is today's rule, and the
+   * episode was raised against yesterday's.
+   */
+  it('keeps the band an episode was raised against when the rule is moved while it is open', async () => {
+    await device();
+    const rule = ruleFor({ name: 'Too warm' });
+    await rules.create(rule);
+
+    await reads(32, new Date());
+    const raised = (await openAlert())!;
+    expect(raised.watched).toMatchObject({ name: 'Too warm', watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null } });
+
+    await ruleService().update(rule, { watch: { kind: 'reading', metric: 'temperature', upper: 60, lower: null } });
+
+    const kept = (await alerts.findOne({ id: raised.id }).lean<StoredAlert>())!;
+    expect(kept.watched).toMatchObject({ watch: { upper: 30 } });
   });
 });

@@ -4067,6 +4067,21 @@
       "forSeconds"
     ]
   },
+  "AlertWatched": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "watch": {
+        "$ref": "#/components/schemas/AlarmWatch"
+      }
+    },
+    "required": [
+      "name",
+      "watch"
+    ]
+  },
   "Alert": {
     "type": "object",
     "properties": {
@@ -4160,6 +4175,17 @@
           "number",
           "null"
         ]
+      },
+      "watched": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AlertWatched"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "What the rule was called and watched when this opened; null where no rule raised it, and on episodes older than the field."
       }
     },
     "required": [
@@ -4174,7 +4200,8 @@
       "startedAt",
       "resolvedAt",
       "value",
-      "extremeValue"
+      "extremeValue",
+      "watched"
     ]
   },
   "AlertPage": {

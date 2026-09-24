@@ -2,7 +2,7 @@ import type { DateTime } from 'luxon';
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { Alert, AlarmRule, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
+import type { Alert, AlarmRule, AlarmWatch, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
 import { clockLabel } from '@/screens/notifications/settings';
@@ -198,21 +198,60 @@ const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Devi
 
       return { label: t('alerts.what.cameraSince', { time: clockLabel(since, now, zone) }), figure: null };
     }
-    case 'threshold':
-      return rule ? watched(t, alert, rule) : { label: t('alerts.what.threshold'), figure: alert.value === null ? null : String(alert.value) };
+    case 'threshold': {
+      const what = watchedOf(alert, rule);
+      return what ? watched(t, alert, what) : { label: t('alerts.what.threshold'), figure: alert.value === null ? null : String(alert.value) };
+    }
   }
 };
 
 /** A figure and what belongs to it, held together so a narrow card wraps the pair rather than splitting it. */
 const tight = (part: string): string => part.replace(/ /g, ' ');
 
-const watched = (t: Translate, alert: Alert, rule: AlarmRule): What => {
-  const { watch } = rule;
+/** What the episode watched, from whichever of the two still knows. */
+interface Watched {
+  watch: AlarmWatch;
+  /** How long the reading had to stay out, which only a rule still in hand can say. */
+  forSeconds: number | null;
+}
+
+/**
+ * What this episode was about. The band and the metric are the episode's own -
+ * the copy the alert kept of its rule as the episode opened - and only where it
+ * kept none are they read off the rule as it stands today.
+ *
+ * The copy wins over the rule even while the rule is in hand, because the two
+ * part as soon as somebody edits the rule, which the card's own "Edit rule"
+ * chip is the supported way to do with the episode still open. Read off the
+ * rule, a band widened from 30 to 60 made a card raised on 41 % read
+ * "humidity 41 % › 60" - a crossing that never happened - where the episode
+ * itself says "› 30", which is the one that did.
+ *
+ * A rule can also be deleted, and the episodes it raised stay: they are the
+ * record of something that happened in a tent, and retiring the rule is not a
+ * statement that it did not. Without the copy such a card said "alarm" and a
+ * bare figure, with no metric, no unit and no name to tell one deleted rule's
+ * night from another's.
+ *
+ * What stays with the live rule alone is what only a rule can answer: its name,
+ * the grade it carries today, the silence resting on it, how often it repeats,
+ * how long it asks a reading to stay out, and whether it can be edited from here
+ * at all.
+ */
+const watchedOf = (alert: Alert, rule: AlarmRule | null): Watched | null => {
+  const watch = alert.watched?.watch ?? rule?.watch;
+
+  return watch ? { watch, forSeconds: rule ? rule.forSeconds : null } : null;
+};
+
+const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): What => {
   if (watch.kind === 'output_running') {
     return {
       label: t('alerts.what.running', { output: outputName(t, watch.output) }),
-      // A rule that trips the moment its output starts has no span to name.
-      figure: rule.forSeconds > 0 ? tight(`› ${spanLabel(rule.forSeconds)}`) : null,
+      // A rule that trips the moment its output starts has no span to name, and
+      // neither has an episode whose rule is gone: the duration the rule asked
+      // for was the rule's and is not part of what happened.
+      figure: forSeconds !== null && forSeconds > 0 ? tight(`› ${spanLabel(forSeconds)}`) : null,
     };
   }
 

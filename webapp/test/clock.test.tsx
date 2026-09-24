@@ -58,6 +58,7 @@ const quietTent: Alert = {
   resolvedAt: null,
   value: null,
   extremeValue: null,
+  watched: null,
 };
 
 const device = {
