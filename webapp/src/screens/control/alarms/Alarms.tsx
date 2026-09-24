@@ -30,6 +30,7 @@ import {
 } from './rules';
 import styles from './Alarms.module.css';
 import { deviceName } from '@/screens/devices/naming';
+import { serverNow } from '@/api/clock';
 
 /**
  * The alarm rules of the tent, under Control › Advanced.
@@ -249,7 +250,10 @@ function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: D
 function InMaintenance({ device, me, mayManage, now }: { device: Device; me: Me | undefined; mayManage: boolean; now: DateTime }) {
   const { t } = useTranslation();
   const end = useDeviceCommand();
-  const quiet = maintenanceQuiet(device, now);
+  // Read against the clock as it is now and not as of the last beat: an End
+  // that has just been answered moved the window to this instant, and the beat
+  // could be ten seconds behind it - long enough to offer End again.
+  const quiet = maintenanceQuiet(device, DateTime.max(now, serverNow()));
 
   if (!quiet) return null;
   const zone = zoneOf(me);

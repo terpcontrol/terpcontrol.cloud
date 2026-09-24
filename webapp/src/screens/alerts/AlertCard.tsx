@@ -1,4 +1,4 @@
-import type { DateTime } from 'luxon';
+import { DateTime } from 'luxon';
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -18,6 +18,7 @@ import type { AlertNames } from './names';
 import ask from './AlertCard.module.css';
 import styles from './Alerts.module.css';
 import { deviceName } from '@/screens/devices/naming';
+import { serverNow } from '@/api/clock';
 
 /** How long a silence from the card holds, and how long maintenance does. */
 export const SILENCE_SECONDS = 3600;
@@ -416,7 +417,8 @@ function OpenChips({ alert, rule, device, now }: { alert: Alert; rule: AlarmRule
   const silenced = rule !== null && isAhead(rule.silencedUntil, now);
   // Whether the device is already being worked on, so the chip offers the way
   // out of that rather than a second window on top of the one running.
-  const parked = device !== null && maintenanceQuiet(device, now)?.parked === true;
+  // Against the clock as it is now, so a window just ended is not offered again until the next beat.
+  const parked = device !== null && maintenanceQuiet(device, DateTime.max(now, serverNow()))?.parked === true;
   const busy = silence.isPending || unsilence.isPending || maintenance.isPending;
   const camera = alert.kind === 'camera_stale';
 

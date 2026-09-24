@@ -436,6 +436,31 @@ describe('the alarm rules page', () => {
   });
 
   /**
+   * The page's clock beats every ten seconds, and a window that End has just
+   * moved to this instant was still in that clock's future: for up to ten
+   * seconds the card went on saying the device was in maintenance and offered
+   * End again.
+   */
+  it('stops offering End the moment the window it ended comes back', async () => {
+    const parked = device({ state: { ...device().state, maintenanceUntil: NOW.plus({ minutes: 9 }).toISO()! } });
+    const drawn = draw([parked]);
+    await screen.findByRole('button', { name: 'End now' });
+    await new Promise(settle => setTimeout(settle, 30));
+
+    const ended = device({ state: { ...device().state, maintenanceUntil: DateTime.now().toISO()! } });
+    drawn.rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={['/spaces/space-1/control/alarms']}>
+          <Alarms spaceId="space-1" devices={[ended]} mayManage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText(/Out of maintenance/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'End now' })).not.toBeInTheDocument();
+  });
+
+  /**
    * The ten minutes after the window are the ones nothing named at all: the
    * hardware is running again, so every screen said the device was fine, while
    * the engine went on refusing to raise anything about it.
