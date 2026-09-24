@@ -69,23 +69,27 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
           written: two columns of one page rather than one long one. */}
       <div className={styles.now}>
         {hasDevice ? <Values overview={overview} now={now} /> : <p className={`${ui.cardDashed} ${ui.note}`}>{t('home.invite.noSensor')}</p>}
-        {overview.targets ? <TargetsLine overview={overview} /> : null}
+        {/* What the tent is aiming at and the one way to change it, on one line:
+          the preset is the answer to the figures beside it. */}
+        <div className={styles.aim}>
+          {overview.targets ? <TargetsLine overview={overview} /> : null}
 
-        {/* The phase tiles, as one sheet: what a tent is put on is a stage with a
-          climate on top of it, and what that comes to is said in the sheet. */}
-        {mayManage ? (
-          <div className={styles.spaceActions}>
-            <button type="button" className={`${ui.chip} ${styles.spaceAction}`} onClick={() => setSheet('preset')}>
-              <Sliders size={13} strokeWidth={1.75} aria-hidden />
-              {t('space.presets.open')}
-            </button>
-          </div>
-        ) : mayLog ? (
-          /* The chips above are gone rather than refused, and their absence is
-           the kind somebody would look for - so this says what this person may
-           do here instead, once, where the missing row was. */
-          <p className={`mono ${styles.role}`}>{t('space.youMayLog')}</p>
-        ) : null}
+          {/* The phase tiles, as one sheet: what a tent is put on is a stage with a
+            climate on top of it, and what that comes to is said in the sheet. */}
+          {mayManage ? (
+            <div className={styles.spaceActions}>
+              <button type="button" className={`${ui.chip} ${styles.spaceAction}`} onClick={() => setSheet('preset')}>
+                <Sliders size={13} strokeWidth={1.75} aria-hidden />
+                {t('space.presets.open')}
+              </button>
+            </div>
+          ) : mayLog ? (
+            /* The chips above are gone rather than refused, and their absence is
+             the kind somebody would look for - so this says what this person may
+             do here instead, once, where the missing row was. */
+            <p className={`mono ${styles.role}`}>{t('space.youMayLog')}</p>
+          ) : null}
+        </div>
 
         {overview.dueTasks.length > 0 ? (
           <Section label={t('space.dueNow')} link={{ to: '/tasks', label: t('shell.tabs.tasks') }}>
