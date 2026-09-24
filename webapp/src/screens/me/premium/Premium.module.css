@@ -5,6 +5,9 @@
 
 /* The one paragraph an install that gates nothing puts before its cameras. */
 .lead {
+  background: var(--brand-wash);
+  border-color: transparent;
+  box-shadow: none;
   font-size: var(--text-sm);
   line-height: var(--line-body);
 }
@@ -14,10 +17,21 @@
 .cameras {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* The cameras are one card split by hairlines, as every list under Me is. */
+.cameras > .camera:not(:last-child) {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.cameras > .camera + .camera {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 .camera {
@@ -117,8 +131,13 @@
 .covers {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 .coversHead {

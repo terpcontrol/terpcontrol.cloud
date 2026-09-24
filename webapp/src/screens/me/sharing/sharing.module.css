@@ -8,7 +8,12 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-top: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* The first section on the page opens straight under the title. */
+.sectionHead:nth-child(2) {
+  margin-top: 0;
 }
 
 .count {
@@ -19,10 +24,21 @@
 .cards {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* The links are one card split by hairlines, as every list under Me is. */
+.cards > .card:not(:last-child) {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.cards > .card + .card {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 .card {
@@ -60,7 +76,7 @@
 }
 
 .cardLine {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   line-height: var(--line-body);
   color: var(--muted);
 }
@@ -170,7 +186,4 @@
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-@media (min-width: 900px) {
 }
