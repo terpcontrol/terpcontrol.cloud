@@ -146,15 +146,17 @@ export function Composer({ camera, grow, pending, onRender, onClose }: ComposerP
 
         <div className={styles.switches}>
           <span className="label">{t('composer.overlays')}</span>
-          <Toggle label={t('composer.dayCounter')} on={overlays.dayCounter} onToggle={value => setOverlays({ ...overlays, dayCounter: value })} />
-          <Toggle label={t('composer.climate')} on={overlays.climate} onToggle={value => setOverlays({ ...overlays, climate: value })} />
-          <Toggle
-            label={t('composer.entries')}
-            hint={t('composer.entriesHint')}
-            on={overlays.entries}
-            onToggle={value => setOverlays({ ...overlays, entries: value })}
-          />
-          <Toggle label={t('composer.lightsOff')} on={includeLightsOff} onToggle={setIncludeLightsOff} />
+          <div className={ui.group}>
+            <Toggle label={t('composer.dayCounter')} on={overlays.dayCounter} onToggle={value => setOverlays({ ...overlays, dayCounter: value })} />
+            <Toggle label={t('composer.climate')} on={overlays.climate} onToggle={value => setOverlays({ ...overlays, climate: value })} />
+            <Toggle
+              label={t('composer.entries')}
+              hint={t('composer.entriesHint')}
+              on={overlays.entries}
+              onToggle={value => setOverlays({ ...overlays, entries: value })}
+            />
+            <Toggle label={t('composer.lightsOff')} on={includeLightsOff} onToggle={setIncludeLightsOff} />
+          </div>
         </div>
 
         <Group label={t('composer.format')}>
