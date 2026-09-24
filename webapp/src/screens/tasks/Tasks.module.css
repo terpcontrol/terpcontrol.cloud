@@ -112,9 +112,11 @@
   gap: var(--space-3);
 }
 
-/* What was ticked off is dimmed like an old value: still there, still dated. */
-.card[data-done='true'] {
-  opacity: var(--age-stale);
+/* What was ticked off is turned down: still there, still dated, its title in
+   the muted ink. Not by opacity, which took the grey line under it below the
+   4.5:1 a line of text needs on the cream card. */
+.card[data-done='true'] .cardTitle {
+  color: var(--muted);
 }
 
 /* The tick. A finger-sized target drawn as the small circle the board shows. */

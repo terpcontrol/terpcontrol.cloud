@@ -47,10 +47,16 @@
   gap: var(--space-3);
 }
 
-/* A link that has run out or was taken back keeps its card, dimmed: it is still
-   a fact about what was handed out, and never drawn as if it worked. */
+/* A link that has run out or was taken back keeps its row, turned down: it is
+   still a fact about what was handed out, and never drawn as if it worked. It
+   is said with the muted ink and a sunken row rather than half opacity, which
+   put its lines at 2.5:1. */
 .card[data-dead] {
-  opacity: var(--age-offline);
+  background: var(--card-2);
+}
+
+.card[data-dead] .cardTitle {
+  color: var(--muted);
 }
 
 /* The card's words are the door to the link's own sheet, so they are a button

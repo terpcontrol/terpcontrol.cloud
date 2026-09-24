@@ -155,8 +155,12 @@
   white-space: nowrap;
 }
 
+/* A channel not set up yet: its column head drops to the label ink and the
+   regular weight rather than to half opacity, which read at under 3:1. The
+   switches under it say the rest by being disabled. */
 .gridHead[data-off='true'] {
-  opacity: var(--age-offline);
+  color: var(--label);
+  font-weight: var(--weight-regular);
 }
 
 .gridRow {

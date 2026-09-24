@@ -122,6 +122,38 @@
   min-height: 0;
 }
 
+/* Over is said by the ink rather than by fading the row: the app's age
+   opacity took the grey line under a resolved title to 3.8:1 on the cream
+   card, under the 4.5 a line of text needs. The title steps down to the muted
+   ink and the rest is left at full strength. */
+.card[data-age] {
+  opacity: 1;
+}
+
+.card[data-age] .what {
+  color: var(--muted);
+}
+
+/* A finished event keeps its stripe at half strength, so the one still open
+   above it is the brightest edge on the page. */
+.card[data-age][data-severity='critical'] {
+  box-shadow:
+    inset 4px 0 0 color-mix(in srgb, var(--alarm) 50%, var(--card)),
+    var(--shadow);
+}
+
+.card[data-age][data-severity='warning'] {
+  box-shadow:
+    inset 4px 0 0 color-mix(in srgb, var(--warning) 50%, var(--card)),
+    var(--shadow);
+}
+
+.card[data-age][data-severity='info'] {
+  box-shadow:
+    inset 4px 0 0 color-mix(in srgb, var(--label) 50%, var(--card)),
+    var(--shadow);
+}
+
 /* The one way on from a finished event is a quiet tint rather than an
    outline, so eleven of them down a list do not outweigh what happened. */
 .card[data-age] .chips > * {
