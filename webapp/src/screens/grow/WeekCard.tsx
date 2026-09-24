@@ -7,6 +7,7 @@ import { useWeekEntries } from '@/api/grows';
 import { useCorrecting } from '@/log/corrections';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
+import { unitSymbol } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 import { readingFigure, weekDayOf } from '@/ui/entries';
 import { standsIn } from '@/ui/session-access';
@@ -113,7 +114,7 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
         <dl className={`${ui.strip} ${styles.stats}`}>
           <Stat value={dayNight(temperature, 1)} unit="°C" label={temperature?.dayAverage != null ? t('grow.dayNight') : t('grow.average')} />
           <Stat value={figure(humidity?.averageValue ?? null, 0)} unit="%" label={t('grow.humidity')} />
-          <Stat value={figure(week.lightHours, 0)} unit="h" label={t('grow.light')} />
+          <Stat value={figure(week.lightHours, 0)} unit={unitSymbol('h')} label={t('grow.light')} />
         </dl>
       )}
 

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowWeekCard, WeekClimate } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
-import { ageLabel } from '@/ui/age';
+import { ageLabel, unitSymbol } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
 import { decimalFigure } from '@/ui/figures';
 import { readingFigure, weekDayOf } from '@/ui/entries';
@@ -107,7 +107,7 @@ export function DiaryWeek({ week, picture, now, current, ended, asOf }: DiaryWee
         <dl className={`${ui.strip} ${styles.stats}`}>
           <Stat value={dayNight(temperature, 1)} unit="°C" label={temperature?.dayAverage != null ? t('grow.dayNight') : t('grow.average')} />
           <Stat value={figure(humidity?.averageValue ?? null, 0)} unit="%" label={t('grow.humidity')} />
-          <Stat value={figure(week.lightHours, 0)} unit="h" label={t('grow.light')} />
+          <Stat value={figure(week.lightHours, 0)} unit={unitSymbol('h')} label={t('grow.light')} />
         </dl>
       )}
 

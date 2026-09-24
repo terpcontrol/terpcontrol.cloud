@@ -1,6 +1,7 @@
 import type { Socket, SocketOverride, SocketRole, SocketState, SocketTimer } from '@fg2/shared-types/v1';
 import { SOCKET_HOLD_MAX_SECONDS } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import type { OverrideRequest } from '@/api/devices';
+import { durationFigure } from '@/ui/age';
 
 /**
  * What a socket row on the Devices tab is drawn from, and what a tap on its
@@ -37,9 +38,9 @@ export const defaultHold = (): number => holdsFor().find(seconds => seconds >= D
 
 /** "30 s", "15 min", "6 h", "24 h": the coarsest unit the number is whole in. */
 export const durationLabel = (seconds: number): string => {
-  if (seconds < 60) return `${seconds} s`;
-  if (seconds < 3600 || seconds % 3600 !== 0) return `${Math.round(seconds / 60)} min`;
-  return `${Math.round(seconds / 3600)} h`;
+  if (seconds < 60) return durationFigure(seconds, 's');
+  if (seconds < 3600 || seconds % 3600 !== 0) return durationFigure(Math.round(seconds / 60), 'min');
+  return durationFigure(Math.round(seconds / 3600), 'h');
 };
 
 /** One row of the Devices tab's socket list: one plug of the device's own table. */

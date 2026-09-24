@@ -4150,5 +4150,11 @@
       "notStarted": "not started",
       "public": "public page"
     }
+  },
+  "units": {
+    "s": "s",
+    "min": "min",
+    "h": "h",
+    "d": "d"
   }
 }

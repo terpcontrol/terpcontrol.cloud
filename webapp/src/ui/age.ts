@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import { DateTime, Duration } from 'luxon';
 import type { MetricValue, ValueState } from '@fg2/shared-types/v1';
 import { VALUE_AGE } from '@fg2/shared-types/v1-schemas/value-age.js';
@@ -25,15 +26,31 @@ import { serverNow } from '@/api/clock';
  * on the screen by that hour.
  */
 
+export type DurationUnit = 's' | 'min' | 'h' | 'd';
+
+const SYMBOL: Record<DurationUnit, string> = { s: 's', min: 'min', h: 'h', d: 'd' };
+
+/**
+ * How the reader's language abbreviates a unit of time: "d" in English, "T" in
+ * German. It is the catalogue's word and not one written here, because German
+ * had a day as "T" on the grow screens and as "d" in every age beside them -
+ * "Tag 28" over "vor 5 d" on one page - and an hour as "h", "Std" and "Std.".
+ * Where no catalogue is loaded, as in a unit test, the English symbol stands.
+ */
+export const unitSymbol = (unit: DurationUnit): string => (i18next.exists(`units.${unit}`) ? i18next.t(`units.${unit}`) : SYMBOL[unit]);
+
+/** A figure and its unit of time: "4 min", "3 T". */
+export const durationFigure = (figure: number | string, unit: DurationUnit): string => `${figure} ${unitSymbol(unit)}`;
+
 /** "20 s", "4 min", "2 h", "3 d" - short, so it fits beside the figure it belongs to. */
 export const ageLabel = (measuredAt: string | null, now: DateTime = serverNow()): string => {
   if (!measuredAt) return '—';
   const elapsed = Duration.fromMillis(Math.max(0, now.toMillis() - DateTime.fromISO(measuredAt).toMillis()));
   const seconds = Math.floor(elapsed.as('seconds'));
-  if (seconds < 60) return `${seconds} s`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
-  if (seconds < 86_400) return `${Math.floor(seconds / 3600)} h`;
-  return `${Math.floor(seconds / 86_400)} d`;
+  if (seconds < 60) return durationFigure(seconds, 's');
+  if (seconds < 3600) return durationFigure(Math.floor(seconds / 60), 'min');
+  if (seconds < 86_400) return durationFigure(Math.floor(seconds / 3600), 'h');
+  return durationFigure(Math.floor(seconds / 86_400), 'd');
 };
 
 /**
@@ -43,10 +60,10 @@ export const ageLabel = (measuredAt: string | null, now: DateTime = serverNow())
  */
 export const spanLabel = (seconds: number): string => {
   const whole = Math.max(0, Math.floor(seconds));
-  if (whole < 60) return `${whole} s`;
-  if (whole < 3600) return `${Math.floor(whole / 60)} min`;
-  if (whole < 86_400) return `${Math.floor(whole / 3600)} h`;
-  return `${Math.floor(whole / 86_400)} d`;
+  if (whole < 60) return durationFigure(whole, 's');
+  if (whole < 3600) return durationFigure(Math.floor(whole / 60), 'min');
+  if (whole < 86_400) return durationFigure(Math.floor(whole / 3600), 'h');
+  return durationFigure(Math.floor(whole / 86_400), 'd');
 };
 
 /**
@@ -69,13 +86,13 @@ export const spanLabel = (seconds: number): string => {
  */
 export const countdownLabel = (seconds: number): string => {
   const whole = Math.max(0, Math.ceil(seconds));
-  if (whole < 60) return `${whole} s`;
+  if (whole < 60) return durationFigure(whole, 's');
 
   const minutes = Math.ceil(whole / 60);
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60) return durationFigure(minutes, 'min');
 
   const hours = Math.ceil(whole / 3600);
-  return hours < 24 ? `${hours} h` : `${Math.ceil(whole / 86_400)} d`;
+  return hours < 24 ? durationFigure(hours, 'h') : durationFigure(Math.ceil(whole / 86_400), 'd');
 };
 
 /**

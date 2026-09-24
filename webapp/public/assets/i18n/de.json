@@ -912,8 +912,8 @@
       "off": "aus",
       "auto": "auto",
       "runs": "Lief",
-      "runsValue_one": "{{count}}× in den letzten 24 h",
-      "runsValue_other": "{{count}}× in den letzten 24 h",
+      "runsValue_one": "{{count}}× in den letzten 24 Std",
+      "runsValue_other": "{{count}}× in den letzten 24 Std",
       "isPlug": "smarte Steckdose",
       "numbered": "{{name}} {{number}}"
     },
@@ -1167,7 +1167,7 @@
       "hintMonitor": "Legt fest, welche Stunden als Tag zählen. Die Tag-Zielwerte unten werden in diesen Stunden bewertet.",
       "start": "Licht an um",
       "duration": "Stunden Licht",
-      "scheduleText": "Sämlinge und Wachstum bekommen meist 18 h, die Blüte läuft mit 12 h. Autoflowers bleiben durchgehend bei 18 h.",
+      "scheduleText": "Sämlinge und Wachstum bekommen meist 18 Std, die Blüte läuft mit 12 Std. Autoflowers bleiben durchgehend bei 18 Std.",
       "intensity": "Lichtintensität",
       "intensityHint": "Sämlinge gedimmt starten (ca. 40 %) und zur Blüte Richtung 100 % steigern."
     },
@@ -1194,8 +1194,8 @@
       "pickChannel": "wie möchtest du benachrichtigt werden?",
       "create": "Alarm erstellen",
       "savedNote": "Alarme werden beim Speichern der Einstellungen übernommen.",
-      "runsFor": "Läuft {{minutes}} min am Stück",
-      "forMinutes": "≥ {{minutes}} min",
+      "runsFor": "Läuft {{minutes}} Min am Stück",
+      "forMinutes": "≥ {{minutes}} Min",
       "emailLabel": "E-Mail-Adresse",
       "channels": {
         "info": "Nur Protokoll",
@@ -1547,7 +1547,7 @@
       "water": "Gießen",
       "note": "Notiz",
       "photo": "Foto",
-      "visit": "Alarme aus {{quiet}} min",
+      "visit": "Alarme aus {{quiet}} Min",
       "reading": "Messwert"
     },
     "invite": {
@@ -1567,7 +1567,7 @@
       "today": "heute",
       "tomorrow": "morgen",
       "overdue_one": "{{count}} Tag überfällig",
-      "overdue_other": "{{count}} Tage überfällig",
+      "overdue_other": "{{count}} T überfällig",
       "following": "Folge ich",
       "inDays": "in {{count}} T"
     }
@@ -2259,8 +2259,8 @@
         "hardwareUnknown": "Was in {{place}} steht, ist nicht bekannt, dort wird also kein Klima geschrieben; die Phasen werden trotzdem festgehalten.",
         "nowhere": "Kein Platz, also wird nichts gesteuert; die Phasen werden trotzdem festgehalten.",
         "auto": "Von hier an schiebt das Preset des Platzes den Grow weiter, und eine so geschriebene Phase trägt die Markierung „auto“.",
-        "autoflower": "Autoflower: Die Presets bleiben bei 18–20 h Licht, und das Schema läuft mit halber Stärke.",
-        "autoflowerAlone": "Autoflower: Die Presets bleiben bei 18–20 h Licht, statt auf 12/12 umzuschlagen."
+        "autoflower": "Autoflower: Die Presets bleiben bei 18–20 Std Licht, und das Schema läuft mit halber Stärke.",
+        "autoflowerAlone": "Autoflower: Die Presets bleiben bei 18–20 Std Licht, statt auf 12/12 umzuschlagen."
       },
       "submit": "Grow starten · Tag {{day}}",
       "starting": "Grow wird gestartet …",
@@ -2531,12 +2531,12 @@
         "stopYes": "Plan stoppen"
       },
       "unit": {
-        "minutes_one": "{{count}} Min.",
-        "minutes_other": "{{count}} Min.",
-        "hours_one": "{{count}} Std.",
-        "hours_other": "{{count}} Std.",
-        "days_one": "{{count}} Tag",
-        "days_other": "{{count}} Tage",
+        "minutes_one": "{{count}} Min",
+        "minutes_other": "{{count}} Min",
+        "hours_one": "{{count}} Std",
+        "hours_other": "{{count}} Std",
+        "days_one": "{{count}} T",
+        "days_other": "{{count}} T",
         "weeks_one": "{{count}} Woche",
         "weeks_other": "{{count}} Wochen"
       },
@@ -2677,7 +2677,7 @@
     "everyPicture": "Alle Bilder",
     "lastStill": "letztes vor {{age}}",
     "stillAlt": "{{name}} um {{time}}",
-    "climate24h": "Klima · 24 h",
+    "climate24h": "Klima · 24 Std",
     "inBand": "{{percent}} % im Zielband",
     "inBandOver": "{{percent}} % im Zielband über die {{span}}, die gemessen wurden",
     "verdict": {
@@ -2691,7 +2691,7 @@
       "excursions": "{{count}} Ausreißer {{metric}}",
       "stillOut": "jetzt",
       "ran": "{{output}} lief {{count}}×",
-      "noReadings": "In den letzten 24 h nichts gehört · nichts, woran der Tag zu messen wäre"
+      "noReadings": "In den letzten 24 Std nichts gehört · nichts, woran der Tag zu messen wäre"
     },
     "output": {
       "heater": "Heizung",
@@ -2860,7 +2860,7 @@
         },
         "valid": "Gültig",
         "validity": {
-          "day": "24 h",
+          "day": "24 Std",
           "week": "7 Tage",
           "never": "bis zum Zurückziehen"
         },
@@ -2932,7 +2932,7 @@
       "phase": "Phase",
       "visit": "Reingehen",
       "photoCaption": "Cam-Bild oder Kamera",
-      "visitCaption": "Alarme aus {{quiet}} min"
+      "visitCaption": "Alarme aus {{quiet}} Min"
     },
     "visit": {
       "hereFallback": "diesem Ort",
@@ -3730,7 +3730,7 @@
   "alerts": {
     "bell_one": "Meldungen · {{count}} offen",
     "bell_other": "Meldungen · {{count}} offen",
-    "muteAll": "Alles 1 h stumm",
+    "muteAll": "Alles 1 Std stumm",
     "mutedUntil": "deine Kanäle stumm bis {{time}}",
     "unmute": "Wieder laut",
     "group": {
@@ -3760,17 +3760,17 @@
       "ruleNow": "die Regel sagt inzwischen {{severity}}"
     },
     "action": {
-      "silence": "1 h stumm",
+      "silence": "1 Std stumm",
       "unsilence": "Wieder laut",
-      "maintenance": "Wartung {{minutes}} min",
+      "maintenance": "Wartung {{minutes}} Min",
       "endMaintenance": "Wartung beenden",
       "timeline": "Verlauf öffnen",
       "editRule": "Regel bearbeiten",
       "checkCam": "Cam prüfen"
     },
     "maintenance": {
-      "sent": "Angefragt. Sobald es zuhört, stellt das Gerät {{outputs}} ab, und {{quiet}} min lang wird auf ihm kein Alarm ausgelöst.",
-      "sentQuietOnly": "Angefragt. Dieses Gerät verwirft den Befehl, es stellt also nichts ab; trotzdem wird auf ihm {{quiet}} min lang kein Alarm ausgelöst.",
+      "sent": "Angefragt. Sobald es zuhört, stellt das Gerät {{outputs}} ab, und {{quiet}} Min lang wird auf ihm kein Alarm ausgelöst.",
+      "sentQuietOnly": "Angefragt. Dieses Gerät verwirft den Befehl, es stellt also nichts ab; trotzdem wird auf ihm {{quiet}} Min lang kein Alarm ausgelöst.",
       "unheard": "Niemand hat zugehört: Das Gerät hat sich nicht gemeldet, der Befehl wartet auf es.",
       "ask": "Der Wartungsmodus stoppt {{minutes}} Minuten lang {{outputs}}. Auf diesem Gerät wird {{quiet}} Minuten lang kein Alarm ausgelöst: das Fenster und {{settle}} Minuten mehr, während das Klima zurückkommt.",
       "askQuietOnly": "Dieses Gerät kennt den Wartungsbefehl nicht, es stellt also nichts ab. Es hält hier nur jeden Alarm des Geräts zurück: das Fenster von {{minutes}} Minuten und {{settle}} Minuten mehr, zusammen {{quiet}}.",
@@ -4146,5 +4146,11 @@
       "notStarted": "nicht gestartet",
       "public": "öffentliche Seite"
     }
+  },
+  "units": {
+    "s": "s",
+    "min": "Min",
+    "h": "Std",
+    "d": "T"
   }
 }

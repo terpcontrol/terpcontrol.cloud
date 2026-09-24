@@ -8,6 +8,7 @@ import { useGrowReport } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
 import { useCorrecting } from '@/log/corrections';
+import { durationFigure } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 import { growDayOf } from '@/ui/entries';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
@@ -186,7 +187,7 @@ function Chapter({
               ? `${decimalFigure(temperature.dayAverage, 1)} / ${temperature.nightAverage === null ? '–' : decimalFigure(temperature.nightAverage, 1)} °C`
               : `${temperature.averageValue === null ? '–' : decimalFigure(temperature.averageValue, 1)} °C`}
             {humidity?.averageValue !== null && humidity !== undefined ? ` · ${decimalFigure(humidity.averageValue, 0)} %` : ''}
-            {chapter.lightHours !== null ? ` · ${decimalFigure(chapter.lightHours, 0)} h` : ''}
+            {chapter.lightHours !== null ? ` · ${durationFigure(decimalFigure(chapter.lightHours, 0), 'h')}` : ''}
             {chapter.inBandPercent !== null ? ` · ${t('space.inBand', { percent: Math.round(chapter.inBandPercent) })}` : ''}
           </p>
         ) : null}
