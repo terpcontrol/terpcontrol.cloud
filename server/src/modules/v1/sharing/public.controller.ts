@@ -143,7 +143,13 @@ export class PublicController {
     const { grow, grant } = await this.pages.publicGrow(ctx, slug);
     const picture = await this.pages.pictureOf(grow, grant, id);
 
-    return this.delivery.deliver(request, reply, picture, { width: parseDimension(query.width), height: parseDimension(query.height) });
+    return this.delivery.deliver(
+      request,
+      reply,
+      picture,
+      { width: parseDimension(query.width), height: parseDimension(query.height) },
+      grant.redacted,
+    );
   }
 
   @Get('public/grows/:slug/card.png')

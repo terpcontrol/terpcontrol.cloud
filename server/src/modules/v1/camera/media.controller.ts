@@ -138,7 +138,8 @@ export class MediaController {
     @Res() reply: FastifyReply,
   ): Promise<void> {
     const media = await this.require(id, request);
-    return this.delivery.deliver(request, reply, media, { width: parseDimension(query.width), height: parseDimension(query.height) });
+    const redacted = (request as AccessRequest).grant?.redacted === true;
+    return this.delivery.deliver(request, reply, media, { width: parseDimension(query.width), height: parseDimension(query.height) }, redacted);
   }
 
   /**

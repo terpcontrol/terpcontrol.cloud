@@ -36,7 +36,15 @@ export class MediaDeliveryService {
     private readonly presentation: MediaPresentationService,
   ) {}
 
-  public async deliver(request: FastifyRequest, reply: FastifyReply, media: MediaDocument, asked: RenderSize): Promise<void> {
+  /**
+   * `redacted` is whether the reader is somebody outside the space - a link or
+   * a public page. The owner's stored original may still carry where and on
+   * what it was taken, and that is not part of what such a reader is shown, so
+   * they get the picture re-encoded without it. Rewriting the bucket instead
+   * would take the original from the owner and their export, and would only
+   * cover the pictures somebody remembered to rewrite.
+   */
+  public async deliver(request: FastifyRequest, reply: FastifyReply, media: MediaDocument, asked: RenderSize, redacted: boolean): Promise<void> {
     const size = narrowestOf(asked, await this.servedWidth(media));
 
     // Rewriting a picture needs all of it in memory, and only a still is ever
@@ -45,6 +53,12 @@ export class MediaDeliveryService {
     if (media.mime.startsWith('image/') && (size.width || size.height)) {
       const resized = await this.presentation.resize(await this.media.download(media.id), size);
       await reply.header('Content-type', media.mime).header('Cache-Control', CACHE_CONTROL).send(resized);
+      return;
+    }
+
+    if (media.mime.startsWith('image/') && redacted) {
+      const stripped = await this.presentation.withoutMetadata(await this.media.download(media.id));
+      await reply.header('Content-type', media.mime).header('Cache-Control', CACHE_CONTROL).send(stripped);
       return;
     }
 

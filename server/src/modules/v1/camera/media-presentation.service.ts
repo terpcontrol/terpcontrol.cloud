@@ -59,6 +59,16 @@ export class MediaPresentationService {
       .toBuffer();
   }
 
+  /**
+   * The same picture with nothing written around it: no place it was taken, no
+   * phone, no time. What an upload is stored as has none of that already; a
+   * picture carried over from before that rule still has all of it. It is
+   * turned the way its metadata said first, because the orientation goes too.
+   */
+  public withoutMetadata(body: Buffer): Promise<Buffer> {
+    return sharp(body).rotate().jpeg({ quality: 90, force: false }).toBuffer();
+  }
+
   /** Resizes when there is anything to do, never enlarging. */
   public async resize(body: Buffer, size: RenderSize): Promise<Buffer> {
     if (!size.width && !size.height) return body;
