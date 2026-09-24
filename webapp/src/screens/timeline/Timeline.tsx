@@ -70,7 +70,7 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
     // advertises nothing, on the one screen where the window is not named
     // anywhere else.
     <div className={styles.rangeBar}>
-      <div className={styles.chips} role="group" aria-label={t('timeline.rangeLabel')}>
+      <div className={`${ui.scrollRow} ${styles.chips}`} role="group" aria-label={t('timeline.rangeLabel')}>
         {RANGES.map(one => (
           <button
             key={one}

@@ -190,7 +190,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
               {t('log.notHere')}
             </p>
           ) : null}
-          <div className={styles.targets} role="group" aria-label={t('log.targetLabel')}>
+          <div className={`${ui.scrollRow} ${styles.targets}`} role="group" aria-label={t('log.targetLabel')}>
             {/* The place first, then what is inside it, then everywhere else:
                 the chips a thumb can reach are the ones about where you are. */}
             {place ? <TargetChip target={place} chosen={place.key === target?.key} onChoose={() => choose(place, false)} /> : null}

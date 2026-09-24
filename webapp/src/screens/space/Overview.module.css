@@ -323,35 +323,12 @@
   color: var(--label);
 }
 
-/* Today's stills: a row that scrolls sideways, each with its hour. */
+/* Today's stills: the shared row that scrolls sideways, each with its hour. A
+   day holds more pictures than the row, so its far edge is veiled while there
+   are more to scroll to, and the last tile reads as the start of the rest
+   rather than a picture cut in half. */
 .strip {
   flex-direction: row;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-/* A day holds more pictures than the row: its far edge fades while there are
-   more to scroll to, as the tabs' does, so the last tile reads as the start of
-   the rest rather than a picture cut in half. */
-@supports (animation-timeline: scroll()) {
-  .strip {
-    animation: strip-more linear both;
-    animation-timeline: scroll(self inline);
-  }
-}
-
-@keyframes strip-more {
-  from {
-    mask-image: linear-gradient(to right, #000 calc(100% - 64px), transparent);
-  }
-
-  99% {
-    mask-image: linear-gradient(to right, transparent 0, #000 64px, #000 calc(100% - 64px), transparent);
-  }
-
-  to {
-    mask-image: linear-gradient(to right, transparent 0, #000 64px);
-  }
 }
 
 .stillTile {

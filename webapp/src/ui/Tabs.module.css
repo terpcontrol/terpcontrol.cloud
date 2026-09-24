@@ -1,37 +1,11 @@
+/* A row wider than the phone scrolls, and says so with the shared row's veil
+   at its far edge. */
 .tabs {
-  display: flex;
   gap: var(--space-4);
   border-bottom: var(--rule-solid);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-/* A row wider than the phone scrolls, and says so: the far edge fades while
-   there is more of it to reach, and stops fading at the end. A row that fits
-   has nothing to scroll, the timeline never starts, and nothing fades. */
-@supports (animation-timeline: scroll()) {
-  .tabs {
-    animation: tabs-more linear both;
-    animation-timeline: scroll(self inline);
-  }
-}
-
-@keyframes tabs-more {
-  from {
-    mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
-  }
-
-  99% {
-    mask-image: linear-gradient(to right, transparent 0, #000 40px, #000 calc(100% - 40px), transparent);
-  }
-
-  to {
-    mask-image: linear-gradient(to right, transparent 0, #000 40px);
-  }
 }
 
 .tab {
-  flex-shrink: 0;
   padding: var(--space-3) 0 var(--space-2);
   /* The underline sits on the rule, so the active tab's line replaces it rather than doubling it. */
   margin-bottom: calc(var(--rule-width) * -1);

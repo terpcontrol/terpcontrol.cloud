@@ -125,41 +125,13 @@
   }
 }
 
+/* A row wider than the phone scrolls, veiled at the edge there is more of, as
+   the tabs above it are. */
 .chips {
-  display: flex;
   flex: 1 1 auto;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-/* A row wider than the phone fades at the edge there is more of, as the tabs
-   above it do; a row that fits never scrolls and never fades. */
-@supports (animation-timeline: scroll()) {
-  .chips {
-    animation: chips-more linear both;
-    animation-timeline: scroll(self inline);
-  }
-}
-
-@keyframes chips-more {
-  from {
-    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
-  }
-
-  99% {
-    mask-image: linear-gradient(to right, transparent 0, #000 32px, #000 calc(100% - 32px), transparent);
-  }
-
-  to {
-    mask-image: linear-gradient(to right, transparent 0, #000 32px);
-  }
-}
-
-.chip {
-  flex-shrink: 0;
 }
 
 /*

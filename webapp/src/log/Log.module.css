@@ -1,17 +1,14 @@
 /* The sheet's own parts: the target row, the eight tiles, and the fields the
    details ask for. Dense, because a phone in a tent has one thumb. */
 
+/* The places to log to, as the shared row that scrolls, veiled into the
+   sheet's own surface. */
 .targets {
-  display: flex;
+  --veil-colour: var(--card);
+
   gap: var(--space-2);
-  overflow-x: auto;
   margin-bottom: var(--space-3);
   padding-bottom: var(--space-1);
-  scrollbar-width: none;
-}
-
-.targets::-webkit-scrollbar {
-  display: none;
 }
 
 /* The chosen target is a pressed chip, filled with the brand as every chosen

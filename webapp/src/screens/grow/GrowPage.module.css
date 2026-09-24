@@ -138,44 +138,17 @@
    stands at the far end, apart from the moves, because it changes who reads
    the grow rather than the grow. */
 .ways {
-  display: flex;
-  flex-wrap: wrap;
   gap: var(--space-2);
   padding-top: var(--space-1);
 }
 
 /* On a phone the nine of them would stack three rows deep above the tabs, so
-   they run as one row that scrolls, with a fade at its far edge over whatever
-   is still to come. The fade is a veil laid over the row rather than a mask
-   on it: the lifecycle's sheets are drawn from inside this row, and a mask
-   clips everything painted inside its element, a fixed sheet included. The
-   veil is the row's last item and sticks to the right edge while there is
-   more to scroll; at the end of the row it sits in a space of its own after
-   the last chip, and a row that fits pushes it into the empty space at its
-   end, so it never covers a chip nobody can scroll further to. */
+   they run as the shared row that scrolls, veiled at its far edge. */
 @media (max-width: 899px) {
   .ways {
-    flex-wrap: nowrap;
     /* Room for a focused chip's ring, which a scrolling row would clip. */
     padding: var(--space-1) 4px;
     margin-inline: -4px;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .ways::-webkit-scrollbar {
-    display: none;
-  }
-
-  .ways::after {
-    content: '';
-    position: sticky;
-    right: 0;
-    flex: none;
-    width: 40px;
-    margin-left: auto;
-    background: linear-gradient(to right, transparent, var(--bg));
-    pointer-events: none;
   }
 }
 
@@ -309,10 +282,6 @@
 /* Sharing, in the header: the button that opens the sheet, and the chip that
    says the diary already has an address of its own and leads to it. */
 .share {
-  flex-shrink: 0;
-}
-
-.ways > * {
   flex-shrink: 0;
 }
 

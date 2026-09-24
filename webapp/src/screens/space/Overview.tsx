@@ -447,7 +447,7 @@ function CameraStrip({ camera, now }: { camera: OverviewCamera; now: DateTime })
   }
 
   return (
-    <ul className={styles.strip}>
+    <ul className={`${ui.scrollRow} ${styles.strip}`}>
       {stills.map(still => {
         const src = mediaUrl(still.mediaId, THUMBNAIL_WIDTH.still);
         return (

@@ -96,6 +96,80 @@
   border-color: var(--alarm);
 }
 
+/* A row wider than its screen that scrolls sideways - tabs, chips, a day's
+   stills - and says so: its far edge is veiled while there is more to reach.
+   The veil is laid over the row rather than a mask put on it, because a mask
+   clips everything painted inside its element, a fixed sheet opened from a
+   chip in the row included. It is the row's last item and sticks to the right
+   edge while there is more to scroll; at the end of the row it stands in a
+   space of its own after the last item, and a row that fits pushes it into
+   the empty space at its end, so it never covers what nobody can scroll to.
+   It fades into `--veil-colour`, the page unless the row stands on a card.
+   `.scrollRowNarrow` scrolls only on a phone and a tablet and wraps from the
+   rail's width up. */
+.scrollRow,
+.scrollRowNarrow {
+  --veil-colour: var(--bg);
+}
+
+.scrollRow {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.scrollRow::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollRow > * {
+  flex-shrink: 0;
+}
+
+.scrollRow::after {
+  content: '';
+  position: sticky;
+  right: 0;
+  flex: none;
+  width: 40px;
+  margin-left: auto;
+  background: linear-gradient(to right, transparent, var(--veil-colour));
+  pointer-events: none;
+}
+
+.scrollRowNarrow {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 899px) {
+  .scrollRowNarrow {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .scrollRowNarrow::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollRowNarrow > * {
+    flex-shrink: 0;
+  }
+
+  .scrollRowNarrow::after {
+    content: '';
+    position: sticky;
+    right: 0;
+    flex: none;
+    width: 40px;
+    margin-left: auto;
+    background: linear-gradient(to right, transparent, var(--veil-colour));
+    pointer-events: none;
+  }
+}
+
 /* A few figures read as one strip, a hairline between each, the way a tent's
    readouts stand on Home: a week's light and climate, a grow's totals, a
    plant's size. Each item is a figure over its caption; a figure takes

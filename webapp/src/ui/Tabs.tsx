@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router';
+import ui from './ui.module.css';
 import styles from './Tabs.module.css';
 
 export interface TabItem {
@@ -14,7 +15,7 @@ export interface TabItem {
  */
 export function Tabs({ items, label }: { items: TabItem[]; label: string }) {
   return (
-    <nav className={styles.tabs} aria-label={label}>
+    <nav className={`${ui.scrollRow} ${styles.tabs}`} aria-label={label}>
       {items.map(item => (
         <NavLink key={item.key} to={item.to} replace className={({ isActive }) => `${styles.tab} ${isActive ? styles.active : ''}`}>
           {item.label}
