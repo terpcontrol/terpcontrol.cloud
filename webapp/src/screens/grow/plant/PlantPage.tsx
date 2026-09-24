@@ -145,10 +145,10 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
         <p className={ui.note}>{t('grow.plant.nothingMeasured')}</p>
       ) : null}
 
-      <div className={styles.sectionHead}>
+      <header className={styles.sectionHead}>
         <span className="label">{t('grow.plant.ownEntries')}</span>
         <span className={`mono ${styles.aside}`}>{t('grow.plant.growEntriesToo')}</span>
-      </div>
+      </header>
 
       {entries.isPending ? (
         <Waiting lines={3} />

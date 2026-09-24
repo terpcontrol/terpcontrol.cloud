@@ -267,9 +267,9 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
 function Section({ label, empty, children }: { label: string; empty: string | null; children: React.ReactNode }) {
   return (
     <section className={styles.section}>
-      <div className={styles.sectionHead}>
+      <header className={styles.sectionHead}>
         <span className="label">{label}</span>
-      </div>
+      </header>
       {empty ? <p className={`${ui.cardDashed} ${ui.note}`}>{empty}</p> : <ul className={ui.group}>{children}</ul>}
     </section>
   );

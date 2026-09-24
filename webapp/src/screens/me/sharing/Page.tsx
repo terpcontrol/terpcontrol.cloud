@@ -15,9 +15,9 @@ export function Page({ title, children }: { title: string; children: ReactNode }
 /** A small-caps label over a block, with the figure the board puts opposite it. */
 export function SectionHead({ label, count }: { label: string; count?: ReactNode }) {
   return (
-    <div className={styles.sectionHead}>
+    <header className={styles.sectionHead}>
       <span className="label">{label}</span>
       {count === undefined ? null : <span className={`mono ${styles.count}`}>{count}</span>}
-    </div>
+    </header>
   );
 }

@@ -89,10 +89,10 @@ function MeasurementsScreen({ growId }: { growId: string }) {
         </p>
       ) : null}
 
-      <div className={styles.sectionHead}>
+      <header className={styles.sectionHead}>
         <span className="label">{t('grow.measurements.yours')}</span>
         <span className={`mono ${styles.aside}`}>{t('grow.measurements.chartHint')}</span>
-      </div>
+      </header>
 
       {definitions.length === 0 ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('grow.measurements.none')}</p>
@@ -114,10 +114,10 @@ function MeasurementsScreen({ growId }: { growId: string }) {
 
       {mayManage ? (
         <>
-          <div className={styles.sectionHead}>
+          <header className={styles.sectionHead}>
             <span className="label">{t('grow.measurements.templates')}</span>
             <span className={`mono ${styles.aside}`}>{t('grow.measurements.tapToAdd')}</span>
-          </div>
+          </header>
           <div className={styles.templates} role="group" aria-label={t('grow.measurements.templates')}>
             {TEMPLATES.map(template => {
               const here = definitions.some(definition => definition.key === template.key);

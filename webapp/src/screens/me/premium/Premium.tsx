@@ -260,10 +260,10 @@ function Covers({ free }: { free: PremiumFree | null }) {
 
   return (
     <section className={styles.covers}>
-      <div className={styles.coversHead}>
+      <header className={styles.coversHead}>
         <span className="label">{t('me.premium.covers')}</span>
         <span className={`mono ${styles.only}`}>{t('me.premium.camerasOnly')}</span>
-      </div>
+      </header>
       <div className={ui.tableCard}>
         <table className={styles.table}>
           <thead>
