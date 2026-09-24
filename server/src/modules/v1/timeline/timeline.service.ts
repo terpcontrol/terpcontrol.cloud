@@ -5,7 +5,7 @@ import type { Metric, SpaceTimeline, TimelineAlarm, TimelineCamera, TimelineGrow
 import { outputMetric } from '@fg2/shared-types/v1-schemas';
 import { Grant } from '@common/v1/access.types';
 import { badRequest, notFound } from '@common/v1/problem';
-import { withinRange } from '@common/v1/range';
+import { storyEndsAt, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
@@ -109,9 +109,12 @@ export class TimelineService {
         .lean<GrowDocument[]>(),
     ]);
 
-    const grow = this.growFor(asked, stood, spaceId);
+    // A link's window decides which grows it is told about: the ones that stood
+    // here inside it, not whatever moved in after the window closed.
+    const known = stood.filter(one => stoodDuring(one, spaceId, grant.range));
+    const grow = this.growFor(asked, known, spaceId, storyEndsAt(grant.range, now));
     const window = windowOf(asked.range, grant, grow, at);
-    const growIds = stood.filter(one => stoodDuring(one, spaceId, window)).map(one => one.id);
+    const growIds = known.filter(one => stoodDuring(one, spaceId, window)).map(one => one.id);
 
     const [series, alerts, recorded, cameras] = await Promise.all([
       Promise.all(
@@ -154,7 +157,7 @@ export class TimelineService {
       startsAt: window.startsAt.toISOString(),
       endsAt: window.endsAt.toISOString(),
       stepSeconds: series.length === 0 ? 0 : window.stepSeconds,
-      deviceIds: devices.map(device => device.id),
+      deviceIds: grant.redacted ? null : devices.map(device => device.id),
       panels,
       lastReadingAt: panels.length > 0 ? null : await lastReadingOf(this.data, devices),
       nights: nightsOf(series, window),
@@ -165,7 +168,7 @@ export class TimelineService {
       // A reader who is shown one grow's week is not shown what else has stood
       // in the room, so the chips they have not got are answered as none.
       grows: grant.redacted ? [] : stood.map(one => growOf(one)),
-      readingNames: readingNamesOf(stood),
+      readingNames: readingNamesOf(known),
       cameras: cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: frames.get(camera.id) ?? [] })),
       people: peopleOf(told, people),
     };
@@ -220,11 +223,12 @@ export class TimelineService {
   /**
    * The grow the bands and the day counter are of. A named one has to have stood
    * in this space, or the tent would draw a band from a grow in somebody else's
-   * room; without a name it is the grow standing here now, newest first as the
-   * tent page lists them - which the two rolling ranges manage without and the
-   * two stretches of a grow cannot.
+   * room; without a name it is the grow standing here at `asOf` - now, or the
+   * end of a window that closed - newest first as the tent page lists them,
+   * which the two rolling ranges manage without and the two stretches of a grow
+   * cannot.
    */
-  private growFor(asked: TimelineQuery, stood: GrowDocument[], spaceId: string): GrowDocument | null {
+  private growFor(asked: TimelineQuery, stood: GrowDocument[], spaceId: string, asOf: Date): GrowDocument | null {
     if (!asked.growId) {
       // There is no such thing as the phase of a tent: a tent may hold two grows
       // at once, and neither of them is the one the chips meant.
@@ -232,9 +236,13 @@ export class TimelineService {
         throw badRequest('grow_required', `The ${asked.range} range is a stretch of one grow, so it has to name which.`);
       }
 
-      // Standing here now, not merely having stood here once: a grow that moved
+      // Standing here then, not merely having stood here once: a grow that moved
       // out in spring is what the rail still carries and not what the bands are of.
-      return stood.find(grow => grow.placements.some(one => one.spaceId === spaceId && one.endedAt === null)) ?? null;
+      return (
+        stood.find(grow =>
+          grow.placements.some(one => one.spaceId === spaceId && one.startedAt <= asOf && (one.endedAt === null || one.endedAt > asOf)),
+        ) ?? null
+      );
     }
 
     const named = stood.find(grow => grow.id === asked.growId);
@@ -353,11 +361,13 @@ const raisedHere = (spaceId: string, devices: StoredDevice[]): FilterQuery<Store
  */
 const openInto = (startsAt: Date): FilterQuery<StoredAlert> => ({ $or: [{ resolvedAt: null }, { resolvedAt: { $gte: startsAt } }] });
 
-/** Whether the grow's plants stood in this space at any point in the window. */
-const stoodDuring = (grow: GrowDocument, spaceId: string, window: TimelineWindow): boolean =>
+/** Whether the grow's plants stood in this space at any point in the window; an open end reaches as far as it likes. */
+const stoodDuring = (grow: GrowDocument, spaceId: string, window: { startsAt: Date | null; endsAt: Date | null }): boolean =>
   grow.placements.some(
     placement =>
-      placement.spaceId === spaceId && placement.startedAt <= window.endsAt && (placement.endedAt === null || placement.endedAt >= window.startsAt),
+      placement.spaceId === spaceId &&
+      (window.endsAt === null || placement.startedAt <= window.endsAt) &&
+      (placement.endedAt === null || window.startsAt === null || placement.endedAt >= window.startsAt),
   );
 
 const alarmOf = (alert: StoredAlert, metric: Metric | null): TimelineAlarm => ({

@@ -12003,11 +12003,19 @@
         "description": "The window each point summarises; 0 in a space with no device to read, where there are no points at all."
       },
       "deviceIds": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        }
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null on a shared or public read: what a reader is shown is the tent, not the hardware in it."
       },
       "panels": {
         "type": "array",
@@ -12069,7 +12077,7 @@
         "items": {
           "$ref": "#/components/schemas/GrowReadingNames"
         },
-        "description": "What the grows those lines belong to call their measurements, so a reading is named rather than keyed."
+        "description": "What the grows those lines belong to call their measurements, so a reading is named rather than keyed. On a read through a link, only the grows that stood here inside its window."
       },
       "cameras": {
         "type": "array",

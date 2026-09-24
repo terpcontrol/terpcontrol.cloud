@@ -946,13 +946,14 @@ describe('who may read it', () => {
     expect(page.panels[0].points.every(point => point.measuredAt <= page.endsAt)).toBe(true);
   });
 
-  it('answers an empty window where the link and the range have nothing in common', async () => {
+  it('is not told of a grow that only stood here outside the link´s window', async () => {
     const token = await linkFor({ range: { startsAt: new Date('2026-05-01T00:00:00.000Z'), endsAt: new Date('2026-05-02T00:00:00.000Z') } });
-    const page = await readAs(visitor(token), { range: 'grow', growId: GROW });
 
-    // The link's week ended before the grow began: nothing at all, rather than
-    // the store being asked about a window of no width.
-    expect(page).toMatchObject({ startsAt: page.endsAt, panels: [], nights: [], outputs: [], events: [] });
+    // The link's week ended before the grow began: that grow is not what it
+    // shows, by name or as the tent's default.
+    await expect(readAs(visitor(token), { range: 'grow', growId: GROW })).rejects.toMatchObject({ problem: { status: 404, code: 'grow_not_found' } });
+    const page = await readAs(visitor(token), { range: '7d' });
+    expect(page).toMatchObject({ growId: null, readingNames: [], grows: [], deviceIds: null });
   });
 
   it('opens nothing but its own subject', async () => {

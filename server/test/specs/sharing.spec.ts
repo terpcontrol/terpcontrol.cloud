@@ -254,6 +254,44 @@ describe('a link that is already out of the house', () => {
     expect(JSON.stringify(narrowed.body)).toContain('Lately');
   });
 
+  it('on a tent, is told of the grow that stood there inside its window and not of the one that moved in afterwards', async () => {
+    const daysAgo = (days: number): string => new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
+    const room = (await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'Window tent' }).expect(201)).body.id;
+    const grown = async (name: string, days: number) =>
+      (
+        await owner.client
+          .post('/v1/grows')
+          .send({ name, type: 'photoperiod', startedAt: daysAgo(days), plants: [{ strain: 'Amnesia', count: 1 }], spaceId: room })
+          .expect(201)
+      ).body;
+
+    const then = await grown('Stood there in the window', 20);
+    await owner.client
+      .post(`/v1/grows/${then.id}/placements`)
+      .send({ spaceId: null, startedAt: daysAgo(10) })
+      .expect(201);
+    const now = await grown('Moved in afterwards', 5);
+
+    const link = (
+      await owner.client
+        .post('/v1/share-links')
+        .send({ kind: 'view', subject: { type: 'space', id: room }, range: { startsAt: daysAgo(19), endsAt: daysAgo(12) } })
+        .expect(201)
+    ).body;
+
+    const timeline = (await anonymous().get(`/v1/spaces/${room}/timeline?range=7d&share=${link.token}`).expect(200)).body;
+    expect(timeline.growId).toBe(then.id);
+    expect(timeline.readingNames.map((one: { growId: string }) => one.growId)).toEqual([then.id]);
+    expect(timeline.deviceIds).toBeNull();
+    await anonymous().get(`/v1/spaces/${room}/timeline?range=grow&growId=${now.id}&share=${link.token}`).expect(404);
+
+    await anonymous().get(`/v1/grows/${then.id}/report?share=${link.token}`).expect(200);
+    await anonymous().get(`/v1/grows/${now.id}/report?share=${link.token}`).expect(404);
+
+    // The owner is shown the tent as it stands.
+    expect((await owner.client.get(`/v1/spaces/${room}/timeline?range=7d`).expect(200)).body.growId).toBe(now.id);
+  });
+
   /**
    * The two kinds are not the same promise. A read-only view is a window
    * somebody was given and stands until it expires; a public-page link is the

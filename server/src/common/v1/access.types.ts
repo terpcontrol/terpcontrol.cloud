@@ -95,6 +95,13 @@ export interface ResolvedSubject {
   growIds: string[];
   /** The life of the public grow it belongs to: what a public read is clamped to. */
   publicRange: AccessRange | null;
+  /**
+   * When a grow stood where, for a grow or a plant read by itself: a link on a
+   * space covers the grows that stood there inside its window, not every grow
+   * that ever did. Each stay lists its space and the room around it. Null for
+   * everything else, whose rows are held to the window one by one.
+   */
+  stays: { spaceIds: string[]; startedAt: Date; endedAt: Date | null }[] | null;
   /** A camera, or a picture one took. */
   ofACamera: boolean;
   /** An entry's author, who may edit their own with `log` where anyone else needs `manage`. */

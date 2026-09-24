@@ -1164,7 +1164,7 @@ exports.spaceTimeline = (0, common_js_1.named)('SpaceTimeline', zod_1.z.object({
     startsAt: (0, common_js_1.instant)(),
     endsAt: (0, common_js_1.instant)(),
     stepSeconds: zod_1.z.number().int().describe('The window each point summarises; 0 in a space with no device to read, where there are no points at all.'),
-    deviceIds: zod_1.z.array((0, common_js_1.id)()),
+    deviceIds: zod_1.z.array((0, common_js_1.id)()).nullable().describe('Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.'),
     panels: zod_1.z.array(exports.timelinePanel),
     lastReadingAt: (0, common_js_1.instant)()
         .nullable()
@@ -1177,7 +1177,9 @@ exports.spaceTimeline = (0, common_js_1.named)('SpaceTimeline', zod_1.z.object({
     grows: zod_1.z
         .array(exports.timelineGrow)
         .describe('Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the rail is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.'),
-    readingNames: zod_1.z.array(exports.growReadingNames).describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed.'),
+    readingNames: zod_1.z
+        .array(exports.growReadingNames)
+        .describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed. On a read through a link, only the grows that stood here inside its window.'),
     cameras: zod_1.z.array(exports.timelineCamera),
     people: zod_1.z.array(common_js_1.person).describe('Everyone the rail names, so a mark can say who wrote it without another read.'),
 }));

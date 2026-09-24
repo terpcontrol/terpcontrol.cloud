@@ -14,6 +14,7 @@ import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { AccessContext, AccessRange, Grant, Grantee, Need, ResolvedSubject, SubjectRef, SubjectType } from './access.types';
 import { forbidden, notFound } from './problem';
+import { overlapsRange } from './range';
 
 /**
  * One function decides every request: `access(ctx, subject, need)`.
@@ -148,6 +149,13 @@ export class AccessService {
     const covers = link.subject.type === 'grow' ? subject.growIds.includes(link.subject.id) : subject.spaceIds.includes(link.subject.id);
     if (!covers) return null;
 
+    // A grow that stood in the tent only before or after the link's window is
+    // not what the link shows: a reader whose fortnight closed in March is not
+    // told which grow moved in afterwards.
+    if (link.subject.type === 'space' && subject.stays && !subject.stays.some(stay => this.stayedInside(stay, link.subject.id, link.range))) {
+      return null;
+    }
+
     // A public-page link is the public address in a form that can be sent, and
     // is permanent only for as long as the page is: making a grow private is
     // the act that takes it back, and a token that still answered afterwards
@@ -158,6 +166,10 @@ export class AccessService {
 
     // Pictures are the one thing a link does not carry unless it was made to.
     return subject.ofACamera && !link.includeCameras ? null : link;
+  }
+
+  private stayedInside(stay: NonNullable<ResolvedSubject['stays']>[number], spaceId: string, range: AccessRange): boolean {
+    return stay.spaceIds.includes(spaceId) && overlapsRange(range, stay.startedAt, stay.endedAt ?? new Date());
   }
 
   // -------------------------------------------------------------------------
@@ -223,7 +235,7 @@ export class AccessService {
   ): Promise<ResolvedSubject> {
     if (growId !== null) {
       const grow = await this.ofGrow(ref, growId, need);
-      if (grow) return { ...grow, spaceIds: [...new Set([...grow.spaceIds, ...(await this.widen([spaceId]))])] };
+      if (grow) return { ...grow, stays: null, spaceIds: [...new Set([...grow.spaceIds, ...(await this.widen([spaceId]))])] };
     }
 
     if (spaceId !== null) {
@@ -282,16 +294,24 @@ export class AccessService {
     const grow = await this.grows.findOne({ id }, { id: 1, ownerId: 1, isDemo: 1, visibility: 1, placements: 1, startedAt: 1, endedAt: 1 }).lean();
     if (!grow) return null;
 
-    const placements = need === 'view' ? grow.placements : grow.placements.filter(placement => placement.endedAt === null);
+    const placements = (need === 'view' ? grow.placements : grow.placements.filter(placement => placement.endedAt === null)).flatMap(placement =>
+      placement.spaceId === null ? [] : [{ ...placement, spaceId: placement.spaceId }],
+    );
     const isPublic = grow.visibility === 'public';
+    const rooms = await this.roomsOf(placements.map(placement => placement.spaceId));
 
     return {
       ...this.blank(ref),
       ownerId: grow.ownerId,
       isDemo: grow.isDemo,
       isPublic,
-      spaceIds: await this.widen(placements.map(placement => placement.spaceId)),
+      spaceIds: [...new Set(placements.flatMap(placement => rooms.get(placement.spaceId) ?? [placement.spaceId]))],
       growIds: [grow.id],
+      stays: placements.map(placement => ({
+        spaceIds: rooms.get(placement.spaceId) ?? [placement.spaceId],
+        startedAt: placement.startedAt,
+        endedAt: placement.endedAt,
+      })),
       publicRange: isPublic ? { startsAt: grow.startedAt, endsAt: grow.endedAt ?? new Date() } : null,
     };
   }
@@ -309,6 +329,14 @@ export class AccessService {
       .lean();
 
     return rows.map(grow => grow.id);
+  }
+
+  /** Each space with the room it stands in, where it stands in one. */
+  private async roomsOf(spaceIds: string[]): Promise<Map<string, string[]>> {
+    if (spaceIds.length === 0) return new Map();
+
+    const spaces = await this.spaces.find({ id: { $in: [...new Set(spaceIds)] } }, { id: 1, roomId: 1 }).lean();
+    return new Map(spaces.map(space => [space.id, space.roomId ? [space.id, space.roomId] : [space.id]]));
   }
 
   private async inSpaces(ref: SubjectRef, spaceId: string | null): Promise<ResolvedSubject> {
@@ -338,6 +366,7 @@ export class AccessService {
       spaceIds: [],
       growIds: [],
       publicRange: null,
+      stays: null,
       ofACamera: false,
       authorId: null,
     };

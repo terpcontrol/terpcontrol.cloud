@@ -1538,7 +1538,7 @@ export const spaceTimeline = named(
     startsAt: instant(),
     endsAt: instant(),
     stepSeconds: z.number().int().describe('The window each point summarises; 0 in a space with no device to read, where there are no points at all.'),
-    deviceIds: z.array(id()),
+    deviceIds: z.array(id()).nullable().describe('Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.'),
     panels: z.array(timelinePanel),
     lastReadingAt: instant()
       .nullable()
@@ -1555,7 +1555,11 @@ export const spaceTimeline = named(
       .describe(
         'Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the rail is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.',
       ),
-    readingNames: z.array(growReadingNames).describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed.'),
+    readingNames: z
+      .array(growReadingNames)
+      .describe(
+        'What the grows those lines belong to call their measurements, so a reading is named rather than keyed. On a read through a link, only the grows that stood here inside its window.',
+      ),
     cameras: z.array(timelineCamera),
     people: z.array(person).describe('Everyone the rail names, so a mark can say who wrote it without another read.'),
   }),

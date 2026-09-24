@@ -3499,7 +3499,10 @@ export interface SpaceTimeline {
    * The window each point summarises; 0 in a space with no device to read, where there are no points at all.
    */
   stepSeconds: number;
-  deviceIds: string[];
+  /**
+   * Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.
+   */
+  deviceIds: string[] | null;
   panels: TimelinePanel[];
   /**
    * When a device standing here last measured one of the panels´ metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves.
@@ -3521,7 +3524,7 @@ export interface SpaceTimeline {
    */
   grows: TimelineGrow[];
   /**
-   * What the grows those lines belong to call their measurements, so a reading is named rather than keyed.
+   * What the grows those lines belong to call their measurements, so a reading is named rather than keyed. On a read through a link, only the grows that stood here inside its window.
    */
   readingNames: GrowReadingNames[];
   cameras: TimelineCamera[];
