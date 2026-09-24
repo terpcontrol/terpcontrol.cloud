@@ -505,7 +505,11 @@ const FIELDS_OF_COMPUTED: Partial<Record<Metric, readonly string[]>> = {
 export const vpdOf = (readings: Readings, factors: DeviceFactors): number | null => {
   if (readings.temperature === null || readings.humidity === null) return null;
 
-  const isDay = readings.isDay ?? (readings.light ?? 0) > 0.5;
+  // A reading whose own lamp level is zero was taken in the dark, whatever the
+  // five-minute grain the caller's cycle is read from says: that grain counts a
+  // lamp on for the whole of it once any sample in it was lit, and a dark
+  // minute took the day offset beside a VPD the device itself gave as night.
+  const isDay = readings.light === 0 ? false : (readings.isDay ?? (readings.light ?? 0) > 0.5);
   const leaf = readings.leafTemperature ?? readings.temperature + (isDay ? factors.vpdLeafOffsetDay : factors.vpdLeafOffsetNight);
 
   return calculateVpd(readings.temperature, leaf, readings.humidity);
