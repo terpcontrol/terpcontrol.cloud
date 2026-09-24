@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { GrowListItem, MeasurementDefinition } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
 import { Sheet } from '@/log/Sheet';
+import { looseFigure } from '@/ui/figures';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -184,7 +185,11 @@ const draftOf = (definition: MeasurementDefinition | null): Draft => ({
   to: end(definition?.targetMax ?? null),
 });
 
-const end = (value: number | null): string => (value === null ? '' : String(value));
+/**
+ * An end as this reader writes it, so a German field opens on "5,8" - the
+ * figure the list above it shows - rather than on "5.8". `endOf` reads either.
+ */
+const end = (value: number | null): string => (value === null ? '' : looseFigure(value));
 
 /** An end nobody typed is an end nobody is aiming at, and so is one that is not a number. */
 const endOf = (typed: string): number | null => {
