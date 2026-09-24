@@ -2,6 +2,7 @@ import { Query } from '@nestjs/common';
 import { ApiQuery, SchemaObject } from '@nestjs/swagger';
 import { z, ZodType } from 'zod';
 import { requestSchema, ZodValidationPipe } from '@common/zod-validation.pipe';
+import { MAX_PAGE_LIMIT } from './pages';
 
 /**
  * What a `/v1` route accepts, checked against the contract itself: the schemas
@@ -55,10 +56,30 @@ export const V1Query = <T>(schema: ZodType<T>): ParameterDecorator => {
  * here, once, and a route that filters extends this.
  *
  * Coerced, because a query string carries numbers as text.
+ *
+ * The one bound the server enforces on `limit` is the one it used to keep to
+ * itself: a positive integer is all the schema could say, so the document
+ * offered `maximum: 9007199254740991` - what zod emits for any integer - while
+ * `pageLimit` quietly answered a request for a thousand rows with two hundred.
+ * A client sizing a single read from the document had nothing telling it to
+ * keep following `nextCursor`, and the app's own client had to copy the
+ * constant across the contract boundary to know. It is stated in the parameter
+ * now, and interpolated from `MAX_PAGE_LIMIT` so that raising the cap cannot
+ * leave the sentence behind. Not as `maximum`: that keyword is used throughout
+ * this document for a value the server refuses, and a request for more than
+ * this is answered rather than refused.
  */
 export const pageQuery = z.object({
-  limit: z.coerce.number().int().positive().optional(),
-  cursor: z.string().optional(),
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(
+      `How many rows one read answers. Asking for more than ${MAX_PAGE_LIMIT} is answered with ${MAX_PAGE_LIMIT} rather than refused; ` +
+        'the rest of the list follows from `nextCursor`, which is non-null for as long as there are rows left.',
+    ),
+  cursor: z.string().optional().describe('A `nextCursor` a page of this list answered with. It is opaque; hand it back exactly as it came.'),
 });
 
 export type PageQuery = z.infer<typeof pageQuery>;

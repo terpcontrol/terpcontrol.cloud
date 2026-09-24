@@ -46,6 +46,7 @@ interface Parameter {
   in: string;
   required?: boolean;
   schema?: unknown;
+  description?: string;
 }
 
 interface Operation {
@@ -317,6 +318,20 @@ describe('the document', () => {
     // What every list takes, stated once and therefore documented everywhere.
     expect(Object.keys(declaredQuery('/v1/devices')).sort()).toEqual(['cursor', 'limit', 'spaceId']);
     expect(Object.keys(declaredQuery('/v1/alerts'))).toEqual(expect.arrayContaining(['cursor', 'limit']));
+  });
+
+  it('states the page size it actually serves, which is the one bound it used to keep to itself', async () => {
+    // The document offered `maximum: 9007199254740991` - what zod emits for any
+    // integer - while the server answered 200 and said nothing about it.
+    const limit = declaredQuery('/v1/entries').limit;
+    expect(limit.description).toMatch(/200/);
+
+    // And the figure in that sentence is the figure the route keeps to.
+    const cap = Number((limit.description as string).match(/\b(\d+)\b/)?.[1]);
+    for (const asked of [cap + 1, cap * 5]) {
+      const page = await owner.client.get(`/v1/entries?deviceId=${device.deviceId}&limit=${asked}`).expect(200);
+      expect(page.body.items.length).toBeLessThanOrEqual(cap);
+    }
   });
 
   it('leaves no /v1 operation without a refusal', () => {

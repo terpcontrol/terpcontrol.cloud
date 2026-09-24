@@ -12,6 +12,7 @@ import type {
   TimelapseCreate,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { PAGE_LIMIT } from './pages';
 
 /**
  * The cameras of an account, one camera's page, and the films it is asked for.
@@ -61,8 +62,12 @@ export const useCamera = (cameraId: string) =>
     refetchInterval: CAMERAS_REFRESH_MS,
   });
 
-/** The largest page the route will answer, whatever a client asks for (`MAX_PAGE_LIMIT` on the server). */
-const FRAMES_PER_PAGE = 200;
+/**
+ * The largest page the route will answer, whatever a client asks for. One
+ * figure, kept beside the rest of the paging in `pages.ts`, rather than a
+ * second copy of a number the API now states on the `limit` parameter itself.
+ */
+const FRAMES_PER_PAGE = PAGE_LIMIT;
 
 /**
  * How many of those pages one day is walked over before the walk gives up. A
