@@ -22,14 +22,16 @@ export const LIGHT_ROLES: readonly SocketRole[] = ['light', 'secondary_light'];
 export const isLightRole = (role: SocketRole): boolean => LIGHT_ROLES.includes(role);
 
 /**
- * Where the controller states the brightness it runs its lamp at, as a
- * percentage of the lamp's own maximum. The firmware caps the light curve with
- * it, so it is a ceiling and not a dimmer knob: the lamp still ramps up at
- * sunrise and is dark at night, and this is how bright it gets in between.
+ * Where a device states the brightness it runs its lamp at, as a percentage of
+ * the lamp's own maximum. The firmware caps the light curve with it, so it is a
+ * ceiling and not a dimmer knob: the lamp still ramps up at sunrise and is dark
+ * at night, and this is how bright it gets in between.
  *
- * A device that reports its document nested and a client that once wrote it flat
- * mean the same thing, so both are read - exactly as the server reads a setpoint
- * out of the same document.
+ * The controller and the fridge keep it in a `lights` section, and a client
+ * that once wrote it dotted meant the same thing, so both are read - exactly as
+ * the server reads a setpoint out of the same document. A Light keeps it at the
+ * top of its document as `limit`, and reads nothing else: a brightness written
+ * into a section there is a key the lamp never looks at.
  */
 const SECTION = 'lights';
 const FIELD = 'limit';
@@ -42,9 +44,15 @@ const sectionOf = (configuration: DeviceConfiguration, name: string): Record<str
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 };
 
-export const lightLimitOf = (configuration: DeviceConfiguration | null): number | null => {
+/** Whether this document is a Light's, which states its brightness at the top rather than in a section. */
+const statesFlat = (configuration: DeviceConfiguration, type: Device['type']): boolean =>
+  type === 'light' || (typeof configuration[FIELD] === 'number' && sectionOf(configuration, SECTION) === null);
+
+export const lightLimitOf = (configuration: DeviceConfiguration | null, type: Device['type']): number | null => {
   if (!configuration) return null;
-  const value = sectionOf(configuration, SECTION)?.[FIELD] ?? configuration[`${SECTION}.${FIELD}`];
+  const value = statesFlat(configuration, type)
+    ? configuration[FIELD]
+    : (sectionOf(configuration, SECTION)?.[FIELD] ?? configuration[`${SECTION}.${FIELD}`]);
 
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 };
@@ -52,13 +60,15 @@ export const lightLimitOf = (configuration: DeviceConfiguration | null): number 
 /**
  * The document to send for a new brightness.
  *
- * Everything else the controller is running is kept, because the route replaces
+ * Everything else the device is running is kept, because the route replaces
  * the document whole: the ramps, the day window and the dehumidifier's timing
  * are the tent's own tuning, and a save that dropped them would be a change
- * nobody asked for. The flat spelling is removed where it was used, so one
+ * nobody asked for. The dotted spelling is removed where it was used, so one
  * document never states the same figure twice.
  */
-export const withLightLimit = (configuration: DeviceConfiguration, percent: number): DeviceConfiguration => {
+export const withLightLimit = (configuration: DeviceConfiguration, type: Device['type'], percent: number): DeviceConfiguration => {
+  if (statesFlat(configuration, type)) return { ...configuration, [FIELD]: percent };
+
   const next: DeviceConfiguration = { ...configuration };
   delete next[`${SECTION}.${FIELD}`];
   next[SECTION] = { ...(sectionOf(configuration, SECTION) ?? {}), [FIELD]: percent };
@@ -81,6 +91,8 @@ export interface LightOutput {
   limitPercent: number | null;
   /** What a new brightness is written into. Null where the device has never sent its settings, which is nothing to write back. */
   configuration: DeviceConfiguration | null;
+  /** Which document shape the brightness is written in. */
+  type: Device['type'];
   /** Whether the build announced that it holds its own light output on command. */
   takesOverride: boolean;
 }
@@ -95,10 +107,10 @@ export interface LightOutput {
  * hardware, and a plug that one day gained a dimmed output would be missed.
  */
 export const lightOutputOf = (device: Device, capabilities: DeviceCapabilities, level: OutputLevel | null): LightOutput | null => {
-  const limitPercent = lightLimitOf(device.configuration);
+  const limitPercent = lightLimitOf(device.configuration, device.type);
   if (!capabilities.lightOverride && limitPercent === null && level === null) return null;
 
-  return { deviceId: device.id, level, limitPercent, configuration: device.configuration, takesOverride: capabilities.lightOverride };
+  return { deviceId: device.id, level, limitPercent, configuration: device.configuration, type: device.type, takesOverride: capabilities.lightOverride };
 };
 
 /** "40 %", and "0 %" rather than "off": a lamp at nothing is the output doing nothing, which is what the number says. */

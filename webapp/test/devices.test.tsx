@@ -523,7 +523,29 @@ describe("the controller's own light output", () => {
 
   it('reads the brightness whether the document states it nested or flat, and writes only the nested one back', () => {
     expect(lightOutputOf(device({ 'lights.limit': 60 }), CAPABILITIES, null)?.limitPercent).toBe(60);
-    expect(withLightLimit({ 'lights.limit': 60, day: { temperature: 25 } }, 30)).toEqual({ lights: { limit: 30 }, day: { temperature: 25 } });
+    expect(withLightLimit({ 'lights.limit': 60, day: { temperature: 25 } }, 'controller', 30)).toEqual({ lights: { limit: 30 }, day: { temperature: 25 } });
+  });
+
+  /**
+   * A Light keeps its brightness at the top of its document and reads nothing
+   * else, so a lamp capped at 0 % read as "not stated" beside a slider at 100,
+   * and a drag wrote a `lights` section the lamp never looked at.
+   */
+  it('reads and writes a Light´s brightness where the Light keeps it', () => {
+    const lamp = { day: 21600, night: 79200, sunrise: 0, sunset: 0, limit: 0 };
+    const light = { ...device(lamp), type: 'light' } as Device;
+
+    expect(lightOutputOf(light, { ...CAPABILITIES, lightOverride: false }, null)?.limitPercent).toBe(0);
+    expect(withLightLimit(lamp, 'light', 50)).toEqual({ ...lamp, limit: 50 });
+
+    wrap(<LightOutputRow output={lightOutputOf(light, CAPABILITIES, null)!} unheard={null} mayManage runs={null} now={NOW} />);
+    const slider = screen.getByRole('slider', { name: 'Brightness' });
+    expect(slider).toHaveValue('0');
+    expect(slider).toHaveAttribute('aria-valuetext', '0 %');
+
+    fireEvent.change(slider, { target: { value: '50' } });
+    fireEvent.blur(slider);
+    expect(saved).toEqual([{ deviceId: 'device-1', configuration: { ...lamp, limit: 50 } }]);
   });
 });
 

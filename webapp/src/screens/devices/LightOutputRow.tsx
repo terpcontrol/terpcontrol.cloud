@@ -113,7 +113,7 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
 
     try {
       if (planStatus === 'running') await move.mutateAsync({ kind: 'pause', reason: t('devices.lightOutput.pauseReason') });
-      await save.mutateAsync({ deviceId: output.deviceId, configuration: withLightLimit(output.configuration, level) });
+      await save.mutateAsync({ deviceId: output.deviceId, configuration: withLightLimit(output.configuration, output.type, level) });
     } catch {
       // Said under the row, by whichever of the two refused.
     }
