@@ -232,7 +232,7 @@ describe('adding a device', () => {
 
   it('puts the kind of place on the same space', async () => {
     await drawClaimed();
-    fireEvent.click(screen.getByRole('button', { name: 'tent' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tent' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/space-new', { kind: 'tent' }));
   });
@@ -377,7 +377,7 @@ describe('adding a device', () => {
     await drawClaimed();
 
     expect(screen.queryByRole('button', { name: 'room' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'tent' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tent' })).toBeInTheDocument();
   });
 
   it('says so before a second place is given a name another one already has', async () => {
