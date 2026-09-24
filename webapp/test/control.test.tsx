@@ -165,6 +165,16 @@ const withCo2 = (): Device => {
   return { ...one, state: { ...one.state, hardware: { ...one.state.hardware, co2: 'on' } } };
 };
 
+/**
+ * The same controller saying it looked for a CO2 sensor and found none. The
+ * base one above reports no key at all, which is a build too old to have been
+ * asked rather than a missing sensor, and is read as "may have one".
+ */
+const withoutCo2 = (): Device => {
+  const one = device();
+  return { ...one, state: { ...one.state, hardware: { ...one.state.hardware, co2: 'off' } } };
+};
+
 const draw = (one: Device = device()) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -486,8 +496,14 @@ describe('the settings a step carries', () => {
    * same tab draws as a dead row.
    */
   it('offers no CO2 figure for a controller that reports no sensor, and offers one for a controller that does', () => {
-    expect(figuresFor(device()).map(one => one.key)).not.toContain('co2');
+    expect(figuresFor(withoutCo2()).map(one => one.key)).not.toContain('co2');
     expect(figuresFor(withCo2()).map(one => one.key)).toContain('co2');
+  });
+
+  it('keeps the CO2 figure for a build too old to say whether it has a sensor', () => {
+    // A fridge on older firmware streamed 300 ppm while reporting no co2 key at
+    // all; reading that absence as "no sensor" hid a target the device holds.
+    expect(figuresFor(device()).map(one => one.key)).toContain('co2');
   });
 
   it('draws the CO2 row of the step editor dead for such a controller, in the words the targets page uses', () => {
@@ -495,7 +511,7 @@ describe('the settings a step carries', () => {
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <MemoryRouter>
-          <PlanEditor device={device()} plan={null} draft={draft} onClose={() => {}} />
+          <PlanEditor device={withoutCo2()} plan={null} draft={draft} onClose={() => {}} />
         </MemoryRouter>
       </QueryClientProvider>,
     );
@@ -523,7 +539,7 @@ describe('the settings a step carries', () => {
       ],
     };
 
-    expect(asWritableBy(carried, device()).steps[0].settings).toEqual({ day: { temperature: 24 } });
+    expect(asWritableBy(carried, withoutCo2()).steps[0].settings).toEqual({ day: { temperature: 24 } });
     expect(asWritableBy(carried, withCo2()).steps[0].settings).toEqual({ co2: { target: 900 }, day: { temperature: 24 } });
   });
 });

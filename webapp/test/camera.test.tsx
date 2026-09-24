@@ -627,7 +627,6 @@ describe('the films and the pictures behind the first page', () => {
     expect(gone.container.textContent).toContain('The camera took no picture in the week this would film.');
   });
 
-
   /**
    * Two rows of one span with opposite verdicts, which is what a day rendered
    * twice leaves behind: the quick button stores a `day`, the composer stores
