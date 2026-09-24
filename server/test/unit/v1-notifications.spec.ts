@@ -19,6 +19,7 @@ import { TaskAnnouncerService } from '@modules/v1/notification/task-announcer.se
 import { TelegramBotService } from '@modules/v1/notification/telegram-bot.service';
 import { LINK_VALID_MS, mintTelegramLink, readTelegramLink } from '@modules/v1/notification/telegram-link';
 import { WeeklyRecapService } from '@modules/v1/notification/weekly-recap.service';
+import { periodAround, periodBefore } from '@modules/v1/camera/film-periods';
 import { MailService } from '@modules/mail/mail.service';
 import { V1TestDatabase, startV1TestDatabase } from './support/v1-database';
 
@@ -490,8 +491,8 @@ describe('asking somebody to confirm a plan step', () => {
 describe('the weekly recap', () => {
   const CAMERA = 'camera-1';
   const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-  const openPeriodEnd = Math.ceil(Date.now() / WEEK_MS) * WEEK_MS;
-  const lastWeek = new Date(openPeriodEnd - 2 * WEEK_MS);
+  // Weeks are cut on the owner's calendar, Monday to Monday; the accounts here are on UTC.
+  const lastWeek = periodBefore('week', periodAround('week', new Date(), 'UTC'), 'UTC').startsAt;
 
   let recaps: WeeklyRecapService;
 
@@ -523,6 +524,7 @@ describe('the weekly recap', () => {
       { appUrlExternal: 'https://app.test.invalid' } as ConfigType<typeof appConfig>,
       notifications,
       new RecipientsService(db.spaces, db.memberships, db.devices, db.cameras, db.grows),
+      db.users,
     );
   });
 
@@ -539,7 +541,7 @@ describe('the weekly recap', () => {
   });
 
   it('says nothing about a week that is older than the one just gone', async () => {
-    await film(new Date(openPeriodEnd - 4 * WEEK_MS));
+    await film(new Date(lastWeek.getTime() - 2 * WEEK_MS));
 
     await recaps.run();
 
@@ -572,6 +574,7 @@ describe('the weekly recap', () => {
       { appUrlExternal: null } as ConfigType<typeof appConfig>,
       notifications,
       new RecipientsService(db.spaces, db.memberships, db.devices, db.cameras, db.grows),
+      db.users,
     );
     await film(lastWeek);
 

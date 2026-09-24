@@ -7,6 +7,8 @@ import { appConfig } from '@config/configuration';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
+import { StoredUser } from '@database/schemas/v1/users.schema';
+import { periodAround, periodBefore } from '@modules/v1/camera/film-periods';
 import { logger } from '@utils/logger';
 import { weeklyTimelapseAnnouncement } from './notification-messages';
 import { NotificationService } from './notification.service';
@@ -33,8 +35,6 @@ const TICK_MS = 60 * 60 * 1000;
 /** Far enough into the run that the first pass does not land in the middle of a boot. */
 const FIRST_PASS_MS = 60 * 1000;
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
 @Injectable()
 export class WeeklyRecapService implements OnModuleInit, OnApplicationShutdown {
   private readonly work = new BackgroundWork();
@@ -45,6 +45,7 @@ export class WeeklyRecapService implements OnModuleInit, OnApplicationShutdown {
     @Inject(appConfig.KEY) private readonly app: ConfigType<typeof appConfig>,
     private readonly notifications: NotificationService,
     private readonly recipients: RecipientsService,
+    @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
   ) {}
 
   public onModuleInit(): void {
@@ -59,19 +60,18 @@ export class WeeklyRecapService implements OnModuleInit, OnApplicationShutdown {
 
   /** One pass over the cameras. Public so it can be run once, in a test or by hand. */
   public async run(now: Date = new Date()): Promise<void> {
-    // The builder cuts its periods off the epoch rather than off each camera's
-    // first picture, so the week that has just ended is the same span for all of
-    // them and is read once here.
-    const openPeriodEnd = Math.ceil(now.getTime() / WEEK_MS) * WEEK_MS;
-    const week = { from: new Date(openPeriodEnd - 2 * WEEK_MS), before: new Date(openPeriodEnd - WEEK_MS) };
-
     for (const camera of await this.cameras.find({ removedAt: null }).lean<CameraDocument[]>()) {
       if (this.work.isStopped) return;
 
-      const film = await this.filmOfTheWeek(camera.id, week);
+      // The builder cuts its weeks on the owner's calendar - Monday to Monday
+      // where the account is - so the week that has just ended is worked out
+      // the same way, per camera, and the push arrives on the owner's Monday.
+      const zone = await this.zoneOf(camera.ownerId);
+      const last = periodBefore('week', periodAround('week', now, zone), zone);
+      const film = await this.filmOfTheWeek(camera.id, { from: last.startsAt, before: last.endsAt });
       if (!film) continue;
 
-      const message = weeklyTimelapseAnnouncement(film, camera, this.linkTo(camera.id, film.id));
+      const message = weeklyTimelapseAnnouncement(film, camera, this.linkTo(camera.id, film.id), zone);
       for (const userId of await this.recipients.forCamera(camera.id)) await this.notifications.tellOnce(userId, message);
     }
   }
@@ -93,6 +93,11 @@ export class WeeklyRecapService implements OnModuleInit, OnApplicationShutdown {
     const settled = !newest || (film.endsAt !== null && film.endsAt >= newest.capturedAt);
 
     return settled ? film : null;
+  }
+
+  private async zoneOf(ownerId: string): Promise<string | null> {
+    const owner = await this.users.findOne({ id: ownerId }, { 'preferences.timezone': 1 }).lean<Pick<StoredUser, 'preferences'>>();
+    return owner?.preferences?.timezone || null;
   }
 
   /** Where the film is watched. An install that has not said where its app is served links nowhere. */

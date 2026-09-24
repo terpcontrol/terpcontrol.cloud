@@ -9,7 +9,6 @@ import {
   CameraUpdate,
   MediaPage,
   MediaQuality,
-  MediaWindow,
   TestCaptureAnswer,
   TimelapseAccepted,
   TimelapseCreate,
@@ -42,6 +41,7 @@ import { EntitlementService } from './entitlement.service';
 import { MediaService } from './media.service';
 import { TimelapseService } from './timelapse.service';
 import { OptionalSessionGuard } from './optional-session.guard';
+import { isRolling, periodAround, periodBefore } from './film-periods';
 import { DEFAULT_ASPECT, DEFAULT_OVERLAYS } from './timelapse-overlays';
 import { V1Answer } from '../answer-shape';
 
@@ -312,7 +312,7 @@ export class CamerasController {
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<TimelapseAccepted> {
     const camera = await this.require(id);
-    const span = spanOf(body);
+    const span = spanOf(body, await this.cameras.zoneOf(camera));
     const entitled = this.entitlement.isEntitled(camera);
 
     // Refused rather than quietly rendered smaller: somebody who asked for HD
@@ -340,7 +340,7 @@ export class CamerasController {
 
     const quality = body.quality ?? 'sd';
     const composed = isComposed(render, quality);
-    const window = composed && ROLLING_WINDOWS.includes(body.window) ? 'custom' : body.window;
+    const window = composed && isRolling(body.window) ? 'custom' : body.window;
 
     // `media` is unique on camera, kind, window and instant, so the film of this
     // very span either exists or is about to be the only one.
@@ -449,13 +449,6 @@ const settingsOf = (body: CameraCreate): CameraUpdate => ({
 const namesAStream = (body: CameraUpdate): boolean =>
   body.url !== undefined || body.transport !== undefined || body.tunnel !== undefined || body.model !== undefined;
 
-const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
-
-const SPANS: Record<string, number> = { day: MS_IN_A_DAY, week: 7 * MS_IN_A_DAY, month: 30 * MS_IN_A_DAY };
-
-/** The three the builder keeps by itself, which the composer never replaces. */
-const ROLLING_WINDOWS: MediaWindow[] = ['day', 'week', 'month'];
-
 /** What the unique index says when two requests raced for the same film. */
 const isDuplicateKey = (error: unknown): boolean => (error as { code?: number } | null)?.code === 11000;
 
@@ -465,10 +458,8 @@ const isDuplicateKey = (error: unknown): boolean => (error as { code?: number } 
  * grow and a range somebody drew each read both ends, because where a phase or
  * a grow began is the client's to say.
  */
-const spanOf = (body: TimelapseCreate): { startsAt: Date; endsAt: Date } => {
-  const span = SPANS[body.window];
-
-  if (span === undefined) {
+const spanOf = (body: TimelapseCreate, zone: string | null): { startsAt: Date; endsAt: Date } => {
+  if (!isRolling(body.window)) {
     if (!body.startsAt || !body.endsAt) {
       throw badRequest('span_missing', 'A film of a phase, a whole grow or a span of your choosing needs both ends of it.');
     }
@@ -480,10 +471,11 @@ const spanOf = (body: TimelapseCreate): { startsAt: Date; endsAt: Date } => {
     return { startsAt, endsAt };
   }
 
-  const around = body.startsAt ? new Date(body.startsAt).getTime() : Date.now() - span;
-  const startsAt = new Date(Math.floor(around / span) * span);
-
-  return { startsAt, endsAt: new Date(startsAt.getTime() + span) };
+  // Cut on the owner's calendar, exactly as the builder cuts the films it keeps,
+  // so a film asked for here is the same span as the one already on the list.
+  return body.startsAt
+    ? periodAround(body.window, new Date(body.startsAt), zone)
+    : periodBefore(body.window, periodAround(body.window, new Date(), zone), zone);
 };
 
 /** Whether anything was asked for beyond the plain film of that span. */

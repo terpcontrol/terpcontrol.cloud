@@ -1416,8 +1416,9 @@ export declare const testCaptureAnswer: z.ZodObject<{
 }, z.core.$strip>;
 /**
  * `POST /cameras/{id}/timelapses`, which is the composer. `window` says which
- * span is meant: `day`, `week` and `month` are worked out around `startsAt`,
- * and `phase`, `grow` and `custom` each read both ends, because where a phase
+ * span is meant: `day`, `week` and `month` are the calendar day, the Monday-to-
+ * Monday week and the calendar month holding `startsAt`, in the zone of the
+ * account that owns the camera, and `phase`, `grow` and `custom` each read both ends, because where a phase
  * or a grow began is the client's to say and not a span this server can guess.
  *
  * Everything below `quality` is what the board offers and is optional, so the

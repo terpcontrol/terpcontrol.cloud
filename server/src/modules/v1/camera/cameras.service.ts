@@ -12,6 +12,7 @@ import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
+import { StoredUser } from '@database/schemas/v1/users.schema';
 import { EntitlementService, yearFrom } from './entitlement.service';
 
 /**
@@ -43,7 +44,18 @@ export class CamerasService {
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @InjectModel(MODEL_V1.membership) private readonly memberships: Model<MembershipDocument>,
     private readonly entitlement: EntitlementService,
+    @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
   ) {}
+
+  /**
+   * The zone of the account that owns the camera, which is the calendar its
+   * rolling films are cut on (see `film-periods.ts`); null where the owner is
+   * gone, which leaves them on UTC.
+   */
+  public async zoneOf(camera: Pick<CameraDocument, 'ownerId'>): Promise<string | null> {
+    const owner = await this.users.findOne({ id: camera.ownerId }, { 'preferences.timezone': 1 }).lean<Pick<StoredUser, 'preferences'>>();
+    return owner?.preferences?.timezone || null;
+  }
 
   public byId(id: string): Promise<CameraDocument | null> {
     return this.cameras.findOne({ id }).lean<CameraDocument>();

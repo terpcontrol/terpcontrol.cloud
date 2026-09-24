@@ -2854,7 +2854,7 @@ export interface TestCaptureAnswer {
 export interface TimelapseCreate {
   window: MediaWindow;
   /**
-   * Defaults to the most recent complete window.
+   * For `day`, `week` and `month`, any instant inside the period meant, which is cut on the camera owner's calendar; defaults to the most recent complete one.
    */
   startsAt?: string;
   /**

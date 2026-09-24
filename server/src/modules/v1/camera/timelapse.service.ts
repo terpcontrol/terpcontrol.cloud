@@ -4,11 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'path';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import sharp from 'sharp';
-import { MediaQuality, MediaWindow } from '@fg2/shared-types/v1';
+import { MediaQuality } from '@fg2/shared-types/v1';
 import { logger } from '@utils/logger';
 import { BackgroundWork } from '@common/background-work';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
+import { periodAround, periodBefore, RollingWindow } from './film-periods';
 import { CamerasService } from './cameras.service';
 import { EntitlementService } from './entitlement.service';
 import { MediaPosition, MediaService } from './media.service';
@@ -64,10 +65,10 @@ const DAY_FRAME_INTERVAL_MS = 2 * 60 * 1000;
  * wastes CPU for little visible benefit: each is only rebuilt once enough new
  * frames have arrived since the last rebuild.
  */
-const ROLLING: { window: MediaWindow; spanMs: number; frameIntervalMs: number; refreshMs: number }[] = [
-  { window: 'day', spanMs: MS_IN_A_DAY, frameIntervalMs: DAY_FRAME_INTERVAL_MS, refreshMs: 60 * 60 * 1000 },
-  { window: 'week', spanMs: 7 * MS_IN_A_DAY, frameIntervalMs: 7 * DAY_FRAME_INTERVAL_MS, refreshMs: 4 * 60 * 60 * 1000 },
-  { window: 'month', spanMs: 30 * MS_IN_A_DAY, frameIntervalMs: 30 * DAY_FRAME_INTERVAL_MS, refreshMs: 12 * 60 * 60 * 1000 },
+const ROLLING: { window: RollingWindow; frameIntervalMs: number; refreshMs: number }[] = [
+  { window: 'day', frameIntervalMs: DAY_FRAME_INTERVAL_MS, refreshMs: 60 * 60 * 1000 },
+  { window: 'week', frameIntervalMs: 7 * DAY_FRAME_INTERVAL_MS, refreshMs: 4 * 60 * 60 * 1000 },
+  { window: 'month', frameIntervalMs: 30 * DAY_FRAME_INTERVAL_MS, refreshMs: 12 * 60 * 60 * 1000 },
 ];
 
 /** How many queued renders one pass takes on: a render is minutes of ffmpeg, and the rolling films wait behind it. */
@@ -141,8 +142,9 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
         if (this.work.isStopped) break;
 
         if (camera.removedAt === null) {
+          const zone = await this.cameras.zoneOf(camera);
           for (const rolling of ROLLING) {
-            await this.buildRolling(camera, rolling);
+            await this.buildRolling(camera, rolling, zone);
           }
         }
 
@@ -170,14 +172,13 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
    * the one that keeps growing, so only it is held to the refresh interval; a
    * period that has closed is rebuilt once, as soon as it is complete.
    */
-  private async buildRolling(camera: CameraDocument, rolling: (typeof ROLLING)[number]): Promise<void> {
-    const openPeriodEnd = Math.ceil(Date.now() / rolling.spanMs) * rolling.spanMs;
+  private async buildRolling(camera: CameraDocument, rolling: (typeof ROLLING)[number], zone: string | null): Promise<void> {
+    const open = periodAround(rolling.window, new Date(), zone);
 
-    for (let end = openPeriodEnd; ; end -= rolling.spanMs) {
+    for (let period = open; ; period = periodBefore(rolling.window, period, zone)) {
       if (this.work.isStopped) return;
 
-      const startsAt = new Date(end - rolling.spanMs);
-      const endsAt = new Date(end);
+      const { startsAt, endsAt } = period;
       const existing = await this.media.newest({ cameraId: camera.id, kind: 'timelapse', window: rolling.window, from: startsAt, before: endsAt });
       const [newest] = await this.media.latestPositions({ cameraId: camera.id, kind: 'still', from: startsAt, before: endsAt }, 1);
       if (!newest) return;
@@ -185,7 +186,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
       // A film stored without the instant of its last frame is left alone:
       // there is nothing to compare against.
       const coveredUntil = existing?.endsAt ?? null;
-      const isOpen = end === openPeriodEnd;
+      const isOpen = period === open;
       const stale =
         !existing ||
         (coveredUntil !== null &&

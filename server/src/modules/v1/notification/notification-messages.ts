@@ -100,6 +100,7 @@ export const weeklyTimelapseAnnouncement = (
   film: Pick<MediaDocument, 'id' | 'capturedAt' | 'endsAt'>,
   camera: Pick<CameraDocument, 'id' | 'name'>,
   link: string | null,
+  zone: string | null = null,
 ): Announcement => ({
   category: 'weekly_timelapse',
   subject: { type: 'media', id: film.id },
@@ -108,11 +109,15 @@ export const weeklyTimelapseAnnouncement = (
   // to go from a film's id alone.
   cameraId: camera.id,
   severity: 'info',
-  title: `${camera.name}: the week to ${dayOf(film.endsAt ?? film.capturedAt)}`,
+  title: `${camera.name}: the week to ${dayOf(film.endsAt ?? film.capturedAt, zone)}`,
   body: ['A week of pictures, rolled up into one film.', link ? `Watch it at ${link}.` : null].filter(Boolean).join(' '),
 });
 
-const dayOf = (at: Date): string => DateTime.fromJSDate(at, { zone: 'utc' }).setLocale('en').toFormat('d LLLL yyyy');
+/** The day in the owner's zone, where the week was cut; UTC where the account names none. */
+const dayOf = (at: Date, zone: string | null): string => {
+  const local = DateTime.fromJSDate(at, { zone: zone || 'utc' });
+  return (local.isValid ? local : DateTime.fromJSDate(at, { zone: 'utc' })).setLocale('en').toFormat('d LLLL yyyy');
+};
 
 /** What an alert with no rule behind it is called: the health loop's own two. */
 const kindReads: Record<StoredAlert['kind'], string> = {

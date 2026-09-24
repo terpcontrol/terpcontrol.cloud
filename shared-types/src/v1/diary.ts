@@ -721,8 +721,9 @@ export const testCaptureAnswer = named(
 
 /**
  * `POST /cameras/{id}/timelapses`, which is the composer. `window` says which
- * span is meant: `day`, `week` and `month` are worked out around `startsAt`,
- * and `phase`, `grow` and `custom` each read both ends, because where a phase
+ * span is meant: `day`, `week` and `month` are the calendar day, the Monday-to-
+ * Monday week and the calendar month holding `startsAt`, in the zone of the
+ * account that owns the camera, and `phase`, `grow` and `custom` each read both ends, because where a phase
  * or a grow began is the client's to say and not a span this server can guess.
  *
  * Everything below `quality` is what the board offers and is optional, so the
@@ -732,7 +733,9 @@ export const timelapseCreate = named(
   'TimelapseCreate',
   z.object({
     window: mediaWindow,
-    startsAt: instant().optional().describe('Defaults to the most recent complete window.'),
+    startsAt: instant()
+      .optional()
+      .describe("For `day`, `week` and `month`, any instant inside the period meant, which is cut on the camera owner's calendar; defaults to the most recent complete one."),
     endsAt: instant().optional().describe('Read by `phase`, `grow` and `custom`, each of which needs both ends.'),
     quality: mediaQuality.optional().describe('`hd` needs entitlement and is refused without it rather than quietly made `sd`.'),
     framesPerSecond: z.number().int().positive().max(60).optional(),
