@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { exportFilename, fileSize, isBuilding, useAskAccountExport, useAskedExport, useDownloadExport, useExport } from '@/api/exports';
 import { ageLabel } from '@/ui/age';
+import type { HelpTopic } from '@/ui/explain';
+import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -57,12 +59,15 @@ export function Row({
   title,
   line,
   danger,
+  help,
   children,
   below,
 }: {
   title: string;
   line: ReactNode;
   danger?: boolean;
+  /** What the title and its line cannot say, as the (i) beside the title. */
+  help?: HelpTopic;
   /** The control at the right. */
   children?: ReactNode;
   /** What the control opened, under the head. */
@@ -72,7 +77,10 @@ export function Row({
     <div className={`${ui.card} ${ui.joined} ${styles.row}`} data-danger={danger ? '' : undefined}>
       <div className={styles.rowHead}>
         <div className={styles.rowText}>
-          <span className={styles.rowTitle}>{title}</span>
+          <span className={styles.rowTitle}>
+            {title}
+            {help ? <Help topic={help} /> : null}
+          </span>
           <span className={`${ui.note} ${styles.rowLine}`}>{line}</span>
         </div>
         {children ? <div className={styles.rowControl}>{children}</div> : null}

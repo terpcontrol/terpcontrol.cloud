@@ -4420,6 +4420,50 @@
     "rolloutFailures": {
       "title": "Fehlschläge, die sie stoppen",
       "text": "Ein Gerät gilt als fehlgeschlagen, wenn es zum Update aufgefordert wurde und zehn Minuten später nicht den neuen Build fährt – Offline-Geräte eingeschlossen. Bei so vielen auf einem Kanal werden keine weiteren Geräte aufgefordert; die Verteilung läuft von selbst weiter, sobald sie den Build melden."
+    },
+    "publicPage": {
+      "title": "Öffentliche Seite",
+      "text": "Unter dieser Adresse kann jede:r das Tagebuch ohne Konto lesen – die Phasen, die Wochenkarten mit ihren Fotos und die Bilder der Kamera. Die Adresse entsteht aus dem Namen des Grows und ist deshalb kein Geheimnis; ausgeschaltet ist die Seite sofort weg."
+    },
+    "linkActions": {
+      "title": "Einengen, zurückziehen, löschen",
+      "text": "„Einengen“ ändert Tage, Bilder und Ablauf eines Links – erweitern geht damit auch. „Zurückziehen“ macht die Adresse sofort ungültig und lässt sie in dieser Liste; „Löschen“ entfernt sie, und ein Link, der noch ging, geht dann auch nicht mehr. Beides lässt sich nicht rückgängig machen."
+    },
+    "shareWindow": {
+      "title": "Ab, bis, läuft ab",
+      "text": "„Ab“ und „Bis“ bestimmen, welche Tage des Tagebuchs zu sehen sind; leer beginnen sie am Anfang und wachsen mit dem Tagebuch mit. „Läuft ab“ ist der Tag, an dessen Ende die Adresse selbst nicht mehr funktioniert, in deiner Zeitzone."
+    },
+    "spaceLink": {
+      "title": "Grow oder Bereich",
+      "text": "Ein Link auf einen Bereich zeigt sein aktuelles Klima mit den Zielwerten, die Grows, die dort stehen – auch private –, und seine neuesten Tagebuchzeilen; ein Link auf einen Grow zeigt das Tagebuch dieses Grows. Aufgaben und Meldungen zeigt keiner von beiden."
+    },
+    "privacyRedaction": {
+      "title": "Geteilte Ansichten",
+      "text": "Diese Schalter verbergen Zahlen vor allen, die über einen Link, deine öffentliche Seite oder als Folgende mitlesen. Wen du in einen Bereich lässt, ist nicht fremd: Gewichte und Anzahlen bleiben für sie sichtbar."
+    },
+    "publicProfile": {
+      "title": "Öffentliches Profil",
+      "text": "Deine Profilseite zeigt deine öffentlichen Grows mit Bio und Bild. Ausgeschaltet ist die Seite weg, dein Benutzername steht aber weiterhin auf jedem öffentlichen Grow."
+    },
+    "deleteAccount": {
+      "title": "Das Konto löschen",
+      "text": "Alle, die du in deine Bereiche gelassen hast, verlieren den Zugang, und wer deinen Grows folgt, verliert sie. Zeilen, die du in fremden Bereichen geschrieben hast, bleiben – ohne deinen Namen –, und die Klimadaten bleiben bei den Geräten, die sich danach neu beanspruchen lassen."
+    },
+    "passwordChange": {
+      "title": "Das Passwort ändern",
+      "text": "Alle anderen Browser und Apps, die mit deinem Konto angemeldet sind, werden abgemeldet; dieser hier bleibt angemeldet."
+    },
+    "memberRole": {
+      "title": "Rollen",
+      "text": "„Darf loggen“ schreibt Einträge, lädt Fotos hoch und hakt Aufgaben ab. „Darf steuern“ ändert außerdem Zielwerte, Pläne, Alarmregeln, Steckdosen und Kameraeinstellungen und korrigiert Einträge anderer; Einladen, Entfernen und Teilen-Links bleiben bei dir als Besitzer:in."
+    },
+    "invite": {
+      "title": "Einladen",
+      "text": "Wer einen Einladungslink hat, kann damit beitreten, so oft er benutzt wird, bis er abläuft oder du ihn zurückziehst – Zurückziehen verhindert neue Beitritte, wer drin ist, bleibt. Ein Benutzername, mit dem du schon einen Bereich teilst, wird sofort mit „darf loggen“ hinzugefügt, ohne gefragt zu werden."
+    },
+    "follow": {
+      "title": "Folgen",
+      "text": "Setzt diesen Grow auf deine Startseite, solange er öffentlich ist. Wer folgt, erfährt der Grower nicht, und bei Änderungen wird dir nichts geschickt."
     }
   }
 }

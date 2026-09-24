@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, ShareLink, TimeRange } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
@@ -8,6 +8,8 @@ import { Sheet } from '@/log/Sheet';
 import { ageLabel } from '@/ui/age';
 import { appUrl } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';
+import type { HelpTopic } from '@/ui/explain';
+import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
@@ -46,7 +48,10 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
         <section className={styles.block}>
           <div className={styles.switchRow}>
             <div className={styles.switchText}>
-              <span className={styles.blockTitle}>{t('sharing.publicPage')}</span>
+              <span className={styles.blockTitle}>
+                {t('sharing.publicPage')}
+                <Help topic="publicPage" />
+              </span>
               <span className={ui.note}>{t('sharing.publicPageNote')}</span>
             </div>
             <button
@@ -75,7 +80,10 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
         <section className={styles.block}>
           <div className={styles.switchRow}>
             <div className={styles.switchText}>
-              <span className={styles.blockTitle}>{t('sharing.links')}</span>
+              <span className={styles.blockTitle}>
+                {t('sharing.links')}
+                <Help topic="linkActions" />
+              </span>
               <span className={ui.note}>{t('sharing.linksNote')}</span>
             </div>
             {drafting ? null : (
@@ -227,7 +235,7 @@ function Editor({
   return (
     <div className={styles.editor}>
       <div className={styles.fields}>
-        <Field label={t('sharing.from')} value={draft.from} hint={t('sharing.fromStart')} onChange={value => set('from', value)} />
+        <Field label={t('sharing.from')} value={draft.from} hint={t('sharing.fromStart')} help="shareWindow" onChange={value => set('from', value)} />
         <Field label={t('sharing.to')} value={draft.to} hint={t('sharing.toOpen')} onChange={value => set('to', value)} />
         <Field label={t('sharing.expires')} value={draft.expires} hint={t('sharing.never')} onChange={value => set('expires', value)} />
       </div>
@@ -263,11 +271,37 @@ function Editor({
   );
 }
 
-function Field({ label, value, hint, onChange }: { label: string; value: string; hint: string; onChange: (value: string) => void }) {
+function Field({
+  label,
+  value,
+  hint,
+  help,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  help?: HelpTopic;
+  onChange: (value: string) => void;
+}) {
+  // Pointed at by id, because a label names the first control inside it and the (i) would come first.
+  const id = useId();
+
   return (
-    <label className={styles.field}>
-      <span className="label">{label}</span>
-      <input className={`${ui.input} ${styles.date}`} type="date" value={value} placeholder={hint} onChange={event => onChange(event.target.value)} />
+    <label className={styles.field} htmlFor={id}>
+      <span className="label">
+        {label}
+        {help ? <Help topic={help} /> : null}
+      </span>
+      <input
+        id={id}
+        className={`${ui.input} ${styles.date}`}
+        type="date"
+        value={value}
+        placeholder={hint}
+        aria-label={help ? label : undefined}
+        onChange={event => onChange(event.target.value)}
+      />
       <span className={`mono ${styles.hint}`}>{value ? '' : hint}</span>
     </label>
   );

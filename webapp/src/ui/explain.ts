@@ -60,6 +60,17 @@ export const HELP_TOPICS = [
   'unpair',
   'rtsp',
   'rolloutFailures',
+  'publicPage',
+  'linkActions',
+  'shareWindow',
+  'spaceLink',
+  'privacyRedaction',
+  'publicProfile',
+  'deleteAccount',
+  'passwordChange',
+  'memberRole',
+  'invite',
+  'follow',
 ] as const;
 
 export type HelpTopic = (typeof HELP_TOPICS)[number];

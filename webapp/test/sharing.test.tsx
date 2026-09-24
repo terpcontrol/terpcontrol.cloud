@@ -164,8 +164,8 @@ describe('the share sheet', () => {
    */
   const typeAWindow = (from: string, to: string) => {
     fireEvent.click(screen.getByRole('button', { name: 'New link' }));
-    fireEvent.change(screen.getByLabelText(/^From/), { target: { value: from } });
-    fireEvent.change(screen.getByLabelText(/^To/), { target: { value: to } });
+    fireEvent.change(screen.getByLabelText(/^From/, { selector: 'input' }), { target: { value: from } });
+    fireEvent.change(screen.getByLabelText(/^To/, { selector: 'input' }), { target: { value: to } });
     fireEvent.click(screen.getByRole('button', { name: 'Create link' }));
   };
 
@@ -197,15 +197,15 @@ describe('the share sheet', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Narrow' }));
 
-    expect((screen.getByLabelText(/^From/) as HTMLInputElement).value).toBe('2026-09-01');
-    expect((screen.getByLabelText(/^To/) as HTMLInputElement).value).toBe('2026-09-23');
+    expect((screen.getByLabelText(/^From/, { selector: 'input' }) as HTMLInputElement).value).toBe('2026-09-01');
+    expect((screen.getByLabelText(/^To/, { selector: 'input' }) as HTMLInputElement).value).toBe('2026-09-23');
   });
 
   it('narrows a link by its window and its pictures, and never by what it points at', () => {
     draw();
 
     fireEvent.click(screen.getByRole('button', { name: 'Narrow' }));
-    expect(screen.getAllByLabelText(/From|To|Expires/)).toHaveLength(3);
+    expect(screen.getAllByLabelText(/From|To|Expires/, { selector: 'input' })).toHaveLength(3);
     expect(screen.getByRole('switch', { name: 'Camera pictures' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.queryByText('Spring run', { selector: 'select' })).not.toBeInTheDocument();
   });

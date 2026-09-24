@@ -82,7 +82,7 @@ export function NewLinkSheet({ grows, spaces, onClose }: { grows: GrowListItem[]
       }
     >
       <div className={styles.sheetBody}>
-        <Block label={t('me.shareLinks.sheet.subject')}>
+        <Block label={t('me.shareLinks.sheet.subject')} help="spaceLink">
           {grows.length + spaces.length === 0 ? (
             /* The screen no longer offers the card at all where there is
                nothing to hand out, so this is only what a list emptied under

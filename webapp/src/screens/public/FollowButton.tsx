@@ -2,6 +2,7 @@ import { Check, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSession } from '@/api/session';
 import { useFollowGrow, useFollows, useUnfollowGrow } from '@/api/sharing';
+import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import styles from './Public.module.css';
 
@@ -33,15 +34,18 @@ export function FollowButton({ growId }: { growId: string }) {
   const busy = follows.isPending || follow.isPending || unfollow.isPending;
 
   return (
-    <button
-      type="button"
-      className={`${ui.chip} ${styles.follow}`}
+    <>
+      <button
+        type="button"
+        className={`${ui.chip} ${styles.follow}`}
       data-following={following}
       disabled={busy}
       onClick={() => (following ? unfollow.mutate(growId) : follow.mutate(growId))}
     >
       {following ? <Check size={13} strokeWidth={2} aria-hidden /> : <Plus size={13} strokeWidth={2} aria-hidden />}
       {t(following ? 'publicPage.following' : 'publicPage.follow')}
-    </button>
+      </button>
+      <Help topic="follow" />
+    </>
   );
 }

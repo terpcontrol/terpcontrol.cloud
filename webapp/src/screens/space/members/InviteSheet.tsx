@@ -94,7 +94,7 @@ export function InviteSheet({
       }
     >
       <div className={styles.sheetBody}>
-        <Block label={t('space.members.sheet.role')}>
+        <Block label={t('space.members.sheet.role')} help="memberRole">
           <div className={styles.roles} role="radiogroup" aria-label={t('space.members.sheet.role')}>
             {ROLES.map(one => (
               <button key={one} type="button" role="radio" aria-checked={role === one} className={styles.role} onClick={() => setRole(one)}>

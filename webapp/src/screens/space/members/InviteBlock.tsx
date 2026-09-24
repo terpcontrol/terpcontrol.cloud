@@ -5,6 +5,7 @@ import type { Invite, SpaceKind } from '@fg2/shared-types/v1';
 import { useAddMember } from '@/api/members';
 import { useInvites, useRevokeInvite } from '@/api/invites';
 import { CopyButton } from '@/ui/CopyButton';
+import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -44,7 +45,10 @@ export function InviteBlock({ spaceId, spaceName, kind }: { spaceId: string; spa
   return (
     <section className={styles.block}>
       <header className={styles.head}>
-        <span className="label">{t('space.members.invite')}</span>
+        <span className="label">
+          {t('space.members.invite')}
+          <Help topic="invite" />
+        </span>
         {live.length > 0 ? (
           <button type="button" className={ui.chip} onClick={open(null)}>
             <Plus size={13} strokeWidth={2} aria-hidden />

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { Me } from '@fg2/shared-types/v1';
 import { useMe, useUpdateMe, useUpdatingMe } from '@/api/account';
 import { useSession } from '@/api/session';
+import { Help } from '@/ui/Help';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -78,7 +79,10 @@ export function Privacy() {
     <MePage title={title}>
       <RefreshFailed failedAt={me.isError ? me.dataUpdatedAt : null} now={now} />
 
-      <span className="label">{t('me.privacy.sharing')}</span>
+      <span className="label">
+        {t('me.privacy.sharing')}
+        <Help topic="privacyRedaction" />
+      </span>
 
       <Row title={t('me.privacy.weights.title')} line={t('me.privacy.weights.line')}>
         <Switch
@@ -98,7 +102,7 @@ export function Privacy() {
         />
       </Row>
 
-      <Row title={t('me.privacy.profile.title')} line={t('me.privacy.profile.line', { handle: account.handle })}>
+      <Row title={t('me.privacy.profile.title')} line={t('me.privacy.profile.line', { handle: account.handle })} help="publicProfile">
         <Switch
           name={t('me.privacy.profile.title')}
           on={account.publicProfile}

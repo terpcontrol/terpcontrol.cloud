@@ -4424,6 +4424,50 @@
     "rolloutFailures": {
       "title": "Failures that stop it",
       "text": "A device counts as failed once it was told to update and is not running the new build ten minutes later – offline devices included. At this many on a channel no further devices are told; the rollout carries on by itself once they report the build."
+    },
+    "publicPage": {
+      "title": "Public page",
+      "text": "Anybody can read the diary at this address without an account – the phases, the week cards with their photos and the camera's pictures. The address is made from the grow's name, so it is not a secret; switching the page off takes it down at once."
+    },
+    "linkActions": {
+      "title": "Narrow, revoke, forget",
+      "text": "Narrow changes a link's days, pictures and expiry – it can widen them as well. Revoke stops the address working at once and keeps it in this list; Forget deletes it, and a link that still worked stops too. Neither can be undone."
+    },
+    "shareWindow": {
+      "title": "From, to, expires",
+      "text": "From and To decide which days of the diary the reader sees; left empty, they start at the beginning and keep up with the diary. Expires is the day the address itself stops working, at the end of that day in your time zone."
+    },
+    "spaceLink": {
+      "title": "Grow or space",
+      "text": "A link to a space shows its live climate against the targets, the grows standing there – private ones too – and its latest diary lines; a link to a grow shows that grow's diary. Neither shows tasks or alerts."
+    },
+    "privacyRedaction": {
+      "title": "Shared views",
+      "text": "These hide figures from everyone who reads through a link, your public page or a follow. People you let into a space are not strangers: they still see weights and counts."
+    },
+    "publicProfile": {
+      "title": "Public profile",
+      "text": "Your profile page lists your public grows with your bio and picture. Switched off, the page is gone, but your username still shows on each public grow."
+    },
+    "deleteAccount": {
+      "title": "Deleting the account",
+      "text": "Everyone you let into your spaces loses access, and followers lose your grows. Lines you wrote in other people's spaces stay, without your name, and the climate readings stay with the devices, which can then be claimed again."
+    },
+    "passwordChange": {
+      "title": "Changing the password",
+      "text": "Every other browser and app signed in as you is signed out; this one stays signed in."
+    },
+    "memberRole": {
+      "title": "Roles",
+      "text": "Can log may write entries, add photos and tick off tasks. Can manage may also change targets, plans, alarm rules, sockets and camera settings, and correct other people's entries; inviting, removing people and share links stay with you as the owner."
+    },
+    "invite": {
+      "title": "Inviting",
+      "text": "Anybody who has an invite link can join with it, as often as it is used, until it expires or you revoke it – revoking stops new joins, and whoever is in stays. A username you already share a space with is added at once as can log, without being asked."
+    },
+    "follow": {
+      "title": "Follow",
+      "text": "Puts this grow on your home for as long as it is public. The grower is not told who follows, and nothing is sent to you when it changes."
     }
   }
 }

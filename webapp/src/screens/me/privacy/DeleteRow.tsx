@@ -27,7 +27,7 @@ export function DeleteRow({ handle, disabled }: { handle: string; disabled: bool
 
   return (
     <>
-      <Row title={t('me.privacy.delete.title')} line={t('me.privacy.delete.line')} danger>
+      <Row title={t('me.privacy.delete.title')} line={t('me.privacy.delete.line')} danger help="deleteAccount">
         <button
           type="button"
           className={`${ui.chip} ${styles.danger}`}

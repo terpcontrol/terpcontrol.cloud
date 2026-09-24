@@ -9,6 +9,7 @@ import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { cameraTitle } from '@/screens/devices/naming';
+import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -281,7 +282,7 @@ function Covers({ free }: { free: PremiumFree | null }) {
             {ROWS.map(row => (
               <tr key={row.key}>
                 <th scope="row" className={styles.feature}>
-                  {t(`me.premium.table.${row.key}`)}
+                  {row.key === 'rtsp' ? <Term topic="rtsp">{t('me.premium.table.rtsp')}</Term> : t(`me.premium.table.${row.key}`)}
                 </th>
                 <td className={`mono ${styles.cell}`}>{cell(row.free)}</td>
                 <td className={`mono ${styles.cell}`}>{cell(row.premium)}</td>

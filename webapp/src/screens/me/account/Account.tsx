@@ -123,6 +123,7 @@ function PasswordRow({ held }: { held: boolean }) {
   return (
     <Row
       title={t('me.account.password.title')}
+      help="passwordChange"
       line={changed && !open ? t('me.account.password.changed') : t('me.account.password.line')}
       below={
         open ? (
