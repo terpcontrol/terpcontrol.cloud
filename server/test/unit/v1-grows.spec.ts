@@ -182,11 +182,18 @@ describe('what a grow´s phases and placements mean', () => {
     expect(summary.weekNumber).toBe(2);
   });
 
-  it('counts from the first phase and not from the day the grow was written down', () => {
+  /**
+   * A grow written down on one day and put into a stage days later has lived
+   * since the first of them: the week cards, the diary's day stamps and the
+   * report count from there, and the header above them counts the same days.
+   */
+  it('counts from the day the grow began, as the week cards beneath it do, even when its first phase came later', () => {
     const later = new Date('2026-05-06T08:00:00.000Z');
     const summary = summaryOf(grown({ startedAt: STARTED_AT, phases: [phase({ startedAt: later })] }), planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
 
-    expect(summary.dayNumber).toBe(6);
+    expect(summary.dayNumber).toBe(11);
+    expect(summary.weekNumber).toBe(2);
+    expect(summary.phaseDay).toBe(6);
   });
 
   it('counts the day of the phase in the grow´s own days, the same days the phase bar counts', () => {
@@ -544,6 +551,27 @@ describe('correcting a phase', () => {
     const read = serialiseGrow(await grows.require(grow.id), await plantsOfGrow(grow.id), NOTHING_HIDDEN, TEN_DAYS_LATER);
     expect(read.summary.dayNumber).toBe(11);
     expect((await phaseLineOf(grow.id, entered.id))?.occurredAt).toEqual(STARTED_AT);
+  });
+
+  it('carries the grow´s start along when the first phase it stood on moves, so every day of the grow moves with it', async () => {
+    const grow = await started();
+    const first = await grows.addPhase(grow.id, { stage: 'germination', startedAt: STARTED_AT.toISOString() }, OWNER, NOTHING_HIDDEN);
+    const twoDaysLater = new Date(STARTED_AT.getTime() + 2 * 86_400_000);
+
+    await grows.updatePhase(grow.id, first.id, { startedAt: twoDaysLater.toISOString() }, NOTHING_HIDDEN);
+
+    const stored = await grows.require(grow.id);
+    expect(stored.startedAt).toEqual(twoDaysLater);
+    expect(serialiseGrow(stored, await plantsOfGrow(grow.id), NOTHING_HIDDEN, TEN_DAYS_LATER).summary.dayNumber).toBe(9);
+  });
+
+  it('leaves a start of its own alone, one that came before every phase', async () => {
+    const grow = await started();
+    const entered = await grows.addPhase(grow.id, { stage: 'vegetative', startedAt: WRONG_DAY.toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    await grows.updatePhase(grow.id, entered.id, { startedAt: new Date(WRONG_DAY.getTime() + 86_400_000).toISOString() }, NOTHING_HIDDEN);
+
+    expect((await grows.require(grow.id)).startedAt).toEqual(STARTED_AT);
   });
 
   it('keeps the phases in date order when a correction moves one past another', async () => {

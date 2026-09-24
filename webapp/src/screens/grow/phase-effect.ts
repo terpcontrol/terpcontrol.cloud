@@ -47,6 +47,20 @@ export interface PhaseEffect {
   timelineOnly: boolean;
 }
 
+const ms = (instant: string): number => DateTime.fromISO(instant).toMillis();
+
+/** Where the grow's days count from: its start or its earliest phase, whichever came first - the server's `growOriginOf`. */
+const originOf = (startedAt: string, phases: Phase[]): string =>
+  phases[0] && ms(phases[0].startedAt) < ms(startedAt) ? phases[0].startedAt : startedAt;
+
+/**
+ * The grow's start after the change. The server carries a start that stood on
+ * the first phase along with it, and leaves one that came before every phase
+ * where it is - so the sheet promises the same.
+ */
+const startAfter = (grow: GrowListItem, before: Phase[], after: Phase[]): string =>
+  before[0] && after[0] && ms(before[0].startedAt) === ms(grow.startedAt) ? after[0].startedAt : grow.startedAt;
+
 /** The phase a grow reads as: the latest one. Only asked where every phase covers every plant. */
 const headlineOf = (phases: Phase[]): Phase | null => phases.at(-1) ?? null;
 
@@ -57,7 +71,7 @@ const effectOf = (grow: GrowListItem, before: Phase[], after: Phase[]): PhaseEff
   const headBefore = split ? null : headlineOf(before);
   const headAfter = split ? null : headlineOf(after);
 
-  const growShift = before[0] && after[0] ? daysBetween(before[0].startedAt, after[0].startedAt) : 0;
+  const growShift = after[0] ? daysBetween(originOf(grow.startedAt, before), originOf(startAfter(grow, before, after), after)) : 0;
   const ownShift = headBefore && headAfter && headBefore.id === headAfter.id ? daysBetween(headBefore.startedAt, headAfter.startedAt) : 0;
   const moved = !split && (headBefore?.stage !== headAfter?.stage || headBefore?.preset !== headAfter?.preset);
 

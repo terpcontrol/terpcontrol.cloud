@@ -147,7 +147,8 @@ export class PhaseWriterService implements DevicePlacement {
     // Kept in order, because the corrected date may have moved the phase past
     // the one that followed it, and the contract answers `phases[]` by date.
     const phases = [...grow.phases.filter(phase => phase.id !== phaseId), corrected].sort(byDate);
-    await this.grows.updateOne({ id: growId }, { $set: { phases } }).exec();
+    const startedAt = startCarriedBy(grow, phases);
+    await this.grows.updateOne({ id: growId }, { $set: { phases, ...(startedAt ? { startedAt } : {}) } }).exec();
 
     await this.entryRows
       .updateOne(
@@ -178,17 +179,21 @@ export class PhaseWriterService implements DevicePlacement {
    * line that announced it goes with it, because a diary entry naming a phase
    * that is gone points at nothing.
    *
-   * The day counter follows: it counts from the earliest phase, so withdrawing
-   * the first one is how a grow whose start was recorded wrongly gets its days
-   * back.
+   * The day counter follows where the grow's start stood on that phase, so
+   * withdrawing the first one is how a grow whose start was recorded wrongly
+   * gets its days back.
    */
   public async removePhase(growId: string, phaseId: string): Promise<void> {
     // Asked of the document rather than of the write: a grow carries timestamps,
     // so a `$pull` that matched no phase still counts as a modification.
-    const grow = await this.grows.findOne({ id: growId }, { phases: 1 }).lean<Pick<GrowDocument, 'phases'>>().exec();
+    const grow = await this.grows.findOne({ id: growId }, { phases: 1, startedAt: 1 }).lean<Pick<GrowDocument, 'phases' | 'startedAt'>>().exec();
     if (!grow?.phases.some(phase => phase.id === phaseId)) throw notFound('phase_not_found', 'There is no phase of that grow with that id.');
 
-    await this.grows.updateOne({ id: growId }, { $pull: { phases: { id: phaseId } } }).exec();
+    const startedAt = startCarriedBy(
+      grow,
+      grow.phases.filter(phase => phase.id !== phaseId),
+    );
+    await this.grows.updateOne({ id: growId }, { $pull: { phases: { id: phaseId } }, ...(startedAt ? { $set: { startedAt } } : {}) }).exec();
     await this.entryRows.deleteMany({ growId, kind: 'phase', 'values.phaseId': phaseId }).exec();
   }
 
@@ -248,6 +253,29 @@ export class PhaseWriterService implements DevicePlacement {
 const standingIn = (spaceId: string): FilterQuery<GrowDocument> => ({ endedAt: null, placements: { $elemMatch: { spaceId, endedAt: null } } });
 
 const byDate = (one: StoredPhase, other: StoredPhase): number => one.startedAt.getTime() - other.startedAt.getTime();
+
+const earliestOf = (phases: StoredPhase[]): Date | null =>
+  phases.reduce<Date | null>((first, phase) => (first && first <= phase.startedAt ? first : phase.startedAt), null);
+
+/**
+ * Where the grow's start goes when its first phase is corrected or withdrawn.
+ *
+ * Every day of a grow is counted from one origin - its start or its earliest
+ * phase, whichever came first - and a grow made on the new-grow sheet has both
+ * on the same instant. Moving that first phase two days later, or taking back a
+ * germination entered by mistake, would otherwise leave the start behind where
+ * the mistake put it, and the day counter would go on counting from it. So a
+ * start that stood on the first phase moves with it. A start that was earlier
+ * than every phase - a grow written down first and put into a stage days later -
+ * is a start of its own and stays; a grow left with no phase keeps it too.
+ */
+const startCarriedBy = (grow: Pick<GrowDocument, 'phases' | 'startedAt'>, phases: StoredPhase[]): Date | null => {
+  const before = earliestOf(grow.phases);
+  const after = earliestOf(phases);
+  if (!before || !after || before.getTime() !== grow.startedAt.getTime()) return null;
+
+  return after.getTime() === before.getTime() ? null : after;
+};
 
 const latestOf = (phases: StoredPhase[]): StoredPhase | null =>
   phases.reduce<StoredPhase | null>((latest, phase) => (latest && latest.startedAt > phase.startedAt ? latest : phase), null);

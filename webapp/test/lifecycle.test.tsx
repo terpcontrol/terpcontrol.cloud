@@ -269,6 +269,14 @@ describe('what correcting a phase would move', () => {
 
     expect(effect.growDay).toEqual({ from: 35, to: 11 });
   });
+
+  /** The server leaves a start that came before every phase where it is, so the grow's days do not move and the sheet does not say they will. */
+  it('promises nothing about the day counter where the grow began before its first phase', () => {
+    const writtenDownFirst = { ...grow, startedAt: at(40), summary: { ...grow.summary, dayNumber: 41 } };
+    const effect = correctionEffect(writtenDownFirst, grow.phases[0], { stage: 'vegetative', preset: null, startedAt: at(31) });
+
+    expect(effect.growDay).toBeNull();
+  });
 });
 
 describe('the harvest sheet', () => {

@@ -15,7 +15,7 @@ import type {
   SpaceOverview,
   Setpoints,
 } from '@fg2/shared-types/v1';
-import { metric as metricSchema, outputMetric } from '@fg2/shared-types/v1-schemas';
+import { growDayAt, growOriginOf, metric as metricSchema, outputMetric } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant } from '@common/v1/access.types';
 import { clampRange, seenOf, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
@@ -394,15 +394,12 @@ const defaultsOf = (taskId: string, reminders: ReminderDocument[]): ReminderDocu
   reminders.find(reminder => taskId === reminder.id || taskId.startsWith(occurrencePrefix(reminder.id)))?.defaults ?? null;
 
 /**
- * Day 1 is the day the grow's first phase began, counted as the grow serialiser
- * counts it - in elapsed days rather than calendar ones, because the grower's
- * midnight is not the server's.
+ * The grow's own day at an instant, counted from the one origin the grow
+ * serialiser counts its header from - so "here since day 22" and "Day 32" on
+ * the same card are days of the same calendar. Null before the first phase, as
+ * the day counter is.
  */
-const dayNumberOn = (grow: GrowDocument, at: Date): number | null => {
-  const first = grow.phases.reduce<Date | null>((earliest, phase) => (earliest && earliest <= phase.startedAt ? earliest : phase.startedAt), null);
-
-  return first ? Math.max(1, Math.floor((at.getTime() - first.getTime()) / DAY_MS) + 1) : null;
-};
+const dayNumberOn = (grow: GrowDocument, at: Date): number | null => (grow.phases.length > 0 ? growDayAt(growOriginOf(grow), at) : null);
 
 const growHere = (grow: GrowDocument, spaceId: string, plants: PlantDocument[], hide: Redaction, now: Date): OverviewGrow => {
   const summary = summaryOf(grow, plants, hide, now);

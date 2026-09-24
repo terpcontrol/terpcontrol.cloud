@@ -1907,7 +1907,7 @@ export interface GrowLocation {
 
 export interface GrowSummary {
   /**
-   * 1 on the day the first phase started, counted to `endedAt` once the grow has ended; null before the first phase.
+   * 1 on the day the grow began - its `startedAt` or its earliest phase, whichever came first, the origin its weeks, diary days and report count from too - and counted to `endedAt` once the grow has ended; null before the first phase.
    */
   dayNumber: number | null;
   /**

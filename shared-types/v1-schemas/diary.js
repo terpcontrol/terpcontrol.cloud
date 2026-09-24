@@ -1248,7 +1248,7 @@ exports.growWeekReading = (0, common_js_1.named)('GrowWeekReading', zod_1.z.obje
 }));
 /**
  * A week of a grow, which is what the grow page is made of. `weekNumber` counts
- * from the first phase, like the day counter, so it lines up with the feeding
+ * from the grow's origin, like the day counter, so it lines up with the feeding
  * scheme's grid, and `dayFrom`/`dayTo` are the same count in days - always
  * seven of them, because "day 29-35" is what the week is of; `endsAt` is where
  * the week stops, which for the week a grow is in is now.

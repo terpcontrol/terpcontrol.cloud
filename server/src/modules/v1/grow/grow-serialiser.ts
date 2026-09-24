@@ -62,18 +62,18 @@ export const redactionOf = (redacted: boolean, privacy: UserPrivacy | null | und
  */
 const scope = (plantIds: string[] | null, hide: Redaction): string[] | null => (hide.counts && plantIds !== null ? [] : plantIds);
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 /**
- * Day 1 is the day the grow started. Counted in elapsed days rather than in
- * calendar days: the grower's midnight is not the server's, and a grow begun at
- * 23:00 would otherwise be two days old within the hour.
+ * Day 1 is the day the grow began: its start or its earliest phase, whichever
+ * came first - `growOriginOf`, the origin the week cards, the diary's day
+ * stamps, the report and the timeline all count from. Counted in elapsed days
+ * rather than in calendar days: the grower's midnight is not the server's, and
+ * a grow begun at 23:00 would otherwise be two days old within the hour.
  *
- * This counts the grow's own days and nothing else. How far into a phase the
- * grow is has its own arithmetic below, for a reason this one cannot serve.
+ * The header used to count from the first phase instead. A grow written down on
+ * the 20th and put into veg on the 24th then read "day 1" above a week card
+ * that put today on day 5, a diary line stamped "D 5" and a report of five
+ * days: one grow with two ages on one screen.
  */
-const dayNumberOf = (from: Date, asOf: Date): number => Math.max(1, Math.floor((asOf.getTime() - from.getTime()) / DAY_MS) + 1);
-
 /**
  * Which day of its phase the grow is on, counted in the grow's own days.
  *
@@ -88,16 +88,10 @@ const dayNumberOf = (from: Date, asOf: Date): number => Math.max(1, Math.floor((
  */
 const phaseDayOf = (origin: Date, startedAt: Date, asOf: Date): number => Math.max(1, growDayAt(origin, asOf) - growDayAt(origin, startedAt) + 1);
 
-/** Weeks are counted like days, so week 1 is days 1 to 7 and lines up with the feeding grid's first row. */
-const weekNumberOf = (dayNumber: number): number => Math.floor((dayNumber - 1) / 7) + 1;
-
 const covers = (plantIds: string[] | null, plantId: string): boolean => plantIds === null || plantIds.includes(plantId);
 
 const latest = (phases: StoredPhase[]): StoredPhase | null =>
   phases.reduce<StoredPhase | null>((best, phase) => (best && best.startedAt > phase.startedAt ? best : phase), null);
-
-const earliest = (phases: StoredPhase[]): StoredPhase | null =>
-  phases.reduce<StoredPhase | null>((best, phase) => (best && best.startedAt <= phase.startedAt ? best : phase), null);
 
 /** Where a plant stands: the latest phase written over a scope that includes it. */
 const phaseOf = (phases: StoredPhase[], plantId: string): StoredPhase | null => latest(phases.filter(phase => covers(phase.plantIds, plantId)));
@@ -177,13 +171,12 @@ export const growUpTo = (grow: GrowDocument, at: Date): GrowDocument => ({
 export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Redaction, now: Date = new Date()): GrowSummary => {
   // A grow that has ended stopped counting on the day it ended.
   const asOf = grow.endedAt ?? now;
-  // The origin the week cards count from, which is what the stage week is read
-  // against; the day counter below keeps counting from the first phase.
+  // The one origin every day of the grow is counted from, on this header and on
+  // every screen beneath it.
   const origin = growOriginOf(grow);
-  const first = earliest(grow.phases);
   const groups = groupsOf(grow.phases, plants);
   const headline = groups[0]?.phase ?? latest(grow.phases);
-  const dayNumber = first ? dayNumberOf(first.startedAt, asOf) : null;
+  const dayNumber = grow.phases.length > 0 ? growDayAt(origin, asOf) : null;
 
   const told: PhaseGroup[] = groups.map(group => ({
     stage: group.phase.stage,
@@ -197,7 +190,7 @@ export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Red
     stage: headline?.stage ?? null,
     preset: headline?.preset ?? null,
     phaseDay: headline ? phaseDayOf(origin, headline.startedAt, asOf) : null,
-    weekNumber: dayNumber === null ? null : weekNumberOf(dayNumber),
+    weekNumber: dayNumber === null ? null : growWeekAt(origin, asOf),
     // Which week of its stage, counted against the grow's own weeks rather than
     // by dividing the phase's days by seven. The week cards count it that way,
     // and the header sits directly above the first of them: a stage begun

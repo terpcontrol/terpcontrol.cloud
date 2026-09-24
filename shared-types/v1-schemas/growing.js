@@ -295,7 +295,7 @@ exports.growSummary = (0, common_js_1.named)('GrowSummary', zod_1.z.object({
         .number()
         .int()
         .nullable()
-        .describe('1 on the day the first phase started, counted to `endedAt` once the grow has ended; null before the first phase.'),
+        .describe('1 on the day the grow began - its `startedAt` or its earliest phase, whichever came first, the origin its weeks, diary days and report count from too - and counted to `endedAt` once the grow has ended; null before the first phase.'),
     stage: common_js_1.growthStage.nullable().describe('The stage of the largest group of plants.'),
     preset: zod_1.z.string().nullable(),
     phaseDay: zod_1.z.number().int().nullable(),

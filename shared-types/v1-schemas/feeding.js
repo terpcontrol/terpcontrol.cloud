@@ -22,9 +22,10 @@ exports.schemeWeekOf = schemeWeekOf;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const moment = (at) => new Date(at).getTime();
 /**
- * Where a grow's day 1 begins: its earliest phase, which is what the day
- * counter counts from. A grow that has not entered a phase yet has only the day
- * it was created.
+ * Where a grow's day 1 begins: the day it started or its earliest phase,
+ * whichever came first. The day counter, the week cards, the diary's day stamps
+ * and the report all count from this one instant - diary lines written before
+ * the first phase belong to the grow as much as the ones after it.
  */
 const growOriginOf = (grow) => new Date(Math.min(moment(grow.startedAt), ...grow.phases.map(phase => moment(phase.startedAt))));
 exports.growOriginOf = growOriginOf;

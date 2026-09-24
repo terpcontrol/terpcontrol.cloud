@@ -30,8 +30,8 @@ export interface GrowWeekSpan {
 }
 
 /**
- * Where day 1 starts. The earliest phase, which is what the day counter counts
- * from; a grow that has not entered a phase yet has only the day it was created.
+ * Where day 1 starts: the grow's start or its earliest phase, whichever came
+ * first. The day counter on the grow's header counts from the same instant.
  */
 export const originOf = (grow: GrowDocument): Date => growOriginOf(grow);
 
