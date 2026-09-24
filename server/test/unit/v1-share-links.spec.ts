@@ -44,7 +44,7 @@ const world = async (): Promise<void> => {
   ]);
 
   await db.grows.create([
-    { id: GROW, ownerId: OWNER, name: 'Mine', type: 'photoperiod', slug: 'mine', startedAt: new Date(), updatedAt: new Date() },
+    { id: GROW, ownerId: OWNER, name: 'Mine', type: 'photoperiod', slug: 'mine', visibility: 'public', startedAt: new Date(), updatedAt: new Date() },
     { id: 'grow-theirs', ownerId: OTHER, name: 'Theirs', type: 'photoperiod', slug: 'theirs', startedAt: new Date(), updatedAt: new Date() },
   ]);
 };

@@ -121,6 +121,20 @@ describe('making a link', () => {
     expect(refused.body.code).toBe('expiry_already_past');
   });
 
+  it('refuses a public-page link onto something that has no public page, rather than handing back a dead link', async () => {
+    const onASpace = await owner.client
+      .post('/v1/share-links')
+      .send({ kind: 'public_page', subject: { type: 'space', id: tent } })
+      .expect(422);
+    expect(onASpace.body.code).toBe('no_public_page');
+
+    const onAPrivateGrow = await owner.client
+      .post('/v1/share-links')
+      .send({ kind: 'public_page', subject: { type: 'grow', id: grow.id } })
+      .expect(422);
+    expect(onAPrivateGrow.body.code).toBe('no_public_page');
+  });
+
   it('refuses the same two on a link that is already out of the house, where narrowing is the point', async () => {
     const link = await aLink();
 

@@ -113,6 +113,7 @@ export class ShareLinksService {
     const range = rangeOf(body.range);
     const expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
     refuseADeadWindow(range, expiresAt);
+    if (body.kind === 'public_page') await this.refuseAPageThatIsNotThere(body.subject);
 
     const link: ShareLinkDocument = {
       id: uuidv4(),
@@ -235,6 +236,26 @@ export class ShareLinksService {
 
     await this.access.require(ctx, subjectRef(link.subject.type, link.subject.id), 'own');
     return link;
+  }
+
+  /**
+   * A public-page link is the public address of a grow in a form that can be
+   * sent, and opens only while the grow is public. A space never is, and a grow
+   * that is private has no page to send - either link would 404 on its first
+   * opening, so it is refused to the maker instead of the reader.
+   */
+  private async refuseAPageThatIsNotThere(subject: ShareLinkCreate['subject']): Promise<void> {
+    if (subject.type !== 'grow') {
+      throw unprocessable('no_public_page', 'Only a grow has a public page. Share a space with a read-only view link instead.');
+    }
+
+    const grow = await this.grows.findOne({ id: subject.id }, { visibility: 1 }).lean<Pick<GrowDocument, 'visibility'>>();
+    if (grow?.visibility !== 'public') {
+      throw unprocessable(
+        'no_public_page',
+        'This grow is private, so it has no public page to link to. Make it public first, or share it with a read-only view link.',
+      );
+    }
   }
 
   /** A link belongs to somebody, and a demo session is nobody. */
