@@ -683,8 +683,11 @@ describe('the Telegram link', () => {
 
   it('is worth nothing when it has been changed, or signed with something else', () => {
     const token = mintTelegramLink(SECRET, userId, new Date(Date.now() + LINK_VALID_MS))!;
+    // Never the character it already ends in, which the signature does one
+    // minute in sixty-four.
+    const changed = `${token.slice(0, -1)}${token.endsWith('x') ? 'y' : 'x'}`;
 
-    expect(readTelegramLink(SECRET, `${token.slice(0, -1)}x`)).toBeNull();
+    expect(readTelegramLink(SECRET, changed)).toBeNull();
     expect(readTelegramLink('another-secret', token)).toBeNull();
     expect(readTelegramLink(SECRET, 'nonsense')).toBeNull();
   });
