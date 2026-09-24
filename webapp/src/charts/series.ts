@@ -132,7 +132,9 @@ export const plotOption = (palette: ChartPalette, plot: Plot): ChartOption => {
         silent: true,
         symbol: 'none',
         label: { show: false },
-        lineStyle: { color: palette.green, width: 1, type: 'solid' as const },
+        // Half strength: at full ink the two rules of the second band read as
+        // two more curves, level ones, among the lines they are the target of.
+        lineStyle: { color: palette.green, width: 1, type: 'solid' as const, opacity: 0.5 },
         data: (index === filled ? [] : (line.bands ?? [])).flatMap(band => [
           [
             { xAxis: band.from, yAxis: band.low },
