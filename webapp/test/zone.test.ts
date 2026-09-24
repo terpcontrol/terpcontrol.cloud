@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { dayOf, startOfDayOn } from '@/ui/days';
-import { clock, CLOCK, datedClock, nowThere, zoned, zonedAt } from '@/ui/zone';
+import { clock, CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, datedClock, DAY, nowThere, zoned, zonedAt } from '@/ui/zone';
 
 /**
  * The zone a clock time is drawn in, and the sweep that keeps it that way.
@@ -133,7 +133,7 @@ describe('every clock time and every date the app writes', () => {
    * and a chart's x in - a number of milliseconds is always an instant here,
    * never a bare date, so there is no zone-free reason to reach for one.
    */
-  const BORROWED = /\b(STAMPS|CLOCK|DATED_CLOCK|DAY|DAY_IN_YEAR|NARROW_DAY|WEEKDAY_DAY)\b|DateTime\.fromMillis\(/;
+  const BORROWED = /\b(STAMPS|CLOCK|DATED_CLOCK|DATED_CLOCK_WITH_YEAR|DAY|DAY_IN_YEAR|NARROW_DAY|WEEKDAY_DAY)\b|DateTime\.fromMillis\(/;
 
   const ZONE_IMPORT = /from '(@\/ui\/zone|\.\/zone|\.\.\/zone|\.\.\/\.\.\/ui\/zone)'/;
 
@@ -197,6 +197,73 @@ describe('every clock time and every date the app writes', () => {
     const using = files('src').filter(path => PRESET.test(readFileSync(resolve(process.cwd(), path), 'utf8')));
 
     expect(using).toEqual([]);
+  });
+});
+
+/**
+ * The one abbreviation a month has.
+ *
+ * The sweep above asks whether a file writes a date through the rule, and both
+ * of Luxon's month tokens satisfy it, so the app spelled the month two ways for
+ * a year without a single check objecting. `MMM` is the month as it is written
+ * inside a date and `LLL` is the month standing on its own: English spells the
+ * two alike for all twelve months, which is why nobody writing English saw it,
+ * and German spells them differently for eleven of the twelve. So one grow's
+ * first day read "19 Jan 2026" in a header and "T 1 · 19 Jan." in the diary
+ * line under it - one instant, one screen, two spellings - and a camera page
+ * wrote "19 Sept." two taps from an account page writing "23 Okt".
+ *
+ * The rule is `DAY`'s token, which is `LLL`, and this is where a file that
+ * reaches for the other one is stopped. It is the shape half of what the sweep
+ * above does for the zone, and it is blunt in the same way: it does not ask
+ * what the format is for, only that the month in it is spelled the way every
+ * other month in this app is.
+ */
+describe('the month token every date is written with', () => {
+  /** The month in words, in the spelling this app does not use. `MM` is a number and its own thing; `MMMM` is the same mistake spelled longer. */
+  const OTHER_MONTH = /(?<![A-Za-z])(MMMM|MMM)(?![A-Za-z])/;
+
+  /** `ui/zone.ts` is the rule, and it names the token it forbids in order to say why. */
+  const EXEMPT = ['src/ui/zone.ts'];
+
+  /**
+   * One file that still spells the month the other way and is not fixed here:
+   * a film's range is drawn in `screens/camera`, which is open in front of
+   * another pass, and two passes editing one file is a conflict rather than a
+   * fix. A debt and not a reason, so the check below insists it is still an
+   * offender - whoever fixes the file deletes the entry, or the suite fails
+   * asking why it is here.
+   */
+  const NOT_YET = ['src/screens/camera/Film.tsx'];
+
+  const spellsTheOtherMonth = (path: string): boolean => OTHER_MONTH.test(readFileSync(resolve(process.cwd(), path), 'utf8'));
+
+  it('writes one month in a dated stamp and in a date, which German is the half of the app that can tell', () => {
+    const winter = DateTime.fromISO('2026-01-19T13:39:00.000Z', { zone: 'UTC' }).setLocale('de');
+    const autumn = DateTime.fromISO('2026-09-17T19:34:00.000Z', { zone: 'UTC' }).setLocale('de');
+
+    expect(winter.toFormat(DAY)).toBe('19 Jan 2026');
+    expect(winter.toFormat(DATED_CLOCK)).toBe('19 Jan 13:39');
+    expect(winter.toFormat(DATED_CLOCK_WITH_YEAR)).toBe('19 Jan 2026 13:39');
+    expect(autumn.toFormat(DATED_CLOCK)).toBe('17 Sep 19:34');
+
+    // What the other token makes of the same two instants, which is what a
+    // grow's header and the diary line under it used to say together: a
+    // trailing point in January and a different word in September.
+    expect(winter.toFormat('d MMM HH:mm')).toBe('19 Jan. 13:39');
+    expect(autumn.toFormat('d MMM HH:mm')).toBe('17 Sept. 19:34');
+  });
+
+  it('is the one `DAY` uses, so that one day is not written two ways on one screen', () => {
+    const offenders = files('src')
+      .filter(path => !EXEMPT.includes(path) && !NOT_YET.includes(path))
+      .filter(spellsTheOtherMonth);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('still owes the spelling to the file another pass is holding, and will say so until it is fixed', () => {
+    expect(NOT_YET.filter(spellsTheOtherMonth)).toEqual(NOT_YET);
   });
 });
 

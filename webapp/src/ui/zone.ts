@@ -124,9 +124,6 @@ export const zonedAt = (millis: number, zone: string | null): DateTime => {
  */
 export const CLOCK = 'HH:mm';
 
-/** The day a clock time fell on, for an instant that is not today's. */
-export const DATED_CLOCK = 'd MMM HH:mm';
-
 /**
  * How a date is written: the day, the month in the reader's own three letters,
  * then the year.
@@ -163,6 +160,26 @@ export const DAY_IN_YEAR = 'd LLL';
  * in both.
  */
 export const WEEKDAY_DAY = `ccc ${DAY_IN_YEAR}`;
+
+/**
+ * The day a clock time fell on, for an instant that is not today's, and the
+ * same with the year for one from a year that is not this one.
+ *
+ * Built out of the dates above rather than spelled again, for the reason
+ * `WEEKDAY_DAY` is, and because spelling it by hand is what went wrong: these
+ * two read `d MMM HH:mm` and `d MMM yyyy HH:mm`, and Luxon's `MMM` is the month
+ * as it is written inside a date while `LLL` is the month standing on its own.
+ * English spells the two the same for all twelve months, so nobody writing
+ * English could see the difference; German spells them differently for eleven
+ * of the twelve. One grow's first day therefore read "19 Jan 2026" in the
+ * header and "T 1 · 19 Jan. 13:39" in the diary line under it, on one screen,
+ * for one instant - and the camera page wrote "19 Sept." two taps from an
+ * account page writing "23 Okt". A month has one abbreviation here, and it is
+ * the one `DAY` uses.
+ */
+export const DATED_CLOCK = `${DAY_IN_YEAR} ${CLOCK}`;
+
+export const DATED_CLOCK_WITH_YEAR = `${DAY} ${CLOCK}`;
 
 /**
  * A day in digits, for the one column too narrow to hold a month in words: the

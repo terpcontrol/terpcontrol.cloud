@@ -1,6 +1,6 @@
 import type { Metric, SpaceTimeline, TimelineAlarm, TimelinePanel, TimelineSpan, TimelineTarget, TimelineTargets } from '@fg2/shared-types/v1';
 import { niceScale } from '@/charts/series';
-import { zonedAt } from '@/ui/zone';
+import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY_IN_YEAR, zonedAt } from '@/ui/zone';
 
 /**
  * The arithmetic the stacked panels share: where an instant sits in the window,
@@ -23,7 +23,7 @@ const HOUR_MS = 60 * 60 * 1000;
  * before it, which is what lets a label be widened from the one a span picked
  * until two of them can no longer be read as the same instant.
  */
-export const STAMPS = ['HH:mm', 'ccc HH:mm', 'd MMM HH:mm', 'd MMM yyyy HH:mm'] as const;
+export const STAMPS = [CLOCK, `ccc ${CLOCK}`, DATED_CLOCK, DATED_CLOCK_WITH_YEAR] as const;
 
 /**
  * Which of them a window of this width is written with. A window of a day needs
@@ -54,14 +54,14 @@ export const stampForEnds = (span: number): number => (span <= 36 * HOUR_MS ? 0 
 
 /** A picture says which day it was taken whatever the window is: it is a thing from a moment rather than the moment itself. */
 export const captureOf = (time: number, span: number, zone: string | null = null): string =>
-  zonedAt(time, zone).toFormat(span <= 10 * 24 * HOUR_MS ? 'ccc HH:mm' : 'd MMM HH:mm');
+  zonedAt(time, zone).toFormat(span <= 10 * 24 * HOUR_MS ? `ccc ${CLOCK}` : DATED_CLOCK);
 
 /** The same rule for the axis, where the clock stops being worth the room a wide window gives it. */
 export const stopOf = (time: number, span: number, zone: string | null = null): string => {
   const stamp = zonedAt(time, zone);
-  if (span <= 36 * HOUR_MS) return stamp.toFormat('HH:mm');
+  if (span <= 36 * HOUR_MS) return stamp.toFormat(CLOCK);
   if (span <= 10 * 24 * HOUR_MS) return stamp.toFormat('ccc');
-  return stamp.toFormat('d MMM');
+  return stamp.toFormat(DAY_IN_YEAR);
 };
 
 /** Where an instant sits across the window, 0 at its left edge and 1 at its right. */

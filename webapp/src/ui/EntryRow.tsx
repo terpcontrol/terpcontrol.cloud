@@ -5,7 +5,7 @@ import type { Entry, Person, ReadingName } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { entryDetail } from '@/i18n/device-message';
 import { authorOf, headlineOf, KIND_ICON, readingFigure } from './entries';
-import { CLOCK, DATED_CLOCK, nowThere, useZone, zoned } from './zone';
+import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, nowThere, useZone, zoned } from './zone';
 import { Photo } from './Photo';
 import { PictureViewer } from './PictureViewer';
 import styles from './EntryRow.module.css';
@@ -58,7 +58,7 @@ const stampOf = (at: DateTime, now: DateTime): string => {
   if (at.hasSame(now, 'day')) return 'HH:mm';
   if (now.startOf('day').diff(at.startOf('day'), 'days').days < WEEKDAY_DAYS) return 'ccc HH:mm';
 
-  return at.hasSame(now, 'year') ? 'd MMM HH:mm' : 'd MMM yyyy HH:mm';
+  return at.hasSame(now, 'year') ? DATED_CLOCK : DATED_CLOCK_WITH_YEAR;
 };
 
 interface EntryRowProps {
