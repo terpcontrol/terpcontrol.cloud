@@ -47,13 +47,20 @@
   font-size: var(--text-xs);
 }
 
+/* The grow's measurements as one grouped list, a rule between rows, the way
+   a camera's settings are grouped - eight separate cards read as eight
+   separate things, where these are eight lines of one setting. */
 .list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
+  overflow: hidden;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 .card {
@@ -62,13 +69,25 @@
   gap: var(--space-3);
 }
 
+.list .card {
+  padding: var(--space-3) var(--space-4);
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.list .card + .card {
+  border-top: var(--rule-solid);
+}
+
 /* The card's own text is the way into the sheet, so the whole of it is the
    button rather than a pencil in the corner. */
 .cardMain {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 2px;
   min-width: 0;
   padding: 0;
   background: none;
@@ -93,7 +112,7 @@
 }
 
 .facts {
-  color: var(--muted);
+  color: var(--label);
   font-size: var(--text-xs);
 }
 
