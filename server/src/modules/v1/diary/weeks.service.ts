@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { z } from 'zod';
 import type { EntryKind, GrowWeekCard, GrowWeekCardPage, GrowWeekDay, GrowWeekFeeding, GrowWeekReading, SchemeAmount } from '@fg2/shared-types/v1';
 import { AccessRange, Grant } from '@common/v1/access.types';
 import { decodeCursor, pageOf } from '@common/v1/pages';
 import { Span, clampRange, overlapsRange, seenOf } from '@common/v1/range';
+import { pageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
@@ -45,6 +47,19 @@ import { spacesDuring } from './grow-places';
 /** How many weeks a page holds. Each one costs a time-series read, so a page is a screenful rather than a year. */
 const DEFAULT_WEEKS = 8;
 const MAX_WEEKS = 26;
+
+/** The page parameters of the three weeks lists, whose cap is their own rather than every other list's. */
+export const weeksQuery = pageQuery.extend({
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(
+      `How many weeks one read answers: ${DEFAULT_WEEKS} when left out, and ${MAX_WEEKS} when more than that is asked for rather than a refusal - ` +
+        'each week is a read of every controller that stood with the grow. The rest follows from `nextCursor`, which is non-null for as long as there are weeks left.',
+    ),
+});
 
 /** How many diary lines a card carries. The card draws two or three and says how many more there are. */
 const ENTRIES_PER_WEEK = 10;

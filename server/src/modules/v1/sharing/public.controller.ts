@@ -9,9 +9,10 @@ import { RateLimited, RateLimitGuard } from '@common/rate-limit.guard';
 import { Caller } from '@common/v1/access.guard';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage } from '@common/v1/pages';
-import { V1Query, pageQuery } from '@common/v1/validation';
+import { V1Query } from '@common/v1/validation';
 import { parseDimension } from '@modules/v1/camera/media-presentation.service';
 import { MediaDeliveryService } from '@modules/v1/camera/media-delivery.service';
+import { weeksQuery } from '@modules/v1/diary/weeks.service';
 import { appConfig } from '../../../config/configuration';
 import { PUBLIC_OPERATION } from '../../../openapi';
 import { V1Answer } from '../answer-shape';
@@ -84,7 +85,7 @@ export class PublicController {
   @RateLimited({ limit: 30, windowMs: MINUTE, message: 'Too many requests for shared diaries, please try again later.' })
   @ApiOperation({ summary: 'The weeks before the ones a shared diary carried', ...PUBLIC_OPERATION })
   @V1Answer(publicWeekPage)
-  public sharedWeeks(@Param('token') token: string, @V1Query(pageQuery) query: z.infer<typeof pageQuery>): Promise<CursorPage<GrowWeekCard>> {
+  public sharedWeeks(@Param('token') token: string, @V1Query(weeksQuery) query: z.infer<typeof weeksQuery>): Promise<CursorPage<GrowWeekCard>> {
     return this.pages.sharedWeeks(token, query);
   }
 
@@ -113,7 +114,7 @@ export class PublicController {
   public async weeks(
     @Caller() ctx: AccessContext,
     @Param('slug') slug: string,
-    @V1Query(pageQuery) query: z.infer<typeof pageQuery>,
+    @V1Query(weeksQuery) query: z.infer<typeof weeksQuery>,
   ): Promise<CursorPage<GrowWeekCard>> {
     const { grow, grant } = await this.pages.publicGrow(ctx, slug);
     return this.pages.weeksPage(grow, grant, query);

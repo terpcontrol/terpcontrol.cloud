@@ -334,6 +334,15 @@ describe('the document', () => {
     }
   });
 
+  it('states the page size of the weeks lists, which is not that of every other list', () => {
+    for (const path of ['/v1/grows/{id}/weeks', '/v1/shared/{token}/weeks', '/v1/public/grows/{slug}/weeks']) {
+      const said = declaredQuery(path).limit.description as string;
+      expect(said).toMatch(/\b8\b/);
+      expect(said).toMatch(/\b26\b/);
+      expect(said).not.toMatch(/\b200\b/);
+    }
+  });
+
   it('leaves no /v1 operation without a refusal', () => {
     // A contract that describes only the happy path is a contract nobody can
     // write a client against: the refusal is half of what a caller has to

@@ -5,11 +5,11 @@ import type { GrowReport, GrowWeekCardPage } from '@fg2/shared-types/v1';
 import { growReport, growWeekCardPage } from '@fg2/shared-types/v1-schemas';
 import { AccessGuard, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { Grant } from '@common/v1/access.types';
-import { V1Query, pageQuery } from '@common/v1/validation';
+import { V1Query } from '@common/v1/validation';
 import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { V1Answer } from '../answer-shape';
 import { GrowReportService } from './report.service';
-import { GrowWeeksService } from './weeks.service';
+import { GrowWeeksService, weeksQuery } from './weeks.service';
 
 /**
  * The two tabs of the grow page that are not the grow itself: the weeks it is
@@ -35,7 +35,7 @@ export class GrowWeeksController {
   public page(
     @CurrentGrant() grant: Grant,
     @Param('id') id: string,
-    @V1Query(pageQuery) query: z.infer<typeof pageQuery>,
+    @V1Query(weeksQuery) query: z.infer<typeof weeksQuery>,
   ): Promise<GrowWeekCardPage> {
     return this.weeks.page(id, grant, query);
   }
