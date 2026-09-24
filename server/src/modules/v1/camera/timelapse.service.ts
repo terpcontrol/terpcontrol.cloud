@@ -13,7 +13,7 @@ import { CamerasService } from './cameras.service';
 import { EntitlementService } from './entitlement.service';
 import { MediaPosition, MediaService } from './media.service';
 import { TimelapseContextService } from './timelapse-context.service';
-import { DEFAULT_ASPECT, FrameSize, OverlayFrame, composeFrame, overlayLayer, sizeFor, wasDark } from './timelapse-overlays';
+import { DEFAULT_ASPECT, FrameSize, INK, OverlayFrame, PANEL, TEXT_FAMILY, composeFrame, overlayLayer, sizeFor, wasDark } from './timelapse-overlays';
 
 /**
  * Rolls a camera's stills up into the films a client plays back, renders the
@@ -435,14 +435,15 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   /**
    * The mark a free render carries, as a picture rather than as drawn text:
    * ffmpeg's text filter needs a font and a build that has freetype in it, and
-   * an overlay needs neither.
+   * an overlay needs neither. It is set on the overlays' own plate, in their
+   * ink and their face, so the mark reads as part of the same film.
    */
   private async drawWatermark(directory: string): Promise<string> {
     const path = join(directory, 'watermark.png');
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="56">
-      <rect width="100%" height="100%" rx="10" fill="rgb(13,14,18)" fill-opacity="0.55"/>
+      <rect width="100%" height="100%" rx="10" fill="${PANEL}" fill-opacity="0.55"/>
       <text x="180" y="28" text-anchor="middle" dominant-baseline="central"
-            font-family="DejaVu Sans, sans-serif" font-size="26" fill="#f3f5f8">terpcontrol.com</text>
+            font-family="${TEXT_FAMILY}" font-size="26" font-weight="600" fill="${INK}">terpcontrol.com</text>
     </svg>`;
 
     await writeFile(path, await sharp(Buffer.from(svg)).png().toBuffer());

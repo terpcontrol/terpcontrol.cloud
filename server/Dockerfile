@@ -4,7 +4,8 @@ ARG DOCKER_NODE_SERVER_IMAGE
 FROM ${DOCKER_NODE_SERVER_IMAGE} as common-build-stage
 
 # ttf-dejavu: the offline caption drawn into webcam stills needs a font that
-# fontconfig can find, otherwise the text renders empty.
+# fontconfig can find, otherwise the text renders empty. It stays the fallback
+# behind the app's own faces, which are installed further down.
 RUN apk add --no-cache ffmpeg ttf-dejavu
 
 WORKDIR /app
@@ -27,6 +28,15 @@ RUN npm ci
 RUN npm --prefix /app/shared-types ci --omit=dev
 
 COPY server/ .
+
+# The text drawn into films and a shared link's card is set in the app's own
+# faces. librsvg reaches them through fontconfig, which reads no WOFF, so the
+# @fontsource files are unpacked to .ttf here, with a fonts.conf that adds them
+# to the system's fonts; scripts/install-fonts.mjs says the rest. The cache is
+# built now, as root, so the server's user never has to write one.
+RUN node scripts/install-fonts.mjs /app/fonts && FONTCONFIG_FILE=/app/fonts/fonts.conf fc-cache -f
+ENV FONTCONFIG_FILE=/app/fonts/fonts.conf
+
 EXPOSE 3000
 
 ENV NODE_ENV production

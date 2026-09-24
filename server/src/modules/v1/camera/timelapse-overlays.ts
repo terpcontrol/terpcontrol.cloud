@@ -15,8 +15,10 @@ import { TimelapseContext } from './timelapse-context.service';
  * day counter, which is a grow's own "where are we" and is set the way the app
  * sets a week's heading. librsvg finds a face through fontconfig, and only as a
  * TrueType or OpenType file - the WOFF and WOFF2 the web packages ship are not
- * read - so a container without the two installed draws DejaVu instead. The
- * film is readable either way.
+ * read - so the image unpacks the @fontsource faces into .ttf files when it is
+ * built and points FONTCONFIG_FILE at them (scripts/install-fonts.mjs). Run
+ * anywhere without that, the same layer draws in DejaVu or the system's sans,
+ * and the film is readable either way.
  */
 
 /**
