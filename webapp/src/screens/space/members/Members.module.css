@@ -222,7 +222,7 @@
 
 /* A yes is the green that means "may", a no only a quiet dash. */
 .mark[data-yes='true'] {
-  color: var(--green);
+  color: var(--green-ink);
 }
 
 /* Read aloud but not drawn: a bullet says nothing to a screen reader, and the

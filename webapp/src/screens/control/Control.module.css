@@ -239,6 +239,16 @@
   box-shadow: inset 3px 0 0 var(--warning);
 }
 
+/* The label grey loses its margin on the tint, so the number takes the row's colour. */
+.steps > .step[data-active='true'] .stepIndex {
+  color: var(--green-ink);
+}
+
+.steps > .step[data-status='paused'] .stepIndex,
+.steps > .step[data-status='waiting'] .stepIndex {
+  color: var(--warning);
+}
+
 .here[data-status='paused'],
 .here[data-status='waiting'] {
   color: var(--warning);
