@@ -337,6 +337,29 @@ describe('the camera page, by who is reading', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Taken. It is the newest picture of the day.');
   });
 
+  /**
+   * The same failure the banner above the frame already translates. The button
+   * printed what the server stored, which is English on every screen: a German
+   * page said "device aborted the capture" under a button called "Testbild".
+   */
+  it('names the kind of failure a press met, and keeps the camera´s own words under it for the owner', () => {
+    state.capture = { succeeded: false, mediaId: null, capturedAt: null, error: 'device aborted the capture' };
+    drawPage();
+
+    expect(screen.getByRole('alert')).toHaveTextContent('the camera stopped the capture');
+    expect(screen.getByText('What the camera said')).toBeInTheDocument();
+    expect(screen.getByText('device aborted the capture')).toBeInTheDocument();
+  });
+
+  it('gives a co-manager the kind of failure and not the words that name the hardware', () => {
+    state.youMay = 'manage';
+    state.capture = { succeeded: false, mediaId: null, capturedAt: null, error: 'rtsp://192.168.1.40/stream1 refused' };
+    drawPage();
+
+    expect(screen.getByRole('alert')).toHaveTextContent('the camera did not answer');
+    expect(screen.queryByText(/192\.168\.1\.40/)).not.toBeInTheDocument();
+  });
+
   /** A co-manager runs the tent and may set the camera up; ending it is still the owner's. */
   it('gives a co-manager the form and withholds the unpair', () => {
     state.youMay = 'manage';

@@ -246,7 +246,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
             {zonedAt(at(camera.state.lastStillAt), zone).toFormat(DATED_CLOCK)} · {t('devices.ago', { age: ageLabel(camera.state.lastStillAt, now) })}
           </span>
         ) : null}
-        {mayManage ? <TestImage cameraId={camera.id} /> : null}
+        {mayManage ? <TestImage cameraId={camera.id} mayOwn={mayOwn} /> : null}
       </div>
 
       {/* The scrubber walks between the day's pictures, so it is drawn where
@@ -440,13 +440,23 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  *
  * A request that never reached the server is neither of those two: the camera
  * was never asked, and the button may simply be pressed again.
+ *
+ * What a failed press says is the kind of failure it was, read by the same
+ * module the banner above the frame reads it with: the words the server hands
+ * back are English whatever the screen is set to, and "device aborted the
+ * capture" printed verbatim on a German page was the button saying in the
+ * server's language what the line four rows above was already saying in the
+ * grower's. The camera's own words stay for the person who can go and fix it,
+ * behind the disclosure the banner puts them behind and, like the banner, for
+ * the owner alone - they name the address the cloud reaches the hardware at.
  */
-function TestImage({ cameraId }: { cameraId: string }) {
+function TestImage({ cameraId, mayOwn }: { cameraId: string; mayOwn: boolean }) {
   const { t } = useTranslation();
   const test = useTestCapture(cameraId);
+  const failed = test.data && !test.data.succeeded ? test.data : null;
 
   return (
-    <span className={styles.testWrap}>
+    <div className={styles.testWrap}>
       <button type="button" className={`${ui.button} ${styles.test}`} disabled={test.isPending} onClick={() => test.mutate()}>
         {test.isPending ? t('camera.testing') : t('camera.testImage')}
       </button>
@@ -458,12 +468,18 @@ function TestImage({ cameraId }: { cameraId: string }) {
         <span className={`mono ${styles.testWorked}`} role="status">
           {t('camera.testWorked')}
         </span>
-      ) : test.data ? (
+      ) : failed ? (
         <span className={styles.testWhy} role="alert">
-          {test.data.error}
+          {t(causeOf(failed.error ?? ''))}
         </span>
       ) : null}
-    </span>
+      {mayOwn && failed?.error ? (
+        <details className={styles.testSaid}>
+          <summary className="mono">{t('camera.whatItSaid')}</summary>
+          <p className="mono">{failed.error}</p>
+        </details>
+      ) : null}
+    </div>
   );
 }
 

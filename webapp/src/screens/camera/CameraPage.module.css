@@ -144,6 +144,34 @@
   text-align: right;
 }
 
+/* The camera's own words about a failed test, under the button that asked for
+   it. They are a paragraph of ffmpeg with a tunnel port in it, so they are
+   folded away exactly as the banner above the frame folds them, and drawn on
+   the frame's own plate because they sit over the picture. */
+.testSaid {
+  max-width: 100%;
+  padding: var(--space-1) var(--space-2);
+  background: var(--toast);
+  border-radius: var(--radius);
+  text-align: left;
+}
+
+.testSaid summary {
+  font-size: var(--text-xs);
+  color: var(--toast-ink);
+  cursor: pointer;
+}
+
+.testSaid p {
+  /* One unbroken token from end to end, in a corner of the frame, so it is told
+     to break anywhere rather than to push the picture open. */
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--toast-ink);
+}
+
 /* What a member is told where the settings form and the film buttons are not. */
 .role {
   margin: 0;
