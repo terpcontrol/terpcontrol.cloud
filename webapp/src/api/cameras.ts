@@ -1,4 +1,5 @@
-import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { useRead, useReadPages } from './read';
 import type {
   Camera,
   CameraCreate,
@@ -25,7 +26,7 @@ export const CAMERAS_REFRESH_MS = 30_000;
 export const RENDER_POLL_MS = 5_000;
 
 export const useCameras = (spaceId?: string) =>
-  useQuery({
+  useRead({
     queryKey: ['cameras', spaceId ?? null],
     queryFn: ({ signal }) => api.get<CameraPage>('/cameras', spaceId ? { spaceId } : undefined, signal),
     refetchInterval: CAMERAS_REFRESH_MS,
@@ -45,7 +46,7 @@ export const useCameras = (spaceId?: string) =>
  * it, and not at all where there is no hardware that could pair anything.
  */
 export const useCamerasAsOpened = (enabled = true) =>
-  useQuery({
+  useRead({
     queryKey: ['cameras-as-opened'],
     queryFn: ({ signal }) => api.get<CameraPage>('/cameras', undefined, signal),
     staleTime: Infinity,
@@ -54,7 +55,7 @@ export const useCamerasAsOpened = (enabled = true) =>
   });
 
 export const useCamera = (cameraId: string) =>
-  useQuery({
+  useRead({
     queryKey: ['camera', cameraId],
     queryFn: ({ signal }) => api.get<Camera>(`/cameras/${cameraId}`, undefined, signal),
     refetchInterval: CAMERAS_REFRESH_MS,
@@ -110,7 +111,7 @@ export const useCameraFrames = (cameraId: string, span: { startsAt: string; ends
   const queryClient = useQueryClient();
   const queryKey = ['camera', cameraId, 'frames', span.startsAt, span.endsAt];
 
-  return useQuery({
+  return useRead({
     queryKey,
     queryFn: async ({ signal }): Promise<CameraDay> => {
       const held = queryClient.getQueryData<CameraDay>(queryKey) ?? null;
@@ -155,7 +156,7 @@ export const TIMELAPSES_PER_PAGE = 20;
  * own timelapses with no route to them at all.
  */
 export const useTimelapses = (cameraId: string) =>
-  useInfiniteQuery({
+  useReadPages({
     queryKey: ['camera', cameraId, 'timelapses'],
     queryFn: ({ pageParam, signal }) =>
       api.get<MediaPage>(`/cameras/${cameraId}/timelapses`, { limit: TIMELAPSES_PER_PAGE, cursor: pageParam }, signal),
@@ -165,7 +166,7 @@ export const useTimelapses = (cameraId: string) =>
 
 /** One media row, polled while its render is still going and left alone once it is not. */
 export const useMedia = (mediaId: string | null) =>
-  useQuery({
+  useRead({
     queryKey: ['media', mediaId],
     queryFn: ({ signal }) => api.get<Media>(`/media/${mediaId}`, undefined, signal),
     enabled: mediaId !== null,

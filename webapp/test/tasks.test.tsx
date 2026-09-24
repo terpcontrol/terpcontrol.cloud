@@ -187,11 +187,17 @@ const draw = () =>
     </QueryClientProvider>,
   );
 
-/** The screen, once the waiting list and the names of the places have both arrived. */
+/**
+ * The screen, once the waiting list, the names of the places and the rhythms
+ * have all arrived. The rhythms are their own read and land in their own render,
+ * so a spec that looks for one has to wait for it rather than for whichever read
+ * happened to be batched with it.
+ */
 const drawLoaded = async () => {
   draw();
   await screen.findByRole('radiogroup', { name: 'Whose tasks' });
   if (state.waiting.length > 0) await screen.findAllByText(/Spring run|Tent 1/);
+  if (state.rhythms.length > 0) await screen.findByRole('region', { name: 'Rhythms' });
 };
 
 const section = (name: string) => within(screen.getByRole('region', { name }));

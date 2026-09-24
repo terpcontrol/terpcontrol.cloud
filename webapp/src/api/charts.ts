@@ -1,4 +1,5 @@
-import { keepPreviousData, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { GrowSeries, GrowSeriesRange, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -53,7 +54,7 @@ export const askable = (window: SeriesWindow): boolean => window.range !== 'cust
 
 export const useGrowSeries = (growId: string | null, window: SeriesWindow) => {
   const client = useQueryClient();
-  const query = useQuery({
+  const query = useRead({
     queryKey: ['grow', growId, 'series', window],
     queryFn: ({ signal }) => api.get<GrowSeries>(`/grows/${growId}/series?${queryOf(window)}`, undefined, signal),
     enabled: growId !== null && askable(window),

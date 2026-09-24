@@ -1,4 +1,5 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { isFirstLoad, useRead } from './read';
 import type { AlarmRule, AlarmRuleCreate, AlarmRulePage, AlarmRuleUpdate, AlarmSilence } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -25,7 +26,7 @@ const readRules = (deviceId: string, signal?: AbortSignal) =>
   api.get<AlarmRulePage>(`/devices/${deviceId}/alarm-rules`, { limit: RULES_LIMIT }, signal);
 
 export const useDeviceAlarmRules = (deviceId: string) =>
-  useQuery({
+  useRead({
     queryKey: rulesKey(deviceId),
     queryFn: ({ signal }) => readRules(deviceId, signal),
     refetchInterval: RULES_REFRESH_MS,
@@ -51,7 +52,7 @@ export const useAlarmRulesOf = (deviceIds: string[], { refetchIntervalMs = RULES
     combine: results => {
       const byId = new Map<string, AlarmRule>();
       for (const result of results) for (const rule of result.data?.items ?? []) byId.set(rule.id, rule);
-      return { rules: byId, isPending: results.some(result => result.isPending) };
+      return { rules: byId, isPending: results.some(isFirstLoad) };
     },
   });
 

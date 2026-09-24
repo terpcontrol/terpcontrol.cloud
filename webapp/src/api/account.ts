@@ -1,4 +1,5 @@
-import { useInfiniteQuery, useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRead, useReadPages } from './read';
 import type {
   Me,
   MeUpdate,
@@ -48,7 +49,7 @@ export const useActivateAccount = () => useMutation({ mutationFn: (body: UserAct
  * says so rather than asking and drawing the refusal.
  */
 export const useMe = (refetchEveryMs: number | false = false, enabled = true) =>
-  useQuery({
+  useRead({
     queryKey: meKey,
     queryFn: ({ signal }) => api.get<Me>('/me', undefined, signal),
     refetchInterval: refetchEveryMs,
@@ -131,7 +132,7 @@ export const useChangePassword = () => useMutation({ mutationFn: (body: Password
 export const sessionsKey = ['sessions'];
 
 export const useSessions = (enabled = true) =>
-  useInfiniteQuery({
+  useReadPages({
     queryKey: sessionsKey,
     queryFn: ({ pageParam, signal }) => api.get<SessionPage>('/sessions', { cursor: pageParam }, signal),
     initialPageParam: null as string | null,

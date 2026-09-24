@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { ChartView, ChartViewCreate, ChartViewPage, ChartViewUpdate } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -16,7 +17,7 @@ export const chartViewsKey = ['chart-views'];
 
 /** One page is every view this account has, so there is no cursor to follow. */
 export const useChartViews = () =>
-  useQuery({
+  useRead({
     queryKey: chartViewsKey,
     queryFn: ({ signal }) => api.get<ChartViewPage>('/chart-views', { limit: 100 }, signal),
   });

@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { Device, DeviceClaimCreate, DeviceClaimResult, Space, SpaceUpdate } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -47,7 +48,7 @@ export const CLAIM_REFRESH_MS = 10_000;
  * would not make it any more readable.
  */
 export const useClaimedDevice = (deviceId: string | null) =>
-  useQuery({
+  useRead({
     queryKey: ['devices', deviceId],
     queryFn: ({ signal }) => api.get<Device>(`/devices/${deviceId}`, undefined, signal),
     enabled: deviceId !== null,

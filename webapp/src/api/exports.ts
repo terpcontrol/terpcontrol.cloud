@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { ExportAccepted, Media } from '@fg2/shared-types/v1';
 import { api, apiBlob } from './client';
 
@@ -74,7 +75,7 @@ export const useAskAccountExport = () => {
 
 /** One export's row, asked about while the zip is still being written and left alone once it is not. */
 export const useExport = (mediaId: string | null) =>
-  useQuery({
+  useRead({
     queryKey: ['media', mediaId],
     queryFn: ({ signal }) => api.get<Media>(`/media/${mediaId}`, undefined, signal),
     enabled: mediaId !== null,

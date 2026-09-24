@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { TaskPage } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -24,7 +24,7 @@ export const tasksKey = (done: boolean) => ['tasks', done ? 'done' : 'waiting'];
 
 /** What is waiting, the most overdue first - or, with `done`, what was ticked off in the last two days. */
 export const useTasks = (done: boolean) =>
-  useQuery({
+  useRead({
     queryKey: tasksKey(done),
     queryFn: ({ signal }) => api.get<TaskPage>('/tasks', { done, limit: LIMIT }, signal),
     refetchInterval: TASKS_REFRESH_MS,

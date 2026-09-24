@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { Reminder, ReminderCreate, ReminderUpdate } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { readEvery } from './pages';
@@ -23,7 +24,7 @@ export const remindersKey = ['reminders'];
  * arrangements, and nothing on the screen would say so.
  */
 export const useReminders = () =>
-  useQuery({
+  useRead({
     queryKey: remindersKey,
     queryFn: ({ signal }) => readEvery<Reminder>('/reminders', signal),
   });

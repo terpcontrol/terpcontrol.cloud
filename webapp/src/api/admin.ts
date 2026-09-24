@@ -1,4 +1,5 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRead, useReadPages } from './read';
 import type {
   AdminStats,
   AdminUserCreate,
@@ -60,7 +61,7 @@ export const firmwaresKey = (classId: string | null) => ['admin', 'firmwares', c
 
 /** What the fleet is running, class by class. The totals on the heading are this answer's, not a count of loaded rows. */
 export const useFleet = () =>
-  useQuery({
+  useRead({
     queryKey: fleetKey,
     queryFn: ({ signal }) => api.get<Fleet>('/admin/fleet', undefined, signal),
     refetchInterval: FLEET_REFRESH_MS,
@@ -79,7 +80,7 @@ export const useFleet = () =>
  * and not a night on which nothing happened.
  */
 export const useAdminStats = () =>
-  useQuery({
+  useRead({
     queryKey: adminStatsKey,
     queryFn: ({ signal }) => api.get<AdminStats>('/admin/stats', undefined, signal),
     refetchInterval: STATS_REFRESH_MS,
@@ -95,7 +96,7 @@ export const useAdminStats = () =>
  * whole.
  */
 export const useAdminCameras = () =>
-  useInfiniteQuery({
+  useReadPages({
     queryKey: adminCamerasKey,
     queryFn: ({ pageParam, signal }) => api.get<CameraPage>('/cameras', { limit: ADMIN_PAGE_LIMIT, cursor: pageParam }, signal),
     initialPageParam: null as string | null,
@@ -110,7 +111,7 @@ export const useAdminCameras = () =>
  * turn an id into the handle the board draws.
  */
 export const useAdminDevices = () =>
-  useInfiniteQuery({
+  useReadPages({
     queryKey: adminDevicesKey,
     queryFn: ({ pageParam, signal }) => api.get<DevicePage>('/admin/devices', { limit: ADMIN_PAGE_LIMIT, cursor: pageParam }, signal),
     initialPageParam: null as string | null,
@@ -125,7 +126,7 @@ export const useAdminDevices = () =>
  * written to a log by every proxy between here and the server.
  */
 export const useAdminUsers = () =>
-  useInfiniteQuery({
+  useReadPages({
     queryKey: adminUsersKey,
     queryFn: ({ pageParam, signal }) => api.get<AdminUserPage>('/admin/users', { limit: ADMIN_PAGE_LIMIT, cursor: pageParam }, signal),
     initialPageParam: null as string | null,
@@ -134,14 +135,14 @@ export const useAdminUsers = () =>
 
 /** The classes a rollout is staged on. There are as many as there are hardware types, so one page holds them. */
 export const useDeviceClasses = () =>
-  useQuery({
+  useRead({
     queryKey: deviceClassesKey,
     queryFn: ({ signal }) => api.get<DeviceClassPage>('/admin/device-classes', { limit: ADMIN_PAGE_LIMIT }, signal),
   });
 
 /** The registered builds, newest first, of one class or of all of them. */
 export const useFirmwares = (classId: string | null) =>
-  useInfiniteQuery({
+  useReadPages({
     queryKey: firmwaresKey(classId),
     queryFn: ({ pageParam, signal }) =>
       api.get<FirmwarePage>('/admin/firmwares', { limit: ADMIN_PAGE_LIMIT, cursor: pageParam, classId: classId ?? undefined }, signal),

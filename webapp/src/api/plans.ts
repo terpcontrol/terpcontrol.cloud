@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { Plan, PlanReplace, PlanTemplate, PlanTemplateCreate, PlanTemplatePage, PlanTransition } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { growChanged } from './lifecycle';
@@ -25,7 +26,7 @@ export const PLAN_REFRESH_MS = 30_000;
 export const planKey = (deviceId: string) => ['devices', deviceId, 'plan'];
 
 export const useDevicePlan = (deviceId: string) =>
-  useQuery({
+  useRead({
     queryKey: planKey(deviceId),
     queryFn: ({ signal }) => api.get<Plan>(`/devices/${deviceId}/plan`, undefined, signal),
     refetchInterval: PLAN_REFRESH_MS,
@@ -85,7 +86,7 @@ export const usePlanTransition = (deviceId: string) => {
 
 /** Every template this account may start from: its own, and the ones anybody published. Newest first. */
 export const usePlanTemplates = () =>
-  useQuery({
+  useRead({
     queryKey: ['plan-templates'],
     queryFn: ({ signal }) => api.get<PlanTemplatePage>('/plan-templates', { limit: 50 }, signal),
   });

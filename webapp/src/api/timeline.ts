@@ -1,4 +1,5 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { SpaceTimeline, TimelineRange } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -22,7 +23,7 @@ export const TIMELINE_REFRESH_MS = 60_000;
 export const rangeNeedsGrow = (range: TimelineRange): boolean => range === 'phase' || range === 'grow';
 
 export const useTimeline = (spaceId: string, range: TimelineRange, growId: string | null) =>
-  useQuery({
+  useRead({
     queryKey: ['space', spaceId, 'timeline', range, growId],
     queryFn: ({ signal }) => api.get<SpaceTimeline>(`/spaces/${spaceId}/timeline`, { range, growId }, signal),
     enabled: spaceId !== '' && (!rangeNeedsGrow(range) || growId !== null),

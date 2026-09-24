@@ -1,4 +1,5 @@
-import { useQuery, type QueryClient } from '@tanstack/react-query';
+import { type QueryClient } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { Entry, EntryCreate, EntryPage, EntryUpdate, Media, Phase, PhaseCreate, TaskCompletionCreate } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -19,7 +20,7 @@ const RECENT_LIMIT = 40;
 
 /** What was logged before, which is where a tile's defaults come from. Empty for a target that is neither. */
 export const useRecentEntries = (growId: string | null, spaceId: string | null) =>
-  useQuery({
+  useRead({
     queryKey: ['entries', 'recent', growId ?? spaceId ?? 'none'],
     queryFn: ({ signal }) =>
       api.get<EntryPage>(

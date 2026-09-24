@@ -1,4 +1,5 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { hasFailed, isFirstLoad, useRead } from './read';
 import type {
   DeviceCommand,
   DeviceCommandResult,
@@ -30,7 +31,7 @@ export const DEVICES_REFRESH_MS = 30_000;
  * seven.
  */
 export const useDevices = (enabled = true) =>
-  useQuery({
+  useRead({
     queryKey: ['devices'],
     queryFn: ({ signal }) => api.get<DevicePage>('/devices', undefined, signal),
     refetchInterval: DEVICES_REFRESH_MS,
@@ -53,8 +54,8 @@ export const useSocketTables = (deviceIds: string[]) =>
     })),
     combine: results => ({
       tables: new Map(deviceIds.map((deviceId, index) => [deviceId, results[index]?.data])),
-      isPending: results.some(result => result.isPending),
-      isError: results.some(result => result.isError),
+      isPending: results.some(isFirstLoad),
+      isError: results.some(hasFailed),
     }),
   });
 
@@ -98,7 +99,7 @@ export const useLiveReads = (deviceIds: string[]) =>
     combine: results => ({
       levels: new Map(deviceIds.map((deviceId, index) => [deviceId, lightLevel(results[index]?.data)])),
       measuredAt: new Map(deviceIds.map((deviceId, index) => [deviceId, newestInstant(results[index]?.data)])),
-      isPending: results.some(result => result.isPending),
+      isPending: results.some(isFirstLoad),
     }),
   });
 
@@ -138,7 +139,7 @@ export const useSaveConfiguration = () => {
 
 /** The builds of this device's class, which is how the id it reports gets a name. */
 export const useDeviceFirmwares = (deviceId: string, enabled: boolean) =>
-  useQuery({
+  useRead({
     queryKey: ['devices', deviceId, 'firmwares'],
     queryFn: ({ signal }) => api.get<FirmwarePage>(`/devices/${deviceId}/firmwares`, undefined, signal),
     enabled,

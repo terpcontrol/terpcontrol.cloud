@@ -1,4 +1,5 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRead, useReadPages } from './read';
 import type {
   Entry,
   EntryPage,
@@ -36,21 +37,21 @@ const PLANT_ENTRIES = 50;
  */
 
 export const useGrow = (growId: string | null) =>
-  useQuery({
+  useRead({
     queryKey: ['grow', growId],
     queryFn: ({ signal }) => api.get<GrowListItem>(`/grows/${growId}`, undefined, signal),
     enabled: growId !== null,
   });
 
 export const useGrowPlants = (growId: string | null) =>
-  useQuery({
+  useRead({
     queryKey: ['grow', growId, 'plants'],
     queryFn: ({ signal }) => api.get<PlantPage>(`/grows/${growId}/plants`, undefined, signal),
     enabled: growId !== null,
   });
 
 export const useGrowWeeks = (growId: string) =>
-  useInfiniteQuery({
+  useReadPages({
     queryKey: ['grow', growId, 'weeks'],
     queryFn: ({ pageParam, signal }) => api.get<GrowWeekCardPage>(`/grows/${growId}/weeks`, { cursor: pageParam }, signal),
     initialPageParam: null as string | null,
@@ -72,7 +73,7 @@ export const useGrowWeeks = (growId: string) =>
  * rows and half of them would otherwise be a second "there is more".
  */
 export const useWeekEntries = (growId: string, week: { startsAt: string; endsAt: string } | null) =>
-  useQuery({
+  useRead({
     queryKey: ['entries', 'week', growId, week?.startsAt ?? null],
     queryFn: ({ signal }) =>
       readEvery<Entry>('/entries', signal, { growId, startsAt: week!.startsAt, endsAt: week!.endsAt, kinds: DIARY_KINDS.join(',') }),
@@ -80,7 +81,7 @@ export const useWeekEntries = (growId: string, week: { startsAt: string; endsAt:
   });
 
 export const useGrowReport = (growId: string) =>
-  useQuery({
+  useRead({
     queryKey: ['grow', growId, 'report'],
     queryFn: ({ signal }) => api.get<GrowReport>(`/grows/${growId}/report`, undefined, signal),
   });
@@ -109,7 +110,7 @@ export const useUpdateGrow = (growId: string) => {
  * grow anybody has, so there is no cursor to follow.
  */
 export const useGrows = () =>
-  useQuery({
+  useRead({
     queryKey: ['grows', 'all'],
     queryFn: ({ signal }) => api.get<GrowPage>('/grows', { limit: 100 }, signal),
   });
@@ -123,7 +124,7 @@ export const useGrows = () =>
  * out, so a caller can tell "not there" from "not read".
  */
 export const useEveryGrow = () =>
-  useQuery({
+  useRead({
     queryKey: ['grows', 'every'],
     queryFn: ({ signal }) => readEvery<GrowListItem>('/grows', signal),
   });
@@ -134,7 +135,7 @@ export const useEveryGrow = () =>
  * the client can name both ends of.
  */
 export const useSpaceGrows = (spaceId: string | null) =>
-  useQuery({
+  useRead({
     queryKey: ['grows', 'space', spaceId],
     queryFn: ({ signal }) => api.get<GrowPage>('/grows', { spaceId }, signal),
     enabled: spaceId !== null,
@@ -149,7 +150,7 @@ export const useSpaceGrows = (spaceId: string | null) =>
  * what is growing there this minute holds exactly one of them.
  */
 export const useGrowsEverIn = (spaceId: string | null) =>
-  useQuery({
+  useRead({
     queryKey: ['grows', 'space', spaceId, 'ever'],
     queryFn: ({ signal }) => api.get<GrowPage>('/grows', { spaceId, including: 'ended' }, signal),
     enabled: spaceId !== null,
@@ -194,7 +195,7 @@ export const useCreateGrow = () => {
 export const useGrowSeries = (growId: string | null, range: GrowSeriesRange, measurements: string[]) => {
   const keys = [...measurements].sort();
 
-  return useQuery({
+  return useRead({
     queryKey: ['grow', growId, 'series', range, keys],
     queryFn: ({ signal }) => {
       const query = new URLSearchParams([['range', range], ...keys.map((key): [string, string] => ['measurements', key])]);
@@ -212,7 +213,7 @@ export const useGrowSeries = (growId: string | null, range: GrowSeriesRange, mea
  * watered by itself.
  */
 export const usePlantEntries = (plantId: string) =>
-  useQuery({
+  useRead({
     queryKey: ['entries', 'plant', plantId],
     queryFn: ({ signal }) => api.get<EntryPage>('/entries', { plantId, limit: PLANT_ENTRIES }, signal),
   });

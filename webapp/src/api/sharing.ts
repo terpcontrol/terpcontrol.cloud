@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { Follow, FollowPage, ShareLink, ShareLinkCreate, ShareLinkPage, ShareLinkUpdate } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -13,7 +14,7 @@ import { api } from './client';
  */
 
 export const useShareLinks = () =>
-  useQuery({
+  useRead({
     queryKey: ['share-links'],
     queryFn: ({ signal }) => api.get<ShareLinkPage>('/share-links', { limit: 100 }, signal),
   });
@@ -40,7 +41,7 @@ export const useDeleteShareLink = () => useLinkMutation((id: string) => api.dele
  * whether the button reads "Follow" or "Following".
  */
 export const useFollows = (enabled: boolean) =>
-  useQuery({
+  useRead({
     queryKey: ['follows'],
     queryFn: ({ signal }) => api.get<FollowPage>('/follows', { limit: 100 }, signal),
     enabled,

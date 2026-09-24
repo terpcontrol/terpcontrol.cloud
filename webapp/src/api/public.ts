@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useRead, useReadPages } from './read';
 import type { GrowWeekCard, PublicGrowPage, PublicUserPage, PublicWeekPage, SharedResolution } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { v1 } from './config';
@@ -25,13 +25,13 @@ import { v1 } from './config';
 export type Picture = (mediaId: string, width?: number) => string;
 
 export const usePublicGrow = (slug: string) =>
-  useQuery({
+  useRead({
     queryKey: ['public', 'grow', slug],
     queryFn: ({ signal }) => api.get<PublicGrowPage>(`/public/grows/${encodeURIComponent(slug)}`, undefined, signal),
   });
 
 export const usePublicUser = (handle: string) =>
-  useQuery({
+  useRead({
     queryKey: ['public', 'user', handle],
     queryFn: ({ signal }) => api.get<PublicUserPage>(`/public/users/${encodeURIComponent(handle)}`, undefined, signal),
   });
@@ -59,7 +59,7 @@ export interface EarlierWeeks {
  * is anything earlier at all.
  */
 const useEarlierWeeks = (queryKey: unknown[], path: string, from: string | null): EarlierWeeks => {
-  const query = useInfiniteQuery({
+  const query = useReadPages({
     queryKey: [...queryKey, 'weeks', from],
     queryFn: ({ pageParam, signal }) => api.get<PublicWeekPage>(path, { cursor: pageParam }, signal),
     initialPageParam: from,
@@ -89,7 +89,7 @@ export const useSharedWeeks = (token: string, from: string | null) =>
  * say only that the address leads nowhere.
  */
 export const useSharedLink = (token: string) =>
-  useQuery({
+  useRead({
     queryKey: ['shared', token],
     queryFn: ({ signal }) => api.get<SharedResolution>(`/shared/${encodeURIComponent(token)}`, undefined, signal),
   });

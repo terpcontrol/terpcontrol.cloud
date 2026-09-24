@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { HomeAnswer } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -10,7 +10,7 @@ import { api } from './client';
 export const HOME_REFRESH_MS = 30_000;
 
 export const useHome = () =>
-  useQuery({
+  useRead({
     queryKey: ['home'],
     queryFn: ({ signal }) => api.get<HomeAnswer>('/home', undefined, signal),
     refetchInterval: HOME_REFRESH_MS,

@@ -1,4 +1,5 @@
-import { type QueryKey, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryKey, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { Membership, MembershipCreate, MembershipPage, MembershipUpdate } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { invitesKey } from './invites';
@@ -19,7 +20,7 @@ import { invitesKey } from './invites';
 export const membersKey = (spaceId: string) => ['space', spaceId, 'members'];
 
 export const useMembers = (spaceId: string, enabled = true) =>
-  useQuery({
+  useRead({
     queryKey: membersKey(spaceId),
     queryFn: ({ signal }) => api.get<MembershipPage>(`/spaces/${spaceId}/members`, { limit: 100 }, signal),
     enabled,

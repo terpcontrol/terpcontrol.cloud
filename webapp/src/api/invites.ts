@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { Invite, InviteAcceptance, InviteCreate, InvitePage, InvitePreview } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -19,7 +20,7 @@ import { api } from './client';
 export const invitesKey = (spaceId: string) => ['space', spaceId, 'invites'];
 
 export const useInvites = (spaceId: string, enabled = true) =>
-  useQuery({
+  useRead({
     queryKey: invitesKey(spaceId),
     queryFn: ({ signal }) => api.get<InvitePage>(`/spaces/${spaceId}/invites`, { limit: 100 }, signal),
     enabled,
@@ -45,7 +46,7 @@ export const useForgetInvite = (spaceId: string) => useInviteMutation(spaceId, (
  * page that polled would spend somebody else's budget for them.
  */
 export const useInvitePreview = (code: string) =>
-  useQuery({
+  useRead({
     queryKey: ['invite', code],
     queryFn: ({ signal }) => api.get<InvitePreview>(`/invites/${encodeURIComponent(code)}`, undefined, signal),
     staleTime: Infinity,

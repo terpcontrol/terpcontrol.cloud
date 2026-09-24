@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useReadPages } from './read';
 import type { AlertPage } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -27,7 +27,7 @@ export const MANY_OPEN = 99;
 export const alertsKey = (open: boolean) => ['alerts', open ? 'open' : 'closed'];
 
 const useAlerts = (open: boolean) =>
-  useInfiniteQuery({
+  useReadPages({
     queryKey: alertsKey(open),
     queryFn: ({ pageParam, signal }) => api.get<AlertPage>('/alerts', { open, limit: ALERTS_LIMIT, cursor: pageParam }, signal),
     initialPageParam: null as string | null,

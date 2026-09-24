@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { PresetPrompt, Space, SpaceLive, SpaceOverview, SpacePage } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { readEvery } from './pages';
@@ -19,7 +20,7 @@ export const LIVE_REFRESH_MS = 30_000;
  * got a place for.
  */
 export const useSpaces = (enabled = true) =>
-  useQuery({
+  useRead({
     queryKey: ['spaces'],
     queryFn: ({ signal }) => api.get<SpacePage>('/spaces', undefined, signal),
     enabled,
@@ -34,20 +35,20 @@ export const useSpaces = (enabled = true) =>
  * caller can tell "not there" from "not read".
  */
 export const useEverySpace = () =>
-  useQuery({
+  useRead({
     queryKey: ['spaces', 'every'],
     queryFn: ({ signal }) => readEvery<Space>('/spaces', signal),
   });
 
 export const useSpaceOverview = (spaceId: string) =>
-  useQuery({
+  useRead({
     queryKey: ['space', spaceId, 'overview'],
     queryFn: ({ signal }) => api.get<SpaceOverview>(`/spaces/${spaceId}/overview`, undefined, signal),
     refetchInterval: OVERVIEW_REFRESH_MS,
   });
 
 export const useSpaceLive = (spaceId: string, enabled: boolean) =>
-  useQuery({
+  useRead({
     queryKey: ['space', spaceId, 'live'],
     queryFn: ({ signal }) => api.get<SpaceLive>(`/spaces/${spaceId}/live`, undefined, signal),
     refetchInterval: LIVE_REFRESH_MS,

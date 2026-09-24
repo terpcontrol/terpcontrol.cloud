@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRead } from './read';
 import type { GrowScheme, GrowSchemeOrigin, GrowType, Scheme, SchemeCreate, SchemePage, SchemeUpdate, SchemeWeek } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -91,7 +92,7 @@ const FOREVER = { staleTime: Infinity, gcTime: Infinity } as const;
  * fail, so the sheet says so instead of asserting an empty shelf.
  */
 export const useSchemes = () =>
-  useQuery({
+  useRead({
     queryKey: schemesKey,
     queryFn: async ({ signal }) => {
       try {
@@ -106,7 +107,7 @@ export const useSchemes = () =>
 
 /** One scheme with its grid, read when somebody has chosen it. */
 export const useScheme = (id: string | null) =>
-  useQuery({
+  useRead({
     queryKey: schemeKey(id),
     queryFn: ({ signal }) => readAsset<SchemeAsset>(`${id}.json`, signal),
     enabled: id !== null,
@@ -168,7 +169,7 @@ export const ownSchemesKey = ['own-schemes'];
  * no account to keep one on - says so rather than asking.
  */
 export const useOwnSchemes = (enabled = true) =>
-  useQuery({
+  useRead({
     queryKey: ownSchemesKey,
     queryFn: ({ signal }) => api.get<SchemePage>('/schemes', { limit: 100 }, signal),
     enabled,
