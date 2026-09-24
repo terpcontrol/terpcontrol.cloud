@@ -840,6 +840,7 @@
     "premium": "Premium",
     "noStill": "noch kein Bild",
     "ago": "vor {{age}}",
+    "buildUnread": "ließ sich nicht lesen",
     "fact": {
       "id": "Geräte-ID",
       "type": "Typ",

@@ -361,7 +361,26 @@ function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now }: De
                 already translated. A type from a newer contract than this build
                 still prints, rather than showing a missing key. */}
             <Fact label={t('devices.fact.type')} value={t(`devices.type.${device.type}`, { defaultValue: device.type })} />
-            <Fact label={t('devices.fact.build')} value={buildLabel(build) ?? (firmwares.isPending ? t('home.waiting') : '—')} />
+            <Fact
+              label={t('devices.fact.build')}
+              value={
+                buildLabel(build) ??
+                (firmwares.isPending ? (
+                  t('home.waiting')
+                ) : firmwares.isError ? (
+                  // A read that failed is not a build nobody knows, so it does
+                  // not print the same dash.
+                  <>
+                    {t('devices.buildUnread')}{' '}
+                    <button type="button" className={ui.chip} onClick={() => void firmwares.refetch()}>
+                      {t('home.retry')}
+                    </button>
+                  </>
+                ) : (
+                  '—'
+                ))
+              }
+            />
             <Fact label={t('devices.fact.channel')} value={t(`devices.channel.${device.firmware.channel}`)} />
             {drivesSockets && sockets ? <Fact label={t('devices.fact.can')} value={capabilityLine(t, sockets)} /> : null}
             {place && linked && device.spaceId ? (

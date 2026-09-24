@@ -922,6 +922,23 @@ describe('what the Devices tab calls a device', () => {
     expect(screen.getByText('Takes')).toBeInTheDocument();
   });
 
+  /** A build list that never came back ended as the dash a device with no known build gets. */
+  it('says a build it could not read could not be read, and reads it again on asking', async () => {
+    const build = { id: 'fw-1', name: 'controller', version: '2.4.0' };
+    let fails = true;
+    await drawOpened(
+      standing({ state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: build.id } } as Partial<Device>),
+      () => (fails ? Promise.reject(new Error('timed out')) : Promise.resolve({ items: [build], nextCursor: null })),
+      /What Controller · C0FFEE is/,
+    );
+
+    expect(await screen.findByText(/could not be read/, undefined, { timeout: 8000 })).toBeInTheDocument();
+    fails = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByText('2.4.0')).toBeInTheDocument();
+  }, 10000);
+
   it('draws a camera that inherited its controller´s type key by what is printed on the cam', async () => {
     list.devices = [standing({})];
     list.cameras = [hanging({ name: 'controller', did: 'TCAM00A41C' })];

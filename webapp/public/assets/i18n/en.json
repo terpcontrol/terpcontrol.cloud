@@ -844,6 +844,7 @@
     "premium": "Premium",
     "noStill": "no picture yet",
     "ago": "{{age}} ago",
+    "buildUnread": "could not be read",
     "fact": {
       "id": "Device id",
       "type": "Type",
