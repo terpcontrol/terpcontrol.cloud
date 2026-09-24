@@ -5,7 +5,7 @@ import type { FollowedGrowCard, GrowWeekCard, LinkCard, PublicAuthor, PublicGrow
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { CursorPage } from '@common/v1/pages';
-import { clampRange, outsideRange, storyEndsAt } from '@common/v1/range';
+import { clampRange, pictureOutsideRange, storyEndsAt } from '@common/v1/range';
 import { notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -384,9 +384,17 @@ export class PublicPagesService {
  * What the page draws is what it may fetch: a photo logged against the grow, its
  * cover, its film, the author's avatar, and a still of a camera that looked into
  * a space the plants stood in while they stood there. Anything else - a picture
- * of the same owner's other tent, a still taken after a link's window closed, a
+ * of the same owner's other tent, a picture taken after a link's window closed, a
  * still at all through a link that carries no cameras - is not there, even
  * though the same bytes sit in the same bucket.
+ *
+ * The order is the argument. The two pictures the grow is told under and the
+ * face beside its byline are named rather than dated, and a page a reader is
+ * holding is drawn with them whatever fortnight they were sent. Everything else
+ * is asked the window first, by the one rule that decides it everywhere, so that
+ * a photo cannot walk through a door a still is refused at: they hang off the
+ * same diary, the diary's own lines are clamped, and a photo is the picture a
+ * diary is mostly made of.
  */
 export const belongsToGrow = (
   grow: GrowDocument,
@@ -396,18 +404,18 @@ export const belongsToGrow = (
   cameraSpaceId: string | null,
 ): boolean => {
   if (picture.id === grow.coverMediaId || picture.id === grow.filmMediaId) return true;
-  if (picture.growId === grow.id) return true;
   // The author's own picture, which the page draws beside their handle. It
   // belongs to no grow and to no camera, so nothing else would ever let it out.
   if (avatarMediaId !== null && picture.id === avatarMediaId) return true;
 
-  if (picture.cameraId === null || !grant.includeCameras || cameraSpaceId === null) return false;
+  if (pictureOutsideRange(picture, clampRange(grant))) return false;
 
-  const takenAt = picture.capturedAt;
-  if (outsideRange(takenAt, clampRange(grant))) return false;
+  if (picture.growId === grow.id) return true;
+  if (picture.cameraId === null || !grant.includeCameras || cameraSpaceId === null) return false;
 
   // A camera that has since been removed keeps its pictures, so its tombstone
   // counts here exactly as a camera still hanging in the tent does.
+  const takenAt = picture.capturedAt;
   return spacesDuring(grow, takenAt, new Date(takenAt.getTime() + 1)).includes(cameraSpaceId);
 };
 

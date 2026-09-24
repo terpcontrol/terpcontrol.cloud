@@ -344,6 +344,52 @@ describe('one still of a shared camera', () => {
   });
 
   /**
+   * A photo is reached through the diary line that carries it, and that line has
+   * a day on it and is clamped to the same window. So the exemption that keeps a
+   * cover on its page had been letting through every photograph of the run as
+   * well - the picture a diary is mostly made of - on a link that was never
+   * asked for cameras at all.
+   */
+  it('is not there where a diary photo was taken outside the window, on a link that carries no cameras', async () => {
+    const run = await startAGrow({ name: 'Photographed for a fortnight', startedAt: daysAgo(60).toISOString() });
+    await owner.client
+      .post(`/v1/grows/${run.id}/phases`)
+      .send({ stage: 'flowering', startedAt: daysAgo(60).toISOString() })
+      .expect(201);
+
+    const photoTaken = async (days: number): Promise<string> =>
+      (
+        await owner.client
+          .post('/v1/media')
+          .field('kind', 'photo')
+          .field('growId', run.id)
+          .field('capturedAt', daysAgo(days).toISOString())
+          .attach('file', A_PICTURE, 'leaf.jpg')
+          .expect(201)
+      ).body.id;
+
+    const inside = await photoTaken(40);
+    const outside = await photoTaken(20);
+
+    const link = await linkOnto(
+      { type: 'grow', id: run.id },
+      { range: { startsAt: daysAgo(45).toISOString(), endsAt: daysAgo(35).toISOString() }, includeCameras: false },
+    );
+    const withToken = (path: string) => anonymous().get(path).set('X-Share-Token', link.token);
+
+    await withToken(`/v1/media/${inside}`).expect(200);
+    await withToken(`/v1/media/${inside}/content`).expect(200);
+
+    const refused = await withToken(`/v1/media/${outside}`).expect(404);
+    expect(refused.body.code).toBe('media_not_found');
+    await anonymous().get(`/v1/media/${outside}/content?share=${link.token}`).expect(404);
+
+    // The owner's own window is open at both ends, so nothing has been taken
+    // away from the person whose photographs these are.
+    await owner.client.get(`/v1/media/${outside}`).expect(200);
+  });
+
+  /**
    * Narrowing a link is what `PATCH /share-links/{id}` is for, and it has to
    * take back the pictures the holder has already written down as well as the
    * listing they came from.

@@ -112,6 +112,36 @@ describe('which pictures a public diary lets out', () => {
   it('keeps back a photo somebody logged against another grow', () => {
     expect(belongsToGrow(grow(), grant(), picture({ cameraId: null, growId: 'grow-somebody-else' }), null, null)).toBe(false);
   });
+
+  /**
+   * A photo hangs off a diary line, and a diary line has a day on it and is
+   * clamped to the window like every other. Letting the photo through because it
+   * names the grow would hand a reader sent one fortnight the photographs of the
+   * whole run, one id at a time.
+   */
+  it('keeps back a photo of this very grow taken outside the window the reader was given', () => {
+    const narrow = grant({ range: { startsAt: MAY, endsAt: new Date('2026-05-10T00:00:00.000Z') } });
+    const photo = (capturedAt: Date): MediaDocument => picture({ id: 'media-photo', kind: 'photo', cameraId: null, growId: 'grow-1', capturedAt });
+
+    expect(belongsToGrow(grow(), narrow, photo(new Date('2026-05-05T12:00:00.000Z')), null, null)).toBe(true);
+    expect(belongsToGrow(grow(), narrow, photo(new Date('2026-05-15T12:00:00.000Z')), null, null)).toBe(false);
+  });
+
+  /**
+   * What the window does not date is what the page is told under: the grow names
+   * its cover and its film, and the byline names the face beside it. A reader
+   * holding the page holds those whatever fortnight they were sent.
+   */
+  it('still lets out the cover, the film and the author´s face from outside the window', () => {
+    const narrow = grant({ range: { startsAt: MAY, endsAt: new Date('2026-05-10T00:00:00.000Z') } });
+    const late = new Date('2026-06-15T12:00:00.000Z');
+
+    expect(belongsToGrow(grow(), narrow, picture({ id: 'media-cover', kind: 'photo', cameraId: null, capturedAt: late }), null, null)).toBe(true);
+    expect(belongsToGrow(grow(), narrow, picture({ id: 'media-film', cameraId: null, capturedAt: late }), null, null)).toBe(true);
+    expect(
+      belongsToGrow(grow(), narrow, picture({ id: 'media-avatar', kind: 'avatar', cameraId: null, capturedAt: late }), 'media-avatar', null),
+    ).toBe(true);
+  });
 });
 
 describe('the shell a crawler reads', () => {

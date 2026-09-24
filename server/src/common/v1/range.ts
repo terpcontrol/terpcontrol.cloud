@@ -1,3 +1,4 @@
+import type { MediaKind } from '@fg2/shared-types/v1';
 import { AccessRange } from './access.types';
 
 /**
@@ -46,6 +47,43 @@ export const overlapsRange = (range: AccessRange, startsAt: Date, endsAt: Date):
  */
 export const outsideRange = (at: Date, range: AccessRange): boolean =>
   (range.startsAt !== null && at < range.startsAt) || (range.endsAt !== null && at > range.endsAt);
+
+/**
+ * A picture, as a window sees it: what it is, and when the shutter closed.
+ *
+ * Structural rather than the stored document, because the rule is about those
+ * two fields and the two places that ask it hold different rows.
+ */
+export interface DatedPicture {
+  kind: MediaKind;
+  capturedAt: Date;
+}
+
+/**
+ * The kinds of picture a window means anything for.
+ *
+ * A window is about when something happened, so it narrows what a reader
+ * arrives at by its date and leaves alone what they arrive at by name. A still
+ * and the film built out of stills are dated by the shutter. A photo is dated
+ * by the diary line that carries it, and that line is clamped to the same
+ * window - so a photo a reader may not have the line of is a photo they may not
+ * have, however they ask for it. An avatar is a face and an export is a file its
+ * asker ordered: neither hangs off a day, and dating them would take the
+ * author's picture off a page the reader is holding.
+ */
+const DATED_KINDS: ReadonlySet<MediaKind> = new Set<MediaKind>(['still', 'timelapse', 'photo']);
+
+/**
+ * Whether a picture was taken outside the window a reader holds.
+ *
+ * The one place the rule lives, because it was written three times before and
+ * two of the copies were wider than the third. A route that answers a picture
+ * by its id asks this for itself: a grant reaches the grow or the tent, not each
+ * of the pictures hanging off it, so without it a link sent one fortnight hands
+ * out the rest of the run one id at a time.
+ */
+export const pictureOutsideRange = (picture: DatedPicture, range: AccessRange): boolean =>
+  DATED_KINDS.has(picture.kind) && outsideRange(picture.capturedAt, range);
 
 /** A stretch of time with both ends named, which is what a span narrowed to a window always has. */
 export interface Span {
