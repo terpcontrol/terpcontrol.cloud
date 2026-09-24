@@ -2252,7 +2252,7 @@
         "tent": "Tent",
         "fridge": "Fridge",
         "balcony": "Balcony",
-        "other": "Somewhere else"
+        "other": "Other place"
       },
       "makeSpace": "Make the space",
       "makingSpace": "Making the space …",
@@ -3238,7 +3238,7 @@
           "tent": "Tent",
           "room": "Room",
           "balcony": "Balcony",
-          "other": "Somewhere else"
+          "other": "Other place"
         },
         "makePlace": "Make the place",
         "makingPlace": "Making the place …",
@@ -3315,7 +3315,7 @@
       "fridge": "Fridge",
       "room": "Room",
       "balcony": "Balcony",
-      "other": "Place"
+      "other": "Other place"
     },
     "noDiary": {
       "title": "Nothing to read here",
@@ -3876,9 +3876,9 @@
       "renaming": "renaming…",
       "kindLabel": "What kind of place it is",
       "kind": {
-        "tent": "tent",
-        "fridge": "fridge",
-        "other": "other"
+        "tent": "Tent",
+        "fridge": "Fridge",
+        "other": "Other place"
       },
       "unknown": "no place yet"
     },

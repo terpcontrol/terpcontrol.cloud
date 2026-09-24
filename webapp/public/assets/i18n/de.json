@@ -2248,7 +2248,7 @@
         "tent": "Zelt",
         "fridge": "Kühlschrank",
         "balcony": "Balkon",
-        "other": "Woanders"
+        "other": "Anderer Ort"
       },
       "makeSpace": "Bereich anlegen",
       "makingSpace": "Wird angelegt …",
@@ -3234,7 +3234,7 @@
           "tent": "Zelt",
           "room": "Raum",
           "balcony": "Balkon",
-          "other": "Woanders"
+          "other": "Anderer Ort"
         },
         "makePlace": "Bereich anlegen",
         "makingPlace": "Wird angelegt …",
@@ -3311,7 +3311,7 @@
       "fridge": "Kühlschrank",
       "room": "Raum",
       "balcony": "Balkon",
-      "other": "Ort"
+      "other": "Anderer Ort"
     },
     "noDiary": {
       "title": "Hier gibt es nichts zu lesen",
@@ -3874,7 +3874,7 @@
       "kind": {
         "tent": "Zelt",
         "fridge": "Kühlschrank",
-        "other": "anderes"
+        "other": "Anderer Ort"
       },
       "unknown": "noch kein Bereich"
     },
