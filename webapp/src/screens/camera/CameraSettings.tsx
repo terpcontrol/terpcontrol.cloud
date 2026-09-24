@@ -6,13 +6,13 @@ import type { Camera, CameraUpdate } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
-import { ApiError } from '@/api/problem';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { countdownDays } from '@/screens/me/premium/entitlement';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import styles from './CameraPage.module.css';
+import { refusalText } from '@/ui/refusal';
 
 /**
  * What the camera itself is set to: how it is reached, what it is pointed at,
@@ -184,7 +184,7 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
 
       {update.error ? (
         <p className={ui.problem} role="alert">
-          {update.error instanceof ApiError ? update.error.problem.detail || update.error.problem.title : t('camera.saveFailed')}
+          {refusalText(update.error, t('camera.saveFailed'))}
         </p>
       ) : null}
 

@@ -4169,5 +4169,32 @@
     "min": "min",
     "h": "h",
     "d": "d"
+  },
+  "problem": {
+    "status": {
+      "invalid": "The server did not accept that. Check what was entered and try again.",
+      "forbidden": "You may not do that here.",
+      "missing": "That is no longer there. Reload the page to see what is.",
+      "conflict": "That cannot be done right now, because something changed in the meantime. Reload the page and try again.",
+      "tooMany": "Too many attempts in a short time. Wait a minute and try again.",
+      "fault": "The server ran into a fault. Please try again."
+    },
+    "code": {
+      "space_not_found": "That place is not there any more, or you may not see it.",
+      "device_not_found": "That device is not there any more, or you may not see it.",
+      "grow_not_found": "That grow is not there any more, or you may not see it.",
+      "camera_not_found": "That camera is not there any more, or you may not see it.",
+      "plant_not_found": "That plant is not there any more.",
+      "entry_not_found": "That line is not there any more.",
+      "task_not_found": "That task is not there any more.",
+      "insufficient_access": "You may read this but not change it.",
+      "space_archived": "That place has ended. Bring it back before putting anything in it.",
+      "capability_not_announced": "This device has not said it understands that. It needs newer firmware.",
+      "device_sent_no_settings": "This device has not sent its settings yet, so there is nothing to write into.",
+      "device_states_no_climate": "This device states no climate, so there is nowhere to write one.",
+      "task_done_already": "That task has been ticked off already.",
+      "occurred_in_the_future": "A line records something that has happened. It can be dated back but not forward.",
+      "too_many_requests": "Too many attempts in a short time. Wait a minute and try again."
+    }
   }
 }

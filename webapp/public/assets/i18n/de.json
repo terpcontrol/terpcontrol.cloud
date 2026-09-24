@@ -4165,5 +4165,32 @@
     "min": "Min",
     "h": "Std",
     "d": "T"
+  },
+  "problem": {
+    "status": {
+      "invalid": "Der Server hat das nicht angenommen. Bitte die Eingaben prüfen und erneut versuchen.",
+      "forbidden": "Das darfst du hier nicht.",
+      "missing": "Das gibt es nicht mehr. Lade die Seite neu, um den aktuellen Stand zu sehen.",
+      "conflict": "Das geht gerade nicht, weil sich inzwischen etwas geändert hat. Lade die Seite neu und versuche es erneut.",
+      "tooMany": "Zu viele Versuche in kurzer Zeit. Warte eine Minute und versuche es erneut.",
+      "fault": "Beim Server ist ein Fehler aufgetreten. Bitte erneut versuchen."
+    },
+    "code": {
+      "space_not_found": "Diesen Ort gibt es nicht mehr, oder du darfst ihn nicht sehen.",
+      "device_not_found": "Dieses Gerät gibt es nicht mehr, oder du darfst es nicht sehen.",
+      "grow_not_found": "Diesen Grow gibt es nicht mehr, oder du darfst ihn nicht sehen.",
+      "camera_not_found": "Diese Kamera gibt es nicht mehr, oder du darfst sie nicht sehen.",
+      "plant_not_found": "Diese Pflanze gibt es nicht mehr.",
+      "entry_not_found": "Diesen Eintrag gibt es nicht mehr.",
+      "task_not_found": "Diese Aufgabe gibt es nicht mehr.",
+      "insufficient_access": "Du darfst das lesen, aber nicht ändern.",
+      "space_archived": "Dieser Ort wurde beendet. Hole ihn zurück, bevor du etwas hineinstellst.",
+      "capability_not_announced": "Dieses Gerät hat nicht gemeldet, dass es das versteht. Es braucht eine neuere Firmware.",
+      "device_sent_no_settings": "Dieses Gerät hat seine Einstellungen noch nicht gesendet, es gibt also nichts, wohinein geschrieben werden kann.",
+      "device_states_no_climate": "Dieses Gerät nennt kein Klima, es gibt also nichts, wohin eines geschrieben werden kann.",
+      "task_done_already": "Diese Aufgabe wurde schon abgehakt.",
+      "occurred_in_the_future": "Ein Eintrag hält fest, was passiert ist. Er kann zurück-, aber nicht vorausdatiert werden.",
+      "too_many_requests": "Zu viele Versuche in kurzer Zeit. Warte eine Minute und versuche es erneut."
+    }
   }
 }

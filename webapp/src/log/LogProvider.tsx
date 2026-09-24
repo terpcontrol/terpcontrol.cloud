@@ -8,6 +8,7 @@ import { LogSheet } from './LogSheet';
 import { EntryDetails } from './EntryDetails';
 import { PhotoEntry } from './PhotoEntry';
 import { Toasts, type LoggedLine } from './Toasts';
+import { refusalText } from '@/ui/refusal';
 
 /**
  * The sheet, the details behind it, and the lines on their way to the server.
@@ -167,7 +168,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
  * written for the person - which tent it was, which rule stood in the way - and
  * that is worth far more than "could not save"; anything else has nothing to say.
  */
-const reasonOf = (error: unknown): string | null => (error instanceof ApiError ? error.problem.detail || error.problem.title || null : null);
+const reasonOf = (error: unknown): string | null => (error instanceof ApiError ? refusalText(error) : null);
 
 /** The toast's Details: the line that was just written, opened in the tile it came from. */
 const openDetailsOf = (setDetails: (details: Details) => void) => (line: LoggedLine) => {

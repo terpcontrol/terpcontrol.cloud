@@ -4,12 +4,12 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ActuatorRuns, SocketOverrideState } from '@fg2/shared-types/v1';
 import { useSetOverride, useTestSocket } from '@/api/devices';
-import { ApiError } from '@/api/problem';
 import ui from '@/ui/ui.module.css';
 import { ageLabel, leftLabel } from '@/ui/age';
 import { Fact, Facts } from './Facts';
 import { defaultHold, durationLabel, holdsFor, TEST_SECONDS, type SocketRowModel } from './sockets';
 import styles from './Devices.module.css';
+import { refusalText } from '@/ui/refusal';
 
 /** How long a press has to be held before it counts as asking for a time rather than for a switch. */
 const HOLD_MS = 450;
@@ -250,7 +250,7 @@ function Receipt({ result, error, pending }: { result?: { deviceOnline: boolean 
   if (error) {
     return (
       <p className={`${ui.problem} ${styles.socketWhy}`} role="alert">
-        {error instanceof ApiError ? error.problem.detail || error.problem.title : t('devices.socket.askFailed')}
+        {refusalText(error, t('devices.socket.askFailed'))}
       </p>
     );
   }

@@ -9,6 +9,7 @@ import { ApiError } from '@/api/problem';
 import { session, useSession } from '@/api/session';
 import ui from '@/ui/ui.module.css';
 import styles from './SignIn.module.css';
+import { refusalText } from '@/ui/refusal';
 
 /** What the page that sent somebody here says about why: where to go back to, and what is waiting there. */
 interface SentFrom {
@@ -77,7 +78,7 @@ export function SignUp() {
     } catch (error) {
       if (error instanceof ApiError) {
         for (const [field, detail] of Object.entries(error.fieldErrors)) form.setError(field as keyof UserCreate, { message: detail });
-        setProblem(error.problem.detail || error.problem.title);
+        setProblem(refusalText(error));
       } else {
         setProblem(t('shell.unreachable'));
       }
@@ -90,7 +91,7 @@ export function SignUp() {
     try {
       await activate.mutateAsync({ activationCode: activationCode.trim() });
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.problem.detail || error.problem.title : t('shell.unreachable'));
+      setProblem(refusalText(error));
       return;
     }
     await enter(awaiting);

@@ -2,19 +2,19 @@ import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { fetchedAt } from '@/api/clock';
-import { ApiError } from '@/api/problem';
 import { ageLabel } from './age';
 import ui from './ui.module.css';
 import styles from './PageState.module.css';
+import { refusalText } from '@/ui/refusal';
 
 /**
  * What the server said when it refused, under the control that asked.
  *
  * Every refusal arrives as a problem document with a sentence in it written for
- * the person rather than for the client, so that sentence is what is shown; the
- * code behind it is for the screens that can offer a way out of one particular
- * refusal, and they read it themselves. A problem terse enough to carry no
- * sentence still carries its title, which is a better answer than a stock one.
+ * the person rather than for the client, but written in English only, so
+ * `refusalText` shows it to an English reader and words it from the catalogue
+ * for anybody else; the code behind it is for the screens that can offer a way
+ * out of one particular refusal, and they read it themselves.
  *
  * Anything that is not a problem document never reached the server at all - a
  * dropped connection, a request that timed out - and is said as that. It is a
@@ -22,12 +22,13 @@ import styles from './PageState.module.css';
  * the same tap again rather than a gesture.
  */
 export function Refused({ error }: { error: unknown }) {
-  const { t } = useTranslation();
+  // Subscribed so the sentence is written again when the language changes.
+  useTranslation();
   if (!error) return null;
 
   return (
     <p className={ui.problem} role="alert">
-      {error instanceof ApiError ? error.problem.detail || error.problem.title : t('shell.unreachable')}
+      {refusalText(error)}
     </p>
   );
 }

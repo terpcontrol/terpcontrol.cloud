@@ -7,7 +7,7 @@ import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-t
 import { useMe } from '@/api/account';
 import { useCamera, useCameraFrames, useLatestStills, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
 import { useSpaceGrows } from '@/api/grows';
-import { ApiError, noLongerThere } from '@/api/problem';
+import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { ageLabel, instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
@@ -24,6 +24,7 @@ import { Composer } from './Composer';
 import { Film } from './Film';
 import { CameraSettings } from './CameraSettings';
 import styles from './CameraPage.module.css';
+import { refusalText } from '@/ui/refusal';
 
 /** How many films the section rests at before somebody asks for the rest. */
 const FILMS_AT_REST = 3;
@@ -306,7 +307,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           ) : null}
           {ask.error ? (
             <p className={ui.problem} role="alert">
-              {ask.error instanceof ApiError ? ask.error.problem.detail || ask.error.problem.title : t('camera.askFailed')}
+              {refusalText(ask.error, t('camera.askFailed'))}
             </p>
           ) : null}
           {job ? <Film mediaId={job.id} mayOwn={mayOwn} /> : null}
@@ -481,7 +482,7 @@ function TestImage({ cameraId, mayOwn }: { cameraId: string; mayOwn: boolean }) 
       </button>
       {test.error ? (
         <span className={styles.testWhy} role="alert">
-          {test.error instanceof ApiError ? test.error.problem.detail || test.error.problem.title : t('camera.testFailed')}
+          {refusalText(test.error, t('camera.testFailed'))}
         </span>
       ) : test.data?.succeeded ? (
         <span className={`mono ${styles.testWorked}`} role="status">

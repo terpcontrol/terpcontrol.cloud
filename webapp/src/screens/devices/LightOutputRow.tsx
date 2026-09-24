@@ -6,13 +6,13 @@ import type { ActuatorRuns, SocketOverrideState } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useSaveConfiguration, useSetOverride } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
-import { ApiError } from '@/api/problem';
 import { ageLabel } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
 import { Fact, Facts } from './Facts';
 import { LEVEL_STEP, percentLabel, withLightLimit, type LightOutput } from './lights';
 import { defaultHold, durationLabel, holdsFor } from './sockets';
 import styles from './Devices.module.css';
+import { refusalText } from '@/ui/refusal';
 
 interface LightOutputRowProps {
   output: LightOutput;
@@ -315,7 +315,7 @@ function Saved({ save, paused }: { save: Mutation & { isSuccess: boolean }; paus
   if (failed) {
     return (
       <p className={`${ui.problem} ${styles.socketWhy}`} role="alert">
-        {failed instanceof ApiError ? failed.problem.detail || failed.problem.title : t('devices.lightOutput.saveFailed')}
+        {refusalText(failed, t('devices.lightOutput.saveFailed'))}
       </p>
     );
   }
@@ -343,7 +343,7 @@ function Asked({ ask, heldFor }: { ask: Mutation & { data?: { deviceOnline: bool
   if (ask.error) {
     return (
       <p className={`${ui.problem} ${styles.socketWhy}`} role="alert">
-        {ask.error instanceof ApiError ? ask.error.problem.detail || ask.error.problem.title : t('devices.socket.askFailed')}
+        {refusalText(ask.error, t('devices.socket.askFailed'))}
       </p>
     );
   }
