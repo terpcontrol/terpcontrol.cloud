@@ -367,6 +367,71 @@ describe('ending a grow', () => {
     expect(ended.body.summary.dayNumber).toBe(1);
   });
 
+  /** A grow started ten days ago and ended yesterday, which is what every write below is tried against. */
+  const anEndedGrow = async () => {
+    const startedAt = new Date(Date.now() - 10 * 86_400_000).toISOString();
+    const endedAt = new Date(Date.now() - 86_400_000).toISOString();
+    const grow = await startAGrow({ startedAt });
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'flowering', startedAt }).expect(201);
+    await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt }).expect(200);
+
+    const plants = await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200);
+    return { grow, endedAt, plantIds: plants.body.items.map((plant: { id: string }) => plant.id) as string[] };
+  };
+
+  it('takes nothing that happens after it ended', async () => {
+    const { grow, plantIds } = await anEndedGrow();
+
+    const writes = [
+      owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'drying' }),
+      owner.client.post(`/v1/grows/${grow.id}/placements`).send({ spaceId: null }),
+      owner.client.post(`/v1/grows/${grow.id}/splits`).send({ plantIds: [plantIds[0]], stage: 'drying' }),
+      owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ wetWeightG: 100 }),
+      owner.client.post('/v1/reminders').send({ subject: { type: 'grow', id: grow.id }, kind: 'water', label: 'Water', everyDays: 1, onceAt: null }),
+    ];
+
+    for (const refused of await Promise.all(writes)) {
+      expect(refused.status).toBe(409);
+      expect(refused.body.code).toBe('grow_ended');
+    }
+
+    const read = await owner.client.get(`/v1/grows/${grow.id}`).expect(200);
+    expect(read.body.phases).toHaveLength(1);
+    expect(read.body.placements.filter((placement: { endedAt: string | null }) => placement.endedAt === null)).toHaveLength(1);
+  });
+
+  it('still takes a repair dated inside it, and a move repaired in stays inside it too', async () => {
+    const { grow, endedAt } = await anEndedGrow();
+    const before = new Date(Date.parse(endedAt) - 3 * 86_400_000).toISOString();
+
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'drying', startedAt: before }).expect(201);
+    const moved = await owner.client.post(`/v1/grows/${grow.id}/placements`).send({ spaceId: null, startedAt: before }).expect(201);
+
+    expect(moved.body.endedAt).toBe(endedAt);
+  });
+
+  it('cannot end before it began, nor start or end in the future', async () => {
+    const grow = await startAGrow({ startedAt: new Date(Date.now() - 5 * 86_400_000).toISOString() });
+    const tenDaysAgo = new Date(Date.now() - 10 * 86_400_000).toISOString();
+    const inFiveDays = new Date(Date.now() + 5 * 86_400_000).toISOString();
+
+    const backwards = await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt: tenDaysAgo }).expect(422);
+    expect(backwards.body.code).toBe('grow_ends_before_it_starts');
+
+    const early = await owner.client.patch(`/v1/grows/${grow.id}`).send({ startedAt: inFiveDays }).expect(400);
+    expect(early.body.code).toBe('started_in_the_future');
+
+    const late = await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt: inFiveDays }).expect(400);
+    expect(late.body.code).toBe('ended_in_the_future');
+  });
+
+  it('can be reopened, and then goes on taking what happens to it', async () => {
+    const { grow } = await anEndedGrow();
+
+    await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt: null }).expect(200);
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'drying' }).expect(201);
+  });
+
   it('takes its plants with it when it is deleted', async () => {
     const grow = await startAGrow();
     await owner.client.delete(`/v1/grows/${grow.id}`).expect(204);

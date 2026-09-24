@@ -578,7 +578,12 @@ describe('a public profile', () => {
     const over = (
       await author.client
         .post('/v1/grows')
-        .send({ name: 'Finished', type: 'photoperiod', plants: [{ strain: 'Amnesia', count: 1 }] })
+        .send({
+          name: 'Finished',
+          type: 'photoperiod',
+          plants: [{ strain: 'Amnesia', count: 1 }],
+          startedAt: new Date(Date.now() - 120 * 24 * 3600 * 1000).toISOString(),
+        })
         .expect(201)
     ).body;
     const endedAt = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();

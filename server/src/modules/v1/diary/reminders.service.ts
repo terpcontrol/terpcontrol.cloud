@@ -6,9 +6,10 @@ import type { ReminderCreate, ReminderUpdate } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, afterCursor, pageOf, readLimit } from '@common/v1/pages';
-import { notFound, unprocessable } from '@common/v1/problem';
+import { conflict, notFound, unprocessable } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
+import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { VisibleSubjectsService } from './visible-subjects.service';
 
@@ -37,6 +38,7 @@ export interface ReminderFilter {
 export class RemindersService {
   constructor(
     @InjectModel(MODEL_V1.reminder) private readonly reminders: Model<ReminderDocument>,
+    @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
     private readonly access: AccessService,
     private readonly visible: VisibleSubjectsService,
   ) {}
@@ -73,6 +75,7 @@ export class RemindersService {
   public async create(ctx: AccessContext, body: ReminderCreate): Promise<ReminderDocument> {
     await this.access.require(ctx, subjectRef(body.subject.type, body.subject.id), 'manage');
     requireOneRhythm(body.everyDays, body.onceAt);
+    await this.requireRunning(body.subject);
     await this.requireAssignee(body.subject, body.assigneeId ?? null);
 
     const reminder: ReminderDocument = {
@@ -154,6 +157,24 @@ export class RemindersService {
         { 'subject.type': 'grow', 'subject.id': { $in: growIds } },
       ],
     };
+  }
+
+  /**
+   * A rhythm kept for a grow that has ended would put work on a card for plants
+   * that are no longer there - a daily watering for a grow harvested in August.
+   * Nothing takes it off again, either: the tasks of an ended grow are not on
+   * the board, so the reminder would sit there producing them unseen until
+   * somebody opened that grow's own list.
+   */
+  private async requireRunning(subject: { type: 'grow' | 'space'; id: string }): Promise<void> {
+    if (subject.type !== 'grow') return;
+
+    const ended = await this.grows.exists({ id: subject.id, endedAt: { $ne: null } });
+    if (ended)
+      throw conflict(
+        'grow_ended',
+        'This grow has ended, so there is nothing left to remind anybody of. Keep the rhythm on the grow that follows it.',
+      );
   }
 
   /**

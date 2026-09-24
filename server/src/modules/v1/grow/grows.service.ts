@@ -28,7 +28,7 @@ import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
-import { conflict, notFound, unprocessable } from '@common/v1/problem';
+import { badRequest, conflict, notFound, unprocessable } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -241,7 +241,7 @@ export class GrowsService {
     if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
     requireDistinctKeys(body.measurements ?? []);
 
-    const startedAt = body.startedAt ? new Date(body.startedAt) : new Date();
+    const startedAt = body.startedAt ? notInTheFuture(new Date(body.startedAt), 'startedAt') : new Date();
     const id = uuidv4();
 
     const grow = await this.grows.create({
@@ -297,6 +297,7 @@ export class GrowsService {
 
   public async update(id: string, body: GrowUpdate, hide: Redaction): Promise<GrowListItem> {
     if (body.measurements !== undefined) await this.checkMeasurements(id, body.measurements);
+    if (body.startedAt !== undefined || body.endedAt !== undefined) requireSpan(await this.require(id), body);
 
     const changes: Record<string, unknown> = {};
     for (const [field, value] of Object.entries(body)) {
@@ -481,6 +482,7 @@ export class GrowsService {
    */
   public async addPhase(growId: string, body: PhaseCreate, setBy: string | null, hide: Redaction): Promise<Phase> {
     const grow = await this.require(growId);
+    requireStillRunning(grow, body.startedAt ? new Date(body.startedAt) : new Date(), 'startedAt');
     const plantIds = await this.scopeOf(grow, body.plantIds ?? null);
 
     const phase = await this.enterPhase(
@@ -573,14 +575,12 @@ export class GrowsService {
    */
   public async addPlacement(ctx: AccessContext, growId: string, body: PlacementCreate, authorId: string | null, hide: Redaction): Promise<Placement> {
     const grow = await this.require(growId);
+    const startedAt = body.startedAt ? new Date(body.startedAt) : new Date();
+    requireStillRunning(grow, startedAt, 'startedAt');
     await this.scopeOf(grow, body.plantIds ?? null);
     await this.requireSpaceFor(ctx, body.spaceId);
 
-    const placement = await this.movePlants(
-      grow,
-      { spaceId: body.spaceId, startedAt: body.startedAt ? new Date(body.startedAt) : new Date(), plantIds: body.plantIds ?? null },
-      authorId,
-    );
+    const placement = await this.movePlants(grow, { spaceId: body.spaceId, startedAt, plantIds: body.plantIds ?? null }, authorId);
 
     return serialisePlacement(placement, hide);
   }
@@ -594,7 +594,16 @@ export class GrowsService {
     // Asked as "is this every plant" rather than by matching ids, which an empty
     // set never does, and which would leave the grow open in two places at once.
     const takesEverything = move.plantIds === null;
-    const placement: StoredPlacement = { id: uuidv4(), spaceId: move.spaceId, startedAt: move.startedAt, endedAt: null, plantIds: move.plantIds };
+    // A move written into the record of a grow that has ended is a repair of
+    // where it stood, and it stood there until the grow ended - not until now,
+    // which an open row would say, putting a finished grow back in a tent.
+    const placement: StoredPlacement = {
+      id: uuidv4(),
+      spaceId: move.spaceId,
+      startedAt: move.startedAt,
+      endedAt: grow.endedAt,
+      plantIds: move.plantIds,
+    };
 
     const placements = grow.placements.flatMap<StoredPlacement>(existing => {
       const covered = existing.plantIds ?? everything;
@@ -688,8 +697,10 @@ export class GrowsService {
       throw notFound('placement_not_found', 'There is no placement of that grow with that id.');
     }
 
+    // A running grow has to answer where it is now; one that has ended answers
+    // where it last stood, which any row left behind can say.
     const kept = grow.placements.filter(placement => placement.id !== placementId);
-    if (!kept.some(placement => placement.endedAt === null)) {
+    if (grow.endedAt === null ? !kept.some(placement => placement.endedAt === null) : kept.length === 0) {
       throw conflict('grow_stands_nowhere', 'This is the only placement saying where the grow is. Move the grow instead of removing it.');
     }
 
@@ -732,6 +743,7 @@ export class GrowsService {
     if (cut.length === 0) throw conflict('nothing_to_harvest', 'Every plant of this grow has already come down.');
 
     const harvestedAt = body.harvestedAt ? new Date(body.harvestedAt) : new Date();
+    requireStillRunning(grow, harvestedAt, 'harvestedAt');
     const wet = shareOut(body.wetWeightG ?? null, cut.length);
     const dry = shareOut(body.dryWeightG ?? null, cut.length);
 
@@ -786,6 +798,7 @@ export class GrowsService {
     }
 
     const startedAt = body.startedAt ? new Date(body.startedAt) : new Date();
+    requireStillRunning(grow, startedAt, 'startedAt');
     await this.requireSpaceFor(ctx, body.spaceId);
 
     const placement =
@@ -852,6 +865,58 @@ const slugify = (name: string): string =>
     .slice(0, 60);
 
 const instantOrNull = (value: unknown): Date | null => (typeof value === 'string' ? new Date(value) : null);
+
+/** How far a client's clock may run ahead of this one before "now" from it is "later". */
+const CLOCK_SKEW_MS = 60_000;
+
+/**
+ * Nothing can happen to a grow after it ended. A phase, a move, a split or a
+ * harvest dated later than its end would be a story that goes on past its own
+ * last page: the report cuts every chapter at the end and drops what began
+ * after it, while the diary goes on carrying the line that announced it - and
+ * a move opens a placement, which puts a finished grow back in a tent.
+ *
+ * What is dated up to the end is still allowed, because that is a repair of the
+ * record rather than something new happening to it: a stage somebody forgot to
+ * enter, a move logged late. A grow that has not really ended is reopened first,
+ * which is `PATCH /grows/{id}` with `endedAt: null`.
+ */
+const requireStillRunning = (grow: GrowDocument, at: Date, field: string): void => {
+  if (grow.endedAt === null || at.getTime() <= grow.endedAt.getTime()) return;
+
+  throw conflict(
+    'grow_ended',
+    'This grow has ended. Nothing can happen to it after the day it ended; start a new grow, or reopen this one if it has not really ended.',
+    [{ field, code: 'after_the_end', detail: grow.endedAt.toISOString() }],
+  );
+};
+
+const notInTheFuture = (at: Date, field: 'startedAt' | 'endedAt'): Date => {
+  if (at.getTime() <= Date.now() + CLOCK_SKEW_MS) return at;
+
+  throw badRequest(
+    field === 'startedAt' ? 'started_in_the_future' : 'ended_in_the_future',
+    'A grow records what has happened; its start and its end can be backdated but not postdated.',
+    [{ field, code: 'in_the_future', detail: at.toISOString() }],
+  );
+};
+
+/**
+ * The span a correction leaves the grow with. The day counter, the week cards
+ * and the report all count from the start to the end, and an end before the
+ * start is a grow of minus ten days - the placements and the share links
+ * already refuse a span that runs backwards, and so does the grow they belong to.
+ */
+const requireSpan = (grow: GrowDocument, body: GrowUpdate): void => {
+  const startedAt = body.startedAt ? notInTheFuture(new Date(body.startedAt), 'startedAt') : grow.startedAt;
+  const endedAt = body.endedAt === undefined ? grow.endedAt : body.endedAt === null ? null : notInTheFuture(new Date(body.endedAt), 'endedAt');
+
+  if (endedAt !== null && endedAt.getTime() < startedAt.getTime()) {
+    throw unprocessable('grow_ends_before_it_starts', 'A grow cannot end before it started.', [
+      { field: body.endedAt === undefined ? 'startedAt' : 'endedAt', code: 'before_start', detail: endedAt.toISOString() },
+    ]);
+  }
+};
 
 /**
  * The harvest sheet weighs what came down, while the model keeps a weight per
