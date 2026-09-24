@@ -369,7 +369,7 @@ beforeEach(async () => {
   await db.reset();
   access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
   store = new ImageStore(db.connection);
-  media = new MediaService(db.media, store);
+  media = new MediaService(db.media, db.grows, store);
   exports = new ExportService(
     db.grows,
     db.plants,

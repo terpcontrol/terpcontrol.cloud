@@ -5,10 +5,11 @@ import { Media, MediaUpload } from '@fg2/shared-types/v1';
 import { media as mediaShape, mediaUpload } from '@fg2/shared-types/v1-schemas';
 import { AuthGuard } from '@common/auth/auth.guard';
 import { AuthenticatedRequest } from '@common/auth/token.service';
-import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
+import { AccessGuard, AccessRequest, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService, needToEditEntry, subjectRef } from '@common/v1/access.service';
-import { AccessContext } from '@common/v1/access.types';
+import { AccessContext, Grant } from '@common/v1/access.types';
 import { badRequest, notFound, unprocessable } from '@common/v1/problem';
+import { clampRange, outsideRange } from '@common/v1/range';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { MediaDeliveryService } from './media-delivery.service';
 import { MediaPresentationService, parseDimension } from './media-presentation.service';
@@ -178,7 +179,35 @@ export class MediaController {
       throw notFound('media_not_found', 'There is no picture with that id.');
     }
 
+    if (await this.takenOutsideTheirWindow((request as AccessRequest).grant, media)) {
+      throw notFound('media_not_found', 'There is no picture with that id.');
+    }
+
     return media;
+  }
+
+  /**
+   * Whether the shutter closed outside the window this reader was granted.
+   *
+   * A grant reaches the tent the camera hangs in, not each of the thousands of
+   * pictures it took there, and what let a link reach a still at all is which
+   * grow stood in front of that camera - a question about the grow's life and
+   * never about the link's fortnight. So a link sent two weeks of a run served
+   * every still of it by id, and narrowing a link afterwards, which is what
+   * `PATCH /share-links/{id}` exists for, took back the listing and left every
+   * picture the holder had already written down. The diary's own by-id route
+   * closed the same hole for the same reason.
+   *
+   * Only a camera's pictures are dated in the sense a window means. A photo
+   * somebody uploaded, an avatar and an export are reached through what they
+   * belong to, and the two pictures a grow is told under are named by the grow
+   * itself - so a reader who may have the page may have the cover on it.
+   */
+  private async takenOutsideTheirWindow(grant: Grant | undefined, media: MediaDocument): Promise<boolean> {
+    if (!grant || media.cameraId === null) return false;
+    if (!outsideRange(media.capturedAt, clampRange(grant))) return false;
+
+    return !(await this.media.isAGrowsOwnPicture(media.id));
   }
 }
 

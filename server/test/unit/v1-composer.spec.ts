@@ -68,7 +68,7 @@ const compose = (body: TimelapseCreate, cameraId = CAMERA) => controller.request
 const build = (rendezvous: string[] = []): void => {
   const entitlement = new EntitlementService(PREMIUM);
   const cameras = new CamerasService(db.cameras, db.devices, db.memberships, entitlement);
-  media = new MediaService(db.media, null as never);
+  media = new MediaService(db.media, db.grows, null as never);
   const access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
   const poller = { settingsChanged: () => undefined, forget: () => undefined };
   // The builder is asked to take the queue now rather than on its hourly pass;

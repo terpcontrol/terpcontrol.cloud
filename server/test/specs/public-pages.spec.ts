@@ -304,6 +304,96 @@ describe('a picture of a public grow', () => {
   });
 });
 
+/**
+ * A grant reaches the tent a camera hangs in, not the thousands of pictures it
+ * took there, and what lets a link reach a still at all is which grow stood in
+ * front of the camera - a question about the grow's life and never about the
+ * link's fortnight. So this route handed over every still of a shared run by id,
+ * and narrowing a link took back the listing while leaving the pictures.
+ */
+describe('one still of a shared camera', () => {
+  const daysAgo = (days: number): Date => new Date(Date.now() - days * 24 * 3600 * 1000);
+
+  it('is not there where the shutter closed outside the window the link carries', async () => {
+    const run = await startAGrow({ name: 'Watched for a fortnight', startedAt: daysAgo(60).toISOString() });
+    await owner.client
+      .post(`/v1/grows/${run.id}/phases`)
+      .send({ stage: 'flowering', startedAt: daysAgo(60).toISOString() })
+      .expect(201);
+
+    const inside = await storeCameraStill(camera, A_PICTURE, daysAgo(40));
+    const outside = await storeCameraStill(camera, A_PICTURE, daysAgo(20));
+
+    const link = await linkOnto(
+      { type: 'grow', id: run.id },
+      { range: { startsAt: daysAgo(45).toISOString(), endsAt: daysAgo(35).toISOString() }, includeCameras: true },
+    );
+    const withToken = (path: string) => anonymous().get(path).set('X-Share-Token', link.token);
+
+    await withToken(`/v1/media/${inside}`).expect(200);
+    await withToken(`/v1/media/${inside}/content`).expect(200);
+
+    const refused = await withToken(`/v1/media/${outside}`).expect(404);
+    expect(refused.body.code).toBe('media_not_found');
+    // The bytes go the same way, and through the query token an <img> uses too.
+    await withToken(`/v1/media/${outside}/content`).expect(404);
+    await anonymous().get(`/v1/media/${outside}/content?share=${link.token}`).expect(404);
+
+    // The owner reads both, because their own window is open at both ends.
+    await owner.client.get(`/v1/media/${outside}`).expect(200);
+  });
+
+  /**
+   * Narrowing a link is what `PATCH /share-links/{id}` is for, and it has to
+   * take back the pictures the holder has already written down as well as the
+   * listing they came from.
+   */
+  it('goes with the window when a link that is already out of the house is narrowed', async () => {
+    const run = await startAGrow({ name: 'Narrowed afterwards', startedAt: daysAgo(60).toISOString() });
+    await owner.client
+      .post(`/v1/grows/${run.id}/phases`)
+      .send({ stage: 'flowering', startedAt: daysAgo(60).toISOString() })
+      .expect(201);
+
+    const noted = await storeCameraStill(camera, A_PICTURE, daysAgo(20));
+    const link = await linkOnto({ type: 'grow', id: run.id }, { includeCameras: true });
+
+    await anonymous().get(`/v1/media/${noted}`).set('X-Share-Token', link.token).expect(200);
+
+    await owner.client
+      .patch(`/v1/share-links/${link.id}`)
+      .send({ range: { startsAt: daysAgo(45).toISOString(), endsAt: daysAgo(35).toISOString() } })
+      .expect(200);
+
+    await anonymous().get(`/v1/media/${noted}`).set('X-Share-Token', link.token).expect(404);
+  });
+
+  /**
+   * The cover is what a diary looks like on every page of it, and a grow names
+   * it rather than dating it - so it is the one picture a narrow window does not
+   * take away, exactly as the public page's own picture route has it.
+   */
+  it('still serves the picture the grow itself is told under', async () => {
+    const run = await startAGrow({ name: 'Covered from week twelve', startedAt: daysAgo(60).toISOString() });
+    await owner.client
+      .post(`/v1/grows/${run.id}/phases`)
+      .send({ stage: 'flowering', startedAt: daysAgo(60).toISOString() })
+      .expect(201);
+
+    const cover = await storeCameraStill(camera, A_PICTURE, daysAgo(20));
+    await owner.client.patch(`/v1/grows/${run.id}`).send({ coverMediaId: cover }).expect(200);
+
+    const link = await linkOnto(
+      { type: 'grow', id: run.id },
+      { range: { startsAt: daysAgo(45).toISOString(), endsAt: daysAgo(35).toISOString() }, includeCameras: true },
+    );
+
+    const page = await anonymous().get(`/v1/shared/${link.token}`).expect(200);
+    expect(page.body.subject.grow.coverMediaId).toBe(cover);
+    await anonymous().get(`/v1/media/${cover}/content?share=${link.token}`).expect(200);
+  });
+});
+
 describe('the card and the shell', () => {
   it('draws a PNG of the size every scraper crops to', async () => {
     const card = await anonymous().get(`/v1/public/grows/${diary.slug}/card.png`).expect(200);

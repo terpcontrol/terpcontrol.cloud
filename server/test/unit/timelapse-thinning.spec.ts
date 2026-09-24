@@ -53,7 +53,7 @@ const remaining = async (prefix: string): Promise<number> => db.media.countDocum
 
 beforeAll(async () => {
   db = await startV1TestDatabase();
-  media = new MediaService(db.media, new ImageStore(db.connection));
+  media = new MediaService(db.media, db.grows, new ImageStore(db.connection));
   timelapse = new TimelapseService(undefined as never, media, undefined as never, undefined as never);
 });
 

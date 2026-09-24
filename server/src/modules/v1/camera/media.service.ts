@@ -9,6 +9,7 @@ import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { ImageStore } from '@database/image-store';
+import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { picturesTheWayBackHolds } from '@/migrations/way-back';
 
@@ -71,11 +72,27 @@ export interface MediaFilter {
 export class MediaService {
   constructor(
     @InjectModel(MODEL_V1.media) private readonly media: Model<MediaDocument>,
+    @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
     private readonly store: ImageStore,
   ) {}
 
   public byId(id: string): Promise<MediaDocument | null> {
     return this.media.findOne({ id }).lean<MediaDocument>();
+  }
+
+  /**
+   * Whether a grow is told under this picture: it is somebody's chosen cover, or
+   * the film of the whole run.
+   *
+   * Those two are reached because a grow names them and not because of when the
+   * shutter closed, so they are the one thing a reader's window does not narrow.
+   * A cover picked from week twelve is what a diary looks like on every page of
+   * it, including the page a link that was sent week three opens on - which is
+   * the same exemption the public page's own picture route makes, for the same
+   * reason.
+   */
+  public async isAGrowsOwnPicture(mediaId: string): Promise<boolean> {
+    return (await this.grows.countDocuments({ $or: [{ coverMediaId: mediaId }, { filmMediaId: mediaId }] })) > 0;
   }
 
   /** Every picture a grow carries, which is what an export of that grow takes with it. */
