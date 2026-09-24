@@ -845,11 +845,17 @@
     "noStill": "no picture yet",
     "ago": "{{age}} ago",
     "buildUnread": "could not be read",
+    "update": {
+      "newBuild": "a new build",
+      "owed": "{{build}} is to be installed; the device is asked while it is connected and has not come back running it yet",
+      "failed": "{{build}} did not take ({{ago}}). The device is still on the build above and is asked again while it is connected."
+    },
     "fact": {
       "id": "Device id",
       "type": "Type",
       "build": "Build",
       "channel": "Updates",
+      "update": "Update",
       "can": "Takes",
       "place": "Stands in"
     },

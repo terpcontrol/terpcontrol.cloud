@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -938,6 +938,43 @@ describe('what the Devices tab calls a device', () => {
 
     expect(await screen.findByText('2.4.0')).toBeInTheDocument();
   }, 10000);
+
+  /** Only the diary used to say that a device owed an update, or that one had not taken. */
+  it('says which build a device owes, and that it did not take once the wait ran out', async () => {
+    const running = { id: 'fw-old', name: 'plug', version: '0.0.0' };
+    const owed = { id: 'fw-new', name: 'plug', version: '84ef30ca' };
+    const pinned = (updateFailedAt: string | null) =>
+      standing({
+        firmware: { channel: 'manual', targetId: owed.id },
+        state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: running.id, updateFailedAt },
+      } as Partial<Device>);
+
+    await drawOpened(pinned(null), () => Promise.resolve({ items: [running, owed], nextCursor: null }), /What Controller · C0FFEE is/);
+    expect(await screen.findByText(/84ef30ca is to be installed/)).toBeInTheDocument();
+    cleanup();
+
+    await drawOpened(
+      pinned(NOW.minus({ minutes: 5 }).toISO()!),
+      () => Promise.resolve({ items: [running, owed], nextCursor: null }),
+      /What Controller · C0FFEE is/,
+    );
+    expect((await screen.findAllByText(/84ef30ca did not take \(.* ago\)/)).length).toBeGreaterThan(0);
+  });
+
+  it('says nothing about an update where the device runs what it was pinned to', async () => {
+    const running = { id: 'fw-old', name: 'plug', version: '0.0.0' };
+    await drawOpened(
+      standing({
+        firmware: { channel: 'manual', targetId: running.id },
+        state: { lastSeenAt: NOW.toISO()!, firmwareId: running.id },
+      } as Partial<Device>),
+      () => Promise.resolve({ items: [running], nextCursor: null }),
+      /What Controller · C0FFEE is/,
+    );
+
+    expect(await screen.findByText('0.0.0')).toBeInTheDocument();
+    expect(screen.queryByText('Update')).toBeNull();
+  });
 
   it('draws a camera that inherited its controller´s type key by what is printed on the cam', async () => {
     list.devices = [standing({})];

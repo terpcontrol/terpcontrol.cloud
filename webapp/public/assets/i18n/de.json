@@ -841,11 +841,17 @@
     "noStill": "noch kein Bild",
     "ago": "vor {{age}}",
     "buildUnread": "ließ sich nicht lesen",
+    "update": {
+      "newBuild": "ein neuer Build",
+      "owed": "{{build}} soll installiert werden; das Gerät wird gefragt, solange es verbunden ist, und läuft noch nicht damit",
+      "failed": "{{build}} wurde nicht übernommen ({{ago}}). Das Gerät läuft noch mit dem Build darüber und wird erneut gefragt, solange es verbunden ist."
+    },
     "fact": {
       "id": "Geräte-ID",
       "type": "Typ",
       "build": "Build",
       "channel": "Updates",
+      "update": "Update",
       "can": "Versteht",
       "place": "Steht in"
     },

@@ -306,6 +306,11 @@ function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now }: De
   const mayCorrect = enough(useMayWith()(device), 'manage');
 
   const build = firmwares.data?.items.find(one => one.id === device.state.firmwareId);
+  // A build the device has been pinned to and is not running yet. The diary
+  // says when it was asked and whether it took; the device's own panel is
+  // where somebody looks for it, so it says so too.
+  const owedId = device.firmware.targetId && device.firmware.targetId !== device.state.firmwareId ? device.firmware.targetId : null;
+  const owedLabel = owedId ? (buildLabel(firmwares.data?.items.find(one => one.id === owedId)) ?? t('devices.update.newBuild')) : null;
 
   // What the row says about the device, in the order it would be missed: the
   // line is one line, and what does not fit is in the panel behind the chevron.
@@ -381,6 +386,16 @@ function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now }: De
                 ))
               }
             />
+            {owedLabel ? (
+              <Fact
+                label={t('devices.fact.update')}
+                value={
+                  device.state.updateFailedAt
+                    ? t('devices.update.failed', { build: owedLabel, ago: t('devices.ago', { age: ageLabel(device.state.updateFailedAt, now) }) })
+                    : t('devices.update.owed', { build: owedLabel })
+                }
+              />
+            ) : null}
             <Fact label={t('devices.fact.channel')} value={t(`devices.channel.${device.firmware.channel}`)} />
             {drivesSockets && sockets ? <Fact label={t('devices.fact.can')} value={capabilityLine(t, sockets)} /> : null}
             {place && linked && device.spaceId ? (
