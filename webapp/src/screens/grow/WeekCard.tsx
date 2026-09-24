@@ -214,7 +214,7 @@ function Stat({ value, unit, label }: { value: string; unit: string; label: stri
         <span className="figure">{value}</span>
         <span className={`mono ${styles.statUnit}`}>{unit}</span>
       </dd>
-      <dt className="label">{label}</dt>
+      <dt className={`label ${styles.statLabel}`}>{label}</dt>
     </div>
   );
 }
