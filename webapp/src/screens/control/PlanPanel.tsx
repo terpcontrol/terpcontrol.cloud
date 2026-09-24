@@ -251,6 +251,14 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
         <p className={ui.note}>{t('space.control.pausedFor', { reason: plan.state.pauseReason })}</p>
       ) : null}
 
+      {/* What the controller last heard from the plan. On a plan that is going,
+          no `lastAppliedAt` means the step is owed rather than lost: the engine
+          clears it to start a plan, and clears it again on every edit purely so
+          that the step is re-sent within the tick instead of at the next hour -
+          which the editor has just promised in so many words. Read as "never
+          sent", that line called the editor a liar seconds after it spoke, on a
+          step whose settings were sitting in the controller's document the
+          whole time. */}
       <p className={`mono ${styles.applied}`} {...ageAttribute(liveness)}>
         {plan.state.lastAppliedAt
           ? t('space.control.applied.at', { age: ageLabel(plan.state.lastAppliedAt, now) })

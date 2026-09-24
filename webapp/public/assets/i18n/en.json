@@ -2485,7 +2485,7 @@
       },
       "applied": {
         "at": "Step sent to the controller {{age}} ago",
-        "never": "This step has not been sent to the controller yet",
+        "never": "This step's settings go to the controller within the minute",
         "atRest": "The controller is left running the settings the last step gave it",
         "quiet": "the controller has said nothing for {{age}}, so what it is running may be older than this"
       },
