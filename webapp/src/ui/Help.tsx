@@ -157,7 +157,10 @@ function useExplanation(topic: HelpTopic) {
   };
 
   // Always in the document, and hidden while shut: the text in it is the
-  // trigger's description whether or not the bubble is showing.
+  // trigger's description whether or not the bubble is showing. The title is
+  // drawn only while it is open - it is most often the very label the (i)
+  // stands beside, and a shut bubble would otherwise put that label into the
+  // page a second time for anything that reads the page's text.
   const parts = createPortal(
     <div
       ref={bubble}
@@ -175,7 +178,7 @@ function useExplanation(topic: HelpTopic) {
       }}
     >
       <div className={styles.content}>
-        <strong className={styles.title}>{title}</strong>
+        {open ? <strong className={styles.title}>{title}</strong> : null}
         <span id={textId}>{text}</span>
       </div>
       <span className={styles.arrow} aria-hidden />

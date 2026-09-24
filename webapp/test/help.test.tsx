@@ -40,6 +40,8 @@ describe('the (i) beside a control', () => {
     expect(info()).toHaveAttribute('aria-expanded', 'false');
     expect(info()).toHaveAccessibleDescription(TEXT());
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    // A shut bubble keeps only what describes the button; its title, often the label beside it, is not in the page twice.
+    expect(screen.queryByText(TITLE())).not.toBeInTheDocument();
   });
 
   it('opens on a click or a tap and closes on the next one', () => {
