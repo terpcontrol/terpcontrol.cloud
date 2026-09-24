@@ -52,10 +52,10 @@
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   overflow: hidden;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: var(--card-2);
   color: var(--green);
 }
@@ -70,16 +70,27 @@
   display: flex;
   flex: 1;
   flex-direction: column;
+  gap: 2px;
   min-width: 0;
 }
 
+/* A grow's name, in the serif every grow is named in. */
 .name {
-  font-weight: var(--weight-semibold);
+  font-family: var(--font-display);
+  font-size: var(--text-name);
+  font-weight: var(--weight-display-sm);
+  font-variation-settings: var(--display-axes);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--line-tight);
 }
 
 .meta {
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   color: var(--muted);
+}
+
+.row:hover {
+  border-color: var(--rule-strong);
 }
 
 .chevron {
@@ -100,4 +111,11 @@
 
 .link .mono {
   color: var(--label);
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: var(--reading-width);
+    padding-top: 0;
+  }
 }
