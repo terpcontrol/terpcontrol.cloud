@@ -222,13 +222,16 @@ describe('opening one', () => {
     const revoked = await links.create(session(OWNER), { kind: 'view', subject: { type: 'grow', id: GROW } });
     await links.revoke(session(OWNER), revoked.id);
 
+    // A day is named that has not come yet - a link that has already run out is
+    // refused where it is made - and the reading below happens after it.
+    const expiresAt = new Date(Date.now() + 3600 * 1000);
     const expired = await links.create(session(OWNER), {
       kind: 'view',
       subject: { type: 'grow', id: GROW },
-      expiresAt: '2026-06-01T09:00:00.000Z',
+      expiresAt: expiresAt.toISOString(),
     });
 
-    const at = new Date('2026-06-01T10:00:00.000Z');
+    const at = new Date(expiresAt.getTime() + 3600 * 1000);
     await expect(links.open(revoked.token, at)).rejects.toThrow(ProblemException);
     await expect(links.open(expired.token, at)).rejects.toThrow(ProblemException);
     await expect(links.open('never-issued', at)).rejects.toThrow(ProblemException);

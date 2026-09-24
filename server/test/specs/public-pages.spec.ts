@@ -663,7 +663,10 @@ describe('opening a share link', () => {
   });
 
   it('leads nowhere once it has expired, exactly as a token nobody issued does', async () => {
-    const link = await linkOnto({ type: 'grow', id: diary.id }, { expiresAt: new Date(Date.now() - 1000).toISOString() });
+    // Made with a day to run and then aged, which is how a link really expires:
+    // the route refuses one that has already run out when it is asked for.
+    const link = await linkOnto({ type: 'grow', id: diary.id }, { expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString() });
+    await setRow('shareLinks', { id: link.id }, { expiresAt: new Date(Date.now() - 1000) });
 
     const refused = await anonymous().get(`/v1/shared/${link.token}`).expect(404);
     expect(refused.body.code).toBe('share_link_not_found');

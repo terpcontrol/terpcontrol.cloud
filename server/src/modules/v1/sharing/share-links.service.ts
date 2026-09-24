@@ -7,7 +7,7 @@ import type { ShareLink, ShareLinkCreate, ShareLinkUpdate, TimeRange } from '@fg
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
-import { forbidden, notFound } from '@common/v1/problem';
+import { forbidden, notFound, unprocessable } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
@@ -110,18 +110,22 @@ export class ShareLinksService {
     const createdBy = this.accountOf(ctx);
     await this.access.require(ctx, subjectRef(body.subject.type, body.subject.id), 'own');
 
+    const range = rangeOf(body.range);
+    const expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
+    refuseADeadWindow(range, expiresAt);
+
     const link: ShareLinkDocument = {
       id: uuidv4(),
       createdAt: new Date(),
       token: randomBytes(TOKEN_BYTES).toString('base64url'),
       kind: body.kind,
       subject: { type: body.subject.type, id: body.subject.id },
-      range: rangeOf(body.range),
+      range,
       // A link carries no pictures unless it was made to: the quiet direction is
       // the one a link that says nothing takes.
       includeCameras: body.includeCameras ?? false,
       createdBy,
-      expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
+      expiresAt,
       revokedAt: null,
       state: { openCount: 0, lastOpenedAt: null },
     };
@@ -137,13 +141,19 @@ export class ShareLinksService {
    * never sent - which is what `ShareLinkUpdate` leaves out.
    */
   public async update(ctx: AccessContext, id: string, body: ShareLinkUpdate): Promise<ShareLink> {
-    await this.require(ctx, id);
+    const link = await this.require(ctx, id);
 
     const changes = {
       ...(body.range === undefined ? {} : { range: rangeOf(body.range) }),
       ...(body.includeCameras === undefined ? {} : { includeCameras: body.includeCameras }),
       ...(body.expiresAt === undefined ? {} : { expiresAt: body.expiresAt ? new Date(body.expiresAt) : null }),
     };
+
+    // Against the window the link would then have, not against what the request
+    // carries: narrowing one end alone is how a window ends up behind itself.
+    // An expiry that is already past is only looked at where the request names
+    // one, so a link that ran out long ago can still have its range taken in.
+    refuseADeadWindow(changes.range ?? link.range, body.expiresAt === undefined ? null : (changes.expiresAt ?? null));
 
     const changed = await this.shareLinks.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<ShareLinkDocument>();
     if (!changed) throw notFound('share_link_not_found', 'There is no share link with that id.');
@@ -234,6 +244,40 @@ export class ShareLinksService {
     return ctx.userId;
   }
 }
+
+/**
+ * A window a link could never show anything through, refused while it is still
+ * the maker's to correct.
+ *
+ * Both shapes are visible the moment they arrive and neither can be anything
+ * but a mistake. A range whose end falls before its start is the narrowest
+ * window there is: the link resolves, draws the diary's name and a Copy button,
+ * and holds no week, no line and no photograph, for ever. An expiry that has
+ * already passed is a link that is dead when it is handed back - the token 404s
+ * on its first opening, in the same words a token nobody issued gets, so
+ * neither the grower nor the person they sent it to can tell what went wrong.
+ * Ending a link that is out of the house is `PUT /share-links/{id}/revocation`,
+ * which keeps it listed and says when it stopped.
+ *
+ * Refused rather than corrected, and refused with a sentence, because the same
+ * route already refuses a subject it cannot make sense of and the camera beside
+ * it refuses a film that ends before it starts.
+ */
+const refuseADeadWindow = (range: ShareLinkDocument['range'], expiresAt: Date | null, now: Date = new Date()): void => {
+  if (range.startsAt !== null && range.endsAt !== null && range.endsAt < range.startsAt) {
+    throw unprocessable(
+      'span_backwards',
+      'A link ends after it begins. Those two dates are the wrong way round, so this link could never show anything.',
+    );
+  }
+
+  if (expiresAt !== null && expiresAt.getTime() <= now.getTime()) {
+    throw unprocessable(
+      'expiry_already_past',
+      'A link that has already run out leads nowhere the moment it is made. Leave the expiry out for one that does not run out, and revoke a link that is already in somebody else´s hands.',
+    );
+  }
+};
 
 /** An open end is a link that keeps up with a diary as it goes on, which is what sharing a running grow means. */
 const rangeOf = (range: TimeRange | undefined): ShareLinkDocument['range'] => ({

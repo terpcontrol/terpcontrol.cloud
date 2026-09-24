@@ -79,6 +79,78 @@ describe('making a link', () => {
 
     expect(refused.body.code).toBe('validation_failed');
   });
+
+  /**
+   * Both of these used to answer 201 with a working-looking token. The one with
+   * the dates the wrong way round resolved to an empty diary under a Copy
+   * button, and the one already expired was dead on arrival - 404 in the same
+   * words a token nobody issued gets, so nothing anywhere said what went wrong.
+   */
+  it('refuses a window whose end falls before its start', async () => {
+    const refused = await owner.client
+      .post('/v1/share-links')
+      .send({
+        kind: 'view',
+        subject: { type: 'grow', id: grow.id },
+        range: { startsAt: '2026-09-01T00:00:00.000Z', endsAt: '2026-08-01T00:00:00.000Z' },
+      })
+      .expect(422);
+
+    expect(refused.body.code).toBe('span_backwards');
+    expect(refused.body.detail).toEqual(expect.any(String));
+
+    // The same two dates in the right order are a link like any other.
+    const made = await owner.client
+      .post('/v1/share-links')
+      .send({
+        kind: 'view',
+        subject: { type: 'grow', id: grow.id },
+        range: { startsAt: '2026-08-01T00:00:00.000Z', endsAt: '2026-09-01T00:00:00.000Z' },
+      })
+      .expect(201);
+
+    await owner.client.delete(`/v1/share-links/${made.body.id}`).expect(204);
+  });
+
+  it('refuses an expiry that has already passed, rather than handing back a dead link', async () => {
+    const refused = await owner.client
+      .post('/v1/share-links')
+      .send({ kind: 'view', subject: { type: 'grow', id: grow.id }, expiresAt: '2020-01-01T00:00:00.000Z' })
+      .expect(422);
+
+    expect(refused.body.code).toBe('expiry_already_past');
+  });
+
+  it('refuses the same two on a link that is already out of the house, where narrowing is the point', async () => {
+    const link = await aLink();
+
+    const backwards = await owner.client
+      .patch(`/v1/share-links/${link.id}`)
+      .send({ range: { startsAt: '2026-09-01T00:00:00.000Z', endsAt: '2026-08-01T00:00:00.000Z' } })
+      .expect(422);
+    expect(backwards.body.code).toBe('span_backwards');
+
+    const over = await owner.client.patch(`/v1/share-links/${link.id}`).send({ expiresAt: '2020-01-01T00:00:00.000Z' }).expect(422);
+    expect(over.body.code).toBe('expiry_already_past');
+
+    // Narrowing one end against the end the link already carries is checked
+    // against the window it would then have, not against the half that arrived.
+    await owner.client
+      .patch(`/v1/share-links/${link.id}`)
+      .send({ range: { startsAt: '2026-08-01T00:00:00.000Z', endsAt: '2026-09-01T00:00:00.000Z' } })
+      .expect(200);
+
+    const half = await owner.client
+      .patch(`/v1/share-links/${link.id}`)
+      .send({ range: { startsAt: '2026-10-01T00:00:00.000Z', endsAt: null } })
+      .expect(200);
+    expect(half.body.range).toEqual({ startsAt: '2026-10-01T00:00:00.000Z', endsAt: null });
+
+    // And the link is still the live one it was, so nothing above left it half
+    // written.
+    const listed = (await owner.client.get('/v1/share-links?limit=200').expect(200)).body.items;
+    expect(listed.find((row: { id: string }) => row.id === link.id)).toMatchObject({ revokedAt: null, expiresAt: null });
+  });
 });
 
 describe('the list of links', () => {
