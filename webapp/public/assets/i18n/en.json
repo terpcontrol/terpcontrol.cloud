@@ -1530,7 +1530,7 @@
       "water": "Water",
       "note": "Note",
       "photo": "Photo",
-      "visit": "Alarms off 15 min",
+      "visit": "Alarms off {{quiet}} min",
       "reading": "Reading"
     },
     "invite": {
@@ -2897,18 +2897,18 @@
       "phase": "Phase",
       "visit": "Step in",
       "photoCaption": "cam still or camera",
-      "visitCaption": "alarms off 15 min"
+      "visitCaption": "alarms off {{quiet}} min"
     },
     "visit": {
       "hereFallback": "this place",
       "reading": "Reading what stands in {{name}} …",
-      "parks_one": "Saving this puts the device standing in {{name}} into maintenance mode for {{minutes}} minutes, and no alarm of its own is raised while that lasts. What it stops driving meanwhile is beside its name.",
+      "parks_one": "Saving this puts the device standing in {{name}} into maintenance mode for {{minutes}} minutes. What it stops driving meanwhile is beside its name.",
     "parksOutputs": "stops {{outputs}}",
     "parksNothing": "stops nothing: this hardware takes no maintenance command",
-      "parks_other": "Saving this puts all {{count}} devices standing in {{name}} into maintenance mode for {{minutes}} minutes, and no alarm of their own is raised while that lasts. What each one stops driving meanwhile is beside its name.",
+      "parks_other": "Saving this puts all {{count}} devices standing in {{name}} into maintenance mode for {{minutes}} minutes. What each one stops driving meanwhile is beside its name.",
       "nothingThere": "Nothing stands in {{name}}, so this is a line in the diary and nothing else.",
       "unreadable": "What stands in {{name}} could not be read, so nothing can be named here. Every device there is put into maintenance mode for {{minutes}} minutes all the same.",
-      "notUndone": "The line can be taken back afterwards. The {{minutes}} minutes of quiet cannot: they run out by themselves and the devices pick up where they left off.",
+      "notUndone": "The line can be taken back afterwards. The quiet cannot: the hardware picks up where it left off after {{minutes}} minutes, and no alarm is raised on it for {{quiet}} minutes in all — the last {{settle}} are the climate coming back.",
       "save_one": "Step in · quieten {{count}} device",
       "save_other": "Step in · quieten {{count}} devices"
     },
@@ -3329,7 +3329,7 @@
     "title": "Alarms",
     "backToPlan": "‹ back to the plan",
     "noController": "Nothing stands here that has alarm rules. A device has to be claimed into this space first.",
-    "footer": "A silenced rule goes on watching: it still opens an alert, still writes the diary line and still marks the place on Home, it only stops telling anybody. Maintenance mode holds the alarm itself back, and so does \"Step in\" from the Log sheet.",
+    "footer": "A silenced rule goes on watching: it still opens an alert, still writes the diary line and still marks the place on Home, it only stops telling anybody. Maintenance mode holds the alarm itself back, and so does \"Step in\" from the Log sheet — for the {{minutes}} minutes it names and {{settle}} more, while the climate comes back.",
     "add": "+ Alarm · threshold · duration · severity · webhook",
     "group": {
       "presetOf": "From the {{name}} preset",
@@ -3713,11 +3713,11 @@
       "checkCam": "Check cam"
     },
     "maintenance": {
-      "sent": "Asked. Once it hears, the device stops {{outputs}}, and its alarms are held for 15 min.",
-      "sentQuietOnly": "Asked. This device drops the order, so nothing it drives will stop; its alarms are held for 15 min all the same.",
+      "sent": "Asked. Once it hears, the device stops {{outputs}}, and no alarm is raised on it for {{quiet}} min.",
+      "sentQuietOnly": "Asked. This device drops the order, so nothing it drives will stop; no alarm is raised on it for {{quiet}} min all the same.",
       "unheard": "Nobody was listening: the device has not been heard from, so the command waits for it.",
-      "ask": "Maintenance mode stops {{outputs}} for fifteen minutes, and quietens every alarm on this device while it lasts.",
-      "askQuietOnly": "This device takes no maintenance command, so nothing it drives will stop. What the fifteen minutes do here is quieten every alarm on it.",
+      "ask": "Maintenance mode stops {{outputs}} for {{minutes}} minutes. No alarm is raised on this device for {{quiet}} minutes: the window, and {{settle}} minutes more while the climate comes back.",
+      "askQuietOnly": "This device takes no maintenance command, so nothing it drives will stop. What it does here is hold every alarm on the device: the {{minutes}}-minute window, and {{settle}} minutes more, {{quiet}} in all.",
       "yes": "Start maintenance",
       "cancel": "Cancel"
     },

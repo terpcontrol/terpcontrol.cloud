@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import { Model } from 'mongoose';
 import { OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
+import { MAINTENANCE_SETTLE_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule, alarmRulesSchema } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert, alertsSchema } from '@database/schemas/v1/alerts.schema';
@@ -193,6 +194,30 @@ describe('what keeps an alarm quiet', () => {
 
     expect(await alerts.countDocuments({})).toBe(0);
     expect((await storedRule()).state.triggered).toBe(false);
+  });
+
+  /**
+   * The quiet outlasts the window by `MAINTENANCE_SETTLE_SECONDS`: a tent whose
+   * heater has been off while somebody had their hands in it is not back at its
+   * targets the second the door shuts. The app promises that span now, so the
+   * span has to be the contract's own and not a number this file happens to
+   * hold - a window that had only just run out still says nothing, and one that
+   * ran out longer ago than the settling does.
+   */
+  it('goes on saying nothing for the settling the contract names, and speaks again after it', async () => {
+    await device({ state: { lastSeenAt: new Date(), maintenanceUntil: new Date(Date.now() - 1_000) } });
+    await rules.create(ruleFor());
+
+    await reads(32, new Date());
+    expect((await storedRule()).state.triggered).toBe(false);
+
+    await db.devices.updateOne(
+      { id: DEVICE },
+      { $set: { 'state.maintenanceUntil': new Date(Date.now() - (MAINTENANCE_SETTLE_SECONDS + 60) * 1000) } },
+    );
+    await reads(32, new Date());
+
+    expect((await storedRule()).state.triggered).toBe(true);
   });
 
   it('waits out the cooldown before triggering again', async () => {

@@ -11,6 +11,7 @@ import { durationLabel } from '@/screens/devices/sockets';
 import { timeOf } from '@/screens/notifications/settings';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
+import { SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
 import { useNow } from '@/ui/useNow';
 import { clock, zoneOf } from '@/ui/zone';
 import { RuleSheet } from './RuleSheet';
@@ -118,7 +119,7 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
           being written and Home goes on carrying the chip - the one thing that
           stops is the announcement. A grower who silenced a noisy rule for an
           hour and was then alarmed by it anyway had been told otherwise here. */}
-      <p className={ui.note}>{t('alarms.footer')}</p>
+      <p className={ui.note}>{t('alarms.footer', { minutes: VISIT_MINUTES, settle: SETTLE_MINUTES })}</p>
     </div>
   );
 }

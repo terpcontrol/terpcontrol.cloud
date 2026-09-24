@@ -1526,7 +1526,7 @@
       "water": "Gießen",
       "note": "Notiz",
       "photo": "Foto",
-      "visit": "Alarme aus 15 min",
+      "visit": "Alarme aus {{quiet}} min",
       "reading": "Messwert"
     },
     "invite": {
@@ -2893,18 +2893,18 @@
       "phase": "Phase",
       "visit": "Reingehen",
       "photoCaption": "Cam-Bild oder Kamera",
-      "visitCaption": "Alarme aus 15 min"
+      "visitCaption": "Alarme aus {{quiet}} min"
     },
     "visit": {
       "hereFallback": "diesem Ort",
       "reading": "Lese, was in {{name}} steht …",
-      "parks_one": "Speichern setzt das Gerät in {{name}} für {{minutes}} Minuten in den Wartungsmodus, und in dieser Zeit löst es keinen eigenen Alarm aus. Was es dabei abstellt, steht neben seinem Namen.",
+      "parks_one": "Speichern setzt das Gerät in {{name}} für {{minutes}} Minuten in den Wartungsmodus. Was es dabei abstellt, steht neben seinem Namen.",
     "parksOutputs": "stellt {{outputs}} ab",
     "parksNothing": "stellt nichts ab: Diese Hardware kennt den Wartungsbefehl nicht",
-      "parks_other": "Speichern setzt alle {{count}} Geräte in {{name}} für {{minutes}} Minuten in den Wartungsmodus, und in dieser Zeit löst keines von ihnen einen eigenen Alarm aus. Was jedes dabei abstellt, steht neben seinem Namen.",
+      "parks_other": "Speichern setzt alle {{count}} Geräte in {{name}} für {{minutes}} Minuten in den Wartungsmodus. Was jedes dabei abstellt, steht neben seinem Namen.",
       "nothingThere": "In {{name}} steht nichts, das ist also eine Zeile im Tagebuch und sonst nichts.",
       "unreadable": "Was in {{name}} steht, ließ sich nicht lesen, hier lässt sich also nichts benennen. In den Wartungsmodus für {{minutes}} Minuten geht trotzdem jedes Gerät dort.",
-      "notUndone": "Die Zeile lässt sich danach zurücknehmen. Die {{minutes}} Minuten Ruhe nicht: Sie laufen von selbst ab, und die Geräte machen dort weiter, wo sie aufgehört haben.",
+      "notUndone": "Die Zeile lässt sich danach zurücknehmen. Die Ruhe nicht: Nach {{minutes}} Minuten machen die Geräte dort weiter, wo sie aufgehört haben, und Alarm wird auf ihnen insgesamt {{quiet}} Minuten lang keiner ausgelöst — die letzten {{settle}} davon, während das Klima zurückkommt.",
       "save_one": "Reingehen · {{count}} Gerät ruhigstellen",
       "save_other": "Reingehen · {{count}} Geräte ruhigstellen"
     },
@@ -3325,7 +3325,7 @@
     "title": "Alarme",
     "backToPlan": "‹ zurück zum Plan",
     "noController": "Hier steht nichts, das Alarmregeln hat. Erst muss ein Gerät in diesen Bereich geholt werden.",
-    "footer": "Eine stummgeschaltete Regel beobachtet weiter: Sie öffnet weiterhin eine Meldung, schreibt weiterhin die Tagebuchzeile und markiert weiterhin den Ort auf der Startseite, sie sagt nur niemandem mehr Bescheid. Der Wartungsmodus hält den Alarm selbst zurück, und „Reingehen“ aus dem Log-Blatt ebenso.",
+    "footer": "Eine stummgeschaltete Regel beobachtet weiter: Sie öffnet weiterhin eine Meldung, schreibt weiterhin die Tagebuchzeile und markiert weiterhin den Ort auf der Startseite, sie sagt nur niemandem mehr Bescheid. Der Wartungsmodus hält den Alarm selbst zurück, und „Reingehen“ aus dem Log-Blatt ebenso — die {{minutes}} Minuten, die dort stehen, und {{settle}} weitere, während das Klima zurückkommt.",
     "add": "+ Alarm · Schwelle · Dauer · Stufe · Webhook",
     "group": {
       "presetOf": "Aus dem Preset {{name}}",
@@ -3709,11 +3709,11 @@
       "checkCam": "Cam prüfen"
     },
     "maintenance": {
-      "sent": "Angefragt. Sobald es zuhört, stellt das Gerät {{outputs}} ab, und seine Alarme werden 15 min lang zurückgehalten.",
-      "sentQuietOnly": "Angefragt. Dieses Gerät verwirft den Befehl, es stellt also nichts ab; seine Alarme werden trotzdem 15 min lang zurückgehalten.",
+      "sent": "Angefragt. Sobald es zuhört, stellt das Gerät {{outputs}} ab, und {{quiet}} min lang wird auf ihm kein Alarm ausgelöst.",
+      "sentQuietOnly": "Angefragt. Dieses Gerät verwirft den Befehl, es stellt also nichts ab; trotzdem wird auf ihm {{quiet}} min lang kein Alarm ausgelöst.",
       "unheard": "Niemand hat zugehört: Das Gerät hat sich nicht gemeldet, der Befehl wartet auf es.",
-      "ask": "Der Wartungsmodus stoppt fünfzehn Minuten lang {{outputs}} und hält währenddessen jeden Alarm dieses Geräts ruhig.",
-      "askQuietOnly": "Dieses Gerät kennt den Wartungsbefehl nicht, es stellt also nichts ab. Die fünfzehn Minuten halten hier nur jeden Alarm dieses Geräts ruhig.",
+      "ask": "Der Wartungsmodus stoppt {{minutes}} Minuten lang {{outputs}}. Auf diesem Gerät wird {{quiet}} Minuten lang kein Alarm ausgelöst: das Fenster und {{settle}} Minuten mehr, während das Klima zurückkommt.",
+      "askQuietOnly": "Dieses Gerät kennt den Wartungsbefehl nicht, es stellt also nichts ab. Es hält hier nur jeden Alarm des Geräts zurück: das Fenster von {{minutes}} Minuten und {{settle}} Minuten mehr, zusammen {{quiet}}.",
       "yes": "Wartung starten",
       "cancel": "Abbrechen"
     },

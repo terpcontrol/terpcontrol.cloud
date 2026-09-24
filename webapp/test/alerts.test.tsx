@@ -630,7 +630,11 @@ describe('the inbox', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Maintenance 15 min' }));
     expect(sentTo('POST', '/v1/devices/device-1/commands')).toHaveLength(0);
-    expect(screen.getByText(/stops the heater, the dehumidifier and the CO₂ valve/)).toBeInTheDocument();
+    expect(screen.getByText(/stops the heater, the dehumidifier and the CO₂ valve for 15 minutes/)).toBeInTheDocument();
+    // The engine holds a worked-on device's alarms for ten minutes after the
+    // window has run out, so the quiet is twenty-five and not the fifteen this
+    // card used to promise three times over.
+    expect(screen.getByText(/No alarm is raised on this device for 25 minutes/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Start maintenance' }));
 

@@ -7,6 +7,7 @@ import type { Entry, GrowCard, GrowthStage, HomeSpaceCard, Person } from '@fg2/s
 import { THUMBNAIL_WIDTH, useSession, mediaUrl } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { authorOf, headlineOf } from '@/ui/entries';
+import { quietMinutes, VISIT_MINUTES } from '@/ui/maintenance';
 import { STAGES } from '@/ui/stages';
 import { useLog, useMayLog, type TileKind } from '@/log/log-context';
 import { MoveHereSheet } from '@/screens/space/MoveHereSheet';
@@ -236,6 +237,7 @@ function LogAction({
   spaceId = null,
   Icon,
   labelKey,
+  values,
   primary = false,
 }: {
   kind: TileKind;
@@ -243,6 +245,8 @@ function LogAction({
   spaceId?: string | null;
   Icon: LucideIcon;
   labelKey: string;
+  /** What the label interpolates, for the one chip whose words carry a span. */
+  values?: Record<string, unknown>;
   primary?: boolean;
 }) {
   const { t } = useTranslation();
@@ -258,7 +262,7 @@ function LogAction({
       onClick={() => openSheet({ kind, growId, spaceId })}
     >
       <Icon size={16} strokeWidth={1.75} aria-hidden />
-      {t(labelKey)}
+      {t(labelKey, values)}
     </button>
   );
 }
@@ -269,7 +273,13 @@ export function DeviceActions({ card }: { card: HomeSpaceCard }) {
     <div className={styles.actions}>
       <LogAction kind="photo" spaceId={card.spaceId} Icon={Camera} labelKey="home.actions.photo" />
       <LogAction kind="note" spaceId={card.spaceId} Icon={Pencil} labelKey="home.actions.note" />
-      <LogAction kind="visit" spaceId={card.spaceId} Icon={Timer} labelKey="home.actions.visit" />
+      <LogAction
+        kind="visit"
+        spaceId={card.spaceId}
+        Icon={Timer}
+        labelKey="home.actions.visit"
+        values={{ quiet: quietMinutes(VISIT_MINUTES * 60) }}
+      />
     </div>
   );
 }

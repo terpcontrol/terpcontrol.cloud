@@ -56,6 +56,7 @@ export default defineConfig({
       '@fg2/shared-types/v1-schemas/climate-presets.js',
       '@fg2/shared-types/v1-schemas/alert-routing.js',
       '@fg2/shared-types/v1-schemas/vpd.js',
+      '@fg2/shared-types/v1-schemas/maintenance.js',
     ],
   },
   server: { port: 4200 },

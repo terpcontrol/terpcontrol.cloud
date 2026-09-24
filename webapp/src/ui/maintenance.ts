@@ -1,4 +1,5 @@
 import type { Device, OutputMetric } from '@fg2/shared-types/v1';
+import { MAINTENANCE_SETTLE_SECONDS } from '@fg2/shared-types/v1-schemas/maintenance.js';
 
 /**
  * What a maintenance window actually does, on the hardware it is sent to.
@@ -37,6 +38,17 @@ const PARKED_BY: Record<string, OutputMetric[]> = {
 
 export const parkedOutputs = (device: Device): OutputMetric[] => PARKED_BY[device.type] ?? [];
 
+/**
+ * How long a step-in parks the hardware, as the server counts it
+ * (`VISIT_SECONDS` in the diary's entry writer). The window is the server's to
+ * decide, so this is a mirror of it and not a choice: it is here rather than in
+ * the sheet because the alarms page, the Home chip and the panel all name it.
+ */
+export const VISIT_MINUTES = 15;
+
+/** The minutes the cloud goes on holding a device's alarms after its window has run out. */
+export const SETTLE_MINUTES = MAINTENANCE_SETTLE_SECONDS / 60;
+
 /** Whether the hardware itself changes anything, or whether the quiet is the cloud's alone. */
 export const parksAnything = (device: Device): boolean => parkedOutputs(device).length > 0;
 
@@ -61,3 +73,16 @@ export const parkedLabel = (t: Translate, device: Device): string => {
 
   return `${names.slice(0, -1).join(', ')} ${t('maintenance.and')} ${names[names.length - 1]}`;
 };
+
+/**
+ * How long the alarms really stay held, for a window of this many seconds.
+ *
+ * The device is let go when its window runs out; the cloud goes on holding its
+ * alarms for `MAINTENANCE_SETTLE_SECONDS` after that, so the quiet a grower
+ * gets is the sum and not the window. Every screen that names a span names this
+ * one, because a quarter of an hour was promised by the chip, by the panel that
+ * asks and by the receipt afterwards while the quiet ran for twenty-five
+ * minutes - and somebody who stepped back out at the sixteenth had ten more in
+ * which a tent going wrong would have raised nothing at all.
+ */
+export const quietMinutes = (windowSeconds: number): number => Math.round(windowSeconds / 60) + SETTLE_MINUTES;

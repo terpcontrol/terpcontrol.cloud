@@ -6,7 +6,7 @@ import type { Alert, AlarmRule, Device, Me, Metric, OutputMetric } from '@fg2/sh
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
 import { clockLabel } from '@/screens/notifications/settings';
-import { parkedLabel, parksAnything } from '@/ui/maintenance';
+import { parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES } from '@/ui/maintenance';
 import { ruleTitle } from '@/screens/control/alarms/rules';
 import { ageAttribute, ageLabel, isAhead, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
@@ -21,6 +21,15 @@ import styles from './Alerts.module.css';
 /** How long a silence from the card holds, and how long maintenance does. */
 export const SILENCE_SECONDS = 3600;
 export const MAINTENANCE_SECONDS = 900;
+
+/**
+ * The three spans the question and the receipt are written around: the window
+ * the device is given, the settling the cloud adds to it, and the quiet a
+ * grower actually gets, which is their sum. The card used to name the window
+ * for all three, so a quarter of an hour was promised for a silence that ran
+ * for twenty-five minutes.
+ */
+const SPANS = { minutes: Math.round(MAINTENANCE_SECONDS / 60), settle: SETTLE_MINUTES, quiet: quietMinutes(MAINTENANCE_SECONDS) };
 
 type Translate = ReturnType<typeof useTranslation>['t'];
 
@@ -398,8 +407,11 @@ function OpenChips({ alert, rule, device, now }: { alert: Alert; rule: AlarmRule
  * parks something names what it parks; one whose firmware drops the order says
  * that instead of borrowing a controller's promise.
  */
-const maintenanceAsk = (t: Translate, device: Device): string =>
-  parksAnything(device) ? t('alerts.maintenance.ask', { outputs: parkedLabel(t, device) }) : t('alerts.maintenance.askQuietOnly');
+const maintenanceAsk = (t: Translate, device: Device): string => {
+  return parksAnything(device)
+    ? t('alerts.maintenance.ask', { ...SPANS, outputs: parkedLabel(t, device) })
+    : t('alerts.maintenance.askQuietOnly', SPANS);
+};
 
 /**
  * The receipt. Whether anybody was listening only matters where the device has
@@ -408,7 +420,7 @@ const maintenanceAsk = (t: Translate, device: Device): string =>
  * answered the same way whether or not the device was there to hear it.
  */
 const maintenanceReceipt = (t: Translate, device: Device, online: boolean): string => {
-  if (!parksAnything(device)) return t('alerts.maintenance.sentQuietOnly');
+  if (!parksAnything(device)) return t('alerts.maintenance.sentQuietOnly', SPANS);
 
-  return online ? t('alerts.maintenance.sent', { outputs: parkedLabel(t, device) }) : t('alerts.maintenance.unheard');
+  return online ? t('alerts.maintenance.sent', { ...SPANS, outputs: parkedLabel(t, device) }) : t('alerts.maintenance.unheard');
 };

@@ -7,6 +7,7 @@ import { useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { ageLabel } from '@/ui/age';
+import { quietMinutes, VISIT_MINUTES } from '@/ui/maintenance';
 import { readingFigure } from '@/ui/entries';
 import { enough, standsIn, useMayWith } from '@/ui/session-access';
 import { useNow } from '@/ui/useNow';
@@ -172,7 +173,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
         return next ? `→ ${t(`home.stage.${next}`)}` : '';
       }
       case 'visit':
-        return t('log.tile.visitCaption');
+        return t('log.tile.visitCaption', { quiet: quietMinutes(VISIT_MINUTES * 60) });
       default:
         return '';
     }

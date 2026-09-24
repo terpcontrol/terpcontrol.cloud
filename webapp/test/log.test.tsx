@@ -435,7 +435,11 @@ describe('the log sheet', () => {
     expect(within(asked).getByText('Big tent controller')).toBeInTheDocument();
     expect(within(asked).getByText('Plug · VICE-2')).toBeInTheDocument();
     expect(within(asked).queryByText('Somewhere else')).not.toBeInTheDocument();
-    expect(within(asked).getByText(/The 15 minutes of quiet cannot/)).toBeInTheDocument();
+    // The window is fifteen minutes and the quiet is twenty-five: the engine
+    // holds a worked-on device's alarms for ten minutes after it is let go, and
+    // the panel that promised the window alone was ten minutes short.
+    expect(within(asked).getByText(/picks up where it left off after 15 minutes/)).toBeInTheDocument();
+    expect(within(asked).getByText(/no alarm is raised on it for 25 minutes in all/)).toBeInTheDocument();
     // The day is not asked for: the quiet starts when this is saved, so the line is now.
     expect(within(asked).queryByLabelText('When')).not.toBeInTheDocument();
 

@@ -18,11 +18,13 @@ export * from './diary.js';
 // the server and the simulator both decode a device's socket report with, the
 // arithmetic the feed sheet and the entry writer both read a grid with, the days
 // and weeks a stage covers that the phase bar, the week cards and the report's
-// chapters all state, and the curve the charts and the targets screen both work
-// a VPD out along.
+// chapters all state, the curve the charts and the targets screen both work a
+// VPD out along, and the span the alarm engine holds a worked-on device's alarms
+// for that the screens offering a maintenance window have to promise.
 export * from './socket-report.js';
 export * from './feeding.js';
 export * from './grow-days.js';
 export * from './climate-presets.js';
 export * from './alert-routing.js';
 export * from './vpd.js';
+export * from './maintenance.js';

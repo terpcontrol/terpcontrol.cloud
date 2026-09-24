@@ -23,7 +23,7 @@ import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { dayOf, momentOn } from '@/ui/days';
 import { readingFigure } from '@/ui/entries';
-import { parkedLabel, parksAnything } from '@/ui/maintenance';
+import { parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
 import { useMayManage } from '@/ui/session-access';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
@@ -56,9 +56,6 @@ import styles from './Log.module.css';
 
 /** The grow's own name for a can of water, which the water row already is: it is not asked for twice. */
 const WATER_KEY = 'water_l';
-
-/** How long stepping in quietens the hardware, as the server counts it (`VISIT_SECONDS`). */
-const VISIT_MINUTES = 15;
 
 /** How many readings a kind shows fields for before the rest become chips. */
 const FIELDS_SHOWN = 3;
@@ -426,7 +423,14 @@ const useQuietened = (spaceId: string | null): Quietened => {
 function WhatItQuietens({ quietens }: { quietens: Quietened }) {
   const { t } = useTranslation();
   const { name, devices, isPending, failed } = quietens;
-  const where = { name: name ?? t('log.visit.hereFallback'), minutes: VISIT_MINUTES };
+  // The window, how much longer the cloud stays quiet afterwards, and the sum
+  // of the two - which is the span a grower is actually unwatched for.
+  const where = {
+    name: name ?? t('log.visit.hereFallback'),
+    minutes: VISIT_MINUTES,
+    settle: SETTLE_MINUTES,
+    quiet: quietMinutes(VISIT_MINUTES * 60),
+  };
 
   if (isPending) return <p className={ui.note}>{t('log.visit.reading', where)}</p>;
   if (failed || devices === null) return <p className={ui.note}>{t('log.visit.unreadable', where)}</p>;

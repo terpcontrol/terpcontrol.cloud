@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Mutex, MutexInterface, withTimeout } from 'async-mutex';
 import { Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
-import { VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { MAINTENANCE_SETTLE_SECONDS, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -25,8 +25,14 @@ import { bandOf, isOutOfBounds, watchedValue } from './alarm.watch';
  * so a restart picks the episode up where it left off.
  */
 
-/** The device suppresses its own alarms while in maintenance; the cloud's stay quiet a little longer. */
-const MAINTENANCE_COOLDOWN_MS = 10 * 60 * 1000;
+/**
+ * The device suppresses its own alarms while in maintenance; the cloud's stay
+ * quiet a little longer, because a tent is not back at its targets the moment
+ * the door shuts. How much longer is the contract's, not this file's: the
+ * screens that offer a maintenance window have to promise the same span, and
+ * for a while they promised the window alone and were ten minutes short.
+ */
+const MAINTENANCE_COOLDOWN_MS = MAINTENANCE_SETTLE_SECONDS * 1000;
 
 /** Below this, the duration is noise against the interval a device reports at. */
 const MEANINGFUL_FOR_SECONDS = 4;

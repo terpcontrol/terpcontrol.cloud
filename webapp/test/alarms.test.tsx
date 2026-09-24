@@ -398,6 +398,19 @@ describe('the alarm rules page', () => {
     expect(footer.textContent).not.toMatch(/Silence and maintenance mode pause/);
   });
 
+  /**
+   * The engine skips a worked-on device for ten minutes after its window has
+   * run out, so a step-in the app calls fifteen minutes keeps the alarms quiet
+   * for twenty-five. The footer is where that is read, so it states both spans
+   * rather than the one that was promised and not kept.
+   */
+  it('names the settling the engine adds to a step-in, not the window alone', async () => {
+    draw();
+
+    const footer = await screen.findByText(/A silenced rule goes on watching/);
+    expect(footer).toHaveTextContent('for the 15 minutes it names and 10 more, while the climate comes back');
+  });
+
   it('calls the stage group by the stage alone where nothing grows here yet', async () => {
     vi.mocked(api.get).mockImplementation(
       (path: string) => Promise.resolve(path === '/spaces/space-1/overview' ? { ...overview, grows: [] } : answers(path)) as never,
