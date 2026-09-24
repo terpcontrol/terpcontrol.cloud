@@ -185,6 +185,11 @@ export class GrowReportService {
    * the instant it was taken at. What is left is searched inside the window, so
    * a chapter that reaches past a link's end is covered by a picture from inside
    * it or by nothing.
+   *
+   * `middle` is the middle of the chapter as its reader can see it, which is why
+   * the owner and somebody holding a link into the same phase are covered by
+   * different pictures: the one a reader is shown a fortnight of should be
+   * headed by a picture from that fortnight.
    */
   private async coverOf(spaceIds: readonly (string | null)[], middle: Date, grant: Grant, range: AccessRange): Promise<string | null> {
     if (!grant.includeCameras) return null;

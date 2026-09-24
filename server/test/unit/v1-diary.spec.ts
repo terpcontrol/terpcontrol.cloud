@@ -1013,7 +1013,7 @@ describe('the report', () => {
 
   it('covers a chapter with a picture from inside the window and never from beyond it', async () => {
     await db.media.create([
-      { id: 'still-inside', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(28, 5) },
+      { id: 'still-inside', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(26, 2) },
       { id: 'still-beyond', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(28, 21.5) },
     ]);
     await db.shareLinks.create({
@@ -1028,8 +1028,12 @@ describe('the report', () => {
       revokedAt: null,
     });
 
-    // The middle of the flowering chapter falls late on day 28, so the picture
-    // nearest it is the one taken after the window closed.
+    // Each reader's cover is the still nearest the middle of the chapter as far
+    // as they can see it. The owner's flowering chapter runs to today and its
+    // middle falls late on day 28; through a link that closes at midday on day
+    // 28 the same chapter is five days long and its middle is late on day 25, so
+    // the two of them are covered by different pictures and a reader is never
+    // handed one from outside their window to stand for their own weeks.
     const own = await report.read(GROW, await grantFor(session(OWNER)), NOW);
     const seen = await report.read(GROW, await grantFor({ ...anonymous, shareToken: 'report-until-day-28' }), NOW);
 
