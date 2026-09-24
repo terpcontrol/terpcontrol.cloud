@@ -295,3 +295,18 @@
     padding-top: 0;
   }
 }
+
+/* The grow page gives the feeding tab its full width so a grid of twelve or
+   sixteen weeks has columns to spread into; the sentences around the grid keep
+   a reading measure. */
+@media (min-width: 1200px) {
+  .page {
+    max-width: none;
+  }
+
+  .note,
+  .caption,
+  .none {
+    max-width: 72ch;
+  }
+}

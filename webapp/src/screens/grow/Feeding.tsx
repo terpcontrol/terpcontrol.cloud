@@ -111,7 +111,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
   if (!draft) {
     return (
       <div className={styles.page}>
-        <section className={ui.cardDashed}>
+        <section className={`${ui.cardDashed} ${styles.none}`}>
           <span className="label">{t('grow.noScheme')}</span>
           {/* A finished grow is not being fed anything, so it is told what it
               was fed and why the grid is still worth filling in, rather than
