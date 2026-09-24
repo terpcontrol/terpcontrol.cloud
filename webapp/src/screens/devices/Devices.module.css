@@ -353,6 +353,17 @@
   opacity: 0.45;
 }
 
+/* How long ON and OFF hold the output for, beside the buttons that send it. The
+   duration is a mandatory part of the command - the server refuses a hold with
+   no end - so it belongs on the row and not only behind the chevron where it is
+   chosen. It is drawn as quietly as the rest of the row's second rank, because
+   it is the length of a hold and never the lamp's own reading. */
+.holdLength {
+  flex: none;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
 .socketPanel {
   display: flex;
   flex-direction: column;
@@ -364,6 +375,18 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* The time the light output is held for is chosen here rather than sent, so one
+   of these chips is always the one in force and has to look it. It is the
+   pressed chip the Timeline and the Charts draw, because a chip carrying a
+   choice should not change its manners between screens. A socket's times need
+   none of this: there a chip is a command, and nothing is standing. */
+.hold[aria-pressed='true'] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-green);
+  font-weight: var(--weight-semibold);
 }
 
 /* What dragging the dimmer does to a plan that is running this device. Amber,

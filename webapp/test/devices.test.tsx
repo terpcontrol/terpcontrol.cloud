@@ -14,7 +14,7 @@ import { DeviceList } from '@/screens/devices/DeviceList';
 import { LightOutputRow } from '@/screens/devices/LightOutputRow';
 import { lightOutputOf, withLightLimit } from '@/screens/devices/lights';
 import { SocketRow } from '@/screens/devices/SocketRow';
-import { defaultHold, holdsFor, rowsOf } from '@/screens/devices/sockets';
+import { defaultHold, durationLabel, holdsFor, rowsOf } from '@/screens/devices/sockets';
 import { cameraFreshness } from '@/screens/devices/cameras';
 import type { OutputLevel, OverrideRequest } from '@/api/devices';
 import { spaceWhere, THE_HOST } from './session';
@@ -384,6 +384,55 @@ describe("the controller's own light output", () => {
       { deviceId: 'device-1', target: { kind: 'output', output: 'light' }, state: 'on', forSeconds: 3600 },
       { deviceId: 'device-1', target: { kind: 'output', output: 'light' }, state: 'auto', forSeconds: 0 },
     ]);
+  });
+
+  /**
+   * How long a hold lasts is a mandatory part of the command - the server
+   * refuses one with no end - and this row was the single place that chose it
+   * silently, where a smart socket a few rows down offers five times and says
+   * which one is in force.
+   */
+  it('says how long it holds the output for, before the tap and again after it', () => {
+    drawOutput();
+
+    expect(screen.getByText('holds 1 h')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Hold the light output for 1 h' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'on' }));
+
+    expect(screen.getByRole('status')).toHaveTextContent('Asked, to hold for 1 h.');
+  });
+
+  it('offers the times a socket is held for, and holds the output for whichever was chosen', () => {
+    drawOutput();
+    fireEvent.click(screen.getByRole('button', { name: /What Light output is/ }));
+
+    expect(holdsFor().map(durationLabel)).toEqual(['15 min', '1 h', '4 h', '8 h', '24 h']);
+    fireEvent.click(screen.getByRole('button', { name: '4 h' }));
+
+    expect(screen.getByRole('button', { name: '4 h' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('holds 4 h')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'on' }));
+    fireEvent.click(screen.getByRole('button', { name: 'auto' }));
+
+    expect(sent).toEqual([
+      { deviceId: 'device-1', target: { kind: 'output', output: 'light' }, state: 'on', forSeconds: 4 * 3600 },
+      { deviceId: 'device-1', target: { kind: 'output', output: 'light' }, state: 'auto', forSeconds: 0 },
+    ]);
+    // Handing the output back carries no duration, so the receipt names none.
+    expect(screen.getByRole('status')).toHaveTextContent('Asked. The device reports back within half a minute.');
+  });
+
+  it('greys the times with the reason the buttons are grey, where the times are', () => {
+    drawOutput({ lights: LIGHTS }, { ...CAPABILITIES, lightOverride: false });
+    fireEvent.click(screen.getByRole('button', { name: /What Light output is/ }));
+
+    expect(screen.getByRole('button', { name: '4 h' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '1 h' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getAllByText(/cannot be told to hold its light output/).length).toBe(2);
+    // Nor does the row name the length of a hold nobody can ask for.
+    expect(screen.queryByText(/^holds /)).not.toBeInTheDocument();
   });
 
   it('refuses to hold the output on a build that never announced it, and dims it all the same', () => {

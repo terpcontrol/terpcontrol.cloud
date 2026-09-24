@@ -10,7 +10,7 @@ import { ageLabel } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
 import { Fact, Facts } from './Facts';
 import { LEVEL_STEP, percentLabel, withLightLimit, type LightOutput } from './lights';
-import { defaultHold } from './sockets';
+import { defaultHold, durationLabel, holdsFor } from './sockets';
 import styles from './Devices.module.css';
 
 interface LightOutputRowProps {
@@ -119,13 +119,25 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
     }
   };
 
-  const force = (state: SocketOverrideState) =>
-    override.mutate({
-      deviceId: output.deviceId,
-      target: { kind: 'output', output: 'light' },
-      state,
-      forSeconds: state === 'auto' ? 0 : defaultHold(),
-    });
+  // How long ON and OFF hold the output for. A hold that says nothing about its
+  // own end is the one thing the server refuses outright - `override_without_end`
+  // - so the duration was always part of the command, and this row was the one
+  // place that chose it for the grower in silence while the socket a few rows
+  // down offered five. The chips behind the chevron move this; the row prints
+  // it beside the buttons, so it is known before the tap and not only after it.
+  //
+  // The chips set the time rather than sending one, which is where they differ
+  // from a socket's: a plug is on or off and a chip there means "the other way,
+  // for this long", while this output runs at a level and has no other way to
+  // be put. The direction is the three buttons' to say.
+  const [hold, setHold] = useState(defaultHold());
+  const [asked, setAsked] = useState<number | null>(null);
+
+  const force = (state: SocketOverrideState) => {
+    const forSeconds = state === 'auto' ? 0 : hold;
+    setAsked(state === 'auto' ? null : forSeconds);
+    override.mutate({ deviceId: output.deviceId, target: { kind: 'output', output: 'light' }, state, forSeconds });
+  };
 
   return (
     <li className={`${ui.card} ${styles.socket}`}>
@@ -172,13 +184,21 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
             onBlur={() => void commit()}
           />
           <span className={`mono ${styles.level}`}>{stated}</span>
-          <span className={styles.forces} role="group" aria-label={t('devices.lightOutput.force')}>
+          {/* The group carries the duration rather than each button, so the
+              three keep the one-word names they are drawn with and a reader
+              hears how long a hold lasts once, where the choice belongs. */}
+          <span className={styles.forces} role="group" aria-label={t('devices.lightOutput.forceFor', { duration: durationLabel(hold) })}>
             {(['auto', 'on', 'off'] as const).map(state => (
               <button key={state} type="button" className={styles.forceOption} disabled={cannotForce !== null} onClick={() => force(state)}>
                 {t(`devices.socket.${state}`)}
               </button>
             ))}
           </span>
+          {/* Only beside buttons that can be pressed: next to three greyed
+              words it would be the length of a hold nobody can ask for. */}
+          {cannotForce === null ? (
+            <span className={`mono ${styles.holdLength}`}>{t('devices.lightOutput.holds', { duration: durationLabel(hold) })}</span>
+          ) : null}
         </div>
       ) : null}
 
@@ -202,7 +222,7 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
       {mayManage && cannotSetLevel ? <p className={ui.note}>{cannotSetLevel}</p> : null}
       {mayManage && why ? <p className={ui.note}>{why}</p> : null}
       <Saved save={save} paused={move} />
-      <Asked ask={override} />
+      <Asked ask={override} heldFor={asked} />
 
       {open ? (
         <div className={styles.socketPanel}>
@@ -217,6 +237,36 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
             />
             {runs ? <Fact label={t('devices.socket.runs')} value={t('devices.socket.runsValue', { count: runs.runCount })} /> : null}
           </Facts>
+
+          {/* The same times a smart socket is held for, because the firmware
+              holds anything for any of them: the list is the override's own
+              ceiling and neither the role nor the build narrows it. */}
+          {mayManage ? (
+            <div className={styles.holds}>
+              <span className="label">{t('devices.socket.holdFor')}</span>
+              {holdsFor().map(seconds => (
+                <button
+                  key={seconds}
+                  type="button"
+                  className={`${ui.chip} ${styles.hold}`}
+                  aria-pressed={why === null && seconds === hold}
+                  disabled={why !== null}
+                  onClick={() => setHold(seconds)}
+                >
+                  {durationLabel(seconds)}
+                </button>
+              ))}
+              {/* Why these are grey, where they are, rather than a scroll back
+                  up the row: this is what somebody opened the panel to reach.
+                  It is the row's own sentence and not the raw reason behind it,
+                  so a device nobody is listening on does not say "your build is
+                  too old" down here and "nothing is listening" up there. None of
+                  the grey chips is drawn as the one in force, because no hold
+                  can be asked for at all. */}
+              {why ? <p className={`${ui.note} ${styles.whyGrey}`}>{why}</p> : null}
+            </div>
+          ) : null}
+
           <p className={ui.note}>{t('devices.lightOutput.explained')}</p>
         </div>
       ) : null}
@@ -255,8 +305,16 @@ function Saved({ save, paused }: { save: Mutation & { isSuccess: boolean }; paus
   ) : null;
 }
 
-/** The same receipt a socket's switch gets: it went out, and whether anybody was listening. */
-function Asked({ ask }: { ask: Mutation & { data?: { deviceOnline: boolean } } }) {
+/**
+ * The same receipt a socket's switch gets: it went out, and whether anybody was
+ * listening - and, for a hold, how long it was asked to hold for.
+ *
+ * The device reports no override of its own output, so the row cannot count a
+ * hold down the way a socket's line does. What it can say is what was sent, and
+ * a hold whose length is never stated anywhere is a lamp forced on with no word
+ * about when it hands itself back.
+ */
+function Asked({ ask, heldFor }: { ask: Mutation & { data?: { deviceOnline: boolean } }; heldFor: number | null }) {
   const { t } = useTranslation();
 
   if (ask.isPending) return <p className={`${ui.note} ${styles.socketWhy}`}>{t('devices.socket.asking')}</p>;
@@ -269,9 +327,17 @@ function Asked({ ask }: { ask: Mutation & { data?: { deviceOnline: boolean } } }
   }
   if (!ask.data) return null;
 
+  if (!ask.data.deviceOnline) {
+    return (
+      <p className={`${ui.note} ${styles.socketWhy}`} role="status">
+        {t('devices.socket.notListening')}
+      </p>
+    );
+  }
+
   return (
     <p className={`${ui.note} ${styles.socketWhy}`} role="status">
-      {t(ask.data.deviceOnline ? 'devices.socket.asked' : 'devices.socket.notListening')}
+      {heldFor === null ? t('devices.socket.asked') : t('devices.lightOutput.askedHold', { duration: durationLabel(heldFor) })}
     </p>
   );
 }
