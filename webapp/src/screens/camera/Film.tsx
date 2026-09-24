@@ -5,6 +5,7 @@ import { useMedia } from '@/api/cameras';
 import { mediaUrl, useSession } from '@/api/session';
 import ui from '@/ui/ui.module.css';
 import { DATED_CLOCK, DAY_IN_YEAR, zoned, zoneOf } from '@/ui/zone';
+import { filmCauseOf } from './capture-failure';
 import styles from './CameraPage.module.css';
 
 /**
@@ -14,8 +15,18 @@ import styles from './CameraPage.module.css';
  * row says where the job has got to and nothing more until the file is there.
  * A render that failed says so and keeps the reason, rather than staying
  * "rendering" forever.
+ *
+ * The reason is read for what kind of failure it was and said in the language
+ * the page is in. The server writes it in English - it is prose it chose, or a
+ * paragraph of ffmpeg - and a German camera page was drawing "there are not
+ * enough pictures in that span to make a film" as its one English line, under a
+ * status that said "fehlgeschlagen" and beside a capture banner that has named
+ * its own failures in German for as long as `capture-failure.ts` has existed.
+ * The server's own words stay for whoever owns the camera, a tap below, exactly
+ * as that banner keeps them: they are the only route from a render that broke
+ * to the person who can do anything about it.
  */
-export function Film({ mediaId, collapsed }: { mediaId: string; collapsed?: boolean }) {
+export function Film({ mediaId, collapsed, mayOwn = false }: { mediaId: string; collapsed?: boolean; mayOwn?: boolean }) {
   const { t } = useTranslation();
   const { user } = useSession();
   const me = useMe(false, user?.isDemo !== true);
@@ -52,9 +63,17 @@ export function Film({ mediaId, collapsed }: { mediaId: string; collapsed?: bool
       {status === 'queued' && !collapsed ? <p className={ui.note}>{t('camera.film.queuedNote')}</p> : null}
 
       {status === 'failed' ? (
-        <p className={ui.problem} role="alert">
-          {film.render?.error || t('camera.film.failedPlain')}
-        </p>
+        <>
+          <p className={ui.problem} role="alert">
+            {film.render?.error ? t(filmCauseOf(film.render.error)) : t('camera.film.failedPlain')}
+          </p>
+          {mayOwn && film.render?.error ? (
+            <details className={styles.rawError}>
+              <summary className="mono">{t('camera.film.whatItSaid')}</summary>
+              <p className="mono">{film.render.error}</p>
+            </details>
+          ) : null}
+        </>
       ) : null}
 
       {source && !collapsed ? <video className={styles.video} src={source} controls playsInline preload="metadata" /> : null}

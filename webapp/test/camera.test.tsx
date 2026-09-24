@@ -11,7 +11,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Camera, GrowListItem, TimelapseCreate } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { CameraScreen } from '@/screens/camera/CameraPage';
-import { causeOf } from '@/screens/camera/capture-failure';
+import { causeOf, filmCauseOf } from '@/screens/camera/capture-failure';
 import { Composer } from '@/screens/camera/Composer';
 import { CameraSettings } from '@/screens/camera/CameraSettings';
 import { Film } from '@/screens/camera/Film';
@@ -409,6 +409,22 @@ describe('what a failed capture is called', () => {
    */
   it('names a failure by what it began as where one failure prints the wording of two', () => {
     expect(causeOf('Failed reading RTSP data: End of file … Error opening input: Invalid data found')).toBe('camera.failure.stoppedEarly');
+  });
+
+  /**
+   * A render is read by its own causes rather than by the ones above it,
+   * because a render never goes near the camera: it works from pictures that
+   * are already stored, so nothing it fails at is a login being refused or an
+   * address answering nothing. These are the sentences the render writes.
+   */
+  it.each([
+    ['every picture in that span was taken with the light off', 'allDark'],
+    ['there are not enough pictures in that span to make a film', 'tooFew'],
+    ['the camera this was asked of is gone', 'cameraGone'],
+    ['the pictures in that span could not be made into a film', 'encodeFailed'],
+    ['ffmpeg exited with status 251', 'unknown'],
+  ])('reads the render´s %s as %s', (said, cause) => {
+    expect(filmCauseOf(said)).toBe(`camera.film.failure.${cause}`);
   });
 });
 
@@ -897,10 +913,27 @@ describe('the job it starts', () => {
     expect(container.querySelector('video')).toHaveAttribute('src', '/media/media-1');
   });
 
-  it('keeps the reason a render failed instead of staying busy forever', () => {
-    state.film = film('failed', { error: 'no frames in that span' });
-    render(<Film mediaId="media-1" />);
+  /**
+   * A render that failed says why, in the language the page is in. The server
+   * writes its reason in English - the German camera page's one English line
+   * was this row - so the words are read for the cause they name and the cause
+   * is what is drawn, with the server's own sentence kept a tap below for
+   * whoever owns the camera, exactly as the capture banner keeps it.
+   */
+  it('names why a render failed in the language of the page, and keeps the server´s own words for the owner', () => {
+    state.film = film('failed', { error: 'every picture in that span was taken with the light off' });
+    const { container } = render(<Film mediaId="media-1" mayOwn />);
 
-    expect(screen.getByRole('alert')).toHaveTextContent('no frames in that span');
+    expect(screen.getByRole('alert')).toHaveTextContent('Every picture in that span was taken with the light off');
+    expect(screen.getByRole('group')).toHaveTextContent('What the render said');
+    expect(container.textContent).toContain('every picture in that span was taken with the light off');
+  });
+
+  it('keeps the render´s own words from a reader who cannot go and fix the camera', () => {
+    state.film = film('failed', { error: 'ffmpeg exited with status 251' });
+    const { container } = render(<Film mediaId="media-1" />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('The render failed.');
+    expect(container.textContent).not.toContain('ffmpeg');
   });
 });

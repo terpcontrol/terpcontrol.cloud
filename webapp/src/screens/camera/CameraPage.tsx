@@ -308,12 +308,12 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
             {ask.error instanceof ApiError ? ask.error.problem.detail || ask.error.problem.title : t('camera.askFailed')}
           </p>
         ) : null}
-        {job ? <Film mediaId={job.id} /> : null}
+        {job ? <Film mediaId={job.id} mayOwn={mayOwn} /> : null}
         {shownFilms.length > 0 ? (
           <ul className={styles.films} aria-label={t('camera.timelapses')}>
             {shownFilms.map(film => (
               <li key={film.id}>
-                <Film mediaId={film.id} collapsed />
+                <Film mediaId={film.id} mayOwn={mayOwn} collapsed />
               </li>
             ))}
           </ul>

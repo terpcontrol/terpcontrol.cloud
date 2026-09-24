@@ -3108,7 +3108,15 @@
       "failedPlain": "The render failed and gave no reason.",
       "lost": "That film could not be read.",
       "open": "Open the film",
-      "queuedNote": "Waiting for the builder, which takes the queue on its next pass. This page follows it; nothing is lost by leaving."
+      "queuedNote": "Waiting for the builder, which takes the queue on its next pass. This page follows it; nothing is lost by leaving.",
+      "whatItSaid": "What the render said",
+      "failure": {
+        "allDark": "Every picture in that span was taken with the light off. A film that keeps them is one to ask for with “Lights-off frames”.",
+        "tooFew": "There are not enough pictures in that span to make a film.",
+        "cameraGone": "The camera this film was asked of is no longer there.",
+        "encodeFailed": "The pictures in that span could not be made into a film.",
+        "unknown": "The render failed."
+      }
     },
     "noFilms": "No film of this camera yet.",
     "moreFilms": "More films",

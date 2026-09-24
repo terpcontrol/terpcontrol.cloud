@@ -3104,7 +3104,15 @@
       "failedPlain": "Das Rendern ist ohne Angabe eines Grundes fehlgeschlagen.",
       "lost": "Dieser Film ließ sich nicht lesen.",
       "open": "Film öffnen",
-      "queuedNote": "Wartet auf den Builder, der die Warteschlange beim nächsten Durchlauf abarbeitet. Diese Seite verfolgt das; beim Weggehen geht nichts verloren."
+      "queuedNote": "Wartet auf den Builder, der die Warteschlange beim nächsten Durchlauf abarbeitet. Diese Seite verfolgt das; beim Weggehen geht nichts verloren.",
+      "whatItSaid": "Was das Rendern gemeldet hat",
+      "failure": {
+        "allDark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film mit diesen Bildern gibt es über „Bilder aus der Dunkelphase“.",
+        "tooFew": "In diesem Zeitraum gibt es nicht genug Bilder für einen Film.",
+        "cameraGone": "Die Kamera, von der dieser Film angefordert wurde, gibt es nicht mehr.",
+        "encodeFailed": "Aus den Bildern dieses Zeitraums ließ sich kein Film bauen.",
+        "unknown": "Das Rendern ist fehlgeschlagen."
+      }
     },
     "noFilms": "Von dieser Kamera gibt es noch keinen Film.",
     "moreFilms": "Weitere Filme",
