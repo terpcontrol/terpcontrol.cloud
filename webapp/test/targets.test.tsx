@@ -201,12 +201,17 @@ describe('the manual targets page', () => {
    * not arrived, was told that nothing standing here states a climate and
    * offered a second device it has no use for. Both halves were false, and the
    * Devices tab of the same tent has always said the true one.
+   *
+   * What brings the document is the other half of being honest here: the
+   * firmware publishes it when a setting is changed on its own menu and at no
+   * other time, so a page that names the next connection is naming the one
+   * thing that will never help.
    */
   it('says a controller’s settings are still on their way rather than asking for another device', () => {
     draw([device({ id: 'controller-1', name: null, configuration: null })]);
 
     expect(screen.getByText(/Controller · LLER-1 has not sent its settings yet/)).toBeInTheDocument();
-    expect(screen.getByText(/It sends them when it next connects/)).toBeInTheDocument();
+    expect(screen.getByText(/Changing any setting on the device itself sends them; connecting alone does not/)).toBeInTheDocument();
     expect(screen.queryByText(/Nothing standing here states a climate/)).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Add a device' })).not.toBeInTheDocument();
     expect(screen.queryByRole('slider')).not.toBeInTheDocument();

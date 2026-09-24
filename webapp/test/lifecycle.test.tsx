@@ -448,11 +448,20 @@ describe('the climate preset sheet', () => {
     expect(screen.getByText('Nothing standing here states a climate, so there is nothing to write one to.')).toBeInTheDocument();
   });
 
-  it('says a controller whose settings have not arrived is waited on, rather than promising a write into nothing', () => {
+  /**
+   * A controller whose document has never arrived is skipped by the preset -
+   * the server writes only where targets already stand - and the firmware sends
+   * that document from its own settings menu and from nowhere else. So the
+   * sheet says the preset passes this device by and names the one thing that
+   * would change that, rather than promising the next connection will.
+   */
+  it('says the preset passes a controller whose settings have not arrived, and what would bring them', () => {
     hardware.devices = [standing({ configuration: null })];
     draw(<PresetSheet overview={overview} onClose={() => {}} />);
 
-    expect(screen.getByText(/has sent its settings yet/)).toHaveTextContent('written when the hardware next connects');
+    const said = screen.getByText(/has sent its settings yet/);
+    expect(said).toHaveTextContent('this preset passes it by');
+    expect(said).toHaveTextContent('Changing any setting on the device itself sends them; connecting alone does not.');
   });
 
   it('keeps quiet about the hardware for a reader who was never told what stands here', () => {
