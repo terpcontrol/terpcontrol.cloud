@@ -93,16 +93,42 @@ export class PlanService {
    * The question is asked of the document rather than of the device's type,
    * because the type table that says which hardware states a climate lives in
    * the app, where it is what draws the screen, and stating it a second time here
-   * is how the two would come to disagree. A device that has never sent a
-   * document says nothing either way and is let through - that is the case the
-   * app's own type test is for, and the one this side has no evidence about.
+   * is how the two would come to disagree.
+   *
+   * A device that has never sent a document used to be let through, on the
+   * reasoning that the app's own type test covered it. It does not, and the
+   * deferral was the wrong shape besides: refusing this case needs no type table
+   * at all, so nothing is being stated twice. What is refused is the absence of
+   * evidence. Nothing here knows what the merge would be writing over, because
+   * the device has never said; the firmware rebuilds its whole settings struct
+   * from the document it is handed, so what the app calls a climate arrives at
+   * the hardware as a whole configuration, with the work mode, the light
+   * schedule, the dehumidifier's timings and the dimming ramps back at their
+   * compile-time defaults. That tuning was set standing at the device, has never
+   * reached the cloud, and cannot be put back from here. The write is one that
+   * cannot be undone by the thing that made it, which is exactly the kind a route
+   * should not take on a client's word - and every other write path already
+   * refuses it: the preset service skips a device whose document states no
+   * targets, and the manual targets page refuses it in a sentence.
    */
   private async mustHaveSomewhereToWrite(deviceId: string, steps: StoredPlan['steps']): Promise<void> {
     if (!steps.some(step => Object.keys(step.settings ?? {}).length > 0)) return;
 
     const device = await this.devices.findOne({ id: deviceId }, { configuration: 1 }).lean<Pick<StoredDevice, 'configuration'> | null>();
     const configuration = device?.configuration ?? null;
-    if (configuration === null || Object.keys(configuration).length === 0 || targetsOf(configuration) !== null) return;
+
+    if (configuration === null || Object.keys(configuration).length === 0) {
+      throw unprocessable('device_sent_no_settings', 'This device has not sent its settings, so a step has nothing to write into.', [
+        {
+          field: 'steps',
+          code: 'no_settings_yet',
+          detail:
+            'The settings of a step are merged into this device’s own document, which has never arrived; what would be sent is the step alone, and the device would read every key it leaves out as a default.',
+        },
+      ]);
+    }
+
+    if (targetsOf(configuration) !== null) return;
 
     throw unprocessable('device_states_no_climate', 'This device states no climate, so a step has nowhere to write one.', [
       {

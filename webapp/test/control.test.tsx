@@ -14,7 +14,7 @@ import { Control } from '@/screens/control/Control';
 import { PlanPanel } from '@/screens/control/PlanPanel';
 import { movesOf } from '@/screens/control/plan-clock';
 import { CLIMATE_FIGURES, draftOf, editEffect, figureOf, moveStep, otherSections, withFigure } from '@/screens/control/plan-edit';
-import { holdsAClimate } from '@/ui/climate-hardware';
+import { climateLanding } from '@/ui/climate-hardware';
 
 /**
  * What the Control tab promises before anything is sent, and what it offers at
@@ -150,7 +150,7 @@ const draw = (one: Device = device()) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter>
-        <PlanPanel device={one} mayManage holdsClimate={holdsAClimate(one)} />
+        <PlanPanel device={one} mayManage landing={climateLanding(one)} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -219,7 +219,7 @@ describe('the plan panel over hardware that states no climate', () => {
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <MemoryRouter>
-          <PlanPanel device={lamp()} mayManage holdsClimate={holdsAClimate(lamp())} />
+          <PlanPanel device={lamp()} mayManage landing={climateLanding(lamp())} />
         </MemoryRouter>
       </QueryClientProvider>,
     );
@@ -229,17 +229,19 @@ describe('the plan panel over hardware that states no climate', () => {
     expect(screen.queryByRole('button', { name: 'Start from a template' })).not.toBeInTheDocument();
   });
 
-  it('still offers a controller whose document has not arrived both ways in', () => {
+  it('refuses a controller whose document has not arrived the way the targets page refuses it', () => {
     const waiting = { ...device(), configuration: null };
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <MemoryRouter>
-          <PlanPanel device={waiting} mayManage holdsClimate={holdsAClimate(waiting)} />
+          <PlanPanel device={waiting} mayManage landing={climateLanding(waiting)} />
         </MemoryRouter>
       </QueryClientProvider>,
     );
 
-    expect(screen.getByRole('button', { name: 'Write a plan' })).toBeInTheDocument();
+    expect(screen.getByText(/has not sent its settings yet/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Write a plan' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Start from a template' })).not.toBeInTheDocument();
   });
 });
 

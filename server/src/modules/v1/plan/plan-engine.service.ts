@@ -18,6 +18,9 @@ const TICK_MS = 20 * 1000;
 const REAPPLY_INTERVAL_MS = 60 * 60 * 1000;
 const APPLY_LAST_SEEN_MS = 60 * 1000;
 
+/** As much of a device as a send is decided by. */
+type Answering = Pick<StoredDevice, 'state' | 'configuration'>;
+
 @Injectable()
 export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
   private readonly work = new BackgroundWork();
@@ -79,6 +82,20 @@ export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
    * or that came back with an older document, is otherwise left running
    * something the plan did not ask for. A device that is not answering is left
    * alone: the send would be recorded as done for the hour it covers.
+   *
+   * A device that has never sent its own document is left alone too, and for
+   * good. The merge has nothing to merge into, so what would reach the hardware
+   * is the step's few sections as the whole configuration, and the firmware
+   * reads every key that is missing from one as its compile-time default - which
+   * would put the work mode, the light schedule, the dehumidifier's timings and
+   * the dimming ramps back to factory values that were never the tent's and that
+   * nothing here has a copy of. Refusing the plan when it is written keeps this
+   * from being reached at all; this guard is for the plans written before that
+   * refusal existed, and for the same reason: a write nothing can undo is worse
+   * than a step that does not arrive. Neither is announced from here - the plan
+   * screen says it, in the sentence the manual targets page says it in - and
+   * `lastAppliedAt` is left alone, as it is for a device that is not answering,
+   * so the step goes out on the pass after the document finally arrives.
    */
   private async applyStep(plan: StoredPlan, now: Date): Promise<void> {
     const step = activeStep(plan);
@@ -86,7 +103,10 @@ export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
 
     const { lastAppliedAt } = plan.state;
     if (lastAppliedAt && lastAppliedAt.getTime() > now.getTime() - REAPPLY_INTERVAL_MS) return;
-    if (!(await this.isAnswering(plan.deviceId, now))) return;
+
+    const device = await this.deviceFor(plan.deviceId);
+    if (!this.isAnswering(device, now)) return;
+    if (Object.keys(step.settings ?? {}).length > 0 && Object.keys(device?.configuration ?? {}).length === 0) return;
 
     try {
       if (await this.configuration.applyConfiguration(plan.deviceId, step.settings)) {
@@ -102,9 +122,12 @@ export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
     }
   }
 
-  private async isAnswering(deviceId: string, now: Date): Promise<boolean> {
-    const device = await this.devices.findOne({ id: deviceId }, { 'state.lastSeenAt': 1 }).lean<Pick<StoredDevice, 'state'>>().exec();
+  /** The two things a send is decided by, read in one go: when the device last spoke, and whether it ever sent its settings. */
+  private deviceFor(deviceId: string): Promise<Answering | null> {
+    return this.devices.findOne({ id: deviceId }, { 'state.lastSeenAt': 1, configuration: 1 }).lean<Answering | null>().exec();
+  }
 
+  private isAnswering(device: Answering | null, now: Date): boolean {
     const lastSeenAt = device?.state?.lastSeenAt;
     return !!lastSeenAt && lastSeenAt.getTime() >= now.getTime() - APPLY_LAST_SEEN_MS;
   }

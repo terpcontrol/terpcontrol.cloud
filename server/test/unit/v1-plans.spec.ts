@@ -248,6 +248,40 @@ describe('what the step is applied to', () => {
     expect((await stored()).state.lastAppliedAt).toBeNull();
   });
 
+  /**
+   * A device that has never sent its own document has nothing for the step to be
+   * merged into, so what would be published is the step's sections as the whole
+   * configuration - and the firmware reads every key that is missing from one as
+   * a compile-time default. The route refuses such a plan now, so this is the
+   * one already stored when it did not; the step waits rather than resetting the
+   * tuning, and nothing is recorded as sent, so it goes out on the pass after
+   * the document arrives.
+   */
+  it('holds a step back from a device that has never sent its settings, and sends it once one arrives', async () => {
+    await db.devices.create({ id: DEVICE, type: 'controller', ownerId: OWNER, spaceId: SPACE, configuration: null, state: { lastSeenAt: NOW } });
+    await aPlan([step({ id: 'a', name: 'Veg', settings: { day: { temperature: 24 } } })]);
+
+    await engine.run(NOW);
+
+    expect(applied).toHaveLength(0);
+    expect((await stored()).state.lastAppliedAt).toBeNull();
+
+    await db.devices.updateOne({ id: DEVICE }, { $set: { configuration: { day: { temperature: 26 }, workmode: 'small' } } });
+    await engine.run(at(MINUTE));
+
+    expect(applied).toEqual([{ deviceId: DEVICE, settings: { day: { temperature: 24 } } }]);
+  });
+
+  /** A step that asks the hardware for nothing is not the write this is about, so it is left to go out. */
+  it('still sends a step that writes nothing to such a device', async () => {
+    await db.devices.create({ id: DEVICE, type: 'controller', ownerId: OWNER, spaceId: SPACE, configuration: null, state: { lastSeenAt: NOW } });
+    await aPlan([step({ id: 'a', name: 'Veg' })]);
+
+    await engine.run(NOW);
+
+    expect(applied).toEqual([{ deviceId: DEVICE, settings: {} }]);
+  });
+
   it('sends nothing more once the plan is completed', async () => {
     await aDevice();
     await aPlan([step({ id: 'a', name: 'Only' })]);

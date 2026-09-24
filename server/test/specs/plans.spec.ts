@@ -57,9 +57,19 @@ const aPlan = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-/** A controller of its own, so a case that starts a plan cannot disturb the one beside it. */
+/**
+ * A controller of its own, so a case that starts a plan cannot disturb the one
+ * beside it - and one that has stated a climate, which is the only kind a step
+ * carrying settings may be written for. A device out of the box has sent no
+ * document at all, and what a step would publish to one is the step alone, read
+ * by the firmware as the whole of its settings.
+ */
 const aController = async (session: Session): Promise<{ deviceId: string; spaceId: string }> => {
   const claimed = await provisionDevice(session, 'controller');
+  await session.client
+    .put(`/v1/devices/${claimed.deviceId}/configuration`)
+    .send({ configuration: { day: { temperature: 25, humidity: 60 }, night: { temperature: 22, humidity: 65 }, workmode: 2 } })
+    .expect(200);
   const read = await session.client.get(`/v1/devices/${claimed.deviceId}`).expect(200);
 
   return { deviceId: claimed.deviceId, spaceId: read.body.spaceId };
@@ -167,6 +177,38 @@ describe('writing the plan', () => {
 
     expect(refused.body.code).toBe('device_states_no_climate');
     await owner.client.get(`/v1/devices/${lamp.deviceId}/plan`).expect(404);
+  });
+
+  /**
+   * A controller out of the box has sent nothing, so nothing here knows what a
+   * step's sections would be written over. What would reach it is the step
+   * alone, and the firmware rebuilds its whole settings struct from the document
+   * it is handed - so the work mode, the light schedule and the dehumidifier's
+   * timings somebody set standing at the device would go back to compile-time
+   * defaults the cloud has never been sent and cannot put back. This used to be
+   * let through on the reasoning that the app's own type test covered it; it did
+   * not, and a write nothing can undo is not one to take on a client's word.
+   */
+  it('refuses a climate step on a controller that has never sent its settings', async () => {
+    const fresh = await provisionDevice(owner, 'controller');
+
+    const refused = await owner.client
+      .put(`/v1/devices/${fresh.deviceId}/plan`)
+      .send(aPlan({ steps: [climateOnly('Woche 1')] }))
+      .expect(422);
+
+    expect(refused.body.code).toBe('device_sent_no_settings');
+    await owner.client.get(`/v1/devices/${fresh.deviceId}/plan`).expect(404);
+  });
+
+  /** Emptying the settings is how a plan already standing on such a device is taken off, so that save still goes through. */
+  it('takes a plan on that controller when no step writes anything', async () => {
+    const fresh = await provisionDevice(owner, 'controller');
+
+    await owner.client
+      .put(`/v1/devices/${fresh.deviceId}/plan`)
+      .send(aPlan({ steps: [step('Veg')] }))
+      .expect(200);
   });
 
   /**

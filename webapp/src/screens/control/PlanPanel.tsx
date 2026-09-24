@@ -4,10 +4,12 @@ import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify, StepDuration } from '@fg2/shared-types/v1';
 import { isMissing, useDevicePlan, usePlanTransition, useStopPlan } from '@/api/plans';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
+import type { ClimateLanding } from '@/ui/climate-hardware';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { deviceTitle } from '../devices/naming';
 import { PlanEditor } from './PlanEditor';
 import { KeepAsTemplateSheet, StartFromTemplateSheet } from './PlanTemplates';
 import { PlanRefusal } from './Refusal';
@@ -41,14 +43,22 @@ import styles from './Control.module.css';
  * the controller is dimmed by how long the controller has been quiet, because a
  * device that says nothing may have been running something else for an hour.
  *
- * A step writes a climate and nothing else, so hardware with nowhere for one to
- * land - a plug, a lamp - is told that rather than offered a plan: `holdsClimate`
- * is the same question the Manual targets page one tap below asks, and the two
- * screens used to answer it differently about the same tent. A plan that is
- * already on such a device is still drawn in full, because a plan nobody can see
- * is a plan nobody can stop.
+ * A step writes a climate and nothing else, so where that climate would land
+ * decides what this panel offers, in the three states `climateLanding` tells
+ * apart. A plug or a lamp is told there is nowhere for one to go. A controller
+ * whose document has not arrived is told the same thing the Manual targets page
+ * one tap below tells it, in the same sentence: nothing here can stand in for
+ * the settings it has never sent, and a step written for it would not be a
+ * climate added to its tuning but a document put in place of it, with the work
+ * mode, the light schedule, the dehumidifier's timings and the ramps back at
+ * factory values. This panel used to ask a weaker question than the targets page
+ * and offered that tent all six figures without a word.
+ *
+ * A plan that is already on either kind of device is still drawn in full,
+ * because a plan nobody can see is a plan nobody can stop - and emptying a
+ * step's settings is how one gets taken off.
  */
-export function PlanPanel({ device, mayManage, holdsClimate }: { device: Device; mayManage: boolean; holdsClimate: boolean }) {
+export function PlanPanel({ device, mayManage, landing }: { device: Device; mayManage: boolean; landing: ClimateLanding }) {
   const { t } = useTranslation();
   const now = useNow();
   const plan = useDevicePlan(device.id);
@@ -80,9 +90,15 @@ export function PlanPanel({ device, mayManage, holdsClimate }: { device: Device;
         {title}
         {isMissing(plan.error) ? (
           <div className={`${ui.cardDashed} ${styles.none}`}>
-            <p className={styles.noneWhat}>{t(holdsClimate ? 'space.control.none' : 'space.control.noClimate')}</p>
-            <p className={ui.note}>{t(holdsClimate ? 'space.control.noneNote' : 'space.control.noClimateNote')}</p>
-            {mayManage && holdsClimate ? (
+            <p className={styles.noneWhat}>{t(landing === 'document' ? 'space.control.none' : 'space.control.noClimate')}</p>
+            <p className={ui.note}>
+              {landing === 'document'
+                ? t('space.control.noneNote')
+                : landing === 'awaited'
+                  ? t('targets.waiting', { device: deviceTitle(device, t) })
+                  : t('space.control.noClimateNote')}
+            </p>
+            {mayManage && landing === 'document' ? (
               <div className={styles.actions}>
                 <button type="button" className={`${ui.button} ${ui.primary}`} onClick={() => setEditing(emptyDraft(name, DEFAULT_NOTIFY))}>
                   {t('space.control.write')}
@@ -117,10 +133,15 @@ export function PlanPanel({ device, mayManage, holdsClimate }: { device: Device;
       {title}
       <RefreshFailed failedAt={plan.isError ? plan.dataUpdatedAt : null} now={now} />
 
-      {/* A plan that is already on hardware with no climate is shown whole, so
-          it can be looked at and stopped, with the fact said once above it: the
-          steps are writing a climate into a document that states none. */}
-      {holdsClimate ? null : <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.control.noClimateHasPlan')}</p>}
+      {/* A plan that is already on hardware a climate cannot reach is shown
+          whole, so it can be looked at and stopped, with the fact said once
+          above it - and which of the two reasons it is, because they are not the
+          same fact and only one of them is anybody's to do something about. */}
+      {landing === 'document' ? null : (
+        <p className={`${ui.cardDashed} ${ui.note}`}>
+          {t(landing === 'awaited' ? 'space.control.waitingHasPlan' : 'space.control.noClimateHasPlan')}
+        </p>
+      )}
 
       <div className={`${ui.card} ${styles.plan}`}>
         <Standing plan={plan.data} device={device} now={now} />
@@ -140,7 +161,7 @@ export function PlanPanel({ device, mayManage, holdsClimate }: { device: Device;
           {/* Editing stays, because emptying the steps is how a plan that should
               never have been written here is taken off. Starting a fresh one
               from a template would only write the same climate again. */}
-          {holdsClimate ? (
+          {landing === 'document' ? (
             <button type="button" className={ui.button} onClick={() => setPicking(true)}>
               {t('space.control.fromTemplate')}
             </button>

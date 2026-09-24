@@ -71,17 +71,27 @@ export const HOLDS_A_CLIMATE = ['controller', 'fridge', 'fan'];
 export const awaitingClimate = (device: Device): boolean => device.configuration === null && HOLDS_A_CLIMATE.includes(device.type);
 
 /**
- * Whether a climate written for this device has anywhere at all to land: either
- * its document states one already, or its kind says the document will when it
- * arrives.
+ * Where a climate written for this device would land, in the three states the
+ * screens that write one have to tell apart.
  *
- * This is the question the Control tab has to ask before offering a grow plan,
- * because a plan step writes nothing but a climate. A plug or a lamp answers no,
- * and the six fields a step offers - day and night temperature and humidity, the
- * CO2 target, the light's limit - would be written into a document that states a
- * lamp's on and off times as plain seconds, where `day` is an integer and the
- * step would put an object over it. The Manual targets page one tap below has
- * always asked this; the plan panel above it did not, so the two said opposite
- * things about the same tent.
+ * `document` is a device whose own configuration states day and night targets:
+ * the figures go into it, and every other key of it - the work mode, the
+ * dehumidifier's timing, the ramps - is kept, because the merge is section by
+ * section over what is already there.
+ *
+ * `awaited` is the controller above, whose document has not arrived. Nothing can
+ * be written to it, and the reason is the one `awaitingClimate` sets out: what
+ * would be published is the fragment on its own, and the firmware rebuilds its
+ * whole settings struct from what it is handed. This used to be folded in with
+ * `document` under one boolean, which is how the plan screen came to offer six
+ * climate fields for a tent the Manual targets page one tap below refused in a
+ * sentence - the same six figures that would have taken the tuning with them.
+ *
+ * `nowhere` is a plug or a lamp, which will never state a climate: its document
+ * holds a lamp's on and off times as plain seconds under the same `day` and
+ * `night` keys, so a figure written there would be an object over a schedule.
  */
-export const holdsAClimate = (device: Device): boolean => statesTargets(device.configuration) || awaitingClimate(device);
+export type ClimateLanding = 'document' | 'awaited' | 'nowhere';
+
+export const climateLanding = (device: Device): ClimateLanding =>
+  statesTargets(device.configuration) ? 'document' : awaitingClimate(device) ? 'awaited' : 'nowhere';

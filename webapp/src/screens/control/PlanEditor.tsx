@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device, GrowthStage, Plan, PlanNotifyMode } from '@fg2/shared-types/v1';
 import { useSavePlan } from '@/api/plans';
 import { Sheet } from '@/log/Sheet';
+import { awaitingClimate } from '@/ui/climate-hardware';
 import { presetsOf } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
@@ -161,11 +162,21 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
   );
 }
 
-/** One step: what it is called, what it puts the grow into, how long it lasts and what it holds the tent at. */
+/**
+ * One step: what it is called, what it puts the grow into, how long it lasts and
+ * what it holds the tent at.
+ *
+ * The figures stay editable for a controller whose settings have never arrived,
+ * because clearing them is the only way a step that should never have been
+ * written there is taken off - but what they would do is said above them rather
+ * than left to be found out. The way in to a fresh plan for such a controller is
+ * closed one screen up, so this is the plan somebody is taking off.
+ */
 function StepFields({ step, device, onChange }: { step: StepDraft; device: Device; onChange: (over: Partial<StepDraft>) => void }) {
   const { t } = useTranslation();
   const presets = step.stage ? presetsOf(step.stage) : [];
   const extra = otherSections(step.settings);
+  const awaiting = awaitingClimate(device);
 
   const pickStage = (stage: GrowthStage | null) => {
     // A preset refines the stage it belongs to, so it does not survive a change of stage.
@@ -242,7 +253,11 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
           <FigureField key={figure.key} figure={figure} step={step} device={device} onChange={onChange} />
         ))}
       </div>
-      <p className={ui.note}>{t(writesNothing(step.settings) ? 'space.control.step.writesNothing' : 'space.control.step.writesSections')}</p>
+      <p className={ui.note}>
+        {writesNothing(step.settings)
+          ? t('space.control.step.writesNothing')
+          : t(awaiting ? 'space.control.step.writesNowhere' : 'space.control.step.writesSections')}
+      </p>
       {extra.length > 0 ? <p className={ui.note}>{t('space.control.step.alsoWrites', { sections: extra.join(', ') })}</p> : null}
       {device.configuration ? (
         <button type="button" className={ui.button} onClick={() => onChange({ settings: fromController(step, device) })}>
