@@ -18,6 +18,33 @@
   border-radius: var(--radius);
 }
 
+/* The way to add one more to a list - a device, a camera, a grow: a dashed
+   row that closes the list it adds to, its words in the middle. */
+.addRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out;
+}
+
+.addRow:hover {
+  background: color-mix(in srgb, var(--card) 60%, transparent);
+  color: var(--ink);
+}
+
 .button {
   display: inline-flex;
   align-items: center;
@@ -187,6 +214,236 @@
   opacity: 0.45;
 }
 
+/* The title of a page below a tab - Manual targets, Alarms - with the way
+   back to the tab beside it. It names the page, so it is set as a name, not
+   as one more section label on a rule over the section labels under it. */
+.subhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0 0;
+  border-bottom: 0;
+}
+
+.subhead > :first-child {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-display-sm);
+  font-variation-settings: var(--display-axes);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--line-tight);
+  text-transform: none;
+  color: var(--ink);
+}
+
+/* The way back up, in front of a page's title. On a phone it stands in the
+   title's row; from the rail's width up it hangs in the gutter to the left
+   of the column, so every page's title starts on the column's own edge
+   whether or not it has a way back. The header puts `--space-2` between it
+   and the title - a header with a wider gap says so in `--back-gap`. */
+.back {
+  --back-gap: var(--space-2);
+
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin-left: calc(var(--space-2) * -1);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+}
+
+.back:hover {
+  background: var(--tint);
+  color: var(--ink);
+}
+
+@media (min-width: 900px) {
+  .back {
+    margin-left: calc(-32px - var(--back-gap));
+  }
+}
+
+/* One answer out of two or three, as one control: a pill track, the chosen
+   option filled with the brand, in sentence case at a chip's height. Every
+   such choice in the app is this one - a screen composes it and adds only its
+   own layout, such as a track that runs the width of its card. */
+.segments {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  background: var(--card-2);
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 0;
+  height: var(--chip-height);
+  padding: 0 var(--space-3);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.segment:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.segment[aria-pressed='true'],
+.segment[aria-checked='true'],
+.segment[aria-selected='true'],
+.segment[aria-current='page'],
+.segment[data-chosen='true'] {
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
+/* Out of reach, the options that cannot be chosen drop to the label ink, and
+   the one in force keeps a tint and the full ink: a locked control still says
+   what it is set to, which a faded one did not. */
+.segment:disabled {
+  color: var(--label);
+  cursor: default;
+}
+
+.segment:disabled:is([aria-pressed='true'], [aria-checked='true'], [data-chosen='true']) {
+  background: var(--brand-wash);
+  color: var(--ink);
+}
+
+/* A value dragged along a line: the app's one slider, wherever it is - a
+   target, a brightness, the cursor over a day of pictures. The part up to the
+   thumb is the green, the rest a rule, and the thumb a green dot ringed in
+   the card. The page says how far along it is in `--filled`, a percentage. */
+.range {
+  --filled: 0%;
+
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  appearance: none;
+}
+
+.range::-webkit-slider-runnable-track {
+  height: 4px;
+  background: linear-gradient(to right, var(--green-fill) var(--filled), var(--rule-strong) var(--filled));
+  border-radius: var(--radius-pill);
+}
+
+.range::-moz-range-track {
+  height: 4px;
+  background: linear-gradient(to right, var(--green-fill) var(--filled), var(--rule-strong) var(--filled));
+  border-radius: var(--radius-pill);
+}
+
+.range::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  background: var(--green-fill);
+  border: 3px solid var(--card);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-raised);
+  appearance: none;
+}
+
+.range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: var(--green-fill);
+  border: 3px solid var(--card);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-raised);
+}
+
+.range:focus-visible {
+  outline: none;
+}
+
+.range:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.range:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Out of reach, the green gives way to the ink it would otherwise stand for. */
+.range:disabled {
+  cursor: default;
+}
+
+.range:disabled::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--label) var(--filled), var(--rule) var(--filled));
+}
+
+.range:disabled::-moz-range-track {
+  background: linear-gradient(to right, var(--label) var(--filled), var(--rule) var(--filled));
+}
+
+.range:disabled::-webkit-slider-thumb {
+  background: var(--label);
+  box-shadow: none;
+}
+
+.range:disabled::-moz-range-thumb {
+  background: var(--label);
+  box-shadow: none;
+}
+
+/* A comparison table - what each tier or each role may do - on a card of its
+   own, its label outside it like every other section's. A yes is a check in
+   the green that means "may" and a no a dash in the label ink, both at a size
+   that reads. */
+.tableCard {
+  padding: var(--space-3) var(--space-4) var(--space-1);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow-x: auto;
+}
+
+.yes,
+.no {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
+}
+
+.yes {
+  color: var(--green-ink);
+}
+
+.no {
+  color: var(--label);
+  font-size: var(--text-md);
+}
+
 .input {
   width: 100%;
   height: var(--control-height);
@@ -250,7 +507,7 @@
   height: 24px;
   padding: 0;
   background: var(--card-2);
-  border: var(--rule-width) solid var(--rule-strong);
+  border: var(--rule-width) solid var(--control-edge);
   border-radius: var(--radius-pill);
 }
 

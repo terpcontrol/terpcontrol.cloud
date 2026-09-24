@@ -155,7 +155,7 @@ function Made({ invite }: { invite: Invite }) {
 
   return (
     <div className={styles.made}>
-      <div className={styles.ways} role="tablist" aria-label={t('space.members.sheet.waysLabel')}>
+      <div className={`${ui.segments} ${styles.ways}`} role="tablist" aria-label={t('space.members.sheet.waysLabel')}>
         {WAYS.map(one => (
           <button
             key={one}
@@ -164,7 +164,7 @@ function Made({ invite }: { invite: Invite }) {
             id={`invite-way-${one}`}
             aria-selected={way === one}
             aria-controls="invite-way-panel"
-            className={styles.way}
+            className={ui.segment}
             onClick={() => setWay(one)}
           >
             {t(`space.members.sheet.ways.${one}`)}

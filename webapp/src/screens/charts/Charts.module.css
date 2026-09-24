@@ -28,13 +28,6 @@
 }
 
 .back {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  margin-left: calc(var(--space-2) * -1);
-  color: var(--muted);
   transform: translateY(4px);
 }
 
@@ -90,11 +83,14 @@
   color: var(--muted);
 }
 
-/* What says a chip is something somebody wrote down rather than something a sensor reported. */
+/* What says a chip is something somebody wrote down rather than something a
+   sensor reported. It leads the name, where a line's colour mark leads the
+   others, so every chip's mark is in the same place. */
 .dot {
-  width: 5px;
-  height: 5px;
-  margin-left: var(--space-1);
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-right: 2px;
   background: currentcolor;
   border-radius: var(--radius-pill);
 }
@@ -379,39 +375,8 @@
    group clips: clipped, an end segment comes out round on one side and cut
    square on the other, which is a shape nothing else in the app has. The 1 px
    of padding keeps that fill inside the group's own outline. */
-.segmented {
-  display: inline-flex;
-  box-sizing: border-box;
-  height: calc(var(--chip-height) + 2px);
-  padding: 1px;
-  background: transparent;
-  border: var(--rule-solid);
-  border-radius: var(--radius-pill);
-}
-
-.segment {
-  padding: 0 var(--space-3);
-  background: none;
-  border: 0;
-  border-radius: var(--radius-pill);
-  color: var(--ink);
-  font-family: var(--font-figure);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  white-space: nowrap;
-}
-
-.segment[aria-pressed='true'] {
-  background: var(--brand);
-  color: var(--on-brand);
-  font-weight: var(--weight-semibold);
-}
 
 /* Counting in days has no meaning over a rolling window, so it is out of reach there. */
-.segment:disabled {
-  color: var(--label);
-  opacity: 0.55;
-}
 
 /* Sentences, so kept to a measure a line can be read across even where the
    charts above them run the width of the page. */
@@ -461,17 +426,27 @@
     padding-top: 0;
   }
 
+  /* The way back hangs in the gutter, so the title is on the column's edge. */
+  .subject {
+    padding-left: 0;
+  }
+
   .plot {
     height: 160px;
   }
 }
 
 /* A chart is the one thing on this screen, so on a wide one it takes the page.
-   The screens that only ask which grow to draw keep the reading column: a
-   sentence and two chips do not want 1180 px. */
+   The screen that only asks which grow to draw keeps the same frame, so the
+   title does not move once a grow is picked, and holds its sentence and chips
+   to the reading column under it. */
 @media (min-width: 1200px) {
-  .screen:has(> [role='group']) {
+  .screen {
     max-width: var(--page-width);
+  }
+
+  .screen:not(:has(> [role='group'])) > :not(header) {
+    max-width: var(--reading-width);
   }
 
   .plot {

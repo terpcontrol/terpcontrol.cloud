@@ -18,6 +18,7 @@ import { Timeline } from '../timeline/Timeline';
 import { Members } from './members/Members';
 import { Overview } from './Overview';
 import styles from './SpacePage.module.css';
+import ui from '@/ui/ui.module.css';
 
 const TABS = ['overview', 'timeline', 'devices', 'control', 'members'] as const;
 type SpaceTab = (typeof TABS)[number];
@@ -88,7 +89,7 @@ function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; su
   return (
     <section className={styles.page} data-tab={tab}>
       <header className={styles.header}>
-        <Link to="/" className={styles.back} aria-label={t('shell.tabs.home')}>
+        <Link to="/" className={`${ui.back} ${styles.back}`} aria-label={t('shell.tabs.home')}>
           <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
         </Link>
         <h1 className={styles.name}>

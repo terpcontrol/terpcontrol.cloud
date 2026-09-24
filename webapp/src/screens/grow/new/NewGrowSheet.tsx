@@ -315,7 +315,7 @@ function Form({
           ))}
           <button
             type="button"
-            className={`${ui.cardDashed} ${styles.addRow}`}
+            className={`${ui.cardDashed} ${ui.addRow}`}
             onClick={() => change({ plants: [...draft.plants, { key: String(Date.now()), strain: '', count: 1 }] })}
           >
             {t('grow.new.addStrain')}
@@ -323,7 +323,7 @@ function Form({
         </Block>
 
         <Block label={t('grow.new.type')} aside={t('grow.new.typeAside')}>
-          <div className={styles.halves} role="group" aria-label={t('grow.new.type')}>
+          <div className={`${ui.segments} ${styles.halves}`} role="group" aria-label={t('grow.new.type')}>
             <Choice chosen={draft.type === 'photoperiod'} onChoose={() => change({ type: 'photoperiod' })}>
               {t('grow.new.photoperiod')}
             </Choice>

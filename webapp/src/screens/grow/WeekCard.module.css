@@ -118,8 +118,10 @@
   color: var(--label);
 }
 
+/* A day still to come is told by its dashed, empty tile; its name keeps the
+   label ink so it still reads. */
 .dayTile[data-future='true'] .dayName {
-  opacity: var(--age-offline);
+  font-weight: var(--weight-regular);
 }
 
 /* The day a stage began. Under the day number rather than over the picture: a

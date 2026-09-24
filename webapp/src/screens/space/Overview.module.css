@@ -23,6 +23,13 @@
     align-items: start;
     gap: var(--space-6);
   }
+
+  /* The tent now is the shorter column beside a day's diary; it stays in view
+     while the diary is read down, rather than ending in a field of nothing. */
+  .now {
+    position: sticky;
+    top: var(--space-6);
+  }
 }
 
 /* All across, however narrow the phone: one card, split by hairlines, the
@@ -130,16 +137,24 @@
 /* The label holds the left; whatever the section offers - an action, a link,
    Charts beside Timeline - sits together at the right. */
 .sectionHeader > :first-child {
+  min-width: 0;
   margin-right: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* The label gives way to what the section offers: a long place name in it is
+   cut rather than wrapping the header, and the page title says it whole. */
 .sectionActions,
 .sectionLink {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 2px;
   font-size: var(--text-xs);
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .sectionActions a,
@@ -315,6 +330,30 @@
   scrollbar-width: none;
 }
 
+/* A day holds more pictures than the row: its far edge fades while there are
+   more to scroll to, as the tabs' does, so the last tile reads as the start of
+   the rest rather than a picture cut in half. */
+@supports (animation-timeline: scroll()) {
+  .strip {
+    animation: strip-more linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+
+@keyframes strip-more {
+  from {
+    mask-image: linear-gradient(to right, #000 calc(100% - 64px), transparent);
+  }
+
+  99% {
+    mask-image: linear-gradient(to right, transparent 0, #000 64px, #000 calc(100% - 64px), transparent);
+  }
+
+  to {
+    mask-image: linear-gradient(to right, transparent 0, #000 64px);
+  }
+}
+
 .stillTile {
   position: relative;
   /* As many as the row holds, grown to fill it; past that the row scrolls. */
@@ -357,20 +396,43 @@
 .trend {
   display: block;
   width: 100%;
-  height: 56px;
-  overflow: visible;
+  height: 48px;
+  overflow: hidden;
   /* The day in quarters, as faint as the chart grid: enough to say when in
      the day a dip came without an axis to read. */
-  background: linear-gradient(to right, transparent calc(25% - 0.5px), var(--grid) calc(25% - 0.5px) calc(25% + 0.5px), transparent calc(25% + 0.5px) calc(50% - 0.5px), var(--grid) calc(50% - 0.5px) calc(50% + 0.5px), transparent calc(50% + 0.5px) calc(75% - 0.5px), var(--grid) calc(75% - 0.5px) calc(75% + 0.5px), transparent calc(75% + 0.5px));
+  background: linear-gradient(
+    to right,
+    transparent calc(25% - 0.5px),
+    var(--grid) calc(25% - 0.5px) calc(25% + 0.5px),
+    transparent calc(25% + 0.5px) calc(50% - 0.5px),
+    var(--grid) calc(50% - 0.5px) calc(50% + 0.5px),
+    transparent calc(50% + 0.5px) calc(75% - 0.5px),
+    var(--grid) calc(75% - 0.5px) calc(75% + 0.5px),
+    transparent calc(75% + 0.5px)
+  );
 }
 
-/* Nothing heard in the day: no empty plot above the sentence that says so. */
+/* Nothing heard in the day: no empty plot above the sentence that says so,
+   and the card drawn as every "nothing here" in the app is - dashed. */
 div.trend:empty {
   display: none;
 }
 
+.verdict:has(> div.trend:empty) {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--rule-strong);
+  box-shadow: none;
+}
+
 .band {
   fill: var(--band);
+}
+
+.bandEdge {
+  stroke: color-mix(in srgb, var(--green) 45%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
 }
 
 .line {

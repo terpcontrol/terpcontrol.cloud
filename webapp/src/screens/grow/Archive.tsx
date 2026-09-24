@@ -52,7 +52,7 @@ export function GrowArchive() {
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <Link to="/" className={styles.back} aria-label={t('shell.tabs.home')}>
+        <Link to="/" className={ui.back} aria-label={t('shell.tabs.home')}>
           <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
         </Link>
         <h1 className={styles.title}>{t('grow.archive.title')}</h1>

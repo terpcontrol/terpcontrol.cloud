@@ -59,6 +59,9 @@ function CannotReach({ asking, onAskAgain, from }: { asking: boolean; onAskAgain
 
   return (
     <section className={styles.screen}>
+      <div className={styles.wordmark} aria-hidden>
+        Terp Control
+      </div>
       <h1 className={styles.title}>{t('shell.cannotReach.title')}</h1>
       <p className={ui.note} role="alert">
         {t('shell.cannotReach.why')}

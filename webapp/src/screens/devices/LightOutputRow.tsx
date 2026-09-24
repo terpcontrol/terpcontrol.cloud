@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
 import type { DateTime } from 'luxon';
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ActuatorRuns, SocketOverrideState } from '@fg2/shared-types/v1';
 import { useSaveConfiguration, useSetOverride } from '@/api/devices';
@@ -170,7 +170,8 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
           </label>
           <input
             id={`level-${output.deviceId}`}
-            className={styles.slider}
+            className={`${ui.range} ${styles.slider}`}
+            style={{ '--filled': `${level}%` } as CSSProperties}
             type="range"
             min={0}
             max={100}
@@ -187,9 +188,19 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
           {/* The group carries the duration rather than each button, so the
               three keep the one-word names they are drawn with and a reader
               hears how long a hold lasts once, where the choice belongs. */}
-          <span className={styles.forces} role="group" aria-label={t('devices.lightOutput.forceFor', { duration: durationLabel(hold) })}>
+          <span
+            className={`${ui.segments} ${styles.forces}`}
+            role="group"
+            aria-label={t('devices.lightOutput.forceFor', { duration: durationLabel(hold) })}
+          >
             {(['auto', 'on', 'off'] as const).map(state => (
-              <button key={state} type="button" className={styles.forceOption} disabled={cannotForce !== null} onClick={() => force(state)}>
+              <button
+                key={state}
+                type="button"
+                className={`${ui.segment} ${styles.forceOption}`}
+                disabled={cannotForce !== null}
+                onClick={() => force(state)}
+              >
                 {t(`devices.socket.${state}`)}
               </button>
             ))}
@@ -248,7 +259,7 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
                 <button
                   key={seconds}
                   type="button"
-                  className={`${ui.chip} ${styles.hold}`}
+                  className={ui.chip}
                   aria-pressed={why === null && seconds === hold}
                   disabled={why !== null}
                   onClick={() => setHold(seconds)}

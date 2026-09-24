@@ -80,6 +80,7 @@ export function Control({ spaceId, sub }: { spaceId: string; sub: string | null 
         <nav className={styles.below} aria-label={t('space.control.belowLabel')}>
           <Link to={`/spaces/${spaceId}/control/targets`} className={`${ui.button} ${styles.belowButton}`}>
             {t('space.control.targets')}
+            <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
           </Link>
           <Link to={`/spaces/${spaceId}/control/alarms`} className={`${ui.button} ${styles.belowButton}`}>
             {t('space.control.advanced')}

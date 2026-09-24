@@ -20,7 +20,14 @@
   align-items: flex-start;
   gap: var(--space-3);
   max-width: var(--column-width);
-  padding-top: var(--space-5);
+  padding-top: var(--space-2);
+}
+
+@media (min-width: 900px) {
+  .refusal {
+    max-width: var(--reading-width);
+    padding-top: 0;
+  }
 }
 
 .head {

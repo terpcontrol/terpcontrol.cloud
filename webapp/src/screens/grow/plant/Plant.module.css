@@ -25,10 +25,17 @@
 
 .back {
   grid-area: back;
-  display: inline-flex;
-  margin-left: calc(var(--space-2) * -1);
-  padding-top: 2px;
-  color: var(--ink);
+}
+
+@media (min-width: 900px) {
+  .head {
+    grid-template-columns: 0 minmax(0, 1fr);
+    margin-left: calc(var(--space-2) * -1);
+  }
+
+  .head > .back {
+    margin-left: -32px;
+  }
 }
 
 .titles {

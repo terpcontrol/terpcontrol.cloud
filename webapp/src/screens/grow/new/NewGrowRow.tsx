@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
-import styles from './NewGrow.module.css';
 
 /**
  * Starting a grow from the home: a row under the cards rather than a button in
@@ -23,7 +22,7 @@ export function NewGrowRow({ onOpen }: { onOpen: () => void }) {
   if (!mayManage) return null;
 
   return (
-    <button type="button" className={`${ui.cardDashed} ${styles.addRow}`} onClick={onOpen}>
+    <button type="button" className={ui.addRow} onClick={onOpen}>
       {t('grow.new.row')}
     </button>
   );

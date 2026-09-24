@@ -133,11 +133,6 @@
   flex-direction: column;
   gap: var(--space-3);
   margin-top: var(--space-4);
-  padding: var(--space-4);
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
 }
 
 .coversHead {
@@ -145,6 +140,8 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
+  padding-bottom: 7px;
+  border-bottom: var(--rule-solid);
 }
 
 .only {

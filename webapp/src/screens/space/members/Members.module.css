@@ -12,32 +12,19 @@
    rather than which part of it is shown - the tabs above already do that. */
 .scope {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  padding: var(--space-1);
-  background: var(--card-2);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .scopeOption {
-  padding: var(--space-2) var(--space-3);
-  border-radius: calc(var(--radius) - 2px);
-  color: var(--muted);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  text-align: center;
-  white-space: nowrap;
+  display: block;
+  line-height: var(--chip-height);
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* The brand's wash, as the rail marks where you are: the raised surfaces sit
-   within a shade of the track in dark mode and would vanish into it, and a
-   half-width fill of the brand itself glares in a dark tent. */
+/* Where you are is the pressed half, marked by `aria-current`. */
 .scopeHere {
-  background: var(--brand-wash);
-  color: var(--green-ink);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 35%, transparent);
+  cursor: default;
 }
 
 /* The invite block and its sheet keep their own module, `Invite.module.css`. */
@@ -196,9 +183,11 @@
 
 .column {
   padding-bottom: var(--space-2);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  letter-spacing: var(--tracking-caption);
+  font-family: var(--font-text);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
   color: var(--label);
   text-align: center;
 }
@@ -215,14 +204,7 @@
 
 .mark {
   width: 64px;
-  font-size: 10px;
   text-align: center;
-  color: var(--label);
-}
-
-/* A yes is the green that means "may", a no only a quiet dash. */
-.mark[data-yes='true'] {
-  color: var(--green-ink);
 }
 
 /* Read aloud but not drawn: a bullet says nothing to a screen reader, and the

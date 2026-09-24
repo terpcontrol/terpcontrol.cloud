@@ -24,34 +24,9 @@
 
 /* Mine | All: two halves of one control on a pill track, the chosen one filled
    with the brand the way a chosen chip is. */
-.segments {
-  display: inline-flex;
-  flex: none;
-  gap: 2px;
-  padding: 2px;
-  border: var(--rule-solid);
-  border-radius: var(--radius-pill);
-  background: var(--card-2);
-}
 
 .segment {
-  height: calc(var(--action-height) - 6px);
   padding: 0 var(--space-4);
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius-pill);
-  color: var(--muted);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-}
-
-.segment:hover {
-  color: var(--ink);
-}
-
-.segment[aria-checked='true'] {
-  background: var(--brand);
-  color: var(--on-brand);
 }
 
 .group {

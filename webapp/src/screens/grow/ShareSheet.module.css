@@ -71,10 +71,13 @@
   background: var(--card);
 }
 
-/* A link that has been revoked or has run out keeps its row, dimmed: it is
-   still a fact about what was handed out. */
+/* A link that has been revoked or has run out keeps its row, sunk and in the
+   muted ink: it is still a fact about what was handed out, and still read. */
 .link[data-dead='true'] {
-  opacity: var(--age-offline);
+  --ink: var(--ink-offline);
+  --muted: var(--muted-offline);
+  background: var(--card-2);
+  color: var(--muted);
 }
 
 .linkMeta {

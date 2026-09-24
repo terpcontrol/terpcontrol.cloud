@@ -6,6 +6,7 @@ import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useZone } from '@/ui/zone';
 import { at, captureOf, fractionOf, frameAt, stampOf } from './window';
 import styles from './Timeline.module.css';
+import ui from '@/ui/ui.module.css';
 
 /** How long one frame is held while the window plays. Fast enough to read as a day passing, slow enough to see. */
 const FRAME_MS = 320;
@@ -90,7 +91,7 @@ export function Slider({ from, to, cursor, onScrub }: { from: number; to: number
 
   return (
     <input
-      className={styles.slider}
+      className={ui.range}
       style={{ '--filled': `${fractionOf(cursor, from, to) * 100}%` } as React.CSSProperties}
       type="range"
       min={from}

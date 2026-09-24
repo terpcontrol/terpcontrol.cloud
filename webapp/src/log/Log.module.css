@@ -60,10 +60,17 @@
   font-size: var(--text-xs);
   line-height: var(--line-tight);
   color: var(--muted);
-  /* A long word is hyphenated where the language allows it rather than cut
-     at whichever letter reached the edge ("measuremen / t"). */
+  /* Two lines at most, broken between words and cut with an ellipsis after
+     that: hyphenated, a tile's list of measurement names ran to five broken
+     lines and made every tile in its row as tall. A word too long for the
+     tile on its own still breaks rather than running out of it. */
+  display: -webkit-box;
+  overflow: hidden;
   overflow-wrap: break-word;
-  hyphens: auto;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  text-wrap: balance;
 }
 
 /* What the details are about: the same line the toast will say. */
@@ -253,38 +260,6 @@
 
 .dangerButton {
   border-color: var(--alarm);
-}
-
-/* Cam still | Take photo, in the sheet's header: a pill of two, the chosen
-   half filled with the brand like any chosen chip. */
-.segmented {
-  display: inline-flex;
-  padding: 2px;
-  border: var(--rule-solid);
-  border-radius: var(--radius-pill);
-  background: var(--card-2);
-  overflow: hidden;
-}
-
-.segmented button {
-  padding: 0 var(--space-3);
-  height: 26px;
-  background: none;
-  border: 0;
-  border-radius: var(--radius-pill);
-  color: var(--muted);
-  font-family: var(--font-figure);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-}
-
-.segmented button[data-chosen='true'] {
-  background: var(--brand);
-  color: var(--on-brand);
-}
-
-.segmented button:disabled {
-  opacity: 0.5;
 }
 
 .picture {

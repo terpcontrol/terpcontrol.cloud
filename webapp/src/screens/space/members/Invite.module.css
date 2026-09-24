@@ -139,27 +139,7 @@
    chooses what the card below is showing rather than which part of a page. */
 .ways {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  padding: var(--space-1);
-  background: var(--card-2);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-}
-
-.way {
-  padding: var(--space-2) var(--space-3);
-  background: none;
-  border: 0;
-  border-radius: calc(var(--radius) - 2px);
-  color: var(--muted);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-}
-
-.way[aria-selected='true'] {
-  background: var(--ink);
-  color: var(--bg);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .pane {

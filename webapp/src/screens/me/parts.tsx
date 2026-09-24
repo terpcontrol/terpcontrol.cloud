@@ -34,7 +34,7 @@ export function MePage({ title, children }: { title: string; children: ReactNode
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <Link to="/me" className={styles.back} aria-label={t('me.title')}>
+        <Link to="/me" className={`${ui.back} ${styles.back}`} aria-label={t('me.title')}>
           <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
         </Link>
         <h1 className={styles.title}>{title}</h1>

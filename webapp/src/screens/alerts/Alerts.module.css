@@ -154,11 +154,16 @@
     var(--shadow);
 }
 
-/* The one way on from a finished event is a quiet tint rather than an
-   outline, so eleven of them down a list do not outweigh what happened. */
-.card[data-age] .chips > * {
+/* The ways on from an event are a card's quiet actions - a tint rather than
+   an outline - open or finished alike, so "Open timeline" is one control down
+   the whole page and eleven of them do not outweigh what happened. */
+.chips > * {
   background: var(--tint);
   border-color: transparent;
+}
+
+.chips > :hover:not(:disabled) {
+  background: var(--tint-hover);
 }
 
 /* Where and what, and under it when and for how long; on a wide screen the
@@ -178,6 +183,8 @@
   font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   line-height: var(--line-tight);
+  /* No figure or unit left alone on a last line ("5" over "d"). */
+  text-wrap: pretty;
 }
 
 .meta {
@@ -215,9 +222,11 @@
 
 /* On a phone the card's "when" goes under its "what" rather than beside it,
    where a 42 % column wrapped a short sentence onto four lines. */
+/* The title has the first claim on the row; the meta beside it takes what is
+   left, up to a third, and wraps under its own column. */
 @media (min-width: 600px) {
   .lines {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 40%);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 33%);
   }
 }
 

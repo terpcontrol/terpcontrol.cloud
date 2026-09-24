@@ -52,16 +52,9 @@ export function Appearance() {
       <span className="label">{t('me.appearance.display')}</span>
 
       <Row title={t('me.theme.label')} line={t('me.appearance.themeLine')}>
-        <div className={styles.segments} role="radiogroup" aria-label={t('me.theme.label')}>
+        <div className={ui.segments} role="radiogroup" aria-label={t('me.theme.label')}>
           {THEMES.map(option => (
-            <button
-              key={option}
-              type="button"
-              role="radio"
-              aria-checked={choice === option}
-              className={`${ui.chip} ${styles.segment} ${choice === option ? styles.segmentActive : ''}`}
-              onClick={() => setChoice(option)}
-            >
+            <button key={option} type="button" role="radio" aria-checked={choice === option} className={ui.segment} onClick={() => setChoice(option)}>
               {t(`me.theme.${option}`)}
             </button>
           ))}

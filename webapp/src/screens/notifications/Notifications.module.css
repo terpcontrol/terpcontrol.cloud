@@ -131,14 +131,19 @@
   box-shadow: var(--shadow);
 }
 
-/* A phone's width is the width this reads at. Let it have the whole desktop
-   column and a row becomes a name, a stretch of nothing and four switches too
-   far away to belong to it, so the table stops where the longest category name
-   and the four cells do. */
+/* The table spans its card, as every list on a card does: the rules under
+   the rows carry the eye from a name across to its switches, and the last
+   column's switches stand under the channel switches above them rather than
+   stopping short in the middle of the card. */
 .grid {
   width: 100%;
-  max-width: 480px;
   border-collapse: collapse;
+}
+
+.grid tr > :last-child {
+  width: 42px;
+  padding-left: var(--space-3);
+  text-align: right;
 }
 
 .grid tbody tr {

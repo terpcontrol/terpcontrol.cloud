@@ -38,6 +38,15 @@
   gap: var(--space-3);
 }
 
+/* On a phone a long name keeps its line and the pill drops under it, rather
+   than the name breaking in two beside the pill. */
+@media (max-width: 599px) {
+  .header {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+}
+
 .title {
   min-width: 0;
 }
@@ -132,6 +141,13 @@
   gap: var(--space-3);
 }
 
+/* On a phone the day of temperature takes a row of its own under the figures. */
+@media (max-width: 599px) {
+  .climate {
+    flex-wrap: wrap;
+  }
+}
+
 /* The readouts as one strip split by hairlines, the way a panel of meters
    reads: each as wide as its figure, and the line under a figure wraps under
    it rather than pushing the next figure onto a second row. */
@@ -196,9 +212,14 @@
   color: var(--warning);
 }
 
-/* The newest picture, 16:9, with its caption in the corner. */
+/* The newest picture, 16:9, with its caption in the corner. Where the card
+   beside it is taller and this one is stretched to match, the picture takes
+   the extra height rather than leaving a hole above the actions. */
 .still {
   position: relative;
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
   margin: 0;
   overflow: hidden;
   border-radius: var(--radius-sm);
@@ -207,9 +228,19 @@
 
 .still img {
   display: block;
+  flex: 1 0 auto;
   width: 100%;
   aspect-ratio: 16 / 9;
   object-fit: cover;
+}
+
+/* On a phone the picture runs to the card's edges: it is the biggest thing
+   a thumb can hold up, and an inset frame only made it smaller. */
+@media (max-width: 599px) {
+  .still {
+    margin-inline: calc(var(--space-4) * -1);
+    border-radius: 0;
+  }
 }
 
 .stillCaption {

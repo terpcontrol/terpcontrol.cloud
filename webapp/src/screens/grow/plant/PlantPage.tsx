@@ -93,7 +93,7 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <Link to={`/grows/${growId}/plants`} className={styles.back} aria-label={t('grow.plant.back')}>
+        <Link to={`/grows/${growId}/plants`} className={`${ui.back} ${styles.back}`} aria-label={t('grow.plant.back')}>
           <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
         </Link>
         <div className={styles.titles}>

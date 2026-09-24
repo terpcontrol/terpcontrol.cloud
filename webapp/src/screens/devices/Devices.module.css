@@ -24,13 +24,6 @@
 
 /* The way to a device this account has not got yet: a row in the shape of the
    rows above it, outlined rather than filled, because nothing stands here yet. */
-.addRow {
-  padding: var(--space-3);
-  color: var(--muted);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  text-align: center;
-}
 
 .list,
 .column {
@@ -69,10 +62,6 @@
   gap: var(--space-3);
   padding-bottom: 7px;
   border-bottom: var(--rule-solid);
-}
-
-.addCamera {
-  flex: none;
 }
 
 .rows {
@@ -161,6 +150,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* On a phone the pill and the chevron leave a name about 140 px: cut there,
+   two devices with the same maker's name read alike. A name and its line may
+   take two lines each there, and only past that are they cut. */
+@media (max-width: 599px) {
+  .rowTitle,
+  .rowNote {
+    display: -webkit-box;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
 }
 
 /* RTSP is a Premium feature, which the row says on itself. */
@@ -296,44 +300,10 @@
 /* Where the device does not say what the row is doing: auto, on, off - a
    pill track like every segmented choice in the app, the pressed one filled
    with the brand. */
-.threeWay,
-.forces {
-  display: inline-flex;
-  flex: none;
-  gap: 2px;
-  padding: 2px;
-  background: var(--card-2);
-  border: var(--rule-solid);
-  border-radius: var(--radius-pill);
-}
 
 .threeWayOption,
 .forceOption {
-  height: 24px;
-  padding: 0 var(--space-2);
-  background: none;
-  border: 0;
-  border-radius: var(--radius-pill);
-  color: var(--muted);
-  font-family: var(--font-text);
-  font-size: var(--text-2xs);
-  font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
-
-.threeWayOption:hover:not(:disabled),
-.forceOption:hover:not(:disabled) {
-  color: var(--ink);
-}
-
-.threeWayOption[aria-pressed='true'] {
-  background: var(--brand);
-  color: var(--on-brand);
-}
-
-.threeWayOption:disabled {
-  opacity: 0.45;
+  text-transform: capitalize;
 }
 
 /* Why the chips above it are grey, on its own line under them rather than
@@ -365,14 +335,6 @@
   flex: 1 1 140px;
   min-width: 120px;
   height: var(--chip-height);
-  accent-color: var(--green-fill);
-  background: none;
-  border: 0;
-  padding: 0;
-}
-
-.slider:disabled {
-  opacity: 0.45;
 }
 
 /* The figure the slider stands at, in the width its widest reading needs, so
@@ -384,13 +346,9 @@
   text-align: right;
 }
 
-/* Holding the output on or off: three plain actions rather than a control drawn
-   in a position nobody checked. The device reports no override of its own
-   output, so none of them can claim to be the one in force - drawn on the same
-   track as the three-way above, and never pressed. */
-.forceOption:disabled {
-  opacity: 0.45;
-}
+/* Holding the output on or off (`.forces` above) is three plain actions rather
+   than a control drawn in a position nobody checked: the device reports no
+   override of its own output, so none of them is ever drawn pressed. */
 
 /* How long ON and OFF hold the output for, beside the buttons that send it. The
    duration is a mandatory part of the command - the server refuses a hold with
@@ -409,23 +367,17 @@
   gap: var(--space-3);
 }
 
+/* The time the light output is held for is chosen here rather than sent, so one
+   of its chips is always the one in force and has to look it. That is the
+   app's own pressed chip, the one the Timeline and the Charts draw, because a
+   chip carrying a choice should not change its manners between screens. A
+   socket's times need nothing more either: there a chip is a command, and
+   nothing is standing. */
 .holds {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-}
-
-/* The time the light output is held for is chosen here rather than sent, so one
-   of these chips is always the one in force and has to look it. It is the
-   pressed chip the Timeline and the Charts draw, because a chip carrying a
-   choice should not change its manners between screens. A socket's times need
-   none of this: there a chip is a command, and nothing is standing. */
-.hold[aria-pressed='true'] {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--on-green);
-  font-weight: var(--weight-semibold);
 }
 
 /* What dragging the dimmer does to a plan that is running this device. Amber,
@@ -437,7 +389,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2) var(--space-3);
-  margin-top: var(--space-3);
+  margin-block: var(--space-3) var(--space-2);
   padding: var(--space-3);
   background: color-mix(in srgb, var(--warning) 9%, var(--card));
   border-color: color-mix(in srgb, var(--warning) 45%, transparent);

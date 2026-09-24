@@ -80,9 +80,10 @@
 }
 
 @media (min-width: 900px) {
+  /* One column of cards in the reading width, whose title starts where every
+     other page's does; two across from 1200 px. */
   .page {
-    /* The list column of the wide layout; the place a card opens lands beside it. */
-    max-width: 480px;
+    max-width: var(--reading-width);
     padding-top: 0;
   }
 

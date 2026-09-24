@@ -1,33 +1,5 @@
 /* Me › Appearance: the theme as three segments, the rest as menus. */
 
-.segments {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  background: var(--card-2);
-  border: var(--rule-solid);
-  border-radius: var(--radius-pill);
-}
-
-/* A segment is a chip with its outline taken off: the track is the outline. */
-.segment {
-  height: calc(var(--chip-height) - 2px);
-  border-color: transparent;
-  color: var(--muted);
-}
-
-.segment:hover {
-  color: var(--ink);
-}
-
-/* The chosen one is filled with the brand, as every chosen chip is. */
-.segmentActive,
-.segmentActive:hover {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--on-brand);
-}
-
 /* The zone menu holds four hundred place names, and a native select is as wide
    as its longest option: left alone, "America/Argentina/Rio_Gallegos" decides
    the row and squeezes the words beside it into a column one syllable wide on a

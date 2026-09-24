@@ -107,6 +107,24 @@
   gap: var(--space-2);
 }
 
+/* On a phone the chips are the row and the grow's days take a line of their
+   own under it, rather than squeezing the last chip to a fade beside them. */
+@media (max-width: 599px) {
+  .rangeBar {
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+  }
+
+  .rangeBar > .chips {
+    flex-basis: 100%;
+  }
+
+  .rangeBar > .days {
+    margin-left: 0;
+    padding-left: 0;
+  }
+}
+
 .chips {
   display: flex;
   flex: 1 1 auto;
@@ -221,8 +239,12 @@
   background: var(--card-2);
 }
 
+/* The mat a picture narrower than the card stands on is the dark of a
+   viewer, the same in both modes as a photograph's caption is: a pale mat
+   read as two bars of the page cut into the card beside the picture. */
 .still {
   object-fit: contain;
+  background: var(--overlay-solid);
 }
 
 .noFrame {
@@ -322,49 +344,6 @@
 
 /* The window as a control a thumb can drag: under the picture and on the tent
    with no camera alike, drawn in the page's own colours. */
-.slider {
-  --scrub-ink: var(--green);
-  --scrub-track: var(--rule-strong);
-
-  flex: 1;
-  min-width: 0;
-  height: 28px;
-  margin: 0;
-  background: none;
-  appearance: none;
-}
-
-.slider::-webkit-slider-runnable-track {
-  height: 4px;
-  background: linear-gradient(to right, var(--scrub-ink) var(--filled), var(--scrub-track) var(--filled));
-  border-radius: var(--radius-pill);
-}
-
-.slider::-moz-range-track {
-  height: 4px;
-  background: linear-gradient(to right, var(--scrub-ink) var(--filled), var(--scrub-track) var(--filled));
-  border-radius: var(--radius-pill);
-}
-
-.slider::-webkit-slider-thumb {
-  width: 20px;
-  height: 20px;
-  margin-top: -8px;
-  background: var(--scrub-ink);
-  border: 3px solid var(--card);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-raised);
-  appearance: none;
-}
-
-.slider::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  background: var(--scrub-ink);
-  border: 3px solid var(--card);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-raised);
-}
 
 .bareSlider {
   display: flex;
@@ -604,13 +583,16 @@
   touch-action: pan-y;
 }
 
+/* When an output ran: a tint of the amber at a little over half the lane's
+   height, so the lanes say when things ran without outweighing the climate
+   lines they explain. */
 .bar {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 2px;
+  bottom: 2px;
   /* Softened, not rounded away: a run of a few minutes reads as a tick rather than as a dot. */
   min-width: 3px;
-  background: var(--warning);
+  background: color-mix(in srgb, var(--warning) 55%, var(--card-2));
   border-radius: 3px;
 }
 

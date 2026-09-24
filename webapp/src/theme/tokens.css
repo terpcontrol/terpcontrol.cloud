@@ -27,6 +27,9 @@
   --rule: #e5ddcd;
   /* A rule that has to be seen rather than felt: a field's edge, an empty segment. */
   --rule-strong: #d6ccb8;
+  /* The edge of a control that has to be found by its edge alone - an off
+     switch's track: 3:1 or better on a card. */
+  --control-edge: #8f8571;
   --ink: #22271f;
   --muted: #60594c;
   --label: #655d4d;
@@ -176,10 +179,17 @@
   --on-overlay: #fbf7ee;
   --overlay-solid: #2a2620;
 
-  /* A value whose age says it is old is dimmed, never hidden. */
-  --age-live: 1;
-  --age-stale: 0.75;
-  --age-offline: 0.5;
+  /* A value whose age says it is old is dimmed, never hidden - and dimmed by
+     its ink, not by opacity: faded to half, the sentence that says why a
+     tent went quiet came to 2.2:1. These are worked out here, on the root,
+     from whichever mode is on, and an old region takes them as its own text
+     colours (global.css): the figure steps down to the muted ink, a line
+     under it to the label ink, and "in band" to a greyed green. Each still
+     clears 4.5:1 on a card. */
+  --ink-stale: color-mix(in srgb, var(--ink) 55%, var(--muted));
+  --ink-offline: var(--muted);
+  --muted-offline: var(--label);
+  --green-offline: color-mix(in srgb, var(--green-ink) 45%, var(--label));
 
   /* A QR code is printed, not themed: a phone's camera wants dark modules on
      a light ground, and an inverted code is read by some scanners and not by
@@ -208,6 +218,7 @@
   --card-2: #27241f;
   --rule: #34302a;
   --rule-strong: #484238;
+  --control-edge: #7d7466;
   --ink: #f1ebe0;
   --muted: #b5ad9e;
   --label: #a39a89;
@@ -253,6 +264,7 @@
     --card-2: #27241f;
     --rule: #34302a;
     --rule-strong: #484238;
+    --control-edge: #7d7466;
     --ink: #f1ebe0;
     --muted: #b5ad9e;
     --label: #a39a89;

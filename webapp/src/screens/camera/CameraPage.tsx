@@ -155,7 +155,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   return (
     <section className={styles.page}>
       <header className={styles.header}>
-        <Link to="/devices" className={styles.back} aria-label={t('shell.tabs.devices')}>
+        <Link to="/devices" className={ui.back} aria-label={t('shell.tabs.devices')}>
           <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
         </Link>
         <h1 className={styles.name}>{camera.name}</h1>

@@ -1,4 +1,6 @@
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
+import ui from '@/ui/ui.module.css';
 import styles from './Placeholder.module.css';
 
 /**
@@ -12,7 +14,10 @@ export function Placeholder({ titleKey }: { titleKey: string }) {
   return (
     <section className={styles.screen}>
       <h1 className={styles.title}>{t(titleKey)}</h1>
-      <p className={`label ${styles.note}`}>{t('shell.notYet')}</p>
+      <p className={ui.note}>{t('shell.notYet')}</p>
+      <Link className={ui.button} to="/">
+        {t('notFound.home')}
+      </Link>
     </section>
   );
 }

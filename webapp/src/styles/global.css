@@ -117,18 +117,58 @@ select {
   border-bottom: var(--rule-solid);
 }
 
-/* Dimmed by age, never hidden. */
+/* Dimmed by age, never hidden: an old region redraws its text in the stepped
+   down inks from tokens.css, so its figures look older and its words still
+   read. A picture carries the attribute too and is left at full strength -
+   the caption beside it says how old it is. */
+[data-age='stale'],
+[data-age='offline'] {
+  color: var(--ink);
+}
+
 [data-age='stale'] {
-  opacity: var(--age-stale);
+  --ink: var(--ink-stale);
 }
 
 [data-age='offline'] {
-  opacity: var(--age-offline);
+  --ink: var(--ink-offline);
+  --muted: var(--muted-offline);
+  --green-ink: var(--green-offline);
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* A disclosure opens with the app's own chevron, pointing on while shut and
+   down while open, rather than the browser's triangle. */
+summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  list-style: none;
+  cursor: pointer;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+summary::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-left: 1px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 120ms ease-out;
+}
+
+details[open] > summary::before {
+  transform: rotate(45deg) translate(-2px, -1px);
 }
 
 button,

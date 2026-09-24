@@ -119,7 +119,7 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
           }
         >
           {overview.grows.length === 0 ? (
-            <p className={ui.note}>{t('home.invite.noGrow')}</p>
+            <p className={`${ui.cardDashed} ${ui.note}`}>{t('home.invite.noGrow')}</p>
           ) : (
             <ul className={styles.list}>
               {overview.grows.map(grow => (
@@ -439,7 +439,7 @@ function CameraStrip({ camera, now }: { camera: OverviewCamera; now: DateTime })
 
   if (stills.length === 0) {
     return (
-      <p className={ui.note}>
+      <p className={`${ui.cardDashed} ${ui.note}`}>
         {t('space.noStillsToday')}
         {camera.lastStillAt ? ` · ${t('space.lastStill', { age: ageLabel(camera.lastStillAt, now) })}` : ''}
       </p>
@@ -462,7 +462,9 @@ function CameraStrip({ camera, now }: { camera: OverviewCamera; now: DateTime })
 }
 
 const WIDTH = 320;
-const HEIGHT = 48;
+const HEIGHT = 40;
+/** The least the day is scaled over, in degrees, so a steady day is drawn as steady. */
+const LEAST_SPAN = 2;
 
 /**
  * The 24 h verdict in the board's words: the share of the day in band, the
@@ -578,18 +580,30 @@ const verdictSentence = (t: Translate, verdict: ClimateVerdict, zone: string | n
 type Band = { low: number; high: number } | null;
 
 /**
- * The day's temperature as a line, with both bands it should sit in shaded
- * behind it: the line has no day and night of its own, so the night's dip is
- * shown against the night's band rather than looking like a fall out of the day's.
+ * The day's temperature as a line on its own scale, so it shows how the day
+ * went rather than a hairline between two bands. The bands it should sit in
+ * are a tint behind it with their edges dashed, cut to the line's range: the
+ * line has no day and night of its own, so the night's dip is shown against
+ * the night's band rather than looking like a fall out of the day's, and a
+ * band the line never came near is simply off the strip instead of squeezing
+ * the line flat to make room for it.
  */
 function TrendLine({ verdict, bands }: { verdict: ClimateVerdict; bands: Band[] }) {
   const points = verdict.trend?.points ?? [];
   const known = points.filter((value): value is number => value !== null);
   if (known.length < 2) return <div className={styles.trend} aria-hidden />;
 
-  const drawn = bands.filter((band): band is NonNullable<Band> => band !== null);
-  const low = Math.min(...known, ...drawn.map(band => band.low)) - 0.5;
-  const high = Math.max(...known, ...drawn.map(band => band.high)) + 0.5;
+  let low = Math.min(...known);
+  let high = Math.max(...known);
+  if (high - low < LEAST_SPAN) {
+    const middle = (high + low) / 2;
+    low = middle - LEAST_SPAN / 2;
+    high = middle + LEAST_SPAN / 2;
+  }
+  const pad = (high - low) * 0.12;
+  low -= pad;
+  high += pad;
+  const drawn = bands.filter((band): band is NonNullable<Band> => band !== null && band.low < high && band.high > low);
   const x = (index: number) => (index / (points.length - 1)) * WIDTH;
   const y = (value: number) => HEIGHT - ((value - low) / (high - low)) * HEIGHT;
 
@@ -604,7 +618,11 @@ function TrendLine({ verdict, bands }: { verdict: ClimateVerdict; bands: Band[] 
   return (
     <svg className={styles.trend} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" aria-hidden>
       {drawn.map(band => (
-        <rect key={band.low} className={styles.band} x={0} y={y(band.high)} width={WIDTH} height={y(band.low) - y(band.high)} />
+        <g key={band.low}>
+          <rect className={styles.band} x={0} y={y(band.high)} width={WIDTH} height={y(band.low) - y(band.high)} />
+          <line className={styles.bandEdge} x1={0} x2={WIDTH} y1={y(band.high)} y2={y(band.high)} vectorEffect="non-scaling-stroke" />
+          <line className={styles.bandEdge} x1={0} x2={WIDTH} y1={y(band.low)} y2={y(band.low)} vectorEffect="non-scaling-stroke" />
+        </g>
       ))}
       <path className={styles.line} d={parts.join(' ')} vectorEffect="non-scaling-stroke" />
     </svg>

@@ -12,6 +12,14 @@
   -webkit-backdrop-filter: saturate(1.4) blur(14px);
 }
 
+/* Wider than a phone, the bar's ends line up with the column under it rather
+   than with the edges of the screen. */
+@media (min-width: 600px) {
+  .bar {
+    padding-inline: max(var(--space-4), calc((100% - var(--column-width)) / 2 - var(--space-2)));
+  }
+}
+
 .identity {
   flex: 1;
   min-width: 0;

@@ -21,14 +21,12 @@
 /* The way back, at every width: the same chevron the tent and grow pages carry,
    pulled left by its own padding so the title stays on the page's edge. */
 .back {
-  display: grid;
-  place-items: center;
-  flex: none;
   align-self: center;
-  width: 32px;
-  height: 32px;
-  margin-left: calc(var(--space-2) * -1);
-  color: var(--muted);
+}
+
+/* This header puts a wider gap after the way back than the others. */
+.head > .back {
+  --back-gap: var(--space-3);
 }
 
 .title {

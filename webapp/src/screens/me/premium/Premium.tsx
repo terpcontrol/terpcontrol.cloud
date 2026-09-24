@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -248,8 +249,8 @@ function Covers({ free }: { free: PremiumFree | null }) {
 
     if (value === 'yes' || value === 'no') {
       return (
-        <span role="img" aria-label={t(`me.premium.table.${value}`)}>
-          {value === 'yes' ? '•' : '–'}
+        <span role="img" aria-label={t(`me.premium.table.${value}`)} className={value === 'yes' ? ui.yes : ui.no}>
+          {value === 'yes' ? <Check size={16} strokeWidth={2.25} aria-hidden /> : '–'}
         </span>
       );
     }
@@ -263,30 +264,32 @@ function Covers({ free }: { free: PremiumFree | null }) {
         <span className="label">{t('me.premium.covers')}</span>
         <span className={`mono ${styles.only}`}>{t('me.premium.camerasOnly')}</span>
       </div>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <td />
-            <th scope="col" className={`label ${styles.cell}`}>
-              {t('me.premium.table.free')}
-            </th>
-            <th scope="col" className={`label ${styles.cell}`}>
-              {t('me.premium.table.premium')}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {ROWS.map(row => (
-            <tr key={row.key}>
-              <th scope="row" className={styles.feature}>
-                {t(`me.premium.table.${row.key}`)}
+      <div className={ui.tableCard}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <td />
+              <th scope="col" className={`label ${styles.cell}`}>
+                {t('me.premium.table.free')}
               </th>
-              <td className={`mono ${styles.cell}`}>{cell(row.free)}</td>
-              <td className={`mono ${styles.cell}`}>{cell(row.premium)}</td>
+              <th scope="col" className={`label ${styles.cell}`}>
+                {t('me.premium.table.premium')}
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {ROWS.map(row => (
+              <tr key={row.key}>
+                <th scope="row" className={styles.feature}>
+                  {t(`me.premium.table.${row.key}`)}
+                </th>
+                <td className={`mono ${styles.cell}`}>{cell(row.free)}</td>
+                <td className={`mono ${styles.cell}`}>{cell(row.premium)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

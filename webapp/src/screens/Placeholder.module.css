@@ -1,5 +1,12 @@
+/* In the frame every other narrow page has: the title at the column's own
+   origin, the sentence under it, and the way home. */
 .screen {
-  padding: var(--space-5) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
 }
 
 .title {
@@ -8,6 +15,9 @@
   margin: 0;
 }
 
-.note {
-  margin-top: var(--space-2);
+@media (min-width: 900px) {
+  .screen {
+    max-width: var(--reading-width);
+    padding-top: 0;
+  }
 }

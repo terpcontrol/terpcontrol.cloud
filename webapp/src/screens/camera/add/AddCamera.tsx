@@ -39,7 +39,7 @@ export function AddCamera() {
   return (
     <section className={styles.page}>
       <header className={styles.header}>
-        <Link to="/devices" className={styles.back} aria-label={t('shell.tabs.devices')}>
+        <Link to="/devices" className={ui.back} aria-label={t('shell.tabs.devices')}>
           <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
         </Link>
         <h1 className={styles.title}>{t('cameras.add.title')}</h1>
@@ -78,9 +78,9 @@ function Ways() {
 
   return (
     <>
-      <div className={styles.tabs} role="group" aria-label={t('cameras.add.which')}>
+      <div className={`${ui.segments} ${styles.tabs}`} role="group" aria-label={t('cameras.add.which')}>
         {KINDS.map(one => (
-          <button key={one} type="button" className={styles.tab} aria-pressed={one === kind} onClick={() => setChosen(one)}>
+          <button key={one} type="button" className={ui.segment} aria-pressed={one === kind} onClick={() => setChosen(one)}>
             {t(`cameras.add.tab.${one}`)}
           </button>
         ))}

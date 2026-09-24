@@ -518,12 +518,12 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
       ))}
 
       <div className={styles.footer}>
-        <div className={styles.segmented} role="group" aria-label={t('charts.layoutLabel')}>
+        <div className={ui.segments} role="group" aria-label={t('charts.layoutLabel')}>
           {LAYOUTS.map(one => (
             <button
               key={one}
               type="button"
-              className={styles.segment}
+              className={ui.segment}
               aria-pressed={one === layout}
               disabled={one === 'day_of_grow' && !dayAxis}
               onClick={() => setAsked(one)}
@@ -656,7 +656,7 @@ function Header({ spaceId, growId, subject }: { spaceId: string | null; growId: 
 
   return (
     <header className={styles.header}>
-      <Link to={back} className={styles.back} aria-label={t('charts.back')}>
+      <Link to={back} className={`${ui.back} ${styles.back}`} aria-label={t('charts.back')}>
         <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
       </Link>
       <h1 className={styles.title}>{t('charts.title')}</h1>
@@ -673,8 +673,8 @@ function Header({ spaceId, growId, subject }: { spaceId: string | null; growId: 
 function Pick({ on, dot, colour, onPick, children }: { on: boolean; dot?: boolean; colour?: string; onPick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" className={`${ui.chip} ${styles.chip}`} aria-pressed={on} data-colour={colour} onClick={onPick}>
-      {children}
       {dot ? <span className={styles.dot} aria-hidden /> : null}
+      {children}
     </button>
   );
 }

@@ -11,10 +11,14 @@
   border-top: 0;
 }
 
+/* One width for every stamp in a list, so the marks and the lines beside them
+   stand in one column. A stamp from another day ("17 Sep 19:34") breaks after
+   its date, which puts the date on a line of its own over the time. */
 .stamp {
   flex-shrink: 0;
-  min-width: 5.5ch;
+  width: 7ch;
   font-size: var(--text-xs);
+  line-height: 1.35;
   color: var(--muted);
 }
 

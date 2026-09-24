@@ -67,7 +67,7 @@ export function Targets({ spaceId, devices, mayManage }: { spaceId: string; devi
   if (controllers.length === 0) {
     return (
       <div className={styles.page}>
-        <header className={styles.head}>
+        <header className={ui.subhead}>
           <span className="label">{t('targets.title')}</span>
         </header>
         {waiting.length > 0 ? (
@@ -90,7 +90,7 @@ export function Targets({ spaceId, devices, mayManage }: { spaceId: string; devi
 
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
+      <header className={ui.subhead}>
         <span className="label">{t('targets.title')}</span>
         <Link to={`/spaces/${spaceId}/control`} className={`mono ${styles.back}`}>
           {t('targets.backToPlan')}

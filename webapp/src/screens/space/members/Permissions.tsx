@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { SpaceKind } from '@fg2/shared-types/v1';
 import ui from '@/ui/ui.module.css';
@@ -32,34 +33,36 @@ export function Permissions({ kind }: { kind: SpaceKind }) {
 
   return (
     <section className={styles.permissions}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th scope="col" />
-            <th scope="col" className={`mono ${styles.column}`}>
-              {t('space.members.roleShort.owner')}
-            </th>
-            <th scope="col" className={`mono ${styles.column}`}>
-              {t('space.members.roleShort.can_manage')}
-            </th>
-            <th scope="col" className={`mono ${styles.column}`}>
-              {t('space.members.roleShort.can_log')}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {ROWS.map(row => (
-            <tr key={row}>
-              <th scope="row" className={styles.can}>
-                {t(row === 'see' && kind === 'room' ? 'space.members.can.seeRoom' : `space.members.can.${row}`)}
+      <div className={ui.tableCard}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th scope="col" />
+              <th scope="col" className={`mono ${styles.column}`}>
+                {t('space.members.roleShort.owner')}
               </th>
-              <Mark yes />
-              <Mark yes={MAY[row].manage} />
-              <Mark yes={MAY[row].log} />
+              <th scope="col" className={`mono ${styles.column}`}>
+                {t('space.members.roleShort.can_manage')}
+              </th>
+              <th scope="col" className={`mono ${styles.column}`}>
+                {t('space.members.roleShort.can_log')}
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {ROWS.map(row => (
+              <tr key={row}>
+                <th scope="row" className={styles.can}>
+                  {t(row === 'see' && kind === 'room' ? 'space.members.can.seeRoom' : `space.members.can.${row}`)}
+                </th>
+                <Mark yes />
+                <Mark yes={MAY[row].manage} />
+                <Mark yes={MAY[row].log} />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <p className={ui.note}>{t('space.members.noViewerRole')}</p>
     </section>
   );
@@ -74,7 +77,9 @@ function Mark({ yes }: { yes: boolean }) {
 
   return (
     <td className={styles.mark} data-yes={yes}>
-      <span aria-hidden>{yes ? '●' : '–'}</span>
+      <span className={yes ? ui.yes : ui.no} aria-hidden>
+        {yes ? <Check size={16} strokeWidth={2.25} /> : '–'}
+      </span>
       <span className={styles.markWord}>{t(yes ? 'space.members.mark.yes' : 'space.members.mark.no')}</span>
     </td>
   );

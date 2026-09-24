@@ -202,12 +202,12 @@ function Control({ row, name, forced, refusal, onFlip, onSet, onHoldStart, onHol
     const current: SocketOverrideState = forced ? (row.override!.state as SocketOverrideState) : 'auto';
 
     return (
-      <span className={styles.threeWay} role="group" aria-label={t('devices.socket.force', { name })}>
+      <span className={ui.segments} role="group" aria-label={t('devices.socket.force', { name })}>
         {(['auto', 'on', 'off'] as const).map(state => (
           <button
             key={state}
             type="button"
-            className={styles.threeWayOption}
+            className={`${ui.segment} ${styles.threeWayOption}`}
             aria-pressed={state === current}
             disabled={refusal !== null}
             onClick={() => onSet(state, state === 'auto' ? 0 : defaultHold())}

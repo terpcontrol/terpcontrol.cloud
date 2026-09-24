@@ -1,6 +1,7 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './Targets.module.css';
+import ui from '@/ui/ui.module.css';
 
 interface TargetRowProps {
   id: string;
@@ -43,8 +44,8 @@ export function TargetRow({ id, label, name, value, min, max, step, unit, aside,
       </label>
       <input
         id={id}
-        className={styles.slider}
-        style={{ '--fill': fill } as CSSProperties}
+        className={`${ui.range} ${styles.slider}`}
+        style={{ '--filled': fill } as CSSProperties}
         type="range"
         min={min}
         max={max}

@@ -12,16 +12,6 @@
   gap: var(--space-2);
 }
 
-.back {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  margin-left: calc(var(--space-2) * -1);
-  color: var(--muted);
-}
-
 .name {
   font-size: var(--text-title);
   font-weight: var(--weight-display);
@@ -33,18 +23,54 @@
   line-height: var(--line-tight);
 }
 
-@media (min-width: 900px) {
-  .page {
-    max-width: var(--reading-width);
-    padding-top: 0;
+.name svg {
+  flex: none;
+}
+
+/* On a phone a place's name has the row to itself, a step smaller than a
+   page title, and the pill that says how live it is goes under it: beside the
+   pill "Plantalytix Fridgegrow 2.0" broke into three lines of serif above the
+   tabs. The way back stays level with the name's first line. */
+@media (max-width: 599px) {
+  .header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    column-gap: var(--space-1);
+    row-gap: var(--space-1);
+  }
+
+  .header > .back {
+    margin-top: -1px;
+  }
+
+  .name {
+    font-size: 23px;
+    align-items: flex-start;
+  }
+
+  .name svg {
+    margin-top: 5px;
+  }
+
+  .header > :nth-child(3) {
+    grid-column: 2;
+    justify-self: start;
   }
 }
 
-/* The overview is two columns of one page on a wide screen, and the Timeline
-   is read along its width; the settings tabs stay a reading column. */
-@media (min-width: 1200px) {
-  .page[data-tab='overview'],
-  .page[data-tab='timeline'] {
+/* The header and the tabs are one frame for every tab of a space, so the tab
+   just clicked stays under the pointer. The overview is two columns of that
+   frame and the Timeline is read along its width; the settings tabs keep a
+   reading column, set against the frame's left edge under the title. */
+@media (min-width: 900px) {
+  .page {
     max-width: var(--page-width);
+    padding-top: 0;
+  }
+
+  .page:is([data-tab='devices'], [data-tab='control'], [data-tab='members']) > :last-child {
+    width: 100%;
+    max-width: var(--reading-width);
   }
 }

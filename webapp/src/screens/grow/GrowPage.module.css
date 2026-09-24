@@ -33,13 +33,6 @@
 
 .back {
   grid-area: back;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  margin-left: calc(var(--space-2) * -1);
-  color: var(--muted);
 }
 
 /* The name and the line under it are grid cells of the row rather than a
@@ -289,10 +282,18 @@
     padding-top: 0;
   }
 
+  /* The way back hangs in the gutter (ui.module.css); in a grid it does so
+     from a track of no width, and the row gives back the gap after it. */
   .titleRow {
+    grid-template-columns: 0 minmax(0, 1fr) auto;
     grid-template-areas:
       'back name day'
       '. sub day';
+    margin-left: calc(var(--space-2) * -1);
+  }
+
+  .titleRow > .back {
+    margin-left: -32px;
   }
 
   .name {
@@ -362,8 +363,7 @@
     max-width: var(--page-width);
   }
 
-  .page[data-tab='plants'] .rows,
-  .page[data-tab='plants'] .empty {
+  .page[data-tab='plants'] .rows {
     max-width: var(--reading-width);
   }
 }

@@ -92,20 +92,20 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
       ) : (
         <>
           {room ? (
-            <nav className={styles.scope} aria-label={t('space.members.scopeLabel')}>
-              <span className={`${styles.scopeOption} ${styles.scopeHere}`} aria-current="page">
+            <nav className={`${ui.segments} ${styles.scope}`} aria-label={t('space.members.scopeLabel')}>
+              <span className={`${ui.segment} ${styles.scopeOption} ${styles.scopeHere}`} aria-current="page">
                 {name}
               </span>
-              <Link to={`/spaces/${room.id}/members`} className={styles.scopeOption}>
+              <Link to={`/spaces/${room.id}/members`} className={`${ui.segment} ${styles.scopeOption}`}>
                 {t('space.members.roomWithTents', { room: room.name, count: tents })}
               </Link>
             </nav>
           ) : mayWrite ? (
-            <nav className={styles.scope} aria-label={t('space.members.scopeLabel')}>
-              <span className={`${styles.scopeOption} ${styles.scopeHere}`} aria-current="page">
+            <nav className={`${ui.segments} ${styles.scope}`} aria-label={t('space.members.scopeLabel')}>
+              <span className={`${ui.segment} ${styles.scopeOption} ${styles.scopeHere}`} aria-current="page">
                 {name}
               </span>
-              <button type="button" className={`${styles.scopeOption} ${roomStyles.scopeAction}`} onClick={() => setRoomSheet(true)}>
+              <button type="button" className={`${ui.segment} ${styles.scopeOption} ${roomStyles.scopeAction}`} onClick={() => setRoomSheet(true)}>
                 <Plus size={14} strokeWidth={2} aria-hidden />
                 {t('space.members.room.put')}
               </button>

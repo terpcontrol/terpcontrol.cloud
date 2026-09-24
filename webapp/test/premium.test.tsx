@@ -166,7 +166,7 @@ const drawLoaded = async () => {
 
 const card = (name: string) => within(screen.getByText(name).closest('li')!);
 
-/** The free and the Premium cell of every row, in the table's order. */
+/** The free and the Premium cell of every row, in the table's order; a drawn check reads as "✓". */
 const tableSays = () =>
   within(screen.getByRole('table'))
     .getAllByRole('row')
@@ -174,7 +174,7 @@ const tableSays = () =>
     .map(row =>
       within(row)
         .getAllByRole('cell')
-        .map(cell => cell.textContent),
+        .map(cell => (cell.querySelector('svg') ? '✓' : cell.textContent)),
     );
 
 beforeAll(async () => {
@@ -397,11 +397,11 @@ describe('an install that gates nothing', () => {
 
 describe('what Premium covers', () => {
   const FIXED = [
-    ['•', '•'],
-    ['–', '•'],
-    ['watermark', '•'],
-    ['–', '•'],
-    ['•', '•'],
+    ['✓', '✓'],
+    ['–', '✓'],
+    ['watermark', '✓'],
+    ['–', '✓'],
+    ['✓', '✓'],
   ];
 
   it('draws the table row for row as the board does, about cameras only', async () => {

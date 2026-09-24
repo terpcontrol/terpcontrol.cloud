@@ -71,7 +71,7 @@ function MeasurementsScreen({ growId }: { growId: string }) {
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <Link to={`/grows/${growId}/weeks`} className={styles.back} aria-label={t('grow.measurements.back')}>
+        <Link to={`/grows/${growId}/weeks`} className={ui.back} aria-label={t('grow.measurements.back')}>
           <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
         </Link>
         <h1 className={styles.title}>{t('grow.measurements.title')}</h1>

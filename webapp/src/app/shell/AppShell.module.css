@@ -19,13 +19,17 @@
   padding-right: max(var(--space-4), env(safe-area-inset-right));
 }
 
+/* A screen's column sits in the middle of the width it is given - what the
+   rail leaves on a desktop, the whole screen on a tablet held upright - and
+   never against its left edge. */
+.main > * {
+  margin-inline: auto;
+}
+
+/* The gutter is wide enough for a page's way back to hang in, left of the
+   column, so a title starts on the column's edge with or without one. */
 @media (min-width: 900px) {
   .main {
-    padding: var(--space-6) var(--space-6) var(--space-6);
-  }
-
-  /* A screen's column sits in the middle of what the rail leaves, not against it. */
-  .main > * {
-    margin-inline: auto;
+    padding: var(--space-6) var(--space-7);
   }
 }

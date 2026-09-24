@@ -167,7 +167,7 @@ export function Claim() {
   return (
     <section className={styles.screen}>
       <header className={styles.head}>
-        <h1 className={styles.title}>{t('claim.title', { step: at + 1, of: STEPS.length })}</h1>
+        <h1 className={styles.title}>{stepped(t('claim.title', { step: at + 1, of: STEPS.length }))}</h1>
         <button type="button" className={styles.skip} onClick={leave}>
           {t('claim.skip')}
         </button>
@@ -272,11 +272,29 @@ function OnlyLooking() {
 
   return (
     <section className={styles.screen}>
-      <h1 className={styles.title}>{t('claim.title', { step: 1, of: STEPS.length })}</h1>
+      <h1 className={styles.title}>{stepped(t('claim.title', { step: 1, of: STEPS.length }))}</h1>
       <p className={`${ui.cardDashed} ${styles.demoNote}`}>{t('claim.demo')}</p>
       <Link className={ui.button} to="/devices">
         {t('claim.backToDevices')}
       </Link>
     </section>
+  );
+}
+
+/**
+ * The title and its step count, the count set as a smaller part of its own:
+ * wrapped as one string, a phone started the second line on the separator
+ * ("· 1 of 4"). On a phone the count takes the line under the title and the
+ * separator goes.
+ */
+function stepped(title: string) {
+  const at = title.lastIndexOf(' · ');
+  if (at < 0) return title;
+  return (
+    <>
+      {title.slice(0, at)}
+      <span className={styles.stepSeparator}> · </span>
+      <span className={styles.stepCount}>{title.slice(at + 3)}</span>
+    </>
   );
 }

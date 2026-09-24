@@ -84,9 +84,16 @@ function Head({ scope, onScope }: { scope?: Scope; onScope?: (scope: Scope) => v
     <header className={styles.head}>
       <h1 className={styles.title}>{t('tasks.title')}</h1>
       {scope && onScope ? (
-        <div className={styles.segments} role="radiogroup" aria-label={t('tasks.scopeLabel')}>
+        <div className={ui.segments} role="radiogroup" aria-label={t('tasks.scopeLabel')}>
           {SCOPES.map(one => (
-            <button key={one} type="button" role="radio" aria-checked={scope === one} className={styles.segment} onClick={() => onScope(one)}>
+            <button
+              key={one}
+              type="button"
+              role="radio"
+              aria-checked={scope === one}
+              className={`${ui.segment} ${styles.segment}`}
+              onClick={() => onScope(one)}
+            >
               {t(`tasks.scope.${one}`)}
             </button>
           ))}

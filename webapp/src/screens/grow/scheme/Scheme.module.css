@@ -305,8 +305,13 @@
   }
 
   .note,
-  .caption,
-  .none {
+  .caption {
+    max-width: 72ch;
+  }
+
+  /* The note that there is no scheme yet spans the tab like every other
+     tab's content, so the page's right edge stays put between tabs. */
+  .none > :global(.note) {
     max-width: 72ch;
   }
 }

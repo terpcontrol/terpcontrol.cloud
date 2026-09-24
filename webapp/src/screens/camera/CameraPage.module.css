@@ -53,16 +53,6 @@
   gap: var(--space-2);
 }
 
-.back {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  margin-left: calc(var(--space-2) * -1);
-  color: var(--muted);
-}
-
 .name {
   font-size: var(--text-title);
   font-weight: var(--weight-display);
@@ -576,18 +566,25 @@
   min-width: 0;
   max-width: 20rem;
   height: 34px;
-  text-align: right;
 }
 
+/* A row of controls takes a line of its own under its label, set from the
+   left: the figure and its unit, and under them each switch on a line of its
+   own, so none of them is broken across two lines on a phone. */
 .interval {
   display: flex;
+  flex-basis: 100%;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
-  margin-left: auto;
-  font-size: var(--text-xs);
+  gap: var(--space-2) var(--space-2);
+  padding-bottom: var(--space-1);
+  font-size: var(--text-sm);
   color: var(--muted);
+}
+
+.interval > .check {
+  flex-basis: 100%;
 }
 
 .number {
@@ -599,13 +596,17 @@
 .check {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: var(--text-xs);
-  white-space: nowrap;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink);
 }
 
 .check input {
-  accent-color: var(--green);
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--brand);
 }
 
 .settingActions {

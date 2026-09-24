@@ -1,15 +1,37 @@
+/* A page that stands in for a screen that could not be drawn: the sign-in
+   page's front door - one raised card in the middle of the page - with the
+   sentence and the ways on. Drawn in place of the whole shell it carries the
+   wordmark the shell would have shown; inside the shell the rail already
+   does. */
 .screen {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-3);
-  padding: var(--space-5) var(--space-4);
-  /* The outer boundary stands where the shell would, with no bar above it. */
-  max-width: 34rem;
+  width: calc(100% - 2 * var(--space-4));
+  max-width: 440px;
+  margin: clamp(var(--space-4), 16vh, 160px) auto var(--space-4);
+  padding: var(--space-6) var(--space-5) var(--space-5);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: var(--shadow-raised);
+}
+
+.wordmark {
+  align-self: center;
+  margin-bottom: var(--space-4);
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: var(--weight-display);
+  font-variation-settings: var(--display-axes);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--line-tight);
+  color: var(--wordmark);
 }
 
 .title {
-  font-size: var(--text-title);
+  font-size: var(--text-xl);
   font-weight: var(--weight-display);
   margin: 0;
 }
@@ -18,4 +40,5 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  margin-top: var(--space-2);
 }

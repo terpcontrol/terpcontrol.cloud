@@ -9,13 +9,6 @@
   gap: var(--space-4);
 }
 
-.head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
 .back {
   font-size: var(--text-xs);
   color: var(--muted);
@@ -39,9 +32,39 @@
 .row {
   display: grid;
   grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+  grid-template-areas: 'label slider value';
   align-items: center;
   column-gap: var(--space-3);
   min-height: var(--control-height);
+}
+
+.row > .rowLabel {
+  grid-area: label;
+}
+
+.row > .slider {
+  grid-area: slider;
+}
+
+.row > .value {
+  grid-area: value;
+}
+
+/* On a phone a slider squeezed between the name and the figure came to about
+   a hundred pixels, five to a degree: the name and the figure share the top
+   line and the slider takes the whole width under them. */
+@media (max-width: 599px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'label value'
+      'slider slider';
+    padding-block: var(--space-2);
+  }
+
+  .row > .slider {
+    height: 32px;
+  }
 }
 
 .rowLabel {
@@ -151,70 +174,11 @@
   color: var(--muted);
 }
 
-/* The slider. The track is a rule with the part up to the thumb a shade
-   darker, and the thumb is a card with a rule around it: the same surfaces as
-   everything else, so it reads as a control and not as a browser's. The fill
-   stays grey because seven filled tracks in the app's green would drown the
-   one green thing on the page, which is the Save. `--fill` is set per row from
+/* The app's one slider, at a finger's height. `--filled` is set per row from
    the value. */
 .slider {
   width: 100%;
   height: var(--control-height);
-  margin: 0;
-  padding: 0;
-  background: none;
-  border: 0;
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.slider:disabled {
-  opacity: 0.45;
-}
-
-.slider::-webkit-slider-runnable-track {
-  height: 4px;
-  background: linear-gradient(to right, var(--muted) var(--fill), var(--rule) var(--fill));
-  border-radius: var(--radius-pill);
-}
-
-.slider::-moz-range-track {
-  height: 4px;
-  background: var(--rule);
-  border-radius: var(--radius-pill);
-}
-
-.slider::-moz-range-progress {
-  height: 4px;
-  background: var(--muted);
-  border-radius: var(--radius-pill);
-}
-
-.slider::-webkit-slider-thumb {
-  width: 22px;
-  height: 22px;
-  margin-top: -9px;
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: 50%;
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.slider::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: 50%;
-}
-
-.slider:focus-visible::-webkit-slider-thumb {
-  border-color: var(--brand);
-}
-
-.slider:focus-visible::-moz-range-thumb {
-  border-color: var(--brand);
 }
 
 /* Where "night ›" lands, a little above the block so its label is not under the top bar. */

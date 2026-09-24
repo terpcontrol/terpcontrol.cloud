@@ -88,11 +88,11 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
     <Sheet
       title={t('log.photoTitle')}
       aside={
-        <span className={styles.segmented}>
-          <button type="button" data-chosen={fromCam} disabled={!still} onClick={() => setChosen(true)}>
+        <span className={ui.segments}>
+          <button type="button" className={ui.segment} data-chosen={fromCam} disabled={!still} onClick={() => setChosen(true)}>
             {t('log.camStill')}
           </button>
-          <button type="button" data-chosen={!fromCam} onClick={() => setChosen(false)}>
+          <button type="button" className={ui.segment} data-chosen={!fromCam} onClick={() => setChosen(false)}>
             {t('log.takePhoto')}
           </button>
         </span>

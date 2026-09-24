@@ -50,16 +50,18 @@
   padding: 0 max(var(--space-4), env(safe-area-inset-left)) var(--space-6) max(var(--space-4), env(safe-area-inset-right));
 }
 
+/* The foot's rule runs the width of the text column above it, not of the
+   column's padding, so the two edges line up. */
 .foot {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: center;
   gap: var(--space-2);
-  width: 100%;
-  max-width: var(--reading-width);
+  width: calc(100% - 2 * var(--space-4));
+  max-width: calc(var(--reading-width) - 2 * var(--space-4));
   margin: auto auto 0;
-  padding: var(--space-5) var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom));
+  padding: var(--space-5) 0 calc(var(--space-5) + env(safe-area-inset-bottom));
   border-top: var(--rule-solid);
   font-size: var(--text-sm);
   color: var(--muted);
@@ -67,6 +69,7 @@
 
 .footLine {
   text-align: center;
+  text-wrap: balance;
 }
 
 .footLink {
@@ -455,7 +458,7 @@
 }
 
 .dayTile[data-future='true'] .dayName {
-  opacity: var(--age-offline);
+  font-weight: var(--weight-regular);
 }
 
 /* The day a stage began, under the number of the grow-day it began on. It may

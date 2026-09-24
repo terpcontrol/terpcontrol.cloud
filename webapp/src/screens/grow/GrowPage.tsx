@@ -166,7 +166,7 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
   return (
     <header className={styles.header}>
       <div className={styles.titleRow}>
-        <Link to="/" className={styles.back} aria-label={t('shell.tabs.home')}>
+        <Link to="/" className={`${ui.back} ${styles.back}`} aria-label={t('shell.tabs.home')}>
           <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
         </Link>
         <div className={styles.titles}>

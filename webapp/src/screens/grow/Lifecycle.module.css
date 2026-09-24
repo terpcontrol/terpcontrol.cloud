@@ -49,9 +49,14 @@
   border-radius: var(--radius);
 }
 
-/* A stretch that is over, or a plant that is already down: kept, and dimmed. */
+/* A stretch that is over, or a plant that is already down: kept, and turned
+   down by its ink and a sunken row rather than by opacity, so it still reads. */
 .row[data-dim='true'] {
-  opacity: var(--age-stale);
+  --ink: var(--ink-offline);
+  --muted: var(--muted-offline);
+  background: var(--card-2);
+  box-shadow: none;
+  color: var(--muted);
 }
 
 .rowHead {
