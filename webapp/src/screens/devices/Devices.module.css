@@ -32,10 +32,17 @@
   text-align: center;
 }
 
-.list {
+.list,
+.column {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
+}
+
+/* An account whose devices drive nothing this list draws leaves the second
+   column with nothing in it; it then takes no room. */
+.outputs:empty {
+  display: none;
 }
 
 /* What a reader who may not switch anything is told, once, at the top of the
@@ -53,12 +60,16 @@
   gap: var(--space-2);
 }
 
-/* A list's label, and beside it the one way of adding to that list. */
+/* A list's label, and beside it the one way of adding to that list, on the
+   hairline every section head in the app stands on. */
 .sectionHead {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-3);
+  min-height: 32px;
+  padding-bottom: 7px;
+  border-bottom: var(--rule-solid);
 }
 
 .addCamera {
@@ -68,15 +79,32 @@
 .rows {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* A section's rows are one card split by hairlines: a list of things, read
+   down, rather than a pile of cards each as loud as the next. */
+.rows > li:not(:last-child) {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.rows > li + li {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
 .row,
 .socket {
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+
+/* A row that is a door lights up under the pointer, as the doors under Me do. */
+.row:has(> a.rowHead):hover {
+  background: var(--card-2);
 }
 
 .rowHead,
@@ -91,7 +119,7 @@
 .rowIcon,
 .socketIcon {
   flex: none;
-  color: var(--muted);
+  color: var(--label);
 }
 
 /* The last picture, in the place the icon would be. */
@@ -104,7 +132,7 @@
   object-fit: cover;
   background: var(--card-2);
   border: var(--rule-solid);
-  border-radius: calc(var(--radius) / 2);
+  border-radius: var(--radius-xs);
   color: var(--label);
 }
 
@@ -126,7 +154,7 @@
 }
 
 .rowNote {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   line-height: 1.35;
   color: var(--muted);
   /* One line: a row is a row, and everything that does not fit is in the panel
@@ -145,8 +173,10 @@
   border-radius: var(--radius-pill);
   color: var(--warning);
   font-family: var(--font-figure);
-  font-size: 10px;
-  letter-spacing: var(--tracking-caption);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  line-height: 18px;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
@@ -154,7 +184,7 @@
 .since,
 .socketState {
   flex: none;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: var(--muted);
   text-align: right;
   white-space: nowrap;
@@ -181,21 +211,35 @@
   gap: var(--space-2);
 }
 
+/* "● live · 4 s": the pill Home's cards wear, so a device reads the same on
+   both screens. */
 .liveness {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
+  height: 26px;
+  padding: 0 var(--space-3) 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--card-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
 }
 
 .dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: currentcolor;
 }
 
 .liveness[data-liveness='live'] {
+  background: var(--brand-wash);
   color: var(--green-ink);
+}
+
+.liveness[data-liveness='live'] .dot {
+  background: var(--green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 25%, transparent);
 }
 
 .liveness[data-liveness='stale'] {
@@ -238,7 +282,7 @@
 
 .factValue {
   margin: 0;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   text-align: right;
   overflow-wrap: anywhere;
 }
@@ -250,29 +294,43 @@
   color: var(--brand);
 }
 
-/* Where the device does not say what the row is doing: auto, on, off. */
-.threeWay {
+/* Where the device does not say what the row is doing: auto, on, off - a
+   pill track like every segmented choice in the app, the pressed one filled
+   with the brand. */
+.threeWay,
+.forces {
   display: inline-flex;
   flex: none;
+  gap: 2px;
+  padding: 2px;
+  background: var(--card-2);
   border: var(--rule-solid);
   border-radius: var(--radius-pill);
-  overflow: hidden;
 }
 
-.threeWayOption {
-  padding: 3px var(--space-2);
+.threeWayOption,
+.forceOption {
+  height: 24px;
+  padding: 0 var(--space-2);
   background: none;
   border: 0;
+  border-radius: var(--radius-pill);
   color: var(--muted);
-  font-family: var(--font-figure);
-  font-size: 10px;
-  letter-spacing: var(--tracking-caption);
+  font-family: var(--font-text);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
+.threeWayOption:hover:not(:disabled),
+.forceOption:hover:not(:disabled) {
+  color: var(--ink);
+}
+
 .threeWayOption[aria-pressed='true'] {
-  background: var(--ink);
-  color: var(--bg);
+  background: var(--brand);
+  color: var(--on-brand);
 }
 
 .threeWayOption:disabled {
@@ -288,7 +346,7 @@
 
 .socketWhy {
   margin-top: var(--space-2);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
 }
 
 /* The controller's own light output. It is a card of the same list, but it
@@ -308,7 +366,7 @@
   flex: 1 1 140px;
   min-width: 120px;
   height: var(--chip-height);
-  accent-color: var(--brand);
+  accent-color: var(--green-fill);
   background: none;
   border: 0;
   padding: 0;
@@ -329,26 +387,8 @@
 
 /* Holding the output on or off: three plain actions rather than a control drawn
    in a position nobody checked. The device reports no override of its own
-   output, so none of them can claim to be the one in force. */
-.forces {
-  display: inline-flex;
-  flex: none;
-  border: var(--rule-solid);
-  border-radius: var(--radius-pill);
-  overflow: hidden;
-}
-
-.forceOption {
-  padding: 3px var(--space-2);
-  background: none;
-  border: 0;
-  color: var(--muted);
-  font-family: var(--font-figure);
-  font-size: 10px;
-  letter-spacing: var(--tracking-caption);
-  text-transform: uppercase;
-}
-
+   output, so none of them can claim to be the one in force - drawn on the same
+   track as the three-way above, and never pressed. */
 .forceOption:disabled {
   opacity: 0.45;
 }
@@ -399,7 +439,11 @@
   justify-content: space-between;
   gap: var(--space-2) var(--space-3);
   margin-top: var(--space-3);
-  border-color: var(--warning);
+  padding: var(--space-3);
+  background: color-mix(in srgb, var(--warning) 9%, var(--card));
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
 }
 
 .planText {
@@ -412,11 +456,29 @@
     max-width: var(--reading-width);
     padding-top: 0;
   }
+}
 
-  .rowNote,
-  .liveness,
-  .since,
-  .socketState {
-    font-size: var(--text-sm);
+/* A wide Devices tab puts what the account has beside what it drives, rather
+   than one 760 px column three screens tall. A tent's own Devices tab is the
+   same list in its own page and keeps one column. */
+@media (min-width: 1200px) {
+  .page {
+    max-width: var(--page-width);
+  }
+
+  .page .list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-5) var(--space-6);
+  }
+
+  /* Whatever is said about the whole list spans both columns. */
+  .page .list > :not(.column) {
+    grid-column: 1 / -1;
+  }
+
+  .page .list:has(> .outputs:empty) {
+    grid-template-columns: minmax(0, var(--reading-width));
   }
 }

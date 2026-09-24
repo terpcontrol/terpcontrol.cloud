@@ -104,155 +104,161 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
           row says what it is on its own title. Calling a socket a controller
           also collided with the Smart sockets sections further down, which hold
           something else. */}
-      <Section label={t('devices.controllers')} empty={mine.length === 0 ? t(maySetUp ? 'devices.noDevices' : 'devices.noDevicesHere') : null}>
-        {mine.map(device => (
-          <DeviceRow
-            key={device.id}
-            device={device}
-            place={placeOf(device.spaceId)}
-            sockets={tables.tables.get(device.id)}
-            cameras={shown.filter(camera => camera.deviceId === device.id).length}
-            linked={spaceId === undefined}
-            spokeAt={spokeAt(device)}
-            now={now}
-          />
-        ))}
-      </Section>
-
-      {/* A claim always makes a place of its own, so this is offered on the tab
-          that shows everything and not on a tent's list, where it would read as
-          adding a device to that tent. */}
-      {spaceId === undefined && maySetUp ? (
-        <Link className={`${ui.cardDashed} ${styles.addRow}`} to="/claim">
-          + {t('claim.addDevice')}
-        </Link>
-      ) : null}
-
-      <Section
-        label={t('devices.cameras')}
-        empty={shown.length === 0 ? t('devices.noCameras') : null}
-        action={
-          // Only on the Devices tab: a tent's own list is the same component,
-          // and the screen behind this asks which place a camera is for rather
-          // than taking the one it was opened from.
-          maySetUp && spaceId === undefined ? (
-            <Link className={`${ui.chip} ${styles.addCamera}`} to="/cameras/add">
-              + {t('cameras.add.title')}
-            </Link>
-          ) : null
-        }
-      >
-        {shown.map(camera => (
-          <CameraRow
-            key={camera.id}
-            camera={camera}
-            place={placeOf(camera.spaceId)}
-            devices={devices.data!.items}
-            stillId={stills.get(camera.id) ?? null}
-            charged={charged}
-            now={now}
-          />
-        ))}
-      </Section>
-
-      {mine.map(device => {
-        const table = tables.tables.get(device.id);
-        if (!table) return null;
-
-        // What lights the tent stands apart from what else is plugged in, and
-        // the controller's own output stands at the head of it: a grower asking
-        // "why is it dark in there" is asking about one of these rows, and which
-        // of them it is is the question this screen used to leave open.
-        const rows = rowsOf(table.items);
-        const light = lightOutputOf(device, table.capabilities, reads.levels.get(device.id) ?? null);
-        const lamps = rows.filter(row => isLightRole(row.role));
-        const rest = rows.filter(row => !isLightRole(row.role));
-        if (!light && rows.length === 0) return null;
-
-        // Why none of the sockets can be switched, said once per list: it is
-        // true of the device and not of a row, and repeating it eight times is
-        // noise. A device nobody is listening on hears nothing at all; one whose
-        // build predates the override still takes every command it always did,
-        // so that reason is kept apart from this one.
-        //
-        // Both are said where both are true, and the silence comes first. Only
-        // the older build was ever drawn, and because no device restored from
-        // the old cloud announces what it can do, a fridge that had been
-        // unplugged for four days told its owner to wait for a firmware update
-        // and never once said it was offline - while the light output printed
-        // directly above it, which works this out for itself, said so plainly.
-        // Being unreachable stops strictly more than an old build does,
-        // including the one command every build in the field still takes.
-        const unheard = deviceLiveness(spokeAt(device), now) === 'offline' ? t('devices.socket.offline') : null;
-        const needsFirmware = !table.capabilities.socketOverride ? t('devices.socket.needsFirmware') : null;
-        const refusal = unheard ?? needsFirmware;
-        const refusals = [unheard, needsFirmware].filter((one): one is string => one !== null);
-        const place = placeOf(device.spaceId) ?? deviceTitle(device, t);
-        // A socket and the lamp above it are this device's configuration, which
-        // is `manage` where the device stands.
-        const mayManage = enough(mayWith(device), 'manage');
-
-        const plugs = (list: SocketRowModel[]) =>
-          list.map(row => (
-            <SocketRow
-              key={row.key}
-              row={row}
-              deviceId={device.id}
-              refusal={refusal}
-              unheard={unheard}
-              mayManage={mayManage}
-              runs={runsOf(verdicts.get(device.spaceId ?? ''), row.role)}
+      {/* What the account has, and what those things drive: two columns on a
+          wide Devices tab, one run of sections everywhere else. */}
+      <div className={styles.column}>
+        <Section label={t('devices.controllers')} empty={mine.length === 0 ? t(maySetUp ? 'devices.noDevices' : 'devices.noDevicesHere') : null}>
+          {mine.map(device => (
+            <DeviceRow
+              key={device.id}
+              device={device}
+              place={placeOf(device.spaceId)}
+              sockets={tables.tables.get(device.id)}
+              cameras={shown.filter(camera => camera.deviceId === device.id).length}
+              linked={spaceId === undefined}
+              spokeAt={spokeAt(device)}
               now={now}
             />
-          ));
+          ))}
+        </Section>
 
-        return (
-          <Fragment key={device.id}>
-            {light || lamps.length > 0 ? (
-              <section className={styles.section}>
-                <span className="label">
-                  {t('devices.lights')} · {place}
-                </span>
-                {mayManage && lamps.length > 0
-                  ? refusals.map(one => (
-                      <p key={one} className={ui.note}>
-                        {one}
-                      </p>
-                    ))
-                  : null}
-                <ul className={styles.rows}>
-                  {light ? (
-                    <LightOutputRow
-                      output={light}
-                      unheard={unheard}
-                      mayManage={mayManage}
-                      runs={runsOf(verdicts.get(device.spaceId ?? ''), 'light')}
-                      now={now}
-                    />
-                  ) : null}
-                  {plugs(lamps)}
-                </ul>
-              </section>
-            ) : null}
+        {/* A claim always makes a place of its own, so this is offered on the tab
+          that shows everything and not on a tent's list, where it would read as
+          adding a device to that tent. */}
+        {spaceId === undefined && maySetUp ? (
+          <Link className={`${ui.cardDashed} ${styles.addRow}`} to="/claim">
+            + {t('claim.addDevice')}
+          </Link>
+        ) : null}
 
-            {rest.length > 0 ? (
-              <section className={styles.section}>
-                <span className="label">
-                  {t('devices.sockets')} · {place}
-                </span>
-                {mayManage
-                  ? refusals.map(one => (
-                      <p key={one} className={ui.note}>
-                        {one}
-                      </p>
-                    ))
-                  : null}
-                <ul className={styles.rows}>{plugs(rest)}</ul>
-              </section>
-            ) : null}
-          </Fragment>
-        );
-      })}
+        <Section
+          label={t('devices.cameras')}
+          empty={shown.length === 0 ? t('devices.noCameras') : null}
+          action={
+            // Only on the Devices tab: a tent's own list is the same component,
+            // and the screen behind this asks which place a camera is for rather
+            // than taking the one it was opened from.
+            maySetUp && spaceId === undefined ? (
+              <Link className={`${ui.chip} ${styles.addCamera}`} to="/cameras/add">
+                + {t('cameras.add.title')}
+              </Link>
+            ) : null
+          }
+        >
+          {shown.map(camera => (
+            <CameraRow
+              key={camera.id}
+              camera={camera}
+              place={placeOf(camera.spaceId)}
+              devices={devices.data!.items}
+              stillId={stills.get(camera.id) ?? null}
+              charged={charged}
+              now={now}
+            />
+          ))}
+        </Section>
+      </div>
+
+      <div className={`${styles.column} ${styles.outputs}`}>
+        {mine.map(device => {
+          const table = tables.tables.get(device.id);
+          if (!table) return null;
+
+          // What lights the tent stands apart from what else is plugged in, and
+          // the controller's own output stands at the head of it: a grower asking
+          // "why is it dark in there" is asking about one of these rows, and which
+          // of them it is is the question this screen used to leave open.
+          const rows = rowsOf(table.items);
+          const light = lightOutputOf(device, table.capabilities, reads.levels.get(device.id) ?? null);
+          const lamps = rows.filter(row => isLightRole(row.role));
+          const rest = rows.filter(row => !isLightRole(row.role));
+          if (!light && rows.length === 0) return null;
+
+          // Why none of the sockets can be switched, said once per list: it is
+          // true of the device and not of a row, and repeating it eight times is
+          // noise. A device nobody is listening on hears nothing at all; one whose
+          // build predates the override still takes every command it always did,
+          // so that reason is kept apart from this one.
+          //
+          // Both are said where both are true, and the silence comes first. Only
+          // the older build was ever drawn, and because no device restored from
+          // the old cloud announces what it can do, a fridge that had been
+          // unplugged for four days told its owner to wait for a firmware update
+          // and never once said it was offline - while the light output printed
+          // directly above it, which works this out for itself, said so plainly.
+          // Being unreachable stops strictly more than an old build does,
+          // including the one command every build in the field still takes.
+          const unheard = deviceLiveness(spokeAt(device), now) === 'offline' ? t('devices.socket.offline') : null;
+          const needsFirmware = !table.capabilities.socketOverride ? t('devices.socket.needsFirmware') : null;
+          const refusal = unheard ?? needsFirmware;
+          const refusals = [unheard, needsFirmware].filter((one): one is string => one !== null);
+          const place = placeOf(device.spaceId) ?? deviceTitle(device, t);
+          // A socket and the lamp above it are this device's configuration, which
+          // is `manage` where the device stands.
+          const mayManage = enough(mayWith(device), 'manage');
+
+          const plugs = (list: SocketRowModel[]) =>
+            list.map(row => (
+              <SocketRow
+                key={row.key}
+                row={row}
+                deviceId={device.id}
+                refusal={refusal}
+                unheard={unheard}
+                mayManage={mayManage}
+                runs={runsOf(verdicts.get(device.spaceId ?? ''), row.role)}
+                now={now}
+              />
+            ));
+
+          return (
+            <Fragment key={device.id}>
+              {light || lamps.length > 0 ? (
+                <section className={styles.section}>
+                  <span className="label">
+                    {t('devices.lights')} · {place}
+                  </span>
+                  {mayManage && lamps.length > 0
+                    ? refusals.map(one => (
+                        <p key={one} className={ui.note}>
+                          {one}
+                        </p>
+                      ))
+                    : null}
+                  <ul className={styles.rows}>
+                    {light ? (
+                      <LightOutputRow
+                        output={light}
+                        unheard={unheard}
+                        mayManage={mayManage}
+                        runs={runsOf(verdicts.get(device.spaceId ?? ''), 'light')}
+                        now={now}
+                      />
+                    ) : null}
+                    {plugs(lamps)}
+                  </ul>
+                </section>
+              ) : null}
+
+              {rest.length > 0 ? (
+                <section className={styles.section}>
+                  <span className="label">
+                    {t('devices.sockets')} · {place}
+                  </span>
+                  {mayManage
+                    ? refusals.map(one => (
+                        <p key={one} className={ui.note}>
+                          {one}
+                        </p>
+                      ))
+                    : null}
+                  <ul className={styles.rows}>{plugs(rest)}</ul>
+                </section>
+              ) : null}
+            </Fragment>
+          );
+        })}
+      </div>
 
       {tables.isPending ? <p className={ui.note}>{t('devices.readingSockets')}</p> : null}
       {tables.isError ? <p className={ui.note}>{t('devices.socketsFailed')}</p> : null}
