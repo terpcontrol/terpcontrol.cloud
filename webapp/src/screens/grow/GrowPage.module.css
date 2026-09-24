@@ -152,8 +152,14 @@
 }
 
 /* On a phone the nine of them would stack three rows deep above the tabs, so
-   they run as one row that scrolls, fading at the edge while there is more of
-   it - the same affordance the tabs under it use. */
+   they run as one row that scrolls, with a fade at its far edge over whatever
+   is still to come. The fade is a veil laid over the row rather than a mask
+   on it: the lifecycle's sheets are drawn from inside this row, and a mask
+   clips everything painted inside its element, a fixed sheet included. The
+   veil is the row's last item and sticks to the right edge while there is
+   more to scroll; at the end of the row it sits in a space of its own after
+   the last chip, and a row that fits pushes it into the empty space at its
+   end, so it never covers a chip nobody can scroll further to. */
 @media (max-width: 899px) {
   .ways {
     flex-wrap: nowrap;
@@ -168,25 +174,15 @@
     display: none;
   }
 
-  @supports (animation-timeline: scroll()) {
-    .ways {
-      animation: ways-more linear both;
-      animation-timeline: scroll(self inline);
-    }
-  }
-}
-
-@keyframes ways-more {
-  from {
-    mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
-  }
-
-  99% {
-    mask-image: linear-gradient(to right, transparent 0, #000 40px, #000 calc(100% - 40px), transparent);
-  }
-
-  to {
-    mask-image: linear-gradient(to right, transparent 0, #000 40px);
+  .ways::after {
+    content: '';
+    position: sticky;
+    right: 0;
+    flex: none;
+    width: 40px;
+    margin-left: auto;
+    background: linear-gradient(to right, transparent, var(--bg));
+    pointer-events: none;
   }
 }
 
