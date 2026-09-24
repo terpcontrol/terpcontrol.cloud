@@ -1,7 +1,11 @@
+/* The door into the app: one card on the page, with the light of something
+   growing coming up from under it - the same warm glow the app's pages fall
+   from, answered by a green one below. */
 .page {
   display: grid;
   place-items: center;
   min-height: 100%;
+  background: radial-gradient(900px 520px at 50% 115%, color-mix(in srgb, var(--green) 14%, transparent), transparent 70%);
   padding: max(var(--space-4), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right))
     max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
 }
@@ -10,32 +14,40 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 360px;
-  padding: var(--space-5) var(--space-4);
+  max-width: 400px;
+  padding: var(--space-6) var(--space-5) var(--space-5);
   background: var(--card);
   border: var(--rule-solid);
-  border-radius: var(--radius);
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: var(--shadow-raised);
 }
 
+/* The name, set as the rail sets it but larger: the one place the wordmark is
+   the whole of the page's heading. */
 .wordmark {
-  font-size: var(--text-title);
+  margin-bottom: var(--space-6);
+  font-size: 36px;
   font-weight: var(--weight-display);
-  margin-bottom: var(--space-5);
   line-height: var(--line-tight);
+  text-align: center;
   color: var(--wordmark);
 }
 
 /* The line above the fields: why this form, in the words of the page that sent somebody here. */
 .intro {
-  margin-bottom: var(--space-4);
+  margin-top: calc(var(--space-2) - var(--space-6));
+  margin-bottom: var(--space-5);
   font-size: var(--text-sm);
   line-height: var(--line-body);
+  text-align: center;
   color: var(--muted);
 }
 
 /* The one step that may stand between an account and its first sign-in. */
 .step {
+  margin-top: calc(var(--space-2) - var(--space-6));
   margin-bottom: var(--space-2);
+  text-align: center;
   font-size: var(--text-md);
   font-weight: var(--weight-display-sm);
   line-height: var(--line-tight);
@@ -59,7 +71,7 @@
 }
 
 .submit {
-  margin-top: var(--space-4);
+  margin-top: var(--space-5);
 }
 
 .demo {
@@ -67,12 +79,33 @@
 }
 
 .links {
-  margin-top: var(--space-4);
-  font-size: var(--text-xs);
+  margin-top: var(--space-5);
+  font-size: var(--text-sm);
   text-align: center;
   color: var(--muted);
 }
 
 .links a {
+  color: var(--green-ink);
+  font-weight: var(--weight-semibold);
   text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* On a phone the card is the screen's width less the gutter, and a little less
+   padded, so the fields keep a thumb's width. */
+@media (max-width: 480px) {
+  .card {
+    padding: var(--space-5) var(--space-4) var(--space-4);
+  }
+
+  .wordmark {
+    margin-bottom: var(--space-5);
+    font-size: 32px;
+  }
+
+  .intro,
+  .step {
+    margin-top: calc(var(--space-2) - var(--space-5));
+  }
 }
