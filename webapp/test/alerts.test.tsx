@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AlarmRule, Alert, Me, OpenAlert, Problem } from '@fg2/shared-types/v1';
 import { Rail } from '@/app/shell/Rail';
 import { TopBar } from '@/app/shell/TopBar';
@@ -47,6 +47,18 @@ vi.mock('@/api/session', async importOriginal => {
     session: { validToken: async () => 'token', refresh: async () => null, snapshot: () => SIGNED_IN, mediaToken: () => null },
   };
 });
+
+/*
+ * The suite runs at midday where the account is, whatever the wall clock says.
+ * A card names the day beside the hour for an instant that is not today's, and
+ * these cases are written as "two hours ago": run between midnight and two in
+ * the morning, that is yesterday, the card rightly says so, and the case fails
+ * for the time of night rather than for anything the inbox did. Only Date is
+ * faked, so the app's clock and this one agree and every timer still runs.
+ */
+vi.useFakeTimers({ toFake: ['Date'] });
+vi.setSystemTime(DateTime.now().setZone('Europe/Berlin').set({ hour: 12, minute: 0, second: 0, millisecond: 0 }).toJSDate());
+afterAll(() => vi.useRealTimers());
 
 const NOW = DateTime.now();
 const iso = (at: DateTime) => at.toISO()!;
