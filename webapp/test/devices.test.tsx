@@ -438,7 +438,8 @@ describe("the controller's own light output", () => {
   it('refuses to hold the output on a build that never announced it, and dims it all the same', () => {
     drawOutput({ lights: LIGHTS }, { ...CAPABILITIES, lightOverride: false });
 
-    expect(screen.getByRole('button', { name: 'on' })).toBeDisabled();
+    // No button nobody can press: greyed, they read as any unchosen option.
+    expect(screen.queryByRole('button', { name: 'on' })).not.toBeInTheDocument();
     expect(screen.getByText(/cannot be told to hold its light output/)).toBeInTheDocument();
 
     const slider = screen.getByRole('slider', { name: 'Brightness' });
@@ -463,7 +464,7 @@ describe("the controller's own light output", () => {
   it('has nothing to write a brightness into until the device has sent its settings', () => {
     drawOutput(null);
 
-    expect(screen.getByRole('slider', { name: 'Brightness' })).toBeDisabled();
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
     expect(screen.getByText(/has not sent its settings yet/)).toBeInTheDocument();
   });
 
@@ -492,8 +493,8 @@ describe("the controller's own light output", () => {
 
     expect(screen.getAllByText('not stated').length).toBeGreaterThan(0);
     expect(screen.queryByText('100 %')).toBeNull();
-    // The spoken value agrees with the drawn one.
-    expect(screen.getByRole('slider', { name: 'Brightness' })).toHaveAttribute('aria-valuetext', 'not stated');
+    // Nor is a slider drawn at the top of its scale beside it.
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
   });
 
   it('says nothing either where a configuration exists but names no brightness', () => {
@@ -523,7 +524,10 @@ describe("the controller's own light output", () => {
 
   it('reads the brightness whether the document states it nested or flat, and writes only the nested one back', () => {
     expect(lightOutputOf(device({ 'lights.limit': 60 }), CAPABILITIES, null)?.limitPercent).toBe(60);
-    expect(withLightLimit({ 'lights.limit': 60, day: { temperature: 25 } }, 'controller', 30)).toEqual({ lights: { limit: 30 }, day: { temperature: 25 } });
+    expect(withLightLimit({ 'lights.limit': 60, day: { temperature: 25 } }, 'controller', 30)).toEqual({
+      lights: { limit: 30 },
+      day: { temperature: 25 },
+    });
   });
 
   /**
@@ -539,6 +543,10 @@ describe("the controller's own light output", () => {
     expect(withLightLimit(lamp, 'light', 50)).toEqual({ ...lamp, limit: 50 });
 
     wrap(<LightOutputRow output={lightOutputOf(light, CAPABILITIES, null)!} unheard={null} mayManage runs={null} now={NOW} />);
+    // No Light build takes a hold, so it is not told to wait for one.
+    expect(screen.queryByRole('button', { name: 'on' })).not.toBeInTheDocument();
+    expect(screen.getByText(/This kind of device cannot be told to hold its light output, in any build/)).toBeInTheDocument();
+    expect(screen.queryByText(/This build/)).not.toBeInTheDocument();
     const slider = screen.getByRole('slider', { name: 'Brightness' });
     expect(slider).toHaveValue('0');
     expect(slider).toHaveAttribute('aria-valuetext', '0 %');

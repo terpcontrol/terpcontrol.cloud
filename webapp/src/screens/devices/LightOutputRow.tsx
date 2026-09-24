@@ -3,6 +3,7 @@ import type { DateTime } from 'luxon';
 import { useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ActuatorRuns, SocketOverrideState } from '@fg2/shared-types/v1';
+import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useSaveConfiguration, useSetOverride } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { ApiError } from '@/api/problem';
@@ -89,9 +90,18 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
   // reader met "there is nothing to write a brightness into" and "the
   // brightness still reaches it" in consecutive sentences. Where there is
   // nothing to send, the refusal says only that this build cannot be held.
-  const cannotForce = !output.takesOverride
-    ? t(cannotSetLevel ? 'devices.lightOutput.needsFirmwareAlone' : 'devices.lightOutput.needsFirmware')
-    : unheard;
+  // A device type whose firmware holds no output on command in any build is
+  // not waiting for an update, so it is not told to.
+  const neverHolds = !SOCKET_HOST_TYPES.includes(output.type);
+  const cannotForce = neverHolds
+    ? t(cannotSetLevel ? 'devices.lightOutput.neverHoldsAlone' : 'devices.lightOutput.neverHolds')
+    : !output.takesOverride
+      ? t(cannotSetLevel ? 'devices.lightOutput.needsFirmwareAlone' : 'devices.lightOutput.needsFirmware')
+      : unheard;
+  // The buttons are drawn only where a hold could be asked for at all: beside a
+  // build or a device that can never take one they were three words that looked
+  // as pressable as any other choice, and the note under them already says why.
+  const offersHold = !neverHolds && output.takesOverride;
   // "Nothing is listening" is true of the buttons and not of the slider, so a
   // device nobody can reach says the whole of it in one line rather than a
   // refusal beside a control that works.
@@ -168,39 +178,44 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
           <label className="label" htmlFor={`level-${output.deviceId}`}>
             {t('devices.lightOutput.brightness')}
           </label>
-          <input
-            id={`level-${output.deviceId}`}
-            className={`${ui.range} ${styles.slider}`}
-            style={{ '--filled': `${level}%` } as CSSProperties}
-            type="range"
-            min={0}
-            max={100}
-            step={LEVEL_STEP}
-            value={level}
-            disabled={cannotSetLevel !== null}
-            aria-valuetext={stated}
-            onChange={event => setDraft({ percent: Number(event.target.value), against: stored })}
-            onPointerUp={() => void commit()}
-            onKeyUp={() => void commit()}
-            onBlur={() => void commit()}
-          />
+          {/* Nothing to write into is nothing to drag: a disabled slider still
+              stood at the top of its scale, a level nobody had stated. */}
+          {cannotSetLevel === null ? (
+            <input
+              id={`level-${output.deviceId}`}
+              className={`${ui.range} ${styles.slider}`}
+              style={{ '--filled': `${level}%` } as CSSProperties}
+              type="range"
+              min={0}
+              max={100}
+              step={LEVEL_STEP}
+              value={level}
+              aria-valuetext={stated}
+              onChange={event => setDraft({ percent: Number(event.target.value), against: stored })}
+              onPointerUp={() => void commit()}
+              onKeyUp={() => void commit()}
+              onBlur={() => void commit()}
+            />
+          ) : null}
           <span className={`mono ${styles.level}`}>{stated}</span>
           {/* The group carries the duration rather than each button, so the
               three keep the one-word names they are drawn with and a reader
               hears how long a hold lasts once, where the choice belongs. */}
-          <span className={ui.segments} role="group" aria-label={t('devices.lightOutput.forceFor', { duration: durationLabel(hold) })}>
-            {(['auto', 'on', 'off'] as const).map(state => (
-              <button
-                key={state}
-                type="button"
-                className={`${ui.segment} ${styles.forceOption}`}
-                disabled={cannotForce !== null}
-                onClick={() => force(state)}
-              >
-                {t(`devices.socket.${state}`)}
-              </button>
-            ))}
-          </span>
+          {offersHold ? (
+            <span className={ui.segments} role="group" aria-label={t('devices.lightOutput.forceFor', { duration: durationLabel(hold) })}>
+              {(['auto', 'on', 'off'] as const).map(state => (
+                <button
+                  key={state}
+                  type="button"
+                  className={`${ui.segment} ${styles.forceOption}`}
+                  disabled={cannotForce !== null}
+                  onClick={() => force(state)}
+                >
+                  {t(`devices.socket.${state}`)}
+                </button>
+              ))}
+            </span>
+          ) : null}
           {/* Only beside buttons that can be pressed: next to three greyed
               words it would be the length of a hold nobody can ask for. */}
           {cannotForce === null ? (

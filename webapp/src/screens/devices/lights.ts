@@ -110,7 +110,14 @@ export const lightOutputOf = (device: Device, capabilities: DeviceCapabilities, 
   const limitPercent = lightLimitOf(device.configuration, device.type);
   if (!capabilities.lightOverride && limitPercent === null && level === null) return null;
 
-  return { deviceId: device.id, level, limitPercent, configuration: device.configuration, type: device.type, takesOverride: capabilities.lightOverride };
+  return {
+    deviceId: device.id,
+    level,
+    limitPercent,
+    configuration: device.configuration,
+    type: device.type,
+    takesOverride: capabilities.lightOverride,
+  };
 };
 
 /** "40 %", and "0 %" rather than "off": a lamp at nothing is the output doing nothing, which is what the number says. */

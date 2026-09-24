@@ -824,6 +824,8 @@
       "noSettings": "This device has not sent its settings yet, so there is nothing to write a brightness into. Changing any setting on the device itself sends them; connecting alone does not.",
       "needsFirmware": "This build cannot be told to hold its light output. The brightness still reaches it — that is a setting and not a command.",
       "needsFirmwareAlone": "This build cannot be told to hold its light output.",
+      "neverHolds": "This kind of device cannot be told to hold its light output, in any build. The brightness still reaches it — that is a setting and not a command.",
+      "neverHoldsAlone": "This kind of device cannot be told to hold its light output, in any build.",
       "keptForLater": "Nothing is listening, so the buttons reach nobody — a brightness is stored all the same, and the device is handed it when it connects again.",
       "explained": "The device dims this output itself and ramps it through sunrise and sunset; the brightness is the most it gives. A smart socket with a light role has no level of its own — it follows this output on or off, unless it is being held. Hours of light count every hour the lamp is above zero, so dimming changes how bright the day is and not how long it is."
     },
