@@ -571,6 +571,11 @@ describe('the inbox', () => {
   });
 
   it('names the camera for a stale one and offers a look rather than a silence', async () => {
+    // Raised at midday rather than a couple of hours ago, because the card
+    // names the day for an instant that is not today's: run between midnight
+    // and 02:20 and "two hours ago" is yesterday, and the card would rightly
+    // say so while this case is about the bare hour.
+    const raised = NOW.setZone(ACCOUNT_ZONE).startOf('day').plus({ hours: 12 });
     server.alerts = [
       // An alert the health loop raised without a staleness to carry, which is
       // the one case where the moment it was raised is all there is to date it by.
@@ -582,13 +587,14 @@ describe('the inbox', () => {
         spaceId: null,
         cameraId: 'cam-2',
         severity: 'info',
+        startedAt: iso(raised),
         value: null,
         extremeValue: null,
       }),
     ];
     draw();
 
-    expect(await screen.findByText(`Cam 2 · no image since ${clock(NOW.minus({ hours: 2, minutes: 20 }))}`)).toBeInTheDocument();
+    expect(await screen.findByText(`Cam 2 · no image since ${clock(raised)}`)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Check cam' })).toHaveAttribute('href', '/cameras/cam-2');
     expect(screen.queryByRole('button', { name: 'Silence 1 h' })).not.toBeInTheDocument();
   });
