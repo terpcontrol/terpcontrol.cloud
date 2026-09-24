@@ -81,9 +81,17 @@ export class DevicePublisherService {
     this.mqtt.publish(deviceTopic(deviceId, 'command'), JSON.stringify(maintenancePayload(forSeconds)));
   }
 
+  /**
+   * Ending a window only moves one that is open. A device that was not in
+   * maintenance has nothing to come out of, and stamping the end would start
+   * the settling hold on its alarms - ten minutes of quiet after a visit that
+   * never happened, and a page saying it had come out of maintenance.
+   */
   private async noteMaintenance(deviceId: string, forSeconds: number): Promise<void> {
-    const until = new Date(Date.now() + forSeconds * 1000);
-    await this.devices.updateOne({ id: deviceId }, { $set: { 'state.maintenanceUntil': until } });
+    const now = new Date();
+    const until = new Date(now.getTime() + forSeconds * 1000);
+    const open = forSeconds > 0 ? {} : { 'state.maintenanceUntil': { $gt: now } };
+    await this.devices.updateOne({ id: deviceId, ...open }, { $set: { 'state.maintenanceUntil': until } });
   }
 
   /**

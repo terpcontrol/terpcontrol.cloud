@@ -107,6 +107,29 @@ describe('a device type that takes no socket command in any build', () => {
   });
 });
 
+/**
+ * Ending maintenance moves a window that is open. On a device that was not in
+ * one it stamped the end all the same, which started the settling hold on its
+ * alarms and had the page say it had come out of maintenance.
+ */
+describe('ending maintenance', () => {
+  const until = async () => (await db.devices.findOne({ id: NEW }).lean<StoredDevice>())!.state.maintenanceUntil;
+
+  it('leaves a device that was not in maintenance as it was', async () => {
+    await publisher.command(NEW, { kind: 'maintenance', forSeconds: 0 });
+
+    expect(await until()).toBeNull();
+  });
+
+  it('ends a window that is open, now', async () => {
+    await db.devices.updateOne({ id: NEW }, { $set: { 'state.maintenanceUntil': new Date(Date.now() + 600_000) } });
+
+    await publisher.command(NEW, { kind: 'maintenance', forSeconds: 0 });
+
+    expect(Math.abs((await until())!.getTime() - Date.now())).toBeLessThan(5_000);
+  });
+});
+
 describe('a device that has announced nothing', () => {
   it('is offered exactly the roles every build in the field knows', async () => {
     const device = await db.devices.findOne({ id: OLD }).lean<StoredDevice>();
