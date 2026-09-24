@@ -107,13 +107,20 @@ export class MediaController {
     );
   }
 
+  /**
+   * The grant decides how much of the row goes out as well as whether it goes
+   * out at all: a reader the diary tells nothing about the tent or the author
+   * must not be told either by the picture hanging off that same line.
+   */
   @Get(':id')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'media')
   @ApiOperation({ summary: 'What is known about one picture or film' })
   @V1Answer(mediaShape)
   public async read(@Param('id') id: string, @Req() request: FastifyRequest): Promise<Media> {
-    return this.media.serialise(await this.require(id, request));
+    const row = await this.require(id, request);
+
+    return this.media.serialise(row, (request as AccessRequest).grant?.redacted === true);
   }
 
   @Get(':id/content')

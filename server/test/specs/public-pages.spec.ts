@@ -390,6 +390,32 @@ describe('one still of a shared camera', () => {
   });
 
   /**
+   * The diary line has answered `spaceId` and `authorId` as null to a reader
+   * outside the tent since the redaction was written. The picture that line
+   * names was handing back both, so the redaction on the line bought nothing.
+   */
+  it('says neither where a photo was taken nor who took it to a reader outside the tent', async () => {
+    const run = await startAGrow({ name: 'Photographed by somebody' });
+    const photo = (
+      await owner.client
+        .post('/v1/media')
+        .field('kind', 'photo')
+        .field('growId', run.id)
+        .field('spaceId', tent)
+        .attach('file', A_PICTURE, 'leaf.jpg')
+        .expect(201)
+    ).body;
+
+    // The owner's own read is the whole row; it is their tent and their account.
+    expect(photo).toMatchObject({ spaceId: tent, uploadedBy: expect.any(String) });
+
+    const link = await linkOnto({ type: 'grow', id: run.id });
+    const shared = await anonymous().get(`/v1/media/${photo.id}`).set('X-Share-Token', link.token).expect(200);
+
+    expect(shared.body).toMatchObject({ id: photo.id, growId: run.id, spaceId: null, uploadedBy: null });
+  });
+
+  /**
    * Narrowing a link is what `PATCH /share-links/{id}` is for, and it has to
    * take back the pictures the holder has already written down as well as the
    * listing they came from.

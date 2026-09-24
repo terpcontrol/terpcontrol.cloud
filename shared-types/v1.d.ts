@@ -2593,9 +2593,12 @@ export interface Media {
   bytes: number;
   cameraId: string | null;
   growId: string | null;
+  /**
+   * Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody´s flat a picture was taken in is not part of what a link shows.
+   */
   spaceId: string | null;
   /**
-   * Null for what a camera delivered or the composer rendered.
+   * Null for what a camera delivered or the composer rendered, and null to a reader outside the tent: a shared diary says what happened rather than who by.
    */
   uploadedBy: string | null;
   capturedAt: string;
@@ -2628,6 +2631,9 @@ export interface MediaPage {
 
 export interface MediaUpload {
   growId?: string | null;
+  /**
+   * Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody´s flat a picture was taken in is not part of what a link shows.
+   */
   spaceId?: string | null;
   capturedAt?: string;
   kind: UploadMediaKind;

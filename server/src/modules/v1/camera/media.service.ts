@@ -145,7 +145,14 @@ export class MediaService {
       .limit(readLimit(limit))
       .lean<MediaDocument[]>();
 
-    return pageOf(rows.map(serialise), limit, row => ({ at: new Date(row.capturedAt), id: row.id }));
+    // Row by row rather than by handing `serialise` to `map`, which would feed it
+    // the index as its second argument. Nothing is held back here: this lists a
+    // camera's own stills and films, and neither carries a space or an uploader.
+    return pageOf(
+      rows.map(row => serialise(row)),
+      limit,
+      row => ({ at: new Date(row.capturedAt), id: row.id }),
+    );
   }
 
   /**
@@ -296,8 +303,19 @@ export class MediaService {
     return this.media.find(where(filter)).select({ id: 1, capturedAt: 1, _id: 0 }).sort({ capturedAt: -1 }).limit(limit).lean<MediaPosition[]>();
   }
 
-  public serialise(row: MediaDocument): Media {
-    return serialise(row);
+  /**
+   * The row on the wire, as much of it as this reader may have.
+   *
+   * `redacted` is the grant's own flag, and it is what `serialiseDiaryEntry`
+   * reads as `hide.authors`: for a stranger, a link holder or a public reader it
+   * is true, and for the owner and the people they share the tent with it is
+   * false. A photo is the one kind that carries the two ids it turns off, and
+   * the diary line that names that very photo has been answering them as null
+   * since the redaction was written - so the route that answers the picture had
+   * been handing back the tent and the account the diary beside it withheld.
+   */
+  public serialise(row: MediaDocument, redacted = false): Media {
+    return serialise(row, redacted);
   }
 }
 
@@ -317,7 +335,7 @@ const where = (filter: MediaFilter): FilterQuery<MediaDocument> => {
   };
 };
 
-const serialise = (row: MediaDocument): Media => ({
+const serialise = (row: MediaDocument, redacted = false): Media => ({
   id: row.id,
   createdAt: row.createdAt.toISOString(),
   kind: row.kind,
@@ -325,8 +343,12 @@ const serialise = (row: MediaDocument): Media => ({
   bytes: row.bytes,
   cameraId: row.cameraId,
   growId: row.growId,
-  spaceId: row.spaceId,
-  uploadedBy: row.uploadedBy,
+  // Which corner of somebody's flat the picture was taken in, and the account
+  // that took it. A reader outside the tent is shown what the picture is of and
+  // told neither, exactly as the diary line carrying it already has it; a still
+  // and a film carry neither to begin with.
+  spaceId: redacted ? null : row.spaceId,
+  uploadedBy: redacted ? null : row.uploadedBy,
   capturedAt: row.capturedAt.toISOString(),
   endsAt: row.endsAt?.toISOString() ?? null,
   window: row.window,

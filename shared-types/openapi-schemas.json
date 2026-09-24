@@ -8680,7 +8680,8 @@
           {
             "type": "null"
           }
-        ]
+        ],
+        "description": "Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody´s flat a picture was taken in is not part of what a link shows."
       },
       "uploadedBy": {
         "anyOf": [
@@ -8692,7 +8693,7 @@
             "type": "null"
           }
         ],
-        "description": "Null for what a camera delivered or the composer rendered."
+        "description": "Null for what a camera delivered or the composer rendered, and null to a reader outside the tent: a shared diary says what happened rather than who by."
       },
       "capturedAt": {
         "type": "string",
@@ -8852,7 +8853,8 @@
           {
             "type": "null"
           }
-        ]
+        ],
+        "description": "Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody´s flat a picture was taken in is not part of what a link shows."
       },
       "capturedAt": {
         "type": "string",

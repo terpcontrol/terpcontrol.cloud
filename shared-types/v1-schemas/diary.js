@@ -323,8 +323,12 @@ exports.media = (0, common_js_1.named)('Media', zod_1.z.object({
     bytes: zod_1.z.number().int().describe('Size of the stored file.'),
     cameraId: (0, common_js_1.id)().nullable(),
     growId: (0, common_js_1.id)().nullable(),
-    spaceId: (0, common_js_1.id)().nullable(),
-    uploadedBy: (0, common_js_1.id)().nullable().describe('Null for what a camera delivered or the composer rendered.'),
+    spaceId: (0, common_js_1.id)()
+        .nullable()
+        .describe('Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody´s flat a picture was taken in is not part of what a link shows.'),
+    uploadedBy: (0, common_js_1.id)()
+        .nullable()
+        .describe('Null for what a camera delivered or the composer rendered, and null to a reader outside the tent: a shared diary says what happened rather than who by.'),
     capturedAt: (0, common_js_1.instant)(),
     endsAt: (0, common_js_1.instant)().nullable().describe('The end of the span a film covers; null for a single picture.'),
     window: exports.mediaWindow.nullable(),

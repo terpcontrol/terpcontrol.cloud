@@ -444,8 +444,16 @@ export const media = named(
     bytes: z.number().int().describe('Size of the stored file.'),
     cameraId: id().nullable(),
     growId: id().nullable(),
-    spaceId: id().nullable(),
-    uploadedBy: id().nullable().describe('Null for what a camera delivered or the composer rendered.'),
+    spaceId: id()
+      .nullable()
+      .describe(
+        'Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody´s flat a picture was taken in is not part of what a link shows.',
+      ),
+    uploadedBy: id()
+      .nullable()
+      .describe(
+        'Null for what a camera delivered or the composer rendered, and null to a reader outside the tent: a shared diary says what happened rather than who by.',
+      ),
     capturedAt: instant(),
     endsAt: instant().nullable().describe('The end of the span a film covers; null for a single picture.'),
     window: mediaWindow.nullable(),
