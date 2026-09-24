@@ -417,6 +417,20 @@ describe('the move sheet of a grow that has ended', () => {
     expect(screen.getByText('Standing in Blue Dream tent')).toBeInTheDocument();
   });
 
+  it('offers no move of its own, only the rows of where it stood', () => {
+    draw(<MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />);
+
+    expect(screen.queryByRole('button', { name: /^Move · / })).not.toBeInTheDocument();
+    expect(screen.getByText(/This grow has ended, so it does not move any more/)).toBeInTheDocument();
+  });
+
+  it('is offered a phase, a move and a new name, but no split and no harvest', () => {
+    draw(<GrowLifecycle grow={finished} plants={plants} spaces={[tent]} />);
+
+    const offered = screen.getAllByRole('button').map(button => button.textContent);
+    expect(offered).toEqual(['Phase', 'Move', 'Rename']);
+  });
+
   /** "No fixed place" is a place a grow can be in, and a running grow that is in it says so. */
   it('says a running grow stands in no fixed place where that is what it does', () => {
     draw(<MoveSheet grow={{ ...grow, summary: { ...grow.summary, locations: [] } }} plants={plants} spaces={[tent]} onClose={() => {}} />);

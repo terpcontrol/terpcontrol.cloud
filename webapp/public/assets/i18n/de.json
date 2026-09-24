@@ -2156,7 +2156,8 @@
         "saveCorrection": "Korrektur speichern",
         "withdrawEffect": "Die Zeile verschwindet, als wäre der Umzug nie aufgeschrieben worden.",
         "confirmWithdraw": "Diesen Umzug zurücknehmen",
-        "nowhereThenWithdraw": "Grow auf „kein fester Platz“ setzen und diese Zeile zurücknehmen"
+        "nowhereThenWithdraw": "Grow auf „kein fester Platz“ setzen und diese Zeile zurücknehmen",
+        "endedNote": "Dieser Grow ist beendet und zieht nicht mehr um. Eine Zeile unten, die falsch erfasst wurde, lässt sich weiterhin korrigieren."
       },
       "harvest": {
         "title": "Ernte · {{name}}",

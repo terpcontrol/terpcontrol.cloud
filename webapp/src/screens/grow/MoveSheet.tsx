@@ -72,41 +72,51 @@ export function MoveSheet({
               })}
         </p>
 
-        <Block label={t('grow.lifecycle.move.moveTo')}>
-          <Choices label={t('grow.lifecycle.move.moveTo')}>
-            {open.map(space => (
-              <Choice key={space.id} chosen={spaceId === space.id} onChoose={() => setSpaceId(space.id)}>
-                {space.name}
+        {/* A grow that has ended does not move any more - the server refuses a
+            move dated after its end - so the sheet is left with what it is for
+            on such a grow: the rows of where it stood, which can still be put
+            right. */}
+        {grow.endedAt ? (
+          <p className={ui.note}>{t('grow.lifecycle.move.endedNote')}</p>
+        ) : (
+          <Block label={t('grow.lifecycle.move.moveTo')}>
+            <Choices label={t('grow.lifecycle.move.moveTo')}>
+              {open.map(space => (
+                <Choice key={space.id} chosen={spaceId === space.id} onChoose={() => setSpaceId(space.id)}>
+                  {space.name}
+                </Choice>
+              ))}
+              <Choice chosen={spaceId === null} onChoose={() => setSpaceId(null)}>
+                {t('grow.noFixedPlace')}
               </Choice>
-            ))}
-            <Choice chosen={spaceId === null} onChoose={() => setSpaceId(null)}>
-              {t('grow.noFixedPlace')}
-            </Choice>
-          </Choices>
+            </Choices>
 
-          <PlantPicker
-            plants={plants}
-            chosen={chosen}
-            everyLabel={t('grow.lifecycle.everyPlant')}
-            label={t('grow.lifecycle.whichPlants')}
-            onChange={setChosen}
-          />
-          <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} />
+            <PlantPicker
+              plants={plants}
+              chosen={chosen}
+              everyLabel={t('grow.lifecycle.everyPlant')}
+              label={t('grow.lifecycle.whichPlants')}
+              onChange={setChosen}
+            />
+            <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} />
 
-          <p className={ui.note}>{t(spaceId === null ? 'grow.lifecycle.move.nowhereNote' : 'grow.lifecycle.move.note')}</p>
-          <Refused error={move.error} />
+            <p className={ui.note}>{t(spaceId === null ? 'grow.lifecycle.move.nowhereNote' : 'grow.lifecycle.move.note')}</p>
+            <Refused error={move.error} />
 
-          <button
-            type="button"
-            className={`${ui.button} ${ui.primary} ${styles.submit}`}
-            disabled={move.isPending}
-            onClick={() => move.mutate({ spaceId, plantIds: chosen, startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })}
-          >
-            {move.isPending
-              ? t('grow.lifecycle.saving')
-              : t('grow.lifecycle.move.submit', { place: spaceId === null ? t('grow.noFixedPlace') : placeName(t, spaces, spaceId) })}
-          </button>
-        </Block>
+            <button
+              type="button"
+              className={`${ui.button} ${ui.primary} ${styles.submit}`}
+              disabled={move.isPending}
+              onClick={() =>
+                move.mutate({ spaceId, plantIds: chosen, startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })
+              }
+            >
+              {move.isPending
+                ? t('grow.lifecycle.saving')
+                : t('grow.lifecycle.move.submit', { place: spaceId === null ? t('grow.noFixedPlace') : placeName(t, spaces, spaceId) })}
+            </button>
+          </Block>
+        )}
 
         <Block label={t('grow.lifecycle.move.history')} aside={<span className="mono">{t('grow.lifecycle.move.newestFirst')}</span>}>
           <ul className={styles.rows}>
@@ -131,6 +141,9 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 const placeName = (t: Translate, spaces: Space[], spaceId: string | null): string =>
   spaceId === null ? t('grow.noFixedPlace') : (spaces.find(space => space.id === spaceId)?.name ?? '…');
+
+/** The last day a row of this grow can be dated to: the day it ended, or none while it runs. */
+const endOf = (grow: GrowListItem): Date | null => (grow.endedAt ? new Date(grow.endedAt) : null);
 
 const standsIn = (grow: GrowListItem, spaceId: string): boolean => grow.summary.locations.some(location => location.spaceId === spaceId);
 
@@ -212,7 +225,7 @@ function PlacementEditor({ grow, placement, spaces, onDone }: { grow: GrowListIt
         </Choice>
       </Choices>
 
-      <WhenField label={t('grow.lifecycle.move.from')} at={from} onChange={setFrom} />
+      <WhenField label={t('grow.lifecycle.move.from')} at={from} onChange={setFrom} until={endOf(grow)} />
 
       <Choices label={t('grow.lifecycle.move.until')}>
         <Choice chosen={stillThere} onChoose={() => setStillThere(true)}>
@@ -222,7 +235,7 @@ function PlacementEditor({ grow, placement, spaces, onDone }: { grow: GrowListIt
           {t('grow.lifecycle.move.leftOn')}
         </Choice>
       </Choices>
-      {stillThere ? null : <WhenField label={t('grow.lifecycle.move.until')} at={until} onChange={setUntil} />}
+      {stillThere ? null : <WhenField label={t('grow.lifecycle.move.until')} at={until} onChange={setUntil} until={endOf(grow)} />}
 
       <p className={ui.note}>{t('grow.lifecycle.move.correctionNote')}</p>
       <Refused error={correct.error} />
@@ -258,7 +271,9 @@ function PlacementWithdrawal({ grow, placement, onDone }: { grow: GrowListItem; 
   const withdraw = useWithdrawPlacement(grow.id);
   const move = useMovePlants(grow.id);
 
-  const standsNowhere = withdraw.error instanceof ApiError && withdraw.error.problem.code === 'grow_stands_nowhere';
+  // Offered only on a grow still running: one that has ended moves nowhere, and
+  // the server refuses the move the escape would start with.
+  const standsNowhere = withdraw.error instanceof ApiError && withdraw.error.problem.code === 'grow_stands_nowhere' && !grow.endedAt;
 
   /** The escape the refusal asks for: somewhere to stand, and then the row that never happened is free to go. */
   const rescue = () =>

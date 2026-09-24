@@ -44,9 +44,15 @@ export function Choice({ chosen, onChoose, disabled, children }: { chosen: boole
  * their own tomorrow and dates a phase a day before the one they meant. The
  * zone is read here rather than handed down, because six sheets draw this one
  * field and two answers to "which day is it" is exactly what that would buy.
+ *
+ * `until` is an earlier last day, for a record that stops before today: a grow
+ * that has ended takes nothing dated after the day it ended, so the field does
+ * not offer those days either.
  */
-export function WhenField({ label, at, onChange }: { label: string; at: Date; onChange: (at: Date) => void }) {
+export function WhenField({ label, at, onChange, until }: { label: string; at: Date; onChange: (at: Date) => void; until?: Date | null }) {
   const zone = useZone();
+  const today = serverNow().toJSDate();
+  const last = until && until < today ? until : today;
 
   return (
     <label className={`${ui.card} ${styles.when}`}>
@@ -54,7 +60,7 @@ export function WhenField({ label, at, onChange }: { label: string; at: Date; on
       <input
         className={`mono ${styles.whenInput}`}
         type="date"
-        max={dayOf(serverNow().toJSDate(), zone)}
+        max={dayOf(last, zone)}
         value={dayOf(at, zone)}
         onChange={event => event.target.value && onChange(momentOn(event.target.value, at, zone))}
       />

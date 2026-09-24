@@ -84,7 +84,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           </Choices>
 
           <PresetRow stage={stage} preset={preset} onPick={setPreset} />
-          <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} />
+          <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} until={grow.endedAt ? new Date(grow.endedAt) : null} />
 
           <ul className={styles.effect}>
             <li className={ui.note}>{t(ended ? 'grow.lifecycle.phase.recordNote' : 'grow.lifecycle.phase.note')}</li>
@@ -261,7 +261,7 @@ function PhaseEditor({ grow, phase, onDone }: { grow: GrowListItem; phase: Phase
       </Choices>
 
       <PresetRow stage={stage} preset={preset} onPick={setPreset} />
-      <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} />
+      <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} until={grow.endedAt ? new Date(grow.endedAt) : null} />
 
       <Effect effect={effect} changed={changed} entry="grow.lifecycle.phase.effect.entry" />
       <Refused error={correct.error} />

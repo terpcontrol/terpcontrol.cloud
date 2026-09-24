@@ -25,9 +25,16 @@ import styles from './Lifecycle.module.css';
  * The name is a repair of the same kind and belongs in the same row. It is last
  * because it is the smallest of them: it changes nothing the grow went through,
  * where the four before it all do.
+ *
+ * A grow that has ended takes nothing that happens after its end, so it is not
+ * offered a split or a harvest. Phase and Move stay, because their sheets are
+ * also where its record is repaired - a stage somebody forgot, a move dated
+ * wrongly - and both keep their dates inside the grow.
  */
 const SHEETS = ['phase', 'move', 'split', 'harvest', 'rename'] as const;
 type LifecycleSheet = (typeof SHEETS)[number];
+
+const FOR_AN_ENDED_GROW: readonly LifecycleSheet[] = ['phase', 'move', 'rename'];
 
 const ICON = { phase: Leaf, move: Move, split: Split, harvest: Scissors, rename: Pencil };
 
@@ -39,7 +46,7 @@ export function GrowLifecycle({ grow, plants, spaces }: { grow: GrowListItem; pl
   return (
     <>
       <div className={styles.actions} role="group" aria-label={t('grow.lifecycle.actionsLabel')}>
-        {SHEETS.map(sheet => {
+        {SHEETS.filter(sheet => !grow.endedAt || FOR_AN_ENDED_GROW.includes(sheet)).map(sheet => {
           const Icon = ICON[sheet];
           return (
             <button key={sheet} type="button" className={`${ui.chip} ${styles.action}`} onClick={() => setOpen(sheet)}>

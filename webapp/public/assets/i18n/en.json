@@ -2160,7 +2160,8 @@
         "saveCorrection": "Save the correction",
         "withdrawEffect": "The row goes, as if the move had never been recorded.",
         "confirmWithdraw": "Withdraw this move",
-        "nowhereThenWithdraw": "Put the grow nowhere, then withdraw this row"
+        "nowhereThenWithdraw": "Put the grow nowhere, then withdraw this row",
+        "endedNote": "This grow has ended, so it does not move any more. A row below that was recorded wrongly can still be corrected."
       },
       "harvest": {
         "title": "Harvest · {{name}}",
