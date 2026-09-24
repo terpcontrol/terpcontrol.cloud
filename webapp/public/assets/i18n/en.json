@@ -2468,6 +2468,7 @@
       "waits": "waits for you",
       "stepOf": "Step {{number}} of {{count}}",
       "served": "{{age}} on this step",
+      "extendedClock": "extended: this step's clock starts in {{age}}",
       "left": "{{age}} left",
       "over": "its time is up",
       "openEnded": "runs until it is moved on",

@@ -38,9 +38,35 @@ export const isOpenEnded = (duration: StepDuration): boolean => !Number.isFinite
 
 export const activeStep = (plan: Plan): PlanStep | null => plan.steps[plan.state.activeStepIndex] ?? null;
 
-/** What the step has served, across every pause it has been through. */
+/**
+ * What the step has served, across every pause it has been through.
+ *
+ * Read exactly as the engine reads it, which means unclamped. "More time" is
+ * implemented by pushing `stepStartedAt` into the future by the length that was
+ * added, so between the extension and that instant the step has served a
+ * negative amount of its own length - and holding that at zero threw the whole
+ * extension away. The panel then showed a countdown that did not count: the same
+ * "4 min on this step, 6 min left" for twenty-one minutes of a ten-minute step
+ * the server could not end for another five hours, with the Confirm button
+ * withheld for just as long.
+ */
 export const elapsedMs = (state: PlanState, now: DateTime): number =>
-  state.pausedElapsedMs + (state.stepStartedAt ? Math.max(0, now.toMillis() - DateTime.fromISO(state.stepStartedAt).toMillis()) : 0);
+  state.pausedElapsedMs + (state.stepStartedAt ? now.toMillis() - DateTime.fromISO(state.stepStartedAt).toMillis() : 0);
+
+/**
+ * How long until the step's own clock begins, where an extension has put it in
+ * the future, and null where it is already running it down.
+ *
+ * What the step served before the extension cannot be said afterwards: the
+ * server keeps one instant and moves it, so the time already served and the time
+ * added are one number by the time this side sees it. So the panel says the
+ * thing that is true - when the counting starts - rather than a figure it would
+ * have to invent.
+ */
+export const startsInMs = (state: PlanState, now: DateTime): number | null => {
+  const elapsed = elapsedMs(state, now);
+  return elapsed < 0 ? -elapsed : null;
+};
 
 export const isOver = (plan: Plan, now: DateTime): boolean => {
   const step = activeStep(plan);
@@ -62,7 +88,9 @@ export const throughStep = (plan: Plan, now: DateTime): number | null => {
   if (!step) return null;
 
   const total = durationMs(step.duration);
-  return Number.isFinite(total) && total > 0 ? Math.min(1, elapsedMs(plan.state, now) / total) : null;
+  // Held inside the bar at both ends: a step whose clock has been pushed into
+  // the future has served less than none of itself, and a bar cannot draw that.
+  return Number.isFinite(total) && total > 0 ? Math.min(1, Math.max(0, elapsedMs(plan.state, now) / total)) : null;
 };
 
 /**

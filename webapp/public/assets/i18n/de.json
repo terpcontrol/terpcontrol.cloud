@@ -2464,6 +2464,7 @@
       "waits": "wartet auf dich",
       "stepOf": "Schritt {{number}} von {{count}}",
       "served": "{{age}} in diesem Schritt",
+      "extendedClock": "verlängert: die Uhr dieses Schritts beginnt in {{age}}",
       "left": "noch {{age}}",
       "over": "die Zeit ist um",
       "openEnded": "läuft, bis er von Hand weitergesetzt wird",

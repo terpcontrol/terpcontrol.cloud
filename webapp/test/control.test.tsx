@@ -13,7 +13,7 @@ import { ApiError } from '@/api/problem';
 import { Control } from '@/screens/control/Control';
 import { PlanEditor } from '@/screens/control/PlanEditor';
 import { PlanPanel } from '@/screens/control/PlanPanel';
-import { movesOf } from '@/screens/control/plan-clock';
+import { elapsedMs, leftMs, movesOf, throughStep } from '@/screens/control/plan-clock';
 import {
   asWritableBy,
   CLIMATE_FIGURES,
@@ -335,6 +335,36 @@ describe('the clock under a running step', () => {
     draw();
 
     expect(screen.getByText('3 d on this step · 4 d left')).toBeInTheDocument();
+  });
+
+  /**
+   * "More time" is the server pushing the step's clock forward by what was
+   * added, so for that long the step has served less than none of itself.
+   * Holding that at zero threw the whole extension away: the panel repeated one
+   * line for as long as the extension lasted, on a step the server could not end
+   * until it was over.
+   */
+  it('counts an extension into what is left, rather than freezing the line for its length', () => {
+    state.plan = plan(
+      { steps: [step({ stage: null, duration: { value: 10, unit: 'minutes' } })] },
+      { stepStartedAt: DateTime.now().plus({ hours: 5 }).toISO()! },
+    );
+
+    draw();
+
+    expect(screen.getByText("extended: this step's clock starts in 5 h · 6 h left")).toBeInTheDocument();
+  });
+
+  it('reads the same elapsed the engine reads, so a step that is over is over on both sides', () => {
+    const extended = plan(
+      { steps: [step({ duration: { value: 10, unit: 'minutes' }, waitForConfirmation: true })] },
+      { stepStartedAt: NOW.plus({ hours: 5 }).toISO()! },
+    );
+
+    expect(elapsedMs(extended.state, NOW)).toBeLessThan(0);
+    expect(throughStep(extended, NOW)).toBe(0);
+    expect(leftMs(extended, NOW)).toBe(5 * 60 * 60 * 1000 + 10 * 60 * 1000);
+    expect(movesOf(extended, NOW).confirm).toBe(false);
   });
 });
 

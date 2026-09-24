@@ -25,6 +25,7 @@ import {
   nextStepIndex,
   overdueMs,
   spanLabel,
+  startsInMs,
   throughStep,
 } from './plan-clock';
 import { draftOf, emptyDraft, type PlanDraft } from './plan-edit';
@@ -202,6 +203,12 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
   const step = activeStep(plan);
   const waiting = isWaiting(plan, now);
   const left = leftMs(plan, now);
+  // An extension moves the step's clock forward, so there are stretches in which
+  // the step has served less than none of itself. What it served before the
+  // extension is gone by then - the server keeps one instant and moves it - so
+  // the line says when the counting starts rather than a figure it would have to
+  // make up, and the countdown beside it is right throughout.
+  const ahead = startsInMs(plan.state, now);
   const through = throughStep(plan, now);
   const next = nextStepIndex(plan);
   const liveness = deviceLiveness(device.state.lastSeenAt, now);
@@ -237,7 +244,9 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
 
           {going ? (
             <p className={`mono ${styles.clock}`}>
-              {t('space.control.served', { age: spanLabel(elapsedMs(plan.state, now)) })}
+              {ahead === null
+                ? t('space.control.served', { age: spanLabel(elapsedMs(plan.state, now)) })
+                : t('space.control.extendedClock', { age: countdownLabel(ahead) })}
               {isOpenEnded(step.duration)
                 ? ` · ${t('space.control.openEnded')}`
                 : left !== null
