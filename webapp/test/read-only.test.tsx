@@ -49,6 +49,7 @@ const card: HomeSpaceCard = {
     phaseDay: 10,
     stageWeek: 2,
     stage: 'flowering',
+    stagesReached: ['vegetative', 'flowering'],
     preset: null,
     isAuto: false,
     plantCount: 3,

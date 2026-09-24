@@ -825,6 +825,9 @@ exports.growCard = (0, common_js_1.named)('GrowCard', zod_1.z.object({
         .nullable()
         .describe('Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state.'),
     stage: common_js_1.growthStage.nullable(),
+    stagesReached: zod_1.z
+        .array(common_js_1.growthStage)
+        .describe('The stages the grow as a whole has been through, oldest first, the one it is in included: what a phase bar fills. A grow started in veg never germinated here, so germination is not among them; a phase scoped to some plants is a split and is not either.'),
     preset: zod_1.z.string().nullable(),
     isAuto: zod_1.z.boolean().describe('The phase was set by a preset or the plan rather than by a person.'),
     plantCount: zod_1.z.number().int().nullable().describe('Null where the owner hides counts.'),

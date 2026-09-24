@@ -51,7 +51,7 @@ export function GrowHalf({ card, people, now, headed, compact }: GrowHalfProps) 
         </Link>
       )}
       <NewestEntry entry={card.entries[0] ?? null} people={people} now={now} />
-      {compact || grow.stage === null ? null : <PhaseBar stage={grow.stage} />}
+      {compact || grow.stage === null ? null : <PhaseBar stage={grow.stage} reached={grow.stagesReached} />}
       {headed ? (
         <DiaryActions grow={grow} />
       ) : (
@@ -101,20 +101,27 @@ export function DayCounter({ day }: { day: number | null }) {
 }
 
 /**
- * Where the grow is on its way: the stages as segments, filled up to the one
- * it is in, whose name sits under it. No durations are known here - the
- * scheme and the plan are what would give the segments their length - so the
- * bar says which stage, and the day counter says how long.
+ * Where the grow is on its way: the stages as segments, the ones it has been
+ * through filled, and the name of the one it is in under it. No durations are
+ * known here - the scheme and the plan are what would give the segments their
+ * length - so the bar says which stage, and the day counter says how long.
+ *
+ * Filled are the stages the grow really went through, which the server
+ * answers, and not every stage up to the current one: a grow started in veg
+ * did not germinate here, and the grow page's own bar already says so.
  */
-export function PhaseBar({ stage }: { stage: GrowthStage }) {
+export function PhaseBar({ stage, reached }: { stage: GrowthStage; reached?: GrowthStage[] }) {
   const { t } = useTranslation();
   const current = STAGES.indexOf(stage);
+  // Optional so that a card from a server older than the field fills the stage
+  // the grow is in and nothing else, rather than taking the whole Home down.
+  const filled = new Set<GrowthStage>([...(reached ?? []), stage]);
 
   return (
     <div className={styles.phaseBar} aria-hidden>
       <div className={styles.segments}>
-        {STAGES.map((name, index) => (
-          <span key={name} className={styles.segment} data-reached={index <= current} />
+        {STAGES.map(name => (
+          <span key={name} className={styles.segment} data-reached={filled.has(name)} />
         ))}
       </div>
       <div className={`mono ${styles.stageLabels}`}>

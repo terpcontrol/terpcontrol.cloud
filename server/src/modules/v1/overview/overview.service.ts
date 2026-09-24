@@ -32,7 +32,7 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { setpointsOf } from '../device/setpoints';
 import { readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
-import { NOTHING_HIDDEN, Redaction, growUpTo, redactionOf, summaryOf } from '../grow/grow-serialiser';
+import { NOTHING_HIDDEN, Redaction, growUpTo, redactionOf, stagesReachedOf, summaryOf } from '../grow/grow-serialiser';
 import { dueTasksOf, occurrencePrefix } from '../home/due-tasks';
 import { liveOfDevice, mergeLive, setpointOf } from '../space/space-live';
 import { SpaceLiveService } from '../space/space-live.service';
@@ -419,6 +419,7 @@ const growHere = (grow: GrowDocument, spaceId: string, plants: PlantDocument[], 
     stageWeek: summary.stageWeek,
     weekNumber: summary.weekNumber,
     stage: summary.stage,
+    stagesReached: stagesReachedOf(grow, summary.stage, now),
     preset: summary.preset,
     isAuto: summary.isAuto,
     plantCount: hide.counts ? null : plants.length,

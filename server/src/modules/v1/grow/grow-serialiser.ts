@@ -1,6 +1,7 @@
 import type {
   FollowedGrowCard,
   GrowListItem,
+  GrowthStage,
   GrowLocation,
   GrowSummary,
   Phase,
@@ -9,7 +10,7 @@ import type {
   Plant,
   UserPrivacy,
 } from '@fg2/shared-types/v1';
-import { growDayAt, growOriginOf, growWeekAt, stageWeekOf } from '@fg2/shared-types/v1-schemas';
+import { growDayAt, growOriginOf, growWeekAt, spineOf, stageWeekOf } from '@fg2/shared-types/v1-schemas';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 
@@ -167,6 +168,19 @@ export const growUpTo = (grow: GrowDocument, at: Date): GrowDocument => ({
     .map(placement => (placement.endedAt !== null && placement.endedAt > at ? { ...placement, endedAt: null } : placement)),
   endedAt: grow.endedAt !== null && grow.endedAt <= at ? grow.endedAt : null,
 });
+
+/**
+ * The stages the grow as a whole has been through, oldest first, with the one
+ * it stands in now. It is what a phase bar fills, and the grow page's bar and
+ * the home card's must fill the same segments: the home card used to fill
+ * every stage up to the current one, so a grow started in veg read as having
+ * germinated and been a seedling on Home while its own page said it had not.
+ */
+export const stagesReachedOf = (grow: GrowDocument, stage: GrowthStage | null, now: Date = new Date()): GrowthStage[] => {
+  const spine = spineOf(grow.phases, grow.endedAt ?? now).map(phase => phase.stage);
+
+  return [...new Set(stage ? [...spine, stage] : spine)];
+};
 
 export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Redaction, now: Date = new Date()): GrowSummary => {
   // A grow that has ended stopped counting on the day it ended.

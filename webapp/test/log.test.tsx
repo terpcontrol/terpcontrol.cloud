@@ -55,6 +55,7 @@ const home: HomeAnswer = {
         phaseDay: 11,
         stageWeek: 2,
         stage: 'flowering',
+        stagesReached: ['vegetative', 'flowering'],
         preset: 'flower',
         isAuto: false,
         plantCount: 2,

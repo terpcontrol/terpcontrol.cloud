@@ -31,7 +31,7 @@ import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { diaryMovedAt } from '../diary/diary-entries';
-import { NOTHING_HIDDEN, Redaction, redactionOf, serialisePublicCard, summaryOf } from '../grow/grow-serialiser';
+import { NOTHING_HIDDEN, Redaction, redactionOf, serialisePublicCard, stagesReachedOf, summaryOf } from '../grow/grow-serialiser';
 import { mergeLive } from '../space/space-live';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
@@ -346,6 +346,7 @@ const growCardOf = (grow: GrowDocument, plants: PlantDocument[], hide: Redaction
     phaseDay: summary.phaseDay,
     stageWeek: summary.stageWeek,
     stage: summary.stage,
+    stagesReached: stagesReachedOf(grow, summary.stage, now),
     preset: summary.preset,
     isAuto: summary.isAuto,
     plantCount: hide.counts ? null : plants.length,

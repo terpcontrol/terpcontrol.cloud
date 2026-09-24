@@ -75,6 +75,7 @@ const card = (over: Partial<HomeSpaceCard>): HomeSpaceCard => ({
     phaseDay: 10,
     stageWeek: 2,
     stage: 'flowering',
+    stagesReached: ['vegetative', 'flowering'],
     preset: 'flower',
     isAuto: true,
     plantCount: 3,
@@ -224,6 +225,14 @@ describe('the grow half', () => {
     // nowhere: they open the Log sheet over the card they were tapped on.
     expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/spaces/space-1', '/grows/grow-1']);
     expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(['Water', 'Note', 'Photo']);
+  });
+
+  /** A grow started in veg did not germinate here, and the grow page´s own bar leaves those stages empty too. */
+  it('fills only the stages the grow went through, not every stage before the one it is in', () => {
+    const { container } = draw(<SpaceCard card={card({})} people={people} now={NOW} compact={false} />);
+
+    const filled = [...container.querySelectorAll('[data-reached]')].map(segment => segment.getAttribute('data-reached'));
+    expect(filled).toEqual(['false', 'false', 'true', 'true', 'false', 'false']);
   });
 
   it('draws no auto tag for a phase a person set', () => {

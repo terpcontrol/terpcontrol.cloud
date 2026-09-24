@@ -1099,6 +1099,11 @@ export const growCard = named(
       .nullable()
       .describe('Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state.'),
     stage: growthStage.nullable(),
+    stagesReached: z
+      .array(growthStage)
+      .describe(
+        'The stages the grow as a whole has been through, oldest first, the one it is in included: what a phase bar fills. A grow started in veg never germinated here, so germination is not among them; a phase scoped to some plants is a split and is not either.',
+      ),
     preset: z.string().nullable(),
     isAuto: z.boolean().describe('The phase was set by a preset or the plan rather than by a person.'),
     plantCount: z.number().int().nullable().describe('Null where the owner hides counts.'),

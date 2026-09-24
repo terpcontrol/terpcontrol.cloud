@@ -9,7 +9,7 @@ import { ProblemException } from '@common/v1/problem';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { AppliedPreset, ClimatePresets } from '@modules/v1/grow/climate-presets.port';
-import { NOTHING_HIDDEN, growUpTo, serialiseGrow, summaryOf } from '@modules/v1/grow/grow-serialiser';
+import { NOTHING_HIDDEN, growUpTo, serialiseGrow, stagesReachedOf, summaryOf } from '@modules/v1/grow/grow-serialiser';
 import { GrowsController } from '@modules/v1/grow/grows.controller';
 import { GrowsService } from '@modules/v1/grow/grows.service';
 import { PlantsController } from '@modules/v1/grow/plants.controller';
@@ -173,6 +173,19 @@ describe('what a grow´s phases and placements mean', () => {
     expect(summary.dayNumber).toBe(1);
     expect(summary.weekNumber).toBe(1);
     expect(summary.phaseDay).toBe(1);
+  });
+
+  it('names the stages a grow started in veg went through, and not the two it never had', () => {
+    const flip = new Date('2026-05-06T08:00:00.000Z');
+    const grow = grown({
+      phases: [
+        phase({ id: 'veg' }),
+        phase({ id: 'flower', stage: 'flowering', startedAt: flip }),
+        phase({ id: 'split', stage: 'drying', startedAt: flip, plantIds: ['a'] }),
+      ],
+    });
+
+    expect(stagesReachedOf(grow, 'flowering', TEN_DAYS_LATER)).toEqual(['vegetative', 'flowering']);
   });
 
   it('counts the days that have passed, and the week with them', () => {

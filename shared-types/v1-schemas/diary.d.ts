@@ -2263,6 +2263,14 @@ export declare const growCard: z.ZodObject<{
         drying: "drying";
         curing: "curing";
     }>>;
+    stagesReached: z.ZodArray<z.ZodEnum<{
+        germination: "germination";
+        seedling: "seedling";
+        vegetative: "vegetative";
+        flowering: "flowering";
+        drying: "drying";
+        curing: "curing";
+    }>>;
     preset: z.ZodNullable<z.ZodString>;
     isAuto: z.ZodBoolean;
     plantCount: z.ZodNullable<z.ZodNumber>;
@@ -2358,6 +2366,14 @@ export declare const homeSpaceCard: z.ZodObject<{
         phaseDay: z.ZodNullable<z.ZodNumber>;
         stageWeek: z.ZodNullable<z.ZodNumber>;
         stage: z.ZodNullable<z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>>;
+        stagesReached: z.ZodArray<z.ZodEnum<{
             germination: "germination";
             seedling: "seedling";
             vegetative: "vegetative";
@@ -2644,6 +2660,14 @@ export declare const homeAnswer: z.ZodObject<{
             phaseDay: z.ZodNullable<z.ZodNumber>;
             stageWeek: z.ZodNullable<z.ZodNumber>;
             stage: z.ZodNullable<z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>>;
+            stagesReached: z.ZodArray<z.ZodEnum<{
                 germination: "germination";
                 seedling: "seedling";
                 vegetative: "vegetative";
@@ -3076,6 +3100,14 @@ export declare const overviewGrow: z.ZodObject<{
         drying: "drying";
         curing: "curing";
     }>>;
+    stagesReached: z.ZodArray<z.ZodEnum<{
+        germination: "germination";
+        seedling: "seedling";
+        vegetative: "vegetative";
+        flowering: "flowering";
+        drying: "drying";
+        curing: "curing";
+    }>>;
     preset: z.ZodNullable<z.ZodString>;
     isAuto: z.ZodBoolean;
     plantCount: z.ZodNullable<z.ZodNumber>;
@@ -3332,6 +3364,14 @@ export declare const spaceOverview: z.ZodObject<{
         phaseDay: z.ZodNullable<z.ZodNumber>;
         stageWeek: z.ZodNullable<z.ZodNumber>;
         stage: z.ZodNullable<z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>>;
+        stagesReached: z.ZodArray<z.ZodEnum<{
             germination: "germination";
             seedling: "seedling";
             vegetative: "vegetative";
@@ -6080,6 +6120,14 @@ export declare const sharedSpace: z.ZodObject<{
                 drying: "drying";
                 curing: "curing";
             }>>;
+            stagesReached: z.ZodArray<z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>>;
             preset: z.ZodNullable<z.ZodString>;
             isAuto: z.ZodBoolean;
             plantCount: z.ZodNullable<z.ZodNumber>;
@@ -6698,6 +6746,14 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             phaseDay: z.ZodNullable<z.ZodNumber>;
             stageWeek: z.ZodNullable<z.ZodNumber>;
             stage: z.ZodNullable<z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>>;
+            stagesReached: z.ZodArray<z.ZodEnum<{
                 germination: "germination";
                 seedling: "seedling";
                 vegetative: "vegetative";
@@ -7340,6 +7396,14 @@ export declare const sharedResolution: z.ZodObject<{
                 phaseDay: z.ZodNullable<z.ZodNumber>;
                 stageWeek: z.ZodNullable<z.ZodNumber>;
                 stage: z.ZodNullable<z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>>;
+                stagesReached: z.ZodArray<z.ZodEnum<{
                     germination: "germination";
                     seedling: "seedling";
                     vegetative: "vegetative";

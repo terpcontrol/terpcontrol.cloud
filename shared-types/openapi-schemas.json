@@ -10562,6 +10562,13 @@
           }
         ]
       },
+      "stagesReached": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowthStage"
+        },
+        "description": "The stages the grow as a whole has been through, oldest first, the one it is in included: what a phase bar fills. A grow started in veg never germinated here, so germination is not among them; a phase scoped to some plants is a split and is not either."
+      },
       "preset": {
         "type": [
           "string",
@@ -10618,6 +10625,7 @@
       "phaseDay",
       "stageWeek",
       "stage",
+      "stagesReached",
       "preset",
       "isAuto",
       "plantCount",
@@ -11242,6 +11250,13 @@
           }
         ]
       },
+      "stagesReached": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowthStage"
+        },
+        "description": "The stages the grow as a whole has been through, oldest first, the one it is in included: what a phase bar fills. A grow started in veg never germinated here, so germination is not among them; a phase scoped to some plants is a split and is not either."
+      },
       "preset": {
         "type": [
           "string",
@@ -11329,6 +11344,7 @@
       "phaseDay",
       "stageWeek",
       "stage",
+      "stagesReached",
       "preset",
       "isAuto",
       "plantCount",

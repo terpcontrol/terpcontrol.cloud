@@ -146,6 +146,7 @@ const overview: SpaceOverview = {
       stageWeek: 2,
       weekNumber: 5,
       stage: 'flowering',
+      stagesReached: ['vegetative', 'flowering'],
       preset: null,
       isAuto: false,
       plantCount: 3,

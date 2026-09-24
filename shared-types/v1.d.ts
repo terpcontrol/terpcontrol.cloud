@@ -3121,6 +3121,10 @@ export interface GrowCard {
    */
   stageWeek: number | null;
   stage: GrowthStage | null;
+  /**
+   * The stages the grow as a whole has been through, oldest first, the one it is in included: what a phase bar fills. A grow started in veg never germinated here, so germination is not among them; a phase scoped to some plants is a split and is not either.
+   */
+  stagesReached: GrowthStage[];
   preset: string | null;
   /**
    * The phase was set by a preset or the plan rather than by a person.
@@ -3299,6 +3303,10 @@ export interface OverviewGrow {
    */
   stageWeek: number | null;
   stage: GrowthStage | null;
+  /**
+   * The stages the grow as a whole has been through, oldest first, the one it is in included: what a phase bar fills. A grow started in veg never germinated here, so germination is not among them; a phase scoped to some plants is a split and is not either.
+   */
+  stagesReached: GrowthStage[];
   preset: string | null;
   /**
    * The phase was set by a preset or the plan rather than by a person.
