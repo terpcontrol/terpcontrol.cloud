@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { Me } from '@fg2/shared-types/v1';
 import { useMe, useUpdatingMe } from '@/api/account';
 import { useSession } from '@/api/session';
+import { Help } from '@/ui/Help';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -74,10 +75,16 @@ export function Notifications() {
       <EmailCard me={me.data} held={held} />
       <WebhookCard me={me.data} held={held} />
 
-      <span className="label">{t('notifications.what')}</span>
+      <span className="label">
+        {t('notifications.what')}
+        <Help topic="routingGrid" />
+      </span>
       <RoutingGrid me={me.data} held={held} />
 
-      <span className="label">{t('notifications.quietHours')}</span>
+      <span className="label">
+        {t('notifications.quietHours')}
+        <Help topic="quietHours" />
+      </span>
       <QuietHoursCard me={me.data} held={held} locked={!mayManage} />
     </MePage>
   );

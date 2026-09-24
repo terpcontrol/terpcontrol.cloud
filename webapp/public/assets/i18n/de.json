@@ -4308,6 +4308,54 @@
     "chartLayout": {
       "title": "Darstellung",
       "text": "Gestapelt gibt jedem Messwert ein eigenes Diagramm; Überlagert legt sie in eines und nennt die, deren Skala nicht passt. Grow-Tag zählt die Achse in Grow-Tagen statt Daten – beim Zeitraum Phase oder Grow –, sodass sich ein früherer Grow am selben Ort darüberlegen lässt."
+    },
+    "muteAll": {
+      "title": "Alles stumm",
+      "text": "Eine Stunde lang wird dir nichts geschickt, auch keine kritischen Alarme, und Alarmmeldungen aus dieser Stunde kommen auch später nicht. Stumm bist nur du: Die anderen in deinen Bereichen bekommen weiter Bescheid, und eine Regel mit eigener E-Mail oder eigenem Webhook sendet weiter."
+    },
+    "silence": {
+      "title": "1 Std stumm",
+      "text": "Diese eine Regel sagt eine Stunde lang niemandem Bescheid – keinem Mitglied, auf keinem Kanal, auch nicht per eigener E-Mail oder eigenem Webhook. Sie beobachtet weiter: Die Meldung erscheint trotzdem und steht im Tagebuch."
+    },
+    "endMaintenance": {
+      "title": "Jetzt beenden",
+      "text": "Das Gerät nimmt seine Arbeit sofort wieder auf. Seine Alarme bleiben noch 10 Minuten zurückgehalten, während das Klima zurückkommt."
+    },
+    "presetRules": {
+      "title": "Regeln aus dem Stadium",
+      "text": "Jedes Stadium bringt vier Regeln mit – zu warm, zu feucht, nachts zu kalt und zu viel CO₂ – mit Grenzen, die aus den Zielwerten berechnet werden. Das nächste Stadium verschiebt Grenzen und Wartezeiten; was du ausgeschaltet, anders eingestuft oder stummgeschaltet hast, bleibt, und die Reifung entfernt sie."
+    },
+    "offlineRule": {
+      "title": "Die Offline-Regel",
+      "text": "Jedes Gerät hat eine Regel, die einen kritischen Alarm auslöst, sobald zehn Minuten lang nichts von ihm kam, plus die eigene Wartezeit der Regel. Löschen lässt sie sich nicht – nur ausschalten, stummschalten oder woandershin schicken."
+    },
+    "severity": {
+      "title": "Stufe",
+      "text": "Kritisch und Warnung gehen über die passenden Zeilen der Benachrichtigungseinstellungen jeder Person hinaus, und nur Kritisches kommt durch Ruhezeiten. Info wird darüber nicht gemeldet: Sie landet in den Meldungen und im Tagebuch."
+    },
+    "tellBy": {
+      "title": "Sag mir Bescheid per",
+      "text": "„Meinen Benachrichtigungseinstellungen“ erreicht alle, die diesen Bereich betreuen, jeweils nach ihren eigenen Einstellungen, Stummschaltungen und Ruhezeiten. Eine E-Mail-Adresse oder ein Webhook erreicht nur diese Adresse, unabhängig von Stummschaltung und Ruhezeiten."
+    },
+    "routingGrid": {
+      "title": "Was wohin geht",
+      "text": "Jede Zeile ist eine Art Nachricht, jede Spalte ein Weg zu dir; gesendet wird erst, wenn du ein Feld einschaltest. Das Raster gilt nur für dich – alle in deinen Bereichen stellen ihr eigenes ein –, und eine Alarmregel mit eigener E-Mail oder eigenem Webhook läuft nicht darüber."
+    },
+    "quietHours": {
+      "title": "Ruhezeiten",
+      "text": "Zwischen diesen Zeiten erreichen dich nur kritische Alarme. Warnungen und die Nachricht, dass ein Alarm vorbei ist, kommen auch später nicht; Aufgaben und Fragen des Plans kommen, sobald die Ruhezeit vorbei ist."
+    },
+    "rhythms": {
+      "title": "Rhythmen",
+      "text": "Eine Erinnerung ist die Regel: Jedes Mal, wenn sie fällig wird, steht sie oben als Aufgabe, und das Abhaken schiebt die Erinnerung zum nächsten Termin. Die Liste oben schaut eine Woche voraus."
+    },
+    "rhythmEvery": {
+      "title": "Rhythmus",
+      "text": "„Alle N Tage“ zählt ab dem letzten Abhaken oder ab dem Anlegen – nicht nach Kalender: Wer früher abhakt, holt den nächsten Termin nach vorn, und verpasste Termine stapeln sich nicht. „Einmalig am“ wird zu Beginn dieses Tages fällig."
+    },
+    "taskFor": {
+      "title": "Für",
+      "text": "Für alle: Wer den Ort besitzt oder Mitglied ist, bekommt Bescheid, wenn sie fällig wird. Für mich: nur du."
     }
   }
 }

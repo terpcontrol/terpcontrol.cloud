@@ -4312,6 +4312,54 @@
     "chartLayout": {
       "title": "Layout",
       "text": "Stacked gives each measure a chart of its own; Overlay lays them on one chart and names any whose scale does not fit. Day-of-grow counts the axis in grow days instead of dates – with the Phase or Grow range – so an earlier grow of the same place can be laid over it."
+    },
+    "muteAll": {
+      "title": "Mute all",
+      "text": "For an hour nothing is sent to you, critical alarms included, and alarm messages from that hour are not sent later. Only you are muted: the others in your spaces are still told, and a rule with its own e-mail or webhook still sends."
+    },
+    "silence": {
+      "title": "Silence 1 h",
+      "text": "Stops this one rule telling anybody for an hour – every member, every channel, its own e-mail or webhook too. The rule keeps watching: the alert still opens and is written to the diary."
+    },
+    "endMaintenance": {
+      "title": "End now",
+      "text": "The device takes up its work again at once. Its alarms stay held for another 10 minutes while the climate comes back."
+    },
+    "presetRules": {
+      "title": "Rules from the stage",
+      "text": "Each stage brings four rules – too hot, too humid, too cold at night and too much CO₂ – with lines worked out from the targets. The next stage moves their lines and waits; what you switched off, regraded or silenced stays, and curing removes them."
+    },
+    "offlineRule": {
+      "title": "The offline rule",
+      "text": "Every device has one rule that raises a critical alarm once nothing has been heard from it for ten minutes, plus the rule's own wait. It cannot be deleted – only switched off, silenced or sent elsewhere."
+    },
+    "severity": {
+      "title": "Severity",
+      "text": "Critical and warning go out on the matching rows of each person's notification settings, and only critical comes through quiet hours. Info is not announced there: it goes to the alerts and the diary."
+    },
+    "tellBy": {
+      "title": "Tell me by",
+      "text": "My notification settings reaches everyone who keeps this space, each by their own settings, mute and quiet hours. An e-mail address or a webhook reaches only that address, whatever anybody's mute or quiet hours."
+    },
+    "routingGrid": {
+      "title": "What goes where",
+      "text": "Each row is a kind of message, each column a way to reach you; nothing is sent until you switch a cell on. The grid is yours alone – everyone in your spaces sets their own – and an alarm rule with its own e-mail or webhook does not go through it."
+    },
+    "quietHours": {
+      "title": "Quiet hours",
+      "text": "Between these times only critical alarms reach you. Warnings and the news that an alarm is over are not sent later; tasks and plan questions arrive once the quiet hours end."
+    },
+    "rhythms": {
+      "title": "Rhythms",
+      "text": "A reminder is the rule: each time it falls due it shows above as a task, and ticking the task off moves the reminder on to its next turn. The list above looks a week ahead."
+    },
+    "rhythmEvery": {
+      "title": "Rhythm",
+      "text": "Every N days counts from the last time it was ticked off, or from when it was set up – not from a calendar: ticking it early brings the next turn forward, and missed turns do not pile up. Once falls due at the start of that day."
+    },
+    "taskFor": {
+      "title": "For",
+      "text": "For everyone: everybody who keeps the place is told when it falls due. For me: only you are."
     }
   }
 }

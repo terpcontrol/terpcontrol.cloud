@@ -202,7 +202,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
           <p className={ui.note}>{t(forNote(draft))}</p>
         </Block>
 
-        <Block label={t('alarms.sheet.severity')}>
+        <Block label={t('alarms.sheet.severity')} help="severity">
           <Choices label={t('alarms.sheet.severity')}>
             {SEVERITIES.map(severity => (
               <Choice key={severity} chosen={draft.severity === severity} onChoose={() => setDraft(current => withSeverity(current, severity))}>
@@ -212,7 +212,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
           </Choices>
         </Block>
 
-        <Block label={t('alarms.sheet.tellBy')}>
+        <Block label={t('alarms.sheet.tellBy')} help="tellBy">
           <Choices label={t('alarms.sheet.tellBy')}>
             {(['routing', 'email', 'webhook'] as const).map(tellBy => (
               <Choice key={tellBy} chosen={draft.tellBy === tellBy} onChoose={() => change({ tellBy })}>

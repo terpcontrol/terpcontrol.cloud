@@ -32,6 +32,18 @@ export const HELP_TOPICS = [
   'waterEc',
   'feedFlip',
   'chartLayout',
+  'muteAll',
+  'silence',
+  'endMaintenance',
+  'presetRules',
+  'offlineRule',
+  'severity',
+  'tellBy',
+  'routingGrid',
+  'quietHours',
+  'rhythms',
+  'rhythmEvery',
+  'taskFor',
 ] as const;
 
 export type HelpTopic = (typeof HELP_TOPICS)[number];

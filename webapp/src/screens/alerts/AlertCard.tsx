@@ -10,6 +10,7 @@ import { maintenanceQuiet, parkedLabel, parksAnything, quietMinutes, SETTLE_MINU
 import { levelFigure, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
 import { ageAttribute, ageLabel, isAhead, silentSince, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
+import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { figure, targetFigure } from '../home/units';
@@ -44,6 +45,8 @@ interface AlertCardProps {
   me: Me | undefined;
   mayManage: boolean;
   now: DateTime;
+  /** The first card that offers Silence, which says once what silencing is. */
+  explainSilence?: boolean;
 }
 
 /**
@@ -57,7 +60,7 @@ interface AlertCardProps {
  * happened in, or edit the rule. Nothing here claims a device heard a command;
  * what the server answered is said underneath.
  */
-export function AlertCard({ alert, rule, names, me, mayManage, now }: AlertCardProps) {
+export function AlertCard({ alert, rule, names, me, mayManage, now, explainSilence }: AlertCardProps) {
   const { t } = useTranslation();
   const open = alert.resolvedAt === null;
   const device = (alert.deviceId && names.devices.get(alert.deviceId)) || null;
@@ -91,7 +94,7 @@ export function AlertCard({ alert, rule, names, me, mayManage, now }: AlertCardP
       </div>
 
       {open && mayManage ? (
-        <OpenChips alert={alert} rule={rule} device={device} now={now} />
+        <OpenChips alert={alert} rule={rule} device={device} now={now} explainSilence={explainSilence} />
       ) : !open && alert.spaceId ? (
         <div className={styles.chips}>
           <TimelineChip spaceId={alert.spaceId} />
@@ -406,7 +409,19 @@ function TimelineChip({ spaceId }: { spaceId: string }) {
  * hardware the fifteen minutes are the cloud's alone, and the question says so
  * rather than describing somebody else's tent.
  */
-function OpenChips({ alert, rule, device, now }: { alert: Alert; rule: AlarmRule | null; device: Device | null; now: DateTime }) {
+function OpenChips({
+  alert,
+  rule,
+  device,
+  now,
+  explainSilence,
+}: {
+  alert: Alert;
+  rule: AlarmRule | null;
+  device: Device | null;
+  now: DateTime;
+  explainSilence?: boolean;
+}) {
   const { t } = useTranslation();
   // A chip that writes is drawn only where the alert names a device, so the empty id is never sent.
   const deviceId = alert.deviceId ?? '';
@@ -440,6 +455,7 @@ function OpenChips({ alert, rule, device, now }: { alert: Alert; rule: AlarmRule
             {t(silenced ? 'alerts.action.unsilence' : 'alerts.action.silence')}
           </button>
         ) : null}
+        {explainSilence && !camera && rule && alert.deviceId ? <Help topic="silence" /> : null}
         {/* The chip waits for the device's own row. What maintenance does here
             is a different sentence on a controller and on a fan, so a card that
             cannot yet say which would have to guess, and guessing is what put a

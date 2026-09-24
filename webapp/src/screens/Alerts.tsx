@@ -8,6 +8,7 @@ import { fetchedAt } from '@/api/clock';
 import { useSession } from '@/api/session';
 import { instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
+import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { enough, useMayInEach, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -109,6 +110,19 @@ export function Alerts() {
   }
 
   const groups = groupsOf(items, now, zoneOf(me.data));
+  // What silencing does is said once, beside the first Silence the page offers.
+  const silenceTeacher =
+    groups
+      .flatMap(group => group.alerts)
+      .find(
+        alert =>
+          alert.resolvedAt === null &&
+          alert.kind !== 'camera_stale' &&
+          alert.deviceId !== null &&
+          alert.ruleId !== null &&
+          rules.rules.has(alert.ruleId) &&
+          mayActOn(alert),
+      ) ?? null;
   // What is on screen is as old as its older half, whichever half failed.
   const failedAt = (open.isError || resolved.isError) && Number.isFinite(readAt) ? readAt : null;
   const more = open.hasNextPage || resolved.hasNextPage;
@@ -148,6 +162,7 @@ export function Alerts() {
                   me={me.data}
                   mayManage={mayActOn(alert)}
                   now={now}
+                  explainSilence={alert === silenceTeacher}
                 />
               ))}
             </ul>
@@ -206,18 +221,19 @@ function MuteCorner({ account, now }: { account: Me | undefined; now: DateTime }
 
   return (
     <div className={styles.corner}>
-      {muted ? (
-        <>
-          <span className={`mono ${styles.mutedUntil}`}>{t('alerts.mutedUntil', { time: clock(notifications.mutedUntil!, zone) })}</span>
+      {muted ? <span className={`mono ${styles.mutedUntil}`}>{t('alerts.mutedUntil', { time: clock(notifications.mutedUntil!, zone) })}</span> : null}
+      <span className={styles.cornerChip}>
+        {muted ? (
           <button type="button" className={ui.chip} disabled={update.isPending} onClick={() => set(null)}>
             {t('alerts.unmute')}
           </button>
-        </>
-      ) : (
-        <button type="button" className={ui.chip} disabled={update.isPending} onClick={() => set(instantOf(now.plus({ seconds: MUTE_SECONDS })))}>
-          {t('alerts.muteAll')}
-        </button>
-      )}
+        ) : (
+          <button type="button" className={ui.chip} disabled={update.isPending} onClick={() => set(instantOf(now.plus({ seconds: MUTE_SECONDS })))}>
+            {t('alerts.muteAll')}
+          </button>
+        )}
+        <Help topic="muteAll" />
+      </span>
       <Refused error={update.error} />
     </div>
   );

@@ -28,6 +28,12 @@
   flex-shrink: 0;
 }
 
+/* The chip with the (i) that explains it beside it rather than under it. */
+.cornerChip {
+  display: flex;
+  align-items: center;
+}
+
 .mutedUntil {
   font-size: var(--text-xs);
   color: var(--muted);

@@ -10,6 +10,7 @@ import { useSession } from '@/api/session';
 import { useSpaceOverview } from '@/api/spaces';
 import { durationLabel } from '@/screens/devices/sockets';
 import { timeOf } from '@/screens/notifications/settings';
+import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { maintenanceQuiet, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
@@ -194,6 +195,7 @@ function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: D
                   ? t('alarms.group.presetOf', { name: stageName })
                   : t('alarms.group.presetNone')
                 : t(`alarms.group.${group.origin}`)}
+              {group.origin === 'preset' ? <Help topic="presetRules" /> : group.origin === 'always' ? <Help topic="offlineRule" /> : null}
             </span>
             {group.origin === 'preset' ? <span className={`mono ${styles.groupAside}`}>{t('alarms.group.presetAside')}</span> : null}
           </header>
@@ -272,6 +274,7 @@ function InMaintenance({ device, me, mayManage, now }: { device: Device; me: Me 
           {t(end.isPending ? 'maintenance.ending' : 'maintenance.end')}
         </button>
       ) : null}
+      {mayManage && quiet.parked ? <Help topic="endMaintenance" /> : null}
       <Refused error={end.error} />
     </div>
   );

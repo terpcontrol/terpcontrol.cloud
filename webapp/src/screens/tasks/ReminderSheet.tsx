@@ -149,7 +149,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
           />
         </Block>
 
-        <Block label={t('tasks.sheet.rhythm')}>
+        <Block label={t('tasks.sheet.rhythm')} help="rhythmEvery">
           <div className={styles.rhythm}>
             <Choices label={t('tasks.sheet.rhythm')}>
               <Choice chosen={draft.rhythm === 'every'} onChoose={() => change({ rhythm: 'every' })}>
@@ -195,7 +195,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
           )}
         </Block>
 
-        <Block label={t('tasks.sheet.for')}>
+        <Block label={t('tasks.sheet.for')} help="taskFor">
           <Choices label={t('tasks.sheet.for')}>
             <Choice chosen={draft.forWhom === 'everyone'} onChoose={() => change({ forWhom: 'everyone' })}>
               {t('tasks.sheet.everyone')}

@@ -11,6 +11,7 @@ import { useSpaces } from '@/api/spaces';
 import { useTasks } from '@/api/tasks';
 import { useLog, useMayLog } from '@/log/log-context';
 import { useReportFreshness } from '@/ui/freshness';
+import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, standsIn, useMayManage, useMayWith, type Standing } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -320,7 +321,10 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
       {rhythms.length > 0 ? (
         <section className={styles.group} aria-label={t('tasks.group.rhythms')}>
           <header className={styles.groupHead}>
-            <span className="label">{t('tasks.group.rhythms')}</span>
+            <span className="label">
+              {t('tasks.group.rhythms')}
+              <Help topic="rhythms" />
+            </span>
             <span className={`mono ${styles.groupAside}`}>{t('tasks.rhythmsAside')}</span>
           </header>
           <ul className={ui.group}>
