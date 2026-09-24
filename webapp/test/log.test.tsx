@@ -480,6 +480,21 @@ describe('the log sheet', () => {
     expect(plug).not.toHaveTextContent('heater');
   });
 
+  /** A controller with no CO₂ sensor holds its CO₂ target at zero, so it has no valve running to stop. */
+  it('leaves the CO₂ valve out for a controller that reports no CO₂ sensor', async () => {
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      Promise.resolve(path === '/devices' ? { items: [{ ...standing[0], state: { hardware: { co2: 'off' } } }], nextCursor: null } : answers(path)),
+    );
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Step in/ }));
+
+    const asked = await screen.findByRole('dialog', { name: 'Step in' });
+    const controller = (await within(asked).findByText('Big tent controller')).closest('li')!;
+    expect(controller).toHaveTextContent('stops the heater and the dehumidifier');
+    expect(controller).not.toHaveTextContent('CO₂');
+  });
+
   it('says so where nothing stands to be quietened, rather than promising an effect it will not have', async () => {
     vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/devices' ? { items: [], nextCursor: null } : answers(path)));
 

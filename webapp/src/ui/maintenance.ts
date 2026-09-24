@@ -37,7 +37,13 @@ const PARKED_BY: Record<string, OutputMetric[]> = {
   fridge: ['heater', 'dehumidifier', 'co2'],
 };
 
-export const parkedOutputs = (device: Device): OutputMetric[] => PARKED_BY[device.type] ?? [];
+/**
+ * A controller that reports no CO2 sensor holds its CO2 target at zero, so its
+ * valve is never driven and there is nothing of it to stop - the same reading
+ * the targets page and the plan editor make of it.
+ */
+export const parkedOutputs = (device: Device): OutputMetric[] =>
+  (PARKED_BY[device.type] ?? []).filter(output => output !== 'co2' || device.state?.hardware?.co2 !== 'off');
 
 /**
  * How long a step-in parks the hardware, as the server counts it
