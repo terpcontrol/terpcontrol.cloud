@@ -61,7 +61,7 @@ export function Composer({ camera, grow, pending, onRender, onClose }: ComposerP
   const preview = useLatestStills([camera.id]).get(camera.id) ?? null;
 
   const free = camera.entitlement.tier === 'free';
-  const span = spanOf(range, grow, from, to, zone);
+  const span = spanOf(range, grow, from, to, zone, camera.state.lastStillAt);
   // A film of a whole grow is Premium whatever it is rendered at, so the range
   // is refused rather than only the HD button: SD would be offered and then
   // turned down by the server.
@@ -213,9 +213,32 @@ function Toggle({ label, hint, on, onToggle }: { label: string; hint?: string; o
 }
 
 /**
- * Both ends of the span, where the client is the one that knows them. The two
- * rolling windows carry only the instant they are worked out around, so that
- * the bucket stays the server's arithmetic and is not repeated here.
+ * Why a rolling film would hold no picture at all, as the key of the sentence
+ * that says so, or null where it may. The camera page's one-tap buttons and the
+ * composer's chips of the same name ask this one question, so the two cannot
+ * offer different films under one word: the composer's Today used to queue a
+ * render for a camera the button beside it had already said was dark.
+ *
+ * Each window is proved empty by its own arithmetic. The day holding now never
+ * starts earlier than a day ago, so a newest picture older than that proves it
+ * empty whatever zone anybody is in; the week the server picks when it is named
+ * no instant is the complete one before the open one, which cannot begin
+ * earlier than a fortnight ago. Both are the conservative half of the rule.
+ */
+export const emptyRolling = (window: MediaWindow, lastStillAt: string | null, now: DateTime): string | null => {
+  const nothingSince = (days: number): boolean => lastStillAt === null || DateTime.fromISO(lastStillAt) < now.minus({ days });
+  if (window === 'day') return nothingSince(1) ? 'camera.noPictureToFilm' : null;
+  if (window === 'week') return nothingSince(14) ? 'camera.noPictureThatWeek' : null;
+  return null;
+};
+
+/**
+ * Both ends of the span, where the client is the one that knows them. The
+ * rolling windows are cut by the server on the owner's calendar, so they carry
+ * at most an instant inside the period meant: the day holding now, and for the
+ * week no instant at all, which the route answers with the last complete week -
+ * what the camera page's Week button has always asked for. Naming now there
+ * filmed the week that had opened that morning, most of it still to come.
  */
 const spanOf = (
   range: MediaWindow,
@@ -223,13 +246,15 @@ const spanOf = (
   from: string,
   to: string,
   zone: string | null,
+  lastStillAt: string | null,
 ): { startsAt?: string; endsAt?: string; reason: string | null } => {
   // The instant a rolling window is worked out around is the server's, so that
   // the film covers the day the frames were taken on rather than the day this
   // browser thinks it is.
   const now = serverNow();
 
-  if (range === 'day' || range === 'week' || range === 'month') return { startsAt: instantOf(now), reason: null };
+  if (range === 'week') return { reason: emptyRolling(range, lastStillAt, now) };
+  if (range === 'day' || range === 'month') return { startsAt: instantOf(now), reason: emptyRolling(range, lastStillAt, now) };
 
   if (range === 'phase') {
     const started = grow?.phases.at(-1)?.startedAt;

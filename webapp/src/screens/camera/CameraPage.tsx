@@ -20,7 +20,7 @@ import { cameraFreshness } from '../devices/cameras';
 import { causeOf } from './capture-failure';
 import { at, STAMPS, stampFor } from '../timeline/window';
 import { Slider } from '../timeline/CameraFrame';
-import { Composer } from './Composer';
+import { Composer, emptyRolling } from './Composer';
 import { Film } from './Film';
 import { CameraSettings } from './CameraSettings';
 import styles from './CameraPage.module.css';
@@ -397,9 +397,9 @@ function Quick({ buttons, onPick }: { buttons: QuickFilm[]; onPick: (body: Timel
  *
  * The week asks for a week and names no instant at all, which is what the route
  * documents as "the most recent complete window" and what it does with an
- * absent `startsAt`. Naming one was the bug: the server floors the instant it
- * is given to a whole span, and a span of seven days floors against the epoch,
- * so every Thursday the film offered was the week that had opened that morning
+ * absent `startsAt`. Naming one was the bug: the server films the week holding
+ * the instant it is given, which is the week still open, so the film offered
+ * was the week that had opened that morning
  * - six days of it in the future, nothing in it but a few hours of stills, and
  * a failure every time. The camera it failed on had sixteen hundred pictures in
  * the week that had just ended, and its film of that week was sitting two rows
@@ -421,10 +421,12 @@ function Quick({ buttons, onPick }: { buttons: QuickFilm[]; onPick: (body: Timel
 const quickFilms = (t: Translate, camera: Camera, grow: GrowListItem | null, now: DateTime): QuickFilm[] => {
   const free = camera.entitlement.tier === 'free';
   const noGrow = grow ? null : t('camera.noGrowHere');
-  const lastStill = camera.state.lastStillAt;
-  const nothingSince = (days: number): boolean => lastStill === null || DateTime.fromISO(lastStill) < now.minus({ days });
-  const nothingToFilm = nothingSince(1) ? t('camera.noPictureToFilm') : null;
-  const nothingThatWeek = nothingSince(14) ? t('camera.noPictureThatWeek') : null;
+  const empty = (window: 'day' | 'week'): string | null => {
+    const reason = emptyRolling(window, camera.state.lastStillAt, now);
+    return reason ? t(reason) : null;
+  };
+  const nothingToFilm = empty('day');
+  const nothingThatWeek = empty('week');
 
   return [
     { label: t('camera.window.day'), body: { window: 'day', startsAt: instantOf(now) }, reason: nothingToFilm, premium: false },

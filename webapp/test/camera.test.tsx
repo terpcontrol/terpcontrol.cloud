@@ -150,7 +150,7 @@ const draw = (one: GrowListItem | null, over: Partial<Camera> = {}) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter>
-        <Composer camera={{ ...camera, ...over }} grow={one} pending={false} onRender={body => state.asked.push(body)} onClose={() => {}} />
+        <Composer camera={{ ...camera, state: { ...camera.state, lastStillAt: serverNow().toISO()! }, ...over }} grow={one} pending={false} onRender={body => state.asked.push(body)} onClose={() => {}} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -190,6 +190,24 @@ describe('the composer', () => {
     expect(state.asked[0].window).toBe('day');
     expect(state.asked[0].endsAt).toBeUndefined();
     expect(state.asked[0].quality).toBe('sd');
+  });
+
+  it('asks for the last complete week as the Week button does, naming no instant', () => {
+    draw(grow);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Render · SD' }));
+
+    expect(state.asked).toHaveLength(1);
+    expect(state.asked[0]).toMatchObject({ window: 'week' });
+    expect(state.asked[0].startsAt).toBeUndefined();
+  });
+
+  it('refuses a day for a camera that has taken nothing in it, as the Today button does', () => {
+    draw(grow, { state: { ...camera.state, lastStillAt: serverNow().minus({ days: 5 }).toISO()! } });
+
+    expect(screen.getByRole('button', { name: 'Render · SD' })).toBeDisabled();
+    expect(screen.getByText('No picture today, so there is nothing to film yet.')).toBeInTheDocument();
   });
 
   it('says which picture the preview is and how old, not which range was chosen', () => {
