@@ -1,7 +1,7 @@
-import { DateTime } from 'luxon';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Invite, MemberRole, SpaceKind } from '@fg2/shared-types/v1';
+import { serverNow } from '@/api/clock';
 import { useCreateInvite } from '@/api/invites';
 import { useSpaceOverview } from '@/api/spaces';
 import { Sheet } from '@/log/Sheet';
@@ -85,8 +85,9 @@ export function InviteSheet({
           className={`${ui.button} ${ui.primary}`}
           disabled={create.isPending}
           // The instant is taken at the tap rather than from a clock that ticks
-          // every ten seconds, so the week is a week from when it was asked for.
-          onClick={() => create.mutate({ role, expiresAt: expiresAtFor(validity, DateTime.now()) }, { onSuccess: setMade })}
+          // every ten seconds, so the week is a week from when it was asked for -
+          // on the server's clock, which is the one that will let it run out.
+          onClick={() => create.mutate({ role, expiresAt: expiresAtFor(validity, serverNow()) }, { onSuccess: setMade })}
         >
           {create.isPending ? t('space.members.sheet.making') : t('space.members.sheet.make')}
         </button>

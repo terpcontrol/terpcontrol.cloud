@@ -7,6 +7,7 @@ import type { Camera, Device, GrowListItem, GrowthStage, Space, SpaceKind } from
 import { useCameras } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useCreateGrow, useGrows, useStartingPhase } from '@/api/grows';
+import { serverNow } from '@/api/clock';
 import { useApplyPreset } from '@/api/lifecycle';
 import { growSchemeOf, useScheme, useSchemes, type SchemeSummary } from '@/api/schemes';
 import { useSpaces } from '@/api/spaces';
@@ -162,7 +163,7 @@ function Form({
     // a second grow in it and pauses the plan steering the first.
     spaceId: places.some(one => one.id === spaceId) ? spaceId : (places.find(one => growIn(grows, one.id) === null)?.id ?? null),
     stage: stage ?? 'germination',
-    startedAt: new Date(),
+    startedAt: serverNow().toJSDate(),
     schemeId: schemes[0]?.id ?? null,
   }));
   /** Open while a place is being invented, and closed again by the place existing. */
@@ -316,7 +317,7 @@ function Form({
           <button
             type="button"
             className={`${ui.cardDashed} ${ui.addRow}`}
-            onClick={() => change({ plants: [...draft.plants, { key: String(Date.now()), strain: '', count: 1 }] })}
+            onClick={() => change({ plants: [...draft.plants, { key: nextKey(draft.plants), strain: '', count: 1 }] })}
           >
             {t('grow.new.addStrain')}
           </button>
@@ -399,7 +400,7 @@ function Form({
               chosen={backdating}
               onChoose={() => {
                 setBackdating(!backdating);
-                if (backdating) change({ startedAt: new Date() });
+                if (backdating) change({ startedAt: serverNow().toJSDate() });
               }}
             >
               {t('grow.new.earlier')}
@@ -439,6 +440,9 @@ function Form({
     </Sheet>
   );
 }
+
+/** A row's key, which only has to differ from the others: one more than the largest there is. */
+const nextKey = (rows: PlantRow[]): string => String(Math.max(0, ...rows.map(row => Number(row.key) || 0)) + 1);
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 

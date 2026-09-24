@@ -278,7 +278,7 @@ function PlacementWithdrawal({ grow, placement, onDone }: { grow: GrowListItem; 
   /** The escape the refusal asks for: somewhere to stand, and then the row that never happened is free to go. */
   const rescue = () =>
     move.mutate(
-      { spaceId: null, plantIds: placement.plantIds, startedAt: instantOf(DateTime.now()) },
+      { spaceId: null, plantIds: placement.plantIds, startedAt: instantOf(serverNow()) },
       { onSuccess: () => withdraw.mutate(placement.id, { onSuccess: onDone }) },
     );
 

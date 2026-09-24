@@ -409,12 +409,24 @@ describe('a day read back and written again', () => {
  */
 describe('every instant the app makes for itself', () => {
   /**
-   * The browser's own clock, and the two ways an instant is minted from it: a
-   * `Date` or a `Date.now()` with nothing to read but the machine's idea of the
-   * hour, and an ISO instant written out of one. `new Date(someInstant)` is not
-   * here - parsing an instant the server sent is not reading a clock.
+   * The browser's own clock read: a `Date`, a `Date.now()` or a Luxon
+   * `DateTime.now()` / `local()` / `utc()` with nothing to read but the
+   * machine's idea of the hour. `new Date(someInstant)` is not here - parsing an
+   * instant the server sent is not reading a clock.
+   *
+   * Checked per call and not per file. A file that imports `api/clock` for one
+   * line can still read the browser's clock on the next, which is how the move
+   * sheet dated its rescue move and the invite sheet its week while both passed
+   * a check that only asked whether the import was there.
    */
-  const BROWSER_CLOCK = /new Date\(\s*\)|Date\.now\(\s*\)|\.toISOString\(\)/;
+  const BROWSER_CLOCK = /new Date\(\s*\)|Date\.now\(\s*\)|DateTime\.(now|local|utc)\(\s*\)/;
+
+  /**
+   * An ISO instant written out of a `Date`. That is minting an instant only
+   * where the `Date` came off the browser's clock, which a file that has met
+   * `api/clock` is taken not to do - so this one is still asked per file.
+   */
+  const ISO_WRITE = /\.toISOString\(\)/;
 
   const CLOCK_IMPORT = /from '(@\/api\/clock|\.\/clock|\.\.\/clock|\.\.\/api\/clock)'/;
 
@@ -429,31 +441,18 @@ describe('every instant the app makes for itself', () => {
    */
   const EXEMPT = ['src/api/clock.ts', 'src/api/client.ts', 'src/log/LogProvider.tsx', 'src/log/Toasts.tsx'];
 
-  /**
-   * One sheet that opens its backdating field on the browser's own now, and is
-   * not fixed here: the new-grow sheet is open in front of another pass, where
-   * two passes editing one file is a conflict rather than a fix. A debt and not
-   * a reason, so the check below insists it is still an offender - whoever
-   * fixes the file deletes the entry, or the suite fails asking why it is here.
-   */
-  const NOT_YET = ['src/screens/grow/new/NewGrowSheet.tsx'];
-
   const mintsAnInstant = (path: string): boolean => {
     const source = readFileSync(resolve(process.cwd(), path), 'utf8');
 
-    return BROWSER_CLOCK.test(source) && !CLOCK_IMPORT.test(source);
+    return BROWSER_CLOCK.test(source) || (ISO_WRITE.test(source) && !CLOCK_IMPORT.test(source));
   };
 
   it('reads the server´s clock for it, or says in the list here why the browser´s is the right one', () => {
     const offenders = files('src')
-      .filter(path => !EXEMPT.includes(path) && !NOT_YET.includes(path))
+      .filter(path => !EXEMPT.includes(path))
       .filter(mintsAnInstant);
 
     expect(offenders).toEqual([]);
-  });
-
-  it('still owes the clock to the sheet another pass is holding, and will say so until it is fixed', () => {
-    expect(NOT_YET.filter(mintsAnInstant)).toEqual(NOT_YET);
   });
 });
 
