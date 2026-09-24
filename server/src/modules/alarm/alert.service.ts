@@ -149,6 +149,11 @@ export class AlertService {
  * alert beside it, from the same number, says "last heard 4 d ago". It is
  * written here as a span for that reason, and here rather than in the catalogue
  * because the whole line is already composed on this side.
+ *
+ * The shape of these lines is a contract, not prose: the webapp reads them back
+ * into their parts (`webapp/src/i18n/alarm-line.ts`) and writes them in the
+ * reader's language and decimals, as it must for the migrated diaries that hold
+ * the same shape. A change here has to be made there as well.
  */
 const summary = (subject: AlertSubject, alert: StoredAlert, value: number | null, event: AlarmEvent): string => {
   if (alert.kind === 'offline' || alert.kind === 'camera_stale') return silence(subject, alert, value, event);

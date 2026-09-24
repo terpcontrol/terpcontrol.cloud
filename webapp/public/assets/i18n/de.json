@@ -4193,5 +4193,14 @@
       "occurred_in_the_future": "Ein Eintrag hält fest, was passiert ist. Er kann zurück-, aber nicht vorausdatiert werden.",
       "too_many_requests": "Zu viele Versuche in kurzer Zeit. Warte eine Minute und versuche es erneut."
     }
+  },
+  "alarmLine": {
+    "deviceOffline": "Gerät offline",
+    "outputOn": "{{output}} an",
+    "outputOff": "{{output}} aus",
+    "worst": "Extremwert {{value}}",
+    "silentFor": "{{span}} ohne Meldung",
+    "backAfter": "wieder da nach {{span}}",
+    "back": "wieder da"
   }
 }

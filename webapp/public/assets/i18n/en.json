@@ -4197,5 +4197,14 @@
       "occurred_in_the_future": "A line records something that has happened. It can be dated back but not forward.",
       "too_many_requests": "Too many attempts in a short time. Wait a minute and try again."
     }
+  },
+  "alarmLine": {
+    "deviceOffline": "Device offline",
+    "outputOn": "{{output}} on",
+    "outputOff": "{{output}} off",
+    "worst": "worst {{value}}",
+    "silentFor": "silent for {{span}}",
+    "backAfter": "back after {{span}}",
+    "back": "back"
   }
 }

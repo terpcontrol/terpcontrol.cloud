@@ -1,5 +1,6 @@
 import type { i18n as I18n } from 'i18next';
 import type { Entry, EntryMessage } from '@fg2/shared-types/v1';
+import { alarmLineText } from './alarm-line';
 
 /**
  * A device does not write sentences; it writes keys. The server parses a log
@@ -15,8 +16,17 @@ import type { Entry, EntryMessage } from '@fg2/shared-types/v1';
 
 export type MessagePart = 'title' | 'text';
 
+const ALARM_LINES = new Set(['message-alarm-triggered', 'message-alarm-resolved']);
+
 export const resolveDeviceMessage = (i18n: I18n, message: EntryMessage, part: MessagePart): string => {
   const value = message.params.join(':');
+
+  // An alarm's line carries the reading in English prose; it is read back into
+  // its parts and written in the reader's words (see `alarmLineText`).
+  if (part === 'text' && ALARM_LINES.has(message.key) && message.params.length === 1) {
+    const said = alarmLineText(i18n, message.params[0], message.key === 'message-alarm-triggered');
+    if (said !== null) return said;
+  }
 
   const specific = value ? `${message.key}:${value}-${part}` : null;
   if (specific && i18n.exists(specific)) return i18n.t(specific);

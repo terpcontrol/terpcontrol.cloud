@@ -302,10 +302,11 @@ describe('what a machine´s line says under its headline', () => {
     );
 
   it('draws the reading and the thresholds an alarm tripped on, not only that an alarm was raised', () => {
-    said({ message: { key: 'message-alarm-triggered', params: ['Temperatur (temperature), value=16.87, lower threshold=20'] } });
+    said({ message: { key: 'message-alarm-triggered', params: ['Temperatur (temperature), value=16.87, upper threshold=n/a, lower threshold=20'] } });
 
     expect(screen.getByText('Alarm triggered')).toBeInTheDocument();
-    expect(screen.getByText(/lower threshold=20/)).toBeInTheDocument();
+    // Rounded and written as the alert card writes it, not as the server's prose.
+    expect(screen.getByText('Temperatur · temperature 16.9 °C ‹ 20')).toBeInTheDocument();
   });
 
   it('tells two alarms of one night apart, which the headline alone cannot', () => {
