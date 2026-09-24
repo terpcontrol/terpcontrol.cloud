@@ -2459,7 +2459,7 @@ export interface Entry {
   occurredAt: string;
   source: EntrySource;
   /**
-   * Null for what a device, the plan engine or an alarm wrote.
+   * Who made this happen, whatever wrote it down. Null for what a device, an alarm or the plan engine´s own clock did, and set for a plan line somebody drove: a transition carries the person who asked for it.
    */
   authorId: string | null;
   growId: string | null;

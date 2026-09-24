@@ -290,6 +290,28 @@ describe('the grow half', () => {
     expect(screen.queryByText(/No sensor/)).not.toBeInTheDocument();
   });
 
+  /**
+   * "auto" means nobody picked this, which is what the app's own vocabulary
+   * uses the word for. The plan engine records the person behind a transition
+   * all the way to the entry, so a step somebody activated by hand was bylined
+   * "auto" over a sentence reading "has been manually activated by the user",
+   * with the store holding the author the whole time.
+   */
+  it('bylines a plan line somebody drove as theirs, and the engine´s own moves as auto', () => {
+    const drove = { ...card({}).entries[0], kind: 'plan' as const, source: 'plan' as const, authorId: 'user-mia', text: 'Recipe step activated' };
+    draw(<SpaceCard card={card({ grow: null, entries: [drove] })} people={people} now={NOW} compact={false} />);
+
+    expect(screen.getByText(/· mia/)).toBeInTheDocument();
+    expect(screen.queryByText(/· auto/)).not.toBeInTheDocument();
+  });
+
+  it('keeps auto for the plan line no person stands behind', () => {
+    const itself = { ...card({}).entries[0], kind: 'plan' as const, source: 'plan' as const, authorId: null, text: 'Recipe moved on' };
+    draw(<SpaceCard card={card({ grow: null, entries: [itself] })} people={people} now={NOW} compact={false} />);
+
+    expect(screen.getByText(/· auto/)).toBeInTheDocument();
+  });
+
   it('shows a place without a grow its own newest line - what its device or an alarm wrote', () => {
     const line = { ...card({}).entries[0], growId: null, source: 'alarm' as const, authorId: null, text: 'Humidity high 72 % · resolved' };
     draw(<SpaceCard card={card({ spaceId: 'space-device-only', grow: null, entries: [line] })} people={people} now={NOW} compact={false} />);

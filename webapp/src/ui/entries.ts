@@ -66,9 +66,18 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * Who a line is by, in one word: "you", a handle, or what wrote it when nobody
  * did - a device, the plan, an alarm. Every entry carries its author and every
  * answer carries the people it names, so no lookup is needed here.
+ *
+ * The author is asked first and the source only after it, because a line the
+ * plan engine wrote is not the same as a line the plan engine wrote because
+ * somebody pressed a button. A transition carries the person who made it all the
+ * way to the entry, and reading the source alone bylined "Recipe step manually
+ * activated" as "auto" over a sentence that says it was activated by the user.
+ * The engine's own moves are exactly the lines that carry no author, which is
+ * what "auto" is drawn from: the word means nobody picked this, and where the
+ * store knows who did, it says so.
  */
 export const authorOf = (t: Translate, entry: Pick<Entry, 'source' | 'authorId'>, people: Person[], userId: string | undefined): string => {
-  if (entry.source !== 'human') return t(`home.author.${entry.source}`);
+  if (entry.source !== 'human' && entry.authorId === null) return t(`home.author.${entry.source}`);
   if (entry.authorId === userId) return t('home.author.you');
   return people.find(person => person.id === entry.authorId)?.handle ?? t('home.author.someone');
 };

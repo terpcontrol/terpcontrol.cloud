@@ -169,7 +169,9 @@ exports.entry = (0, common_js_1.named)('Entry', zod_1.z.object({
     kind: common_js_1.entryKind,
     occurredAt: (0, common_js_1.instant)().describe('When the thing happened, which is not when it was written down.'),
     source: common_js_1.entrySource,
-    authorId: (0, common_js_1.id)().nullable().describe('Null for what a device, the plan engine or an alarm wrote.'),
+    authorId: (0, common_js_1.id)()
+        .nullable()
+        .describe('Who made this happen, whatever wrote it down. Null for what a device, an alarm or the plan engine´s own clock did, and set for a plan line somebody drove: a transition carries the person who asked for it.'),
     growId: (0, common_js_1.id)().nullable(),
     spaceId: (0, common_js_1.id)().nullable(),
     deviceId: (0, common_js_1.id)().nullable(),
