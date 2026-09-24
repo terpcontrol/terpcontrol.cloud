@@ -14,7 +14,14 @@ import type { SessionState } from '@/api/session';
  * checks what a screen offers says which of the two it is by handing the space
  * list a `youMay` rather than by signing a second person in.
  */
-const state = (user: SessionState['user']): SessionState => ({ user, tokens: null, sessionId: 'session-1', restored: true, unreachable: false, ended: false });
+const state = (user: SessionState['user']): SessionState => ({
+  user,
+  tokens: null,
+  sessionId: 'session-1',
+  restored: true,
+  unreachable: false,
+  ended: false,
+});
 
 export const SIGNED_IN = state({ id: 'user-1', handle: 'you', isAdmin: false, isDemo: false });
 

@@ -13,7 +13,12 @@ beforeAll(async () => {
   const [en, de] = await Promise.all(
     ['en', 'de'].map(async language => JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'))),
   );
-  await i18next.init({ lng: 'de', resources: { en: { translation: en }, de: { translation: de } }, nsSeparator: false, interpolation: { escapeValue: false } });
+  await i18next.init({
+    lng: 'de',
+    resources: { en: { translation: en }, de: { translation: de } },
+    nsSeparator: false,
+    interpolation: { escapeValue: false },
+  });
 });
 
 afterEach(async () => {

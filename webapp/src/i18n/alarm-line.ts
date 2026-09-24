@@ -64,7 +64,12 @@ const thresholdLine = (i18n: I18n, param: string, triggered: boolean): string | 
   const upper = numberOf(rawUpper);
   const lower = numberOf(rawLower);
   const extreme = numberOf(rawExtreme);
-  const crossed = upper !== null && value > upper ? `› ${targetFigure(upper, watched)}` : lower !== null && value < lower ? `‹ ${targetFigure(lower, watched)}` : null;
+  const crossed =
+    upper !== null && value > upper
+      ? `› ${targetFigure(upper, watched)}`
+      : lower !== null && value < lower
+        ? `‹ ${targetFigure(lower, watched)}`
+        : null;
 
   const parts = [`${ruleName(i18n, name)} · ${metric} ${reading(value, watched)}${triggered && crossed ? ` ${crossed}` : ''}`];
   if (!triggered && extreme !== null) parts.push(i18n.t('alarmLine.worst', { value: reading(extreme, watched) }));

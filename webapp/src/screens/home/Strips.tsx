@@ -33,7 +33,9 @@ export function AttentionStrip({ cards, now }: { cards: HomeSpaceCard[]; now: Da
             <span className={styles.chipText}>
               <strong>{alertLabel(t, alert, now)}</strong> · {card.name}
             </span>
-            {isSilence(alert) ? null : <span className={`mono ${styles.chipMeta}`}>{t('home.card.ago', { age: ageLabel(alert.startedAt, now) })}</span>}
+            {isSilence(alert) ? null : (
+              <span className={`mono ${styles.chipMeta}`}>{t('home.card.ago', { age: ageLabel(alert.startedAt, now) })}</span>
+            )}
           </Link>
         </li>
       ))}

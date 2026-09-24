@@ -12,7 +12,12 @@ beforeAll(async () => {
   const [en, de] = await Promise.all(
     ['en', 'de'].map(async language => JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'))),
   );
-  await i18next.init({ lng: 'en', resources: { en: { translation: en }, de: { translation: de } }, nsSeparator: false, interpolation: { escapeValue: false } });
+  await i18next.init({
+    lng: 'en',
+    resources: { en: { translation: en }, de: { translation: de } },
+    nsSeparator: false,
+    interpolation: { escapeValue: false },
+  });
 });
 
 afterEach(async () => {
@@ -26,7 +31,9 @@ describe('a refusal', () => {
 
   it('words a known code from the catalogue in German', async () => {
     await i18next.changeLanguage('de');
-    expect(refusalText(refused(404, 'space_not_found', 'There is no space with that id.'))).toBe('Diesen Ort gibt es nicht mehr, oder du darfst ihn nicht sehen.');
+    expect(refusalText(refused(404, 'space_not_found', 'There is no space with that id.'))).toBe(
+      'Diesen Ort gibt es nicht mehr, oder du darfst ihn nicht sehen.',
+    );
   });
 
   it('falls back to what kind of answer it was where the code is not known', async () => {

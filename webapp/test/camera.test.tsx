@@ -150,7 +150,13 @@ const draw = (one: GrowListItem | null, over: Partial<Camera> = {}) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter>
-        <Composer camera={{ ...camera, state: { ...camera.state, lastStillAt: serverNow().toISO()! }, ...over }} grow={one} pending={false} onRender={body => state.asked.push(body)} onClose={() => {}} />
+        <Composer
+          camera={{ ...camera, state: { ...camera.state, lastStillAt: serverNow().toISO()! }, ...over }}
+          grow={one}
+          pending={false}
+          onRender={body => state.asked.push(body)}
+          onClose={() => {}}
+        />
       </MemoryRouter>
     </QueryClientProvider>,
   );
