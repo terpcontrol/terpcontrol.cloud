@@ -297,13 +297,31 @@ describe('the deficit of a window', () => {
   });
 
   it('reads a bucket the lamp ran through as a day', async () => {
+    // Lit all hour, so the device reported its lamp above zero in both buckets.
     const lit = reading(query =>
-      query.includes('difference(') ? [{ _time: startsAt.toISOString(), _field: 'out_light', _value: 1 }] : rowsFor(query),
+      query.includes('difference(')
+        ? [{ _time: startsAt.toISOString(), _field: 'out_light', _value: 1 }]
+        : rowsFor(query).map(row => (row._field === 'out_light' ? { ...row, _value: 100 } : row)),
     );
 
     const answer = await lit.series(DEVICE, { metrics: ['vpd'], startsAt, endsAt, stepSeconds: STEP_SECONDS });
 
     expect(answer.metrics[0].points.map(point => point.value)).toEqual([expect.closeTo(0.91, 2), expect.closeTo(0.91, 2)]);
+  });
+
+  /**
+   * The switchings are found on a five-minute grain that counts the lamp on for
+   * all of it once any sample was lit, so they can say day over a bucket whose
+   * every sample the device reported dark. The sample's own word wins there.
+   */
+  it('reads a bucket the device reported dark as a night, whatever the switchings say', async () => {
+    const said = reading(query =>
+      query.includes('difference(') ? [{ _time: startsAt.toISOString(), _field: 'out_light', _value: 1 }] : rowsFor(query),
+    );
+
+    const answer = await said.series(DEVICE, { metrics: ['vpd'], startsAt, endsAt, stepSeconds: STEP_SECONDS });
+
+    expect(answer.metrics[0].points.map(point => point.value)).toEqual([expect.closeTo(1.27, 2), expect.closeTo(0.91, 2)]);
   });
 
   it('falls back to the averaged field where the store knows of no switching at all', async () => {
