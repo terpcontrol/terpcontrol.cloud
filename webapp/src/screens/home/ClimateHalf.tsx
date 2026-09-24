@@ -72,9 +72,12 @@ function Figure({ value, setpoint, now }: { value: CardValue; setpoint: CardSetp
             ) : null}
           </>
         ) : (
-          <span>
-            {t(`home.metric.${value.metric}`, { defaultValue: value.metric })} · {t('home.card.noTarget')}
-          </span>
+          // Two lines, as the tent page's tile says it: the column stays as
+          // narrow as its figure, and a phone never breaks "no target" in two.
+          <>
+            <span>{t(`home.metric.${value.metric}`, { defaultValue: value.metric })}</span>
+            <span>{t('home.card.noTarget')}</span>
+          </>
         )}
       </div>
     </div>

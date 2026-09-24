@@ -137,7 +137,7 @@
    it rather than pushing the next figure onto a second row. */
 .values {
   display: grid;
-  flex: 1;
+  flex: 0 1 auto;
   grid-auto-columns: minmax(0, max-content);
   grid-auto-flow: column;
   min-width: 0;
@@ -185,6 +185,7 @@
   font-size: var(--text-xs);
   line-height: 1.35;
   color: var(--label);
+  white-space: nowrap;
 }
 
 .inBand {
