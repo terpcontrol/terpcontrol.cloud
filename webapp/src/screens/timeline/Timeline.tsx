@@ -184,7 +184,7 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
           "nothing measures here". `lastReadingAt` is the last time anything
           standing here measured at all, whenever that was. */}
       {data.panels.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>
+        <p className={`${ui.cardDashed} ${ui.note} ${styles.empty}`}>
           {data.lastReadingAt === null ? t('timeline.noPanels') : t('timeline.quietWindow', { age: ageLabel(data.lastReadingAt, now) })}
         </p>
       ) : null}

@@ -396,6 +396,18 @@
   color: var(--muted);
 }
 
+/* Nothing heard in the window, said where the panels would stand and at about
+   their height, as the Charts say it, so the stack keeps its shape. */
+.empty {
+  display: grid;
+  place-items: center;
+  min-height: 140px;
+  margin: 0;
+  padding: var(--space-5);
+  text-align: center;
+  text-wrap: balance;
+}
+
 /* --------------------------------------------------------------- a panel */
 
 .panel {

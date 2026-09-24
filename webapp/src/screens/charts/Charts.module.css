@@ -16,10 +16,15 @@
   opacity: 0.6;
 }
 
+/* The title, and under it what it is about: the place and the grow, whole.
+   Squeezed into the title's line it was cut to "Plantalytix Fridgegrow 2.0 ·
+   Mimosa Sun..." on a phone - the grow, the thing the chart is of, was the
+   part that went. */
 .header {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--space-2);
+  gap: 2px var(--space-2);
 }
 
 .back {
@@ -39,15 +44,13 @@
   line-height: var(--line-tight);
 }
 
-/* Which grow, in which place. It gives way before the title does. */
+/* Which grow, in which place, lined up under the title's first letter. */
 .subject {
-  margin-left: auto;
+  flex-basis: 100%;
   min-width: 0;
-  overflow: hidden;
-  padding-left: var(--space-2);
-  font-size: var(--text-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding-left: 32px;
+  font-size: var(--text-sm);
+  line-height: var(--line-tight);
   color: var(--muted);
 }
 
@@ -58,6 +61,11 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* A row's own name - "Compare", "Saved" - where the chips after it need one. */
+.chips > :global(.label) {
+  margin-right: var(--space-1);
 }
 
 /* The same pressed chip as the Timeline this screen is opened from: a chip that
@@ -125,6 +133,19 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-4);
+}
+
+/* Nothing to draw, said where the chart would stand and at its height, so the
+   screen keeps its shape between a range that has readings and one that has
+   none rather than collapsing to a line of text. */
+.empty {
+  display: grid;
+  place-items: center;
+  min-height: 140px;
+  margin: 0;
+  padding: var(--space-5);
+  text-align: center;
+  text-wrap: balance;
 }
 
 .cardHead {
@@ -202,12 +223,16 @@
   text-align: left;
 }
 
+/* Each figure is centred on the faint rule it names rather than hanging
+   under or over it. */
 .scaleHigh {
   top: 0;
+  translate: 0 -40%;
 }
 
 .scaleLow {
   bottom: 0;
+  translate: 0 40%;
 }
 
 /* The surface the cursor is dragged over. It covers the drawn area and not the
@@ -273,7 +298,7 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: var(--rule-solid);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   box-shadow: var(--shadow-raised);
   font-size: var(--text-sm);
 }
@@ -388,9 +413,16 @@
   opacity: 0.55;
 }
 
+/* Sentences, so kept to a measure a line can be read across even where the
+   charts above them run the width of the page. */
 .csvNote,
 .note {
+  max-width: 68ch;
   margin: 0;
+}
+
+.csvNote {
+  margin-top: var(--space-1);
 }
 
 /* ------------------------------------------------------- the save sheet */
@@ -434,9 +466,11 @@
   }
 }
 
-/* A chart is the one thing on this screen, so on a wide one it takes the page. */
+/* A chart is the one thing on this screen, so on a wide one it takes the page.
+   The screens that only ask which grow to draw keep the reading column: a
+   sentence and two chips do not want 1180 px. */
 @media (min-width: 1200px) {
-  .screen {
+  .screen:has(> [role='group']) {
     max-width: var(--page-width);
   }
 

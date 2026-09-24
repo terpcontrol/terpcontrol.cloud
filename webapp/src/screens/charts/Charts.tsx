@@ -506,11 +506,11 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
           Timeline dates it one tap away. The advice stays in both: on the very
           tent this was found on the next chip along does draw. */}
       {nothingOffered ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>
+        <p className={`${ui.cardDashed} ${ui.note} ${styles.empty}`}>
           {data.lastReadingAt === null ? t('charts.noData') : t('charts.quietWindow', { age: ageLabel(data.lastReadingAt, now) })}
         </p>
       ) : null}
-      {!nothingOffered && isEmpty(chosen) ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('charts.nothingPicked')}</p> : null}
+      {!nothingOffered && isEmpty(chosen) ? <p className={`${ui.cardDashed} ${ui.note} ${styles.empty}`}>{t('charts.nothingPicked')}</p> : null}
 
       {cards.length > 0 ? <ScrubHeader cards={cards} cursor={cursor} stamp={day ? dayOf : x => stampOf(x, span, zone)} /> : null}
       {cards.map(card => (
