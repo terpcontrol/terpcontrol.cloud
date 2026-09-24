@@ -247,12 +247,24 @@ button.none {
   gap: var(--space-2);
 }
 
-/* A figure or a day inside a card, labelled on the left as the day field is. */
+/* A figure or a day with its name inside the field on the left: drawn as the
+   app's field - the inset surface, the strong edge, the small radius - so it
+   sits beside the name field above it as one of the same kind rather than as a
+   floating card. */
 .field {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  background: var(--card-2);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+.field:focus-within {
+  border-color: var(--brand);
 }
 
 .fieldLabel {
