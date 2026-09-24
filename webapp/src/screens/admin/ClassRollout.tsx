@@ -1,5 +1,5 @@
 import type { DateTime } from 'luxon';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceClass, DeviceClassUpdate, Firmware, FleetClass } from '@fg2/shared-types/v1';
 import { useUpdateDeviceClass } from '@/api/admin';
@@ -77,6 +77,8 @@ export function ClassRollout({
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<Draft>(() => draftOf(deviceClass));
+  // Pointed at by id, because a label names the first control inside it and the (i) would come first.
+  const failuresId = useId();
   const [asking, setAsking] = useState(false);
   const update = useUpdateDeviceClass();
 
@@ -204,7 +206,7 @@ export function ClassRollout({
             onChange={event => setDraft({ ...draft, concurrentUpdates: Number(event.target.value) })}
           />
         </label>
-        <label className={styles.field}>
+        <label className={styles.field} htmlFor={failuresId}>
           <span className="label">
             {t('admin.firmware.maxFailures')}
             <Help topic="rolloutFailures" />
@@ -213,6 +215,7 @@ export function ClassRollout({
             className={`mono ${ui.input}`}
             type="number"
             min={1}
+            id={failuresId}
             aria-label={t('admin.firmware.maxFailures')}
             value={draft.maxFailures}
             onChange={event => setDraft({ ...draft, maxFailures: Number(event.target.value) })}

@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowScheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
@@ -41,6 +41,8 @@ const STRENGTHS = [0.5, 0.75, 1, 1.25];
  */
 export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: boolean }) {
   const { t } = useTranslation();
+  // The settings' labels point at their controls by id: each also holds an (i), and a label names the first control inside it.
+  const fieldId = useId();
   const shipped = useSchemes();
   const own = useOwnSchemes();
   const update = useUpdateGrow(grow.id);
@@ -173,12 +175,13 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
       />
 
       <div className={styles.settings}>
-        <label className={`${ui.card} ${styles.setting}`}>
+        <label className={`${ui.card} ${styles.setting}`} htmlFor={`${fieldId}-strength`}>
           <span className="label">
             {t('grow.scheme.strength')}
             <Help topic="feedStrength" />
           </span>
           <select
+            id={`${fieldId}-strength`}
             className={styles.settingValue}
             aria-label={t('grow.scheme.strength')}
             disabled={!mayManage}
@@ -195,7 +198,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
           </select>
         </label>
 
-        <label className={`${ui.card} ${styles.setting}`}>
+        <label className={`${ui.card} ${styles.setting}`} htmlFor={`${fieldId}-water`}>
           <span className="label">
             {t('grow.scheme.water')}
             <Help topic="waterEc" />
@@ -203,6 +206,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
           <span className={styles.waterRow}>
             <span className={styles.waterKind}>{t(waterKey(draft.waterEc))}</span>
             <input
+              id={`${fieldId}-water`}
               className={styles.settingValue}
               type="number"
               min={0}
@@ -243,12 +247,13 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
           )}
         </label>
 
-        <label className={`${ui.card} ${styles.setting}`}>
+        <label className={`${ui.card} ${styles.setting}`} htmlFor={`${fieldId}-flip`}>
           <span className="label">
             {t('grow.scheme.flip')}
             <Help topic="feedFlip" />
           </span>
           <select
+            id={`${fieldId}-flip`}
             className={styles.settingValue}
             aria-label={t('grow.scheme.flip')}
             disabled={!mayManage}
