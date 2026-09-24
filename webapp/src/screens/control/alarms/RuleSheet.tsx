@@ -18,6 +18,7 @@ import {
   readingsOf,
   routedChannels,
   type RuleDraft,
+  scaleNote,
   type Translate,
   unitOf,
   updateBody,
@@ -182,8 +183,11 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
               <BoundField label={t('alarms.sheet.above')} unit={unit} value={draft.upper} onChange={upper => change({ upper })} />
               <BoundField label={t('alarms.sheet.below')} unit={unit} value={draft.lower} onChange={lower => change({ lower })} />
             </div>
-            {draft.watch.kind === 'output_level' && draft.watch.output !== 'light' ? (
-              <p className={ui.note}>{t('alarms.sheet.fractionNote')}</p>
+            {/* What the figure above means, for the outputs whose series has no
+                unit to say it. A percentage says it with the sign on the field
+                itself, and is the one that needs no sentence. */}
+            {draft.watch.kind === 'output_level' && scaleNote(draft.watch.output) ? (
+              <p className={ui.note}>{t(scaleNote(draft.watch.output)!)}</p>
             ) : null}
             {refusedBound && !hasBound(draft) ? (
               <p className={ui.problem} role="alert">

@@ -3412,6 +3412,8 @@
       "above": "above",
       "below": "below",
       "fractionNote": "As a fraction of the time it runs: 0.5 is half the time.",
+      "switchNote": "Off or on, and nothing in between: 0 or 1.",
+      "ticksNote": "How often the valve opened since the last reading, counted rather than measured — not a level.",
       "noBound": "Give it a line to cross: above, below, or both.",
       "for": "For how long",
       "forNote": "How long the reading has to stay past the line before the alarm is raised. 0 raises it at once.",

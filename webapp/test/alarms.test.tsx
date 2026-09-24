@@ -12,7 +12,7 @@ import type { AlarmRule, AlarmRuleCreate, Device, Me, SpaceOverview } from '@fg2
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { Alarms } from '@/screens/control/alarms/Alarms';
-import { boundLabel, channelsLabel, routedChannels, type Translate, watchLabel } from '@/screens/control/alarms/rules';
+import { boundLabel, channelsLabel, routedChannels, scaleNote, type Translate, watchLabel } from '@/screens/control/alarms/rules';
 import { headersOf } from '@/ui/headers';
 
 /**
@@ -526,6 +526,28 @@ describe('the rule sheet', () => {
     return screen.getByRole('dialog', { name: 'New alarm' });
   };
 
+  /**
+   * A fan runs at 0 to 100 like the light does. The sheet used to show the
+   * light's percent and tell everything else it was writing a fraction, so
+   * somebody writing a rule on a fan was instructed to type 0.5 on a series that
+   * sits at 100 - a rule out of band on every sample from then on.
+   */
+  it('writes a fan level in percent and offers no fraction to type instead', async () => {
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/fan-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+    );
+    draw([device({ id: 'fan-1', type: 'fan', name: 'Exhaust fan' })]);
+    fireEvent.click(await screen.findByRole('button', { name: /\+ Alarm/ }));
+    const sheet = screen.getByRole('dialog', { name: 'New alarm' });
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Fan' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'its level' }));
+
+    const bounds = within(sheet).getByRole('spinbutton', { name: 'above' }).closest('label')!;
+    expect(bounds).toHaveTextContent('%');
+    expect(within(sheet).queryByText(/As a fraction of the time it runs/)).not.toBeInTheDocument();
+  });
+
   it('offers the readings the device reports and the outputs its hardware drives', async () => {
     const sheet = await openNew();
     const watch = within(sheet).getByRole('group', { name: 'Watch' });
@@ -821,12 +843,34 @@ describe('the rule sheet', () => {
 });
 
 describe('what a rule is called', () => {
-  it('writes a bound in the unit the series carries', () => {
+  /**
+   * The outputs disagree with one another about what their numbers mean, and
+   * the card used to sort them into "the light" and "everything else": a fan
+   * runs at 0 to 100 like the light does, and its bound was written bare while
+   * the inbox printed the same figure as a percent. What each one carries is
+   * what each one is written in.
+   */
+  it('writes a bound in the unit the series carries, output by output', () => {
     expect(boundLabel({ kind: 'reading', metric: 'temperature', upper: 30, lower: 16 })).toBe('› 30 °C ‹ 16 °C');
     expect(boundLabel({ kind: 'reading', metric: 'vpd', upper: null, lower: 0.8 })).toBe('‹ 0.80 kPa');
     expect(boundLabel({ kind: 'output_level', output: 'light', upper: 80, lower: null })).toBe('› 80 %');
-    expect(boundLabel({ kind: 'output_level', output: 'fan', upper: null, lower: 0.2 })).toBe('‹ 0.2');
+    expect(boundLabel({ kind: 'output_level', output: 'fan', upper: null, lower: 60 })).toBe('‹ 60 %');
+    // A PID output is a fraction of the time it runs, so it has no sign - and
+    // it keeps its decimals rather than being rounded to the 0 or 1 the
+    // inbox used to print it as.
+    expect(boundLabel({ kind: 'output_level', output: 'heater', upper: 0.5, lower: null })).toBe('› 0.5');
+    expect(boundLabel({ kind: 'output_level', output: 'dehumidifier', upper: null, lower: 1 })).toBe('‹ 1');
+    // The CO2 output is a count of valve openings, not a level at all.
+    expect(boundLabel({ kind: 'output_level', output: 'co2', upper: 30, lower: null })).toBe('› 30');
     expect(boundLabel({ kind: 'output_running', output: 'co2' })).toBe('');
+  });
+
+  it('says what a level means where its own figure does not, and nothing where the percent sign says it', () => {
+    expect(scaleNote('fan')).toBeNull();
+    expect(scaleNote('light')).toBeNull();
+    expect(scaleNote('heater')).toBe('alarms.sheet.fractionNote');
+    expect(scaleNote('relais')).toBe('alarms.sheet.switchNote');
+    expect(scaleNote('co2')).toBe('alarms.sheet.ticksNote');
   });
 
   it('names what an output rule watches, and leaves a reading rule to its own title', () => {

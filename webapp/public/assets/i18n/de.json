@@ -3408,6 +3408,8 @@
       "above": "über",
       "below": "unter",
       "fractionNote": "Als Anteil der Zeit, die er läuft: 0,5 ist die halbe Zeit.",
+      "switchNote": "Aus oder an, dazwischen nichts: 0 oder 1.",
+      "ticksNote": "Wie oft das Ventil seit der letzten Messung geöffnet hat, gezählt statt gemessen — kein Pegel.",
       "noBound": "Gib ihm eine Grenze: über, unter oder beides.",
       "for": "Wie lange",
       "forNote": "Wie lange der Wert hinter der Grenze bleiben muss, bevor der Alarm ausgelöst wird. 0 löst sofort aus.",

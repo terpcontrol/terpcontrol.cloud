@@ -17,6 +17,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { UNIT, targetFigure } from '@/screens/home/units';
+import { looseFigure } from '@/ui/figures';
 import { isAhead } from '@/ui/age';
 import { zoneOf } from '@/ui/zone';
 
@@ -143,19 +144,65 @@ export const readingsOf = (device: Device): Metric[] =>
     : [];
 
 /**
- * The unit a bound is written in: the card's own for the readings it draws,
- * and for the rest what the series carries - the light dims in percent, every
- * other output is a fraction of the time it runs, and a fraction has no sign.
+ * What an output's series actually carries, from `docs/device-protocol.md`
+ * section 5.4, which lists it output by output because the outputs disagree
+ * with one another.
+ *
+ * The screens used to sort them into "the light" and "everything else": the
+ * sheet told anybody writing a rule on a fan that its level was a fraction of
+ * the time it runs, the card printed the saved bound with no unit at all, and
+ * the inbox printed the reading beside it as a percent. A fan runs at 100, so
+ * somebody who typed the 0.5 the sheet asked for got a rule that was out of
+ * band on every sample for ever. One answer per output, taken from what that
+ * output sends.
+ */
+type OutputScale = 'percent' | 'fraction' | 'switch' | 'ticks';
+
+const SCALE_OF: Partial<Record<OutputMetric, OutputScale>> = {
+  fan: 'percent',
+  light: 'percent',
+  heater: 'fraction',
+  fanInternal: 'fraction',
+  fanExternal: 'fraction',
+  fanBackwall: 'fraction',
+  dehumidifier: 'switch',
+  relais: 'switch',
+  co2: 'ticks',
+};
+
+/** A level this build has never heard of is described as the commonest of them rather than as a percent, which is the reading that misleads. */
+export const scaleOf = (output: OutputMetric): OutputScale => SCALE_OF[output] ?? 'fraction';
+
+/** What the sheet says a level means, where the figure alone does not say it. A percentage says it with its own sign. */
+export const scaleNote = (output: OutputMetric): string | null => {
+  const scale = scaleOf(output);
+
+  return scale === 'percent' ? null : `alarms.sheet.${scale}Note`;
+};
+
+/**
+ * The unit a bound is written in: the card's own for the readings it draws, and
+ * for an output whatever its own series carries - a percentage for the ones
+ * that send 0 to 100, and nothing for a fraction, a switch or a count of valve
+ * openings, none of which is a quantity with a sign.
  */
 const MORE_UNITS: Partial<Record<Metric, string>> = { leafTemperature: '°C', lux: 'lx', ppfd: 'µmol/m²/s' };
 
 export const unitOf = (watch: AlarmWatch): string => {
   if (watch.kind === 'reading') return UNIT[watch.metric] ?? MORE_UNITS[watch.metric] ?? '';
 
-  return watch.output === 'light' ? '%' : '';
+  return scaleOf(watch.output) === 'percent' ? '%' : '';
 };
 
-const figureOf = (watch: AlarmWatch, value: number): string => (watch.kind === 'reading' ? targetFigure(value, watch.metric) : String(value));
+/**
+ * A level as the screens write it: as exactly as it was sent, in the reader's
+ * own decimals. Rounding it to whole numbers is what turned a heater watched at
+ * half power into a rule about "1", on a series that never leaves the range
+ * nought to one.
+ */
+export const levelFigure = (value: number): string => looseFigure(value);
+
+const figureOf = (watch: AlarmWatch, value: number): string => (watch.kind === 'reading' ? targetFigure(value, watch.metric) : levelFigure(value));
 
 /** "› 30 °C", "‹ 16 °C", both with a space between; an output watched for running has no bound and answers nothing. */
 export const boundLabel = (watch: AlarmWatch): string => {

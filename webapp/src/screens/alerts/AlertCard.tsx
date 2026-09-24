@@ -7,12 +7,12 @@ import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
 import { clockLabel } from '@/screens/notifications/settings';
 import { maintenanceQuiet, parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES } from '@/ui/maintenance';
-import { ruleTitle } from '@/screens/control/alarms/rules';
+import { levelFigure, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
 import { ageAttribute, ageLabel, isAhead, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
-import { figure, targetFigure, UNIT } from '../home/units';
+import { figure, targetFigure } from '../home/units';
 import { crossedBound, deliveryOf, lastedLabel } from './inbox';
 import type { AlertNames } from './names';
 import ask from './AlertCard.module.css';
@@ -218,10 +218,14 @@ const watched = (t: Translate, alert: Alert, rule: AlarmRule): What => {
 
   const value = alert.value ?? alert.extremeValue;
   const crossed = crossedBound(watch, value);
-  // A level is the output's own percent; a reading carries the metric's unit and decimals.
-  const asFigure = (x: number) => (watch.kind === 'reading' ? figure(x, watch.metric) : String(Math.round(x)));
-  const asEdge = (x: number) => (watch.kind === 'reading' ? targetFigure(x, watch.metric) : String(Math.round(x)));
-  const unit = watch.kind === 'reading' ? UNIT[watch.metric] : '%';
+  // A reading carries the metric's unit and decimals; a level carries whatever
+  // its own output sends. The inbox used to call every level a percent and
+  // round it to a whole number, so a heater watched at half power read "1 %" on
+  // a series whose whole range is nought to one - and the card beside it, which
+  // knew better, wrote the same bound with no unit at all.
+  const asFigure = (x: number) => (watch.kind === 'reading' ? figure(x, watch.metric) : levelFigure(x));
+  const asEdge = (x: number) => (watch.kind === 'reading' ? targetFigure(x, watch.metric) : levelFigure(x));
+  const unit = unitOf(watch);
 
   const figures = [
     value === null ? null : [asFigure(value), unit].filter(Boolean).join(' '),

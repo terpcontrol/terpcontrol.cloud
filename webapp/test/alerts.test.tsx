@@ -570,6 +570,30 @@ describe('the inbox', () => {
     expect(await screen.findByText(new RegExp(`no image since ${lastStill}`))).toBeInTheDocument();
   });
 
+  /**
+   * The inbox printed every output level as a percent and rounded it to a whole
+   * number, while the rule card wrote the same bound bare and the sheet called
+   * it a fraction. A fan does run in percent, so that card was accidentally
+   * right; a heater does not, and its half power read "1 %" on a series whose
+   * whole range is nought to one.
+   */
+  it('writes a heater level as the fraction it is, decimals and all', async () => {
+    server.alerts = [alert({ value: 0.5, extremeValue: 0.5 })];
+    server.rules = [rule({ name: 'Heater flat out', watch: { kind: 'output_level', output: 'heater', upper: 0.4, lower: null } })];
+    draw();
+
+    expect(await screen.findByText(title('Flower room B · heater 0.5 › 0.4'))).toBeInTheDocument();
+  });
+
+  it('writes a fan level as the percentage it is', async () => {
+    server.devices = [deviceRow({ type: 'fan', name: 'Exhaust fan' })];
+    server.alerts = [alert({ value: 100, extremeValue: 100 })];
+    server.rules = [rule({ name: 'Fan flat out', watch: { kind: 'output_level', output: 'fan', upper: 80, lower: null } })];
+    draw();
+
+    expect(await screen.findByText(title('Flower room B · fan 100 % › 80'))).toBeInTheDocument();
+  });
+
   it('names the camera for a stale one and offers a look rather than a silence', async () => {
     // Raised at midday rather than a couple of hours ago, because the card
     // names the day for an instant that is not today's: run between midnight
