@@ -3,6 +3,7 @@ import { ConfigType } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
+import { startedNow } from '@common/v1/firmware-instruction';
 import { MODEL_V1 } from '@database/models';
 import { StoredClaimCode } from '@database/schemas/v1/claim-codes.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -94,6 +95,10 @@ export class DeviceRegistrationService {
         serialNumber: await this.nextSerialNumber(),
         mqtt: { username: request.username, passwordHash: await hashDevicePassword(request.password) },
         firmware: { channel: 'manual', targetId: deviceClass.firmwareIds.stable },
+        // Told at its very first connection, and counted from then: hardware
+        // that registers and never comes back running the build it was handed
+        // is a failed update like any other.
+        state: deviceClass.firmwareIds.stable ? { updateStartedAt: new Date() } : {},
       });
 
       logger.info(`Registered new device ${request.device_id}`);
@@ -126,6 +131,13 @@ export class DeviceRegistrationService {
       'firmware.targetId': firmwareId || null,
       'state.hardware.claimcode_auth': 'off',
     };
+    // Enrolling a device pins it to a build, which is telling it to install
+    // one, so the clock the fleet judges an update by starts here as well.
+    // Every device in the field is on `manual` because of this line, and the
+    // sweep that used to be the only thing to start that clock never walks
+    // `manual` - so without it a device that is told at enrolment and refuses
+    // the build stays "updating to nothing" for good.
+    if (firmwareId && firmwareId !== device.state.firmwareId) Object.assign(update, startedNow());
     // A password stored before hashing was introduced is replaced by a hash the
     // first time it verifies.
     if (legacy) update['mqtt.passwordHash'] = await hashDevicePassword(request.password);

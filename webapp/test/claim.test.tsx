@@ -65,6 +65,7 @@ const device: Device = {
     firmwareId: 'build-uuid',
     updateStartedAt: null,
     updateEndedAt: null,
+    updateFailedAt: null,
     maintenanceUntil: null,
     hardware: { firmware_version: '2.4.1', webcam_did: 'none' },
     socketStateChangedAt: {},

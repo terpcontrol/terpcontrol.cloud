@@ -152,6 +152,7 @@ const device = (lastSeenAt = DateTime.now().minus({ seconds: 20 })): Device => (
     firmwareId: 'build-1',
     updateStartedAt: null,
     updateEndedAt: null,
+    updateFailedAt: null,
     maintenanceUntil: null,
     hardware: {},
     socketStateChangedAt: {},

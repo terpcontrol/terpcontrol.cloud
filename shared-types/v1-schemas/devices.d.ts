@@ -52,6 +52,7 @@ export declare const deviceState: z.ZodObject<{
     firmwareId: z.ZodNullable<z.ZodString>;
     updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
     updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
+    updateFailedAt: z.ZodNullable<z.ZodISODateTime>;
     maintenanceUntil: z.ZodNullable<z.ZodISODateTime>;
     hardware: z.ZodRecord<z.ZodString, z.ZodString>;
     socketStateChangedAt: z.ZodRecord<z.ZodString, z.ZodISODateTime>;
@@ -93,6 +94,7 @@ export declare const device: z.ZodObject<{
         firmwareId: z.ZodNullable<z.ZodString>;
         updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
         updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
+        updateFailedAt: z.ZodNullable<z.ZodISODateTime>;
         maintenanceUntil: z.ZodNullable<z.ZodISODateTime>;
         hardware: z.ZodRecord<z.ZodString, z.ZodString>;
         socketStateChangedAt: z.ZodRecord<z.ZodString, z.ZodISODateTime>;
@@ -131,6 +133,7 @@ export declare const devicePage: z.ZodObject<{
             firmwareId: z.ZodNullable<z.ZodString>;
             updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
             updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
+            updateFailedAt: z.ZodNullable<z.ZodISODateTime>;
             maintenanceUntil: z.ZodNullable<z.ZodISODateTime>;
             hardware: z.ZodRecord<z.ZodString, z.ZodString>;
             socketStateChangedAt: z.ZodRecord<z.ZodString, z.ZodISODateTime>;
@@ -382,6 +385,7 @@ export declare const deviceClaimResult: z.ZodObject<{
             firmwareId: z.ZodNullable<z.ZodString>;
             updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
             updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
+            updateFailedAt: z.ZodNullable<z.ZodISODateTime>;
             maintenanceUntil: z.ZodNullable<z.ZodISODateTime>;
             hardware: z.ZodRecord<z.ZodString, z.ZodString>;
             socketStateChangedAt: z.ZodRecord<z.ZodString, z.ZodISODateTime>;

@@ -689,8 +689,15 @@ export interface DeviceState {
    * What the device reports it is running, which is the build uuid.
    */
   firmwareId: string | null;
+  /**
+   * When the device was last told which build to install, however it was told.
+   */
   updateStartedAt: string | null;
   updateEndedAt: string | null;
+  /**
+   * When the cloud gave up waiting for that build and said so in the diary; null while an update is owed but not yet overdue.
+   */
+  updateFailedAt: string | null;
   /**
    * The device suppresses its own alarms until then; the cloud's are silenced separately.
    */

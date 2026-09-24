@@ -19,12 +19,20 @@ export interface StoredDeviceMqtt {
 
 export interface StoredDeviceState extends Omit<
   DeviceState,
-  'lastSeenAt' | 'claimedAt' | 'updateStartedAt' | 'updateEndedAt' | 'maintenanceUntil' | 'socketStateChangedAt' | 'socketsReportedAt'
+  | 'lastSeenAt'
+  | 'claimedAt'
+  | 'updateStartedAt'
+  | 'updateEndedAt'
+  | 'updateFailedAt'
+  | 'maintenanceUntil'
+  | 'socketStateChangedAt'
+  | 'socketsReportedAt'
 > {
   lastSeenAt: Date | null;
   claimedAt: Date | null;
   updateStartedAt: Date | null;
   updateEndedAt: Date | null;
+  updateFailedAt: Date | null;
   maintenanceUntil: Date | null;
   socketStateChangedAt: Record<string, Date>;
   socketsReportedAt: Date | null;
@@ -77,6 +85,11 @@ const stateSchema = new Schema<StoredDeviceState>(
     firmwareId: { type: String, default: null },
     updateStartedAt: { type: Date, default: null },
     updateEndedAt: { type: Date, default: null },
+    // When the rollout gave up on the build this device was told to install and
+    // wrote the line that says so. It is a stamp rather than a flag because the
+    // one thing it has to answer is "has this attempt already been reported",
+    // which is it being newer than the instruction it is about.
+    updateFailedAt: { type: Date, default: null },
     maintenanceUntil: { type: Date, default: null },
     // The raw `hardware-info` report, flat as the device sends it. Its keys
     // belong to the firmware of that type, so nothing here constrains them.

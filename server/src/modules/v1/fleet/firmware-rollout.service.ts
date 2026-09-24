@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { FirmwareChannel } from '@fg2/shared-types/v1';
 import { BackgroundWork, logIfItFails } from '@common/background-work';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
+import { startedNow } from '@common/v1/firmware-instruction';
 import { onlineSince } from '@common/v1/value-age';
 import { MODEL_V1 } from '@database/models';
 import { StoredDeviceClass } from '@database/schemas/v1/device-classes.schema';
@@ -98,7 +99,10 @@ export class FirmwareRolloutService implements OnModuleInit, OnApplicationShutdo
     if (!device || device.firmware.targetId !== firmwareId) return;
 
     const endedAt = new Date();
-    await this.devices.updateOne({ id: deviceId }, { $set: { 'state.updateEndedAt': endedAt } });
+    // A build that lands after the wait ran out takes its verdict with it: the
+    // line saying it did not take stays in the diary, where it was true, but the
+    // device is no longer one the fleet is waiting on.
+    await this.devices.updateOne({ id: deviceId }, { $set: { 'state.updateEndedAt': endedAt, 'state.updateFailedAt': null } });
     this.forget(deviceId);
 
     const took = device.state.updateStartedAt ? `${(endedAt.getTime() - device.state.updateStartedAt.getTime()) / 1000}s` : 'unknown';
@@ -117,6 +121,8 @@ export class FirmwareRolloutService implements OnModuleInit, OnApplicationShutdo
    * as many devices started as the class allows to be updating at once.
    */
   private async sweep(): Promise<void> {
+    await this.closeFailedUpdates();
+
     for (const deviceClass of await this.classes.find().lean<StoredDeviceClass[]>()) {
       // A pass awaits its way through every class, so it can outlive the server
       // unless it looks.
@@ -156,11 +162,74 @@ export class FirmwareRolloutService implements OnModuleInit, OnApplicationShutdo
 
     for (const device of candidates.filter(device => inRolloutStage(device.id, deviceClass.rollout.percent)).slice(0, room)) {
       logger.info(`Updating device ${device.id} to firmware ${firmwareId}`);
-      await this.devices.updateOne(
-        { id: device.id },
-        { $set: { 'firmware.targetId': firmwareId, 'state.updateStartedAt': now, 'state.updateEndedAt': null } },
-      );
+      await this.devices.updateOne({ id: device.id }, { $set: { 'firmware.targetId': firmwareId, ...startedNow(now) } });
       this.forget(device.id);
+    }
+  }
+
+  /**
+   * The other half of the sentence the diary already writes.
+   *
+   * A device logs `message-device-firmware-update` the moment it is *told* to
+   * install a build - from inside its subscribe handler, before the download -
+   * and that line says whether it took is a separate line. Only the success half
+   * of that promise existed: `onFirmwareReported` writes one when the device
+   * comes back on the new build, and a build that will not install wrote
+   * nothing at all, ever. What a grower saw was the same "Update asked for"
+   * arriving on the instruction backoff - three of them in four minutes, then
+   * hours apart - about a device that was still on its old software, with
+   * nothing anywhere to say so.
+   *
+   * The repeats are still left to stack, because each of them is a true line
+   * about a real instruction and hiding the second and third attempt would hide
+   * the most useful thing about an update that is not landing. What is added is
+   * the verdict: once the wait has run out on the instruction that started it,
+   * the diary says the update did not take, once, and says which build it was.
+   * Instructing goes on afterwards - a device that is refusing the build today
+   * may take it after its next reboot - and the next instruction clears the
+   * verdict, so a second failure is reported again rather than swallowed.
+   *
+   * Only devices that belong to somebody are reported on. Unclaimed hardware
+   * enrols, is handed a build and is counted by the fleet like any other, but
+   * its diary has no reader: a line about it would be written into a place that
+   * does not exist, for nobody.
+   */
+  private async closeFailedUpdates(): Promise<void> {
+    const failedAt = new Date();
+    const deadline = new Date(failedAt.getTime() - UPGRADE_TIMEOUT_MS);
+
+    const stalled = await this.devices
+      .find({
+        ownerId: { $ne: null },
+        'firmware.targetId': { $ne: null },
+        'state.updateStartedAt': { $ne: null, $lt: deadline },
+        $expr: {
+          $and: [
+            { $ne: ['$firmware.targetId', '$state.firmwareId'] },
+            // Reported already, unless the device has since been told again:
+            // the verdict is about one instruction, and the stamp of the
+            // instruction is what says which one.
+            { $or: [{ $eq: ['$state.updateFailedAt', null] }, { $lt: ['$state.updateFailedAt', '$state.updateStartedAt'] }] },
+          ],
+        },
+      })
+      .lean<StoredDevice[]>();
+
+    for (const device of stalled) {
+      if (this.work.isStopped) return;
+
+      await this.devices.updateOne({ id: device.id }, { $set: { 'state.updateFailedAt': failedAt } });
+
+      const [running, owed] = await Promise.all([this.label(device.state.firmwareId), this.label(device.firmware.targetId)]);
+      logger.info(`Device ${device.id} did not take firmware ${device.firmware.targetId}; it is still running ${running}`);
+      await this.entries.writeDeviceLine({
+        deviceId: device.id,
+        spaceId: device.spaceId,
+        // Both builds, in the order the completed line names them, so the two
+        // lines of one update can be read against each other.
+        line: `message-firmware-update-failed-with-ids:${running} -> ${owed}`,
+        severity: 1,
+      });
     }
   }
 

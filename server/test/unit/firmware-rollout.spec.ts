@@ -278,3 +278,96 @@ describe('when a device comes back running what it was told to install', () => {
     expect(await db.entries.countDocuments({ deviceId: 'fridge-1' })).toBe(0);
   });
 });
+
+/**
+ * The line the diary never had. A device logs that it was *told* to install a
+ * build, from inside its subscribe handler and before the download, and that
+ * line says whether it took is a separate line - which only ever existed for
+ * the builds that took. A build the device hears and refuses was announced on
+ * every attempt and closed on none.
+ */
+describe('an update that never lands', () => {
+  const OVERDUE = { lastSeenAt: new Date(), firmwareId: 'fw-old', updateStartedAt: new Date(Date.now() - 11 * 60_000) };
+
+  const failing = (overrides: Record<string, unknown> = {}) =>
+    aDevice('fridge-1', {
+      ownerId: 'someone',
+      spaceId: 'space-1',
+      firmware: { channel: 'manual', targetId: STABLE },
+      state: OVERDUE,
+      ...overrides,
+    });
+
+  beforeEach(async () => {
+    await db.deviceClasses.create(aClass({ firmwareIds: { stable: null, beta: null, alpha: null } }));
+    await db.firmwares.create({ id: STABLE, createdAt: new Date(), classId: CLASS_ID, name: 'fridge', version: '2.1.0', wasStable: true });
+  });
+
+  it('says in the diary that the update did not take, and which build it was', async () => {
+    await db.devices.create(failing());
+
+    await internals.sweep();
+
+    const [entry] = await db.entries.find({ deviceId: 'fridge-1' }).lean();
+    expect(entry.message).toEqual({ key: 'message-firmware-update-failed-with-ids', params: ['fw-old -> 2.1.0'] });
+    expect(entry.spaceId).toBe('space-1');
+    expect(entry.severity).toBe('warning');
+  });
+
+  it('says it once, however many passes run while the device goes on refusing', async () => {
+    await db.devices.create(failing());
+
+    await internals.sweep();
+    await internals.sweep();
+    await internals.sweep();
+
+    expect(await db.entries.countDocuments({ deviceId: 'fridge-1' })).toBe(1);
+  });
+
+  /**
+   * A device pointed at a build again is a fresh attempt, and a fresh attempt is
+   * reported on its own. Pinning a build clears the verdict outright, so what is
+   * reconstructed here is the case that survives the clearing: an instruction
+   * newer than the verdict about the one before it, itself now overdue.
+   */
+  it('says it again once the device has been told again', async () => {
+    await db.devices.create(failing({ state: { ...OVERDUE, updateStartedAt: new Date(Date.now() - 40 * 60_000) } }));
+    await internals.sweep();
+
+    await db.devices.updateOne(
+      { id: 'fridge-1' },
+      { $set: { 'state.updateFailedAt': new Date(Date.now() - 30 * 60_000), 'state.updateStartedAt': new Date(Date.now() - 20 * 60_000) } },
+    );
+    await internals.sweep();
+
+    expect(await db.entries.countDocuments({ deviceId: 'fridge-1' })).toBe(2);
+  });
+
+  it('waits out the whole timeout before calling an update failed', async () => {
+    await db.devices.create(failing({ state: { ...OVERDUE, updateStartedAt: new Date(Date.now() - 60_000) } }));
+
+    await internals.sweep();
+
+    expect(await db.entries.countDocuments({ deviceId: 'fridge-1' })).toBe(0);
+  });
+
+  /** Unclaimed hardware is counted by the fleet like any other and has no diary to be told in. */
+  it('writes nothing about a device that belongs to nobody', async () => {
+    await db.devices.create(failing({ ownerId: null, spaceId: null }));
+
+    await internals.sweep();
+
+    expect(await db.entries.countDocuments({ deviceId: 'fridge-1' })).toBe(0);
+  });
+
+  it('lets the verdict go when the build lands after all, and keeps the line', async () => {
+    await db.devices.create(failing());
+    await internals.sweep();
+
+    await rollout.onFirmwareReported('fridge-1', STABLE);
+
+    const device = await db.devices.findOne({ id: 'fridge-1' }).lean<StoredDevice>();
+    expect(device?.state.updateFailedAt).toBeNull();
+    expect(await db.entries.countDocuments({ deviceId: 'fridge-1' })).toBe(2);
+  });
+});

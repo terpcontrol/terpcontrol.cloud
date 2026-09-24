@@ -46,8 +46,11 @@ exports.deviceState = (0, common_js_1.named)('DeviceState', zod_1.z.object({
     lastSeenAt: (0, common_js_1.instant)().nullable().describe('Last sample or status; what `offline` is decided from.'),
     claimedAt: (0, common_js_1.instant)().nullable(),
     firmwareId: (0, common_js_1.id)().nullable().describe('What the device reports it is running, which is the build uuid.'),
-    updateStartedAt: (0, common_js_1.instant)().nullable(),
+    updateStartedAt: (0, common_js_1.instant)().nullable().describe('When the device was last told which build to install, however it was told.'),
     updateEndedAt: (0, common_js_1.instant)().nullable(),
+    updateFailedAt: (0, common_js_1.instant)()
+        .nullable()
+        .describe('When the cloud gave up waiting for that build and said so in the diary; null while an update is owed but not yet overdue.'),
     maintenanceUntil: (0, common_js_1.instant)().nullable().describe("The device suppresses its own alarms until then; the cloud's are silenced separately."),
     hardware: zod_1.z.record(zod_1.z.string(), zod_1.z.string()).describe('The raw `hardware-info` report, flat as the device sends it.'),
     // Keyed by slot, because that is how a socket is addressed; the report says

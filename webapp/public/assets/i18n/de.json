@@ -1063,6 +1063,8 @@
   "message-firmware-update-complete-text": "Die Firmware deines Geräts wurde erfolgreich aktualisiert.",
   "message-firmware-update-complete-with-ids-title": "Firmware-Update abgeschlossen",
   "message-firmware-update-complete-with-ids-text": "Die Firmware deines Geräts wurde erfolgreich aktualisiert: {{value}}",
+  "message-firmware-update-failed-with-ids-title": "Update kam nicht an",
+  "message-firmware-update-failed-with-ids-text": "Dein Gerät wurde aufgefordert, neue Software zu installieren, und meldet sie nicht: {{value}}. Es läuft weiter mit dem zuerst genannten Build und wird erneut aufgefordert.",
   "message-recipe-step-awaiting-confirmation-title": "Rezeptschritt wartet auf Bestätigung",
   "message-recipe-step-awaiting-confirmation-text": "Rezeptschritt {{value}} wartet auf Bestätigung.",
   "message-recipe-advanced-title": "Rezept fortgeschritten",

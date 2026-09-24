@@ -94,6 +94,7 @@ const device = (over: Partial<Device> & { id: string }): Device => ({
     firmwareId: 'build-1',
     updateStartedAt: null,
     updateEndedAt: null,
+    updateFailedAt: null,
     maintenanceUntil: null,
     hardware: { sockets_n: '6' },
     socketStateChangedAt: {},

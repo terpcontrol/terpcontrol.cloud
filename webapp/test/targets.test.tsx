@@ -63,6 +63,7 @@ const device = (over: Partial<Device> = {}, hardware: Record<string, string> = {
     firmwareId: 'build-1',
     updateStartedAt: null,
     updateEndedAt: null,
+    updateFailedAt: null,
     maintenanceUntil: null,
     hardware,
     socketStateChangedAt: {},

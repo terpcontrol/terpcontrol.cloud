@@ -6,6 +6,7 @@ import { AdminDeviceCreate, Device, DeviceClaimCreate, DeviceClaimResult, Device
 import { AccessContext } from '@common/v1/access.types';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { startedNow } from '@common/v1/firmware-instruction';
 import { conflict, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -110,7 +111,17 @@ export class DevicesService {
 
   /** Only what a client may write. What the device is, who owns it and everything under `state` are not patched. */
   public async update(id: string, body: DeviceUpdate): Promise<StoredDevice> {
+    const before = await this.devices.findOne({ id }, { firmware: 1, state: 1 }).lean<StoredDevice | null>();
     const changes = Object.fromEntries(Object.entries(body).filter(([, value]) => value !== undefined));
+    // Pinning a build by hand is telling a device to install one, exactly as
+    // the rollout's own pass is, so it starts the same clock. Without this the
+    // clock was started in one place only - the sweep over the three release
+    // channels - and a device pinned here, or one enrolled on `manual` as every
+    // device is, could never be counted as updating and never be judged to have
+    // failed: the update was announced to its owner on every attempt and never
+    // once closed. The stamp is a fresh attempt, so an older verdict about the
+    // build it used to owe is cleared with it.
+    if (before && told(before, body)) Object.assign(changes, startedNow());
     const changed = await this.devices.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<StoredDevice>();
     if (!changed) throw notFound('device_not_found', 'There is no device with that id.');
 
@@ -284,6 +295,7 @@ export class DevicesService {
         firmwareId: device.state.firmwareId,
         updateStartedAt: device.state.updateStartedAt?.toISOString() ?? null,
         updateEndedAt: device.state.updateEndedAt?.toISOString() ?? null,
+        updateFailedAt: device.state.updateFailedAt?.toISOString() ?? null,
         maintenanceUntil: device.state.maintenanceUntil?.toISOString() ?? null,
         hardware: device.state.hardware,
         socketStateChangedAt: Object.fromEntries(Object.entries(device.state.socketStateChangedAt).map(([slot, at]) => [slot, at.toISOString()])),
@@ -294,3 +306,15 @@ export class DevicesService {
     return redacted ? demoDevice(served) : served;
   }
 }
+
+/**
+ * Whether this write tells the device to install a build it is not running.
+ *
+ * `firmware` crosses the wire whole - the channel and the pin together - so a
+ * client that changes the channel alone re-sends the target it already had, and
+ * that is not a new instruction. What makes one is the pin moving to a build the
+ * device is not reporting: pinning the build it is already on owes nothing and
+ * starts no clock.
+ */
+const told = (before: Pick<StoredDevice, 'firmware' | 'state'>, body: DeviceUpdate): boolean =>
+  body.firmware !== undefined && body.firmware.targetId !== before.firmware.targetId && body.firmware.targetId !== before.state.firmwareId;

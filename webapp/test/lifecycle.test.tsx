@@ -481,6 +481,7 @@ const standing = (over: Partial<Device> = {}): Device => ({
     firmwareId: 'build-1',
     updateStartedAt: null,
     updateEndedAt: null,
+    updateFailedAt: null,
     maintenanceUntil: null,
     // With the sensor, which is what makes the preset's CO2 row one that is
     // written at all: a controller reporting none holds its target at zero.

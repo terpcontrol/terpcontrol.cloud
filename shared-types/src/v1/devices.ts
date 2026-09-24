@@ -76,8 +76,11 @@ export const deviceState = named(
     lastSeenAt: instant().nullable().describe('Last sample or status; what `offline` is decided from.'),
     claimedAt: instant().nullable(),
     firmwareId: id().nullable().describe('What the device reports it is running, which is the build uuid.'),
-    updateStartedAt: instant().nullable(),
+    updateStartedAt: instant().nullable().describe('When the device was last told which build to install, however it was told.'),
     updateEndedAt: instant().nullable(),
+    updateFailedAt: instant()
+      .nullable()
+      .describe('When the cloud gave up waiting for that build and said so in the diary; null while an update is owed but not yet overdue.'),
     maintenanceUntil: instant().nullable().describe("The device suppresses its own alarms until then; the cloud's are silenced separately."),
     hardware: z.record(z.string(), z.string()).describe('The raw `hardware-info` report, flat as the device sends it.'),
     // Keyed by slot, because that is how a socket is addressed; the report says
