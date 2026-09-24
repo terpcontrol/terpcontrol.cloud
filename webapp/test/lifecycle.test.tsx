@@ -10,7 +10,9 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Device, GrowListItem, Plant, SpaceOverview } from '@fg2/shared-types/v1';
 import { HarvestSheet } from '@/screens/grow/HarvestSheet';
+import { GrowLifecycle } from '@/screens/grow/Lifecycle';
 import { MoveSheet } from '@/screens/grow/MoveSheet';
+import { RenameSheet } from '@/screens/grow/RenameSheet';
 import { SplitSheet } from '@/screens/grow/SplitSheet';
 import { PhaseSheet } from '@/screens/grow/PhaseSheet';
 import { correctionEffect, withdrawalEffect } from '@/screens/grow/phase-effect';
@@ -162,6 +164,61 @@ beforeAll(async () => {
   await i18next
     .use(initReactI18next)
     .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+});
+
+/**
+ * The name, which is the one thing about a grow the app could not change.
+ *
+ * It is invented by the sheet that makes the grow - "Mimosa Sunrise XXL Auto
+ * [8]" - and then stands on the home card, the header, the report and the
+ * public diary for the whole run. The route has always taken a new one; only
+ * the app withheld it, so a strain typed wrong could be corrected nowhere but
+ * by throwing the grow and its diary away.
+ */
+describe('renaming a grow', () => {
+  it('is offered beside the other moves, for a session that may make them', () => {
+    draw(<GrowLifecycle grow={grow} plants={plants} spaces={[]} />);
+
+    expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
+  });
+
+  it('sends the trimmed name and nothing else, because a rename moves nothing that was recorded', async () => {
+    const asked: { method: string; path: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        asked.push({
+          method: init?.method ?? 'GET',
+          path: new URL(String(input), 'http://localhost').pathname,
+          body: init?.body === undefined ? null : JSON.parse(String(init.body)),
+        });
+        return new Response(JSON.stringify(grow), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }),
+    );
+
+    draw(<RenameSheet grow={grow} onClose={() => {}} />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '  Spring run, Amnesia  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save the name' }));
+
+    const wrote = () => asked.filter(call => call.method !== 'GET');
+    await waitFor(() => expect(wrote()).toHaveLength(1));
+    expect(wrote()[0].method).toBe('PATCH');
+    expect(wrote()[0].path).toBe('/v1/grows/grow-1');
+    expect(wrote()[0].body).toEqual({ name: 'Spring run, Amnesia' });
+  });
+
+  it('will not save an empty name, nor the one the grow already has', () => {
+    draw(<RenameSheet grow={grow} onClose={() => {}} />);
+
+    const save = screen.getByRole('button', { name: 'Save the name' });
+    expect(save).toBeDisabled();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '   ' } });
+    expect(save).toBeDisabled();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'Autumn run' } });
+    expect(save).toBeEnabled();
+  });
 });
 
 describe('what correcting a phase would move', () => {

@@ -2012,6 +2012,12 @@
     "noWeeks": "Noch keine Phase · die Wochen beginnen mit der ersten Phase",
     "noFixedPlace": "Kein fester Platz",
     "stoodIn": "stand in {{name}}",
+    "rename": {
+      "title": "{{name}} umbenennen",
+      "name": "Name",
+      "note": "Es ändert sich nur der Name. Tagebuch, Phasen und Wochen bleiben, wie sie sind, und ein öffentliches Tagebuch behält die Adresse, die es beim Anlegen des Grows bekommen hat.",
+      "save": "Namen speichern"
+    },
     "noPlants": "Keine Pflanzen erfasst",
     "plantStatus": {
       "active": "aktiv",
@@ -2063,7 +2069,8 @@
         "phase": "Phase",
         "move": "Umziehen",
         "split": "Aufteilen",
-        "harvest": "Ernten"
+        "harvest": "Ernten",
+        "rename": "Umbenennen"
       },
       "when": "Am",
       "cancel": "Abbrechen",

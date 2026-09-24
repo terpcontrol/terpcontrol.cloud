@@ -2016,6 +2016,12 @@
     "noWeeks": "No phase yet · the weeks start with the first phase",
     "noFixedPlace": "No fixed place",
     "stoodIn": "stood in {{name}}",
+    "rename": {
+      "title": "Rename {{name}}",
+      "name": "Name",
+      "note": "Only the name changes. The diary, the phases and the weeks stay as they are, and a public diary keeps the address it was given when the grow was made.",
+      "save": "Save the name"
+    },
     "noPlants": "No plants recorded",
     "plantStatus": {
       "active": "active",
@@ -2067,7 +2073,8 @@
         "phase": "Phase",
         "move": "Move",
         "split": "Split",
-        "harvest": "Harvest"
+        "harvest": "Harvest",
+        "rename": "Rename"
       },
       "when": "On",
       "cancel": "Cancel",

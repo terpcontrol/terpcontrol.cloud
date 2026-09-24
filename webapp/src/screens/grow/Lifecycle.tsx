@@ -1,4 +1,4 @@
-import { Leaf, Move, Scissors, Split } from 'lucide-react';
+import { Leaf, Move, Pencil, Scissors, Split } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
@@ -6,12 +6,14 @@ import ui from '@/ui/ui.module.css';
 import { HarvestSheet } from './HarvestSheet';
 import { MoveSheet } from './MoveSheet';
 import { PhaseSheet } from './PhaseSheet';
+import { RenameSheet } from './RenameSheet';
 import { SplitSheet } from './SplitSheet';
 import styles from './Lifecycle.module.css';
 
 /**
- * The four things that happen to a grow rather than in it: it moves on a stage,
- * it moves house, some of it goes its own way, and it comes down.
+ * The five things that happen to a grow rather than in it: it moves on a stage,
+ * it moves house, some of it goes its own way, it comes down - and it is called
+ * something.
  *
  * They sit on the grow page under the phase bar because that is where a grower
  * reads what the grow is doing, and each opens the sheet that also holds the
@@ -19,11 +21,15 @@ import styles from './Lifecycle.module.css';
  * a move is part of making one. A session that may only look is offered none of
  * them: the server refuses every write it makes, and a button that would be
  * refused is not a button.
+ *
+ * The name is a repair of the same kind and belongs in the same row. It is last
+ * because it is the smallest of them: it changes nothing the grow went through,
+ * where the four before it all do.
  */
-const SHEETS = ['phase', 'move', 'split', 'harvest'] as const;
+const SHEETS = ['phase', 'move', 'split', 'harvest', 'rename'] as const;
 type LifecycleSheet = (typeof SHEETS)[number];
 
-const ICON = { phase: Leaf, move: Move, split: Split, harvest: Scissors };
+const ICON = { phase: Leaf, move: Move, split: Split, harvest: Scissors, rename: Pencil };
 
 export function GrowLifecycle({ grow, plants, spaces }: { grow: GrowListItem; plants: Plant[]; spaces: Space[] }) {
   const { t } = useTranslation();
@@ -48,6 +54,7 @@ export function GrowLifecycle({ grow, plants, spaces }: { grow: GrowListItem; pl
       {open === 'move' ? <MoveSheet grow={grow} plants={plants} spaces={spaces} onClose={close} /> : null}
       {open === 'split' ? <SplitSheet grow={grow} plants={plants} spaces={spaces} onClose={close} /> : null}
       {open === 'harvest' ? <HarvestSheet grow={grow} plants={plants} onClose={close} /> : null}
+      {open === 'rename' ? <RenameSheet grow={grow} onClose={close} /> : null}
     </>
   );
 }
