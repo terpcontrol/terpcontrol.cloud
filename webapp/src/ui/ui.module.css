@@ -96,6 +96,76 @@
   border-color: var(--alarm);
 }
 
+/* Where a thing is, as a word on a green wash: a grow's stage - "Flower wk 5"
+   on a week's card, "Veg" under the day it began. `.tagSmall` is the one that
+   fits under a seventh of a card, reaching a little into the gutter either
+   side and cut rather than wrapped. */
+.tag {
+  display: inline-block;
+  flex: none;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-wash);
+  font-family: var(--font-figure);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  color: var(--green-ink);
+  white-space: nowrap;
+}
+
+.tagSmall {
+  max-width: calc(100% + 6px);
+  overflow: hidden;
+  padding: 0 4px;
+  font-size: 11px;
+  line-height: var(--line-body);
+  text-align: center;
+  text-overflow: ellipsis;
+}
+
+/* How recently a device or a camera was heard from, as a pill with a dot: the
+   green wash and a ringed green dot while it is live, the warning ink once it
+   is late, and quiet grey when it has gone offline. `data-liveness` says
+   which; the dot is `.liveDot`. */
+.live {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  height: 26px;
+  padding: 0 var(--space-3) 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--card-2);
+  font-family: var(--font-figure);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.liveDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.live[data-liveness='live'] {
+  background: var(--brand-wash);
+  color: var(--green-ink);
+}
+
+.live[data-liveness='live'] .liveDot {
+  background: var(--green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 25%, transparent);
+}
+
+.live[data-liveness='stale'] {
+  color: var(--warning);
+}
+
 /* What a picture is, laid on the picture: its time, its age, how many there
    are. Smoked glass in the corner, the same in both modes because the picture
    under it does not change with the theme; it sits bottom left, and is cut

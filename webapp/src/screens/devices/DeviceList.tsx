@@ -330,8 +330,8 @@ function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now }: De
           <span className={styles.rowTitle}>{deviceTitle(device, t)}</span>
           <span className={styles.rowNote}>{line}</span>
         </div>
-        <span className={`mono ${styles.liveness}`} data-liveness={liveness}>
-          <span className={styles.dot} aria-hidden />
+        <span className={ui.live} data-liveness={liveness}>
+          <span className={ui.liveDot} aria-hidden />
           {t(`home.liveness.${liveness}`)}
           {spokeAt ? ` · ${ageLabel(spokeAt, now)}` : ''}
         </span>

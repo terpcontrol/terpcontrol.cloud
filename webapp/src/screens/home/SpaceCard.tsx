@@ -148,8 +148,8 @@ export function LivenessPill({ liveness, measuredAt, now }: { liveness: Liveness
   if (liveness === 'none') return null;
 
   return (
-    <span className={`mono ${styles.pill}`} data-liveness={liveness}>
-      <span className={styles.dot} aria-hidden />
+    <span className={ui.live} data-liveness={liveness}>
+      <span className={ui.liveDot} aria-hidden />
       {t(`home.reading.${liveness}`)}
       {measuredAt ? ` · ${ageLabel(measuredAt, now)}` : ''}
     </span>

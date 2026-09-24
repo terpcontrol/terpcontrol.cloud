@@ -66,7 +66,7 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
           </span>
         </span>
         {week.stage ? (
-          <span className={`mono ${styles.stagePill}`}>
+          <span className={ui.tag}>
             {week.preset === 'late_flowering' ? t('grow.lateFlower') : t(`home.stage.${week.stage}`)}
             {week.stageWeek !== null ? ` ${t('home.card.week', { week: week.stageWeek })}` : ''}
           </span>
@@ -98,7 +98,7 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
                   day it began is the grow's day, not the calendar's: a stage
                   entered at four in the morning belongs to the day that was
                   running at four in the morning. */}
-              {day.stage ? <span className={`mono ${styles.dayStage}`}>{t(`grow.stageShort.${day.stage}`)}</span> : null}
+              {day.stage ? <span className={`${ui.tag} ${ui.tagSmall}`}>{t(`grow.stageShort.${day.stage}`)}</span> : null}
             </li>
           );
         })}

@@ -159,8 +159,8 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
         </Link>
         <h1 className={styles.name}>{camera.name}</h1>
-        <span className={`mono ${styles.pill}`} data-liveness={liveness}>
-          <span className={styles.dot} aria-hidden />
+        <span className={ui.live} data-liveness={liveness}>
+          <span className={ui.liveDot} aria-hidden />
           {camera.state.lastStillAt ? ageLabel(camera.state.lastStillAt, now) : t('camera.never')}
         </span>
       </header>

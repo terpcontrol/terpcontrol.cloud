@@ -66,7 +66,7 @@ export function DiaryWeek({ week, picture, now, current, ended, asOf }: DiaryWee
           </span>
         </span>
         {week.stage ? (
-          <span className={`mono ${styles.stagePill}`}>
+          <span className={ui.tag}>
             {week.preset === 'late_flowering' ? t('grow.lateFlower') : t(`home.stage.${week.stage}`)}
             {week.stageWeek !== null ? ` ${t('home.card.week', { week: week.stageWeek })}` : ''}
           </span>
@@ -89,7 +89,7 @@ export function DiaryWeek({ week, picture, now, current, ended, asOf }: DiaryWee
               <span className={`mono ${styles.dayName}`}>{t('grow.dayShort', { day: day.dayNumber })}</span>
               {/* Where the grow changed stage inside the week, which the pill
                   above cannot say: it names the stage the week ended in. */}
-              {day.stage ? <span className={`mono ${styles.dayStage}`}>{t(`grow.stageShort.${day.stage}`)}</span> : null}
+              {day.stage ? <span className={`${ui.tag} ${ui.tagSmall}`}>{t(`grow.stageShort.${day.stage}`)}</span> : null}
             </li>
           );
         })}
