@@ -1,7 +1,6 @@
 .shell {
   display: flex;
   min-height: 100%;
-  background: var(--bg);
 }
 
 .column {
@@ -22,6 +21,11 @@
 
 @media (min-width: 900px) {
   .main {
-    padding: var(--space-5);
+    padding: var(--space-6) var(--space-6) var(--space-6);
+  }
+
+  /* A screen's column sits in the middle of what the rail leaves, not against it. */
+  .main > * {
+    margin-inline: auto;
   }
 }

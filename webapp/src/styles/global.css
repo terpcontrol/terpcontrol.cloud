@@ -16,11 +16,14 @@ body,
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--glow) no-repeat, var(--bg);
   color: var(--ink);
   font-family: var(--font-text);
   font-size: var(--text-md);
+  font-weight: var(--weight-regular);
   line-height: var(--line-body);
+  /* Every figure in the app lines up in a column, in prose as in a table. */
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   /* iOS otherwise resizes text in landscape, which breaks a dense row. */
   text-size-adjust: 100%;
@@ -31,6 +34,17 @@ h2,
 h3,
 p {
   margin: 0;
+}
+
+/* The names a person gave things - a page, a place, a grow - are set in the
+   softened serif; everything that is read rather than named stays in the sans. */
+h1,
+h2,
+.display {
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-variation-settings: 'SOFT' 100;
+  letter-spacing: var(--tracking-display);
 }
 
 /* A field does not inherit the page's type on its own, and a browser's own
@@ -44,21 +58,23 @@ select {
   font-size: inherit;
 }
 
-/* Every figure is mono and tabular, so a column of numbers lines up. */
+/* Figures, timestamps and captions: tabular, so a column of numbers lines up.
+   A big figure is the sans at a heavier weight rather than a second face. */
 .figure,
 .mono {
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum' 1;
 }
 
-/* Small mono caps with wide tracking. */
+.figure {
+  font-weight: var(--weight-figure);
+}
+
+/* A small label: sentence case, a little heavier than the text around it. */
 .label {
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
   color: var(--label);
 }
 

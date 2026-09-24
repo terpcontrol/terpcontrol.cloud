@@ -96,14 +96,14 @@ const optionOf = (
       data: panel.points.map(point => [at(point.measuredAt), point.value]),
       showSymbol: false,
       connectNulls: false,
-      lineStyle: { width: 1.2, color: palette[METRIC_TOKEN[panel.metric] ?? 'ink'] },
+      lineStyle: { width: 1.6, color: palette[METRIC_TOKEN[panel.metric] ?? 'ink'] },
       // Drawn in this order, so the night sits behind the band and the alarm over both.
       markArea: {
         silent: true,
         data: [
-          ...nights.map(night => [{ xAxis: at(night.startsAt), itemStyle: { color: palette['card-2'] } }, { xAxis: at(night.endsAt) }]),
+          ...nights.map(night => [{ xAxis: at(night.startsAt), itemStyle: { color: palette.night } }, { xAxis: at(night.endsAt) }]),
           ...stretches.map(stretch => [
-            { xAxis: stretch.from, yAxis: stretch.target.band.low, itemStyle: { color: wash(palette.green, '2b') } },
+            { xAxis: stretch.from, yAxis: stretch.target.band.low, itemStyle: { color: palette.band } },
             { xAxis: stretch.to, yAxis: stretch.target.band.high },
           ]),
           ...alarms.map(alarm => [

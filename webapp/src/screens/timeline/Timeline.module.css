@@ -263,38 +263,40 @@
 }
 
 .bareSlider .slider {
-  --scrub-ink: var(--muted);
+  --scrub-ink: var(--green);
   --scrub-track: var(--rule);
 }
 
 .slider::-webkit-slider-runnable-track {
-  height: 3px;
+  height: 4px;
   background: linear-gradient(to right, var(--scrub-ink) var(--filled), var(--scrub-track) var(--filled));
   border-radius: var(--radius-pill);
 }
 
 .slider::-moz-range-track {
-  height: 3px;
+  height: 4px;
   background: linear-gradient(to right, var(--scrub-ink) var(--filled), var(--scrub-track) var(--filled));
   border-radius: var(--radius-pill);
 }
 
 .slider::-webkit-slider-thumb {
-  width: 16px;
-  height: 16px;
-  margin-top: -6.5px;
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
   background: var(--scrub-ink);
-  border: 0;
+  border: 3px solid var(--card);
   border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-raised);
   appearance: none;
 }
 
 .slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   background: var(--scrub-ink);
-  border: 0;
+  border: 3px solid var(--card);
   border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-raised);
 }
 
 .bareSlider {

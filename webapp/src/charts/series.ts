@@ -72,9 +72,6 @@ export interface Plot {
   lines: readonly PlotLine[];
 }
 
-/** A token at a fraction of itself; the areas behind a line are all washes of one, as on the Timeline. */
-const wash = (colour: string, alpha: string): string => `${colour}${alpha}`;
-
 /**
  * The room a scale's two corner figures need beside the plot, at the width the
  * Timeline gives its own. It is kept on both sides of every plot even where
@@ -117,16 +114,16 @@ export const plotOption = (palette: ChartPalette, plot: Plot): ChartOption => {
       connectNulls: false,
       silent: true,
       lineStyle: {
-        width: line.dashed ? 1 : 1.2,
+        width: line.dashed ? 1 : 1.6,
         type: line.dashed ? ('dashed' as const) : ('solid' as const),
         color: palette[line.dashed ? 'muted' : line.colour],
       },
       markArea: {
         silent: true,
         data: [
-          ...(index === 0 ? plot.nights.map(night => [{ xAxis: night.from, itemStyle: { color: palette['card-2'] } }, { xAxis: night.to }]) : []),
+          ...(index === 0 ? plot.nights.map(night => [{ xAxis: night.from, itemStyle: { color: palette.night } }, { xAxis: night.to }]) : []),
           ...(index === filled ? (line.bands ?? []) : []).map(band => [
-            { xAxis: band.from, yAxis: band.low, itemStyle: { color: wash(palette.green, '2b') } },
+            { xAxis: band.from, yAxis: band.low, itemStyle: { color: palette.band } },
             { xAxis: band.to, yAxis: band.high },
           ]),
         ],

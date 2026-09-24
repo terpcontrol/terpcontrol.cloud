@@ -55,7 +55,7 @@
   border: 0;
   padding: 0;
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: var(--text-sm);
 }
 
@@ -73,7 +73,7 @@
 .waterKind {
   flex: none;
   color: var(--muted);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: var(--text-sm);
 }
 
@@ -91,7 +91,7 @@
   border-collapse: collapse;
   width: max-content;
   min-width: 100%;
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: var(--text-xs);
 }
 
@@ -260,7 +260,7 @@
   border: var(--rule-solid);
   border-radius: var(--radius);
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: var(--text-sm);
 }
 

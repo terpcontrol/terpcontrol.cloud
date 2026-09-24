@@ -103,15 +103,12 @@ const scaleOf = (points: GrowSeriesPoint[], definition: MeasurementDefinition): 
 
 const at = (instant: string): number => new Date(instant).getTime();
 
-/** A token at a fraction of itself, the way the timeline washes its band. */
-const wash = (colour: string, alpha: string): string => `${colour}${alpha}`;
-
 /** The green wash behind the line, where the measurement is aimed at anything at all. */
 const bandArea = (definition: MeasurementDefinition, scale: { low: number; high: number }, palette: ChartPalette) => {
   const [low, high] = bandEnds(definition);
   if (low === null && high === null) return [];
 
-  return [[{ yAxis: low ?? scale.low, itemStyle: { color: wash(palette.green, '2b') } }, { yAxis: high ?? scale.high }]];
+  return [[{ yAxis: low ?? scale.low, itemStyle: { color: palette.band } }, { yAxis: high ?? scale.high }]];
 };
 
 const optionOf = (
@@ -147,7 +144,7 @@ const optionOf = (
       markArea: {
         silent: true,
         data: [
-          ...nights.map(night => [{ xAxis: at(night.startsAt), itemStyle: { color: palette['card-2'] } }, { xAxis: at(night.endsAt) }]),
+          ...nights.map(night => [{ xAxis: at(night.startsAt), itemStyle: { color: palette.night } }, { xAxis: at(night.endsAt) }]),
           ...bandArea(definition, scale, palette),
         ],
       },

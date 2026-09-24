@@ -17,6 +17,7 @@
   border: var(--rule-solid);
   border-radius: var(--radius-pill);
   background: var(--card);
+  box-shadow: var(--shadow);
   font-size: var(--text-sm);
   color: var(--ink);
 }
@@ -36,7 +37,8 @@
 }
 
 .alert[data-severity='critical'] {
-  border-color: var(--alarm);
+  border-color: color-mix(in srgb, var(--alarm) 55%, var(--rule));
+  background: color-mix(in srgb, var(--alarm) 7%, var(--card));
 }
 
 .alert[data-severity='critical'] strong {
@@ -44,7 +46,8 @@
 }
 
 .alert[data-severity='warning'] {
-  border-color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 55%, var(--rule));
+  background: color-mix(in srgb, var(--warning) 7%, var(--card));
 }
 
 .circle {
@@ -104,7 +107,7 @@
   place-items: center;
   height: 100px;
   overflow: hidden;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   border: var(--rule-solid);
   background: var(--card-2);
   color: var(--green);

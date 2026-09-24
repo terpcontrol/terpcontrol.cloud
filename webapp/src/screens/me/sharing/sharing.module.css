@@ -88,7 +88,7 @@
   justify-content: center;
   width: 100%;
   color: var(--muted);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: var(--text-sm);
 }
 

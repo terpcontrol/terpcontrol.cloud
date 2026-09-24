@@ -94,7 +94,7 @@
   border: var(--rule-solid);
   border-radius: 50%;
   color: var(--muted);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: var(--text-xs);
 }
 
@@ -174,7 +174,7 @@
   border: var(--rule-width) solid var(--green-ink);
   border-radius: var(--radius-pill);
   color: var(--green-ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: 10px;
   letter-spacing: var(--tracking-caption);
 }
@@ -222,7 +222,7 @@
   border: var(--rule-width) solid var(--warning);
   border-radius: var(--radius-pill);
   color: var(--warning);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: 10px;
   letter-spacing: var(--tracking-caption);
   text-transform: uppercase;

@@ -13,6 +13,8 @@ const TOKENS = [
   'card-2',
   'bg',
   'green',
+  'band',
+  'night',
   'brand',
   'wordmark',
   'temperature',
@@ -21,7 +23,7 @@ const TOKENS = [
   'warning',
   'alarm',
   'font-text',
-  'font-mono',
+  'font-figure',
 ] as const;
 
 export type ChartToken = (typeof TOKENS)[number];

@@ -1,7 +1,12 @@
 /*
- * "Instrument", the decided look, as the only place a colour, a size or a
+ * "Greenhouse", the decided look, as the only place a colour, a size or a
  * radius is written down. Components name a token and never a literal, so the
  * two modes are this file and nothing else.
+ *
+ * Warm paper and soil for the frame, a living green for what is growing and
+ * the one primary action, and signal colours that stay exact because a chart
+ * is read against them. Every text colour here clears WCAG AA (4.5:1) on the
+ * page, the card and the inset surface of its own mode.
  *
  * Light is the default set; dark replaces the colours under the same names. It
  * is declared twice on purpose: once for a system that asks for dark and has
@@ -13,163 +18,202 @@
 :root {
   color-scheme: light;
 
-  /* Light mode - Instrument on the Brand clean palette. */
-  --bg: #f3f5f9;
-  --card: #ffffff;
-  --card-2: #eef2f8;
-  --rule: #e2e7f0;
-  --ink: #1a1d29;
-  --muted: #6b7385;
-  --label: #7a839a;
+  /* Light mode - oat paper, cream cards, ink with a little green in it. */
+  --bg: #f4efe6;
+  --card: #fffcf7;
+  --card-2: #f1ebdf;
+  --rule: #e5ddcd;
+  --ink: #22271f;
+  --muted: #60594c;
+  --label: #6c6454;
 
-  /* The active range chip and the active tab. In light mode the wordmark too:
-     it is the website's blue, so the app and the site read as one brand. */
-  --brand: #2d4b95;
+  /* The active range chip and the active tab: a deep forest. */
+  --brand: #2c5a37;
   --wordmark: var(--brand);
+  /* A tint of the brand, behind whatever is selected. */
+  --brand-wash: #e3ebdc;
 
   /* Live, and the one primary action. `--green-ink` is the shade green text
-     needs to stay readable on a white card. */
-  --green: #50a030;
-  --green-ink: #35701f;
+     needs to stay readable on a cream card. */
+  --green: #3b7a34;
+  --green-ink: #2f6a29;
   --on-green: #ffffff;
 
-  /* Signals. The only colours besides green and the light mode's blue. */
-  --temperature: #e0782a;
-  --humidity: #2f6fe0;
-  --co2: #8a5cd6;
-  --warning: #c89b3c;
-  --alarm: #d0344f;
+  /* Signals. Earthy but exact: terracotta, sky, plum, ochre, brick. */
+  --temperature: #a84b1a;
+  --humidity: #22709a;
+  --co2: #7c4ca8;
+  --warning: #855c08;
+  --alarm: #b3322b;
 
-  /* Type. Plex for words, Mono for every figure, label, timestamp, axis and
-     chip caption. */
-  --font-text: 'IBM Plex Sans Variable', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+  /* The target band behind a chart line, and the night behind it. A canvas
+     reads these, so they are written in the syntax every chart parser knows. */
+  --band: rgba(59, 122, 52, 0.14);
+  --night: #ede6d8;
 
-  --text-xs: 11px;
-  --text-sm: 13px;
+  /* Light coming in from the top of the page: a warm wash, nothing more. */
+  --glow: radial-gradient(1200px 520px at 70% -180px, rgb(247 205 130 / 28%), transparent 70%);
+
+  /* Type. Nunito Sans for words and figures - its digits are tabular by
+     design, so a column of numbers lines up without a second face. Fraunces,
+     softened, for the names a person gave things: pages, places, grows. */
+  --font-text: 'Nunito Sans Variable', system-ui, sans-serif;
+  --font-display: 'Fraunces Variable', Georgia, serif;
+  /* Figures, timestamps and captions: the same face, whose tabular digits do
+     the aligning a monospaced face used to. */
+  --font-figure: var(--font-text);
+
+  --text-xs: 12px;
+  --text-sm: 13.5px;
   --text-md: 15px;
   --text-lg: 17px;
-  --text-xl: 22px;
+  --text-xl: 24px;
   /* The big figure on a card: "25.1", "34". */
-  --text-figure: 26px;
+  --text-figure: 28px;
 
-  --weight-regular: 400;
-  --weight-medium: 500;
-  --weight-semibold: 600;
-  --weight-bold: 700;
+  --weight-regular: 420;
+  --weight-medium: 560;
+  --weight-semibold: 680;
+  --weight-bold: 780;
+  --weight-figure: 650;
+  --weight-display: 560;
 
   --line-tight: 1.2;
-  --line-body: 1.45;
+  --line-body: 1.5;
 
-  /* Small mono caps carry wide tracking; a tab caption a little less. */
-  --tracking-label: 0.08em;
-  --tracking-caption: 0.04em;
+  /* Small labels are sentence case now; a touch of tracking keeps them open. */
+  --tracking-label: 0.01em;
+  --tracking-caption: 0.01em;
+  --tracking-display: -0.01em;
 
-  /* Shape. 8 px corners, 1 px rules, and no shadow anywhere - depth is a rule,
-     never a blur. */
-  --radius: 8px;
+  /* Shape. Soft corners, hairline rules and a low, warm shadow under a card:
+     paper lying on paper, not a panel floating over glass. */
+  --radius: 16px;
+  --radius-sm: 10px;
   --radius-pill: 999px;
   --rule-width: 1px;
   --rule-solid: var(--rule-width) solid var(--rule);
   --rule-dashed: var(--rule-width) dashed var(--rule);
+  --shadow: 0 1px 2px rgb(80 62 30 / 6%), 0 8px 24px -12px rgb(80 62 30 / 16%);
+  --shadow-raised: 0 2px 4px rgb(80 62 30 / 8%), 0 16px 32px -12px rgb(80 62 30 / 24%);
 
-  /* Dense rows, mobile first. */
+  /* A 4 px rhythm, roomier at the top end. */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 24px;
-  --space-6: 32px;
+  --space-6: 36px;
 
   /* A finger's worth for a field or a button; a chip is smaller. */
   --control-height: 44px;
-  --chip-height: 28px;
+  --chip-height: 30px;
 
-  --tabbar-height: 60px;
+  --tabbar-height: 62px;
   --topbar-height: 60px;
   /* The raised Log button on the tab bar. */
   --log-button: 56px;
   /* The desktop rail replaces the tab bar from here up. */
-  --rail-width: 240px;
+  --rail-width: 248px;
   /* A phone's column, kept on a wide screen so a card never stretches. */
   --column-width: 560px;
 
   /* The screen behind a sheet, and the bar that says what was just logged: one
      dark surface in light mode, a raised one in dark mode, because a toast has
      to read as sitting over the page rather than in it. */
-  --scrim: rgb(26 29 41 / 35%);
-  --toast: #1a1d29;
-  --toast-ink: #f3f5f9;
+  --scrim: rgb(34 30 22 / 38%);
+  --toast: #26241e;
+  --toast-ink: #f6f1e7;
+
+  /* A caption laid over a photograph: smoked glass, the same in both modes
+     because the picture under it does not change with the theme. */
+  --overlay: rgb(24 21 16 / 70%);
+  --on-overlay: #fbf7ee;
 
   /* A value whose age says it is old is dimmed, never hidden. */
   --age-live: 1;
   --age-stale: 0.75;
-  --age-offline: 0.45;
+  --age-offline: 0.5;
 
   /* A QR code is printed, not themed: a phone's camera wants dark modules on
      a light ground, and an inverted code is read by some scanners and not by
      others. So these two are the light mode's ink and card, and the dark mode
      below deliberately leaves them alone. */
-  --qr-ink: #1a1d29;
+  --qr-ink: #22271f;
   --qr-paper: #ffffff;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #0d1118;
-  --card: #141a25;
-  --card-2: #1a2130;
-  --rule: #262f3e;
-  --ink: #e9edf4;
-  --muted: #8b95a8;
-  --label: #7c8699;
+  /* Dark mode - a potting shed at night: warm charcoal, lamplit ink. */
+  --bg: #13120f;
+  --card: #1d1b17;
+  --card-2: #27241f;
+  --rule: #34302a;
+  --ink: #f1ebe0;
+  --muted: #b5ad9e;
+  --label: #a39a89;
 
-  /* Dark mode carries no brand blue: green is what is emphasised, and the
-     wordmark is plain ink. */
-  --brand: #7ed957;
+  --brand: #a9d98d;
   --wordmark: var(--ink);
-  --green: #7ed957;
-  --green-ink: #7ed957;
-  --on-green: #0d1118;
+  --brand-wash: #283523;
+  --green: #8fcd6f;
+  --green-ink: #9fd782;
+  --on-green: #13200d;
 
-  --scrim: rgb(5 7 11 / 65%);
-  --toast: #1a2130;
-  --toast-ink: #e9edf4;
+  --band: rgba(143, 205, 111, 0.13);
+  --night: #23211c;
+  --glow: radial-gradient(1200px 520px at 70% -180px, rgb(230 170 80 / 9%), transparent 70%);
 
-  --temperature: #f39a3c;
-  --humidity: #5b93f5;
-  --co2: #b48cf2;
-  --warning: #e2b04a;
-  --alarm: #ef5470;
+  --shadow: 0 1px 0 rgb(255 240 210 / 3%) inset, 0 10px 28px -14px rgb(0 0 0 / 70%);
+  --shadow-raised: 0 1px 0 rgb(255 240 210 / 4%) inset, 0 18px 36px -12px rgb(0 0 0 / 80%);
+
+  --scrim: rgb(6 5 3 / 66%);
+  --toast: #2c2923;
+  --toast-ink: #f1ebe0;
+
+  --temperature: #f0935c;
+  --humidity: #6bb6dc;
+  --co2: #bf9be6;
+  --warning: #e3b457;
+  --alarm: #f27e6f;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --bg: #0d1118;
-    --card: #141a25;
-    --card-2: #1a2130;
-    --rule: #262f3e;
-    --ink: #e9edf4;
-    --muted: #8b95a8;
-    --label: #7c8699;
+    --bg: #13120f;
+    --card: #1d1b17;
+    --card-2: #27241f;
+    --rule: #34302a;
+    --ink: #f1ebe0;
+    --muted: #b5ad9e;
+    --label: #a39a89;
 
-    --brand: #7ed957;
+    --brand: #a9d98d;
     --wordmark: var(--ink);
-    --green: #7ed957;
-    --green-ink: #7ed957;
-    --on-green: #0d1118;
+    --brand-wash: #283523;
+    --green: #8fcd6f;
+    --green-ink: #9fd782;
+    --on-green: #13200d;
 
-    --scrim: rgb(5 7 11 / 65%);
-    --toast: #1a2130;
-    --toast-ink: #e9edf4;
+    --band: rgba(143, 205, 111, 0.13);
+    --night: #23211c;
+    --glow: radial-gradient(1200px 520px at 70% -180px, rgb(230 170 80 / 9%), transparent 70%);
 
-    --temperature: #f39a3c;
-    --humidity: #5b93f5;
-    --co2: #b48cf2;
-    --warning: #e2b04a;
-    --alarm: #ef5470;
+    --shadow: 0 1px 0 rgb(255 240 210 / 3%) inset, 0 10px 28px -14px rgb(0 0 0 / 70%);
+    --shadow-raised: 0 1px 0 rgb(255 240 210 / 4%) inset, 0 18px 36px -12px rgb(0 0 0 / 80%);
+
+    --scrim: rgb(6 5 3 / 66%);
+    --toast: #2c2923;
+    --toast-ink: #f1ebe0;
+
+    --temperature: #f0935c;
+    --humidity: #6bb6dc;
+    --co2: #bf9be6;
+    --warning: #e3b457;
+    --alarm: #f27e6f;
   }
 }

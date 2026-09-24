@@ -28,8 +28,7 @@
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
+  font-size: 26px;
   line-height: var(--line-tight);
 }
 
@@ -37,5 +36,9 @@
   .page {
     max-width: 720px;
     padding-top: 0;
+  }
+
+  .name {
+    font-size: 30px;
   }
 }

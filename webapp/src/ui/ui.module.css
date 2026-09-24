@@ -7,6 +7,7 @@
   background: var(--card);
   border: var(--rule-solid);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 /* The lesser option beside bordered ones: outlined, not filled. */
@@ -26,10 +27,23 @@
   padding: 0 var(--space-4);
   background: var(--card);
   border: var(--rule-solid);
-  border-radius: var(--radius);
+  border-radius: var(--radius-pill);
   color: var(--ink);
   font-weight: var(--weight-semibold);
   white-space: nowrap;
+  transition:
+    background-color 120ms ease-out,
+    border-color 120ms ease-out;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--card-2);
+}
+
+/* An icon keeps its size when a narrow row squeezes the words beside it. */
+.button svg,
+.chip svg {
+  flex-shrink: 0;
 }
 
 /* Out of reach, at the one strength the app uses for it: the outlined chips
@@ -39,10 +53,12 @@
 }
 
 /* The one primary action on a screen. */
-.primary {
+.primary,
+.primary:hover:not(:disabled) {
   background: var(--green);
   border-color: var(--green);
   color: var(--on-green);
+  box-shadow: var(--shadow);
 }
 
 /* A primary that cannot be pressed gives the green up rather than fading it.
@@ -55,6 +71,7 @@
   background: var(--card-2);
   border-color: var(--rule);
   color: var(--muted);
+  box-shadow: none;
   opacity: 1;
 }
 
@@ -68,9 +85,9 @@
   border: var(--rule-solid);
   border-radius: var(--radius-pill);
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   white-space: nowrap;
 }
 
@@ -91,7 +108,7 @@
   padding: 0 var(--space-3);
   background: var(--card-2);
   border: var(--rule-solid);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   color: var(--ink);
 }
 

@@ -183,7 +183,7 @@
   border: var(--rule-solid);
   border-radius: 50%;
   background: var(--card-2);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
 }

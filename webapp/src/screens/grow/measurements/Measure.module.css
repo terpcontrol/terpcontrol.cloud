@@ -61,7 +61,7 @@
 
 .digit {
   height: 46px;
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: var(--text-lg);
 }
 

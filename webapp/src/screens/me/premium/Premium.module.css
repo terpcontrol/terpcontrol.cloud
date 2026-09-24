@@ -60,7 +60,7 @@
   border: var(--rule-width) solid var(--warning);
   border-radius: var(--radius-pill);
   color: var(--warning);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: 10px;
   font-weight: var(--weight-medium);
   line-height: 16px;

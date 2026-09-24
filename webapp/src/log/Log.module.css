@@ -255,7 +255,7 @@
   background: var(--card);
   border: 0;
   color: var(--muted);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: var(--text-xs);
 }
 

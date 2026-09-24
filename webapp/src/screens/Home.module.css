@@ -12,8 +12,7 @@
 }
 
 .title {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
+  font-size: 30px;
   line-height: var(--line-tight);
 }
 
@@ -91,6 +90,21 @@
     align-items: baseline;
     justify-content: space-between;
     gap: var(--space-3);
-    margin-bottom: var(--space-1);
+    margin-bottom: var(--space-2);
+  }
+}
+
+/* Wide enough for two: the cards pair up, still read left to right, top to
+   bottom in the order of attention. */
+@media (min-width: 1280px) {
+  .page {
+    max-width: 1040px;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--space-4);
   }
 }

@@ -144,7 +144,7 @@
   border: var(--rule-width) solid var(--warning);
   border-radius: var(--radius-pill);
   color: var(--warning);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: 10px;
   letter-spacing: var(--tracking-caption);
   text-transform: uppercase;
@@ -264,7 +264,7 @@
   background: none;
   border: 0;
   color: var(--muted);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: 10px;
   letter-spacing: var(--tracking-caption);
   text-transform: uppercase;
@@ -343,7 +343,7 @@
   background: none;
   border: 0;
   color: var(--muted);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: 10px;
   letter-spacing: var(--tracking-caption);
   text-transform: uppercase;

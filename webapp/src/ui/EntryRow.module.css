@@ -1,8 +1,8 @@
 .row {
   display: flex;
   align-items: baseline;
-  gap: var(--space-2);
-  padding: var(--space-2) 0;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
   border-top: var(--rule-solid);
   font-size: var(--text-sm);
 }
@@ -28,23 +28,23 @@
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   align-self: flex-start;
-  margin-top: 1px;
-  border: var(--rule-solid);
-  border-radius: 3px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: var(--card-2);
   color: var(--muted);
 }
 
 .row[data-severity='warning'] .kind {
+  background: color-mix(in srgb, var(--warning) 16%, var(--card));
   color: var(--warning);
-  border-color: var(--warning);
 }
 
 .row[data-severity='critical'] .kind {
+  background: color-mix(in srgb, var(--alarm) 14%, var(--card));
   color: var(--alarm);
-  border-color: var(--alarm);
 }
 
 .text {
@@ -82,6 +82,7 @@
 
 /* What a grower typed keeps the lines they typed it in; runs of spaces are still collapsed, as anywhere else. */
 .headline {
+  font-weight: var(--weight-medium);
   white-space: pre-line;
 }
 
@@ -98,7 +99,9 @@
  */
 .detail {
   display: block;
+  margin-top: 2px;
   font-size: var(--text-xs);
+  line-height: 1.5;
   color: var(--muted);
   white-space: pre-line;
   overflow-wrap: anywhere;
@@ -126,7 +129,7 @@
   height: 56px;
   overflow: hidden;
   border: var(--rule-solid);
-  border-radius: 3px;
+  border-radius: 8px;
 }
 
 .photo img {

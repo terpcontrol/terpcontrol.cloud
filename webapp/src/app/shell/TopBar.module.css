@@ -7,7 +7,9 @@
   gap: var(--space-2);
   min-height: calc(var(--topbar-height) + env(safe-area-inset-top));
   padding: env(safe-area-inset-top) max(var(--space-3), env(safe-area-inset-right)) 0 max(var(--space-4), env(safe-area-inset-left));
-  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: saturate(1.4) blur(14px);
+  -webkit-backdrop-filter: saturate(1.4) blur(14px);
 }
 
 .identity {
@@ -16,8 +18,11 @@
 }
 
 .wordmark {
+  font-family: var(--font-display);
   font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-display);
+  font-variation-settings: 'SOFT' 100;
+  letter-spacing: var(--tracking-display);
   line-height: var(--line-tight);
   color: var(--wordmark);
 }
@@ -60,12 +65,11 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  border: var(--rule-solid);
   border-radius: 50%;
-  background: var(--card-2);
+  background: var(--brand-wash);
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
-  color: var(--ink);
+  color: var(--brand);
 }
 
 @media (min-width: 900px) {

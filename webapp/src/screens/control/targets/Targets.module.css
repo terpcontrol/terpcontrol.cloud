@@ -79,7 +79,7 @@
   border: 0;
   border-bottom: var(--rule-width) solid transparent;
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-figure);
   font-size: var(--text-md);
   font-variant-numeric: tabular-nums;
   text-align: right;

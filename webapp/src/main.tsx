@@ -1,5 +1,5 @@
-import '@fontsource-variable/ibm-plex-sans/wght.css';
-import '@fontsource-variable/jetbrains-mono/wght.css';
+import '@fontsource-variable/nunito-sans/opsz.css';
+import '@fontsource-variable/fraunces/soft.css';
 import './theme/tokens.css';
 import './styles/global.css';
 
