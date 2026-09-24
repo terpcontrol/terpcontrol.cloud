@@ -44,7 +44,9 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // Nothing to merge, or nothing to merge into, is no write: the firmware reads
     // every key a document leaves out as its compile-time default, so sending
     // either would reset tuning the cloud has no copy of.
-    return this.store(deviceId, current => (!current || Object.keys(current).length === 0 || Object.keys(settings).length === 0 ? null : { ...current, ...settings }));
+    return this.store(deviceId, current =>
+      !current || Object.keys(current).length === 0 || Object.keys(settings).length === 0 ? null : { ...current, ...settings },
+    );
   }
 
   private async store(deviceId: string, next: (current: DeviceConfiguration | null) => DeviceConfiguration | null): Promise<boolean> {
