@@ -235,6 +235,12 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
   /**
    * What a device asks for when it connects: whether it is up to date, and its
    * configuration. The reply is the only one in the protocol.
+   *
+   * A maintenance window the cloud still holds open is said again, for what is
+   * left of it. A command is published once and never stored by the broker, so
+   * one sent while the device was reconnecting was lost - and the screens went
+   * on saying the hardware was parked for a quarter of an hour it never heard
+   * about. A device that did hear keeps the same end either way.
    */
   private async fetch(device: StoredDevice, payload: string): Promise<void> {
     const reported = asRecord(parsed(payload));
@@ -242,6 +248,9 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
 
     if (firmwareId) await this.firmwareReported(device, firmwareId);
     if (device.configuration !== null) this.publisher.configuration(device.id, device.configuration);
+
+    const left = (device.state.maintenanceUntil?.getTime() ?? 0) - Date.now();
+    if (left >= 60_000) this.publisher.repeatMaintenance(device.id, left / 1000);
   }
 
   /**

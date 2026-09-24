@@ -82,6 +82,16 @@ export class DevicePublisherService {
   }
 
   /**
+   * What is left of a window the cloud already keeps, told to a device that may
+   * not have heard it. Whole minutes, rounded down, so the device never holds
+   * its outputs past the end the screens name; nothing is stored, because the
+   * window is already.
+   */
+  public repeatMaintenance(deviceId: string, forSeconds: number): void {
+    this.mqtt.publish(deviceTopic(deviceId, 'command'), JSON.stringify({ action: 'maintenance', durationMinutes: Math.floor(forSeconds / 60) }));
+  }
+
+  /**
    * Ending a window only moves one that is open. A device that was not in
    * maintenance has nothing to come out of, and stamping the end would start
    * the settling hold on its alarms - ten minutes of quiet after a visit that

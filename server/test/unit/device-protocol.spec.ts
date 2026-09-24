@@ -207,6 +207,30 @@ describe('what a device reports', () => {
     expect(published).toEqual([{ topic: `/devices/${DEVICE}/configuration`, message: '{"day":{"temperature":27}}' }]);
   });
 
+  /**
+   * A command is published once and the broker keeps none, so maintenance sent
+   * while a device was reconnecting was lost, while every screen went on saying
+   * its heater was parked. The fetch that follows a reconnect says it again,
+   * for what is left of the window.
+   */
+  it('tells a reconnecting device what is left of a maintenance window it may have missed', async () => {
+    await device({ state: { maintenanceUntil: new Date(Date.now() + 7.5 * 60_000) } as never });
+
+    await messageOn('fetch', { firmware_id: 'build-1' });
+
+    expect(published).toEqual([{ topic: `/devices/${DEVICE}/command`, message: '{"action":"maintenance","durationMinutes":7}' }]);
+  });
+
+  it('says nothing of a window that has run out, or has less than a minute left', async () => {
+    await device({ state: { maintenanceUntil: new Date(Date.now() + 30_000) } as never });
+    await messageOn('fetch', { firmware_id: 'build-1' });
+
+    await db.devices.updateOne({ id: DEVICE }, { $set: { 'state.maintenanceUntil': new Date(Date.now() - 60_000) } });
+    await messageOn('fetch', { firmware_id: 'build-1' });
+
+    expect(published).toEqual([]);
+  });
+
   it('records the build a device came back running, after saying so', async () => {
     await device({ state: { firmwareId: 'build-1' } as never });
 
