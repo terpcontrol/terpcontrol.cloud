@@ -39,6 +39,10 @@
   gap: var(--space-2);
 }
 
+.group + .group {
+  margin-top: var(--space-3);
+}
+
 .groupHead {
   display: flex;
   align-items: baseline;
@@ -59,30 +63,78 @@
   list-style: none;
 }
 
-/* The severity is the card's left edge, the only place it is drawn in colour. */
+/* The severity is the card's left edge, the only place it is drawn in colour:
+   an inside stripe, so the card keeps its rounded corner. */
 .card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .card[data-severity='critical'] {
-  border-left: 3px solid var(--alarm);
+  box-shadow:
+    inset 4px 0 0 var(--alarm),
+    var(--shadow);
 }
 
 .card[data-severity='warning'] {
-  border-left: 3px solid var(--warning);
+  box-shadow:
+    inset 4px 0 0 var(--warning),
+    var(--shadow);
 }
 
 .card[data-severity='info'] {
-  border-left: 3px solid var(--muted);
+  box-shadow:
+    inset 4px 0 0 var(--label),
+    var(--shadow);
 }
 
-/* Where and what on the left, when and for how long beside it. */
+/* What is over is a record rather than a call to act, so the resolved cards
+   of a day are one card split by hairlines, each a row: what happened and when
+   on the left, the way to the timeline at the right. The stripe stays, so a
+   night's warnings still read as warnings. */
+.card[data-age] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+}
+
+.card[data-age]:has(+ .card[data-age]) {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.card[data-age] + .card[data-age] {
+  margin-top: calc(var(--space-2) * -1);
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.card[data-age] .lines {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+
+.card[data-age] .what {
+  min-height: 0;
+}
+
+/* The one way on from a finished event is a quiet tint rather than an
+   outline, so eleven of them down a list do not outweigh what happened. */
+.card[data-age] .chips > * {
+  background: var(--tint);
+  border-color: transparent;
+}
+
+/* Where and what, and under it when and for how long; on a wide screen the
+   second line stands beside the first. */
 .lines {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 42%);
-  gap: var(--space-1) var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
   align-items: start;
 }
 
@@ -92,12 +144,12 @@
 .what {
   min-height: calc(2 * var(--text-md) * var(--line-tight));
   font-size: var(--text-md);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   line-height: var(--line-tight);
 }
 
 .meta {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   line-height: var(--line-body);
   color: var(--muted);
 }
@@ -127,6 +179,14 @@
 .answer {
   font-size: var(--text-xs);
   color: var(--muted);
+}
+
+/* On a phone the card's "when" goes under its "what" rather than beside it,
+   where a 42 % column wrapped a short sentence onto four lines. */
+@media (min-width: 600px) {
+  .lines {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 40%);
+  }
 }
 
 @media (min-width: 900px) {
