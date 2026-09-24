@@ -22,7 +22,7 @@
  * `npm install` behind it, and reads the compiled form of this file directly.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.socketChunkCount = exports.socketListChunk = exports.socketListKey = exports.SOCKETS_PER_REPORT_CHUNK = exports.TIMED_SOCKET_ROLES = exports.SOCKET_HOLD_MAX_SECONDS = exports.SOCKET_CREDENTIAL_MAX_LEN = exports.SOCKET_ADDRESS_MAX_LEN = exports.MAX_SOCKETS = void 0;
+exports.socketChunkCount = exports.socketListChunk = exports.socketListKey = exports.SOCKETS_PER_REPORT_CHUNK = exports.SOCKET_HOST_TYPES = exports.TIMED_SOCKET_ROLES = exports.SOCKET_HOLD_MAX_SECONDS = exports.SOCKET_CREDENTIAL_MAX_LEN = exports.SOCKET_ADDRESS_MAX_LEN = exports.MAX_SOCKETS = void 0;
 /** A device drives at most this many sockets, spread over the roles as it likes (`wifi.h`). */
 exports.MAX_SOCKETS = 32;
 /**
@@ -46,6 +46,14 @@ exports.SOCKET_HOLD_MAX_SECONDS = 86400;
  * consulted - which is why it is refused rather than sent.
  */
 exports.TIMED_SOCKET_ROLES = ['pump', 'custom_timer'];
+/**
+ * The device types whose firmware carries a smart-socket table (`wifi.cpp`'s
+ * auxiliary commands, which only the controller and the fridge wire up). The
+ * same builds relay a still from a paired camera and hold their own light
+ * output on command; a plug, a fan and a light have none of it in any build, so
+ * what they have not announced is not something a newer build would bring.
+ */
+exports.SOCKET_HOST_TYPES = ['controller', 'fridge'];
 /** Sockets per `socket_list<k>` chunk; it has to match what the firmware sends (`wifi.cpp`). */
 exports.SOCKETS_PER_REPORT_CHUNK = 3;
 const socketListKey = (chunk) => `socket_list${chunk}`;

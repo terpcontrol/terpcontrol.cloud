@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { DeviceCommand, DeviceConfiguration, SocketRole } from '@fg2/shared-types/v1';
-import { TIMED_SOCKET_ROLES } from '@fg2/shared-types/v1-schemas';
+import { SOCKET_HOST_TYPES, TIMED_SOCKET_ROLES } from '@fg2/shared-types/v1-schemas';
 import { badRequest, conflict, notFound, serviceUnavailable, unprocessable } from '@common/v1/problem';
 import { isOffline } from '@common/v1/value-age';
 import { MODEL_V1 } from '@database/models';
@@ -171,11 +171,26 @@ export class DevicePublisherService {
       case 'maintenance':
         return maintenancePayload(command.forSeconds);
       case 'capture_still':
+        this.mustHost(device, 'no camera to take a still with');
         return { action: 'cam_capture' };
       case 'socket_override':
+        this.mustHost(device, command.subject.type === 'output' ? 'no way to hold its light output on command' : 'no smart sockets');
         return this.overridePayload(device, command);
       case 'socket_set':
+        this.mustHost(device, 'no smart sockets');
         return this.socketSetPayload(device, command);
+    }
+  }
+
+  /**
+   * Only the controller and the fridge take these commands. Anything else
+   * drops them without a word, so a 202 saying the device was listening would
+   * read as delivered - and no build of it will ever take them, which is why
+   * this is not the "needs newer firmware" refusal.
+   */
+  private mustHost(device: StoredDevice, lacking: string): void {
+    if (!SOCKET_HOST_TYPES.includes(device.type)) {
+      throw conflict('not_for_this_device', `A ${device.type} has ${lacking} in any build.`);
     }
   }
 
@@ -271,12 +286,12 @@ export class DevicePublisherService {
    * A device that has not announced something is never sent it: old firmware
    * drops what it does not know without a word, and the version it reports is
    * the build's uuid, which cannot be compared against anything. So the reason
-   * a person is given is the only one there is - the controller needs its next
+   * a person is given is the only one there is - the device needs a newer
    * firmware before this switch does anything.
    */
   private require(announced: boolean, what: string): void {
     if (!announced) {
-      throw conflict('capability_not_announced', `This device has not announced that it understands ${what}. It needs the next controller firmware.`);
+      throw conflict('capability_not_announced', `This device has not announced that it understands ${what}. It needs a newer firmware.`);
     }
   }
 }

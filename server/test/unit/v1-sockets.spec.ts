@@ -15,8 +15,8 @@ import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
  * announced.** Old firmware drops a command it does not know without a word -
  * no error, no log line, no reply - and the version it reports is the build's
  * uuid, which cannot be compared against anything. So a command that would be
- * dropped is refused here instead, with the one reason there is: the controller
- * needs its next firmware.
+ * dropped is refused here instead, with the one reason there is: the device
+ * needs a newer firmware.
  *
  * Two devices carry every case: one that has announced nothing, whose every new
  * control is refused, and one that has announced the lot.
@@ -88,6 +88,25 @@ beforeEach(async () => {
   ] as never);
 });
 
+/**
+ * A plug, a fan and a light have no socket table and no camera relay in any
+ * build, and drop these commands without a word - so a 202 that said the device
+ * was listening read as delivered, and a refusal that pointed at newer firmware
+ * promised something no build of theirs brings.
+ */
+describe('a device type that takes no socket command in any build', () => {
+  it.each([
+    ['a socket pairing', set()],
+    ['a hold of its light output', hold({ subject: { type: 'output', id: 'light' } })],
+    ['a still', { kind: 'capture_still' } as DeviceCommand],
+  ])('is refused %s, and not told to wait for firmware', async (_what, command) => {
+    await db.devices.create({ id: 'sim-plug', type: 'plug', ownerId: 'user-1', state: { hardware: {} } } as never);
+
+    await expect(publisher.command('sim-plug', command)).rejects.toThrow(/A plug has .* in any build/);
+    expect(published).toEqual([]);
+  });
+});
+
 describe('a device that has announced nothing', () => {
   it('is offered exactly the roles every build in the field knows', async () => {
     const device = await db.devices.findOne({ id: OLD }).lean<StoredDevice>();
@@ -106,7 +125,7 @@ describe('a device that has announced nothing', () => {
     ['an override of a socket', hold()],
     ['an override of its own light output', hold({ subject: { type: 'output', id: 'light' } })],
   ])('refuses %s, and says the firmware is what is missing', async (_what, command) => {
-    await expect(publisher.command(OLD, command)).rejects.toThrow(/needs the next controller firmware/);
+    await expect(publisher.command(OLD, command)).rejects.toThrow(/needs a newer firmware/);
     expect(published).toEqual([]);
   });
 

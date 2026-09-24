@@ -147,7 +147,7 @@ describe('what a device that announced nothing is spared', () => {
       .expect(409);
 
     expect(refused.body.code).toBe('capability_not_announced');
-    expect(refused.body.detail).toMatch(/needs the next controller firmware/);
+    expect(refused.body.detail).toMatch(/needs a newer firmware/);
     expect(old.simulator.messagesOn('command')).toEqual([]);
   });
 

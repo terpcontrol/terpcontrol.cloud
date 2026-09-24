@@ -43,6 +43,14 @@ export declare const SOCKET_HOLD_MAX_SECONDS = 86400;
  * consulted - which is why it is refused rather than sent.
  */
 export declare const TIMED_SOCKET_ROLES: readonly string[];
+/**
+ * The device types whose firmware carries a smart-socket table (`wifi.cpp`'s
+ * auxiliary commands, which only the controller and the fridge wire up). The
+ * same builds relay a still from a paired camera and hold their own light
+ * output on command; a plug, a fan and a light have none of it in any build, so
+ * what they have not announced is not something a newer build would bring.
+ */
+export declare const SOCKET_HOST_TYPES: readonly string[];
 /** Sockets per `socket_list<k>` chunk; it has to match what the firmware sends (`wifi.cpp`). */
 export declare const SOCKETS_PER_REPORT_CHUNK = 3;
 export declare const socketListKey: (chunk: number) => string;
