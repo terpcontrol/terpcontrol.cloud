@@ -31,12 +31,13 @@
   text-overflow: ellipsis;
 }
 
-/* Ink on the page's own colour, which is the one pair that inverts with the
-   theme: the raised surfaces a toast is drawn on sit within a shade of the
-   track in dark mode and the chosen segment would vanish into it. */
+/* The brand's wash, as the rail marks where you are: the raised surfaces sit
+   within a shade of the track in dark mode and would vanish into it, and a
+   half-width fill of the brand itself glares in a dark tent. */
 .scopeHere {
-  background: var(--ink);
-  color: var(--bg);
+  background: var(--brand-wash);
+  color: var(--green-ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 35%, transparent);
 }
 
 /* The invite block and its sheet keep their own module, `Invite.module.css`. */
@@ -57,10 +58,26 @@
 .people {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* The people are one card with a rule between them, not a stack of cards. */
+.people > .person {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.people > .person + .person {
+  border-top: var(--rule-solid);
 }
 
 .person {
@@ -186,6 +203,10 @@
   text-align: center;
 }
 
+.table tbody tr {
+  border-top: var(--rule-solid);
+}
+
 .can {
   padding: var(--space-2) var(--space-2) var(--space-2) 0;
   font-weight: var(--weight-regular);
@@ -193,9 +214,15 @@
 }
 
 .mark {
-  width: 56px;
+  width: 64px;
+  font-size: 10px;
   text-align: center;
-  color: var(--ink);
+  color: var(--label);
+}
+
+/* A yes is the green that means "may", a no only a quiet dash. */
+.mark[data-yes='true'] {
+  color: var(--green);
 }
 
 /* Read aloud but not drawn: a bullet says nothing to a screen reader, and the

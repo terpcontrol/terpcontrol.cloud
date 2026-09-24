@@ -73,7 +73,7 @@ function Mark({ yes }: { yes: boolean }) {
   const { t } = useTranslation();
 
   return (
-    <td className={styles.mark}>
+    <td className={styles.mark} data-yes={yes}>
       <span aria-hidden>{yes ? '●' : '–'}</span>
       <span className={styles.markWord}>{t(yes ? 'space.members.mark.yes' : 'space.members.mark.no')}</span>
     </td>
