@@ -346,13 +346,27 @@ describe('the manual targets page', () => {
   });
 
   it('has no CO2 slider without a CO2 sensor, and says why', async () => {
-    await drawn([device({}, {})]);
+    await drawn([device({}, { co2: 'off' })]);
 
     expect(screen.queryByRole('slider', { name: 'CO₂ target' })).not.toBeInTheDocument();
     expect(screen.getByText('needs a CO₂ sensor')).toBeInTheDocument();
     // The chip is judged on what the page can set, so a preset still reads as chosen without its CO2 figure.
     fireEvent.click(screen.getByRole('button', { name: 'Seedling' }));
     expect(screen.getByRole('button', { name: 'Seedling' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  /**
+   * A report that does not mention the sensor is a firmware too old to have
+   * been asked, which is how the server reads the same absence - not a device
+   * without one. Read as a no, it hid the row on a fridge that was streaming
+   * 300 ppm and holding a 400 ppm target, on a page whose own Overview printed
+   * both.
+   */
+  it('draws the CO2 target of a device whose report says nothing about the sensor', async () => {
+    await drawn([device({}, {})]);
+
+    expect(screen.getByRole('slider', { name: 'CO₂ target' })).toBeInTheDocument();
+    expect(screen.queryByText('needs a CO₂ sensor')).not.toBeInTheDocument();
   });
 
   it('shows what the server refused with, and keeps the draft', async () => {
