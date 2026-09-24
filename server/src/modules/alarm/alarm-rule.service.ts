@@ -86,12 +86,23 @@ export class AlarmRuleService {
    * A rule the cloud keeps for every device is not a person's to remove - the
    * loop would write it again within the minute, which reads as a delete that
    * did not work. Disabling or silencing it says the same thing and holds.
+   *
+   * What it raised is not deleted with it. An alert is the account of something
+   * that really happened in a tent, and retiring the rule that caught it is not
+   * a statement that the night it caught never happened - so the episodes stay,
+   * and the only thing the delete does to them is close the one still open.
+   * What they must not do is go on naming a rule nobody can look up, which is
+   * what turned a deleted rule's history into cards reading "alarm" and a bare
+   * figure: an episode that opened after this was written already carries what
+   * it watched, and one that opened before it is given the rule's last word on
+   * the way out, which is the best answer that still exists by then.
    */
   public async remove(rule: StoredAlarmRule): Promise<void> {
     if (rule.origin === 'always') {
       throw conflict('always_rule_kept', 'The rule the cloud keeps for this device cannot be deleted. Disable or silence it instead.');
     }
 
+    await this.alerts.updateMany({ ruleId: rule.id, watched: null }, { $set: { watched: { name: rule.name, watch: rule.watch } } });
     await this.rules.deleteOne({ id: rule.id });
     // Its open episode goes quiet rather than resolved: nothing is watching it
     // any more, and an all-clear would claim the reading came back.

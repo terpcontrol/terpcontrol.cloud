@@ -650,6 +650,11 @@ describe('the line an alarm writes into the diary', () => {
  * What an episode keeps of the rule that raised it: the rule's name and watch as
  * they stood when it opened, so that editing the rule afterwards or deleting it
  * cannot change or erase what the record says it was about.
+ *
+ * The episodes of a deleted rule stay. An alert is the account of something that
+ * really happened in somebody's tent, and deleting the rule that caught it is not
+ * a statement that it did not happen - so the delete closes the one episode still
+ * open and leaves the record standing, able to say what it watched.
  */
 describe('what an episode keeps of the rule that raised it', () => {
   const ruleService = () => new AlarmRuleService(rules, alerts);
@@ -672,5 +677,43 @@ describe('what an episode keeps of the rule that raised it', () => {
 
     const kept = (await alerts.findOne({ id: raised.id }).lean<StoredAlert>())!;
     expect(kept.watched).toMatchObject({ watch: { upper: 30 } });
+  });
+
+  it('leaves its episode behind, closes it, and leaves it able to say what it watched', async () => {
+    await device();
+    const rule = ruleFor({ name: 'Too warm' });
+    await rules.create(rule);
+
+    await reads(32, new Date());
+    const raised = (await openAlert())!;
+
+    await ruleService().remove(rule);
+
+    const left = (await alerts.findOne({ id: raised.id }).lean<StoredAlert>())!;
+    expect(left.resolvedAt).toBeInstanceOf(Date);
+    expect(left.watched).toMatchObject({ name: 'Too warm', watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null } });
+  });
+
+  /**
+   * An episode raised before the copy was written down carries none, and once
+   * the rule is gone there is nowhere left to get one. The rule's last word on
+   * the way out is not quite the episode's own - a band may have moved since -
+   * but it names the right rule and the right metric, which is the whole
+   * difference between a card reading "temperature 32 °C › 30" and one reading
+   * "alarm 32".
+   */
+  it('gives an older episode the last word of its rule on the way out, rather than leaving it about nothing', async () => {
+    await device();
+    const rule = ruleFor({ name: 'Too warm' });
+    await rules.create(rule);
+
+    await reads(32, new Date());
+    const raised = (await openAlert())!;
+    await alerts.updateOne({ id: raised.id }, { $set: { watched: null } });
+
+    await ruleService().remove(rule);
+
+    const left = (await alerts.findOne({ id: raised.id }).lean<StoredAlert>())!;
+    expect(left.watched).toMatchObject({ name: 'Too warm', watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null } });
   });
 });

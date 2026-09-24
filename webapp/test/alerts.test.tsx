@@ -312,7 +312,7 @@ describe('the inbox', () => {
     expect(reading.textContent).toBe('68 % › 60');
   });
 
-  it('names the output for a rule that watches one, leaves an empty span off, and says only the kind once the rule is gone', async () => {
+  it('names the output for a rule that watches one, leaves an empty span off, and says only the kind for an episode that kept no copy', async () => {
     server.alerts = [
       alert({ id: 'running', ruleId: 'rule-2', value: null }),
       alert({ id: 'instant', ruleId: 'rule-3', value: null }),
@@ -333,6 +333,32 @@ describe('the inbox', () => {
     expect(screen.queryByText(/0 s/)).not.toBeInTheDocument();
     expect(screen.queryByText(/›\s*0/)).not.toBeInTheDocument();
     expect(screen.getByText(title('Flower room B · alarm 68'))).toBeInTheDocument();
+  });
+
+  /**
+   * An alert outlives the rule that raised it, which is right - it is the record
+   * of a night that really happened - but it left the card with a ruleId it
+   * could not look anything up by, so a deleted rule's history read "alarm" and
+   * a bare unitless figure. The episode carries its own copy of what the rule
+   * was called and watched from the moment it opens, and the card reads that
+   * where there is no rule left to read: the metric, its unit, the edge, and the
+   * name on the line below, exactly as while the rule stood.
+   */
+  it('says what an episode watched after its rule has been deleted, from the copy the alert kept', async () => {
+    server.alerts = [
+      alert({
+        id: 'remembered',
+        ruleId: 'rule-gone',
+        resolvedAt: iso(NOW.minus({ hours: 1 })),
+        watched: { name: 'Too humid', watch: { kind: 'reading', metric: 'humidity', upper: 60, lower: null } },
+      }),
+    ];
+    server.rules = [];
+    draw();
+
+    expect(await screen.findByText(title('Flower room B · humidity 68 % › 60'))).toBeInTheDocument();
+    expect(screen.getByText(/^Too humid · critical · resolved /)).toBeInTheDocument();
+    expect(screen.queryByText(/alarm 68/)).not.toBeInTheDocument();
   });
 
   it('keeps the grade the episode was raised at, says what its rule says now, and promises only what that grade gets', async () => {

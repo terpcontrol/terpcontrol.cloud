@@ -233,10 +233,11 @@ interface Watched {
  * bare figure, with no metric, no unit and no name to tell one deleted rule's
  * night from another's.
  *
- * What stays with the live rule alone is what only a rule can answer: its name,
- * the grade it carries today, the silence resting on it, how often it repeats,
- * how long it asks a reading to stay out, and whether it can be edited from here
- * at all.
+ * The rule's name is not taken from here: a renamed rule is still the rule a
+ * reader knows it by, so `ruleName()` reads the copy only once the rule is gone.
+ * What stays with the live rule alone is what only a rule can answer: the grade
+ * it carries today, the silence resting on it, how often it repeats, how long it
+ * asks a reading to stay out, and whether it can be edited from here at all.
  */
 const watchedOf = (alert: Alert, rule: AlarmRule | null): Watched | null => {
   const watch = alert.watched?.watch ?? rule?.watch;
@@ -314,7 +315,7 @@ const metaOf = (
 ): string => {
   const zone = zoneOf(me);
   const parts = [
-    rule ? ruleName(t, rule, device) : null,
+    ruleName(t, alert, rule, device),
     severity,
     alert.resolvedAt
       ? t('alerts.meta.resolved', { time: clock(alert.resolvedAt, zone), age: lastedLabel(alert, now) })
@@ -350,8 +351,19 @@ const metaOf = (
   return parts.join(' · ');
 };
 
-/** What the rule is called, in the words the alarm rules page calls it by; a device not in hand leaves the name the rule carries. */
-const ruleName = (t: Translate, rule: AlarmRule, device: Device | null): string => (device ? ruleTitle(t, rule, device) : rule.name);
+/**
+ * What the rule is called, in the words the alarm rules page calls it by; a
+ * device not in hand leaves the name the rule carries, and a rule no longer in
+ * hand at all leaves the name the episode wrote down when it opened. The last
+ * of those is the plain stored name rather than a title, because a title is
+ * made from what the rule is today and there is no today for a rule that is
+ * gone.
+ */
+const ruleName = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Device | null): string | null => {
+  if (!rule) return alert.watched?.name ?? null;
+
+  return device ? ruleTitle(t, rule, device) : rule.name;
+};
 
 function TimelineChip({ spaceId }: { spaceId: string }) {
   const { t } = useTranslation();

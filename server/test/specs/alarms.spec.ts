@@ -242,6 +242,36 @@ describe('an episode, from the reading to the inbox', () => {
     expect(over.body).toMatchObject({ resolvedAt: expect.any(String), severity: 'critical' });
   });
 
+  /**
+   * A rule can be retired and what it caught stays: the episodes are the record
+   * of nights that really happened, and nobody deleting a rule is saying they
+   * did not. What they must not become is rows naming a rule nothing can look
+   * up - the inbox draws a card from its rule, so such a row read "alarm" and a
+   * bare figure with no metric, no unit and no name. So the episode carries its
+   * own copy of what the rule was called and watched from the moment it opens,
+   * and the copy is still there after the rule is gone.
+   */
+  it('keeps what an episode watched after its rule is deleted, and closes the one still open', async () => {
+    const rule = await createRule(owner, device, aRule({ name: unique('Remembered') }));
+
+    await simulator.reportStatus({ temperature: 34 });
+    const alert = await waitForAlert(owner, rule.id);
+    expect(alert.watched).toEqual({ name: rule.name, watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null } });
+
+    await owner.client.delete(`/v1/alarm-rules/${rule.id}`).expect(204);
+    await owner.client.get(`/v1/alarm-rules/${rule.id}`).expect(404);
+
+    const orphan = await owner.client.get(`/v1/alerts/${alert.id}`).expect(200);
+    expect(orphan.body).toMatchObject({
+      ruleId: rule.id,
+      resolvedAt: expect.any(String),
+      watched: { name: rule.name, watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null } },
+    });
+
+    await simulator.reportStatus({ temperature: 21 });
+    await settle(1000);
+  });
+
   it('lists what is open and what is over, apart', async () => {
     const open = await owner.client.get(`/v1/alerts?deviceId=${device}&open=true`).expect(200);
     expect(open.body.items.every((one: { resolvedAt: string | null }) => one.resolvedAt === null)).toBe(true);
