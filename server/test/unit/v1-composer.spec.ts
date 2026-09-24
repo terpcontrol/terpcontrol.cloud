@@ -11,6 +11,7 @@ import { CamerasService } from '@modules/v1/camera/cameras.service';
 import { EntitlementService } from '@modules/v1/camera/entitlement.service';
 import { MediaService } from '@modules/v1/camera/media.service';
 import { OverlayFrame, composeFrame, overlayLayer, sizeFor, wasDark } from '@modules/v1/camera/timelapse-overlays';
+import { whyNoFilm } from '@modules/v1/camera/timelapse.service';
 import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
 
 /**
@@ -268,6 +269,23 @@ describe('what the builder makes of it', () => {
     // Nothing measured is not the same as off: a frame is never dropped for a
     // night nobody can confirm.
     expect(wasDark(new Date('2026-08-01T02:30:00.000Z'), [])).toBe(false);
+  });
+
+  /**
+   * A render that produced nothing says which of the three things went wrong,
+   * because only one of them is anybody's to do something about. The tent this
+   * was found on runs its light output at zero all night, so the lights-off
+   * filter emptied every one-tap film of it and each was reported as a span
+   * with too few pictures in it - ten lines under the page's own count of the
+   * twenty-seven it had taken that day.
+   */
+  it('says which of the three ways a render can come back empty it was', () => {
+    // Pictures enough, and none of them left once the dark ones were dropped.
+    expect(whyNoFilm(400, 0)).toBe('every picture in that span was taken with the light off');
+    // A span that genuinely holds nothing, which is what the one sentence used to say of all three.
+    expect(whyNoFilm(3, 3)).toBe('there are not enough pictures in that span to make a film');
+    // Frames enough to encode, and no film at the end of it: ffmpeg, or the frames that could not be written.
+    expect(whyNoFilm(400, 400)).toBe('the pictures in that span could not be made into a film');
   });
 
   it('renders each shape at an even size, because the encoder refuses an odd one', () => {

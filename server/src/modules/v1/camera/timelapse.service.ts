@@ -303,7 +303,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
         ...render,
         status: built ? 'ready' : 'failed',
         endedAt: new Date(),
-        error: built ? null : 'there are not enough pictures in that span to make a film',
+        error: built ? null : whyNoFilm(all.length, frames.length),
       });
     } catch (e) {
       await this.media.setRender(job.id, { ...render, status: 'failed', endedAt: new Date(), error: String((e as Error)?.message ?? e) });
@@ -556,6 +556,30 @@ const filterArguments = (options: FfmpegOptions): string[] => {
   if (!options.watermark) return scale ? ['-vf', scale] : [];
 
   return ['-filter_complex', scale ? `[0:v]${scale}[base];[base][1:v]${overlay}` : `[0:v][1:v]${overlay}`];
+};
+
+/**
+ * Why a render produced no film, told from what it had to work with: how many
+ * stills the span held and how many of them were still there once the frames
+ * taken in the dark had been dropped.
+ *
+ * It used to be one sentence for all three, and the sentence was the one about
+ * a span holding too few pictures. A tent whose light output reads zero all
+ * night makes every frame of it dark, so the one-tap films of such a camera are
+ * emptied by that filter and were then reported as spans with nothing in them -
+ * ten lines under the page's own "27 pictures today", and with no mention of
+ * the switch that would have kept them. Naming the filter is the whole point:
+ * it is the one cause of the three the person reading can do something about.
+ *
+ * The words are read again by the client, which says them in the language the
+ * page is in, so they are phrases to recognise rather than prose to reword
+ * lightly: `webapp/src/screens/camera/capture-failure.ts` holds the reading.
+ */
+export const whyNoFilm = (stills: number, frames: number): string => {
+  if (frames >= MINIMUM_FRAMES) return 'the pictures in that span could not be made into a film';
+  if (stills >= MINIMUM_FRAMES) return 'every picture in that span was taken with the light off';
+
+  return 'there are not enough pictures in that span to make a film';
 };
 
 /** The nearest picture of the camera shown beside this one, or null where it took none that close. */
