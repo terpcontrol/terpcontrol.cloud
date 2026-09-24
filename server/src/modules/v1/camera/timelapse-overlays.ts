@@ -11,23 +11,31 @@ import { TimelapseContext } from './timelapse-context.service';
  * counter, the curve and the caption are one overlay per frame rather than
  * three filters, so a film of a week is one composite per frame.
  *
- * The type is IBM Plex Sans and JetBrains Mono where a container has them, and
- * the generic families where it does not; the film is readable either way.
+ * The type is the app's: Nunito Sans for words and figures, Fraunces for the
+ * day counter, which is a grow's own "where are we" and is set the way the app
+ * sets a week's heading. librsvg finds a face through fontconfig, and only as a
+ * TrueType or OpenType file - the WOFF and WOFF2 the web packages ship are not
+ * read - so a container without the two installed draws DejaVu instead. The
+ * film is readable either way.
  */
 
 /**
- * The look of round 15, so a film reads as the app it came out of - and so does
+ * The app's dark mode, so a film reads as the app it came out of - and so does
  * the card a shared link is drawn as, which is the same trick: an SVG layer
- * composited onto a picture by sharp.
+ * composited onto a picture by sharp. A picture is seen through a plate at
+ * night-time strength whatever mode the viewer's app is in, so the plate is the
+ * warm charcoal of the dark theme and the lines are its lamplit signal colours.
  */
-export const INK = '#e9edf4';
-export const MUTED = '#8b95a8';
-export const PANEL = 'rgb(13,17,24)';
-const TEMPERATURE = '#f39a3c';
-const HUMIDITY = '#5b93f5';
+export const INK = '#f1ebe0';
+export const MUTED = '#b5ad9e';
+export const PANEL = 'rgb(19,18,15)';
+const TEMPERATURE = '#f0935c';
+const HUMIDITY = '#6bb6dc';
 
-export const TEXT_FAMILY = 'IBM Plex Sans, DejaVu Sans, sans-serif';
-export const FIGURE_FAMILY = 'JetBrains Mono, DejaVu Sans Mono, monospace';
+export const TEXT_FAMILY = 'Nunito Sans, DejaVu Sans, sans-serif';
+/** Nunito's digits are tabular by design, so a reading that changes from frame to frame holds its width without a monospaced face. */
+export const FIGURE_FAMILY = TEXT_FAMILY;
+const DISPLAY_FAMILY = 'Fraunces, DejaVu Sans, sans-serif';
 
 /** How far either side of a diary line its caption is shown. */
 const CAPTION_WINDOW_MS = 30 * 60 * 1000;
@@ -121,7 +129,7 @@ const dayBadge = (frame: OverlayFrame, context: TimelapseContext): string | null
   return `<g>
     <rect x="${pad}" y="${pad}" width="${width}" height="${height}" rx="${Math.round(size / 3)}" fill="${PANEL}" fill-opacity="0.58"/>
     <text x="${pad + width / 2}" y="${pad + height / 2}" text-anchor="middle" dominant-baseline="central"
-          font-family="${FIGURE_FAMILY}" font-size="${size}" fill="${INK}">Day ${day}</text>
+          font-family="${DISPLAY_FAMILY}" font-size="${size}" font-weight="600" fill="${INK}">Day ${day}</text>
   </g>`;
 };
 
@@ -189,7 +197,7 @@ const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | 
         ? []
         : [
             `<text x="${left + 8 + index * size * 5}" y="${top + size}" font-family="${FIGURE_FAMILY}" font-size="${size}"
-                   fill="${line.colour}">${line.reading}</text>`,
+                   font-weight="700" fill="${line.colour}">${line.reading}</text>`,
           ],
     )
     .join('');
