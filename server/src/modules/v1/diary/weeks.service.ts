@@ -219,7 +219,7 @@ export class GrowWeeksService {
    * The seven thumbnails: for each day of the week, the still taken nearest the
    * middle of it. One read per week rather than one per day, and only the
    * pictures around each of the seven hours rather than every picture the
-   * cameras took.
+   * cameras took; a day with none near its middle is then looked through whole.
    *
    * The seven days are always answered - the card says which days it is of,
    * whatever happened on them - but a day the window does not cover gets no
@@ -264,8 +264,17 @@ export class GrowWeeksService {
             )
             .lean<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'>[]>();
 
+    // A day whose midday the cameras missed can still be one they covered for
+    // hours - a lamp on a night schedule, a camera plugged in in the evening -
+    // and drawn empty it looked exactly like a day with no picture at all. So
+    // such a day takes the still nearest its midday from anywhere inside it:
+    // two indexed reads per day that needs them, the one before and the one
+    // after, both bounded by the day and by the window.
+    const missing = pictured.filter(day => nearestTo(stills, day.nearest) === null);
+    const fallbacks = new Map(await Promise.all(missing.map(async day => [day.dayNumber, await this.nearestInDay(cameraIds, day, seen)] as const)));
+
     return days.map(day => {
-      const closest = day.seen ? nearestTo(stills, day.nearest) : null;
+      const closest = day.seen ? (nearestTo(stills, day.nearest) ?? fallbacks.get(day.dayNumber) ?? null) : null;
 
       return {
         dayNumber: day.dayNumber,
@@ -278,6 +287,33 @@ export class GrowWeeksService {
         capturedAt: closest?.capturedAt.toISOString() ?? null,
       };
     });
+  }
+
+  /** The still nearest the day's picture hour from anywhere inside the day and the window, or nothing where the day holds none. */
+  private async nearestInDay(
+    cameraIds: string[],
+    day: { startsAt: Date; endsAt: Date; nearest: Date },
+    seen: Span,
+  ): Promise<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'> | null> {
+    if (cameraIds.length === 0) return null;
+
+    const from = day.startsAt > seen.startsAt ? day.startsAt : seen.startsAt;
+    const until = day.endsAt < seen.endsAt ? day.endsAt : seen.endsAt;
+    const projection = { id: 1, cameraId: 1, capturedAt: 1 };
+    const [before, after] = await Promise.all([
+      this.media
+        .findOne({ cameraId: { $in: cameraIds }, kind: 'still', capturedAt: { $gte: from, $lte: day.nearest } }, projection)
+        .sort({ capturedAt: -1 })
+        .lean<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'>>(),
+      this.media
+        .findOne({ cameraId: { $in: cameraIds }, kind: 'still', capturedAt: { $gt: day.nearest, $lt: until } }, projection)
+        .sort({ capturedAt: 1 })
+        .lean<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'>>(),
+    ]);
+    if (!before || !after) return before ?? after ?? null;
+
+    const distance = (row: Pick<MediaDocument, 'capturedAt'>) => Math.abs(row.capturedAt.getTime() - day.nearest.getTime());
+    return distance(before) <= distance(after) ? before : after;
   }
 
   private diaryIn(growId: string, span: Span): Promise<EntryDocument[]> {

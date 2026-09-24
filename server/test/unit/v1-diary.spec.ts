@@ -717,14 +717,16 @@ describe('a week card', () => {
       // Two on day 30: the nearer one to midday wins.
       { id: 'still-near', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(30, 4.2) },
       { id: 'still-far', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(30, 5.4) },
-      // Hours away from midday on day 31, so that day keeps its slot empty.
+      // Hours away from midday on day 31: the day was still covered, so it is
+      // not drawn like a day with no picture at all.
       { id: 'still-off', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(31, 18) },
+      { id: 'still-off-later', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(31, 22) },
     ]);
 
     const week = await weekFive();
 
     expect(week.days.map(day => day.dayNumber)).toEqual([29, 30, 31, 32, 33, 34, 35]);
-    expect(week.days.map(day => day.mediaId)).toEqual([null, 'still-near', null, null, null, null, null]);
+    expect(week.days.map(day => day.mediaId)).toEqual([null, 'still-near', 'still-off', null, null, null, null]);
     expect(week.days[1]).toMatchObject({ cameraId: CAMERA, capturedAt: onDay(30, 4.2).toISOString() });
   });
 
