@@ -196,7 +196,7 @@ function Total({ value, label }: { value: number; label: string }) {
   return (
     <div className={styles.total}>
       <dd className={`figure ${styles.totalValue}`}>{value}</dd>
-      <dt className="label">{label}</dt>
+      <dt className={`label ${styles.statLabel}`}>{label}</dt>
     </div>
   );
 }

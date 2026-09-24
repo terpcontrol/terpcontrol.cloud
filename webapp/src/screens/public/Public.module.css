@@ -7,7 +7,11 @@
   display: flex;
   min-height: 100%;
   flex-direction: column;
-  background: var(--bg);
+  /* The same light from the top of the page the app has, so a diary opened
+     from a message is plainly the same place. */
+  background:
+    var(--glow) no-repeat,
+    var(--bg);
 }
 
 .bar {
@@ -20,8 +24,11 @@
 
 .wordmark {
   flex: 1;
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: var(--weight-display-sm);
+  font-variation-settings: var(--display-axes);
+  letter-spacing: var(--tracking-display);
   line-height: var(--line-tight);
   color: var(--wordmark);
 }
@@ -123,8 +130,8 @@
 
 /* No picture yet: a short panel with the mark on it rather than a blank screenful. */
 .cover[data-empty='true'] {
-  aspect-ratio: 5 / 1;
-  border-style: dashed;
+  aspect-ratio: 6 / 1;
+  border-color: transparent;
 }
 
 .titleRow {
@@ -152,9 +159,10 @@
 }
 
 .dayFigure {
-  font-size: var(--text-figure);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-tight);
+  font-size: 34px;
+  font-weight: var(--weight-figure);
+  letter-spacing: -0.01em;
+  line-height: 1;
 }
 
 .author {
@@ -197,6 +205,10 @@
 
 .handle {
   font-weight: var(--weight-semibold);
+}
+
+.authorLink {
+  color: var(--ink);
 }
 
 .bio {
@@ -255,34 +267,49 @@
   color: var(--muted);
 }
 
+/* The five counts as one strip, a hairline between each - the owner's own
+   Report tab counts the same five the same way. */
 .totals {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-4) var(--space-5);
+  row-gap: var(--space-3);
   margin: 0;
   padding: var(--space-3) var(--space-4);
   border: var(--rule-solid);
   border-radius: var(--radius);
   background: var(--card);
+  box-shadow: var(--shadow);
 }
 
 .total {
   display: flex;
+  flex: 1 1 0;
   flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 var(--space-3);
+  border-left: var(--rule-solid);
+}
+
+.total:first-child {
+  padding-left: 0;
+  border-left: 0;
 }
 
 .totalValue {
   margin: 0;
-  font-size: var(--text-lg);
-  font-weight: var(--weight-semibold);
+  font-size: 22px;
+  font-weight: var(--weight-figure);
+  letter-spacing: -0.01em;
   line-height: var(--line-tight);
 }
 
 .harvest {
   padding: var(--space-2) var(--space-3);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
+  background: var(--brand-wash);
   font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   color: var(--green-ink);
 }
 
@@ -315,12 +342,16 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  padding: var(--space-4);
   border: var(--rule-solid);
   border-radius: var(--radius);
   background: var(--card);
+  box-shadow: var(--shadow);
 }
 
+/* The week is drawn as the owner's week card draws it - the serif week, the
+   green pill, the seven days, the figures on a hairline - so a diary reads the
+   same from both sides of the link. */
 .weekHeader {
   display: flex;
   align-items: center;
@@ -334,12 +365,18 @@
 .weekTitle {
   display: flex;
   flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
   min-width: 0;
-  flex-direction: column;
 }
 
 .weekName {
-  font-weight: var(--weight-semibold);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: var(--weight-display-sm);
+  font-variation-settings: var(--display-axes);
+  letter-spacing: var(--tracking-display);
 }
 
 .weekRange {
@@ -349,17 +386,18 @@
 
 .stagePill {
   flex: none;
-  padding: 2px var(--space-2);
-  border: var(--rule-solid);
+  padding: 3px 10px;
   border-radius: var(--radius-pill);
+  background: var(--brand-wash);
   font-size: var(--text-xs);
-  color: var(--muted);
+  font-weight: var(--weight-semibold);
+  color: var(--green-ink);
 }
 
 .chevron {
   flex: none;
-  color: var(--muted);
-  transition: transform 120ms ease-out;
+  color: var(--label);
+  transition: transform 150ms ease-out;
 }
 
 .chevron[data-open='true'] {
@@ -369,7 +407,7 @@
 .days {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: var(--space-1);
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -378,45 +416,59 @@
 .dayTile {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 3px;
   min-width: 0;
-}
-
-/* A day that has not happened yet is drawn and left empty, so the week keeps its shape. */
-.dayTile[data-future='true'] {
-  opacity: 0.35;
 }
 
 .thumb {
   display: block;
+  width: 100%;
   aspect-ratio: 1;
   overflow: hidden;
-  border: var(--rule-solid);
-  border-radius: 4px;
+  border: var(--rule-dashed);
+  border-radius: var(--radius-sm);
   background: var(--card-2);
 }
 
+.thumb[data-empty='false'] {
+  border-color: transparent;
+}
+
 .thumb img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
+/* A day that has not happened yet is drawn and left empty, so the week keeps its shape. */
+.dayTile[data-future='true'] .thumb {
+  background: transparent;
+}
+
 .dayName {
   font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   color: var(--label);
   text-align: center;
 }
 
-/* The day a stage began, under the number of the grow-day it began on. */
+.dayTile[data-future='true'] .dayName {
+  opacity: var(--age-offline);
+}
+
+/* The day a stage began, under the number of the grow-day it began on. It may
+   reach into the gutter beside its tile, as on the owner's card. */
 .dayStage {
-  max-width: 100%;
+  max-width: calc(100% + 6px);
   overflow: hidden;
   padding: 0 4px;
-  border: var(--rule-solid);
   border-radius: var(--radius-pill);
-  font-size: var(--text-xs);
-  color: var(--muted);
+  background: var(--brand-wash);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  color: var(--green-ink);
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -424,28 +476,52 @@
 
 .stats {
   display: flex;
-  gap: var(--space-5);
+  flex-wrap: wrap;
+  row-gap: var(--space-3);
   margin: 0;
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
 }
 
 .stat {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  padding: 0 var(--space-4);
+  border-left: var(--rule-solid);
+}
+
+.stat:first-child {
+  padding-left: 0;
+  border-left: 0;
 }
 
 .statValue {
   display: flex;
   align-items: baseline;
-  gap: var(--space-1);
+  gap: 3px;
   margin: 0;
-  font-size: var(--text-lg);
-  font-weight: var(--weight-semibold);
+  font-size: 20px;
+  font-weight: var(--weight-figure);
+  letter-spacing: -0.01em;
   line-height: var(--line-tight);
 }
 
 .statUnit {
   font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
   color: var(--muted);
+}
+
+/* A caption to a figure, in sentence case: read as words under a number, not
+   as the head of a section. */
+.stat .statLabel,
+.total .statLabel {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .feeding {
@@ -453,9 +529,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
   background: var(--card-2);
   font-size: var(--text-xs);
   color: var(--muted);
@@ -483,6 +558,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
+  border-top: var(--rule-solid);
 }
 
 /* ------------------------------------------------------------------ profile */
@@ -530,6 +606,7 @@
   border: var(--rule-solid);
   border-radius: var(--radius);
   background: var(--card);
+  box-shadow: var(--shadow);
 }
 
 .cardLink {
@@ -547,8 +624,7 @@
   width: 84px;
   height: 60px;
   overflow: hidden;
-  border: var(--rule-solid);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: var(--card-2);
   color: var(--green);
 }
@@ -567,11 +643,17 @@
   gap: 2px;
 }
 
+/* A diary's name, which its grower gave it: the serif, as everywhere a grow is named. */
 .cardTitle {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: var(--weight-semibold);
+  font-family: var(--font-display);
+  font-size: var(--text-name);
+  font-weight: var(--weight-display-sm);
+  font-variation-settings: var(--display-axes);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--line-tight);
 }
 
 .cardMeta {
@@ -728,8 +810,43 @@
     font-size: 28px;
   }
 
+  /* Two equal columns, each a diary standing on its cover - the name no
+     longer decides how wide its column is. */
   .cards {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .total {
+    flex: none;
+    padding: 0 var(--space-5);
+  }
+
+  .card {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0 0 var(--space-4);
+    overflow: hidden;
+  }
+
+  .cardLink {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cardCover {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 0;
+  }
+
+  .cardText {
+    padding: 0 var(--space-4);
+  }
+
+  .card > :not(.cardLink) {
+    align-self: flex-start;
+    margin-left: var(--space-4);
   }
 
   .tiles {
