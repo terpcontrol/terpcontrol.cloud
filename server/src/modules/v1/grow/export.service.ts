@@ -104,9 +104,24 @@ const EXPORTS_PER_PASS = 1;
 const REQUEUE_PER_PASS = 20;
 
 /**
- * How fine the climate file is. A device reports every thirty seconds and the
- * store answers the mean of a window, so this is two samples to the row: fine
- * enough to see a heater cycling, and half the rows of asking for every one.
+ * How fine the climate file is, and the one place in the export where what is
+ * written is not what was stored.
+ *
+ * A device sends a sample every five seconds - `docs/device-protocol.md` has
+ * the constant, and a day of one controller is some sixteen thousand rows of
+ * every field it reports - and the store keeps every one of them for as long as
+ * the account's retention says. The reader answers the mean of a window, so a
+ * minute here is a dozen readings to the row rather than the two an earlier
+ * comment claimed, and the file is a twelfth of what the store holds.
+ *
+ * It stays a minute. A minute is fine enough to watch a heater cycle against a
+ * night, and it is a file a spreadsheet opens: one device's eleven months come
+ * to fifty megabytes at this step and would come to six hundred at five
+ * seconds, so an account with a few devices would export several gigabytes of
+ * CSV on top of its pictures - a download that fails is worse than a mean. The
+ * cost of that choice is not hidden: `readmeOf` below says the rows are minute
+ * means, says which minute a stamp names, and says that an output that is only
+ * ever on or off arrives as the share of the minute it was on.
  */
 const CLIMATE_STEP_SECONDS = 60;
 
@@ -678,8 +693,15 @@ const accountCsv = (user: StoredUser): Buffer =>
  * A grower who has just exported everything and is about to delete their
  * account reads this rather than a settings screen, possibly years later and
  * certainly without the app in front of them. So it names what is here, names
- * what is not, and says why - the one thing left out is the single stills, and
- * the reason is a number rather than a policy.
+ * what is not, and says why - and the two things it does not hand over whole
+ * are the single stills and the raw climate, both for the same reason, which is
+ * a number rather than a policy.
+ *
+ * The climate paragraph is here rather than in the file it is about because a
+ * CSV has nowhere to say anything: a comment line breaks the first thing that
+ * opens it, and a column renamed to confess the averaging breaks the reader
+ * somebody wrote last year. This is the file the zip explains itself in, and it
+ * already carries the other exclusion.
  */
 const readmeOf = (): Buffer =>
   Buffer.from(
@@ -692,7 +714,7 @@ const readmeOf = (): Buffer =>
       'diary.csv                   every line that belongs to no grow, with its author',
       'photos/                     the pictures those lines point at, and your avatar',
       'films/                      every finished timelapse of every camera you own',
-      'climate/<device>.csv        every reading each device ever sent',
+      'climate/<device>.csv        the climate of each device, a row a minute',
       'grows/<grow>/               a folder each: the diary, the plants, the readings',
       '                            and the photos of that season',
       'stills.csv                  how many single stills each camera holds',
@@ -702,6 +724,21 @@ const readmeOf = (): Buffer =>
       'thousands of files over the years they are kept, which is not a file anybody',
       'could download. stills.csv says exactly how many each camera has and which',
       'stretch of time they cover, and the films above are made from them.',
+      '',
+      'The climate files are a row a minute, not a row a reading. A device sends a',
+      'reading every five seconds, so each row is the mean of the ten or twelve',
+      'readings of one minute - the minute ending at the instant in measuredAt. A',
+      'minute is fine enough to see a heater cycling through a night, and it keeps',
+      'these files to something a spreadsheet will open: every reading would be a',
+      'dozen times as many rows, which for a few devices over a season is gigabytes',
+      'of CSV.',
+      '',
+      'Two things follow from the averaging, and neither is an error in the file. A',
+      'peak that lasted seconds is flattened into the minute around it, so the',
+      'extremes here are gentler than the ones the app drew at the time. And an',
+      'output that is only ever on or off is averaged like everything else: an',
+      'out_dehumidifier of 0.67 is a relay that was on for forty seconds of that',
+      'minute, and not a level the device was ever given.',
       '',
     ].join('\n'),
     'utf8',

@@ -56,10 +56,15 @@ export const useAskedExport = (): string | null =>
   }).data;
 
 /**
- * The same job for everything the account has - every grow, every reading,
- * every photo - which is the export the privacy screen promises. It answers
- * the same row and is polled the same way; only the route differs, and with it
- * who may ask: a demo session owns nothing and is refused.
+ * The same job for everything the account has - every grow, every photo, and
+ * the climate a row a minute - which is the export the privacy screen
+ * promises. It answers the same row and is polled the same way; only the route
+ * differs, and with it who may ask: a demo session owns nothing and is refused.
+ *
+ * The climate is the one thing here that is not what the store holds. A device
+ * sends a reading every five seconds and the zip carries the mean of each
+ * minute, which the card beside this button says and the zip's own README says
+ * again; both used to say "every reading", which was a twelfth of the truth.
  */
 export const useAskAccountExport = () => {
   const queryClient = useQueryClient();

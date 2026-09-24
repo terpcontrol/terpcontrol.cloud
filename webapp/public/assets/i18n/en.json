@@ -1939,7 +1939,7 @@
       "data": "Data",
       "export": {
         "title": "Export everything",
-        "note": "Every grow, every reading, your diary photos and the finished films in one zip: JSON, CSV and the pictures. Single camera stills stay in the app - there are tens of thousands of them - and the zip counts them per camera.",
+        "note": "Every grow, your diary photos and the finished films in one zip: JSON, CSV and the pictures. The climate comes as a row a minute, averaged, rather than as the reading every few seconds it was measured at. Single camera stills stay in the app - there are tens of thousands of them - and the zip counts them per camera.",
         "ask": "Build the zip",
         "again": "Try again",
         "queued": "queued",
@@ -2051,7 +2051,7 @@
       "feedCount_other": "{{count}} feeds",
       "export": {
         "title": "Export",
-        "note": "Everything about this grow in one zip: the diary, the readings and the climate as CSV, and every photo of it.",
+        "note": "Everything about this grow in one zip: the diary, the readings and the climate - a row a minute, averaged - as CSV, and every photo of it.",
         "ask": "Export this grow",
         "again": "Try again",
         "queued": "queued",

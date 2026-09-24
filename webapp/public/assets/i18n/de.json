@@ -1935,7 +1935,7 @@
       "data": "Daten",
       "export": {
         "title": "Alles exportieren",
-        "note": "Jeder Grow, jede Messung, deine Tagebuchfotos und die fertigen Filme in einem Zip: JSON, CSV und die Bilder. Einzelne Kamerabilder bleiben in der App - es sind Zehntausende - und das Zip zählt sie pro Kamera.",
+        "note": "Jeder Grow, deine Tagebuchfotos und die fertigen Filme in einem Zip: JSON, CSV und die Bilder. Das Klima kommt als eine Zeile pro Minute, gemittelt, und nicht als der Messwert alle paar Sekunden, mit dem es gemessen wurde. Einzelne Kamerabilder bleiben in der App - es sind Zehntausende - und das Zip zählt sie pro Kamera.",
         "ask": "ZIP erstellen",
         "again": "Erneut versuchen",
         "queued": "in der Warteschlange",
@@ -2047,7 +2047,7 @@
       "feedCount_other": "{{count}}× gedüngt",
       "export": {
         "title": "Export",
-        "note": "Alles über diesen Grow in einem Zip: das Tagebuch, die Messwerte und das Klima als CSV, und jedes Foto davon.",
+        "note": "Alles über diesen Grow in einem Zip: das Tagebuch, die Messwerte und das Klima - eine Zeile pro Minute, gemittelt - als CSV, und jedes Foto davon.",
         "ask": "Diesen Grow exportieren",
         "again": "Erneut versuchen",
         "queued": "in der Warteschlange",

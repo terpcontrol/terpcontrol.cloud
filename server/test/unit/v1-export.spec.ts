@@ -644,6 +644,28 @@ describe('what is in the zip', () => {
     expect([...files.values()].map(body => body.toString('utf8'))).not.toContain('a still');
   });
 
+  /**
+   * The other thing the zip does not carry whole is the raw climate: the rows
+   * are minute means of a device that reports every five seconds, and the
+   * README said "every reading each device ever sent" about them. A promise is
+   * checked here rather than left to a reader of the copy, because the words
+   * and the step live in one file and only one of them was ever wrong.
+   */
+  it('says the climate is averaged by the minute rather than claiming every reading', async () => {
+    const asked = await exports.ask(OWNER, 'account', null, NOW);
+    await exports.drain();
+
+    const readme = (await archiveOf(asked.media.id)).get('README.txt')!.toString('utf8');
+
+    expect(readme).toContain('a row a minute');
+    expect(readme).toContain('the minute ending at the instant in measuredAt');
+    expect(readme).not.toContain('every reading each device ever sent');
+
+    // The worse half of the averaging: a relay arrives as the share of the
+    // minute it was on, which is a figure the device never sent.
+    expect(readme).toContain('out_dehumidifier of 0.67');
+  });
+
   it('holds nothing of anybody else´s, however much of it sits in the same database', async () => {
     const asked = await exports.ask(OWNER, 'account', null, NOW);
     await exports.drain();
