@@ -13,6 +13,7 @@ import type {
   OverviewTask,
   SpaceOverview,
 } from '@fg2/shared-types/v1';
+import { useLatestStills } from '@/api/cameras';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { useCorrecting } from '@/log/corrections';
 import { useLog, useMayLog } from '@/log/log-context';
@@ -61,6 +62,13 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
   // here.
   const correcting = useCorrecting();
   const [sheet, setSheet] = useState<'preset' | 'move' | null>(null);
+  // A grow with no cover of its own wears the newest picture of this place's
+  // cameras, as its card on Home does. Today's strip alone left a leaf on a row
+  // whose camera had last delivered yesterday, beside a Home card for the same
+  // grow showing that very still.
+  const newestCamera = [...overview.cameras].sort((one, other) => (other.lastStillAt ?? '').localeCompare(one.lastStillAt ?? ''))[0] ?? null;
+  const latest = useLatestStills(newestCamera?.lastStillAt ? [newestCamera.cameraId] : []);
+  const growStill = newestCamera ? (newestCamera.stills.at(-1)?.mediaId ?? latest.get(newestCamera.cameraId) ?? null) : null;
 
   return (
     <div className={styles.overview}>
@@ -125,7 +133,7 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
           ) : (
             <ul className={styles.list}>
               {overview.grows.map(grow => (
-                <GrowRow key={grow.growId} grow={grow} still={overview.cameras[0]?.stills.at(-1)?.mediaId ?? null} />
+                <GrowRow key={grow.growId} grow={grow} still={growStill} />
               ))}
             </ul>
           )}
