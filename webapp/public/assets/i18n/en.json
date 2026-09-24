@@ -2710,6 +2710,7 @@
       "wroteTo_one": "Written to {{count}} controller.",
       "wroteTo_other": "Written to {{count}} controllers.",
       "wroteNothing": "Nothing here took the climate: no controller standing here states one.",
+      "wroteNothingWaiting": "Nothing here took the climate: the controller standing here has not sent its settings yet, so there is nothing to write one into.",
       "wroteNothingCuring": "Nothing was written to any controller: curing has no climate to write.",
       "phaseWritten": "The grow here entered {{stage}}.",
       "noPhaseWritten": "No phase was written.",
@@ -2726,6 +2727,7 @@
       "climateOnly": "Only the climate",
       "climateOnlyNever": "Only the climate · never ask again",
       "question": "The climate is written either way. What about the grow?",
+      "questionNoClimate": "Nothing here took the climate, but the question stands. What about the grow?",
       "startGrowHere": "Start a grow here"
     },
     "members": {

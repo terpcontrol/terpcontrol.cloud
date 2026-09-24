@@ -33,6 +33,18 @@ vi.mock('@/api/devices', async importOriginal => ({
   useDevices: () => ({ data: { items: hardware.devices, nextCursor: null }, isPending: false, refetch: () => {} }),
 }));
 
+/** What the server answered a preset with, which is the block the sheet draws afterwards and never reads again. */
+const applied = vi.hoisted(() => ({ result: null as unknown }));
+
+vi.mock('@/api/lifecycle', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useApplyPreset: () => ({
+    mutate: (_body: unknown, options?: { onSuccess?: (result: unknown) => void }) => options?.onSuccess?.(applied.result),
+    error: null,
+    isPending: false,
+  }),
+}));
+
 /**
  * What the lifecycle sheets promise before anything is sent.
  *
@@ -548,6 +560,56 @@ describe('the climate preset sheet', () => {
     draw(<PresetSheet overview={{ ...overview, deviceIds: null }} onClose={() => {}} />);
 
     expect(screen.queryByText(/nothing to write/i)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Whether a climate landed and whether the tent has a grow to ask about are
+   * two facts the server works out independently, so the block that reports the
+   * first must not be followed by a question that assumes it. It was: "The
+   * climate is written either way" stood directly under "Nothing here took the
+   * climate", the line above having got it right.
+   */
+  it('does not say the climate was written either way under a line saying nothing took it', () => {
+    hardware.devices = [standing({ configuration: null })];
+    applied.result = {
+      spaceId: 'space-1',
+      stage: 'vegetative',
+      preset: null,
+      deviceIds: [],
+      growId: null,
+      phaseId: null,
+      planEffect: 'none',
+      growDecisionNeeded: true,
+      decisions: ['start_grow', 'move_grow', 'climate_only'],
+    };
+    draw(<PresetSheet overview={{ ...overview, grows: [] }} onClose={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Put the space on Veg' }));
+
+    // The reason is the one this tent actually has, rather than the other one.
+    expect(screen.getByText(/has not sent its settings yet, so there is nothing to write one into/)).toBeInTheDocument();
+    expect(screen.queryByText(/The climate is written either way/)).not.toBeInTheDocument();
+    expect(screen.getByText('Nothing here took the climate, but the question stands. What about the grow?')).toBeInTheDocument();
+  });
+
+  it('keeps the question´s promise where a controller did take the climate', () => {
+    hardware.devices = [standing()];
+    applied.result = {
+      spaceId: 'space-1',
+      stage: 'vegetative',
+      preset: null,
+      deviceIds: ['device-1'],
+      growId: null,
+      phaseId: null,
+      planEffect: 'none',
+      growDecisionNeeded: true,
+      decisions: ['start_grow', 'climate_only'],
+    };
+    draw(<PresetSheet overview={{ ...overview, grows: [] }} onClose={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Put the space on Veg' }));
+
+    expect(screen.getByText('The climate is written either way. What about the grow?')).toBeInTheDocument();
   });
 
   it('drops the promise that the climate is written anyway when there is nowhere for it to go', () => {

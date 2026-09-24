@@ -2706,6 +2706,7 @@
       "wroteTo_one": "An {{count}} Controller geschrieben.",
       "wroteTo_other": "An {{count}} Controller geschrieben.",
       "wroteNothing": "Hier hat nichts das Klima übernommen: Kein Controller hier gibt eines an.",
+      "wroteNothingWaiting": "Hier hat nichts das Klima übernommen: Der Controller, der hier steht, hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin eines stehen könnte.",
       "wroteNothingCuring": "Es wurde an keinen Controller etwas geschrieben: Reifung hat kein Klima.",
       "phaseWritten": "Der Grow hier ist in {{stage}} gegangen.",
       "noPhaseWritten": "Es wurde keine Phase geschrieben.",
@@ -2722,6 +2723,7 @@
       "climateOnly": "Nur das Klima",
       "climateOnlyNever": "Nur das Klima · nicht mehr fragen",
       "question": "Das Klima ist so oder so geschrieben. Was ist mit dem Grow?",
+      "questionNoClimate": "Hier hat nichts das Klima übernommen, die Frage bleibt aber. Was ist mit dem Grow?",
       "startGrowHere": "Hier einen Grow starten"
     },
     "members": {

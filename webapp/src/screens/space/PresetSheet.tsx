@@ -152,8 +152,15 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
           <Block label={t('space.presets.whatHappened')}>
             <ul className={styles.effect}>
               <li>
+                {/* Which of the two reasons nothing took it is the same
+                    distinction the note above the button draws, and it was
+                    drawn there and not here: a tent whose controller is simply
+                    waiting for its document was told no controller standing
+                    there states a climate, which is a different tent. */}
                 {done.deviceIds.length === 0
-                  ? t(writesClimate(done.stage) ? 'space.presets.wroteNothing' : 'space.presets.wroteNothingCuring')
+                  ? writesClimate(done.stage)
+                    ? t(willStateOne ? 'space.presets.wroteNothingWaiting' : 'space.presets.wroteNothing')
+                    : t('space.presets.wroteNothingCuring')
                   : t('space.presets.wroteTo', { count: done.deviceIds.length })}
               </li>
               <li>{done.phaseId ? t('space.presets.phaseWritten', { stage: t(`home.stage.${done.stage}`) }) : t('space.presets.noPhaseWritten')}</li>
@@ -166,6 +173,7 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
                 stage={done.stage}
                 preset={done.preset}
                 decisions={done.decisions}
+                wroteClimate={done.deviceIds.length > 0}
                 onAnswered={result => {
                   setAnswered(true);
                   if (result) setDone(result);
@@ -181,8 +189,13 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
 }
 
 /**
- * What to do about the grow when a preset was applied to a tent with none in
- * it. The climate has already been written, so this is only about the phase.
+ * What to do about the grow when a preset was applied to a tent with none in it.
+ *
+ * Whether a climate was written and whether a grow has to be asked about are
+ * independent - the server decides the second from the tent's own prompt setting
+ * and nothing else - so the line that opens this cannot assume the first. It did,
+ * and said "The climate is written either way" directly under "Nothing here took
+ * the climate", which the sheet had worked out correctly one line earlier.
  *
  * "Only the climate" is answered here rather than sent: the server does nothing
  * with that decision but stop asking, and asking it again would write the same
@@ -202,6 +215,7 @@ function GrowQuestion({
   stage,
   preset,
   decisions,
+  wroteClimate,
   onAnswered,
   onStartGrow,
 }: {
@@ -209,6 +223,7 @@ function GrowQuestion({
   stage: GrowthStage;
   preset: string | null;
   decisions: PresetApplication['decisions'];
+  wroteClimate: boolean;
   onAnswered: (result: PresetApplication | null) => void;
   onStartGrow: () => void;
 }) {
@@ -223,7 +238,7 @@ function GrowQuestion({
 
   return (
     <div className={styles.question}>
-      <p className={ui.note}>{t('space.presets.question')}</p>
+      <p className={ui.note}>{t(wroteClimate ? 'space.presets.question' : 'space.presets.questionNoClimate')}</p>
 
       {picking ? (
         <>
