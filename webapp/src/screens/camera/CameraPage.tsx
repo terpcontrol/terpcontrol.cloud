@@ -20,7 +20,6 @@ import { cameraFreshness } from '../devices/cameras';
 import { causeOf } from './capture-failure';
 import { at, STAMPS, stampFor } from '../timeline/window';
 import { Slider } from '../timeline/CameraFrame';
-import timeline from '../timeline/Timeline.module.css';
 import { Composer } from './Composer';
 import { Film } from './Film';
 import { CameraSettings } from './CameraSettings';
@@ -195,10 +194,9 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
       {/* The picture and its films, and beside them on a wide screen what the
           camera is set to: two columns of one page. */}
       <div className={styles.watch}>
-        <div className={styles.frame}>
+        <div className={`${ui.mat} ${styles.frame}`}>
           {shown ? (
             <img
-              className={styles.still}
               src={mediaUrl(shown.id, THUMBNAIL_WIDTH.frame) ?? undefined}
               // The same instant the label under the frame carries. A reader who
               // gets the picture through its alt text alone was told "just now"
@@ -208,7 +206,6 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
             />
           ) : older && camera.state.lastStillAt ? (
             <img
-              className={styles.still}
               data-age="offline"
               src={mediaUrl(older, THUMBNAIL_WIDTH.frame) ?? undefined}
               // Its day, not just its hour: a picture from four days ago named by
@@ -221,7 +218,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
             // one is a camera to go and look at, the other is this page to try
             // again - and a day the camera filled can be behind a read that
             // simply did not arrive.
-            <p className={`mono ${styles.noFrame}`}>
+            <p className={`mono ${ui.matNote}`}>
               {dayPictures === 'waiting' ? t('home.waiting') : dayPictures === 'unread' ? t('camera.framesUnread') : t('camera.noFramesToday')}
             </p>
           )}
@@ -263,7 +260,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           true before the read has answered - the ends would be the whole day
           and then jump to the first picture as soon as it did. */}
         {dayPictures === 'filled' ? (
-          <div className={`${timeline.bareSlider} ${styles.transport}`}>
+          <div className={ui.transport}>
             <span className={`mono ${styles.edge}`}>{zonedAt(from, zone).toFormat(CLOCK)}</span>
             <Slider from={from} to={to} cursor={Math.min(Math.max(time, from), to)} onScrub={setCursor} />
             <span className={`mono ${styles.edge}`}>{t('camera.now')}</span>

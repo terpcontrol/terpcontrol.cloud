@@ -61,38 +61,19 @@
   line-height: var(--line-tight);
 }
 
-/* 16:9, as most cameras take the picture, and the picture inside it whole at
-   whatever shape it has, on the inset mat: an RTSP camera that sends 4:3 was
-   cropped top and bottom, and the stamp burnt into its corner with it. */
+/* The picture on the shared mat, whole at whatever shape it has: an RTSP
+   camera that sends 4:3 was cropped top and bottom, and the stamp burnt into
+   its corner with it. Raised off the page, and never taller than most of the
+   screen; the composer's preview is shorter still. */
 .frame,
 .preview {
-  position: relative;
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
   max-height: 46vh;
-  background: var(--card-2);
   border-radius: var(--radius);
   box-shadow: var(--shadow-raised);
 }
 
 .preview {
-  aspect-ratio: 16 / 9;
   max-height: 30vh;
-}
-
-.still {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.noFrame {
-  display: grid;
-  place-items: center;
-  height: 100%;
-  font-size: var(--text-sm);
-  color: var(--muted);
 }
 
 .testWrap {
@@ -205,12 +186,6 @@
   font-size: var(--text-xs);
   line-height: 1.5;
   color: var(--muted);
-}
-
-.transport {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
 }
 
 .edge {

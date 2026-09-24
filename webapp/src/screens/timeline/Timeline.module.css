@@ -175,13 +175,10 @@
 
 /* ------------------------------------------------------------ the frame */
 
-/* The picture at the cursor, and under it the window to walk. The whole
-   picture is shown at its own shape, on an inset mat where it is narrower than
-   the card - never cropped, because a camera burns its clock into a corner and
-   a grower checks a frame against it. The transport sits under the picture on
-   the card rather than over it, so nothing covers the plant. */
+/* The picture at the cursor on the shared mat, and under it the shared
+   transport that walks the window, both on one card: the transport sits under
+   the picture rather than over it, so nothing covers the plant. */
 .frame {
-  position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -189,38 +186,6 @@
   border: var(--rule-solid);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-}
-
-.still,
-.noFrame {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: var(--card-2);
-}
-
-/* The mat a picture narrower than the card stands on is the dark of a
-   viewer, the same in both modes as a photograph's caption is: a pale mat
-   read as two bars of the page cut into the card beside the picture. */
-.still {
-  object-fit: contain;
-  background: var(--overlay-solid);
-}
-
-.noFrame {
-  display: grid;
-  place-items: center;
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--muted);
-}
-
-/* At the foot of the picture, where the camera page puts it: a camera burns
-   its own clock into the top corner, and a label there covered it. The
-   transport under the picture is a fixed 52 px, and the caption stands clear
-   of it. */
-.frameLabel {
-  bottom: calc(52px + var(--space-2));
 }
 
 .dots {
@@ -255,13 +220,6 @@
   opacity: 1;
 }
 
-.transport {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-}
-
 .play {
   display: grid;
   place-items: center;
@@ -287,14 +245,6 @@
   font-weight: var(--weight-semibold);
   text-align: right;
   color: var(--ink);
-}
-
-/* The window as a control a thumb can drag: under the picture and on the tent
-   with no camera alike, drawn in the page's own colours. */
-
-.bareSlider {
-  display: flex;
-  padding: 0 var(--space-3);
 }
 
 /* ------------------------------------------------- the pinned scrub header */
@@ -656,10 +606,9 @@
     font-size: var(--text-md);
   }
 
-  /* The picture keeps its shape and gives up width rather than height, so on
-     a wide column it stands on its mat instead of turning into a letterbox. */
-  .still,
-  .noFrame {
+  /* The mat gives up height on a wide column, and the picture keeps its
+     shape on it rather than the card turning into a letterbox. */
+  .frame > :first-child {
     max-height: 380px;
   }
 
@@ -678,8 +627,7 @@
     max-width: var(--page-width);
   }
 
-  .still,
-  .noFrame {
+  .frame > :first-child {
     max-height: 420px;
   }
 

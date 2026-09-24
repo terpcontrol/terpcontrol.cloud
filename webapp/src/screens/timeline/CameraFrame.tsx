@@ -43,31 +43,33 @@ export function CameraFrame({ cameras, from, to, cursor, day, onScrub }: CameraF
 
   return (
     <section className={styles.frame}>
-      {source ? (
-        <img className={styles.still} src={source} alt={t('timeline.frameAlt', { name: camera.name })} />
-      ) : (
-        <p className={`mono ${styles.noFrame}`}>{t('timeline.noFrames')}</p>
-      )}
-      <span className={`${ui.photoCaption} ${styles.frameLabel}`}>
-        {camera.name}
-        {caption ? ` · ${caption}` : ''}
-        {day !== null ? ` · ${t('timeline.dayN', { day })}` : ''}
-      </span>
-      {cameras.length > 1 ? (
-        <span className={styles.dots}>
-          {cameras.map((one, index) => (
-            <button
-              key={one.cameraId}
-              type="button"
-              className={styles.camDot}
-              aria-label={one.name}
-              aria-current={index === shown}
-              onClick={() => setShown(index)}
-            />
-          ))}
+      <div className={ui.mat}>
+        {source ? (
+          <img src={source} alt={t('timeline.frameAlt', { name: camera.name })} />
+        ) : (
+          <p className={`mono ${ui.matNote}`}>{t('timeline.noFrames')}</p>
+        )}
+        <span className={ui.photoCaption}>
+          {camera.name}
+          {caption ? ` · ${caption}` : ''}
+          {day !== null ? ` · ${t('timeline.dayN', { day })}` : ''}
         </span>
-      ) : null}
-      <div className={styles.transport}>
+        {cameras.length > 1 ? (
+          <span className={styles.dots}>
+            {cameras.map((one, index) => (
+              <button
+                key={one.cameraId}
+                type="button"
+                className={styles.camDot}
+                aria-label={one.name}
+                aria-current={index === shown}
+                onClick={() => setShown(index)}
+              />
+            ))}
+          </span>
+        ) : null}
+      </div>
+      <div className={ui.transport}>
         <button type="button" className={styles.play} onClick={playing.toggle} aria-label={t(playing.on ? 'timeline.pause' : 'timeline.play')}>
           {playing.on ? <Pause size={15} fill="currentColor" aria-hidden /> : <Play size={15} fill="currentColor" aria-hidden />}
         </button>

@@ -166,6 +166,55 @@
   color: var(--warning);
 }
 
+/* A camera's picture shown whole: 16:9, as most cameras take it, with the
+   picture inside at whatever shape it has on the dark of a viewer - never
+   cropped, because a camera burns its clock into a corner and a grower checks
+   a frame against it. The mat is the positioned element its caption and
+   buttons are laid on. Where there is no picture to show, the mat is the
+   inset surface and `.matNote` says why. */
+.mat {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--overlay-solid);
+}
+
+/* Laid over the whole mat rather than sized by it, so a mat a page caps in
+   height still shows the whole picture instead of the middle of it. */
+.mat > img,
+.mat > video {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.mat:not(:has(> img, > video)) {
+  background: var(--card-2);
+}
+
+.matNote {
+  margin: 0;
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-align: center;
+}
+
+/* The row that walks a day of pictures, under the mat: play where there is
+   one, the one slider, and the ends or the time at the cursor beside it. */
+.transport {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
 /* What a picture is, laid on the picture: its time, its age, how many there
    are. Smoked glass in the corner, the same in both modes because the picture
    under it does not change with the theme; it sits bottom left, and is cut

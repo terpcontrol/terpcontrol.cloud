@@ -171,7 +171,7 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
         />
       ) : (
         // No camera here: the panels keep their scrubber, which is the one control a thumb has.
-        <div className={styles.bareSlider}>
+        <div className={ui.transport}>
           <Slider from={from} to={to} cursor={here} onScrub={setCursor} />
         </div>
       )}

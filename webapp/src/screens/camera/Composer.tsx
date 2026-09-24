@@ -82,13 +82,13 @@ export function Composer({ camera, grow, pending, onRender, onClose }: ComposerP
   return (
     <Sheet title={t('composer.title')} aside={grow?.name} onClose={onClose}>
       <div className={styles.composer}>
-        <div className={styles.preview}>
+        <div className={`${ui.mat} ${styles.preview}`}>
           {preview ? (
-            <img className={styles.still} src={mediaUrl(preview, THUMBNAIL_WIDTH.frame) ?? undefined} alt="" />
+            <img src={mediaUrl(preview, THUMBNAIL_WIDTH.frame) ?? undefined} alt="" />
           ) : (
             // A preview that is missing means this camera has never delivered a
             // picture at all, which is not the same as today holding none.
-            <p className={`mono ${styles.noFrame}`}>{t('composer.noPictureYet')}</p>
+            <p className={`mono ${ui.matNote}`}>{t('composer.noPictureYet')}</p>
           )}
           {/* The picture is the camera's newest still and not a frame of the
               range, which has no picture of its own until it is rendered - so
