@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Chart } from '@/charts/Chart';
 import { AXIS_GUTTER, plotOption, readAt } from '@/charts/series';
 import type { ChartPalette } from '@/charts/tokens';
+import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { fractionOf } from '../timeline/window';
 import type { Card } from './cards';
@@ -50,7 +51,11 @@ export function ChartCard({ card, cursor, scrub, ends }: ChartCardProps) {
       style={{ '--gutter': `${AXIS_GUTTER}px`, '--gutter-right': `${AXIS_GUTTER}px` } as React.CSSProperties}
     >
       <header className={styles.cardHead}>
-        <span className={styles.cardTitle}>{card.title}</span>
+        <span className={styles.cardTitle}>
+          {card.title}
+          {/* An (i) rather than the word as a term: the chip that turns the line on is already a button called VPD. */}
+          {card.key === 'vpd' ? <Help topic="vpd" /> : null}
+        </span>
         {card.about ? <span className={styles.cardAbout}>· {card.about}</span> : null}
         <span className={`mono ${styles.cardUnit}`}>{card.unit}</span>
       </header>

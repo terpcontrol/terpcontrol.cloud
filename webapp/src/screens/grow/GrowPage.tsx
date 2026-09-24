@@ -11,6 +11,7 @@ import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, standsIn, useMayWith } from '@/ui/session-access';
 import { Tabs } from '@/ui/Tabs';
+import { Term } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay, useZone } from '@/ui/zone';
@@ -198,7 +199,9 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
         {summary.dayNumber !== null ? (
           <div className={styles.day}>
             <span className={`figure ${styles.dayFigure}`}>{summary.dayNumber}</span>
-            <span className="caption">{t(endedOn ? 'grow.finalDay' : 'home.card.day')}</span>
+            <span className="caption">
+              <Term topic="growDay">{t(endedOn ? 'grow.finalDay' : 'home.card.day')}</Term>
+            </span>
           </div>
         ) : null}
       </div>
@@ -209,13 +212,22 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
         {summary.stage ? (
           <span className={styles.phase}>
             {t(`home.stage.${summary.stage}`)}
-            {summary.stageWeek !== null ? ` · ${t('grow.week', { week: summary.stageWeek })}` : ''}
+            {summary.stageWeek !== null ? (
+              <>
+                {' · '}
+                <Term topic="growWeek">{t('grow.week', { week: summary.stageWeek })}</Term>
+              </>
+            ) : null}
             {summary.phaseDay !== null ? ` · ${t('grow.dayN', { day: summary.phaseDay })}` : ''}
           </span>
         ) : (
           <span className={styles.phase}>{t('home.card.noPhase')}</span>
         )}
-        {summary.isAuto ? <span className={`mono ${styles.auto}`}>{t('home.card.auto')}</span> : null}
+        {summary.isAuto ? (
+          <span className={`mono ${styles.auto}`}>
+            <Term topic="autoTag">{t('home.card.auto')}</Term>
+          </span>
+        ) : null}
         {summary.groups.length > 0 ? (
           <span className={styles.muted}>
             {' · '}

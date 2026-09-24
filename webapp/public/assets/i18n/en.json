@@ -4264,6 +4264,54 @@
     "resumePlan": {
       "title": "Resume the plan",
       "text": "The plan's clock runs on from where it stopped, and within the hour the step's own figures are sent again, replacing those set here."
+    },
+    "growDay": {
+      "title": "Grow day",
+      "text": "Day 1 is the day the grow began, and each further day is another 24 hours from that moment. The counter starts with the first phase and stops when the grow ends."
+    },
+    "growWeek": {
+      "title": "Grow week and stage week",
+      "text": "Grow weeks run in sevens from day 1; the week cards and the feeding scheme go by them. Beside a stage, week 2 is the stage's second grow week, and the day counts from the day the stage began."
+    },
+    "autoTag": {
+      "title": "auto",
+      "text": "This phase was set by a grow plan or a climate preset, which wrote the targets here along with it – it was not recorded as a stage alone. It has nothing to do with autoflowers."
+    },
+    "phasePreset": {
+      "title": "Stage only or a preset",
+      "text": "Stage only records the stage and leaves the targets and light hours where the plants stand as they are. A preset also writes its climate to the controllers there."
+    },
+    "phaseCorrection": {
+      "title": "Correct or withdraw",
+      "text": "Both change the record only: the phase's date, the day count it starts and its diary line. Neither puts back the targets or the light the controllers were given at the time."
+    },
+    "autoflower": {
+      "title": "Photoperiod or autoflower",
+      "text": "A photoperiod plant flowers once the light goes to 12/12; an autoflower flowers by age and keeps long days. It is chosen here once: a grow started in Veg or Flower gets the Auto climate, and a feeding scheme runs at half strength with no flip week."
+    },
+    "growEnds": {
+      "title": "Ending the grow",
+      "text": "Once the last plants are harvested the grow ends on this day: nothing can be dated after it, and it cannot be reopened in the app. Enter drying and curing first if they belong in the diary."
+    },
+    "dayNightAverages": {
+      "title": "Day / night",
+      "text": "Averages over the hours the light was on and the hours it was off, as the controller switched it – not by the clock. Where no light was recorded, one average is shown instead."
+    },
+    "feedStrength": {
+      "title": "Strength",
+      "text": "Scales every dose in the scheme – half strength halves them. The EC targets stay as the scheme gives them."
+    },
+    "waterEc": {
+      "title": "Water",
+      "text": "The EC of your water before anything is added. It is added to the scheme's EC targets, so a target is what your meter should read; 0 means reverse osmosis water."
+    },
+    "feedFlip": {
+      "title": "Flip week",
+      "text": "The scheme is read by the grow's own week, counted from day 1. The flip week says when the grow went to 12/12 and marks the scheme's weeks from then on as flowering; it does not switch the light or enter a phase."
+    },
+    "chartLayout": {
+      "title": "Layout",
+      "text": "Stacked gives each measure a chart of its own; Overlay lays them on one chart and names any whose scale does not fit. Day-of-grow counts the axis in grow days instead of dates – with the Phase or Grow range – so an earlier grow of the same place can be laid over it."
     }
   }
 }

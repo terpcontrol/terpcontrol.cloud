@@ -37,7 +37,15 @@ export function Weeks({ grow, now }: { grow: GrowListItem; now: DateTime }) {
       {cards.map((week, index) => (
         // The server answers newest first, so the first card of a grow that is
         // still going is the week it is in; no clock of the client's decides it.
-        <WeekCard key={week.weekNumber} week={week} grow={grow} people={people} now={now} current={index === 0 && grow.endedAt === null} />
+        <WeekCard
+          key={week.weekNumber}
+          week={week}
+          grow={grow}
+          people={people}
+          now={now}
+          current={index === 0 && grow.endedAt === null}
+          explain={index === 0}
+        />
       ))}
       {weeks.hasNextPage ? (
         <button type="button" className={ui.button} disabled={weeks.isFetchingNextPage} onClick={() => void weeks.fetchNextPage()}>

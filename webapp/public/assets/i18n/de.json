@@ -4260,6 +4260,54 @@
     "resumePlan": {
       "title": "Plan fortsetzen",
       "text": "Die Uhr des Plans läuft dort weiter, wo sie stand, und innerhalb einer Stunde werden die Werte des Schritts erneut geschickt – statt der hier eingestellten."
+    },
+    "growDay": {
+      "title": "Grow-Tag",
+      "text": "Tag 1 ist der Tag, an dem der Grow begann; jeder weitere Tag sind 24 Stunden mehr ab diesem Moment. Der Zähler beginnt mit der ersten Phase und bleibt stehen, wenn der Grow endet."
+    },
+    "growWeek": {
+      "title": "Grow-Woche und Stadiumswoche",
+      "text": "Grow-Wochen laufen in Siebenerschritten ab Tag 1; nach ihnen gehen die Wochenkarten und das Fütterungsschema. Neben einem Stadium ist Woche 2 die zweite Grow-Woche dieses Stadiums, und der Tag zählt ab dem Tag, an dem es begann."
+    },
+    "autoTag": {
+      "title": "auto",
+      "text": "Diese Phase kam von einem Grow-Plan oder einem Klima-Preset, das dabei auch die Zielwerte vor Ort geschrieben hat – sie wurde nicht als bloßes Stadium eingetragen. Mit Autoflowers hat das nichts zu tun."
+    },
+    "phasePreset": {
+      "title": "Nur Stadium oder ein Preset",
+      "text": "„Nur Stadium“ hält das Stadium fest und lässt Zielwerte und Lichtstunden dort, wo die Pflanzen stehen, wie sie sind. Ein Preset schreibt außerdem sein Klima an die Controller dort."
+    },
+    "phaseCorrection": {
+      "title": "Korrigieren oder zurückziehen",
+      "text": "Beides ändert nur die Aufzeichnung: das Datum der Phase, die Tageszählung, die mit ihr beginnt, und ihre Tagebuchzeile. Keins von beiden nimmt Zielwerte oder Licht zurück, die die Controller damals bekommen haben."
+    },
+    "autoflower": {
+      "title": "Photoperiodisch oder Autoflower",
+      "text": "Eine photoperiodische Pflanze blüht, sobald das Licht auf 12/12 geht; ein Autoflower blüht nach Alter und behält lange Tage. Das wird hier einmal gewählt: Ein Grow, der in Veg oder Blüte startet, bekommt das Auto-Klima, und ein Fütterungsschema läuft mit halber Stärke ohne Umstellung."
+    },
+    "growEnds": {
+      "title": "Den Grow beenden",
+      "text": "Sind die letzten Pflanzen geerntet, endet der Grow an diesem Tag: Danach lässt sich nichts mehr datieren, und in der App kann er nicht wieder geöffnet werden. Trag Trocknung und Reifung vorher ein, wenn sie ins Tagebuch gehören."
+    },
+    "dayNightAverages": {
+      "title": "Tag / Nacht",
+      "text": "Durchschnitte über die Stunden mit und ohne Licht, so wie der Controller es geschaltet hat – nicht nach der Uhr. Wo kein Licht aufgezeichnet wurde, steht stattdessen ein einziger Durchschnitt."
+    },
+    "feedStrength": {
+      "title": "Stärke",
+      "text": "Skaliert jede Dosis im Schema – halbe Stärke halbiert sie. Die EC-Zielwerte bleiben, wie das Schema sie angibt."
+    },
+    "waterEc": {
+      "title": "Wasser",
+      "text": "Der EC-Wert deines Wassers, bevor etwas hinzukommt. Er wird zu den EC-Zielwerten des Schemas addiert, sodass ein Zielwert ist, was dein Messgerät anzeigen sollte; 0 steht für Osmosewasser."
+    },
+    "feedFlip": {
+      "title": "Umstellung",
+      "text": "Das Schema wird nach der Grow-Woche gelesen, gezählt ab Tag 1. Die Umstellung sagt, wann der Grow auf 12/12 ging, und kennzeichnet die Wochen des Schemas ab dann als Blüte; sie schaltet weder das Licht noch beginnt sie eine Phase."
+    },
+    "chartLayout": {
+      "title": "Darstellung",
+      "text": "Gestapelt gibt jedem Messwert ein eigenes Diagramm; Überlagert legt sie in eines und nennt die, deren Skala nicht passt. Grow-Tag zählt die Achse in Grow-Tagen statt Daten – beim Zeitraum Phase oder Grow –, sodass sich ein früherer Grow am selben Ort darüberlegen lässt."
     }
   }
 }

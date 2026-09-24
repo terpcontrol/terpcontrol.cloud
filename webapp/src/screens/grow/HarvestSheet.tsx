@@ -8,6 +8,7 @@ import { useHarvest } from '@/api/lifecycle';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
 import { readingFigure } from '@/ui/entries';
+import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { Block, WhenField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -115,6 +116,7 @@ export function HarvestSheet({
         {endsTheGrow ? (
           <p className={`${ui.cardDashed} ${styles.warning}`}>
             {t('grow.lifecycle.harvest.endsTheGrow', { date: DateTime.fromJSDate(at).toFormat(DAY) })}
+            <Help topic="growEnds" />
           </p>
         ) : null}
 

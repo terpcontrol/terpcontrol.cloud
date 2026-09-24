@@ -20,6 +20,18 @@ export const HELP_TOPICS = [
   'dayNight',
   'lightLimit',
   'resumePlan',
+  'growDay',
+  'growWeek',
+  'autoTag',
+  'phasePreset',
+  'phaseCorrection',
+  'autoflower',
+  'growEnds',
+  'dayNightAverages',
+  'feedStrength',
+  'waterEc',
+  'feedFlip',
+  'chartLayout',
 ] as const;
 
 export type HelpTopic = (typeof HELP_TOPICS)[number];

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowScheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
 import { growSchemeLabel, schemeVersionLabel, useOwnSchemes, useScheme, useSchemes } from '@/api/schemes';
+import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { sameScheme, useSchemeEdit } from './scheme/edit-store';
@@ -173,9 +174,13 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
 
       <div className={styles.settings}>
         <label className={`${ui.card} ${styles.setting}`}>
-          <span className="label">{t('grow.scheme.strength')}</span>
+          <span className="label">
+            {t('grow.scheme.strength')}
+            <Help topic="feedStrength" />
+          </span>
           <select
             className={styles.settingValue}
+            aria-label={t('grow.scheme.strength')}
             disabled={!mayManage}
             value={String(draft.strength)}
             onChange={event => setDraft({ ...draft, strength: Number(event.target.value) })}
@@ -191,7 +196,10 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
         </label>
 
         <label className={`${ui.card} ${styles.setting}`}>
-          <span className="label">{t('grow.scheme.water')}</span>
+          <span className="label">
+            {t('grow.scheme.water')}
+            <Help topic="waterEc" />
+          </span>
           <span className={styles.waterRow}>
             <span className={styles.waterKind}>{t(waterKey(draft.waterEc))}</span>
             <input
@@ -236,9 +244,13 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
         </label>
 
         <label className={`${ui.card} ${styles.setting}`}>
-          <span className="label">{t('grow.scheme.flip')}</span>
+          <span className="label">
+            {t('grow.scheme.flip')}
+            <Help topic="feedFlip" />
+          </span>
           <select
             className={styles.settingValue}
+            aria-label={t('grow.scheme.flip')}
             disabled={!mayManage}
             value={draft.flipWeek === null ? '' : String(draft.flipWeek)}
             onChange={event => {

@@ -14,6 +14,7 @@ import { useScrub } from '@/charts/scrub';
 import { dayOfGrow, downloadCsv, readAt, type PlotLine } from '@/charts/series';
 import { ageLabel } from '@/ui/age';
 import { looseFigure } from '@/ui/figures';
+import { Help } from '@/ui/Help';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { stoodIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -517,6 +518,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
             </button>
           ))}
         </div>
+        <Help topic="chartLayout" />
         <div className={styles.footerActions}>
           {/* The demo may look at every chart and keep none: a view is written to an account, and it has not got one. */}
           {mayManage ? (

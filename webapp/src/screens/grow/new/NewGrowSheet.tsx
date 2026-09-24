@@ -323,7 +323,7 @@ function Form({
           </button>
         </Block>
 
-        <Block label={t('grow.new.type')} aside={t('grow.new.typeAside')}>
+        <Block label={t('grow.new.type')} help="autoflower" aside={t('grow.new.typeAside')}>
           <div className={`${ui.segments} ${ui.segmentsFill}`} role="group" aria-label={t('grow.new.type')}>
             <button type="button" className={ui.segment} aria-pressed={draft.type === 'photoperiod'} onClick={() => change({ type: 'photoperiod' })}>
               {t('grow.new.photoperiod')}

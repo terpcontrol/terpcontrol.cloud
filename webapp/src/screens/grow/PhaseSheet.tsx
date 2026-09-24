@@ -7,6 +7,7 @@ import { useAddPhase, useCorrectPhase, useWithdrawPhase } from '@/api/lifecycle'
 import { Sheet } from '@/log/Sheet';
 import { nextStage } from '@/log/defaults';
 import { instantOf } from '@/ui/age';
+import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
@@ -73,7 +74,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
       <div className={styles.body}>
         <p className={`mono ${styles.now}`}>{nowLine(t, grow, zone)}</p>
 
-        <Block label={t(ended ? 'grow.lifecycle.phase.record' : 'grow.lifecycle.phase.enter')}>
+        <Block label={t(ended ? 'grow.lifecycle.phase.record' : 'grow.lifecycle.phase.enter')} help="stage">
           <Choices label={t('grow.lifecycle.phase.stageLabel')}>
             {STAGES.map(one => (
               <Choice key={one} chosen={one === stage} onChoose={() => pickStage(one)}>
@@ -108,7 +109,11 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           </button>
         </Block>
 
-        <Block label={t('grow.lifecycle.phase.history')} aside={<span className="mono">{t('grow.lifecycle.phase.oldestFirst')}</span>}>
+        <Block
+          label={t('grow.lifecycle.phase.history')}
+          help="phaseCorrection"
+          aside={<span className="mono">{t('grow.lifecycle.phase.oldestFirst')}</span>}
+        >
           {ordered.length === 0 ? (
             <p className={ui.note}>{t('grow.lifecycle.phase.noneYet')}</p>
           ) : (
@@ -180,6 +185,7 @@ function PresetRow({ stage, preset, onPick }: { stage: GrowthStage; preset: stri
           {t(`grow.presetName.${one}`, { defaultValue: one })}
         </Choice>
       ))}
+      <Help topic="phasePreset" />
     </Choices>
   );
 }

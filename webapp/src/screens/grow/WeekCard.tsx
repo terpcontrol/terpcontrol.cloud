@@ -1,6 +1,6 @@
 import { ChevronDown, Leaf } from 'lucide-react';
 import { DateTime } from 'luxon';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowWeekCard, Person, WeekClimate } from '@fg2/shared-types/v1';
 import { useWeekEntries } from '@/api/grows';
@@ -10,6 +10,7 @@ import { EntryRow } from '@/ui/EntryRow';
 import { unitSymbol } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 import { readingFigure, weekDayOf } from '@/ui/entries';
+import { Term } from '@/ui/Help';
 import { standsIn } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { amountLabel, schemeName } from './scheme';
@@ -22,6 +23,8 @@ interface WeekCardProps {
   now: DateTime;
   /** The week the grow is in opens by itself; every other one opens on a tap. */
   current: boolean;
+  /** The first card on the page, whose words explain themselves once for all of them. */
+  explain?: boolean;
 }
 
 const figure = (value: number | null, decimals: number): string => (value === null ? '–' : decimalFigure(value, decimals));
@@ -32,7 +35,7 @@ const figure = (value: number | null, decimals: number): string => (value === nu
  * was done, where the grow's own readings stand, and the week's lines with who
  * wrote them.
  */
-export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
+export function WeekCard({ week, grow, people, now, current, explain }: WeekCardProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(current);
   // The rest of the week's lines, asked for only once somebody asks to read
@@ -112,7 +115,19 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
         <p className={`mono ${styles.noClimate}`}>{t('grow.nothingMeasured')}</p>
       ) : (
         <dl className={`${ui.strip} ${styles.stats}`}>
-          <Stat value={dayNight(temperature, 1)} unit="°C" label={temperature?.dayAverage != null ? t('grow.dayNight') : t('grow.average')} />
+          <Stat
+            value={dayNight(temperature, 1)}
+            unit="°C"
+            label={
+              temperature?.dayAverage == null ? (
+                t('grow.average')
+              ) : explain ? (
+                <Term topic="dayNightAverages">{t('grow.dayNight')}</Term>
+              ) : (
+                t('grow.dayNight')
+              )
+            }
+          />
           <Stat value={figure(humidity?.averageValue ?? null, 0)} unit="%" label={t('grow.humidity')} />
           <Stat value={figure(week.lightHours, 0)} unit={unitSymbol('h')} label={t('grow.light')} />
         </dl>
@@ -209,7 +224,7 @@ const dayNight = (row: WeekClimate | undefined, decimals: number): string =>
     ? `${figure(row.dayAverage, decimals)} / ${figure(row.nightAverage, decimals)}`
     : figure(row?.averageValue ?? null, decimals);
 
-function Stat({ value, unit, label }: { value: string; unit: string; label: string }) {
+function Stat({ value, unit, label }: { value: string; unit: string; label: ReactNode }) {
   return (
     <div>
       <dd className={ui.stripValue}>
