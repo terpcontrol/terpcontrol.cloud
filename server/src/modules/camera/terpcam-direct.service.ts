@@ -72,10 +72,16 @@ const ALIVE_MS = 2_000;
 const SESSION_IDLE_MS = 10 * 60_000;
 /** A malfunctioning camera must not stream without end. */
 const MAX_FRAME_BYTES = 4 * 1024 * 1024;
+/**
+ * After a camera refused us or turned out to be somebody else's, wait before
+ * trying again: every attempt takes one of its few session slots from its owner.
+ */
+const REFUSED_BACKOFF_MS = 5 * 60_000;
+const REFUSED_BACKOFF_MAX_MS = 60 * 60_000;
 
 type Endpoint = { address: string; port: number };
 type Inbox = { message: Buffer; from: Endpoint }[];
-type Camera = { label: string; uid?: string; password?: string };
+type Camera = { label: string; uid?: string; password?: string; refused?: { until: number; delayMs: number; reason: string } };
 type Session = {
   socket: dgram.Socket;
   peer: Endpoint;
@@ -211,6 +217,38 @@ function parseAddress(body: Buffer, offset = 0): Endpoint | null {
   return { address: ip, port };
 }
 
+/** Ids are written with and without dashes, and in either case. */
+function normaliseId(id: string): string {
+  return id.replace(/-/g, '').toUpperCase();
+}
+
+/** A CS2 P2P id (`VSTH828707TXVEW`), as opposed to the camera's `realdeviceid`. */
+function isP2PId(id: string): boolean {
+  return /^[A-Z]{4}\d+[A-Z]{5}$/.test(normaliseId(id));
+}
+
+function statusVar(text: string, name: string): string | undefined {
+  return new RegExp(`(?:^|[^a-z])${name}=\\s*"?([^";&\\s]+)`, 'i').exec(text)?.[1];
+}
+
+/**
+ * What a `get_status.cgi` reply says about the camera that sent it. It names the
+ * camera (`vuid=`) even when it refuses the password, so the check needs none.
+ *
+ * `label` is what the device paired: the camera's `realdeviceid`, or on cameras
+ * without one its P2P `deviceid`, so it is compared with whichever it is.
+ */
+export function readStatusReply(text: string, label: string): { result?: number; identity: 'match' | 'mismatch' | 'unknown' } {
+  const result = /result=\s*(-?\d+)/.exec(text)?.[1];
+  const ids = isP2PId(label) ? [statusVar(text, 'deviceid')] : [statusVar(text, 'vuid'), statusVar(text, 'realdeviceid')];
+  const found = ids.filter((id): id is string => !!id).map(normaliseId);
+  const identity = !found.length ? 'unknown' : found.includes(normaliseId(label)) ? 'match' : 'mismatch';
+  return { result: result === undefined ? undefined : Number(result), identity };
+}
+
+/** Thrown for a camera that must not be retried right away. */
+export class CameraRefusedError extends Error {}
+
 @Injectable()
 export class TerpCamDirectService implements OnApplicationShutdown {
   /** The lookup servers, the address advertised to a camera, and the ports held. */
@@ -274,13 +312,30 @@ export class TerpCamDirectService implements OnApplicationShutdown {
   /** Empty means the camera still has the manufacturer's default. */
   public rememberPassword(deviceId: string, password: string): void {
     const camera = this.cameras.get(deviceId);
-    if (camera) camera.password = password || undefined;
+    if (!camera) return;
+    if ((password || undefined) !== camera.password) camera.refused = undefined;
+    camera.password = password || undefined;
   }
 
-  /** The camera's P2P id, read off the camera by its controller. */
+  /**
+   * The camera's P2P id, read off the camera by its controller. `none` is sent
+   * when the one it had turned out to belong to another camera.
+   */
   public rememberUid(deviceId: string, uid: string): void {
     const camera = this.cameras.get(deviceId);
-    if (camera && uid && uid !== 'none') camera.uid = uid;
+    if (!camera || !uid) return;
+    if (uid === 'none') {
+      camera.uid = undefined;
+      this.dropSession(deviceId);
+      return;
+    }
+    for (const [other, known] of this.cameras) {
+      if (other !== deviceId && known.uid && known.label !== camera.label && normaliseId(known.uid) === normaliseId(uid)) {
+        logger.warn(`[terpcam] ${deviceId} and ${other} report the same camera uid ${uid} for different cameras`);
+      }
+    }
+    if (camera.uid !== uid) camera.refused = undefined;
+    camera.uid = uid;
   }
 
   /**
@@ -317,7 +372,7 @@ export class TerpCamDirectService implements OnApplicationShutdown {
     const device = await this.devices.findOne({ device_id: deviceId });
     const info = device?.hardwareInfo;
     const label = info?.webcam_did;
-    if (!label || label === 'none' || !info?.webcam_uid) return null;
+    if (!label || label === 'none' || !info?.webcam_uid || info.webcam_uid === 'none') return null;
 
     const camera = { label, uid: info.webcam_uid, password: info.webcam_pwd || undefined };
     this.cameras.set(deviceId, camera);
@@ -379,7 +434,7 @@ export class TerpCamDirectService implements OnApplicationShutdown {
   }
 
   /** Open a session (one rendezvous) or reuse the one already held. */
-  private async session(deviceId: string, camera: { uid: string; password?: string }) {
+  private async session(deviceId: string, camera: Camera & { uid: string }) {
     const existing = this.sessions.get(deviceId);
     if (existing) return existing;
 
@@ -396,7 +451,7 @@ export class TerpCamDirectService implements OnApplicationShutdown {
       const punched = await this.rendezvous(socket, inbox, did);
       const auth = authFor(camera.password ?? DEFAULT_PASSWORD);
       // login consumes channel-0 index 0, so requests continue from 1
-      await this.login(socket, inbox, did, punched, auth);
+      await this.login(socket, inbox, did, punched, auth, camera.label);
       const session: Session = { socket, peer: punched, inbox, auth, next: 1 };
       session.alive = this.startHeartbeat(session);
       this.sessions.set(deviceId, session);
@@ -437,7 +492,7 @@ export class TerpCamDirectService implements OnApplicationShutdown {
    * The keepalive stands down while reading: it and the reader drain the same
    * inbox, so leaving it running would let it swallow video fragments.
    */
-  private async readStill(deviceId: string, identity: { uid: string; password?: string }): Promise<Buffer | undefined> {
+  private async readStill(deviceId: string, identity: Camera & { uid: string }): Promise<Buffer | undefined> {
     const session = await this.session(deviceId, identity);
     clearInterval(session.alive);
     try {
@@ -463,7 +518,10 @@ export class TerpCamDirectService implements OnApplicationShutdown {
     if (!this.rendezvousHosts.length) {
       throw new Error('TERPCAM_RENDEZVOUS_HOSTS is unset, so cameras can only be reached by their controller');
     }
-    const identity = { uid: camera.uid, password: camera.password };
+    if (camera.refused && Date.now() < camera.refused.until) {
+      throw new Error(`${camera.refused.reason}; not retrying before ${new Date(camera.refused.until).toISOString()}`);
+    }
+    const identity = { ...camera, uid: camera.uid };
 
     // A held session that has gone stale fails exactly like a broken one, so a
     // reused session gets a second attempt on a freshly opened one.
@@ -473,9 +531,16 @@ export class TerpCamDirectService implements OnApplicationShutdown {
         const keyframe = await this.readStill(deviceId, identity);
         if (!keyframe) throw new Error('no keyframe arrived');
         this.touchSession(deviceId);
+        camera.refused = undefined;
         return { data: keyframe, h264: true };
       } catch (error) {
         this.dropSession(deviceId);
+        if (error instanceof CameraRefusedError) {
+          const delayMs = Math.min((camera.refused?.delayMs ?? REFUSED_BACKOFF_MS / 2) * 2, REFUSED_BACKOFF_MAX_MS);
+          camera.refused = { until: Date.now() + delayMs, delayMs, reason: error.message };
+          logger.warn(`[terpcam] ${deviceId}: ${error.message}`);
+          throw error;
+        }
         if (attempt >= attempts) throw error;
         logger.info(`[terpcam] ${deviceId}: held session went stale, opening a new one`);
       }
@@ -531,18 +596,37 @@ export class TerpCamDirectService implements OnApplicationShutdown {
     return peer;
   }
 
-  /** Authenticate the punched session. */
-  private async login(socket: dgram.Socket, inbox: Inbox, did: Buffer, peer: Endpoint, auth: string): Promise<void> {
+  /**
+   * Authenticate the punched session, and make sure it is the camera the device
+   * paired. The rendezvous hands out whichever camera answers to the P2P id, and
+   * a controller that read that id off the wrong camera reports it in good faith,
+   * so the reply is checked rather than trusted: no session is held to a camera
+   * the device did not pair, nor to one that refused the password.
+   */
+  private async login(socket: dgram.Socket, inbox: Inbox, did: Buffer, peer: Endpoint, auth: string, label: string): Promise<void> {
     const trailer = Buffer.from([0x00, 0x02, 0x12, 0x64, 0x10, 0x02, 0x00, 0x0a, 0, 0, 0, 0, 0, 0, 0, 0]);
     const devlgn = Buffer.concat([did, trailer]);
+    // The reply spans several fragments, kept by their position in it.
+    const fragments = new Map<number, Buffer>();
+    let first: number | undefined;
+    let contiguous = 0;
+    const reply = () =>
+      readStatusReply(
+        [...fragments.entries()]
+          .sort(([a], [b]) => a - b)
+          .map(([, fragment]) => fragment.toString('latin1'))
+          .join(''),
+        label,
+      );
     const until = Date.now() + LOGIN_MS;
     while (Date.now() < until) {
-      for (const packet of [buildPacket(0x00), buildPacket(0x05, did), buildPacket(0x20, devlgn), buildPacket(0x41, did)]) {
-        send(socket, peer, packet);
+      if (!fragments.size) {
+        for (const packet of [buildPacket(0x00), buildPacket(0x05, did), buildPacket(0x20, devlgn), buildPacket(0x41, did)]) {
+          send(socket, peer, packet);
+        }
+        send(socket, peer, buildCgi(CMD_CHANNEL, 0, `get_status.cgi?${auth}`));
       }
-      send(socket, peer, buildCgi(CMD_CHANNEL, 0, `get_status.cgi?${auth}`));
 
-      let authed = false;
       await this.drain(inbox, 1_000, entry => {
         const m = entry.message;
         if (m.length >= 4 && (m[1] === 0x42 || m[1] === 0x43)) {
@@ -550,13 +634,26 @@ export class TerpCamDirectService implements OnApplicationShutdown {
           return false;
         }
         if (m.length >= 8 && m[1] === 0xd0 && m[5] === CMD_CHANNEL) {
-          authed = true;
-          return true;
+          const index = m.readUInt16BE(6);
+          first ??= index;
+          fragments.set((index - first) & 0xffff, m.subarray(8));
+          // Acked like the video (highest contiguous index): naming an older one asks for a resend.
+          while (fragments.has(contiguous)) contiguous++;
+          if (contiguous > 0) send(socket, peer, buildAck(CMD_CHANNEL, (first + contiguous - 1) & 0xffff));
+          return reply().identity !== 'unknown';
         }
         return false;
       });
-      if (authed) return;
+      if (!fragments.size) continue;
+
+      const { result, identity } = reply();
+      if (identity === 'mismatch') throw new CameraRefusedError('the camera at this uid is not the one the device paired');
+      if (result !== undefined && result < 0) throw new CameraRefusedError('the camera rejected the password');
+      if (identity === 'match' || result === 0) return;
     }
+    // A camera that answers without naming itself is taken at its word, as
+    // before this check existed: the uid came from its own controller.
+    if (fragments.size) return;
     throw new Error('camera did not accept the session');
   }
 

@@ -1166,6 +1166,9 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   if(did.empty()) {
     return fail_with_reconnect("cam id fail");
   }
+  // The P2P id the camera is reached by. Read here, off the camera being paired,
+  // it cannot be mistaken for another camera answering on the home network.
+  const std::string uid = fg::terpCamP2PId(sanitizeSettingString(parseCamVar(status_body, "deviceid")));
 
   emit_status("scan cam wifi...");
   std::string scan_url = std::string(TERP_CAM_AP_BASE) + "/wifi_scan.cgi?" + TERP_CAM_AUTH;
@@ -1195,17 +1198,24 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
 
   fg::settings().setStr(TERP_CAM_DID_NVS_KEY, did.c_str());
   fg::settings().erase(fg::TERP_CAM_PWD_NVS_KEY);   // a freshly paired camera has the default
+  fg::settings().erase(TERP_CAM_IP_NVS_KEY);        // the address and id were the previous camera's
+  if(uid.empty()) fg::settings().erase(fg::TERP_CAM_UID_NVS_KEY);
+  else fg::settings().setStr(fg::TERP_CAM_UID_NVS_KEY, uid.c_str());
   fg::settings().commit();
+
+  // Reported before securing, so the password the cloud hears next belongs to
+  // the camera it already knows about.
+  if(smart_socket_cloud_handle != nullptr) {
+    smart_socket_cloud_handle->log("message-terp-cam-connected", 0);
+    smart_socket_cloud_handle->log(std::string("hardware-info:webcam_did=") + did, 0);
+    smart_socket_cloud_handle->log(std::string("hardware-info:webcam_uid=") + (uid.empty() ? "none" : uid), 0);
+  }
 
   // Replace the manufacturer's published password now that the camera is on the
   // network. Not while it was still on its setup AP: it does not apply the
   // change until it is provisioned, and over P2P it takes effect at once.
   emit_status("secure cam...");
   emit_status(fg::terpCamSecure(smart_socket_cloud_handle) ? "cam secured" : "cam kept default pw");
-  if(smart_socket_cloud_handle != nullptr) {
-    smart_socket_cloud_handle->log("message-terp-cam-connected", 0);
-    smart_socket_cloud_handle->log(std::string("hardware-info:webcam_did=") + did, 0);
-  }
 
   emit_status("cam configured");
   delayWithWatchdog(1500);
@@ -1330,6 +1340,7 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
       fg::settings().erase(TERP_CAM_DID_NVS_KEY);
       fg::settings().erase(TERP_CAM_IP_NVS_KEY);    // and where it used to answer
+      fg::settings().erase(fg::TERP_CAM_UID_NVS_KEY);
       fg::settings().erase(fg::TERP_CAM_PWD_NVS_KEY);   // reset restores the default
       fg::settings().erase(TERP_CAM_URL_NVS_KEY);   // clear legacy slot too
       fg::settings().commit();
@@ -1338,6 +1349,7 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
         // Both slots are erased above, so report both as cleared — otherwise a
         // device that once had the legacy RTSP url keeps advertising it.
         smart_socket_cloud_handle->log("hardware-info:webcam_did=none", 0);
+        smart_socket_cloud_handle->log("hardware-info:webcam_uid=none", 0);
         smart_socket_cloud_handle->log("hardware-info:webcam_url=none", 0);
       }
 

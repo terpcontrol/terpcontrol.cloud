@@ -6,6 +6,8 @@ namespace fg {
 
   /** NVS slot holding this camera's password, empty until pairing sets one. */
   constexpr const char* TERP_CAM_PWD_NVS_KEY = "webcam_pwd";
+  /** NVS slot holding the camera's CS2 P2P id (e.g. VSTH828707TXVEW), once known. */
+  constexpr const char* TERP_CAM_UID_NVS_KEY = "webcam_uid";
   /** What the camera ships with, and what a factory reset puts back. */
   constexpr const char* TERP_CAM_DEFAULT_PASSWORD = "888888";
 
@@ -89,6 +91,12 @@ namespace fg {
 
   /** Whether a camera is paired and still on the manufacturer's password. */
   bool terpCamNeedsSecuring();
+
+  /**
+   * `id` without dashes if it is a CS2 P2P id (four letters, a number, five
+   * letters), otherwise empty. The camera's `realdeviceid` is not one.
+   */
+  std::string terpCamP2PId(const std::string& id);
 
   /*
    * ---------------------------------------------------------------------------
