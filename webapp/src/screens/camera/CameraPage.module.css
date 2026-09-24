@@ -107,8 +107,9 @@
   color: var(--warning);
 }
 
-/* 16:9, as the camera takes the picture, so the stamp burnt into its corner
-   is never cropped away. */
+/* 16:9, as most cameras take the picture, and the picture inside it whole at
+   whatever shape it has, on the inset mat: an RTSP camera that sends 4:3 was
+   cropped top and bottom, and the stamp burnt into its corner with it. */
 .frame,
 .preview {
   position: relative;
@@ -129,7 +130,7 @@
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .noFrame {
@@ -337,30 +338,73 @@
   text-transform: uppercase;
 }
 
-.compose {
-  justify-content: flex-start;
+/* The way to a film of one's own: a quiet filled action rather than an
+   outlined box, which read as a field waiting to be typed into. The chevron
+   says it opens something rather than doing something. */
+.compose,
+.compose:hover:not(:disabled) {
+  justify-content: space-between;
   width: 100%;
+  height: auto;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-4);
+  background: var(--tint);
+  border: 0;
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow);
+  box-shadow: none;
   text-align: left;
-  font-weight: var(--weight-regular);
+  white-space: normal;
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.compose:hover:not(:disabled) {
+  background: var(--tint-hover);
+}
+
+.compose::after {
+  content: '›';
+  flex: none;
+  padding-left: var(--space-3);
+  font-size: var(--text-lg);
+  line-height: 1;
   color: var(--muted);
 }
 
 /* ------------------------------------------------------------------ films */
 
+/* The films as one list, a rule between each, the way the settings beside
+   them read: three stacked cards made a column of boxes of equal weight. */
 .films {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
+  overflow: hidden;
   list-style: none;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
-/* The rest of the films, which sit behind this rather than being dropped. */
+.films > li + li {
+  border-top: var(--rule-solid);
+}
+
+.films .film {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* The rest of the films, which sit behind this rather than being dropped: a
+   quiet step down the list, not a second primary action under it. */
 .moreFilms {
   align-self: flex-start;
+  height: var(--action-height);
+  font-size: var(--text-sm);
 }
 
 .film {
@@ -370,18 +414,19 @@
   padding: var(--space-3) var(--space-4);
 }
 
+/* The span, then what became of it and the way to it. Where a phone has no
+   room for all three on one line the verdict drops under the span, whole,
+   rather than the span being cut to "24 Sep 01:21 → 24 ...". */
 .filmHead {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--space-3);
+  gap: var(--space-1) var(--space-3);
 }
 
 .filmTitle {
-  flex: 1;
+  flex: 1 1 14rem;
   min-width: 0;
-}
-
-.filmTitle {
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
   overflow: hidden;
@@ -404,9 +449,11 @@
 }
 
 .filmLink {
+  margin-left: auto;
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
-  color: var(--brand);
+  white-space: nowrap;
+  color: var(--green-ink);
 }
 
 .video {
@@ -430,11 +477,14 @@
   box-shadow: var(--shadow);
 }
 
+/* A row gives its controls a line of their own under the label where a phone
+   has no room for both, rather than breaking "night off" into two words. */
 .setting {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2) var(--space-3);
   padding: var(--space-2) var(--space-4);
   min-height: 56px;
 }
@@ -502,8 +552,11 @@
 
 .interval {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-2) var(--space-3);
+  margin-left: auto;
   font-size: var(--text-xs);
   color: var(--muted);
 }
@@ -519,6 +572,7 @@
   align-items: center;
   gap: 6px;
   font-size: var(--text-xs);
+  white-space: nowrap;
 }
 
 .check input {
@@ -581,10 +635,15 @@
   gap: var(--space-1);
 }
 
+/* The four overlays as one card of rows, as the camera's settings are, rather
+   than four cards stacked a gap apart. */
 .switches {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+}
+
+.switches > :first-child {
+  margin-bottom: var(--space-2);
 }
 
 .toggle {
@@ -592,7 +651,25 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-3);
+  min-height: 52px;
+  padding: var(--space-2) var(--space-4);
+}
+
+.switches .toggle {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.switches .toggle + .toggle {
+  border-top: 0;
+}
+
+.switches > :nth-child(2) {
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.switches > :last-child {
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 
 .toggleLabel {
