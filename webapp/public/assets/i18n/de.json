@@ -3060,6 +3060,8 @@
     "askFailed": "Dieser Film wurde nicht angefordert.",
     "testImage": "Testbild",
     "testing": "Wird gelesen…",
+    "testWorked": "Aufgenommen. Es ist das neueste Bild des Tages.",
+    "testFailed": "Das hat die Kamera nicht erreicht.",
     "thisCamera": "Diese Kamera",
     "connectedVia": "Verbunden über",
     "reachedAt": "Erreichbar unter",

@@ -243,9 +243,30 @@ export const useDropCamera = () => {
  * One picture now. A camera that could not be read answers the reason it gave
  * rather than an error, because a wrong address is an ordinary outcome of this
  * button and the reason is what the person needs to see.
+ *
+ * Either answer leaves the camera in a state this app is behind on: a press
+ * that worked stored a still that belongs on the frame and in the day's count,
+ * and one that failed is the reason the page prints above the picture. So the
+ * camera's row, the day being walked and the newest still are all asked again -
+ * a press that stored a picture and changed nothing on the screen was
+ * indistinguishable from a press that did nothing at all. The films are left
+ * alone: no capture makes one, and that read is a walk of every page somebody
+ * has opened.
  */
-export const useTestCapture = (cameraId: string) =>
-  useMutation({ mutationFn: () => api.post<TestCaptureAnswer>(`/cameras/${cameraId}/test-captures`) });
+export const useTestCapture = (cameraId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.post<TestCaptureAnswer>(`/cameras/${cameraId}/test-captures`),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({
+        predicate: query => {
+          const [what, id, part] = query.queryKey as [string, string | undefined, string | undefined];
+          return what === 'camera' && id === cameraId && part !== 'timelapses';
+        },
+      }),
+  });
+};
 
 /** A picture from a camera named as the request is made, for the same reason `useAmendCamera` exists. */
 export const useCaptureOnce = () =>

@@ -3064,6 +3064,8 @@
     "askFailed": "That film was not asked for.",
     "testImage": "Test image",
     "testing": "Reading…",
+    "testWorked": "Taken. It is the newest picture of the day.",
+    "testFailed": "That did not reach the camera.",
     "thisCamera": "This camera",
     "connectedVia": "Connected via",
     "reachedAt": "Reached at",

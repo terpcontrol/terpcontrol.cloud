@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Media } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
-import { useCameraFrames } from '@/api/cameras';
+import { useCameraFrames, useTestCapture } from '@/api/cameras';
 
 /**
  * What the camera page reads while somebody stands in front of the tent with it
@@ -86,5 +86,29 @@ describe("the day the camera page's scrubber walks", () => {
 
     await result.current.refetch();
     expect(result.current.data!.partial).toBe(true);
+  });
+});
+
+/**
+ * The picture the test button stores. The route answers the media id of the
+ * still it just took, and the page went on drawing the day it had read before
+ * the press - so a capture that worked and a button that did nothing at all
+ * looked the same from the screen.
+ */
+describe('a test image', () => {
+  it('has the day read again, so the picture it stored is on the frame and in the count', async () => {
+    vi.mocked(api.get).mockImplementation(() => page([still('a', '2026-09-23T12:00:00.000Z')]));
+    vi.mocked(api.post).mockImplementation(
+      () => Promise.resolve({ succeeded: true, mediaId: 'b', capturedAt: '2026-09-23T12:01:00.000Z', error: null }) as never,
+    );
+
+    const { result } = renderHook(() => ({ frames: useCameraFrames('camera-1', DAY), test: useTestCapture('camera-1') }), { wrapper });
+
+    await waitFor(() => expect(result.current.frames.data).toBeDefined());
+    expect(vi.mocked(api.get).mock.calls).toHaveLength(1);
+
+    result.current.test.mutate();
+
+    await waitFor(() => expect(vi.mocked(api.get).mock.calls.length).toBeGreaterThan(1));
   });
 });

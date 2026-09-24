@@ -44,6 +44,8 @@ const state = vi.hoisted(() => ({
   lastStill: null as string | null,
   /** The day the page asked the camera for, which is the account's and not this machine's. */
   askedForDay: null as { startsAt: string; endsAt: string } | null,
+  /** What the test button's press answered, which is a picture or a reason and never an error. */
+  capture: null as { succeeded: boolean; mediaId: string | null; capturedAt: string | null; error: string | null } | null,
 }));
 
 /**
@@ -68,6 +70,7 @@ vi.mock('@/api/cameras', async importOriginal => ({
 
     return { data: state.frames, isPending: false, isError: false, refetch: () => (state.readAgain += 1) };
   },
+  useTestCapture: () => ({ mutate: () => {}, data: state.capture ?? undefined, error: null, isPending: false }),
   useTimelapses: () => ({
     data: { pages: [{ items: state.films, nextCursor: state.moreFilms ? 'cursor' : null }] },
     hasNextPage: state.moreFilms,
@@ -168,6 +171,7 @@ beforeEach(() => {
   state.zone = 'UTC';
   state.askedForDay = null;
   state.lastStill = null;
+  state.capture = null;
 });
 
 describe('the composer', () => {
@@ -319,6 +323,18 @@ describe('the camera page, by who is reading', () => {
 
     expect(screen.getByText('Last try failed: the camera could not be read')).toBeInTheDocument();
     expect(screen.getByText('ffmpeg exited with status 251')).toBeInTheDocument();
+  });
+
+  /**
+   * A press that worked used to change nothing at all on this page: the answer
+   * carries the id of the still it stored, and the only line the button could
+   * draw was a failure.
+   */
+  it('says what a press that worked left behind, rather than going quiet', () => {
+    state.capture = { succeeded: true, mediaId: 'still-new', capturedAt: '2026-09-19T12:00:02.000Z', error: null };
+    drawPage();
+
+    expect(screen.getByRole('status')).toHaveTextContent('Taken. It is the newest picture of the day.');
   });
 
   /** A co-manager runs the tent and may set the camera up; ending it is still the owner's. */

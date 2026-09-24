@@ -108,11 +108,18 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   const grow = growOf(grows.data?.items ?? []);
   const shots = useMemo(() => [...(frames.data?.items ?? [])].sort((one, other) => at(one.capturedAt) - at(other.capturedAt)), [frames.data]);
   const from = shots.length > 0 ? at(shots[0].capturedAt) : DateTime.fromISO(day.startsAt).toMillis();
-  const to = Math.max(now.toMillis(), from + 1);
+  const newest = shots.at(-1) ?? null;
+  // The right-hand end of the day is now, or the newest picture where that is
+  // later. This screen's clock beats every ten seconds, and a picture taken
+  // between two beats is already in the day's list while still being later than
+  // the page's own now - so the frame drew the one before it and the label
+  // under it said a time that had passed. It is what a press of the test button
+  // produces every time: the picture the person asked for, a second old, and
+  // the frame showing the one before it until the clock caught up.
+  const to = Math.max(now.toMillis(), from + 1, newest ? at(newest.capturedAt) : 0);
   const [cursor, setCursor] = useState<number | null>(null);
   const time = cursor ?? to;
   const shown = frameAt(shots, time);
-  const newest = shots.at(-1) ?? null;
   // Decided once, above everything that draws from it, so that no two lines on
   // this screen can answer the same question differently. The read's own state
   // comes first: an empty `shots` is what a pending read and a failed one both
@@ -422,6 +429,17 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 /**
  * One picture, now. A camera that could not be read says the reason it gave,
  * because a wrong address is an ordinary outcome of this button.
+ *
+ * A press that worked says so as well. It stores a still, and the reads this
+ * button asks again for then carry it onto the frame and into the count under
+ * the scrubber - but the only line this ever drew was the failure, so on a
+ * camera that was already delivering a press that took a picture and a press
+ * that did nothing whatsoever looked exactly alike. The line names the picture
+ * rather than the button's own success, because the picture is what the person
+ * pressed it for.
+ *
+ * A request that never reached the server is neither of those two: the camera
+ * was never asked, and the button may simply be pressed again.
  */
 function TestImage({ cameraId }: { cameraId: string }) {
   const { t } = useTranslation();
@@ -432,7 +450,15 @@ function TestImage({ cameraId }: { cameraId: string }) {
       <button type="button" className={`${ui.button} ${styles.test}`} disabled={test.isPending} onClick={() => test.mutate()}>
         {test.isPending ? t('camera.testing') : t('camera.testImage')}
       </button>
-      {test.data && !test.data.succeeded ? (
+      {test.error ? (
+        <span className={styles.testWhy} role="alert">
+          {test.error instanceof ApiError ? test.error.problem.detail || test.error.problem.title : t('camera.testFailed')}
+        </span>
+      ) : test.data?.succeeded ? (
+        <span className={`mono ${styles.testWorked}`} role="status">
+          {t('camera.testWorked')}
+        </span>
+      ) : test.data ? (
         <span className={styles.testWhy} role="alert">
           {test.data.error}
         </span>
