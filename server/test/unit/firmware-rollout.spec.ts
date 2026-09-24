@@ -75,6 +75,7 @@ beforeEach(async () => {
     db.devices,
     db.deviceClasses,
     db.firmwares,
+    db.entries,
     publisher as unknown as DevicePublisherService,
     new EntryWriterService(db.entries),
   );
@@ -303,12 +304,24 @@ describe('an update that never lands', () => {
     await db.firmwares.create({ id: STABLE, createdAt: new Date(), classId: CLASS_ID, name: 'fridge', version: '2.1.0', wasStable: true });
   });
 
+  /** The line the firmware writes the moment it is told, which is what the wait is counted from. */
+  const told = (minutesAgo: number) =>
+    new EntryWriterService(db.entries).writeDeviceLine({
+      deviceId: 'fridge-1',
+      spaceId: 'space-1',
+      line: 'message-device-firmware-update',
+      occurredAt: new Date(Date.now() - minutesAgo * 60_000),
+    });
+
+  const verdicts = () => db.entries.countDocuments({ deviceId: 'fridge-1', 'message.key': 'message-firmware-update-failed-with-ids' });
+
   it('says in the diary that the update did not take, and which build it was', async () => {
     await db.devices.create(failing());
+    await told(10.5);
 
     await internals.sweep();
 
-    const [entry] = await db.entries.find({ deviceId: 'fridge-1' }).lean();
+    const [entry] = await db.entries.find({ deviceId: 'fridge-1', 'message.key': { $ne: 'message-device-firmware-update' } }).lean();
     expect(entry.message).toEqual({ key: 'message-firmware-update-failed-with-ids', params: ['fw-old -> 2.1.0'] });
     expect(entry.spaceId).toBe('space-1');
     expect(entry.severity).toBe('warning');
@@ -316,35 +329,52 @@ describe('an update that never lands', () => {
 
   it('says it once, however many passes run while the device goes on refusing', async () => {
     await db.devices.create(failing());
+    await told(10.5);
 
     await internals.sweep();
     await internals.sweep();
     await internals.sweep();
 
-    expect(await db.entries.countDocuments({ deviceId: 'fridge-1' })).toBe(1);
+    expect(await verdicts()).toBe(1);
   });
 
   /**
-   * A device pointed at a build again is a fresh attempt, and a fresh attempt is
-   * reported on its own. Pinning a build clears the verdict outright, so what is
-   * reconstructed here is the case that survives the clearing: an instruction
-   * newer than the verdict about the one before it, itself now overdue.
+   * The line a device writes when it is told again promises a verdict of its
+   * own, so an instruction repeated after one is answered once its wait is up -
+   * and not before.
    */
-  it('says it again once the device has been told again', async () => {
+  it('says it again once the device has been told again, and waits out the new instruction first', async () => {
     await db.devices.create(failing({ state: { ...OVERDUE, updateStartedAt: new Date(Date.now() - 40 * 60_000) } }));
+    await told(39);
     await internals.sweep();
+    expect(await verdicts()).toBe(1);
 
-    await db.devices.updateOne(
-      { id: 'fridge-1' },
-      { $set: { 'state.updateFailedAt': new Date(Date.now() - 30 * 60_000), 'state.updateStartedAt': new Date(Date.now() - 20 * 60_000) } },
-    );
+    await db.devices.updateOne({ id: 'fridge-1' }, { $set: { 'state.updateFailedAt': new Date(Date.now() - 30 * 60_000) } });
+    await told(5);
     await internals.sweep();
+    expect(await verdicts()).toBe(1);
 
-    expect(await db.entries.countDocuments({ deviceId: 'fridge-1' })).toBe(2);
+    await told(20);
+    await internals.sweep();
+    expect(await verdicts()).toBe(2);
   });
 
   it('waits out the whole timeout before calling an update failed', async () => {
     await db.devices.create(failing({ state: { ...OVERDUE, updateStartedAt: new Date(Date.now() - 60_000) } }));
+    await told(0.5);
+
+    await internals.sweep();
+
+    expect(await verdicts()).toBe(0);
+  });
+
+  /**
+   * A build pinned while the device was away was never heard: the device wrote
+   * no line saying it was told, so the diary does not say it was and did not
+   * take it.
+   */
+  it('says nothing about a device that never wrote that it was told', async () => {
+    await db.devices.create(failing());
 
     await internals.sweep();
 
@@ -362,12 +392,14 @@ describe('an update that never lands', () => {
 
   it('lets the verdict go when the build lands after all, and keeps the line', async () => {
     await db.devices.create(failing());
+    await told(10.5);
     await internals.sweep();
 
     await rollout.onFirmwareReported('fridge-1', STABLE);
 
     const device = await db.devices.findOne({ id: 'fridge-1' }).lean<StoredDevice>();
     expect(device?.state.updateFailedAt).toBeNull();
-    expect(await db.entries.countDocuments({ deviceId: 'fridge-1' })).toBe(2);
+    expect(await verdicts()).toBe(1);
+    expect(await db.entries.countDocuments({ deviceId: 'fridge-1', 'message.key': 'message-firmware-update-complete-with-ids' })).toBe(1);
   });
 });

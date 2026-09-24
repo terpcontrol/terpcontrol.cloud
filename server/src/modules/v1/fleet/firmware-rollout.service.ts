@@ -10,6 +10,7 @@ import { onlineSince } from '@common/v1/value-age';
 import { MODEL_V1 } from '@database/models';
 import { StoredDeviceClass } from '@database/schemas/v1/device-classes.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { StoredFirmware } from '@database/schemas/v1/firmwares.schema';
 import { logger } from '@utils/logger';
 import { DevicePresenceSink } from '@modules/device-protocol/device-sinks';
@@ -47,6 +48,7 @@ export class FirmwareRolloutService implements OnModuleInit, OnApplicationShutdo
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @InjectModel(MODEL_V1.deviceClass) private readonly classes: Model<StoredDeviceClass>,
     @InjectModel(MODEL_V1.firmware) private readonly firmwares: Model<StoredFirmware>,
+    @InjectModel(MODEL_V1.entry) private readonly entryRows: Model<EntryDocument>,
     private readonly publisher: DevicePublisherService,
     private readonly entries: EntryWriterService,
   ) {}
@@ -183,11 +185,13 @@ export class FirmwareRolloutService implements OnModuleInit, OnApplicationShutdo
    * The repeats are still left to stack, because each of them is a true line
    * about a real instruction and hiding the second and third attempt would hide
    * the most useful thing about an update that is not landing. What is added is
-   * the verdict: once the wait has run out on the instruction that started it,
-   * the diary says the update did not take, once, and says which build it was.
-   * Instructing goes on afterwards - a device that is refusing the build today
-   * may take it after its next reboot - and the next instruction clears the
-   * verdict, so a second failure is reported again rather than swallowed.
+   * the verdict, and it is judged from the device's own word that it heard: the
+   * wait runs from the first "asked for" line the device wrote since the build
+   * was pinned or since the last verdict. A device pinned while it was away has
+   * written none, so it is never said to have been told and not to have taken
+   * it; and an instruction repeated after a verdict - a device that refuses the
+   * build today may take it after its next reboot - is answered by a verdict of
+   * its own, because the line it wrote promises one.
    *
    * Only devices that belong to somebody are reported on. Unclaimed hardware
    * enrols, is handed a build and is counted by the fleet like any other, but
@@ -198,7 +202,9 @@ export class FirmwareRolloutService implements OnModuleInit, OnApplicationShutdo
     const failedAt = new Date();
     const deadline = new Date(failedAt.getTime() - UPGRADE_TIMEOUT_MS);
 
-    const stalled = await this.devices
+    // Heard from since the instruction and since the last verdict: a device that
+    // has not been cannot have written that it was told again.
+    const owing = await this.devices
       .find({
         ownerId: { $ne: null },
         'firmware.targetId': { $ne: null },
@@ -206,17 +212,25 @@ export class FirmwareRolloutService implements OnModuleInit, OnApplicationShutdo
         $expr: {
           $and: [
             { $ne: ['$firmware.targetId', '$state.firmwareId'] },
-            // Reported already, unless the device has since been told again:
-            // the verdict is about one instruction, and the stamp of the
-            // instruction is what says which one.
-            { $or: [{ $eq: ['$state.updateFailedAt', null] }, { $lt: ['$state.updateFailedAt', '$state.updateStartedAt'] }] },
+            { $gt: ['$state.lastSeenAt', '$state.updateStartedAt'] },
+            { $or: [{ $eq: ['$state.updateFailedAt', null] }, { $gt: ['$state.lastSeenAt', '$state.updateFailedAt'] }] },
           ],
         },
       })
       .lean<StoredDevice[]>();
 
-    for (const device of stalled) {
+    for (const device of owing) {
       if (this.work.isStopped) return;
+
+      const since = [device.state.updateStartedAt, device.state.updateFailedAt].reduce<Date>(
+        (latest, at) => (at && at > latest ? at : latest),
+        new Date(0),
+      );
+      const asked = await this.entryRows
+        .findOne({ deviceId: device.id, 'message.key': ASKED_KEY, occurredAt: { $gt: since } }, { occurredAt: 1 })
+        .sort({ occurredAt: 1 })
+        .lean<Pick<EntryDocument, 'occurredAt'> | null>();
+      if (!asked || asked.occurredAt >= deadline) continue;
 
       await this.devices.updateOne({ id: device.id }, { $set: { 'state.updateFailedAt': failedAt } });
 
@@ -272,6 +286,9 @@ export class FirmwareRolloutService implements OnModuleInit, OnApplicationShutdo
     return firmware?.version || firmwareId;
   }
 }
+
+/** What the firmware logs the moment it is told to install a build, before the download. */
+const ASKED_KEY = 'message-device-firmware-update';
 
 /** The build this device has been told to install and is not running, or null when it owes nothing. */
 const owedUpdate = (device: Pick<StoredDevice, 'firmware' | 'state'>): string | null =>
