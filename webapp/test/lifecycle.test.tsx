@@ -579,6 +579,18 @@ describe('the climate preset sheet', () => {
     expect(said).toHaveTextContent('Changing any setting on the device itself sends them; connecting alone does not.');
   });
 
+  /** With no grow standing here there is no grow to ask about, and curing writes no climate for "only the climate" to mean. */
+  it('says only that no phase is written where no grow stands, and asks about no grow', () => {
+    hardware.devices = [standing()];
+    draw(<PresetSheet overview={{ ...overview, grows: [] }} onClose={() => {}} />);
+
+    expect(screen.getByText('No grow stands here, so no phase is written – only the climate is.')).toBeInTheDocument();
+    expect(screen.queryByText(/what should happen to the grow/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Curing' }));
+    expect(screen.getByText('No grow stands here, so no phase is written either.')).toBeInTheDocument();
+  });
+
   it('keeps quiet about the hardware for a reader who was never told what stands here', () => {
     hardware.devices = [];
     draw(<PresetSheet overview={{ ...overview, deviceIds: null }} onClose={() => {}} />);
@@ -640,7 +652,7 @@ describe('the climate preset sheet', () => {
     hardware.devices = [standing({ type: 'plug', configuration: null })];
     draw(<PresetSheet overview={{ ...overview, grows: [] }} onClose={() => {}} />);
 
-    expect(screen.getByText(/nothing to write a climate into either/)).toHaveTextContent('no phase is written');
-    expect(screen.queryByText(/The climate is written either way/)).not.toBeInTheDocument();
+    expect(screen.getByText('No grow stands here, so no phase is written either.')).toBeInTheDocument();
+    expect(screen.queryByText(/only the climate/)).not.toBeInTheDocument();
   });
 });

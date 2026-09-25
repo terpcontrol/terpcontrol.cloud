@@ -125,7 +125,11 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
           <li>
             {here
               ? t('space.presets.phaseFollows', { name: here.name })
-              : t(writesClimate(stage) && nothingToWriteTo ? 'space.presets.noPhaseFollowsNoClimate' : 'space.presets.noPhaseFollows')}
+              : // The line above has already said whether a climate lands;
+                // this one only adds that no phase does. What to do about a
+                // grow is asked once the preset is applied, and only where the
+                // space asks it, so it is not promised here.
+                t(!writesClimate(stage) || nothingToWriteTo ? 'space.presets.noPhaseFollowsNoClimate' : 'space.presets.noPhaseFollows')}
           </li>
         </ul>
 
