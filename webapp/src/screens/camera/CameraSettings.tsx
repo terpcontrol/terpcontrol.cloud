@@ -9,6 +9,7 @@ import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { countdownDays } from '@/screens/me/premium/entitlement';
+import { missingLine } from '@/screens/me/premium/free-tier';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
@@ -131,8 +132,10 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
                 {ending === 0 ? t('me.premium.endsToday') : t('me.premium.endsIn', { count: ending })}
               </span>
             ) : null}
-            {camera.entitlement.tier === 'free' ? (
-              <span className={`${ui.note} ${styles.settingNote}`}>{t('camera.entitlement.freeLine')}</span>
+            {camera.entitlement.tier === 'free' && me.data ? (
+              <span className={`${ui.note} ${styles.settingNote}`}>
+                {t('camera.entitlement.freeLine', { missing: missingLine(t, me.data.premium.free) })}
+              </span>
             ) : null}
             <Link to="/me/premium" className={`mono ${styles.settingLink}`}>
               {t('camera.seePremium')} ›

@@ -84,6 +84,10 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   // to ask, and until the answer lands the browser's zone stands in.
   const me = useMe(false, user?.isDemo !== true);
   const zone = zoneOf(me.data);
+  // The width a free camera's stills are served at is the install's setting,
+  // and an install that sets none serves them whole - so the line under the
+  // frame names a width only where `/me` gave one, and says nothing otherwise.
+  const servedWidth = camera.entitlement.tier === 'free' ? (me.data?.premium.free.stillWidth ?? null) : null;
   // How late the camera's newest picture is. The header pill says it, and the
   // frame label reads it from here rather than deciding a second time.
   const liveness = cameraFreshness(camera, now);
@@ -294,8 +298,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
             {/* A count the walk stopped short of is said as the floor it is, because
               a page size drawn as the day's total is a figure that is simply wrong. */}
             {t(frames.data?.partial ? 'camera.framesTodayAtLeast' : 'camera.framesToday', { count: shots.length })}
-            {/* A free camera's picture is smaller than the one stored, and the line under it says so rather than leaving the blur unexplained. */}
-            {camera.entitlement.tier === 'free' ? ` · ${t('camera.reduced')}` : ''}
+            {servedWidth !== null ? ` · ${t('camera.reduced', { width: servedWidth })}` : ''}
           </p>
         )}
 

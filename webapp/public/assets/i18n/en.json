@@ -3099,7 +3099,7 @@
     "noPictureThatWeek": "The camera took no picture in the week this would film.",
     "needsPremium": "HD and a film of a whole grow are part of Premium.",
     "seePremium": "What Premium covers",
-    "reduced": "served reduced",
+    "reduced": "served {{width}} px wide",
     "makeOne": "Make a timelapse … (range, overlays, 9:16 reel)",
     "askFailed": "That film was not asked for.",
     "testImage": "Test image",
@@ -3137,7 +3137,7 @@
       "migration": "carried over until {{date}}",
       "purchase": "until {{date}}",
       "ranOut": "ran out {{date}}",
-      "freeLine": "Without Premium its stills are served reduced and its films stay SD with a watermark."
+      "freeLine": "Without Premium, {{missing}}."
     },
     "film": {
       "queued": "queued",

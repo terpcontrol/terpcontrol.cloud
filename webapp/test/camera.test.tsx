@@ -43,6 +43,8 @@ const state = vi.hoisted(() => ({
   framesPending: false,
   readAgain: 0,
   zone: 'UTC' as string | null,
+  /** The width this install serves a free camera's stills at; null serves them whole. */
+  stillWidth: null as number | null,
   lastStill: null as string | null,
   /** The day the page asked the camera for, which is the account's and not this machine's. */
   askedForDay: null as { startsAt: string; endsAt: string } | null,
@@ -57,7 +59,12 @@ const state = vi.hoisted(() => ({
  */
 vi.mock('@/api/account', async importOriginal => ({
   ...(await importOriginal<object>()),
-  useMe: () => ({ data: { preferences: { timezone: state.zone }, premium: { enforced: true } } }),
+  useMe: () => ({
+    data: {
+      preferences: { timezone: state.zone },
+      premium: { enforced: true, free: { stillWidth: state.stillWidth, stillDays: null, timelapseDays: null } },
+    },
+  }),
 }));
 
 vi.mock('@/api/cameras', async importOriginal => ({
@@ -181,6 +188,7 @@ beforeEach(() => {
   state.framesPending = false;
   state.readAgain = 0;
   state.zone = 'UTC';
+  state.stillWidth = null;
   state.askedForDay = null;
   state.lastStill = null;
   state.capture = null;
@@ -696,6 +704,31 @@ describe('the films and the pictures behind the first page', () => {
     expect(container.textContent).not.toContain('No picture today yet');
     // The count is the day's and stays true.
     expect(container.textContent).toContain('0 pictures today');
+  });
+
+  /**
+   * A free camera's stills are served narrower only where the install names a
+   * width. On one that names none they are served whole, and a line calling
+   * them reduced was a claim about a picture that is not.
+   */
+  it('names the width a free camera is served at, and says nothing where the install serves it whole', () => {
+    const drawFree = () =>
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <MemoryRouter>
+            <CameraScreen camera={{ ...camera, ownerId: YOU, entitlement: { validUntil: null, grant: null, tier: 'free', renewalVisible: true } }} />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+    const count = (container: HTMLElement) => [...container.querySelectorAll('p')].find(line => line.textContent?.includes('pictures today'))!;
+
+    const whole = drawFree();
+    expect(count(whole.container)).toHaveTextContent(/^0 pictures today$/);
+    whole.unmount();
+
+    state.stillWidth = 640;
+    expect(count(drawFree().container)).toHaveTextContent(/^0 pictures today · served 640 px wide$/);
   });
 
   it('calls the newest frame live only while the header pill calls the camera live', () => {

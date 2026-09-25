@@ -532,12 +532,21 @@ describe('the camera page', () => {
       </QueryClientProvider>,
     );
 
-  it('lets a camera without Premium say its stills are served reduced, with the door to what Premium covers', async () => {
+  it('lets a camera without Premium say what it misses on this install, with the door to what Premium covers', async () => {
     drawSettings(rtsp);
 
-    expect(await screen.findByText('Without Premium its stills are served reduced and its films stay SD with a watermark.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Without Premium, its stills are served whole and kept just as long, but its films stay SD with a watermark.'),
+    ).toBeInTheDocument();
     expect(screen.getByText('not entitled')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /What Premium covers/ })).toHaveAttribute('href', '/me/premium');
+  });
+
+  it('names the width a free camera´s stills are served at only where the install sets one', async () => {
+    server.me = me({ free: { stillWidth: 640, stillDays: null, timelapseDays: null } });
+    drawSettings(rtsp);
+
+    expect(await screen.findByText('Without Premium, its stills are served 640 px wide and its films stay SD with a watermark.')).toBeInTheDocument();
   });
 
   it('says the year ran out rather than reading a past date as a promise', async () => {

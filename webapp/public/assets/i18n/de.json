@@ -3095,7 +3095,7 @@
     "noPictureThatWeek": "In der Woche, die dieser Film abdecken würde, hat die Kamera kein Bild gemacht.",
     "needsPremium": "HD und der Film eines ganzen Grows gehören zu Premium.",
     "seePremium": "Was Premium umfasst",
-    "reduced": "verkleinert ausgeliefert",
+    "reduced": "{{width}} px breit ausgeliefert",
     "makeOne": "Zeitraffer bauen … (Zeitraum, Overlays, 9:16-Reel)",
     "askFailed": "Dieser Film wurde nicht angefordert.",
     "testImage": "Testbild",
@@ -3133,7 +3133,7 @@
       "migration": "übernommen bis {{date}}",
       "purchase": "bis {{date}}",
       "ranOut": "abgelaufen am {{date}}",
-      "freeLine": "Ohne Premium werden ihre Bilder verkleinert ausgeliefert und ihre Filme bleiben SD mit Wasserzeichen."
+      "freeLine": "Ohne Premium gilt: {{missing}}."
     },
     "film": {
       "queued": "in der Warteschlange",
