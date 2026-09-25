@@ -1456,7 +1456,11 @@ export const timelineOutputLane = named(
   'TimelineOutputLane',
   z.object({
     output: outputMetric,
-    deviceId: id().describe('Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to.'),
+    deviceId: id()
+      .nullable()
+      .describe(
+        'Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.',
+      ),
     spans: z.array(timelineSpan),
     heardUntil: instant().describe(
       'How far anything is known about this output: the last instant the device was heard from inside the window, or the window\'s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.',
@@ -1856,7 +1860,12 @@ export const growSeries = named(
     originAt: instant().describe('The instant day 1 of this grow began, which is what day-of-grow counts from.'),
     dayFrom: z.number().int().nullable(),
     dayTo: z.number().int().nullable(),
-    deviceIds: z.array(id()).describe('The devices the climate and the outputs were read from: whatever stood where the grow stood.'),
+    deviceIds: z
+      .array(id())
+      .nullable()
+      .describe(
+        'The devices the climate and the outputs were read from: whatever stood where the grow stood. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.',
+      ),
     climate: z.array(timelinePanel),
     lastReadingAt: instant()
       .nullable()

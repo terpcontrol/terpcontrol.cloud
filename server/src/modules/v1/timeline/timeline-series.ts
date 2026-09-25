@@ -108,20 +108,25 @@ export const nightsOf = (histories: readonly DeviceHistory[], window: SeriesWind
  * One lane per output a device reported, as the stretches it ran for. A device
  * that said nothing about an output has no lane.
  *
+ * A redacted reader - a link, a public page - is told which output ran and
+ * when, and not which controller drove it: the answer beside these lanes
+ * already withholds the ids of the hardware in the tent, and a lane naming it
+ * handed each one back.
+ *
  * Each lane also says how far anything is known about it. A run that stops
  * because the device stopped reporting looks exactly like one that stops
  * because the output was switched off, and a client drawing a square wave has
  * to be able to tell them apart: three days of silence are not three days of
  * "off".
  */
-export const lanesOf = (histories: readonly DeviceHistory[], window: SeriesWindow): TimelineOutputLane[] =>
+export const lanesOf = (histories: readonly DeviceHistory[], window: SeriesWindow, redacted = false): TimelineOutputLane[] =>
   histories.flatMap(one =>
     one.outputs.flatMap(output =>
       output.switchings.length > 0
         ? [
             {
               output: output.output,
-              deviceId: one.series.deviceId,
+              deviceId: redacted ? null : one.series.deviceId,
               spans: spansOf(output, true, one.series, window, heardAt(one)),
               heardUntil: heardUntilOf(output, one.series, window, heardAt(one)),
             },

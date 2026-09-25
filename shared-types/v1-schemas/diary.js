@@ -1098,7 +1098,9 @@ exports.timelinePanel = (0, common_js_1.named)('TimelinePanel', zod_1.z.object({
 /** One output over the window, as the lanes under the panels draw it: when it was on, not what it measured. */
 exports.timelineOutputLane = (0, common_js_1.named)('TimelineOutputLane', zod_1.z.object({
     output: common_js_1.outputMetric,
-    deviceId: (0, common_js_1.id)().describe('Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to.'),
+    deviceId: (0, common_js_1.id)()
+        .nullable()
+        .describe('Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.'),
     spans: zod_1.z.array(exports.timelineSpan),
     heardUntil: (0, common_js_1.instant)().describe('How far anything is known about this output: the last instant the device was heard from inside the window, or the window\'s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.'),
 }));
@@ -1414,7 +1416,10 @@ exports.growSeries = (0, common_js_1.named)('GrowSeries', zod_1.z.object({
     originAt: (0, common_js_1.instant)().describe('The instant day 1 of this grow began, which is what day-of-grow counts from.'),
     dayFrom: zod_1.z.number().int().nullable(),
     dayTo: zod_1.z.number().int().nullable(),
-    deviceIds: zod_1.z.array((0, common_js_1.id)()).describe('The devices the climate and the outputs were read from: whatever stood where the grow stood.'),
+    deviceIds: zod_1.z
+        .array((0, common_js_1.id)())
+        .nullable()
+        .describe('The devices the climate and the outputs were read from: whatever stood where the grow stood. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.'),
     climate: zod_1.z.array(exports.timelinePanel),
     lastReadingAt: (0, common_js_1.instant)()
         .nullable()

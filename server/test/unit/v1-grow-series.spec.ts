@@ -509,6 +509,24 @@ describe('who is told', () => {
     }
   });
 
+  /**
+   * What a reader is shown is the tent, not the hardware in it - the week
+   * cards, the overview and the timeline all withhold the ids - so the chart
+   * of the same grow does not hand them back, neither as the list of devices
+   * it was read from nor on each output's lane.
+   */
+  it('tells a link holder nothing about which controller the climate and the outputs came from', async () => {
+    const answer = await readAs(visitor('a-week-of-it'), { range: 'grow', metrics: ['temperature'], outputs: ['light'] });
+
+    expect(answer.deviceIds).toBeNull();
+    expect(answer.outputs.length).toBeGreaterThan(0);
+    expect(answer.outputs.every(lane => lane.deviceId === null)).toBe(true);
+
+    const own = await readAs(session(MEMBER), { range: 'grow', metrics: ['temperature'], outputs: ['light'] });
+    expect(own.deviceIds).not.toBeNull();
+    expect(own.outputs.every(lane => lane.deviceId !== null)).toBe(true);
+  });
+
   it('tells a link holder nothing about which plant a reading was taken on', async () => {
     const answer = await readAs(visitor('a-week-of-it'), { range: 'grow', measurements: ['height'] });
 

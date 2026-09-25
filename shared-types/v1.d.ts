@@ -3454,9 +3454,9 @@ export interface TimelinePanel {
 export interface TimelineOutputLane {
   output: OutputMetric;
   /**
-   * Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to.
+   * Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.
    */
-  deviceId: string;
+  deviceId: string | null;
   spans: TimelineSpan[];
   /**
    * How far anything is known about this output: the last instant the device was heard from inside the window, or the window's own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.
@@ -3756,9 +3756,9 @@ export interface GrowSeries {
   dayFrom: number | null;
   dayTo: number | null;
   /**
-   * The devices the climate and the outputs were read from: whatever stood where the grow stood.
+   * The devices the climate and the outputs were read from: whatever stood where the grow stood. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.
    */
-  deviceIds: string[];
+  deviceIds: string[] | null;
   climate: TimelinePanel[];
   /**
    * When a device standing where this grow stood last measured one of the climate metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `climate` is empty in both. The Timeline of the tent answers the same question the same way. Answered only where `climate` is empty, because that is the one question it settles; null there where nothing standing with the grow has ever measured, and null beside curves that speak for themselves.

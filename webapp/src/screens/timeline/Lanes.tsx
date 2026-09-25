@@ -65,8 +65,8 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
 
   return (
     <section className={styles.lanes}>
-      {timeline.outputs.map(lane => (
-        <div key={`${lane.deviceId}-${lane.output}`} className={styles.lane}>
+      {timeline.outputs.map((lane, index) => (
+        <div key={`${lane.deviceId ?? index}-${lane.output}`} className={styles.lane}>
           <span className={`caption ${styles.laneName}`}>{t(`timeline.output.${lane.output}`, { defaultValue: lane.output })}</span>
           <div className={styles.track} {...scrub}>
             {lane.spans.map(span => (

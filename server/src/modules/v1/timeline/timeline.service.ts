@@ -162,7 +162,7 @@ export class TimelineService {
       lastReadingAt: panels.length > 0 ? null : await lastReadingOf(this.data, devices),
       nights: nightsOf(series, window),
       alarms: alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
-      outputs: lanesOf(series, window),
+      outputs: lanesOf(series, window, grant.redacted),
       events: told,
       machineEvents: recorded.machine,
       // A reader who is shown one grow's week is not shown what else has stood

@@ -927,6 +927,10 @@ describe('who may read it', () => {
     const page = await readAs(visitor(token), { range: 'grow', growId: GROW });
 
     expect(page).toMatchObject({ startsAt: '2026-06-03T00:00:00.000Z', endsAt: '2026-06-10T00:00:00.000Z' });
+    // The tent and not the hardware in it: no device ids, and none on the lanes either.
+    expect(page.deviceIds).toBeNull();
+    expect(page.outputs.length).toBeGreaterThan(0);
+    expect(page.outputs.every(lane => lane.deviceId === null)).toBe(true);
     // The flowering phase begins where the link's window ends, so the week it
     // was given out for is one phase and one band.
     expect(page.panels[0].targets.map(target => target.phaseId)).toEqual(['phase-veg']);

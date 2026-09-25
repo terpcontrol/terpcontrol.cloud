@@ -109,7 +109,7 @@ export class GrowSeriesService {
       originAt: originOf(grow).toISOString(),
       dayFrom: window.dayFrom,
       dayTo: window.dayTo,
-      deviceIds: devices.map(device => device.id),
+      deviceIds: grant.redacted ? null : devices.map(device => device.id),
       climate,
       // The tent's own Timeline dates a silence and this screen did not, so the
       // same grower was told twice about one quiet tent and once in a way that
@@ -118,7 +118,7 @@ export class GrowSeriesService {
       // curve has the question to answer, and only a caller that asked about
       // the climate at all can have been wondering.
       lastReadingAt: climate.length === 0 && asked.metrics?.length ? await lastReadingOf(this.data, devices) : null,
-      outputs: lanesOf(series, window),
+      outputs: lanesOf(series, window, grant.redacted),
       nights: nightsOf(series, window),
       measurements: measurementsOf(keys, readings, hide),
     };

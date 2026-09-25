@@ -3848,7 +3848,7 @@ export declare const timelineOutputLane: z.ZodObject<{
         fanExternal: "fanExternal";
         fanBackwall: "fanBackwall";
     }>;
-    deviceId: z.ZodString;
+    deviceId: z.ZodNullable<z.ZodString>;
     spans: z.ZodArray<z.ZodObject<{
         startsAt: z.ZodISODateTime;
         endsAt: z.ZodISODateTime;
@@ -4043,7 +4043,7 @@ export declare const spaceTimeline: z.ZodObject<{
             fanExternal: "fanExternal";
             fanBackwall: "fanBackwall";
         }>;
-        deviceId: z.ZodString;
+        deviceId: z.ZodNullable<z.ZodString>;
         spans: z.ZodArray<z.ZodObject<{
             startsAt: z.ZodISODateTime;
             endsAt: z.ZodISODateTime;
@@ -5133,7 +5133,7 @@ export declare const growSeries: z.ZodObject<{
     originAt: z.ZodISODateTime;
     dayFrom: z.ZodNullable<z.ZodNumber>;
     dayTo: z.ZodNullable<z.ZodNumber>;
-    deviceIds: z.ZodArray<z.ZodString>;
+    deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
     climate: z.ZodArray<z.ZodObject<{
         metric: z.ZodEnum<{
             offline: "offline";
@@ -5190,7 +5190,7 @@ export declare const growSeries: z.ZodObject<{
             fanExternal: "fanExternal";
             fanBackwall: "fanBackwall";
         }>;
-        deviceId: z.ZodString;
+        deviceId: z.ZodNullable<z.ZodString>;
         spans: z.ZodArray<z.ZodObject<{
             startsAt: z.ZodISODateTime;
             endsAt: z.ZodISODateTime;

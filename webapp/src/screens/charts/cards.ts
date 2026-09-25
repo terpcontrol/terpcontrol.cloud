@@ -516,7 +516,7 @@ const plantLabel = (name: string, plantId: string | null, plants: readonly Plant
 const outputDrawn = (
   t: Translate,
   output: OutputMetric,
-  lanes: readonly { deviceId: string; spans: readonly { startsAt: string; endsAt: string }[]; heardUntil: string }[],
+  lanes: readonly { deviceId: string | null; spans: readonly { startsAt: string; endsAt: string }[]; heardUntil: string }[],
   from: number,
   to: number,
 ): Drawn => {
@@ -525,7 +525,8 @@ const outputDrawn = (
   );
   const points = stepPoints(spans, from, to, Math.max(...lanes.map(lane => at(lane.heardUntil))));
   const title = t(`timeline.output.${output}`, { defaultValue: output });
-  const devices = new Set(lanes.map(lane => lane.deviceId)).size;
+  // A reader who is not told the hardware gets no ids, and each lane is then a device of its own.
+  const devices = new Set(lanes.map((lane, index) => lane.deviceId ?? index)).size;
 
   return {
     key: `out-${output}`,

@@ -11793,9 +11793,16 @@
         "$ref": "#/components/schemas/OutputMetric"
       },
       "deviceId": {
-        "type": "string",
-        "minLength": 1,
-        "description": "Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to."
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it."
       },
       "spans": {
         "type": "array",
@@ -12958,12 +12965,19 @@
         ]
       },
       "deviceIds": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "The devices the climate and the outputs were read from: whatever stood where the grow stood."
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The devices the climate and the outputs were read from: whatever stood where the grow stood. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it."
       },
       "climate": {
         "type": "array",
