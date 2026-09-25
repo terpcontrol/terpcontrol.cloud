@@ -273,7 +273,7 @@ const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): Wh
 
   const figures = [
     value === null ? null : [asFigure(value), unit].filter(Boolean).join(' '),
-    crossed ? `${crossed.over ? '›' : '‹'} ${asEdge(crossed.bound)}` : null,
+    crossed ? [crossed.over ? '›' : '‹', asEdge(crossed.bound), unit].filter(Boolean).join(' ') : null,
   ].filter((part): part is string => part !== null);
 
   return {

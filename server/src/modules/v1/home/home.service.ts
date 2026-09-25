@@ -9,8 +9,6 @@ import type {
   HomeAnswer,
   HomeSpaceCard,
   LatestStill,
-  Metric,
-  OpenAlert,
   Person,
   SeriesPoint,
   UserPrivacy,
@@ -36,6 +34,7 @@ import { mergeLive } from '../space/space-live';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { dueTasksOf, occurrencePrefix } from './due-tasks';
+import { openAlertReader } from './open-alerts';
 
 /**
  * The home screen: one card per space, with everything the card shows already
@@ -159,7 +158,7 @@ export class HomeService {
         .lean<ReminderDocument[]>(),
       this.redactionFor(ctx, cards),
     ]);
-    const [completions, watched] = await Promise.all([this.completionsOf(reminders), this.metricsOf(alerts)]);
+    const [completions, openAlertOf] = await Promise.all([this.completionsOf(reminders), openAlertReader(this.rules, alerts)]);
     const tasks = dueTasksOf(reminders, completions, now);
 
     const answers = await Promise.all(
@@ -191,7 +190,7 @@ export class HomeService {
           dueTasks: tasks.filter(task => isAbout(task, space?.id ?? null, grow?.id ?? null)),
           openAlerts: alerts
             .filter(alert => space !== null && (alert.spaceId === space.id || (alert.deviceId !== null && here.includes(alert.deviceId))))
-            .map(alert => openAlertOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
+            .map(openAlertOf),
         };
       }),
     );
@@ -232,19 +231,6 @@ export class HomeService {
       .lean<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'> | null>();
 
     return still && still.cameraId ? { mediaId: still.id, cameraId: still.cameraId, capturedAt: still.capturedAt.toISOString() } : null;
-  }
-
-  /**
-   * What each open alert's rule watches: an alert stores the reading, its rule
-   * the metric the reading is of. A rule on an output names no metric, so the
-   * card says what happened without a unit to say it in.
-   */
-  private async metricsOf(alerts: StoredAlert[]): Promise<Map<string, Metric>> {
-    const ruleIds = [...new Set(alerts.flatMap(alert => (alert.ruleId ? [alert.ruleId] : [])))];
-    if (ruleIds.length === 0) return new Map();
-
-    const rules = await this.rules.find({ id: { $in: ruleIds } }, { id: 1, watch: 1 }).lean<Pick<StoredAlarmRule, 'id' | 'watch'>[]>();
-    return new Map(rules.flatMap(rule => (rule.watch.kind === 'reading' ? [[rule.id, rule.watch.metric] as [string, Metric]] : [])));
   }
 
   /** The entries that completed a task of these reminders: a one-off by its id, a rhythm by any of its occurrences. */
@@ -355,12 +341,3 @@ const growCardOf = (grow: GrowDocument, plants: PlantDocument[], hide: Redaction
     stageGroups: summary.groups.map(group => ({ stage: group.stage, plantCount: hide.counts ? null : group.plantIds.length })),
   };
 };
-
-const openAlertOf = (alert: StoredAlert, metric: Metric | null): OpenAlert => ({
-  alertId: alert.id,
-  kind: alert.kind,
-  severity: alert.severity,
-  startedAt: alert.startedAt.toISOString(),
-  value: alert.value,
-  metric,
-});

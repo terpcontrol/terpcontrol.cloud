@@ -306,7 +306,7 @@ describe('what a machine´s line says under its headline', () => {
 
     expect(screen.getByText('Alarm triggered')).toBeInTheDocument();
     // Rounded and written as the alert card writes it, not as the server's prose.
-    expect(screen.getByText('Temperatur · temperature 16.9 °C ‹ 20')).toBeInTheDocument();
+    expect(screen.getByText('Temperatur · temperature 16.9 °C ‹ 20 °C')).toBeInTheDocument();
   });
 
   it('tells two alarms of one night apart, which the headline alone cannot', () => {

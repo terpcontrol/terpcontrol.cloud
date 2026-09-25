@@ -302,7 +302,7 @@ describe('the inbox', () => {
     server.rules = [rule()];
     draw();
 
-    expect(await screen.findByText(title('Flower room B · humidity 68 % › 60'))).toBeInTheDocument();
+    expect(await screen.findByText(title('Flower room B · humidity 68 % › 60 %'))).toBeInTheDocument();
     expect(
       screen.getByText(
         `Humidity high · critical · since ${clock(NOW.minus({ hours: 2, minutes: 20 }))} · for 2 h · repeats every 30 min until resolved`,
@@ -317,11 +317,11 @@ describe('the inbox', () => {
     server.rules = [rule()];
     draw();
 
-    expect(await screen.findByLabelText('critical · Flower room B · humidity · 68 % › 60')).toBeInTheDocument();
+    expect(await screen.findByLabelText('critical · Flower room B · humidity · 68 % › 60 %')).toBeInTheDocument();
     // The reading is set in mono like every other figure, and neither the unit
     // nor the bound may be wrapped away from the number it belongs to.
     const reading = screen.getByText(/68/, { selector: 'span.mono' });
-    expect(reading.textContent).toBe('68 % › 60');
+    expect(reading.textContent).toBe('68 % › 60 %');
   });
 
   it('names the output for a rule that watches one, leaves an empty span off, and says only the kind for an episode that kept no copy', async () => {
@@ -368,7 +368,7 @@ describe('the inbox', () => {
     server.rules = [];
     draw();
 
-    expect(await screen.findByText(title('Flower room B · humidity 68 % › 60'))).toBeInTheDocument();
+    expect(await screen.findByText(title('Flower room B · humidity 68 % › 60 %'))).toBeInTheDocument();
     expect(screen.getByText(/^Too humid · critical · resolved /)).toBeInTheDocument();
     expect(screen.queryByText(/alarm 68/)).not.toBeInTheDocument();
   });
@@ -515,7 +515,7 @@ describe('the inbox', () => {
     server.rules = [rule()];
     draw();
 
-    expect(await screen.findByText(title('Flower room B · Blue Dream tent · humidity 68 % › 60'))).toBeInTheDocument();
+    expect(await screen.findByText(title('Flower room B · Blue Dream tent · humidity 68 % › 60 %'))).toBeInTheDocument();
   });
 
   it('draws the cards as soon as the alerts are there, waiting for no name to do it', async () => {
@@ -530,9 +530,9 @@ describe('the inbox', () => {
     server.rules = [rule()];
     draw();
 
-    expect(await screen.findByText(title('humidity 68 % › 60'))).toBeInTheDocument();
+    expect(await screen.findByText(title('humidity 68 % › 60 %'))).toBeInTheDocument();
     arrive();
-    expect(await screen.findByText(title('Flower room B · humidity 68 % › 60'))).toBeInTheDocument();
+    expect(await screen.findByText(title('Flower room B · humidity 68 % › 60 %'))).toBeInTheDocument();
   });
 
   it('falls back to the id when a name cannot be read, and says that it could not', async () => {
@@ -545,7 +545,7 @@ describe('the inbox', () => {
     server.rules = [rule()];
     draw();
 
-    expect(await screen.findByText(title('space-1 · humidity 68 % › 60'))).toBeInTheDocument();
+    expect(await screen.findByText(title('space-1 · humidity 68 % › 60 %'))).toBeInTheDocument();
     expect(screen.getByText('Could not read the names · spaces, devices and cams are shown by their id')).toBeInTheDocument();
   });
 
@@ -631,7 +631,7 @@ describe('the inbox', () => {
     server.rules = [rule({ name: 'Fan flat out', watch: { kind: 'output_level', output: 'fan', upper: 80, lower: null } })];
     draw();
 
-    expect(await screen.findByText(title('Flower room B · fan 100 % › 80'))).toBeInTheDocument();
+    expect(await screen.findByText(title('Flower room B · fan 100 % › 80 %'))).toBeInTheDocument();
   });
 
   it('names the camera for a stale one and offers a look rather than a silence', async () => {
@@ -861,7 +861,7 @@ describe('the inbox', () => {
 
     expect(await screen.findByText(older.toFormat('ccc d LLL'))).toBeInTheDocument();
     // The rules of a device the older page brings with it must not blank the page.
-    expect(screen.getByText(title('Flower room B · humidity 68 % › 60'))).toBeInTheDocument();
+    expect(screen.getByText(title('Flower room B · humidity 68 % › 60 %'))).toBeInTheDocument();
     expect(sentTo('GET', '/v1/alerts').some(one => one.path.includes('cursor=cursor-1'))).toBe(true);
   });
 
@@ -871,7 +871,7 @@ describe('the inbox', () => {
     server.devices = [deviceRow(), deviceRow({ id: 'device-2', name: 'Mother tent', spaceId: 'space-2' })];
     draw();
 
-    await waitFor(() => expect(screen.getAllByText(title('Flower room B · humidity 68 % › 60'))).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByText(title('Flower room B · humidity 68 % › 60 %'))).toHaveLength(2));
     await waitFor(() => expect(readsOf('/v1/devices/device-1/alarm-rules')).toHaveLength(1));
     expect(readsOf('/v1/devices/device-2/alarm-rules')).toHaveLength(0);
     expect(readsOf('/v1/spaces')).toHaveLength(1);
@@ -889,7 +889,7 @@ describe('the inbox', () => {
       server.rules = [rule()];
       draw();
 
-      await screen.findByText(title('Flower room B · humidity 68 % › 60'));
+      await screen.findByText(title('Flower room B · humidity 68 % › 60 %'));
       await vi.advanceTimersByTimeAsync(65_000);
 
       expect(readsOf('/v1/alerts').length).toBeGreaterThan(1);
@@ -1013,7 +1013,7 @@ describe('the arithmetic behind the cards', () => {
     server.rules = [rule({ watch: { kind: 'reading', metric: 'humidity', upper: 60, lower: null } })];
     draw();
 
-    expect(await screen.findByText(title('Flower room B · humidity 41 % › 30'))).toBeInTheDocument();
+    expect(await screen.findByText(title('Flower room B · humidity 41 % › 30 %'))).toBeInTheDocument();
     expect(screen.queryByText(/› 60/)).not.toBeInTheDocument();
   });
 
@@ -1025,10 +1025,13 @@ describe('the arithmetic behind the cards', () => {
       startedAt: iso(NOW),
       value: 68,
       metric: 'humidity',
+      name: null,
       ...over,
     });
 
     expect(alertLabel(i18next.t, open({}), NOW)).toBe('Alarm · 68 % RH');
+    // Two rules on one sensor are two banners on one place, told apart by name.
+    expect(alertLabel(i18next.t, open({ name: 'Mould watch' }), NOW)).toBe('Mould watch · 68 % RH');
     // A rule watching an output leaves a number with no unit and no name, and
     // "Alarm · 1" reads as a count of something.
     expect(alertLabel(i18next.t, open({ metric: null, value: 1 }), NOW)).toBe('Alarm');

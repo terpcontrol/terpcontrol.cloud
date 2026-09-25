@@ -424,8 +424,28 @@ describe('what needs a human', () => {
     const [tent] = (await home.read(session(OWNER), NOW)).spaces;
 
     expect(tent.openAlerts).toEqual([
-      { alertId: 'alert-open', kind: 'threshold', severity: 'warning', startedAt: NOW.toISOString(), value: 68, metric: 'humidity' },
+      {
+        alertId: 'alert-open',
+        kind: 'threshold',
+        severity: 'warning',
+        startedAt: NOW.toISOString(),
+        value: 68,
+        metric: 'humidity',
+        name: 'Humidity into mould',
+      },
     ]);
+  });
+
+  it('names an alert by the rule that raised it, and by the name it kept once that rule is gone', async () => {
+    await db.alarmRules.deleteOne({ id: 'rule' });
+    await db.alerts.updateOne(
+      { id: 'alert-open' },
+      { $set: { watched: { name: 'Mould watch', watch: { kind: 'reading', metric: 'humidity', upper: 60, lower: null } } } },
+    );
+
+    const [tent] = (await home.read(session(OWNER), NOW)).spaces;
+
+    expect(tent.openAlerts).toEqual([expect.objectContaining({ alertId: 'alert-open', metric: 'humidity', name: 'Mould watch' })]);
   });
 
   it('lists what is due from the reminders of the space and of its grow', async () => {

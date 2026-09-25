@@ -28,7 +28,7 @@ afterEach(async () => {
 describe('an alarm line', () => {
   it('writes a threshold alarm in German decimals, with the edge it crossed', () => {
     expect(alarmLineText(i18next, 'P9 warm fan (temperature), value=21.841, upper threshold=21, lower threshold=n/a', true)).toBe(
-      'P9 warm fan · Temperatur 21,8 °C › 21',
+      'P9 warm fan · Temperatur 21,8 °C › 21 °C',
     );
   });
 

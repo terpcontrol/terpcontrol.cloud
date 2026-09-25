@@ -2230,6 +2230,7 @@ export declare const openAlert: z.ZodObject<{
         vpd: "vpd";
         ppfd: "ppfd";
     }>>;
+    name: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
 /** One group of a split, as a card counts it: `GrowSummary.groups` names the plants instead. */
 export declare const growCardStageGroup: z.ZodObject<{
@@ -2571,6 +2572,7 @@ export declare const homeSpaceCard: z.ZodObject<{
             vpd: "vpd";
             ppfd: "ppfd";
         }>>;
+        name: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /** A grow somebody follows: a public grow, so only what its public page shows. */
@@ -2865,6 +2867,7 @@ export declare const homeAnswer: z.ZodObject<{
                 vpd: "vpd";
                 ppfd: "ppfd";
             }>>;
+            name: z.ZodNullable<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     followedGrows: z.ZodArray<z.ZodObject<{
@@ -3585,6 +3588,7 @@ export declare const spaceOverview: z.ZodObject<{
             vpd: "vpd";
             ppfd: "ppfd";
         }>>;
+        name: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>;
     people: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -6334,6 +6338,7 @@ export declare const sharedSpace: z.ZodObject<{
                 vpd: "vpd";
                 ppfd: "ppfd";
             }>>;
+            name: z.ZodNullable<z.ZodString>;
         }, z.core.$strip>>;
         people: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
@@ -6967,6 +6972,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 vpd: "vpd";
                 ppfd: "ppfd";
             }>>;
+            name: z.ZodNullable<z.ZodString>;
         }, z.core.$strip>>;
         people: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
@@ -7617,6 +7623,7 @@ export declare const sharedResolution: z.ZodObject<{
                     vpd: "vpd";
                     ppfd: "ppfd";
                 }>>;
+                name: z.ZodNullable<z.ZodString>;
             }, z.core.$strip>>;
             people: z.ZodArray<z.ZodObject<{
                 id: z.ZodString;

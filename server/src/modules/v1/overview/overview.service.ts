@@ -5,8 +5,6 @@ import { DateTime } from 'luxon';
 import type {
   CameraStill,
   Entry,
-  Metric,
-  OpenAlert,
   OverviewCamera,
   OverviewGrow,
   OverviewTargets,
@@ -38,6 +36,7 @@ import { liveOfDevice, mergeLive, setpointOf } from '../space/space-live';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { STEERED, verdictOf } from './climate-verdict';
+import { openAlertReader } from '../home/open-alerts';
 
 /**
  * The tent page's landing tab: what is true in one space now, what needs a
@@ -180,7 +179,7 @@ export class OverviewService {
         : Promise.resolve(null),
     ]);
 
-    const [completions, watched] = await Promise.all([this.completionsOf(reminders), this.metricsOf(alerts)]);
+    const [completions, openAlertOf] = await Promise.all([this.completionsOf(reminders), openAlertReader(this.rules, alerts)]);
     // The band a window is judged against is the controller's configuration as
     // it stands now, which a closed window may not be told either - so a tent
     // read through one is stated rather than graded.
@@ -228,7 +227,7 @@ export class OverviewService {
       entries: told,
       readingNames: readingNamesOf(grows),
       dueTasks,
-      openAlerts: forKeepers ? alerts.map(alert => openAlertOf(alert, watched.get(alert.ruleId ?? '') ?? null)) : [],
+      openAlerts: forKeepers ? alerts.map(openAlertOf) : [],
       people: await this.peopleIn(told, dueTasks),
     };
   }
@@ -338,19 +337,6 @@ export class OverviewService {
     return ownerId => byOwner.get(ownerId) ?? redactionOf(true, undefined);
   }
 
-  /**
-   * What each open alert's rule watches: an alert stores the reading, its rule
-   * the metric the reading is of. A rule on an output names no metric, so the
-   * card says what happened without a unit to say it in.
-   */
-  private async metricsOf(alerts: StoredAlert[]): Promise<Map<string, Metric>> {
-    const ruleIds = [...new Set(alerts.flatMap(alert => (alert.ruleId ? [alert.ruleId] : [])))];
-    if (ruleIds.length === 0) return new Map();
-
-    const rules = await this.rules.find({ id: { $in: ruleIds } }, { id: 1, watch: 1 }).lean<Pick<StoredAlarmRule, 'id' | 'watch'>[]>();
-    return new Map(rules.flatMap(rule => (rule.watch.kind === 'reading' ? [[rule.id, rule.watch.metric] as [string, Metric]] : [])));
-  }
-
   /** The entries that completed a task of these reminders: a one-off by its id, a rhythm by any of its occurrences. */
   private completionsOf(reminders: ReminderDocument[]): Promise<EntryDocument[]> {
     if (reminders.length === 0) return Promise.resolve([]);
@@ -443,13 +429,4 @@ const cameraHere = (camera: CameraDocument, stills: CameraStill[], closed: boole
   name: camera.name,
   lastStillAt: closed ? null : (camera.state.lastStillAt?.toISOString() ?? null),
   stills,
-});
-
-const openAlertOf = (alert: StoredAlert, metric: Metric | null): OpenAlert => ({
-  alertId: alert.id,
-  kind: alert.kind,
-  severity: alert.severity,
-  startedAt: alert.startedAt.toISOString(),
-  value: alert.value,
-  metric,
 });

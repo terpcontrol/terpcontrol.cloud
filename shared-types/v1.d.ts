@@ -3108,6 +3108,10 @@ export interface OpenAlert {
    * The reading the rule watches, so "78 % RH" can be said; null for an alert raised without a rule, or by a rule watching an output.
    */
   metric: Metric | null;
+  /**
+   * What the rule that raised it is called, or was called when the episode opened where it has since been deleted: what tells two alarms on one place apart. Null for an alert raised without a rule.
+   */
+  name: string | null;
 }
 
 export interface GrowCardStageGroup {

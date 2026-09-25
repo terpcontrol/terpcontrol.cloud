@@ -807,6 +807,10 @@ exports.openAlert = (0, common_js_1.named)('OpenAlert', zod_1.z.object({
     metric: common_js_1.metric
         .nullable()
         .describe('The reading the rule watches, so "78 % RH" can be said; null for an alert raised without a rule, or by a rule watching an output.'),
+    name: zod_1.z
+        .string()
+        .nullable()
+        .describe('What the rule that raised it is called, or was called when the episode opened where it has since been deleted: what tells two alarms on one place apart. Null for an alert raised without a rule.'),
 }));
 /** One group of a split, as a card counts it: `GrowSummary.groups` names the plants instead. */
 exports.growCardStageGroup = (0, common_js_1.named)('GrowCardStageGroup', zod_1.z.object({

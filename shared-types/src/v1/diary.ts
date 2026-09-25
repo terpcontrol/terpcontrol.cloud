@@ -1073,6 +1073,12 @@ export const openAlert = named(
     metric: metric
       .nullable()
       .describe('The reading the rule watches, so "78 % RH" can be said; null for an alert raised without a rule, or by a rule watching an output.'),
+    name: z
+      .string()
+      .nullable()
+      .describe(
+        'What the rule that raised it is called, or was called when the episode opened where it has since been deleted: what tells two alarms on one place apart. Null for an alert raised without a rule.',
+      ),
   }),
 );
 

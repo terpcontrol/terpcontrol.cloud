@@ -345,7 +345,7 @@ describe('what needs a person', () => {
   const alarming = card({
     spaceId: 'space-2',
     name: 'Flower room B',
-    openAlerts: [{ alertId: 'alert-1', kind: 'threshold', severity: 'critical', startedAt: at(600), value: 68, metric: 'humidity' }],
+    openAlerts: [{ alertId: 'alert-1', kind: 'threshold', severity: 'critical', startedAt: at(600), value: 68, metric: 'humidity', name: null }],
   });
   const due = card({
     spaceId: 'space-3',

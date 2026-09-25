@@ -33,8 +33,8 @@ export const targetFigure = (value: number, metric: Metric): string => (Number.i
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
- * "Alarm · 78 % RH": the reading that set it off, in the words the card uses
- * for that metric.
+ * "Mould watch · 78 % RH": the rule and the reading that set it off, in the
+ * words the card uses for that metric; "Alarm" where no rule is named.
  *
  * An alert carries a metric only where a rule watched a reading, so an alarm on
  * an output and one the health loop raised have a number with no unit and no
@@ -70,7 +70,11 @@ export const alertLabel = (t: Translate, alert: OpenAlert, now: DateTime): strin
           .join(' ')
       : null;
 
-  return [t(`home.alert.${alert.kind}`), reading].filter(Boolean).join(' · ');
+  // A rule's name leads where there is one, as it leads the alert card and the
+  // diary line: two rules on one sensor otherwise made two banners on one
+  // place that were word for word the same.
+  const what = alert.kind === 'threshold' && alert.name ? alert.name : t(`home.alert.${alert.kind}`);
+  return [what, reading].filter(Boolean).join(' · ');
 };
 
 /**
