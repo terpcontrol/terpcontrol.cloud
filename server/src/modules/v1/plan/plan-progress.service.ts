@@ -91,8 +91,8 @@ export class PlanProgressService {
         moved,
         place,
         'on_step',
-        `Recipe completed on device ${plan.deviceId}`,
-        `The recipe has completed all steps on device ${plan.deviceId}.`,
+        `Plan completed on device ${plan.deviceId}`,
+        `The plan has completed all its steps on device ${plan.deviceId}.`,
       );
       return moved;
     }
@@ -103,8 +103,8 @@ export class PlanProgressService {
         moved,
         place,
         'on_step',
-        `Recipe looped to step #1 on device ${plan.deviceId}`,
-        `The recipe has looped back to step #1 ${step.name}.`,
+        `Plan started over at step 1 on device ${plan.deviceId}`,
+        `The plan has gone back to step 1 (${step.name}).`,
       );
     } else {
       await this.announce(moved, place, transition, by, 'message-recipe-advanced', [`${number} (${step.name})`]);
@@ -112,8 +112,8 @@ export class PlanProgressService {
         moved,
         place,
         'on_step',
-        `Recipe advanced to step #${number} on device ${plan.deviceId}`,
-        `The recipe has advanced to step #${number} ${step.name}`,
+        `Plan advanced to step ${number} on device ${plan.deviceId}`,
+        `The plan has advanced to step ${number} (${step.name}).`,
       );
     }
 
@@ -145,7 +145,7 @@ export class PlanProgressService {
       asked,
       place,
       'any',
-      `Recipe step #${number} waiting for confirmation on device ${plan.deviceId}`,
+      `Plan step ${number} waiting for confirmation on device ${plan.deviceId}`,
       `Please confirm the completion of step #${number} ${step.name}: ${message}`,
     );
 

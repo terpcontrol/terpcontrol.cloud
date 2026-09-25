@@ -70,8 +70,8 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * The author is asked first and the source only after it, because a line the
  * plan engine wrote is not the same as a line the plan engine wrote because
  * somebody pressed a button. A transition carries the person who made it all the
- * way to the entry, and reading the source alone bylined "Recipe step manually
- * activated" as "auto" over a sentence that says it was activated by the user.
+ * way to the entry, and reading the source alone bylined the "Plan started" of
+ * somebody pressing Start as "auto".
  * The engine's own moves are exactly the lines that carry no author, which is
  * what "auto" is drawn from: the word means nobody picked this, and where the
  * store knows who did, it says so.
