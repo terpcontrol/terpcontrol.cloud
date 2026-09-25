@@ -483,6 +483,54 @@ describe('a tent behind a link', () => {
     // The pill above the tiles already aged it; the tiles under it kept saying live.
     expect(screen.getByText('25.1').closest('[data-age]')).toHaveAttribute('data-age', 'offline');
   });
+
+  /**
+   * A window that has closed has no "now", so the answer carries no values -
+   * and read as a tent without readings, the page said nothing was ever
+   * reported while the answer held the window's last day.
+   */
+  it('shows the last day of a window that has closed rather than saying nothing was reported', () => {
+    const closed = sharedSpace(at(30));
+    const space: SpaceOverview = {
+      ...closed,
+      values: [],
+      verdict: {
+        ...closed.verdict,
+        startsAt: at(31),
+        endsAt: at(30),
+        metrics: [
+          {
+            metric: 'temperature',
+            rating: null,
+            minValue: 20.8,
+            maxValue: 29,
+            averageValue: 26.9,
+            dayBand: null,
+            nightBand: null,
+            inBandSeconds: 0,
+            outOfBandSeconds: 0,
+            excursions: [],
+          },
+        ],
+      },
+    };
+
+    draw(<SharedSpace space={space} picture={publicPicture('spring-run')} now={NOW} />);
+
+    expect(screen.queryByText('Nothing reported yet')).not.toBeInTheDocument();
+    expect(screen.getByText(/^Last day of this window/)).toBeInTheDocument();
+    expect(screen.getByText('26.9')).toBeInTheDocument();
+    expect(screen.getByText('20.8 – 29.0')).toBeInTheDocument();
+  });
+
+  it('still says nothing has been reported of a tent whose window is open', () => {
+    const open = sharedSpace(at(1));
+    const space: SpaceOverview = { ...open, values: [], verdict: { ...open.verdict, endsAt: NOW.toISO()! } };
+
+    draw(<SharedSpace space={space} picture={publicPicture('spring-run')} now={NOW} />);
+
+    expect(screen.getByText('Nothing reported yet')).toBeInTheDocument();
+  });
 });
 
 describe('following a diary', () => {

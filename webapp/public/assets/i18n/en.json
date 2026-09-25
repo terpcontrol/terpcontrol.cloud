@@ -3332,6 +3332,11 @@
       "title": "This address leads nowhere",
       "body": "An address that is shared can be given an end, and one that has passed reads exactly like an address nobody ever made. If somebody sent you this one, ask them for a new one."
     },
+    "windowClimate": {
+      "title": "Last day of this window · {{from}} – {{to}}",
+      "range": "{{low}} – {{high}}",
+      "none": "Nothing reported on the last day of this window"
+    },
     "noPage": {
       "title": "Nothing at this address",
       "body": "The app has no page here."
@@ -4442,7 +4447,7 @@
     },
     "spaceLink": {
       "title": "Grow or space",
-      "text": "A link to a space shows its live climate against the targets, the grows standing there – private ones too – and its latest diary lines; a link to a grow shows that grow's diary. Neither shows tasks or alerts."
+      "text": "A link to a space shows its live climate against the targets – once its To date has passed, the climate of its last day instead – the grows standing there – private ones too – and its latest diary lines; a link to a grow shows that grow's diary. Neither shows tasks or alerts."
     },
     "privacyRedaction": {
       "title": "Shared views",

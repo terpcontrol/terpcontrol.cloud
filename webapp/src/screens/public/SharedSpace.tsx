@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { CardValue, Metric, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
+import type { CardValue, ClimateVerdict, Metric, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
 import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
@@ -12,6 +12,7 @@ import { LivenessPill } from '../home/SpaceCard';
 import { figure, targetFigure, UNIT } from '../home/units';
 import { Photo } from '@/ui/Photo';
 import styles from './Public.module.css';
+import { windowIsCurrent } from './window';
 
 /** The four the tent page shows: the three a controller steers and the one it derives. */
 const TILES: Metric[] = ['temperature', 'humidity', 'vpd', 'co2'];
@@ -45,7 +46,11 @@ export function SharedSpace({ space, picture, now, banner }: { space: SpaceOverv
       </header>
 
       {shown.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.noReadingsYet')}</p>
+        windowIsCurrent(space.verdict.endsAt, now) ? (
+          <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.noReadingsYet')}</p>
+        ) : (
+          <WindowClimate verdict={space.verdict} />
+        )
       ) : (
         <div className={styles.tiles}>
           {shown.map(value => (
@@ -142,6 +147,45 @@ function Tile({ value, setpoint, now }: { value: CardValue; setpoint: number | n
         <span>{setpoint === null ? t('home.card.noTarget') : `→ ${targetFigure(setpoint, value.metric)}`}</span>
       </div>
     </div>
+  );
+}
+
+/**
+ * The climate of a window that has closed.
+ *
+ * "Now" belongs to the present, so a link whose window ended answers no live
+ * values - and drawn as a tent without readings, the page told the reader the
+ * tent had recorded nothing while the same answer carried the window's last
+ * day. That day is what is shown instead: each reading's average with its low
+ * and high, under the hours it was read over.
+ */
+function WindowClimate({ verdict }: { verdict: ClimateVerdict }) {
+  const { t } = useTranslation();
+  const heard = TILES.flatMap(metric => verdict.metrics.filter(row => row.metric === metric && row.averageValue !== null));
+  const at = (instant: string) => DateTime.fromISO(instant).toFormat('d LLL HH:mm');
+
+  if (heard.length === 0) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('publicPage.windowClimate.none')}</p>;
+
+  return (
+    <section className={styles.stills}>
+      <span className="label">{t('publicPage.windowClimate.title', { from: at(verdict.startsAt), to: at(verdict.endsAt) })}</span>
+      <div className={styles.tiles}>
+        {heard.map(row => (
+          <div key={row.metric} className={`${ui.card} ${styles.tile}`}>
+            <div className={styles.tileFigure}>
+              <span className="figure">{figure(row.averageValue ?? 0, row.metric)}</span>
+              <span className={`mono ${styles.tileUnit}`}>{UNIT[row.metric] ?? row.metric}</span>
+            </div>
+            <div className={`mono ${styles.tileTarget}`}>
+              <span>{t(`home.metric.${row.metric}`, { defaultValue: row.metric })}</span>
+              {row.minValue !== null && row.maxValue !== null ? (
+                <span>{t('publicPage.windowClimate.range', { low: figure(row.minValue, row.metric), high: figure(row.maxValue, row.metric) })}</span>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

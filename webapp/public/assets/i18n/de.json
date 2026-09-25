@@ -3328,6 +3328,11 @@
       "title": "Diese Adresse führt ins Leere",
       "body": "Eine geteilte Adresse kann ein Ende bekommen, und eine abgelaufene sieht genauso aus wie eine, die es nie gegeben hat. Wenn dir jemand diese geschickt hat, bitte ihn um eine neue."
     },
+    "windowClimate": {
+      "title": "Letzter Tag dieses Zeitraums · {{from}} – {{to}}",
+      "range": "{{low}} – {{high}}",
+      "none": "Am letzten Tag dieses Zeitraums wurde nichts gemeldet"
+    },
     "noPage": {
       "title": "Unter dieser Adresse liegt nichts",
       "body": "Die App hat hier keine Seite."
@@ -4438,7 +4443,7 @@
     },
     "spaceLink": {
       "title": "Grow oder Bereich",
-      "text": "Ein Link auf einen Bereich zeigt sein aktuelles Klima mit den Zielwerten, die Grows, die dort stehen – auch private –, und seine neuesten Tagebuchzeilen; ein Link auf einen Grow zeigt das Tagebuch dieses Grows. Aufgaben und Meldungen zeigt keiner von beiden."
+      "text": "Ein Link auf einen Bereich zeigt sein aktuelles Klima mit den Zielwerten – ist sein „Bis“ vorbei, stattdessen das Klima seines letzten Tages –, die Grows, die dort stehen – auch private –, und seine neuesten Tagebuchzeilen; ein Link auf einen Grow zeigt das Tagebuch dieses Grows. Aufgaben und Meldungen zeigt keiner von beiden."
     },
     "privacyRedaction": {
       "title": "Geteilte Ansichten",
