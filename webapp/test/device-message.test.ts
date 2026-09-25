@@ -51,6 +51,12 @@ describe('device messages against the shipped catalogue', () => {
     expect(resolveDeviceMessage(i18n, message, 'text')).toBe("Your device's firmware update was completed");
   });
 
+  it('names the builds of an update with the arrow, and an unknown one in words', () => {
+    const message = { key: 'message-firmware-update-complete-with-ids', params: ['unknown -> 0.0.0'] };
+
+    expect(resolveDeviceMessage(i18n, message, 'text')).toBe("Your device's firmware update was completed: an unknown build → 0.0.0");
+  });
+
   it('says a whole picture is missing without reciting the telemetry in the headline', () => {
     const message = { key: 'message-cam-capture', params: ['incomplete res=2 bytes=14328 got=22/22 soi=2 eoi=-1'] };
 

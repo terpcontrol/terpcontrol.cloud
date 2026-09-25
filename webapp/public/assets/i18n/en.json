@@ -4228,6 +4228,9 @@
     "backAfter": "back after {{span}}",
     "back": "back"
   },
+  "deviceLine": {
+    "unknownBuild": "an unknown build"
+  },
   "help": {
     "about": "About {{title}}",
     "vpd": {

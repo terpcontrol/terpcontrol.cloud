@@ -18,6 +18,20 @@ export type MessagePart = 'title' | 'text';
 
 const ALARM_LINES = new Set(['message-alarm-triggered', 'message-alarm-resolved']);
 
+/**
+ * The lines the server writes about a firmware update name the build before
+ * and the build after as `<before> -> <after>`, with "unknown" for a build the
+ * cloud never learnt. Both halves are written for a reader: the arrow the app
+ * uses everywhere else, and the unknown build in the reader's words.
+ */
+const BUILD_CHANGES = new Set(['message-firmware-update-complete-with-ids', 'message-firmware-update-failed-with-ids']);
+
+const buildChange = (i18n: I18n, value: string): string =>
+  value
+    .split(' -> ')
+    .map(build => (build === 'unknown' ? i18n.t('deviceLine.unknownBuild') : build))
+    .join(' → ');
+
 export const resolveDeviceMessage = (i18n: I18n, message: EntryMessage, part: MessagePart): string => {
   const value = message.params.join(':');
 
@@ -32,7 +46,7 @@ export const resolveDeviceMessage = (i18n: I18n, message: EntryMessage, part: Me
   if (specific && i18n.exists(specific)) return i18n.t(specific);
 
   const generic = `${message.key}-${part}`;
-  if (i18n.exists(generic)) return i18n.t(generic, { value });
+  if (i18n.exists(generic)) return i18n.t(generic, { value: BUILD_CHANGES.has(message.key) ? buildChange(i18n, value) : value });
 
   return value ? `${message.key}:${value}` : message.key;
 };
