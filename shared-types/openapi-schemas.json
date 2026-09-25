@@ -2093,6 +2093,25 @@
       "configuration"
     ]
   },
+  "DeviceConfigurationReading": {
+    "type": "object",
+    "properties": {
+      "configuration": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/DeviceConfiguration"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "null before the device has reported one."
+      }
+    },
+    "required": [
+      "configuration"
+    ]
+  },
   "AdminDeviceCreate": {
     "type": "object",
     "properties": {

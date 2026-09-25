@@ -167,9 +167,8 @@ export declare const deviceUpdate: z.ZodObject<{
     spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 /**
- * `GET` and `PUT /devices/{id}/configuration`, which are one shape in both
- * directions: what a client reads is what it writes back, and a `PUT` replaces
- * the document whole because the server does not read enough of it to merge one.
+ * `PUT /devices/{id}/configuration`, and what it answers: a `PUT` replaces the
+ * document whole because the server does not read enough of it to merge one.
  *
  * The document travels in a field of its own rather than as the bare body: its
  * keys belong to the firmware and this contract does not know them, so one of
@@ -178,6 +177,16 @@ export declare const deviceUpdate: z.ZodObject<{
  */
 export declare const deviceConfigurationEnvelope: z.ZodObject<{
     configuration: z.ZodRecord<z.ZodString, z.ZodAny>;
+}, z.core.$strip>;
+/**
+ * `GET /devices/{id}/configuration`: the same envelope, with the document null
+ * where the device has never reported one - exactly as `Device.configuration`
+ * says it. Answered as an empty document, a device that never sent its
+ * settings read like one whose settings are empty, and only a refused write
+ * told the two apart.
+ */
+export declare const deviceConfigurationReading: z.ZodObject<{
+    configuration: z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>;
 }, z.core.$strip>;
 /**
  * `POST /admin/devices`. A device normally creates itself by registering with

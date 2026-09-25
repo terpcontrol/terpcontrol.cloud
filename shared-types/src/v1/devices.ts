@@ -134,9 +134,8 @@ export const deviceUpdate = named(
 );
 
 /**
- * `GET` and `PUT /devices/{id}/configuration`, which are one shape in both
- * directions: what a client reads is what it writes back, and a `PUT` replaces
- * the document whole because the server does not read enough of it to merge one.
+ * `PUT /devices/{id}/configuration`, and what it answers: a `PUT` replaces the
+ * document whole because the server does not read enough of it to merge one.
  *
  * The document travels in a field of its own rather than as the bare body: its
  * keys belong to the firmware and this contract does not know them, so one of
@@ -146,6 +145,18 @@ export const deviceUpdate = named(
 export const deviceConfigurationEnvelope = named(
   'DeviceConfigurationEnvelope',
   z.object({ configuration: deviceConfiguration }),
+);
+
+/**
+ * `GET /devices/{id}/configuration`: the same envelope, with the document null
+ * where the device has never reported one - exactly as `Device.configuration`
+ * says it. Answered as an empty document, a device that never sent its
+ * settings read like one whose settings are empty, and only a refused write
+ * told the two apart.
+ */
+export const deviceConfigurationReading = named(
+  'DeviceConfigurationReading',
+  z.object({ configuration: deviceConfiguration.nullable().describe('null before the device has reported one.') }),
 );
 
 /**

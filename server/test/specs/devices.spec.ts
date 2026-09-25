@@ -177,6 +177,17 @@ describe('what reaches the hardware', () => {
     expect(read.body.configuration).toEqual(configuration);
   });
 
+  it('says of a device that never reported its configuration that it has none, on both routes alike', async () => {
+    const silent = await provisionDevice(owner, 'controller');
+
+    const whole = await owner.client.get(`/v1/devices/${silent.deviceId}`).expect(200);
+    expect(whole.body.configuration).toBeNull();
+
+    // Not an empty document, which reads as settings that are empty.
+    const read = await owner.client.get(`/v1/devices/${silent.deviceId}/configuration`).expect(200);
+    expect(read.body).toEqual({ configuration: null });
+  });
+
   it('translates a command into the words the firmware understands', async () => {
     simulator.clear();
 

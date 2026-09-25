@@ -8,6 +8,7 @@ import {
   DeviceCommand,
   DeviceCommandResult,
   DeviceConfigurationEnvelope,
+  DeviceConfigurationReading,
   DeviceLive,
   DevicePage,
   DeviceSeries,
@@ -26,6 +27,7 @@ import {
   deviceCommand,
   deviceCommandResult,
   deviceConfigurationEnvelope,
+  deviceConfigurationReading,
   deviceLive,
   devicePage,
   deviceSeries,
@@ -170,10 +172,10 @@ export class DevicesController {
   @UseGuards(AuthGuard, AccessGuard)
   @Requires('view', 'device')
   @ApiOperation({ summary: "The device's own configuration document" })
-  @V1Answer(deviceConfigurationEnvelope)
-  public async readConfiguration(@Param('id') id: string): Promise<DeviceConfigurationEnvelope> {
+  @V1Answer(deviceConfigurationReading)
+  public async readConfiguration(@Param('id') id: string): Promise<DeviceConfigurationReading> {
     const device = await this.devices.require(id);
-    return { configuration: device.configuration ?? {} };
+    return { configuration: device.configuration ?? null };
   }
 
   /**

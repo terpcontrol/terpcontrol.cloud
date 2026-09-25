@@ -764,6 +764,13 @@ export interface DeviceConfigurationEnvelope {
   configuration: DeviceConfiguration;
 }
 
+export interface DeviceConfigurationReading {
+  /**
+   * null before the device has reported one.
+   */
+  configuration: DeviceConfiguration | null;
+}
+
 export interface AdminDeviceCreate {
   /**
    * The id the firmware was provisioned with.
