@@ -25,6 +25,10 @@ import { ExportService } from './export.service';
  * one whose grow it is. A demo session owns nothing and therefore exports
  * nothing.
  */
+const BUILDING =
+  'Not ready yet: queued by this request (`queued` is true), or already queued or being built by an earlier one. Polled through `GET /media/{id}` until `exportJob.status` is `ready`.';
+const READY = 'The export is already there and finished: `exportJob.status` is `ready`, and its bytes come from `GET /media/{id}/content`.';
+
 @ApiTags('grows')
 @Controller('v1')
 export class ExportController {
@@ -34,8 +38,8 @@ export class ExportController {
   @UseGuards(AuthGuard, AccessGuard)
   @Requires('own', 'grow')
   @ApiOperation({ summary: 'A zip of one grow: its diary, its CSVs and its photos' })
-  @V1Answer(exportAccepted, { status: HttpStatus.ACCEPTED, description: 'Queued, and polled through `GET /media/{id}`.' })
-  @V1Answer(exportAccepted, { status: HttpStatus.OK, description: 'The export is already there, and `queued` is false.' })
+  @V1Answer(exportAccepted, { status: HttpStatus.ACCEPTED, description: BUILDING })
+  @V1Answer(exportAccepted, { status: HttpStatus.OK, description: READY })
   public grow(@Caller() ctx: AccessContext, @Param('id') id: string, @Res({ passthrough: true }) reply: FastifyReply): Promise<ExportAccepted> {
     return this.answer(reply, this.exports.ask(owner(ctx), 'grow', id));
   }
@@ -43,16 +47,21 @@ export class ExportController {
   @Get('me/export')
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'A zip of everything this account has' })
-  @V1Answer(exportAccepted, { status: HttpStatus.ACCEPTED, description: 'Queued, and polled through `GET /media/{id}`.' })
-  @V1Answer(exportAccepted, { status: HttpStatus.OK, description: 'The export is already there, and `queued` is false.' })
+  @V1Answer(exportAccepted, { status: HttpStatus.ACCEPTED, description: BUILDING })
+  @V1Answer(exportAccepted, { status: HttpStatus.OK, description: READY })
   public account(@Caller() ctx: AccessContext, @Res({ passthrough: true }) reply: FastifyReply): Promise<ExportAccepted> {
     return this.answer(reply, this.exports.ask(owner(ctx), 'account', null));
   }
 
-  /** 202 for a job that was just started, 200 for one that was already there. */
+  /**
+   * 200 for a file that can be downloaded, 202 for everything that is still to
+   * be waited for. A second ask while the first build is queued or running
+   * answers that same build - and answered 200, it read as a finished file to
+   * a client that took the status at its word, which then downloaded nothing.
+   */
   private async answer(reply: FastifyReply, work: Promise<ExportAccepted>): Promise<ExportAccepted> {
     const answered = await work;
-    void reply.status(answered.queued ? HttpStatus.ACCEPTED : HttpStatus.OK);
+    void reply.status(answered.media.exportJob?.status === 'ready' ? HttpStatus.OK : HttpStatus.ACCEPTED);
 
     return answered;
   }

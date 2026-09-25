@@ -162,9 +162,19 @@ describe('GET /v1/me/export', () => {
 
     expect(accepted.body.media.exportJob).toMatchObject({ status: 'queued', scope: 'account', growId: null });
 
+    // Asked again before it is built: the same job, and still something to wait for.
+    const again = await owner.client.get('/v1/me/export');
+    expect(again.body.media.id).toBe(accepted.body.media.id);
+    expect(again.body.queued).toBe(false);
+    if (again.body.media.exportJob.status !== 'ready') expect(again.status).toBe(202);
+
     const ready = await waitForTheFile(accepted.body.media.id);
     expect(ready.exportJob.status).toBe('ready');
     expect(ready.bytes).toBeGreaterThan(0);
+
+    // Once it is built, asking again answers the finished file.
+    const done = await owner.client.get('/v1/me/export').expect(200);
+    expect(done.body).toMatchObject({ queued: false, media: { id: accepted.body.media.id, exportJob: { status: 'ready' } } });
   });
 
   it('is refused to a demo session, which has nothing of its own', async () => {

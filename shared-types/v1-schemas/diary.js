@@ -344,9 +344,11 @@ exports.media = (0, common_js_1.named)('Media', zod_1.z.object({
  * `GET /media/{id}` until it is `ready`; its bytes then come from
  * `GET /media/{id}/content` like any other file.
  *
- * `queued` says which of the two happened, and with it the 202 from the 200: an
- * export asked for while one is still being built, or while a fresh one is
- * still there, answers that one rather than starting a second.
+ * An export asked for while one is still being built, or while a fresh one is
+ * still there, answers that one rather than starting a second. `queued` says
+ * whether this request started the build; the status says whether there is a
+ * file yet - 200 only for a finished one, 202 for one still to be waited for,
+ * whoever started it.
  */
 exports.exportAccepted = (0, common_js_1.named)('ExportAccepted', zod_1.z.object({ media: exports.media, queued: zod_1.z.boolean() }));
 /**
