@@ -193,10 +193,12 @@ export class AlarmEngineService {
   }
 
   /**
-   * Nothing has changed and the rule asks to be told so again. It repeats where
-   * it stands, the all-clear included - a webhook driving somebody's home
-   * automation reads the repeat as the heartbeat that says the cloud is still
-   * watching. A mail is never repeated: an inbox is not a status display.
+   * The alarm is still on and the rule asks to be told so again. Only an open
+   * episode repeats: the all-clear is said once, when it happens. Repeating it
+   * too kept telling everyone a rule reaches - every phone the routing grid
+   * names - that something was over, every half hour for as long as nothing went
+   * wrong again, which is the opposite of what "repeat while it lasts" offers.
+   * A mail is never repeated: an inbox is not a status display.
    *
    * The heartbeat stops for a device somebody is working on, because the screens
    * that offer the window promise that nothing is raised on it; a heartbeat a
@@ -205,14 +207,13 @@ export class AlarmEngineService {
    * reaches here is one the quiet does not cover.
    */
   private async repeat(rule: StoredAlarmRule, device: AlarmDevice, value: number, at: Date): Promise<void> {
-    const since = Math.max(rule.state.lastTriggeredAt?.getTime() ?? 0, rule.state.lastResolvedAt?.getTime() ?? 0);
+    const since = rule.state.lastTriggeredAt?.getTime() ?? 0;
     const due = since > 0 && since + rule.repeatSeconds * 1000 < Date.now();
-    if (isMailRule(rule) || rule.repeatSeconds < MINIMUM_REPEAT_SECONDS || !due) return;
+    if (!rule.state.triggered || isMailRule(rule) || rule.repeatSeconds < MINIMUM_REPEAT_SECONDS || !due) return;
 
-    const now = new Date();
-    await this.write(rule, at, rule.state.triggered ? { 'state.lastTriggeredAt': now } : { 'state.lastResolvedAt': now });
+    await this.write(rule, at, { 'state.lastTriggeredAt': new Date() });
 
-    const alert = await this.alerts.latestOfRule(rule.id);
+    const alert = await this.alerts.openOfRule(rule.id);
     if (alert) await this.alerts.repeat(subjectOf(rule, device), alert, value);
   }
 

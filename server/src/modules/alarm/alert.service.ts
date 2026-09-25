@@ -47,11 +47,6 @@ export class AlertService {
     return this.alerts.findOne({ ruleId, resolvedAt: null }).sort({ startedAt: -1 }).lean();
   }
 
-  /** The episode a repeat is about, which is the open one where there is one and the last one otherwise. */
-  public latestOfRule(ruleId: string): Promise<StoredAlert | null> {
-    return this.alerts.findOne({ ruleId }).sort({ startedAt: -1 }).lean();
-  }
-
   public openOfCamera(cameraId: string): Promise<StoredAlert | null> {
     return this.alerts.findOne({ cameraId, resolvedAt: null }).sort({ startedAt: -1 }).lean();
   }
@@ -95,13 +90,12 @@ export class AlertService {
   }
 
   /**
-   * Where it stands, said again because the rule asks to be reminded. Nothing is
-   * written to the timeline: the episode is already in it, and a repeat is not a
-   * second thing that happened.
+   * That it is still on, said again because the rule asks to be reminded.
+   * Nothing is written to the timeline: the episode is already in it, and a
+   * repeat is not a second thing that happened.
    */
   public async repeat(subject: AlertSubject, alert: StoredAlert, value: number | null): Promise<void> {
-    const event: AlarmEvent = alert.resolvedAt ? 'resolved' : 'triggered';
-    await this.delivery.deliver(event, alert, subject.rule, subject.name, value);
+    await this.delivery.deliver('triggered', alert, subject.rule, subject.name, value);
   }
 
   /** The worst reading of the episode so far, kept on the alert and on the rule alike. */

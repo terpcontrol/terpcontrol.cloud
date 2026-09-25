@@ -251,6 +251,27 @@ describe('what keeps an alarm quiet', () => {
     expect((await storedRule()).state.lastTriggeredAt!.getTime()).toBeGreaterThan(announcedAt.getTime());
   });
 
+  it('says the all-clear once, rather than repeating it for as long as nothing goes wrong', async () => {
+    const clearedAt = new Date(Date.now() - 120_000);
+    await device();
+    await rules.create(
+      ruleFor({
+        repeatSeconds: 60,
+        state: {
+          triggered: false,
+          lastTriggeredAt: new Date(Date.now() - 600_000),
+          lastResolvedAt: clearedAt,
+          extremeValue: null,
+          lastSampleAt: null,
+        },
+      }),
+    );
+
+    await reads(25, new Date());
+
+    expect((await storedRule()).state.lastResolvedAt).toEqual(clearedAt);
+  });
+
   it('waits out the cooldown before triggering again', async () => {
     await device();
     await rules.create(ruleFor({ cooldownSeconds: 600, state: { ...ruleFor().state, lastTriggeredAt: new Date(), lastResolvedAt: new Date() } }));
