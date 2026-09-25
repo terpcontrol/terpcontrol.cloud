@@ -83,12 +83,12 @@ export class PlanService {
   }
 
   /**
-   * A step's settings are merged into the device's own configuration document by
-   * top-level key, so a step that carries `day` writes that whole section over
-   * whatever the section held. On a device whose document states no climate that
-   * is not a figure nobody reads: a lamp states its on and off times as plain
-   * seconds under the same `day` and `night` keys, and the step would put an
-   * object over a schedule and publish it.
+   * A step's settings are merged into the device's own configuration document
+   * section by section, and a section is only merged into where the document
+   * holds one: anything else under the same key is replaced. On a device whose
+   * document states no climate that is not a figure nobody reads: a lamp states
+   * its on and off times as plain seconds under the same `day` and `night` keys,
+   * and the step would put an object over a schedule and publish it.
    *
    * The question is asked of the document rather than of the device's type,
    * because the type table that says which hardware states a climate lives in

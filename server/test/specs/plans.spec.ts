@@ -156,10 +156,10 @@ describe('writing the plan', () => {
   });
 
   /**
-   * A step's settings are merged into the device's own document by top-level
-   * key, so a step carrying `day` writes that whole section over what was there.
-   * A lamp states its on and off times as plain seconds under exactly those
-   * keys, which is a schedule the step would put an object over and publish - so
+   * A step's settings are merged into the device's own document section by
+   * section, and a key that holds no section is simply replaced. A lamp states
+   * its on and off times as plain seconds under exactly those keys, which is a
+   * schedule the step would put an object over and publish - so
    * the write is refused here rather than left to the one screen that happened
    * to ask the question.
    */

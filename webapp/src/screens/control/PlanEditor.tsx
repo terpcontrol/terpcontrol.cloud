@@ -259,7 +259,7 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
       <span className="label">{t('space.control.step.settings')}</span>
       <div className={styles.figures}>
         {figuresFor(device).map(figure => (
-          <FigureField key={figure.key} figure={figure} step={step} device={device} onChange={onChange} />
+          <FigureField key={figure.key} figure={figure} step={step} onChange={onChange} />
         ))}
         {/* The figure this controller cannot run keeps its place and says what
             it needs, rather than leaving a gap that reads as a screen that
@@ -307,23 +307,10 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
 
 /** The figures of the step's settings as the controller states them now, for a step that should hold what the tent already holds. */
 const fromController = (step: StepDraft, device: Device) =>
-  figuresFor(device).reduce(
-    (settings, figure) => withFigure(settings, figure, figureOf(device.configuration ?? {}, figure), device.configuration),
-    step.settings,
-  );
+  figuresFor(device).reduce((settings, figure) => withFigure(settings, figure, figureOf(device.configuration ?? {}, figure)), step.settings);
 
 /** One climate figure. Empty is a figure this step does not write, which is not the same as zero. */
-function FigureField({
-  figure,
-  step,
-  device,
-  onChange,
-}: {
-  figure: Figure;
-  step: StepDraft;
-  device: Device;
-  onChange: (over: Partial<StepDraft>) => void;
-}) {
+function FigureField({ figure, step, onChange }: { figure: Figure; step: StepDraft; onChange: (over: Partial<StepDraft>) => void }) {
   const { t } = useTranslation();
   const value = figureOf(step.settings, figure);
 
@@ -338,7 +325,7 @@ function FigureField({
         value={value ?? ''}
         onChange={event =>
           onChange({
-            settings: withFigure(step.settings, figure, event.target.value === '' ? null : Number(event.target.value), device.configuration),
+            settings: withFigure(step.settings, figure, event.target.value === '' ? null : Number(event.target.value)),
           })
         }
       />

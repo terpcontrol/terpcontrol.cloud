@@ -5,6 +5,7 @@ import { MODEL_V1 } from '@database/models';
 import { StoredClaimCode, claimCodesSchema } from '@database/schemas/v1/claim-codes.schema';
 import { StoredDeviceClass, deviceClassesSchema } from '@database/schemas/v1/device-classes.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
 import { DeviceIngestService } from '@modules/device-protocol/device-ingest.service';
 import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
 import { DeviceRegistrationService } from '@modules/device-protocol/device-registration.service';
@@ -516,6 +517,26 @@ describe('what the cloud tells a device', () => {
       publisher.command(DEVICE, { kind: 'socket_override', subject: { type: 'socket', id: '0' }, state: 'on', forSeconds: 60 }),
     ).rejects.toThrow(/has not announced/);
     expect(published).toEqual([]);
+  });
+
+  it('merges a step into each section the device runs, so a figure it leaves out stays what it was', async () => {
+    await device({
+      configuration: { workmode: 'small', day: { temperature: 25, humidity: 60, heating: 'hard' }, lights: { limit: 80, sunrise: 15 } },
+    });
+
+    await new DeviceConfigurationService(db.devices, publisher).applyConfiguration(DEVICE, { day: { humidity: 55 }, lights: { limit: 0 } });
+
+    const expected = { workmode: 'small', day: { temperature: 25, humidity: 55, heating: 'hard' }, lights: { limit: 0, sunrise: 15 } };
+    expect((await stored())?.configuration).toEqual(expected);
+    expect(sent()).toEqual(expected);
+  });
+
+  it('replaces what is not a section on both sides rather than merging into it', async () => {
+    await device({ configuration: { day: 68400, night: 25200, limit: 65 } });
+
+    await new DeviceConfigurationService(db.devices, publisher).applyConfiguration(DEVICE, { day: { temperature: 24 }, limit: 40 });
+
+    expect((await stored())?.configuration).toEqual({ day: { temperature: 24 }, night: 25200, limit: 40 });
   });
 
   it('names a socket by the role the device reports it under', async () => {

@@ -36,8 +36,8 @@ import { climateLanding } from '@/ui/climate-hardware';
  * ways this screen could lie are both checked here: offering a move the server
  * would refuse, and saying an edit leaves the tent where it is when it would
  * start the step over. The third is the settings a step carries - a figure
- * typed into one section must not quietly drop the tuning that sits beside it,
- * because the merge on the way to the device is by whole section.
+ * typed into one section carries only itself, and the server merges it into the
+ * section the controller runs, so the tuning beside it is never sent at all.
  */
 
 const NOW = DateTime.fromISO('2026-09-19T12:00:00.000Z');
@@ -467,19 +467,19 @@ describe('the settings a step carries', () => {
   const day = CLIMATE_FIGURES[0];
   const dayHumidity = CLIMATE_FIGURES[1];
 
-  it('keeps the rest of the section the controller is running when a figure is written', () => {
-    const written = withFigure({}, day, 28, CONFIGURATION);
+  it('carries only the figure that is written, leaving the rest of the section to the controller', () => {
+    const written = withFigure({}, day, 28);
 
-    expect(written.day).toEqual({ temperature: 28, humidity: 60, heating: 'hard' });
+    expect(written.day).toEqual({ temperature: 28 });
     expect(otherSections(written)).toEqual([]);
   });
 
   it('drops the whole section when its last figure is cleared, so the step writes nothing there', () => {
-    const one = withFigure({}, day, 28, CONFIGURATION);
-    const both = withFigure(one, dayHumidity, 55, CONFIGURATION);
+    const one = withFigure({}, day, 28);
+    const both = withFigure(one, dayHumidity, 55);
 
-    expect(figureOf(withFigure(both, day, null, CONFIGURATION), dayHumidity)).toBe(55);
-    expect(withFigure(withFigure(both, day, null, CONFIGURATION), dayHumidity, null, CONFIGURATION).day).toBeUndefined();
+    expect(figureOf(withFigure(both, day, null), dayHumidity)).toBe(55);
+    expect(withFigure(withFigure(both, day, null), dayHumidity, null).day).toBeUndefined();
   });
 
   it('reads a figure a migrated recipe wrote flat as the same figure', () => {

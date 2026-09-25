@@ -154,7 +154,7 @@ export const asWritableBy = (draft: PlanDraft, device: Device): PlanDraft => {
     ...draft,
     steps: draft.steps.map(step => ({
       ...step,
-      settings: dropped.reduce((settings, figure) => withFigure(settings, figure, null, null), step.settings),
+      settings: dropped.reduce((settings, figure) => withFigure(settings, figure, null), step.settings),
     })),
   };
 };
@@ -179,24 +179,16 @@ export const figureOf = (settings: DeviceConfiguration, figure: Figure): number 
 /**
  * A figure put into, or taken out of, the settings a step carries.
  *
- * The merge on the way to the device is by top-level key, so a step that carries
- * a section writes that whole section over the one the controller is running.
- * That is why a section this step does not have yet is started from what the
- * controller runs now rather than from nothing: everything else in it - the
- * heating behaviour, the dehumidifier's timing - is the tent's own tuning, and a
- * step that quietly dropped it would be a change nobody asked for.
- *
- * Clearing the last figure of a section removes the section, which is the step
- * saying it writes nothing there at all.
+ * The server merges a step into each section the controller is running, so a
+ * step carries the figures it writes and nothing else: the rest of the section -
+ * the other figures, the heating behaviour, the dehumidifier's timing - stays
+ * what the controller has. A figure left empty is therefore one the controller
+ * keeps, and clearing the last figure of a section removes the section, which
+ * is the step saying it writes nothing there at all.
  */
-export const withFigure = (
-  settings: DeviceConfiguration,
-  figure: Figure,
-  value: number | null,
-  runningNow: DeviceConfiguration | null,
-): DeviceConfiguration => {
+export const withFigure = (settings: DeviceConfiguration, figure: Figure, value: number | null): DeviceConfiguration => {
   const flat = `${figure.section}.${figure.field}`;
-  const section = { ...(sectionOf(settings, figure.section) ?? sectionOf(runningNow ?? {}, figure.section) ?? {}) };
+  const section = { ...(sectionOf(settings, figure.section) ?? {}) };
   const next: DeviceConfiguration = { ...settings };
   delete next[flat];
 

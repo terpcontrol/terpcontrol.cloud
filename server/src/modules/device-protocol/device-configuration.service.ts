@@ -35,17 +35,23 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
   }
 
   /**
-   * A plan step's settings, merged into what the device runs. The merge is by
-   * top-level key, so a step that carries the whole document replaces it and one
-   * that carries a section replaces that section - which is what the plan screen
-   * has always written.
+   * A plan step's or a preset's settings, merged into what the device runs.
+   *
+   * The merge goes into each section rather than stopping at the top-level key:
+   * a step that carries `day: { humidity }` changes the day's humidity and
+   * leaves the day's temperature where it was. Replacing the whole section left
+   * every figure the step did not name out of the document, and the firmware
+   * reads a missing key as its compile-time default - so a figure the plan
+   * screen shows as empty, "not written", reached the tent as a factory value.
+   * A key whose value is not a section on both sides - a lamp's plain `day`
+   * seconds, a list - is replaced as it always was.
    */
   public applyConfiguration(deviceId: string, settings: DeviceConfiguration): Promise<boolean> {
     // Nothing to merge, or nothing to merge into, is no write: the firmware reads
     // every key a document leaves out as its compile-time default, so sending
     // either would reset tuning the cloud has no copy of.
     return this.store(deviceId, current =>
-      !current || Object.keys(current).length === 0 || Object.keys(settings).length === 0 ? null : { ...current, ...settings },
+      !current || Object.keys(current).length === 0 || Object.keys(settings).length === 0 ? null : mergeSections(current, settings),
     );
   }
 
@@ -74,3 +80,13 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     return JSON.stringify(device.configuration) !== JSON.stringify(configuration);
   }
 }
+
+const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const mergeSections = (current: DeviceConfiguration, settings: DeviceConfiguration): DeviceConfiguration =>
+  Object.fromEntries(
+    Object.entries({ ...current, ...settings }).map(([key, value]) => {
+      const before = current[key];
+      return [key, isSection(before) && isSection(value) ? { ...before, ...value } : value];
+    }),
+  );
