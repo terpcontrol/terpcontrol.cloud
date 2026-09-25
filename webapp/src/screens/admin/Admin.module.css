@@ -223,7 +223,7 @@
 }
 
 .numbers {
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-figure);
   white-space: nowrap;
 }
 

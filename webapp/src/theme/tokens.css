@@ -20,6 +20,19 @@
  * match.
  */
 
+/* Inter's tabular digits and nothing else, cut by scripts/tabular-digits.py.
+   Named ahead of Inter in `--font-figure`, it draws 0-9 a digit wide each so a
+   column of readings lines up, and leaves every other character to Inter at
+   its own width. */
+@font-face {
+  font-family: 'Inter Tabular Digits';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url(./inter-tabular-digits.woff2) format('woff2-variations');
+  unicode-range: U+0030-0039;
+}
+
 :root {
   color-scheme: light;
 
@@ -142,8 +155,10 @@
      family. */
   --font-text: 'Inter Variable', -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   /* Figures, timestamps and captions: the same face, whose tabular digits do
-     the aligning a monospaced face used to. */
-  --font-figure: var(--font-text);
+     the aligning a monospaced face used to. The digits come from a face of
+     their own (at the head of this file) rather than from `tabular-nums`, which in Inter widens
+     the hyphen, the stops, the colon, the brackets and the space as well. */
+  --font-figure: 'Inter Tabular Digits', var(--font-text);
 
   /* The scale. 11.5 is only ever the tracked capitals of a section label. */
   --text-2xs: 11.5px;

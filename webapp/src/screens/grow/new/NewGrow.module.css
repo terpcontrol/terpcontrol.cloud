@@ -75,7 +75,7 @@
   flex: none;
   font-size: var(--text-sm);
   color: var(--muted);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-figure);
 }
 
 /* A chip with a glyph in it rather than a word: square, so the pair reads as one control. */

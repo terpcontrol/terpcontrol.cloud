@@ -57,7 +57,6 @@
   color: var(--ink);
   font-family: var(--font-figure);
   font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
 }
 
 .settingValue:disabled {
@@ -106,7 +105,7 @@
   padding: var(--space-2) var(--space-1);
   text-align: center;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-figure);
 }
 
 .table tbody tr:last-child .rowHead,

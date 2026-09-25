@@ -102,7 +102,6 @@
   color: var(--ink);
   font-family: var(--font-figure);
   font-size: var(--text-md);
-  font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
