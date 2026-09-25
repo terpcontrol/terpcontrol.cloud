@@ -288,6 +288,7 @@ describe('what a device logs', () => {
     await device();
     await messageOn('log', { severity: 0, message: 'message-cam-capture:ok res=1280x720' });
     await messageOn('log', { severity: 1, message: 'message-cam-capture:incomplete res=1280x720 bytes=0' });
+    await messageOn('log', { severity: 1, message: 'message-aux-command-failed:cam_capture' });
     expect(await db.entries.countDocuments()).toBe(0);
 
     await db.cameras.create({ id: 'camera-1', ownerId: OWNER, kind: 'terpcam_controller', deviceId: DEVICE, name: 'Cam', logErrors: true });
@@ -295,6 +296,20 @@ describe('what a device logs', () => {
 
     // A line about the camera is attached to the camera it is about.
     expect(await db.entries.findOne({}).lean()).toMatchObject({ cameraId: 'camera-1', severity: 'warning' });
+  });
+
+  it('counts a still the device could not take as a failed capture, and any other refused command as the device´s', async () => {
+    await device();
+    await db.cameras.create({ id: 'camera-1', ownerId: OWNER, kind: 'terpcam_controller', deviceId: DEVICE, name: 'Cam', logErrors: false });
+    await messageOn('log', { severity: 1, message: 'message-aux-command-failed:cam_capture' });
+    await messageOn('log', { severity: 1, message: 'message-aux-command-failed:socket_set:heater' });
+    expect(await db.entries.find({}, { cameraId: 1, message: 1 }).lean()).toEqual([
+      expect.objectContaining({ cameraId: null, message: { key: 'message-aux-command-failed', params: ['socket_set:heater'] } }),
+    ]);
+
+    await db.cameras.updateOne({ id: 'camera-1' }, { $set: { logErrors: true } });
+    await messageOn('log', { severity: 1, message: 'message-aux-command-failed:cam_capture' });
+    expect(await db.entries.findOne({ 'message.params': 'cam_capture' }).lean()).toMatchObject({ cameraId: 'camera-1' });
   });
 });
 

@@ -48,6 +48,9 @@ const MQTT_RECONNECT_DELAY = 5 * 1000;
 /** A capture reports its outcome every 30 s, which is diagnostics rather than diary material. */
 const CAM_CAPTURE_PREFIX = 'message-cam-capture:';
 
+/** The device could not take the still it was asked for - a failed capture, said the other way. */
+const CAPTURE_NOT_TAKEN = 'message-aux-command-failed:cam_capture';
+
 /** The line a device sends when somebody put it into maintenance mode, on the device or from here. */
 const MAINTENANCE_PREFIX = 'message-maintenance-mode-activated';
 
@@ -289,7 +292,7 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
 
     // Only a line about the camera needs one looked up, and the camera is also
     // what says whether its failures are worth writing down.
-    const camera = deviceMessageFact(message?.key ?? null).aboutCamera
+    const camera = deviceMessageFact(message).aboutCamera
       ? await this.cameras.findOne({ deviceId: device.id, removedAt: null }, { id: 1, logErrors: 1 }).lean()
       : null;
 
@@ -415,9 +418,12 @@ const outputValues = (outputs: Record<string, number>): Partial<Record<OutputMet
 
 /**
  * A successful capture never reaches the diary, and a failed one only where the
- * camera's owner asked for its errors to be written down. Firmware in the field
- * still sends the successful ones, so the decision is made here as well as on
- * the device.
+ * camera's owner asked for its errors to be written down - whichever of the two
+ * lines a build says it with. Firmware in the field still sends the successful
+ * ones, so the decision is made here as well as on the device.
  */
-const suppressed = (line: string, logErrors: boolean): boolean =>
-  line.startsWith(CAM_CAPTURE_PREFIX) && (line.startsWith(`${CAM_CAPTURE_PREFIX}ok`) || !logErrors);
+const suppressed = (line: string, logErrors: boolean): boolean => {
+  const trimmed = line.trim();
+  if (trimmed.startsWith(`${CAM_CAPTURE_PREFIX}ok`)) return true;
+  return (trimmed.startsWith(CAM_CAPTURE_PREFIX) || trimmed === CAPTURE_NOT_TAKEN) && !logErrors;
+};

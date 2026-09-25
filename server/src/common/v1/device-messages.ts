@@ -33,7 +33,11 @@ interface DeviceMessageFact {
 const OF_THE_DEVICE: DeviceMessageFact = { kind: 'system', aboutCamera: false };
 const OF_THE_CAMERA: DeviceMessageFact = { kind: 'system', aboutCamera: true };
 
-/** Every key current firmware sends. What is not here is still an entry, about the device. */
+/**
+ * Every key current firmware sends. What is not here is still an entry, about
+ * the device. A row may also name a key with its parameter, where one value of
+ * a key is about something else than the key's other values.
+ */
 const DEVICE_MESSAGES: Readonly<Record<string, DeviceMessageFact>> = {
   'message-device-booted': OF_THE_DEVICE,
   // Emitted the moment the device is *told* to install a build, from inside the
@@ -57,6 +61,9 @@ const DEVICE_MESSAGES: Readonly<Record<string, DeviceMessageFact>> = {
   'message-smart-socket-address-lost': OF_THE_DEVICE,
   'message-smart-socket-cmd-failed': OF_THE_DEVICE,
   'message-aux-command-failed': OF_THE_DEVICE,
+  // The capture the cloud asked for could not be taken: the same failure as a
+  // `message-cam-capture:` line, told by a build that did not get as far.
+  'message-aux-command-failed:cam_capture': OF_THE_CAMERA,
   'message-terp-cam-connected': OF_THE_CAMERA,
   'message-terp-cam-found': OF_THE_CAMERA,
   'message-terp-cam-not-found': OF_THE_CAMERA,
@@ -64,7 +71,8 @@ const DEVICE_MESSAGES: Readonly<Record<string, DeviceMessageFact>> = {
   'message-cam-capture': OF_THE_CAMERA,
 };
 
-export const deviceMessageFact = (key: string | null): DeviceMessageFact => (key && DEVICE_MESSAGES[key]) || OF_THE_DEVICE;
+export const deviceMessageFact = (message: EntryMessage | null): DeviceMessageFact =>
+  (message && (DEVICE_MESSAGES[`${message.key}:${message.params[0] ?? ''}`] ?? DEVICE_MESSAGES[message.key])) || OF_THE_DEVICE;
 
 /**
  * What a device wrote, as the timeline keeps it: a key with its parameter, or a

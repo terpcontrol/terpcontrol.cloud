@@ -110,7 +110,7 @@ export class EntryWriterService {
     if (isHardwareInfo(log.line)) return null;
 
     const { message, text } = parseDeviceMessage(log.line);
-    const fact = deviceMessageFact(message?.key ?? null);
+    const fact = deviceMessageFact(message);
 
     return this.write({
       source: 'device',
