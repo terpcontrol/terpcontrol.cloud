@@ -81,7 +81,9 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
 
       <ul className={ui.group}>
         <Row label={t('camera.connectedVia')}>
-          <span className={`mono ${styles.settingValue}`}>{[connection(t, camera, through), place].filter(Boolean).join(' · ')}</span>
+          <span className={`mono ${styles.settingValue}`}>
+            {[connection(t, camera, through), place === through ? null : place].filter(Boolean).join(' · ')}
+          </span>
         </Row>
 
         {/* Only where the answer carries it: the server keeps a camera's
@@ -283,9 +285,9 @@ const reachedAt = (t: Translate, camera: Camera): string | null => {
   return said.filter(Boolean).join(' · ') || null;
 };
 
-/** How the cloud reaches this camera, in the words the board uses for each kind. */
+/** How the cloud reaches this camera, under a label that already says "via". */
 const connection = (t: Translate, camera: Camera, through: string | null): string => {
-  if (camera.kind === 'terpcam_controller') return t('devices.via', { name: through ?? t('devices.type.controller') });
+  if (camera.kind === 'terpcam_controller') return through ?? t('devices.type.controller');
 
   return t(`devices.cameraKind.${camera.kind}`);
 };

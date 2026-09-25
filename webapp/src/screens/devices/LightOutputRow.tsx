@@ -254,10 +254,14 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now, explain 
       {open ? (
         <div className={styles.socketPanel}>
           <Facts>
-            <Fact
-              label={t('devices.lightOutput.setTo')}
-              value={output.limitPercent === null ? t('devices.lightOutput.noLimit') : percentLabel(output.limitPercent)}
-            />
+            {/* Whoever may set it has just read it beside the slider; the fact
+                is for a reader who is shown no slider. */}
+            {mayManage ? null : (
+              <Fact
+                label={t('devices.lightOutput.setTo')}
+                value={output.limitPercent === null ? t('devices.lightOutput.noLimit') : percentLabel(output.limitPercent)}
+              />
+            )}
             <Fact
               label={t('devices.lightOutput.running')}
               value={measured ? `${percentLabel(measured.percent)} · ${t('devices.ago', { age: ageLabel(measured.measuredAt, now) })}` : '—'}
@@ -267,8 +271,10 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now, explain 
 
           {/* The same times a smart socket is held for, because the firmware
               holds anything for any of them: the list is the override's own
-              ceiling and neither the role nor the build narrows it. */}
-          {mayManage ? (
+              ceiling and neither the role nor the build narrows it. A device
+              that is offered no hold has no length of one to choose, and the
+              row above has already said why. */}
+          {mayManage && offersHold ? (
             <div className={styles.holds}>
               <span className="label">{t('devices.socket.holdFor')}</span>
               {holdsFor().map(seconds => (

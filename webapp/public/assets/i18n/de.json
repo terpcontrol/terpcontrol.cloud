@@ -835,7 +835,6 @@
     "socketCount_other": "{{count}} Steckdosen",
     "camCount_one": "{{count}} Kamera",
     "camCount_other": "{{count}} Kameras",
-    "legacy": "alt",
     "details": "Was {{name}} ist",
     "via": "über {{name}}",
     "premium": "Premium",

@@ -305,11 +305,11 @@ function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now, expl
   const [naming, setNaming] = useState(false);
   const firmwares = useDeviceFirmwares(device.id, open);
   const liveness = deviceLiveness(spokeAt, now);
-  // Old is said only of a type that drives sockets at all: a plug, a fan or a
-  // light announces no override because it has nothing to override, on its
-  // newest build as on its first.
+  // What a build takes is said only of a type that drives sockets at all: a
+  // plug, a fan or a light announces no override because it has nothing to
+  // override. It is said in the panel, as what the build takes, rather than as
+  // a bare "legacy" on the row that nothing on the page explained.
   const drivesSockets = SOCKET_HOST_TYPES.includes(device.type);
-  const legacy = drivesSockets && sockets ? !sockets.capabilities.socketOverride : false;
   // Naming a device and moving it are both `manage`, and asked of this device
   // rather than of the screen: the whole-account list draws rows from every
   // place at once, and the same reader owns one tent and only reads the next.
@@ -336,7 +336,6 @@ function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now, expl
     place,
     sockets && sockets.items.length > 0 ? t('devices.socketCount', { count: sockets.items.length }) : null,
     cameras > 0 ? t('devices.camCount', { count: cameras }) : null,
-    legacy ? t('devices.legacy') : null,
     buildLabel(build) ? t('devices.firmware', { version: buildLabel(build) }) : null,
   ]
     .filter(Boolean)
@@ -467,7 +466,9 @@ function CameraRow({ camera, place, devices, stillId, now }: CameraRowProps) {
     camera.kind === 'terpcam_controller'
       ? t('devices.via', { name: through ?? t('devices.type.controller') })
       : t(`devices.cameraKind.${camera.kind}`),
-    place,
+    // A controller named after the tent it stands in would put the same word
+    // twice in a row: "via FG2 · FG2".
+    place === through ? null : place,
     camera.looksAt,
   ]
     .filter(Boolean)

@@ -424,13 +424,18 @@ describe("the controller's own light output", () => {
     expect(screen.getByRole('status')).toHaveTextContent('Asked. The device reports back within half a minute.');
   });
 
-  it('greys the times with the reason the buttons are grey, where the times are', () => {
+  /**
+   * Opening the panel of an output nobody can hold used to repeat the row's
+   * refusal under a row of grey hold times, and the brightness the slider
+   * states a second time as "Set to".
+   */
+  it('offers no hold times where no hold can be asked for, and says why once', () => {
     drawOutput({ lights: LIGHTS }, { ...CAPABILITIES, lightOverride: false });
     fireEvent.click(screen.getByRole('button', { name: /What Light output is/ }));
 
-    expect(screen.getByRole('button', { name: '4 h' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: '1 h' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getAllByText(/cannot be told to hold its light output/).length).toBe(2);
+    expect(screen.queryByRole('button', { name: '4 h' })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/cannot be told to hold its light output/)).toHaveLength(1);
+    expect(screen.queryByText('Set to')).not.toBeInTheDocument();
     // Nor does the row name the length of a hold nobody can ask for.
     expect(screen.queryByText(/^holds /)).not.toBeInTheDocument();
   });
@@ -840,6 +845,14 @@ describe('what the Devices tab calls a device', () => {
     expect(screen.getByText('via Blue Dream tent · Tent 1')).toBeInTheDocument();
   });
 
+  it('names a tent once where the controller a camera hangs on is named after it', async () => {
+    list.devices = [standing({ name: 'Tent 1' })];
+    list.cameras = [hanging({})];
+    await drawList();
+
+    expect(await screen.findByText('via Tent 1')).toBeInTheDocument();
+  });
+
   it('says a camera hangs on a Controller rather than on the key a claim stored', async () => {
     list.devices = [standing({})];
     list.cameras = [hanging({})];
@@ -905,10 +918,11 @@ describe('what the Devices tab calls a device', () => {
     expect(screen.queryByText('Takes')).toBeNull();
   });
 
-  it('still says a controller on a build without the override is old', async () => {
+  /** "legacy" on the row was explained nowhere; what the build takes is the panel's fact. */
+  it('says what a controller´s build takes in its panel rather than calling it legacy on the row', async () => {
     await drawOpened(standing({}), () => Promise.resolve({ items: [], nextCursor: null }), /What Controller · C0FFEE is/);
 
-    expect(screen.getByText(/legacy/)).toBeInTheDocument();
+    expect(screen.queryByText(/legacy/)).toBeNull();
     expect(screen.getByText('Takes')).toBeInTheDocument();
   });
 

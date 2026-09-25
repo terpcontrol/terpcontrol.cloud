@@ -839,7 +839,6 @@
     "socketCount_other": "{{count}} sockets",
     "camCount_one": "{{count}} cam",
     "camCount_other": "{{count}} cams",
-    "legacy": "legacy",
     "details": "What {{name}} is",
     "via": "via {{name}}",
     "premium": "Premium",
