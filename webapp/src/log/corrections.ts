@@ -17,8 +17,13 @@ import { useLog, type LogTarget, type TileKind } from './log-context';
  * cannot start disagreeing about who may correct what.
  */
 
-/** The kinds the details sheet holds - the same five the toast offers Details for. */
-const CORRECTABLE: TileKind[] = ['water', 'feed', 'note', 'measurement', 'training'];
+/**
+ * The kinds the details sheet holds. Stepping in is among them although its
+ * toast has no Undo: the quiet it started cannot be called off, but the line is
+ * an ordinary diary line afterwards, and the sheet that asked for it promised
+ * that the line can be taken back.
+ */
+const CORRECTABLE: TileKind[] = ['water', 'feed', 'note', 'measurement', 'training', 'visit'];
 
 /**
  * Which sheet this line would be corrected in, or null where it is not a
