@@ -2532,7 +2532,8 @@
         "pause": "Pausieren",
         "resume": "Fortsetzen",
         "start": "Plan starten",
-        "stop": "Stoppen"
+        "stop": "Stoppen",
+        "remove": "Plan entfernen"
       },
       "ask": {
         "extend": "Mehr Zeit für den Schritt, in dem der Bereich steht. Der Schritt behält die Länge, mit der er geschrieben wurde, nur seine Uhr wird zurückgestellt — ein Schritt, der schon um Bestätigung gebeten hat, fragt erneut, wenn die längere Zeit um ist.",
@@ -2542,7 +2543,9 @@
         "skipEnds": "Das ist der letzte Schritt, ihn zu überspringen schließt den Plan also ab. Der Controller behält die Einstellungen, die dieser Schritt ihm gegeben hat.",
         "skipYes": "Schritt überspringen",
         "stop": "Der Plan behält seine Schritte und steht wieder beim ersten, bereit zum Start. Der Controller behält die Einstellungen des letzten Schritts: Stoppen sagt nichts darüber, was der Bereich stattdessen tun soll.",
-        "stopYes": "Plan stoppen"
+        "stopYes": "Plan stoppen",
+        "remove": "Der Plan und seine Schritte werden von diesem Controller genommen. Der Controller behält, worauf er zuletzt eingestellt war, und was der Plan geschrieben hat, bleibt im Tagebuch. Sichere ihn vorher als Vorlage, um wieder mit ihm zu beginnen.",
+        "removeYes": "Plan entfernen"
       },
       "unit": {
         "minutes_one": "{{count}} Min",

@@ -47,6 +47,7 @@ const state = vi.hoisted(() => ({
   planError: null as unknown,
   moveError: null as unknown,
   sent: [] as PlanTransition[],
+  removed: 0,
   devices: [] as unknown[],
 }));
 
@@ -71,6 +72,7 @@ vi.mock('@/api/plans', async importOriginal => ({
     isPending: false,
   }),
   useStopPlan: () => ({ mutate: () => {}, error: null, isPending: false }),
+  useRemovePlan: () => ({ mutate: () => (state.removed += 1), error: null, isPending: false }),
   useSavePlan: () => ({ mutate: () => {}, error: null, isPending: false }),
 }));
 
@@ -198,6 +200,7 @@ beforeEach(() => {
   state.planError = null;
   state.moveError = null;
   state.sent = [];
+  state.removed = 0;
   state.devices = [];
 });
 
@@ -470,6 +473,13 @@ describe('the moves a plan offers', () => {
     });
   });
 
+  it('offers to remove a plan only once it is at rest', () => {
+    expect(at({ status: 'running' }).remove).toBe(false);
+    expect(at({ status: 'paused', stepStartedAt: null, pausedElapsedMs: 600_000 }).remove).toBe(false);
+    expect(at({ status: 'stopped', stepStartedAt: null }).remove).toBe(true);
+    expect(at({ status: 'completed', stepStartedAt: null }).remove).toBe(true);
+  });
+
   it('offers nothing to start on a plan that has no steps to run', () => {
     expect(movesOf(plan({ steps: [] }, { status: 'stopped', stepStartedAt: null }), NOW).resume).toBe(false);
   });
@@ -603,6 +613,19 @@ describe('the plan panel', () => {
 
     expect(screen.getByText('This plan is already running.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Read it again' })).toBeInTheDocument();
+  });
+
+  it('says what removing a plan keeps before it takes the plan away', () => {
+    state.plan = plan({}, { status: 'stopped', stepStartedAt: null });
+    draw();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the plan' }));
+
+    expect(screen.getByText(/The controller keeps whatever it was last set to/)).toBeInTheDocument();
+    expect(state.removed).toBe(0);
+
+    const buttons = screen.getAllByRole('button', { name: 'Remove the plan' });
+    fireEvent.click(buttons[buttons.length - 1]);
+    expect(state.removed).toBe(1);
   });
 
   it('puts a plan that has run every step at none of them', () => {

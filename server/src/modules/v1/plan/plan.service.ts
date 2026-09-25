@@ -154,6 +154,16 @@ export class PlanService {
     return this.progress.store(plan, stopped());
   }
 
+  /**
+   * The plan taken off the device, steps and all. Like stopping, it sends
+   * nothing: the device keeps what the last step gave it. What the plan wrote
+   * into the diary stays there, as the record of what the tent was run by.
+   */
+  public async remove(deviceId: string): Promise<void> {
+    const plan = await this.require(deviceId);
+    await this.plans.deleteOne({ id: plan.id }).exec();
+  }
+
   public async transition(deviceId: string, transition: PlanTransition, by: string | null = null): Promise<StoredPlan> {
     const plan = await this.require(deviceId);
     const now = new Date();

@@ -666,6 +666,21 @@ describe('stopping a plan', () => {
   });
 });
 
+describe('removing a plan', () => {
+  it('takes it off the device, steps and all, and sends nothing', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Veg', settings: { workmode: 'small' } })]);
+    await engine.run(NOW);
+
+    await transitions.remove(DEVICE);
+    await engine.run(at(2 * HOUR));
+
+    await expect(transitions.require(DEVICE)).rejects.toMatchObject({ problem: { status: 404, code: 'plan_not_found' } });
+    expect(applied).toHaveLength(1);
+    await expect(transitions.remove(DEVICE)).rejects.toMatchObject({ problem: { status: 404, code: 'plan_not_found' } });
+  });
+});
+
 describe('the phase a step puts the grow into', () => {
   it('writes the phase, the entry and the thresholds once, with the targets the controller runs', async () => {
     await aDevice();

@@ -2536,7 +2536,8 @@
         "pause": "Pause",
         "resume": "Resume",
         "start": "Start the plan",
-        "stop": "Stop"
+        "stop": "Stop",
+        "remove": "Remove the plan"
       },
       "ask": {
         "extend": "More time on the step the space is on. The step keeps the length it was written with and only its clock is put back, so a step that had already asked to be confirmed asks again when the longer time is up.",
@@ -2546,7 +2547,9 @@
         "skipEnds": "This is the last step, so skipping it completes the plan. The controller keeps the settings this step gave it.",
         "skipYes": "Skip the step",
         "stop": "The plan keeps its steps and stands at the first one again, ready to be started. The controller keeps the settings the last step gave it: stopping says nothing about what the space should be doing instead.",
-        "stopYes": "Stop the plan"
+        "stopYes": "Stop the plan",
+        "remove": "The plan and its steps are taken off this controller. The controller keeps whatever it was last set to, and what the plan wrote stays in the diary. Keep it as a template first to start from it again.",
+        "removeYes": "Remove the plan"
       },
       "unit": {
         "minutes_one": "{{count}} min",

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify, StepDuration } from '@fg2/shared-types/v1';
 import { useHeardAt } from '@/api/devices';
-import { isMissing, useDevicePlan, usePlanTransition, useStopPlan } from '@/api/plans';
+import { isMissing, useDevicePlan, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
@@ -334,12 +334,13 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
   const { t } = useTranslation();
   const move = usePlanTransition(device.id);
   const stop = useStopPlan(device.id);
-  const [asking, setAsking] = useState<'skip' | 'stop' | 'extend' | null>(null);
+  const remove = useRemovePlan(device.id);
+  const [asking, setAsking] = useState<'skip' | 'stop' | 'extend' | 'remove' | null>(null);
   const [by, setBy] = useState<StepDuration>({ value: 1, unit: 'days' });
 
   const can = movesOf(plan, now);
   const next = nextStepIndex(plan);
-  const busy = move.isPending || stop.isPending;
+  const busy = move.isPending || stop.isPending || remove.isPending;
   const close = () => setAsking(null);
 
   return (
@@ -378,6 +379,16 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
             onClick={() => setAsking(asking === 'stop' ? null : 'stop')}
           >
             {t('space.control.move.stop')}
+          </button>
+        ) : null}
+        {can.remove ? (
+          <button
+            type="button"
+            className={`${ui.button} ${styles.danger}`}
+            disabled={busy}
+            onClick={() => setAsking(asking === 'remove' ? null : 'remove')}
+          >
+            {t('space.control.move.remove')}
           </button>
         ) : null}
         {can.resume || can.pause ? <Help topic="planMoves" /> : null}
@@ -464,7 +475,26 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
         </div>
       ) : null}
 
-      <PlanRefusal error={move.error ?? stop.error} onRefresh={onRefresh} />
+      {asking === 'remove' ? (
+        <div className={styles.asking}>
+          <p className={ui.note}>{t('space.control.ask.remove')}</p>
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={`${ui.button} ${styles.dangerButton}`}
+              disabled={busy}
+              onClick={() => remove.mutate(undefined, { onSuccess: close })}
+            >
+              {t('space.control.ask.removeYes')}
+            </button>
+            <button type="button" className={ui.button} onClick={close}>
+              {t('grow.lifecycle.cancel')}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <PlanRefusal error={move.error ?? stop.error ?? remove.error} onRefresh={onRefresh} />
     </div>
   );
 }

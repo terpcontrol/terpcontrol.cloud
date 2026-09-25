@@ -67,6 +67,20 @@ export const useStopPlan = (deviceId: string) => {
 };
 
 /**
+ * Taking a plan that is at rest off the device, steps and all. The plan read is
+ * reset rather than refreshed: a refresh that fails keeps the plan it last had,
+ * and this one is meant to come back as "no plan".
+ */
+export const useRemovePlan = (deviceId: string) => {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.delete(`/devices/${deviceId}/plan?steps=remove`),
+    onSuccess: () => client.resetQueries({ queryKey: planKey(deviceId) }),
+  });
+};
+
+/**
  * Confirming, skipping, extending, pausing and resuming. A move that changes the
  * step writes the grow's phase and a diary line with it, so the grow, the home
  * cards and the diary are read again - the same list a phase written by hand

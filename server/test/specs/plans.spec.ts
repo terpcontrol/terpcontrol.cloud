@@ -404,6 +404,16 @@ describe('stopping the plan', () => {
     const again = await owner.client.post(`/v1/devices/${mine.deviceId}/plan/transitions`).send({ kind: 'resume' }).expect(201);
     expect(again.body.state).toMatchObject({ status: 'running', activeStepIndex: 0 });
   });
+
+  it('takes the plan away only when asked to by name', async () => {
+    const mine = await aController(owner);
+    await owner.client.put(`/v1/devices/${mine.deviceId}/plan`).send(aPlan()).expect(200);
+
+    await owner.client.delete(`/v1/devices/${mine.deviceId}/plan?steps=nonsense`).expect(400);
+    await owner.client.delete(`/v1/devices/${mine.deviceId}/plan?steps=remove`).expect(204);
+
+    await owner.client.get(`/v1/devices/${mine.deviceId}/plan`).expect(404);
+  });
 });
 
 describe('who may read and who may change a plan', () => {

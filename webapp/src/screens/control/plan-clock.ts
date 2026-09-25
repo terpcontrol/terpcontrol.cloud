@@ -141,6 +141,8 @@ export interface Moves {
   resume: boolean;
   /** Stopping is not one of the five and not a deletion: the steps stay and the plan stands at the first again. */
   stop: boolean;
+  /** Taking the plan away, steps and all, which is offered once it is at rest. */
+  remove: boolean;
 }
 
 export const movesOf = (plan: Plan, now: DateTime): Moves => {
@@ -154,6 +156,7 @@ export const movesOf = (plan: Plan, now: DateTime): Moves => {
     pause: status === 'running',
     resume: status !== 'running' && plan.steps.length > 0,
     stop: going,
+    remove: !going,
   };
 };
 

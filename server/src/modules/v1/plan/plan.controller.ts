@@ -40,6 +40,13 @@ import { planOf } from './plan.wire';
  * to the plan rather than a field of it, and because the engine makes the same
  * moves on its own clock through the same service.
  */
+
+const planStopQuery = z.object({
+  steps: z
+    .enum(['keep', 'remove'])
+    .optional()
+    .describe('`keep`, the default, stops the plan and keeps its steps to start again; `remove` takes the plan off the device altogether.'),
+});
 @ApiTags('plans')
 @Controller('v1/devices/:id/plan')
 @UseGuards(AuthGuard, AccessGuard)
@@ -89,14 +96,21 @@ export class DevicePlanController {
    * the first one again, so the plan screen can start it over. The device keeps
    * the settings the last step gave it - stopping says nothing about what a tent
    * should be doing instead.
+   *
+   * Taking the plan away is asked for by name, because stopping has always been
+   * this route and is safe to repeat: a screen may stop a plan it last read a
+   * minute ago, and must not throw its steps away by doing so twice.
    */
   @Delete()
   @HttpCode(HttpStatus.NO_CONTENT)
   @Requires('manage', 'device')
-  @ApiOperation({ summary: 'Stop running the plan, keeping its steps' })
-  @ApiNoContentResponse({ description: 'The plan is at rest and the device is left where the last step put it.' })
-  public async stop(@Param('id') deviceId: string): Promise<void> {
-    await this.plans.stop(deviceId);
+  @ApiOperation({ summary: 'Stop running the plan, keeping its steps, or take it away with `steps=remove`' })
+  @ApiNoContentResponse({
+    description: 'The plan is at rest, or gone with `steps=remove`; either way the device is left where the last step put it.',
+  })
+  public async stop(@Param('id') deviceId: string, @V1Query(planStopQuery) query: z.infer<typeof planStopQuery>): Promise<void> {
+    if (query.steps === 'remove') await this.plans.remove(deviceId);
+    else await this.plans.stop(deviceId);
   }
 
   @Post('transitions')
