@@ -1,0 +1,5 @@
+/docker-compose.override.yml
+/CLAUDE.local.md
+/*.local.sh
+/scripts/*.local.sh
+/mqtts-ca.key
