@@ -1421,11 +1421,11 @@
       "signIn": "Sign in instead"
     },
     "gone": {
-      "space": "This space is not shared with you.",
-      "grow": "This grow is not shared with you.",
-      "camera": "This camera is not shared with you.",
-      "device": "This device is not shared with you.",
-      "why": "Whoever shares it has taken you out. Trying again will not bring it back.",
+      "space": "This space cannot be opened.",
+      "grow": "This grow cannot be opened.",
+      "camera": "This camera cannot be opened.",
+      "device": "This device cannot be opened.",
+      "why": "Either there is nothing at this address, or whoever shared it with you has taken you out. Trying again will not change that.",
       "home": "Home"
     },
     "crashed": {

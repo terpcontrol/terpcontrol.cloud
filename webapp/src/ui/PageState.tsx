@@ -60,17 +60,19 @@ export type Subject = 'space' | 'grow' | 'camera' | 'device';
  * they were standing in, and every read behind the page they are looking at
  * has been answering 404 ever since. Drawn as an ordinary load failure it
  * reads as a broken app and leaves them tapping a button that can never work,
- * so it says what is true - this is not yours to see - and offers the only
- * move that leads anywhere, which is home.
+ * so it says what is true - this cannot be opened - and offers the only move
+ * that leads anywhere, which is home.
  *
  * What it may not say is that the subject is over. A finished grow opens from
  * the archive and draws every tab, an archived tent is served like any other,
  * and ending a grow withdraws nobody's access - so "it has ended" names a cause
  * this app does not have, and points the one person who has just been taken out
  * of somebody's tent at the wrong explanation, one screen away from the archive
- * that disproves it. The remaining sentence is true of all four subjects: a
- * bookmark to an id that never existed answers the same 404, and being told
- * that whoever shares it has taken you out is the same dead end.
+ * that disproves it. Nor may it name a sharer: an id that never existed, a
+ * mistyped one and one of somebody else's answer the same 404 - on purpose,
+ * so that the answer does not say which ids exist - and "whoever shares it has
+ * taken you out" blamed a person there never was. It names the two causes a
+ * 404 can have, and neither more nor less.
  */
 export function NoLongerHere({ what }: { what: Subject }) {
   const { t } = useTranslation();

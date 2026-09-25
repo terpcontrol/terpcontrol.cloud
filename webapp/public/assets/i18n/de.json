@@ -1417,11 +1417,11 @@
       "signIn": "Stattdessen anmelden"
     },
     "gone": {
-      "space": "Dieser Bereich ist nicht mit dir geteilt.",
-      "grow": "Dieser Grow ist nicht mit dir geteilt.",
-      "camera": "Diese Kamera ist nicht mit dir geteilt.",
-      "device": "Dieses Gerät ist nicht mit dir geteilt.",
-      "why": "Wer es teilt, hat dich herausgenommen. Ein erneuter Versuch bringt es nicht zurück.",
+      "space": "Dieser Bereich lässt sich nicht öffnen.",
+      "grow": "Dieser Grow lässt sich nicht öffnen.",
+      "camera": "Diese Kamera lässt sich nicht öffnen.",
+      "device": "Dieses Gerät lässt sich nicht öffnen.",
+      "why": "Entweder gibt es unter dieser Adresse nichts, oder wer es mit dir geteilt hat, hat dich herausgenommen. Ein erneuter Versuch ändert daran nichts.",
       "home": "Start"
     },
     "crashed": {
