@@ -143,7 +143,6 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
           <span className="label">
             <Term topic="rtsp">{t('cameras.add.rtsp.label')}</Term>
           </span>
-          <span className={styles.premium}>{t('devices.premium')}</span>
         </header>
         <p className={styles.text}>{premiumLine(t, me.data?.premium)}</p>
       </section>
@@ -342,10 +341,10 @@ const madeLine = (t: Translate, place: string | null): string =>
   place === null ? t('cameras.add.rtsp.madeSomewhere') : t('cameras.add.rtsp.made', { place });
 
 /**
- * What the Premium tag means here. An RTSP camera has no included year of its
- * own, so it is entitled by purchase alone - except in an install that enforces
- * nothing, where the tag is on the feature rather than on this camera and
- * saying it would be charged for would be untrue.
+ * What Premium means for an RTSP camera. It works without it, gated like any
+ * camera that has none, but no year of Premium comes with it: it is entitled by
+ * purchase alone - except in an install that enforces nothing, where saying it
+ * would be charged for would be untrue.
  */
 const premiumLine = (t: Translate, premium: { enforced: boolean; priceLabel: string | null } | undefined): string => {
   if (premium && !premium.enforced) return t('cameras.add.rtsp.gatesNothing');

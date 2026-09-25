@@ -738,24 +738,14 @@ describe('what the Devices tab calls a device', () => {
   };
 
   /**
-   * The tag says a stream the cloud pulls is a Premium feature, and an install
-   * that charges nothing has no such feature to point at - the camera's own page
-   * one tap away calls the same camera "everything included on this install", so
-   * the word on the row would be the list contradicting it.
+   * An RTSP camera is read, filmed and gated like any camera without Premium,
+   * so a Premium tag on its row would say the stream needs it - which it does
+   * not, on an install that charges or one that does not.
    */
-  it('tags a pulled stream as Premium where the install charges for it', async () => {
+  it('draws no Premium tag on an RTSP camera, which works without it', async () => {
     list.devices = [standing({})];
     list.cameras = [hanging({ kind: 'rtsp', name: 'Side cam' })];
     list.enforced = true;
-    await drawList();
-
-    expect(await screen.findByText('Premium')).toBeInTheDocument();
-  });
-
-  it('draws no such tag where the install gates nothing', async () => {
-    list.devices = [standing({})];
-    list.cameras = [hanging({ kind: 'rtsp', name: 'Side cam' })];
-    list.enforced = false;
     await drawList();
 
     expect(await screen.findByText('Side cam')).toBeInTheDocument();

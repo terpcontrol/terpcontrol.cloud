@@ -242,7 +242,7 @@ describe('an install that enforces Premium', () => {
 
     expect(
       card('Side cam').getByText(
-        'RTSP cameras are a Premium feature: this one shows stills every 60 s; its stills are served whole and kept just as long, but its films stay SD with a watermark until Premium covers it.',
+        'An RTSP camera comes without Premium of its own: this one shows stills every 60 s; its stills are served whole and kept just as long, but its films stay SD with a watermark until Premium covers it.',
       ),
     ).toBeInTheDocument();
   });
@@ -257,7 +257,7 @@ describe('an install that enforces Premium', () => {
 
     expect(
       card('Side cam').getByText(
-        'RTSP cameras are a Premium feature: this one shows stills every 60 s; its stills are served 640 px wide and kept 90 days, and its films stay SD with a watermark until Premium covers it.',
+        'An RTSP camera comes without Premium of its own: this one shows stills every 60 s; its stills are served 640 px wide and kept 90 days, and its films stay SD with a watermark until Premium covers it.',
       ),
     ).toBeInTheDocument();
     expect(
@@ -400,7 +400,6 @@ describe('what Premium covers', () => {
     ['✓', '✓'],
     ['–', '✓'],
     ['watermark', '✓'],
-    ['–', '✓'],
     ['✓', '✓'],
   ];
 
@@ -423,7 +422,6 @@ describe('what Premium covers', () => {
       'Stills kept',
       'Timelapse over the whole grow, HD',
       'Reel export with overlays',
-      'RTSP cameras without a Terp Cam',
       'Control, charts, diary, alarms, sharing',
     ]);
   });
@@ -453,7 +451,7 @@ describe('what Premium covers', () => {
 
     expect(
       screen.getByText(
-        "Per camera, not per account. The offer to extend stands on a camera's own card from 60 days before its year ends; nothing renews on its own. Self-hosted installations have no Premium at all.",
+        "Per camera, not per account. A Terp Cam comes with 12 months of it; an RTSP camera works without it like any free camera, and has Premium only where it is bought for it. The offer to extend stands on a camera's own card from 60 days before its year ends; nothing renews on its own. Self-hosted installations have no Premium at all.",
       ),
     ).toBeInTheDocument();
   });

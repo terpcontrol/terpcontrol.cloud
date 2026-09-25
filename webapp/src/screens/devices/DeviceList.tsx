@@ -5,11 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { ActuatorRuns, Camera, ClimateVerdict, Device, Firmware, OutputMetric, SocketPage, SocketRole, ValueState } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
-import { useMe } from '@/api/account';
 import { useCameras, useLatestStills } from '@/api/cameras';
 import { fetchedAt } from '@/api/clock';
 import { useDeviceFirmwares, useDevices, useLiveReads, useSocketTables } from '@/api/devices';
-import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
+import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces, useSpaceVerdicts } from '@/api/spaces';
 import { ageAttribute, ageLabel, deviceLiveness, heardAt } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
@@ -40,15 +39,6 @@ import styles from './Devices.module.css';
 export function DeviceList({ spaceId }: { spaceId?: string }) {
   const { t } = useTranslation();
   const now = useNow();
-  const { user } = useSession();
-  // Whether Premium is charged for at all is the account's answer and not the
-  // camera's: every camera carries a tier whatever install it stands on, and
-  // only `/me` says whether that tier costs anything here. Read once for the
-  // whole list, and already cached by Me and by a camera's own page. The demo
-  // has no account to ask, and `!== false` keeps the tag while the answer is
-  // still on its way rather than flashing it in a moment later.
-  const me = useMe(false, user?.isDemo !== true);
-  const charged = me.data?.premium.enforced !== false;
   // The whole-account list draws rows from every place at once, so what may be
   // done is asked of the row and not of the screen: the same reader owns one
   // tent and only writes lines in the next, and the sockets of the two must not
@@ -153,7 +143,6 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
               place={placeOf(camera.spaceId)}
               devices={devices.data!.items}
               stillId={stills.get(camera.id) ?? null}
-              charged={charged}
               now={now}
             />
           ))}
@@ -464,13 +453,11 @@ interface CameraRowProps {
   devices: Device[];
   /** The newest picture, which is the row's thumbnail; null until one has been read. */
   stillId: string | null;
-  /** Whether this install charges for Premium, which is what makes the feature tag worth drawing. */
-  charged: boolean;
   now: DateTime;
 }
 
 /** A camera opens its page; the row says how it is reached and when it last delivered. */
-function CameraRow({ camera, place, devices, stillId, charged, now }: CameraRowProps) {
+function CameraRow({ camera, place, devices, stillId, now }: CameraRowProps) {
   const { t } = useTranslation();
   const carrier = devices.find(device => device.id === camera.deviceId) ?? null;
   const through = carrier ? deviceName(carrier, t) : null;
@@ -493,13 +480,6 @@ function CameraRow({ camera, place, devices, stillId, charged, now }: CameraRowP
         <div className={styles.rowText}>
           <span className={styles.rowTitle}>{cameraTitle(camera, carrier, t)}</span>
           <span className={styles.rowNote}>{line}</span>
-          {/* The tag is on the feature rather than on this camera - a stream the
-              cloud pulls is what Premium buys - so it is drawn from the kind and
-              never from the camera's own tier, which would tag every migrated
-              camera. On an install that charges nothing it is not drawn at all:
-              the word would point a grower at a paywall that is not there, and
-              the camera's own page one tap away already says so. */}
-          {camera.kind === 'rtsp' && charged ? <span className={styles.premium}>{t('devices.premium')}</span> : null}
         </div>
         <span className={`mono ${styles.since}`} {...ageAttribute(freshness)}>
           {camera.state.lastStillAt ? t('devices.ago', { age: ageLabel(camera.state.lastStillAt, now) }) : t('devices.noStill')}

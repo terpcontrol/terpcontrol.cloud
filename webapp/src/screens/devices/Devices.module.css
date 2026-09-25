@@ -141,22 +141,6 @@
   }
 }
 
-/* RTSP is a Premium feature, which the row says on itself. */
-.premium {
-  align-self: flex-start;
-  margin-top: 2px;
-  padding: 0 var(--space-2);
-  border: var(--rule-width) solid var(--warning);
-  border-radius: var(--radius-pill);
-  color: var(--warning);
-  font-family: var(--font-figure);
-  font-size: var(--text-2xs);
-  font-weight: var(--weight-bold);
-  line-height: 18px;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
-
 .since,
 .socketState {
   flex: none;

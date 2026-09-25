@@ -175,19 +175,6 @@
   gap: var(--space-2);
 }
 
-/* RTSP is a Premium feature by the record, and the tag says so where the
-   record puts it: beside the name of the thing, not beside the button. */
-.premium {
-  padding: 0 var(--space-2);
-  border: var(--rule-width) solid var(--warning);
-  border-radius: var(--radius-pill);
-  color: var(--warning);
-  font-family: var(--font-figure);
-  font-size: 10px;
-  letter-spacing: var(--tracking-caption);
-  text-transform: uppercase;
-}
-
 .text {
   font-size: var(--text-sm);
   line-height: var(--line-body);

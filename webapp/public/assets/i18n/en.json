@@ -1864,7 +1864,7 @@
         "granted": "Premium on this camera · renews only if you say so"
       },
       "ranOut": "Its Premium ran out on {{date}}: {{missing}} until it is extended.",
-      "rtspFree": "RTSP cameras are a Premium feature: this one shows stills every {{seconds}} s; {{missing}} until Premium covers it.",
+      "rtspFree": "An RTSP camera comes without Premium of its own: this one shows stills every {{seconds}} s; {{missing}} until Premium covers it.",
       "free": "No Premium on this camera: {{missing}} until Premium covers it.",
       "endsToday": "ends today",
       "endsIn_one": "ends in {{count}} day",
@@ -1883,7 +1883,6 @@
         "wholeGrowHd": "Timelapse over the whole grow, HD",
         "reel": "Reel export with overlays",
         "watermark": "watermark",
-        "rtsp": "RTSP cameras without a Terp Cam",
         "rest": "Control, charts, diary, alarms, sharing",
         "keptDays_one": "{{count}} day",
         "keptDays_other": "{{count}} days",
@@ -1891,7 +1890,7 @@
         "whole": "whole",
         "perInstall": "per install"
       },
-      "perCamera": "Per camera, not per account. The offer to extend stands on a camera's own card from {{days}} days before its year ends; nothing renews on its own. Self-hosted installations have no Premium at all.",
+      "perCamera": "Per camera, not per account. A Terp Cam comes with 12 months of it; an RTSP camera works without it like any free camera, and has Premium only where it is bought for it. The offer to extend stands on a camera's own card from {{days}} days before its year ends; nothing renews on its own. Self-hosted installations have no Premium at all.",
       "extend": "Extend Premium",
       "nowhereToExtend": "This installation names no place to extend Premium from; ask whoever runs it.",
       "missing": {
@@ -3209,8 +3208,8 @@
       },
       "rtsp": {
         "label": "RTSP camera",
-        "premium": "An RTSP camera has no included year of its own: Premium is bought for it.",
-        "premiumPriced": "An RTSP camera has no included year of its own: Premium is bought for it, {{price}}.",
+        "premium": "An RTSP camera works without Premium but has no included year of its own: Premium for it is bought.",
+        "premiumPriced": "An RTSP camera works without Premium but has no included year of its own: Premium for it is bought, {{price}}.",
         "gatesNothing": "Premium is not charged on this installation, so an RTSP camera costs you nothing here.",
         "address": "Stream address",
         "placeholder": "rtsp://user:pass@192.168.1.40/stream1",

@@ -9,7 +9,6 @@ import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { cameraTitle } from '@/screens/devices/naming';
-import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -51,6 +50,11 @@ type Cell = 'yes' | 'no' | 'servedWidth' | 'whole' | 'stillsKept' | 'wholeGrow' 
  * a number of days into the free column; both are the install's configuration
  * rather than anything this app knows, so those two cells are read from `/me`
  * and are words where the install has set no figure.
+ *
+ * An RTSP camera has no row: it is read, filmed and gated exactly like a free
+ * Terp Cam, and what sets it apart is only that no year of Premium comes with
+ * it - which the note under the table says, rather than a row claiming it does
+ * not work without Premium.
  */
 const ROWS: { key: string; free: Cell; premium: Cell }[] = [
   { key: 'live', free: 'yes', premium: 'yes' },
@@ -58,7 +62,6 @@ const ROWS: { key: string; free: Cell; premium: Cell }[] = [
   { key: 'kept', free: 'stillsKept', premium: 'wholeGrow' },
   { key: 'wholeGrowHd', free: 'no', premium: 'yes' },
   { key: 'reel', free: 'watermark', premium: 'yes' },
-  { key: 'rtsp', free: 'no', premium: 'yes' },
   { key: 'rest', free: 'yes', premium: 'yes' },
 ];
 
@@ -282,7 +285,7 @@ function Covers({ free }: { free: PremiumFree | null }) {
             {ROWS.map(row => (
               <tr key={row.key}>
                 <th scope="row" className={styles.feature}>
-                  {row.key === 'rtsp' ? <Term topic="rtsp">{t('me.premium.table.rtsp')}</Term> : t(`me.premium.table.${row.key}`)}
+                  {t(`me.premium.table.${row.key}`)}
                 </th>
                 <td className={`mono ${styles.cell}`}>{cell(row.free)}</td>
                 <td className={`mono ${styles.cell}`}>{cell(row.premium)}</td>
