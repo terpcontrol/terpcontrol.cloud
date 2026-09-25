@@ -497,7 +497,7 @@ describe('a tent that is no longer shared with the reader', () => {
     read.error = new ApiError({ status: 404, code: 'space_not_found', title: 'Not found', detail: 'There is no space with that id.', errors: [] });
     drawPage();
 
-    expect(screen.getByRole('alert')).toHaveTextContent('This space is not shared with you.');
+    expect(screen.getByRole('alert')).toHaveTextContent('This space cannot be opened.');
     expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
   });

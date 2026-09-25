@@ -663,8 +663,8 @@ describe('the archive', () => {
       </>,
     );
 
-    expect(screen.getByRole('alert')).toHaveTextContent('This grow is not shared with you.');
-    expect(screen.getByText(/Whoever shares it has taken you out/)).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('This grow cannot be opened.');
+    expect(screen.getByText(/Either there is nothing at this address, or whoever shared it with you has taken you out/)).toBeInTheDocument();
     expect(screen.queryByText(/has ended/)).not.toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /Autumn run/ })).toBeInTheDocument();
   });
