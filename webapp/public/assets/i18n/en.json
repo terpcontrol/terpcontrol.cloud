@@ -1400,7 +1400,6 @@
     "navigation": "Main navigation",
     "alerts": "Alerts",
     "account": "Me",
-    "notYet": "Not built yet",
     "signInFailed": "Could not sign in. Please check your e-mail and password.",
     "signInTooMany": "Too many sign-in attempts. Please wait a moment and try again.",
     "tabs": {
