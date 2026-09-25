@@ -491,11 +491,19 @@ describe('the alarm rules page', () => {
     expect(await screen.findByText('From the stage preset')).toBeInTheDocument();
   });
 
-  it('marks the rule an alert linked to', async () => {
+  it('marks the rule an alert linked to, and opens it for whoever may change it', async () => {
     draw([device()], true, '/spaces/space-1/control/alarms?rule=rule-offline');
 
     expect(await card('Blue Dream tent offline')).toHaveAttribute('data-highlight');
     expect(await card('Too hot')).not.toHaveAttribute('data-highlight');
+    expect(await screen.findByRole('dialog', { name: 'Edit the alarm' })).toBeInTheDocument();
+  });
+
+  it('only marks the linked rule for a reader who may not change it', async () => {
+    draw([device()], false, '/spaces/space-1/control/alarms?rule=rule-offline');
+
+    expect(await card('Blue Dream tent offline')).toHaveAttribute('data-highlight');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   /**

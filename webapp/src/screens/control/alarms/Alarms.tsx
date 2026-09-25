@@ -150,6 +150,17 @@ function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: D
   const unsilence = useUnsilenceAlarmRule(device.id);
   const [open, setOpen] = useState<AlarmRule | 'new' | null>(null);
 
+  // An alert's "Edit rule" lands here with the rule named, and is taken at its
+  // word: the rule opens, once, for whoever may change it. Only marking the row
+  // left the grower to find the card and tap it themselves.
+  const openedFor = useRef<string | null>(null);
+  useEffect(() => {
+    const linked = rules.data?.items.find(rule => rule.id === highlighted);
+    if (!mayManage || !linked || openedFor.current === linked.id) return;
+    openedFor.current = linked.id;
+    setOpen(linked);
+  }, [highlighted, mayManage, rules.data]);
+
   const name = deviceName(device, t);
   const title = named ? <h2 className={styles.deviceName}>{name}</h2> : null;
 
