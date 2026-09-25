@@ -5,7 +5,7 @@ import { z } from 'zod';
 import type { EntryKind, GrowWeekCard, GrowWeekCardPage, GrowWeekDay, GrowWeekFeeding, GrowWeekReading, SchemeAmount } from '@fg2/shared-types/v1';
 import { AccessRange, Grant } from '@common/v1/access.types';
 import { decodeCursor, pageOf } from '@common/v1/pages';
-import { Span, clampRange, overlapsRange, seenOf } from '@common/v1/range';
+import { Span, clampRange, overlapsRange, picturesWithinRange, seenOf } from '@common/v1/range';
 import { pageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -141,7 +141,7 @@ export class GrowWeeksService {
       this.readingsIn(grow.id, { startsAt: range.startsAt, endsAt: span.endsAt }),
       this.climate.controllersIn(spaceIds),
       this.feedsPerWeek(grow.id),
-      this.weekFilms(cameras, span),
+      this.weekFilms(cameras, span, range),
     ]);
 
     const world: PageWorld = {
@@ -351,9 +351,15 @@ export class GrowWeeksService {
     return this.cameras.find({ spaceId: { $in: named } }, { id: 1 }).lean<CameraDocument[]>();
   }
 
-  /** The week films the timelapse builder has already made, so a card points at one rather than asking for it to be built. */
-  private weekFilms(cameras: CameraDocument[], span: Span): Promise<Pick<MediaDocument, 'id' | 'capturedAt'>[]> {
+  /**
+   * The week films the timelapse builder has already made, so a card points at
+   * one rather than asking for it to be built. Only a film that ends inside the
+   * reader's window is one: the media route refuses the rest, and a card naming
+   * it would be pointing at days nobody sent.
+   */
+  private weekFilms(cameras: CameraDocument[], span: Span, range: AccessRange): Promise<Pick<MediaDocument, 'id' | 'capturedAt'>[]> {
     if (cameras.length === 0) return Promise.resolve([]);
+    const held = picturesWithinRange(range);
 
     return this.media
       .find(
@@ -362,6 +368,7 @@ export class GrowWeeksService {
           kind: 'timelapse',
           window: 'week',
           capturedAt: { $gte: span.startsAt, $lt: span.endsAt },
+          ...(held.length > 0 ? { $and: held } : {}),
         },
         { id: 1, capturedAt: 1 },
       )

@@ -332,6 +332,43 @@ describe('the composer', () => {
     expect(refused.body.code).toBe('span_missing');
   });
 
+  /**
+   * A film is dated by its first frame and runs on after it. One that begins
+   * inside a link's window and ends after it is footage of days the grower
+   * never sent, so the link neither lists it nor plays it.
+   */
+  it('gives a link reader only the films that lie inside its window from first frame to last', async () => {
+    const filmed = await addCamera(rtsp({ name: 'Windowed cam' }));
+    const film = async (startsAt: string, endsAt: string): Promise<string> =>
+      (await owner.client.post(`/v1/cameras/${filmed}/timelapses`).send({ window: 'custom', startsAt, endsAt }).expect(202)).body.media.id;
+    const inside = await film('2026-08-01T00:00:00.000Z', '2026-08-05T00:00:00.000Z');
+    const runsOn = await film('2026-08-08T00:00:00.000Z', '2026-08-14T00:00:00.000Z');
+    const startsAtTheEnd = await film('2026-08-10T00:00:00.000Z', '2026-08-11T00:00:00.000Z');
+
+    const link = (
+      await owner.client
+        .post('/v1/share-links')
+        .send({
+          kind: 'view',
+          subject: { type: 'space', id: tent },
+          range: { startsAt: '2026-08-01T00:00:00.000Z', endsAt: '2026-08-10T00:00:00.000Z' },
+          includeCameras: true,
+        })
+        .expect(201)
+    ).body;
+
+    const listed = (await anonymous().get(`/v1/cameras/${filmed}/timelapses`).set('X-Share-Token', link.token).expect(200)).body.items;
+    expect(listed.map((one: { id: string }) => one.id)).toEqual([inside]);
+
+    await anonymous().get(`/v1/media/${inside}?share=${link.token}`).expect(200);
+    await anonymous().get(`/v1/media/${runsOn}?share=${link.token}`).expect(404);
+    await anonymous().get(`/v1/media/${startsAtTheEnd}?share=${link.token}`).expect(404);
+
+    // The owner reads their own films whole, window or not.
+    const own = (await owner.client.get(`/v1/cameras/${filmed}/timelapses`).expect(200)).body.items;
+    expect(own).toHaveLength(3);
+  });
+
   it('is somebody with a say over the camera, not everybody who may look at it', async () => {
     const stranger = await createAccount('cameras-composer-stranger');
 

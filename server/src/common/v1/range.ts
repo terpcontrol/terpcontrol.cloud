@@ -49,14 +49,16 @@ export const outsideRange = (at: Date, range: AccessRange): boolean =>
   (range.startsAt !== null && at < range.startsAt) || (range.endsAt !== null && at > range.endsAt);
 
 /**
- * A picture, as a window sees it: what it is, and when the shutter closed.
+ * A picture, as a window sees it: what it is, when the shutter closed, and -
+ * for a film - when its last frame was taken.
  *
  * Structural rather than the stored document, because the rule is about those
- * two fields and the two places that ask it hold different rows.
+ * fields and the two places that ask it hold different rows.
  */
 export interface DatedPicture {
   kind: MediaKind;
   capturedAt: Date;
+  endsAt: Date | null;
 }
 
 /**
@@ -77,13 +79,32 @@ const DATED_KINDS: ReadonlySet<MediaKind> = new Set<MediaKind>(['still', 'timela
  * Whether a picture was taken outside the window a reader holds.
  *
  * The one place the rule lives, because it was written three times before and
- * two of the copies were wider than the third. A route that answers a picture
- * by its id asks this for itself: a grant reaches the grow or the tent, not each
- * of the pictures hanging off it, so without it a link sent one fortnight hands
- * out the rest of the run one id at a time.
+ * two of the copies were wider than the third. A film is judged by the whole
+ * of it, first frame to last: one that runs on past the window is footage of
+ * days the reader was not sent, however the window holds its start. A route
+ * that answers a picture by its id asks this for itself: a grant reaches the
+ * grow or the tent, not each of the pictures hanging off it, so without it a
+ * link sent one fortnight hands out the rest of the run one id at a time.
  */
 export const pictureOutsideRange = (picture: DatedPicture, range: AccessRange): boolean =>
-  DATED_KINDS.has(picture.kind) && outsideRange(picture.capturedAt, range);
+  DATED_KINDS.has(picture.kind) && (outsideRange(picture.capturedAt, range) || (picture.endsAt !== null && outsideRange(picture.endsAt, range)));
+
+/**
+ * The same rule as a filter, for the routes that list pictures rather than
+ * answer one: taken inside the window, and - for a film - ended inside it too.
+ *
+ * A film is dated by its first frame, and a day or a week film that begins on
+ * the window's last day runs on for days after it. Judged by its start alone it
+ * hands a reader footage the grower never sent them - up to the tent after the
+ * harvest, with the next grow standing in it - so a film belongs to a window
+ * only when the whole of it does. A still and a photo end where they begin and
+ * carry no end at all. Combined with `$and`, never merged, for the reason
+ * `withinRange` gives.
+ */
+export const picturesWithinRange = (range: AccessRange): Record<string, unknown>[] =>
+  [withinRange('capturedAt', range), range.endsAt ? { $or: [{ endsAt: null }, { endsAt: { $lte: range.endsAt } }] } : {}].filter(
+    condition => Object.keys(condition).length > 0,
+  );
 
 /** A stretch of time with both ends named, which is what a span narrowed to a window always has. */
 export interface Span {

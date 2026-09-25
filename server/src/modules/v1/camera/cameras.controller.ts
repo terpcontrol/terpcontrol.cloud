@@ -280,7 +280,7 @@ export class CamerasController {
   @ApiOperation({ summary: 'The films of one camera, newest first' })
   @V1Answer(mediaPage)
   public timelapses(@Param('id') id: string, @V1Query(spanQuery) query: SpanQuery, @CurrentGrant() grant: Grant | undefined): Promise<MediaPage> {
-    return this.media.page({ cameraId: id, kind: 'timelapse', range: clampRange(grant, query) }, query);
+    return this.media.page({ cameraId: id, kind: 'timelapse', range: clampRange(grant, query), granted: clampRange(grant) }, query);
   }
 
   /**

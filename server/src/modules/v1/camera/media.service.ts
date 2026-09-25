@@ -5,6 +5,7 @@ import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { ExportScope, Media, MediaKind, MediaQuality, MediaWindow } from '@fg2/shared-types/v1';
 import { AccessRange } from '@common/v1/access.types';
+import { picturesWithinRange } from '@common/v1/range';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -63,6 +64,12 @@ export interface MediaFilter {
   window?: MediaWindow | null;
   /** The window every read clamps to, as `access()` decided it. Both ends count as inside. */
   range?: AccessRange;
+  /**
+   * The window the reader was granted, which a film has to lie inside whole
+   * rather than merely begin in. Kept apart from `range`, which also finds the
+   * film that starts at one instant.
+   */
+  granted?: AccessRange;
   /** A half-open span `[from, before)`, which is how the periods a film covers are cut so none shares a frame. */
   from?: Date;
   before?: Date;
@@ -327,11 +334,14 @@ const where = (filter: MediaFilter): FilterQuery<MediaDocument> => {
     ...(filter.before ? { $lt: filter.before } : {}),
   };
 
+  const granted = filter.granted ? picturesWithinRange(filter.granted) : [];
+
   return {
     ...(filter.cameraId ? { cameraId: filter.cameraId } : {}),
     ...(filter.kind ? { kind: filter.kind } : {}),
     ...(filter.window !== undefined ? { window: filter.window } : {}),
     ...(Object.keys(capturedAt).length > 0 ? { capturedAt } : {}),
+    ...(granted.length > 0 ? { $and: granted } : {}),
   };
 };
 

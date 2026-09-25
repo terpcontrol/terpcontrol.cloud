@@ -53,6 +53,7 @@ const picture = (over: Partial<MediaDocument> = {}): MediaDocument =>
     growId: null,
     spaceId: null,
     capturedAt: new Date('2026-05-15T12:00:00.000Z'),
+    endsAt: null,
     ...over,
   }) as unknown as MediaDocument;
 
@@ -107,6 +108,22 @@ describe('which pictures a public diary lets out', () => {
 
     expect(belongsToGrow(grow(), narrow, picture({ capturedAt: new Date('2026-05-05T12:00:00.000Z') }), null, TENT)).toBe(true);
     expect(belongsToGrow(grow(), narrow, picture({ capturedAt: new Date('2026-05-15T12:00:00.000Z') }), null, TENT)).toBe(false);
+  });
+
+  /**
+   * A film is dated by its first frame and runs on for a day or a week after
+   * it. One that begins on the window's last day, or right at its end, is days
+   * of footage the reader was not sent - on a grow that has ended, the tent
+   * after the harvest with the next grow in it.
+   */
+  it('keeps back a film that begins inside the window and runs on past it', () => {
+    const narrow = grant({ range: { startsAt: MAY, endsAt: new Date('2026-05-10T00:00:00.000Z') } });
+    const film = (capturedAt: string, endsAt: string): MediaDocument =>
+      picture({ kind: 'timelapse', capturedAt: new Date(capturedAt), endsAt: new Date(endsAt) });
+
+    expect(belongsToGrow(grow(), narrow, film('2026-05-03T00:00:00.000Z', '2026-05-09T23:59:00.000Z'), null, TENT)).toBe(true);
+    expect(belongsToGrow(grow(), narrow, film('2026-05-08T00:00:00.000Z', '2026-05-14T23:59:00.000Z'), null, TENT)).toBe(false);
+    expect(belongsToGrow(grow(), narrow, film('2026-05-10T00:00:00.000Z', '2026-05-10T23:59:00.000Z'), null, TENT)).toBe(false);
   });
 
   it('keeps back a photo somebody logged against another grow', () => {
