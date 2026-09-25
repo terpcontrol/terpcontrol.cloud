@@ -13,6 +13,7 @@ import { figure, targetFigure, UNIT } from '../home/units';
 import { Photo } from '@/ui/Photo';
 import styles from './Public.module.css';
 import { windowIsCurrent } from './window';
+import { DATED_CLOCK } from '@/ui/zone';
 
 /** The four the tent page shows: the three a controller steers and the one it derives. */
 const TILES: Metric[] = ['temperature', 'humidity', 'vpd', 'co2'];
@@ -162,7 +163,7 @@ function Tile({ value, setpoint, now }: { value: CardValue; setpoint: number | n
 function WindowClimate({ verdict }: { verdict: ClimateVerdict }) {
   const { t } = useTranslation();
   const heard = TILES.flatMap(metric => verdict.metrics.filter(row => row.metric === metric && row.averageValue !== null));
-  const at = (instant: string) => DateTime.fromISO(instant).toFormat('d LLL HH:mm');
+  const at = (instant: string) => DateTime.fromISO(instant).toFormat(DATED_CLOCK);
 
   if (heard.length === 0) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('publicPage.windowClimate.none')}</p>;
 
