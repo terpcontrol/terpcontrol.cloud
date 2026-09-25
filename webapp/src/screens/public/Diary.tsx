@@ -8,6 +8,7 @@ import { PUBLIC_WIDTH, type EarlierWeeks, type Picture } from '@/api/public';
 import ui from '@/ui/ui.module.css';
 import { DiaryWeek } from './DiaryWeek';
 import { Photo } from '@/ui/Photo';
+import { DAY } from '@/ui/zone';
 import styles from './Public.module.css';
 
 interface DiaryProps {
@@ -170,8 +171,8 @@ function Facts({ page }: { page: PublicGrowPage }) {
     page.plantCount ? t('home.card.plants', { count: page.plantCount }) : null,
     t(`publicPage.type.${page.type}`),
     until
-      ? t('publicPage.ran', { from: from.toFormat('d LLL yyyy'), to: until.toFormat('d LLL yyyy') })
-      : t('publicPage.since', { from: from.toFormat('d LLL yyyy') }),
+      ? t('publicPage.ran', { from: from.toFormat(DAY), to: until.toFormat(DAY) })
+      : t('publicPage.since', { from: from.toFormat(DAY) }),
   ].filter((part): part is string => Boolean(part));
 
   return <p className={`mono ${styles.facts}`}>{parts.join(' · ')}</p>;
@@ -217,7 +218,7 @@ function Harvest({ harvest }: { harvest: GrowHarvest }) {
   return (
     <p className={`mono ${styles.harvest}`}>
       {t('grow.report.harvest')}
-      {harvest.harvestedAt ? ` · ${DateTime.fromISO(harvest.harvestedAt).toFormat('d LLL yyyy')}` : ''}
+      {harvest.harvestedAt ? ` · ${DateTime.fromISO(harvest.harvestedAt).toFormat(DAY)}` : ''}
       {weights.length > 0 ? ` · ${weights.join(' · ')}` : ''}
     </p>
   );

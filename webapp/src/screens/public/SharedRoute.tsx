@@ -8,6 +8,7 @@ import { ApiError } from '@/api/problem';
 import { ageLabel } from '@/ui/age';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
+import { DAY } from '@/ui/zone';
 import { Diary } from './Diary';
 import { Nothing } from './Nothing';
 import { PublicShell } from './PublicShell';
@@ -79,7 +80,7 @@ function WindowBanner({ resolution, now }: { resolution: SharedResolution; now: 
   const { t } = useTranslation();
   const { startsAt, endsAt } = resolution.range;
   const current = windowIsCurrent(endsAt, now);
-  const day = (at: string) => DateTime.fromISO(at).toFormat('d LLL yyyy');
+  const day = (at: string) => DateTime.fromISO(at).toFormat(DAY);
 
   const window =
     startsAt === null

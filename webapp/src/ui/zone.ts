@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import type { Me } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
@@ -136,8 +137,14 @@ export const CLOCK = 'HH:mm';
  * number because a date written in digits is read in a different order on
  * either side of an ocean and there is no way for the reader to tell which one
  * they are looking at.
+ *
+ * The one thing that does follow the language is the mark after the day: a
+ * German date is "19. Sep 2026", and "19 Sep 2026" in a German sentence reads
+ * as a figure and a month that happen to stand together. So these formats are
+ * set from the language (see `followDateLanguage` below) rather than fixed,
+ * and every date the app writes goes through one of them.
  */
-export const DAY = 'd LLL yyyy';
+export let DAY = 'd LLL yyyy';
 
 /**
  * The same day with the year left off, for the places that have already said
@@ -146,7 +153,7 @@ export const DAY = 'd LLL yyyy';
  * is, so that a screen wanting a shorter date has somewhere to go other than a
  * format of its own.
  */
-export const DAY_IN_YEAR = 'd LLL';
+export let DAY_IN_YEAR = 'd LLL';
 
 /**
  * The same short day with its weekday in front, for a list of what is coming
@@ -159,7 +166,7 @@ export const DAY_IN_YEAR = 'd LLL';
  * "Mi., 16. Sept." in German, two taps from an archive writing "24 Aug 2026"
  * in both.
  */
-export const WEEKDAY_DAY = `ccc ${DAY_IN_YEAR}`;
+export let WEEKDAY_DAY = `ccc ${DAY_IN_YEAR}`;
 
 /**
  * The day a clock time fell on, for an instant that is not today's, and the
@@ -177,9 +184,27 @@ export const WEEKDAY_DAY = `ccc ${DAY_IN_YEAR}`;
  * account page writing "23 Okt". A month has one abbreviation here, and it is
  * the one `DAY` uses.
  */
-export const DATED_CLOCK = `${DAY_IN_YEAR} ${CLOCK}`;
+export let DATED_CLOCK = `${DAY_IN_YEAR} ${CLOCK}`;
 
-export const DATED_CLOCK_WITH_YEAR = `${DAY} ${CLOCK}`;
+export let DATED_CLOCK_WITH_YEAR = `${DAY} ${CLOCK}`;
+
+/**
+ * Sets the date formats above for a language. They are live bindings, so a
+ * screen that imported them reads the new ones on its next render, which the
+ * language switch itself causes. It follows i18next rather than being called
+ * from it, so that the i18n module does not have to know about dates.
+ */
+export const followDateLanguage = (language: string): void => {
+  const day = language === 'de' ? `d'.'` : 'd';
+  DAY = `${day} LLL yyyy`;
+  DAY_IN_YEAR = `${day} LLL`;
+  WEEKDAY_DAY = `ccc ${DAY_IN_YEAR}`;
+  DATED_CLOCK = `${DAY_IN_YEAR} ${CLOCK}`;
+  DATED_CLOCK_WITH_YEAR = `${DAY} ${CLOCK}`;
+};
+
+i18next.on('languageChanged', followDateLanguage);
+if (i18next.language) followDateLanguage(i18next.language);
 
 /**
  * A day in digits, for the one column too narrow to hold a month in words: the

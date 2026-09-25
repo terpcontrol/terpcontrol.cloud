@@ -13,6 +13,7 @@ import { useNow } from '@/ui/useNow';
 import { FollowButton } from './FollowButton';
 import { Nothing } from './Nothing';
 import { Photo } from '@/ui/Photo';
+import { DAY } from '@/ui/zone';
 import { PublicShell } from './PublicShell';
 import styles from './Public.module.css';
 
@@ -131,7 +132,7 @@ function DiaryCard({ grow, now, own }: { grow: FollowedGrowCard; now: DateTime; 
               // click away. The day number stays: it is the day the grow ended
               // on, and the age beside it dates the last line rather than the
               // end.
-              grow.endedAt ? t('grow.ended', { date: DateTime.fromISO(grow.endedAt).toFormat('d LLL yyyy') }) : null,
+              grow.endedAt ? t('grow.ended', { date: DateTime.fromISO(grow.endedAt).toFormat(DAY) }) : null,
               t('home.card.ago', { age: ageLabel(grow.updatedAt, now) }),
             ]
               .filter(Boolean)

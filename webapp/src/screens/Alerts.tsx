@@ -13,7 +13,7 @@ import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { enough, useMayInEach, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { clock, zoneOf } from '@/ui/zone';
+import { clock, WEEKDAY_DAY, zoneOf } from '@/ui/zone';
 import { AlertCard } from './alerts/AlertCard';
 import { isAhead } from '@/ui/age';
 import { groupsOf, type GroupHeading } from './alerts/inbox';
@@ -186,7 +186,7 @@ export function Alerts() {
 const pagesOf = (data: { pages: { items: Alert[] }[] } | undefined): Alert[] => data?.pages.flatMap(page => page.items) ?? [];
 
 const headingOf = (t: ReturnType<typeof useTranslation>['t'], heading: GroupHeading): string =>
-  heading.kind === 'day' ? heading.day.toFormat('ccc d LLL') : t(`alerts.group.${heading.kind}`);
+  heading.kind === 'day' ? heading.day.toFormat(WEEKDAY_DAY) : t(`alerts.group.${heading.kind}`);
 
 /**
  * What an empty inbox means, which is three different things. The demo account

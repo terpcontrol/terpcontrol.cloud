@@ -23,7 +23,7 @@ const HOUR_MS = 60 * 60 * 1000;
  * before it, which is what lets a label be widened from the one a span picked
  * until two of them can no longer be read as the same instant.
  */
-export const STAMPS = [CLOCK, `ccc ${CLOCK}`, DATED_CLOCK, DATED_CLOCK_WITH_YEAR] as const;
+export const stamps = (): readonly string[] => [CLOCK, `ccc ${CLOCK}`, DATED_CLOCK, DATED_CLOCK_WITH_YEAR];
 
 /**
  * Which of them a window of this width is written with. A window of a day needs
@@ -37,7 +37,7 @@ export const stampFor = (span: number): number => {
   return span <= 400 * 24 * HOUR_MS ? 2 : 3;
 };
 
-export const stampOf = (time: number, span: number, zone: string | null = null): string => zonedAt(time, zone).toFormat(STAMPS[stampFor(span)]);
+export const stampOf = (time: number, span: number, zone: string | null = null): string => zonedAt(time, zone).toFormat(stamps()[stampFor(span)]);
 
 /**
  * The rung the two ends of a window start at, which is one further on than the

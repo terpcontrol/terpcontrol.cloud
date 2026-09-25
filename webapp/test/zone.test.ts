@@ -3,7 +3,20 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { dayOf, startOfDayOn } from '@/ui/days';
-import { clock, CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, datedClock, DAY, DAY_IN_YEAR, nowThere, zoned, zonedAt } from '@/ui/zone';
+import * as dates from '@/ui/zone';
+import {
+  clock,
+  CLOCK,
+  DATED_CLOCK,
+  DATED_CLOCK_WITH_YEAR,
+  datedClock,
+  DAY,
+  DAY_IN_YEAR,
+  followDateLanguage,
+  nowThere,
+  zoned,
+  zonedAt,
+} from '@/ui/zone';
 
 /**
  * The zone a clock time is drawn in, and the sweep that keeps it that way.
@@ -121,7 +134,7 @@ describe('every clock time and every date the app writes', () => {
    * Writing an hour without spelling one, which is how the whole Charts screen
    * got past the check above.
    *
-   * That screen contained no format string at all: it imported `STAMPS` from
+   * That screen contained no format string at all: it imported the stamp formats from
    * the timeline and handed each one to Luxon as a value, and wrote the export's
    * instants with `DateTime.fromMillis(...).toISO()`. Every clock time on it was
    * therefore the browser's, on an app that had moved onto the account's zone a
@@ -133,7 +146,7 @@ describe('every clock time and every date the app writes', () => {
    * and a chart's x in - a number of milliseconds is always an instant here,
    * never a bare date, so there is no zone-free reason to reach for one.
    */
-  const BORROWED = /\b(STAMPS|CLOCK|DATED_CLOCK|DATED_CLOCK_WITH_YEAR|DAY|DAY_IN_YEAR|NARROW_DAY|WEEKDAY_DAY)\b|DateTime\.fromMillis\(/;
+  const BORROWED = /\bstamps\(\)|\b(CLOCK|DATED_CLOCK|DATED_CLOCK_WITH_YEAR|DAY|DAY_IN_YEAR|NARROW_DAY|WEEKDAY_DAY)\b|DateTime\.fromMillis\(/;
 
   const ZONE_IMPORT = /from '(@\/ui\/zone|\.\/zone|\.\.\/zone|\.\.\/\.\.\/ui\/zone)'/;
 
@@ -477,5 +490,26 @@ describe('every day the app reads off a Date', () => {
       .filter(readsTheBrowsersCalendar);
 
     expect(offenders).toEqual([]);
+  });
+});
+
+/**
+ * A German date has its day followed by a full stop - "19. Sep 2026" - and an
+ * English one does not. The formats are live bindings set from the language,
+ * so a screen that imported them writes the new shape after a switch.
+ */
+describe('the mark after the day', () => {
+  it('follows the language, in every shared date format', () => {
+    const at = DateTime.fromISO('2026-09-19T16:07:00', { zone: 'Europe/Berlin', locale: 'de' });
+    try {
+      followDateLanguage('de');
+      expect(at.toFormat(dates.DAY)).toBe('19. Sep 2026');
+      expect(at.toFormat(dates.DATED_CLOCK)).toBe('19. Sep 16:07');
+      expect(at.toFormat(dates.DATED_CLOCK_WITH_YEAR)).toBe('19. Sep 2026 16:07');
+      expect(at.toFormat(dates.WEEKDAY_DAY)).toBe('Sa 19. Sep');
+    } finally {
+      followDateLanguage('en');
+    }
+    expect(at.setLocale('en').toFormat(dates.DAY)).toBe('19 Sep 2026');
   });
 });

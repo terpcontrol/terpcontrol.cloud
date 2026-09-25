@@ -8,7 +8,7 @@ import { useLog, useMayLog } from '@/log/log-context';
 import { FollowButton } from '@/screens/public/FollowButton';
 import { Photo } from '@/ui/Photo';
 import { ageLabel } from '@/ui/age';
-import { useZone } from '@/ui/zone';
+import { DAY, useZone } from '@/ui/zone';
 import { daysUntil } from '@/screens/tasks/tasks';
 import styles from './Strips.module.css';
 import { alertLabel, isSilence } from './units';
@@ -147,7 +147,7 @@ export function FollowedTile({ grow, now }: { grow: FollowedGrowCard; now: DateT
           {/* A diary that is over says so, and keeps its day number: that is
               the day it finished on. The age beside it is when its last line
               was written, which is a different date and no substitute. */}
-          {grow.endedAt ? `${t('grow.ended', { date: DateTime.fromISO(grow.endedAt).toFormat('d LLL yyyy') })} · ` : ''}
+          {grow.endedAt ? `${t('grow.ended', { date: DateTime.fromISO(grow.endedAt).toFormat(DAY) })} · ` : ''}
           {t('home.card.ago', { age: ageLabel(grow.updatedAt, now) })}
         </span>
       </Link>

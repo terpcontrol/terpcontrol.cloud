@@ -19,7 +19,7 @@ import { useNow } from '@/ui/useNow';
 import { CLOCK, DATED_CLOCK, zonedAt, zoneOf } from '@/ui/zone';
 import { cameraFreshness } from '../devices/cameras';
 import { causeOf } from './capture-failure';
-import { at, STAMPS, stampFor } from '../timeline/window';
+import { at, stamps, stampFor } from '../timeline/window';
 import { Slider } from '../timeline/CameraFrame';
 import { Composer } from './Composer';
 import { emptyRolling } from './rolling';
@@ -209,7 +209,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
               // gets the picture through its alt text alone was told "just now"
               // about a still four days old, which is the one thing the frame's
               // own dimming and dated label were there to stop it saying.
-              alt={t('camera.frameAlt', { name: camera.name, time: zonedAt(at(shown.capturedAt), zone).toFormat(STAMPS[stampFor(to - from)]) })}
+              alt={t('camera.frameAlt', { name: camera.name, time: zonedAt(at(shown.capturedAt), zone).toFormat(stamps()[stampFor(to - from)]) })}
             />
           ) : older && camera.state.lastStillAt ? (
             <img
@@ -231,7 +231,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           )}
           {shown ? (
             <span className={ui.photoCaption}>
-              {zonedAt(at(shown.capturedAt), zone).toFormat(STAMPS[stampFor(to - from)])}
+              {zonedAt(at(shown.capturedAt), zone).toFormat(stamps()[stampFor(to - from)])}
               {/* "live" is a claim about how late the picture is, so it is the
                 pill's own verdict that decides it and not the frame's position
                 in the day. This camera misses most of its captures, and the

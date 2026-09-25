@@ -22,7 +22,7 @@ import { useNow } from '@/ui/useNow';
 import { useZone, zoned, zonedAt } from '@/ui/zone';
 import { figure } from '../home/units';
 import { MoveHereSheet } from '../space/MoveHereSheet';
-import { at, stampForEnds, stampOf, STAMPS } from '../timeline/window';
+import { at, stampForEnds, stampOf, stamps } from '../timeline/window';
 import {
   cardsOf,
   csvForCards,
@@ -698,9 +698,9 @@ const dayLabel = (t: Translate, series: GrowSeries): string => {
  * the header cannot drift apart - and only then widened until the two differ.
  */
 const edgesOf = (from: number, to: number, zone: string | null): [string, string] => {
-  const written = STAMPS.slice(stampForEnds(to - from)).map(
-    format => [zonedAt(from, zone).toFormat(format), zonedAt(to, zone).toFormat(format)] as [string, string],
-  );
+  const written = stamps()
+    .slice(stampForEnds(to - from))
+    .map(format => [zonedAt(from, zone).toFormat(format), zonedAt(to, zone).toFormat(format)] as [string, string]);
 
   return written.find(([one, other]) => one !== other) ?? written[written.length - 1];
 };
