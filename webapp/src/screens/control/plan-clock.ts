@@ -68,6 +68,27 @@ export const startsInMs = (state: PlanState, now: DateTime): number | null => {
   return elapsed < 0 ? -elapsed : null;
 };
 
+/**
+ * How closely this side's reading of the server's clock matches the server's.
+ * The offset is learned from `Date` headers, which name whole seconds.
+ */
+const CLOCKS_AGREE_MS = 2_000;
+
+/**
+ * The instant to read a plan at. A step started this very moment carries the
+ * server's instant of the press, which this side's reading of the server's clock
+ * can put a second or so in the future; read as it stands, a step nobody
+ * extended then said its clock was yet to start, with a minute too many left. A
+ * start that close ahead is taken as now - an extension is at least a minute,
+ * so one is never mistaken for it for longer than the clocks disagree.
+ */
+export const readingAt = (state: PlanState, now: DateTime): DateTime => {
+  if (!state.stepStartedAt) return now;
+  const started = DateTime.fromISO(state.stepStartedAt);
+  const ahead = started.toMillis() - now.toMillis();
+  return ahead > 0 && ahead <= CLOCKS_AGREE_MS ? started : now;
+};
+
 export const isOver = (plan: Plan, now: DateTime): boolean => {
   const step = activeStep(plan);
   return step !== null && elapsedMs(plan.state, now) >= durationMs(step.duration);

@@ -366,6 +366,18 @@ describe('the clock under a running step', () => {
     expect(screen.getByText("extended: this step's clock starts in 5 h · 6 h left")).toBeInTheDocument();
   });
 
+  it('calls a step that has only just been started started, not extended', () => {
+    state.plan = plan(
+      { steps: [step({ stage: null, duration: { value: 2, unit: 'minutes' } })] },
+      { stepStartedAt: DateTime.now().plus({ seconds: 1 }).toISO()! },
+    );
+
+    draw();
+
+    expect(screen.queryByText(/extended/)).not.toBeInTheDocument();
+    expect(screen.getByText(/on this step · 2 min left/)).toBeInTheDocument();
+  });
+
   it('reads the same elapsed the engine reads, so a step that is over is over on both sides', () => {
     const extended = plan(
       { steps: [step({ duration: { value: 10, unit: 'minutes' }, waitForConfirmation: true })] },
@@ -591,6 +603,15 @@ describe('the plan panel', () => {
 
     expect(screen.getByText('This plan is already running.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Read it again' })).toBeInTheDocument();
+  });
+
+  it('puts a plan that has run every step at none of them', () => {
+    state.plan = plan({}, { status: 'completed', activeStepIndex: 0, stepStartedAt: null });
+    draw();
+
+    expect(screen.getByText('Completed')).toBeInTheDocument();
+    expect(screen.queryByText(/Step 1 of/)).not.toBeInTheDocument();
+    expect(screen.getByText('Every step has run. Starting it again begins at step 1.')).toBeInTheDocument();
   });
 
   it('dates the last time the step reached the controller rather than claiming it is running it', () => {

@@ -10,6 +10,7 @@ import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
+import { serverNow } from '@/api/clock';
 import { useNow } from '@/ui/useNow';
 import { deviceTitle } from '../devices/naming';
 import { PlanEditor } from './PlanEditor';
@@ -26,6 +27,7 @@ import {
   movesOf,
   nextStepIndex,
   overdueMs,
+  readingAt,
   spanLabel,
   startsInMs,
   throughStep,
@@ -64,8 +66,12 @@ import { deviceName } from '@/screens/devices/naming';
  */
 export function PlanPanel({ device, mayManage, landing }: { device: Device; mayManage: boolean; landing: ClimateLanding }) {
   const { t } = useTranslation();
-  const now = useNow();
   const plan = useDevicePlan(device.id);
+  // The beat re-renders the panel, and the reading is taken at the render: a
+  // clock read up to a beat before the answer arrived puts a plan that was just
+  // started in the panel's future, which is how an extension looks.
+  useNow();
+  const now = plan.data ? readingAt(plan.data.state, serverNow()) : serverNow();
   const [editing, setEditing] = useState<PlanDraft | null>(null);
   const [keeping, setKeeping] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -223,6 +229,9 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
   // is where starting it would begin, and a bar filling up beside a tent that
   // is being run by nothing would be the screen inventing a state.
   const going = plan.state.status === 'running' || plan.state.status === 'paused';
+  // A plan that has run every step stands at none of them. The server puts it
+  // back at the first, which is where starting it again begins, and the note
+  // below says so; a step line would say it is standing there.
 
   return (
     <>
@@ -233,7 +242,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
         </span>
       </header>
 
-      {step ? (
+      {plan.state.status === 'completed' ? null : step ? (
         <>
           <p className={styles.stepLine}>
             <span className={`mono ${styles.stepNumber}`}>
