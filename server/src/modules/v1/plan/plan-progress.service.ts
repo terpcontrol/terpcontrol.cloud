@@ -54,11 +54,26 @@ export class PlanProgressService {
    * On to the step that follows: the next one, the first one again when the plan
    * loops, or the end of it. `transition` names the person's doing; the engine
    * simply running out the clock passes null.
+   *
+   * A plan that was paused stays paused on the step it moved to, with that
+   * step's clock not yet started and the reason it was paused kept: somebody
+   * who paused a plan - or a preset that paused it so as not to be undone - has
+   * not asked for it to run again by passing over a step. The step's stage is
+   * still the grow's, as it would be on a running plan, because resuming a
+   * paused plan writes no phase of its own.
    */
   public async moveOn(plan: StoredPlan, now: Date, transition: PlanTransitionKind | null, by: string | null = null): Promise<StoredPlan> {
     const next = stepAfterActive(plan);
     const looped = next !== null && next !== plan.state.activeStepIndex + 1;
-    const moved = await this.store(plan, next === null ? completed() : running(next, now));
+    const paused = plan.state.status === 'paused';
+    const moved = await this.store(
+      plan,
+      next === null
+        ? completed()
+        : paused
+          ? { ...running(next, now), status: 'paused', stepStartedAt: null, pauseReason: plan.state.pauseReason }
+          : running(next, now),
+    );
     const step = activeStep(moved);
 
     logger.info(

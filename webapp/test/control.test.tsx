@@ -571,6 +571,14 @@ describe('the plan panel', () => {
     expect(state.sent).toEqual([{ kind: 'skip' }]);
   });
 
+  it('says that a paused plan stays paused when a step is skipped', () => {
+    state.plan = plan({}, { status: 'paused', stepStartedAt: null, pausedElapsedMs: 600_000 });
+    draw();
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+
+    expect(screen.getByText(/moves on to step 2, Flower, and stays paused/)).toBeInTheDocument();
+  });
+
   it('turns a refusal into the thing to do about it', () => {
     state.moveError = new ApiError({
       status: 409,

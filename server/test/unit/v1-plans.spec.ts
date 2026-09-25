@@ -430,6 +430,29 @@ describe('the transitions', () => {
     expect((await stored()).state.activeStepIndex).toBe(0);
   });
 
+  it('extends a paused step by the whole length, however little it has served', async () => {
+    await aDevice();
+    const pausedState = { ...stoppedState, status: 'paused' as const, pausedElapsedMs: 2 * HOUR, pauseReason: 'by hand' };
+    await aPlan([step({ id: 'a', name: 'Veg', duration: { value: 1, unit: 'days' } }), step({ id: 'b', name: 'Flower' })], {
+      state: pausedState,
+    });
+
+    await transitions.transition(DEVICE, { kind: 'extend', by: { value: 7, unit: 'days' } });
+
+    const extended = (await stored()).state;
+    expect(extended).toMatchObject({ status: 'paused', stepStartedAt: null, pausedElapsedMs: 2 * HOUR - 7 * 24 * HOUR });
+
+    // Resumed, the step has its day and the week that was added, less the two
+    // hours it had already served.
+    await transitions.transition(DEVICE, { kind: 'resume' });
+    const resumed = (await stored()).state;
+    await engine.run(new Date(resumed.stepStartedAt!.getTime() + 8 * 24 * HOUR - 3 * HOUR));
+    expect((await stored()).state.activeStepIndex).toBe(0);
+
+    await engine.run(new Date(resumed.stepStartedAt!.getTime() + 8 * 24 * HOUR - HOUR));
+    expect((await stored()).state.activeStepIndex).toBe(1);
+  });
+
   it('skips to the next step before the time is up', async () => {
     await aDevice();
     await aPlan([step({ id: 'a', name: 'Veg' }), step({ id: 'b', name: 'Flower' })]);
@@ -438,6 +461,26 @@ describe('the transitions', () => {
 
     expect((await stored()).state.activeStepIndex).toBe(1);
     expect((await entries())[0].values).toMatchObject({ transition: 'skip' });
+  });
+
+  it('keeps a paused plan paused when a step is skipped', async () => {
+    await aDevice();
+    await aGrowIn(SPACE);
+    await aPlan([step({ id: 'a', name: 'Veg' }), step({ id: 'b', name: 'Flower', stage: 'flowering' })], {
+      state: { ...stoppedState, status: 'paused', pausedElapsedMs: 5 * HOUR, pauseReason: 'a preset was applied' },
+    });
+
+    await transitions.transition(DEVICE, { kind: 'skip' }, OWNER);
+
+    expect((await stored()).state).toMatchObject({
+      status: 'paused',
+      activeStepIndex: 1,
+      stepStartedAt: null,
+      pausedElapsedMs: 0,
+      pauseReason: 'a preset was applied',
+    });
+    expect((await entries()).map(entry => entry.values)).toContainEqual(expect.objectContaining({ transition: 'skip' }));
+    expect((await grow()).phases.map(phase => phase.stage)).toEqual(['flowering']);
   });
 
   it('starts a stopped plan on the step it stands at', async () => {

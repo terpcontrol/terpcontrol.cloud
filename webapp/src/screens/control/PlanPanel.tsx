@@ -253,7 +253,9 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
             <p className={`mono ${styles.clock}`}>
               {ahead === null
                 ? t('space.control.served', { age: spanLabel(elapsedMs(plan.state, now)) })
-                : t('space.control.extendedClock', { age: countdownLabel(ahead) })}
+                : t(plan.state.status === 'paused' ? 'space.control.extendedPausedClock' : 'space.control.extendedClock', {
+                    age: countdownLabel(ahead),
+                  })}
               {isOpenEnded(step.duration)
                 ? ` · ${t('space.control.openEnded')}`
                 : left !== null
@@ -411,7 +413,12 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
       {asking === 'skip' ? (
         <div className={styles.asking}>
           <p className={ui.note}>
-            {next === null ? t('space.control.ask.skipEnds') : t('space.control.ask.skip', { number: next + 1, name: plan.steps[next]?.name ?? '' })}
+            {next === null
+              ? t('space.control.ask.skipEnds')
+              : t(plan.state.status === 'paused' ? 'space.control.ask.skipPaused' : 'space.control.ask.skip', {
+                  number: next + 1,
+                  name: plan.steps[next]?.name ?? '',
+                })}
           </p>
           <div className={styles.actions}>
             <button

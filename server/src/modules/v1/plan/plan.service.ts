@@ -182,7 +182,11 @@ export class PlanService {
     return this.progress.moveOn(plan, now, 'confirm', by);
   }
 
-  /** On to the next step before its time is up, which is also how a step that waits is passed over. */
+  /**
+   * On to the next step before its time is up, which is also how a step that
+   * waits is passed over. A paused plan moves on and stays paused - see
+   * `moveOn` - because skipping a step says nothing about running the plan again.
+   */
   private async skip(plan: StoredPlan, now: Date, by: string | null): Promise<StoredPlan> {
     if (!activeStep(plan) || (plan.state.status !== 'running' && plan.state.status !== 'paused')) {
       throw conflict('plan_not_running', 'This plan has no step to skip.');
@@ -196,6 +200,12 @@ export class PlanService {
    * step keeps the duration it was written with - the clock is put back, and a
    * step that had already asked for its confirmation asks again when the longer
    * time is up.
+   *
+   * A paused step is put back by the whole length too, below zero where the
+   * length is more than it has served: its clock then starts that far behind
+   * once the plan runs again, exactly as a running step's clock is pushed into
+   * the future. Holding it at zero gave a paused step at most the time it had
+   * already served, whatever length was asked for.
    */
   private async extend(plan: StoredPlan, by: StepDuration): Promise<StoredPlan> {
     const moreMs = durationMs(by);
@@ -208,7 +218,7 @@ export class PlanService {
     return this.progress.store(plan, {
       ...plan.state,
       stepStartedAt: plan.state.stepStartedAt ? new Date(plan.state.stepStartedAt.getTime() + moreMs) : null,
-      pausedElapsedMs: plan.state.stepStartedAt ? plan.state.pausedElapsedMs : Math.max(0, plan.state.pausedElapsedMs - moreMs),
+      pausedElapsedMs: plan.state.stepStartedAt ? plan.state.pausedElapsedMs : plan.state.pausedElapsedMs - moreMs,
       confirmationNotifiedAt: null,
       confirmationAskedAt: null,
       confirmationAskTriedAt: null,
