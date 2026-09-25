@@ -24,8 +24,6 @@ body {
   font-size: var(--text-md);
   font-weight: var(--weight-regular);
   line-height: var(--line-body);
-  /* Every figure in the app lines up in a column, in prose as in a table. */
-  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   /* iOS otherwise resizes text in landscape, which breaks a dense row. */
   text-size-adjust: 100%;
@@ -88,6 +86,7 @@ select {
 input[type='number'] {
   appearance: textfield;
   -moz-appearance: textfield;
+  font-variant-numeric: tabular-nums;
 }
 
 input[type='number']::-webkit-outer-spin-button,
@@ -97,7 +96,13 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /* Figures, timestamps and captions: tabular, so a column of numbers lines up.
-   A big figure is the sans at a heavier weight rather than a second face. */
+   A big figure is the sans at a heavier weight rather than a second face.
+
+   Tabular is set here and on the few other places a figure is drawn, never on
+   the body. Inter's tabular feature is not only the digits: it gives the
+   hyphen, the full stop, the comma, the colon and the brackets a digit's width
+   as well, which is right in a column of "-4.5" and "12:05" and wrong in a
+   sentence, where "Grow-Woche" came out as "Grow - Woche" on every screen. */
 .figure,
 .mono {
   font-family: var(--font-figure);

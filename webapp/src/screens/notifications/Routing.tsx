@@ -41,7 +41,7 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
           <tr>
             <td />
             {CHANNELS.map(channel => (
-              <th key={channel} scope="col" className={`mono ${styles.gridHead}`} data-off={!configured[channel]}>
+              <th key={channel} scope="col" className={styles.gridHead} data-off={!configured[channel]}>
                 {t(`notifications.channel.${channel}`)}
               </th>
             ))}
