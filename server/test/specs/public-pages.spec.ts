@@ -344,6 +344,31 @@ describe('one still of a shared camera', () => {
   });
 
   /**
+   * A grow's day runs from the hour it was started to the same hour the next
+   * day, and its picture is the one nearest noon. A window that closes at
+   * midnight closes halfway through such a day and before its noon, so the
+   * look back from noon for a day's picture has to stop at the window too.
+   */
+  it('is not named on a week card where it was taken after the window closed', async () => {
+    const start = daysAgo(100);
+    start.setUTCHours(14, 0, 0, 0);
+    const at = (days: number, hour: number): Date => new Date(start.getTime() + days * 24 * 3600 * 1000 + (hour - 14) * 3600 * 1000);
+
+    const run = await startAGrow({ name: 'Closed at midnight', startedAt: start.toISOString() });
+    const late = await storeCameraStill(camera, A_PICTURE, at(6, 6));
+
+    const link = await linkOnto(
+      { type: 'grow', id: run.id },
+      { range: { startsAt: at(1, 0).toISOString(), endsAt: at(6, 0).toISOString() }, includeCameras: true },
+    );
+
+    const opened = await anonymous().get(`/v1/shared/${link.token}`).expect(200);
+    const named = opened.body.subject.grow.weeks.flatMap((week: { days: { mediaId: string | null }[] }) => week.days.map(day => day.mediaId));
+    expect(named).not.toContain(late);
+    await anonymous().get(`/v1/media/${late}?share=${link.token}`).expect(404);
+  });
+
+  /**
    * A photo is reached through the diary line that carries it, and that line has
    * a day on it and is clamped to the same window. So the exemption that keeps a
    * cover on its page had been letting through every photograph of the run as

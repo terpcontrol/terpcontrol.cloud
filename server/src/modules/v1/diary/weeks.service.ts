@@ -299,10 +299,14 @@ export class GrowWeeksService {
 
     const from = day.startsAt > seen.startsAt ? day.startsAt : seen.startsAt;
     const until = day.endsAt < seen.endsAt ? day.endsAt : seen.endsAt;
+    // The picture hour can lie past the window's end - a window that closes at
+    // midnight on a day that runs to the next afternoon - so the look back from
+    // it stops where the window does, like the look forward.
+    const upTo = day.nearest < until ? day.nearest : until;
     const projection = { id: 1, cameraId: 1, capturedAt: 1 };
     const [before, after] = await Promise.all([
       this.media
-        .findOne({ cameraId: { $in: cameraIds }, kind: 'still', capturedAt: { $gte: from, $lte: day.nearest } }, projection)
+        .findOne({ cameraId: { $in: cameraIds }, kind: 'still', capturedAt: { $gte: from, $lte: upTo } }, projection)
         .sort({ capturedAt: -1 })
         .lean<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'>>(),
       this.media
