@@ -18,6 +18,7 @@ import { MediaPresentationService, RANGE_REFUSAL, parseDimension, pictureSizeQue
 import { MediaService } from './media.service';
 import { OptionalSessionGuard } from './optional-session.guard';
 import { V1Answer } from '../answer-shape';
+import { PICTURE_READ_OPERATION } from '../../../openapi';
 
 /**
  * One picture or film: what is known about it, and its bytes.
@@ -117,7 +118,7 @@ export class MediaController {
   @Get(':id')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'media')
-  @ApiOperation({ summary: 'What is known about one picture or film' })
+  @ApiOperation({ summary: 'What is known about one picture or film', ...PICTURE_READ_OPERATION })
   @V1Answer(mediaShape)
   public async read(@Param('id') id: string, @Req() request: FastifyRequest): Promise<Media> {
     const row = await this.require(id, request);
@@ -128,7 +129,7 @@ export class MediaController {
   @Get(':id/content')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'media')
-  @ApiOperation({ summary: 'The bytes of a picture or film' })
+  @ApiOperation({ summary: 'The bytes of a picture or film', ...PICTURE_READ_OPERATION })
   @ApiResponse({ status: HttpStatus.OK, description: 'The file itself, in the type it was stored as.', content: STORED_BYTES })
   @ApiResponse({ status: HttpStatus.PARTIAL_CONTENT, description: 'The byte range a <video> element asked for.', content: STORED_BYTES })
   @ApiResponse(RANGE_REFUSAL)

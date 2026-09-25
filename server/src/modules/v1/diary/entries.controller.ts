@@ -12,6 +12,7 @@ import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard'
 import { V1Answer } from '../answer-shape';
 import { EntriesService } from './entries.service';
 import { EntryWritesService } from './entry-writes.service';
+import { SHARED_READ_OPERATION } from '../../../openapi';
 
 /**
  * The timeline: read and written.
@@ -50,7 +51,7 @@ export class EntriesController {
 
   @Get()
   @UseGuards(OptionalSessionGuard)
-  @ApiOperation({ summary: 'The timeline of one grow, space, device or plant, newest first' })
+  @ApiOperation({ summary: 'The timeline of one grow, space, device or plant, newest first', ...SHARED_READ_OPERATION })
   @V1Answer(entryPage)
   public list(@Caller() ctx: AccessContext, @V1Query(entryListQuery) query: z.infer<typeof entryListQuery>): Promise<EntryPage> {
     return this.entries.list(ctx, query);
@@ -74,7 +75,7 @@ export class EntriesController {
   @Get(':id')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'entry')
-  @ApiOperation({ summary: 'One line of the diary' })
+  @ApiOperation({ summary: 'One line of the diary', ...SHARED_READ_OPERATION })
   @V1Answer(entryShape)
   public read(@Caller() ctx: AccessContext, @Param('id') id: string): Promise<Entry> {
     return this.entries.read(ctx, id);

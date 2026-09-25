@@ -7,6 +7,7 @@ import { Grant } from '@common/v1/access.types';
 import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { V1Answer } from '../answer-shape';
 import { OverviewService } from './overview.service';
+import { SHARED_READ_OPERATION } from '../../../openapi';
 
 /**
  * The tent page's landing tab. It is a read of one space, so it declares the
@@ -22,7 +23,7 @@ export class OverviewController {
   @Get(':id/overview')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'space')
-  @ApiOperation({ summary: 'Everything the tent page opens on, with the 24 h climate verdict' })
+  @ApiOperation({ summary: 'Everything the tent page opens on, with the 24 h climate verdict', ...SHARED_READ_OPERATION })
   @V1Answer(spaceOverview)
   public read(@CurrentGrant() grant: Grant, @Param('id') id: string): Promise<SpaceOverview> {
     return this.overview.read(grant, id);

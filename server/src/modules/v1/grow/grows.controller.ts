@@ -54,6 +54,7 @@ import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard'
 import { V1Answer } from '../answer-shape';
 import { GrowSeriesService } from './grow-series.service';
 import { GrowsService } from './grows.service';
+import { SHARED_READ_OPERATION } from '../../../openapi';
 
 /**
  * A grow, and what a person does to one.
@@ -190,7 +191,7 @@ export class GrowsController {
   @Get(':id/series')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'grow')
-  @ApiOperation({ summary: "Climate, outputs and the grow's own measurements over one range" })
+  @ApiOperation({ summary: "Climate, outputs and the grow's own measurements over one range", ...SHARED_READ_OPERATION })
   @V1Answer(growSeries)
   public async seriesOf(
     @CurrentGrant() grant: Grant,

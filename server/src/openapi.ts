@@ -1,5 +1,11 @@
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { OpenAPIObject, OperationObject, ReferenceObject, ResponseObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
+import {
+  OpenAPIObject,
+  OperationObject,
+  ReferenceObject,
+  ResponseObject,
+  SecurityRequirementObject,
+} from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
 import v1Schemas from '@fg2/shared-types/openapi-schemas.json';
 import { appConfig } from './config/configuration';
@@ -12,6 +18,20 @@ import { V1_PREFIX } from './common/v1/problem.filter';
  * image would then be documented as impossible without one.
  */
 export const PUBLIC_OPERATION = { security: [] };
+
+/**
+ * Spread into the `@ApiOperation` of a read a share link reaches. Besides a
+ * session it takes the link's token - in a header, or in the query where the
+ * reader is an `<img>` that cannot set one - and for a public diary no
+ * credential at all. Inheriting the bearer requirement documented all of
+ * them as member-only, and a client generated from the document could not
+ * read a shared diary or know that it may.
+ */
+const SHARED_READ: SecurityRequirementObject[] = [{ bearerAuth: [] }, { shareToken: [] }, { shareQuery: [] }, {}];
+export const SHARED_READ_OPERATION: Pick<OperationObject, 'security'> = { security: SHARED_READ };
+
+/** The same for a picture's own two routes, which also take the picture token a picture URL carries. */
+export const PICTURE_READ_OPERATION: Pick<OperationObject, 'security'> = { security: [...SHARED_READ, { pictureToken: [] }] };
 
 /**
  * The shapes of the `/v1` contract, generated from the zod schemas in
@@ -113,8 +133,12 @@ const declareRefusals = (document: OpenAPIObject): void => {
         (operation.parameters ?? []).some(parameter => 'in' in parameter && parameter.in === 'query' && parameter.schema !== undefined);
 
       // An operation without `security` of its own inherits the document's
-      // bearer requirement; `PUBLIC_OPERATION` is the empty list that opts out.
-      const secured = operation.security === undefined || operation.security.length > 0;
+      // bearer requirement; `PUBLIC_OPERATION` is the empty list that opts out,
+      // and a read that also takes no credential at all - a public diary's -
+      // answers a caller without one rather than refusing them for it.
+      const secured =
+        operation.security === undefined ||
+        (operation.security.length > 0 && !operation.security.some(requirement => Object.keys(requirement).length === 0));
 
       const answers = operation.responses;
       if (validated) answers['400'] ??= refers('BadRequest');
@@ -146,6 +170,34 @@ export const setupOpenApi = (app: NestFastifyApplication): void => {
     )
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'The user token from `POST /v1/sessions`.' }, 'bearerAuth')
     .addCookieAuth('Authorization', { type: 'apiKey', description: 'The session cookie the browser gets from `POST /v1/sessions`.' })
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: 'X-Share-Token',
+        description: 'The token of a share link (`ShareLink.token`). Opens the reads the link reaches, clamped to its window.',
+      },
+      'shareToken',
+    )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'query',
+        name: 'share',
+        description: 'The same share-link token in the query string, for a reader that cannot set a header.',
+      },
+      'shareQuery',
+    )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'query',
+        name: 'token',
+        description:
+          'The picture token (`imageToken` from `POST /v1/sessions`), for an `<img>` that cannot set a header. It opens `GET /v1/media/{id}` and its content and nothing else.',
+      },
+      'pictureToken',
+    )
     .addSecurityRequirements('bearerAuth');
 
   for (const tag of TAGS) builder.addTag(tag.name, tag.description);

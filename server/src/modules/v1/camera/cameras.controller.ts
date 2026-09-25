@@ -44,6 +44,7 @@ import { OptionalSessionGuard } from './optional-session.guard';
 import { isRolling, periodAround, periodBefore } from './film-periods';
 import { DEFAULT_ASPECT, DEFAULT_OVERLAYS } from './timelapse-overlays';
 import { V1Answer } from '../answer-shape';
+import { SHARED_READ_OPERATION } from '../../../openapi';
 
 /**
  * The cameras of a tent, and the pictures and films of one camera.
@@ -160,7 +161,7 @@ export class CamerasController {
   @Get(':id')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'camera')
-  @ApiOperation({ summary: 'One camera' })
+  @ApiOperation({ summary: 'One camera', ...SHARED_READ_OPERATION })
   @V1Answer(camera)
   public async read(@CurrentGrant() grant: Grant, @Param('id') id: string): Promise<Camera> {
     return this.cameras.serialise(await this.require(id), grant.grantee, new Date(), clampRange(grant));
@@ -268,7 +269,7 @@ export class CamerasController {
   @Get(':id/frames')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'camera')
-  @ApiOperation({ summary: 'The stills of one camera, newest first' })
+  @ApiOperation({ summary: 'The stills of one camera, newest first', ...SHARED_READ_OPERATION })
   @V1Answer(mediaPage)
   public frames(@Param('id') id: string, @V1Query(spanQuery) query: SpanQuery, @CurrentGrant() grant: Grant | undefined): Promise<MediaPage> {
     return this.media.page({ cameraId: id, kind: 'still', range: clampRange(grant, query) }, query);
@@ -277,7 +278,7 @@ export class CamerasController {
   @Get(':id/timelapses')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'camera')
-  @ApiOperation({ summary: 'The films of one camera, newest first' })
+  @ApiOperation({ summary: 'The films of one camera, newest first', ...SHARED_READ_OPERATION })
   @V1Answer(mediaPage)
   public timelapses(@Param('id') id: string, @V1Query(spanQuery) query: SpanQuery, @CurrentGrant() grant: Grant | undefined): Promise<MediaPage> {
     return this.media.page({ cameraId: id, kind: 'timelapse', range: clampRange(grant, query), granted: clampRange(grant) }, query);

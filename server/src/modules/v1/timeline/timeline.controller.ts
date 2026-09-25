@@ -9,6 +9,7 @@ import { V1Query, instantQuery } from '@common/v1/validation';
 import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { V1Answer } from '../answer-shape';
 import { TimelineService } from './timeline.service';
+import { SHARED_READ_OPERATION } from '../../../openapi';
 
 /**
  * The tent page's Timeline tab: one answer per range chip.
@@ -32,7 +33,10 @@ export class TimelineController {
   @Get(':id/timeline')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'space')
-  @ApiOperation({ summary: 'Everything the Timeline tab draws over one range: frames, panels, night, alarms, lanes and the rail' })
+  @ApiOperation({
+    summary: 'Everything the Timeline tab draws over one range: frames, panels, night, alarms, lanes and the rail',
+    ...SHARED_READ_OPERATION,
+  })
   @V1Answer(spaceTimeline)
   public read(
     @CurrentGrant() grant: Grant,

@@ -379,6 +379,28 @@ describe('the document', () => {
     expect(document.paths['/readyz']?.get?.responses?.default).toBeUndefined();
   });
 
+  /**
+   * A share link reaches its reads through a header or the query string, and a
+   * picture URL carries the picture token. A client generated from a document
+   * that documented them as bearer-only could not read a shared diary.
+   */
+  it('says which reads a share link and a picture URL reach, and with what', () => {
+    const schemes = (document as OpenApiDocument & { components: { securitySchemes: Record<string, { in?: string; name?: string }> } }).components
+      .securitySchemes;
+    expect(schemes.shareToken).toMatchObject({ in: 'header', name: 'X-Share-Token' });
+    expect(schemes.shareQuery).toMatchObject({ in: 'query', name: 'share' });
+    expect(schemes.pictureToken).toMatchObject({ in: 'query', name: 'token' });
+
+    const takes = (path: string) => (document.paths[path]?.get?.security ?? []).flatMap(requirement => Object.keys(requirement as object));
+    for (const path of ['/v1/grows/{id}/weeks', '/v1/grows/{id}/series', '/v1/entries', '/v1/spaces/{id}/timeline', '/v1/cameras/{id}/timelapses']) {
+      expect(takes(path)).toEqual(expect.arrayContaining(['bearerAuth', 'shareToken', 'shareQuery']));
+      expect(takes(path)).not.toContain('pictureToken');
+    }
+    expect(takes('/v1/media/{id}/content')).toEqual(expect.arrayContaining(['shareToken', 'pictureToken']));
+    // What only a member may do stays bearer-only.
+    expect(document.paths['/v1/devices/{id}']?.get?.security).toBeUndefined();
+  });
+
   it('refuses in the shape it declares it refuses in', async () => {
     const problem = declaredRefusal('/v1/devices/{id}', 'get', '404')?.schema;
     expect(problem).toBeDefined();

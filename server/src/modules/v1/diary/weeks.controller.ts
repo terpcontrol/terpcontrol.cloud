@@ -10,6 +10,7 @@ import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard'
 import { V1Answer } from '../answer-shape';
 import { GrowReportService } from './report.service';
 import { GrowWeeksService, weeksQuery } from './weeks.service';
+import { SHARED_READ_OPERATION } from '../../../openapi';
 
 /**
  * The two tabs of the grow page that are not the grow itself: the weeks it is
@@ -30,7 +31,7 @@ export class GrowWeeksController {
   @Get(':id/weeks')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'grow')
-  @ApiOperation({ summary: 'The week cards the grow page is made of, newest first' })
+  @ApiOperation({ summary: 'The week cards the grow page is made of, newest first', ...SHARED_READ_OPERATION })
   @V1Answer(growWeekCardPage)
   public page(
     @CurrentGrant() grant: Grant,
@@ -43,7 +44,7 @@ export class GrowWeeksController {
   @Get(':id/report')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'grow')
-  @ApiOperation({ summary: 'The grow as chapters, one per phase' })
+  @ApiOperation({ summary: 'The grow as chapters, one per phase', ...SHARED_READ_OPERATION })
   @V1Answer(growReport)
   public read(@CurrentGrant() grant: Grant, @Param('id') id: string): Promise<GrowReport> {
     return this.report.read(id, grant);
