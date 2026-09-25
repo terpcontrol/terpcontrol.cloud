@@ -243,7 +243,7 @@ describe('opening one', () => {
 });
 
 describe('changing one', () => {
-  it('narrows the window and the pictures, and never what the link points at', async () => {
+  it('changes the window and the pictures, and never what the link points at', async () => {
     const made = await links.create(session(OWNER), { kind: 'view', subject: { type: 'grow', id: GROW }, includeCameras: true });
 
     const changed = await links.update(session(OWNER), made.id, {
@@ -264,6 +264,9 @@ describe('changing one', () => {
     await expect(links.revoke(session(OTHER), made.id)).rejects.toThrow(ProblemException);
     await expect(links.remove(session(OTHER), made.id)).rejects.toThrow(ProblemException);
 
+    // A link that still works is revoked before it can be forgotten.
+    await expect(links.remove(session(OWNER), made.id)).rejects.toMatchObject({ problem: { code: 'share_link_live' } });
+    await links.revoke(session(OWNER), made.id);
     await links.remove(session(OWNER), made.id);
     expect(await db.shareLinks.findOne({ id: made.id }).lean()).toBeNull();
   });
