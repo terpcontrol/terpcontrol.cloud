@@ -554,6 +554,15 @@ describe('the card and the shell', () => {
     expect(shell.text).not.toContain('<script>');
     expect(shell.text).toContain('&lt;script&gt;');
   });
+
+  it('answers the address of a diary that is not public with a page saying so', async () => {
+    const hidden = await startAGrow({ name: 'Kept to myself' });
+
+    const shell = await anonymous().get(`/g/${hidden.slug}`).expect(404);
+    expect(shell.headers['content-type']).toMatch(/^text\/html/);
+    expect(shell.text).toContain('There is no public diary at this address.');
+    expect(shell.text).not.toContain('Kept to myself');
+  });
 });
 
 describe('a public profile', () => {
@@ -569,7 +578,11 @@ describe('a public profile', () => {
     const refused = await anonymous().get(`/v1/public/users/${handle}`).expect(404);
     expect(refused.body.code).toBe('user_not_found');
 
-    await anonymous().get(`/@${handle}`).expect(404);
+    // Opened in a browser, as an address that gets pasted about is: a page, not the API's refusal.
+    const shell = await anonymous().get(`/@${handle}`).expect(404);
+    expect(shell.headers['content-type']).toMatch(/^text\/html/);
+    expect(shell.text).toContain('There is no public profile at this address.');
+    expect(shell.text).not.toContain('{"');
   });
 
   it('lists the public diaries and no others, and says nothing else about the account', async () => {

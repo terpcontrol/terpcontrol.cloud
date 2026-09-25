@@ -249,6 +249,30 @@ export const shellHtml = (card: LinkCard): string => {
 };
 
 /**
+ * The page an address that leads nowhere answers: a diary that went private,
+ * a profile that was switched off, a slug somebody mistyped. It is opened by a
+ * person in a browser as often as by a crawler, so it is a page and not the
+ * JSON refusal the API routes answer - and it says as much as the app's own
+ * page for the same address, and no more.
+ */
+export const missingHtml = (title: string, body: string): string => `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>${escapeHtml(title)}</title>
+</head>
+<body>
+<main>
+<h1>${escapeHtml(title)}</h1>
+<p>${escapeHtml(body)}</p>
+</main>
+</body>
+</html>
+`;
+
+/**
  * What the absolute URLs on a card are built from: the address this install
  * publishes, which is what every other client is told to call and what the API
  * document names.
