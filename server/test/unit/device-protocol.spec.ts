@@ -539,17 +539,41 @@ describe('what the cloud tells a device', () => {
       configuration: { workmode: 'small', day: { temperature: 25, humidity: 60, heating: 'hard' }, lights: { limit: 80, sunrise: 15 } },
     });
 
-    await new DeviceConfigurationService(db.devices, publisher).applyConfiguration(DEVICE, { day: { humidity: 55 }, lights: { limit: 0 } });
+    await new DeviceConfigurationService(db.devices, publisher, new EntryWriterService(db.entries)).applyConfiguration(DEVICE, {
+      day: { humidity: 55 },
+      lights: { limit: 0 },
+    });
 
     const expected = { workmode: 'small', day: { temperature: 25, humidity: 55, heating: 'hard' }, lights: { limit: 0, sunrise: 15 } };
     expect((await stored())?.configuration).toEqual(expected);
     expect(sent()).toEqual(expected);
   });
 
+  it('writes down which figures a person moved when they save the whole document, and nothing when none moved', async () => {
+    await device({ configuration: { workmode: 'small', day: { temperature: 24, humidity: 60 } } });
+    const configuration = new DeviceConfigurationService(db.devices, publisher, new EntryWriterService(db.entries));
+
+    await configuration.replace(DEVICE, { workmode: 'small', day: { temperature: 25, humidity: 60 } }, OWNER);
+    await configuration.replace(DEVICE, { workmode: 'small', day: { temperature: 25, humidity: 60 } }, OWNER);
+
+    expect(await db.entries.find({}).lean()).toEqual([
+      expect.objectContaining({
+        source: 'device',
+        authorId: OWNER,
+        deviceId: DEVICE,
+        severity: 'info',
+        message: { key: 'message-device-configuration-updated', params: ['day.temperature: 24 → 25'] },
+      }),
+    ]);
+  });
+
   it('replaces what is not a section on both sides rather than merging into it', async () => {
     await device({ configuration: { day: 68400, night: 25200, limit: 65 } });
 
-    await new DeviceConfigurationService(db.devices, publisher).applyConfiguration(DEVICE, { day: { temperature: 24 }, limit: 40 });
+    await new DeviceConfigurationService(db.devices, publisher, new EntryWriterService(db.entries)).applyConfiguration(DEVICE, {
+      day: { temperature: 24 },
+      limit: 40,
+    });
 
     expect((await stored())?.configuration).toEqual({ day: { temperature: 24 }, night: 25200, limit: 40 });
   });

@@ -188,10 +188,11 @@ export class DevicesController {
   @ApiOperation({ summary: "Replace the device's configuration document" })
   @V1Answer(deviceConfigurationEnvelope)
   public async writeConfiguration(
+    @Caller() ctx: AccessContext,
     @Param('id') id: string,
     @V1Body(deviceConfigurationEnvelope) body: DeviceConfigurationEnvelope,
   ): Promise<DeviceConfigurationEnvelope> {
-    await this.configuration.replace(id, body.configuration);
+    await this.configuration.replace(id, body.configuration, ctx.userId);
     return { configuration: body.configuration };
   }
 
