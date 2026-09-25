@@ -45,6 +45,13 @@ export const groupRules = (rules: AlarmRule[]): { origin: AlarmOrigin; rules: Al
   ORIGINS.map(origin => ({ origin, rules: rules.filter(rule => rule.origin === origin) })).filter(group => group.rules.length > 0);
 
 /** The always-on watch: the health loop decides it, so it has no line to cross and cannot be pointed at anything else. */
+/** An e-mail is never repeated more often than this, whatever its rule says: the server's floor for a mail. */
+const MAIL_REPEAT_FLOOR_SECONDS = 300;
+
+/** How often a rule really repeats: its own interval, or the mail floor for a rule that e-mails. */
+export const repeatsEvery = (rule: AlarmRule): number =>
+  rule.delivery.custom?.channel === 'email' ? Math.max(rule.repeatSeconds, MAIL_REPEAT_FLOOR_SECONDS) : rule.repeatSeconds;
+
 export const watchesOffline = (watch: AlarmWatch | RuleDraft['watch']): boolean => watch.kind === 'reading' && watch.metric === 'offline';
 
 /**

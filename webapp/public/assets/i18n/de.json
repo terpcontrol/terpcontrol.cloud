@@ -3504,6 +3504,7 @@
       "repeat": "Wiederholen",
       "repeatEvery": "alle",
       "repeatNote": "Solange es anhält, alle so viele Minuten; 0 sagt es einmal.",
+      "repeatNoteEmail": "Solange es anhält, alle so viele Minuten, eine E-Mail aber höchstens alle fünf; 0 schickt sie einmal.",
       "save": "Alarm speichern",
       "delete": "Alarm löschen",
       "deleteAsk": "Die Regel ist endgültig weg. Ein Alarm, den sie schon ausgelöst hat, bleibt im Posteingang.",

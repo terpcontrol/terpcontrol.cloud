@@ -23,6 +23,7 @@ import {
   groupRules,
   heldBackBy,
   missingSensor,
+  repeatsEvery,
   routedChannels,
   ruleTitle,
   type Translate,
@@ -428,7 +429,7 @@ const metaLine = (t: Translate, rule: AlarmRule, me: Me | undefined, now: DateTi
   if (!rule.enabled) parts.push(t('alarms.meta.switchedOff'));
   else if (announced && held === null) {
     parts.push(
-      rule.repeatSeconds > 0 ? t('alarms.meta.repeatsEvery', { length: durationLabel(rule.repeatSeconds) }) : t('alarms.meta.announcedOnce'),
+      rule.repeatSeconds > 0 ? t('alarms.meta.repeatsEvery', { length: durationLabel(repeatsEvery(rule)) }) : t('alarms.meta.announcedOnce'),
     );
   }
 

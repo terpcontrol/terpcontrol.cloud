@@ -7,7 +7,7 @@ import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
 import { clockLabel } from '@/screens/notifications/settings';
 import { maintenanceQuiet, parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES } from '@/ui/maintenance';
-import { levelFigure, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
+import { levelFigure, repeatsEvery, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
 import { ageAttribute, ageLabel, isAhead, silentSince, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
 import { Help } from '@/ui/Help';
@@ -343,7 +343,7 @@ const metaOf = (
     if (rule && rule.severity !== alert.severity) parts.push(t('alerts.meta.ruleNow', { severity: t(`alerts.severity.${rule.severity}`) }));
 
     const delivery = deliveryOf(alert, rule, me);
-    if (delivery === 'repeats' && rule) parts.push(t('alerts.meta.repeats', { every: spanLabel(rule.repeatSeconds) }));
+    if (delivery === 'repeats' && rule) parts.push(t('alerts.meta.repeats', { every: spanLabel(repeatsEvery(rule)) }));
     else if (delivery !== null && delivery !== 'repeats') parts.push(t(`alerts.meta.${delivery}`));
 
     if (rule && isAhead(rule.silencedUntil, now)) parts.push(t('alerts.meta.silenced', { time: clock(rule.silencedUntil!, zone) }));

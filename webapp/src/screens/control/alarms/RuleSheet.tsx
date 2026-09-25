@@ -241,7 +241,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
         {draft.severity === 'critical' ? (
           <Block label={t('alarms.sheet.repeat')}>
             <Minutes label={t('alarms.sheet.repeatEvery')} value={draft.repeatMinutes} onChange={repeatMinutes => change({ repeatMinutes })} />
-            <p className={ui.note}>{t('alarms.sheet.repeatNote')}</p>
+            <p className={ui.note}>{t(draft.tellBy === 'email' ? 'alarms.sheet.repeatNoteEmail' : 'alarms.sheet.repeatNote')}</p>
           </Block>
         ) : null}
       </div>

@@ -3508,6 +3508,7 @@
       "repeat": "Repeat",
       "repeatEvery": "every",
       "repeatNote": "While it lasts, every so many minutes; 0 says it once.",
+      "repeatNoteEmail": "While it lasts, every so many minutes, but an e-mail no more often than every five; 0 sends it once.",
       "save": "Save the alarm",
       "delete": "Delete the alarm",
       "deleteAsk": "The rule is gone for good. An alert it has already raised stays in the inbox.",

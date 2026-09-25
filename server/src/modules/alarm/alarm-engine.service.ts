@@ -37,8 +37,8 @@ const MAINTENANCE_COOLDOWN_MS = MAINTENANCE_SETTLE_SECONDS * 1000;
 /** Below this, the duration is noise against the interval a device reports at. */
 const MEANINGFUL_FOR_SECONDS = 4;
 
-/** A mail costs the reader more than a webhook does, so it has a floor its rule cannot undercut. */
-const MAIL_COOLDOWN_SECONDS = 300;
+/** A mail costs the reader more than a webhook does, so it has a floor its rule cannot undercut, for triggering and repeating alike. */
+const MAIL_FLOOR_SECONDS = 300;
 
 /** A repeat any more eager than this is a message a minute, whatever the rule says. */
 const MINIMUM_REPEAT_SECONDS = 60;
@@ -168,7 +168,7 @@ export class AlarmEngineService {
       return;
     }
 
-    const cooldownSeconds = Math.max(rule.cooldownSeconds, isMailRule(rule) ? MAIL_COOLDOWN_SECONDS : 0);
+    const cooldownSeconds = Math.max(rule.cooldownSeconds, isMailRule(rule) ? MAIL_FLOOR_SECONDS : 0);
     if (now.getTime() - (rule.state.lastTriggeredAt?.getTime() ?? 0) < cooldownSeconds * 1000) return;
 
     await this.write(rule, at, { 'state.triggered': true, 'state.extremeValue': value, 'state.lastTriggeredAt': now });
@@ -198,18 +198,21 @@ export class AlarmEngineService {
    * too kept telling everyone a rule reaches - every phone the routing grid
    * names - that something was over, every half hour for as long as nothing went
    * wrong again, which is the opposite of what "repeat while it lasts" offers.
-   * A mail is never repeated: an inbox is not a status display.
    *
-   * The heartbeat stops for a device somebody is working on, because the screens
-   * that offer the window promise that nothing is raised on it; a heartbeat a
-   * grower cannot tell apart from the alarm it carries is not the exception that
+   * A mail repeats too, as the sheet offers the repeat whoever is told, but
+   * never more often than a mail may trigger: five minutes apart at the least.
+   *
+   * The repeat stops for a device somebody is working on, because the screens
+   * that offer the window promise that nothing is raised on it; a reminder a
+   * grower cannot tell apart from the alarm it repeats is not the exception that
    * promise can afford. `evaluate()` is where that is decided, so a repeat that
    * reaches here is one the quiet does not cover.
    */
   private async repeat(rule: StoredAlarmRule, device: AlarmDevice, value: number, at: Date): Promise<void> {
     const since = rule.state.lastTriggeredAt?.getTime() ?? 0;
-    const due = since > 0 && since + rule.repeatSeconds * 1000 < Date.now();
-    if (!rule.state.triggered || isMailRule(rule) || rule.repeatSeconds < MINIMUM_REPEAT_SECONDS || !due) return;
+    const every = Math.max(rule.repeatSeconds, isMailRule(rule) ? MAIL_FLOOR_SECONDS : 0);
+    const due = since > 0 && since + every * 1000 < Date.now();
+    if (!rule.state.triggered || rule.repeatSeconds < MINIMUM_REPEAT_SECONDS || !due) return;
 
     await this.write(rule, at, { 'state.lastTriggeredAt': new Date() });
 
@@ -312,7 +315,7 @@ export class AlarmEngineService {
   }
 }
 
-/** A rule whose own delivery is a mail: the one that is never repeated and never fires twice in five minutes. */
+/** A rule whose own delivery is a mail: the one that never fires or repeats twice in five minutes. */
 const isMailRule = (rule: StoredAlarmRule): boolean => rule.delivery.mode === 'custom' && rule.delivery.custom?.channel === 'email';
 
 const subjectOf = (rule: StoredAlarmRule, device: AlarmDevice): AlertSubject => ({

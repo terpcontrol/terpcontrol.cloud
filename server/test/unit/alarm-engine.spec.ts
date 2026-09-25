@@ -272,6 +272,40 @@ describe('what keeps an alarm quiet', () => {
     expect((await storedRule()).state.lastResolvedAt).toEqual(clearedAt);
   });
 
+  it('repeats an e-mail while the alarm lasts, but never sooner than five minutes after the last one', async () => {
+    const mailRule = (lastTriggeredAt: Date) =>
+      ruleFor({
+        repeatSeconds: 60,
+        delivery: { mode: 'custom', custom: { channel: 'email', target: 'somebody@example.com', includeDetails: false, webhook: null } },
+        state: { triggered: true, lastTriggeredAt, lastResolvedAt: null, extremeValue: 32, lastSampleAt: null },
+      });
+    await device();
+    await alerts.create({
+      id: 'alert-1',
+      createdAt: new Date(),
+      ruleId: 'rule-1',
+      deviceId: DEVICE,
+      cameraId: null,
+      spaceId: SPACE,
+      kind: 'threshold',
+      severity: 'warning',
+      startedAt: new Date(Date.now() - 600_000),
+      resolvedAt: null,
+      value: 32,
+      extremeValue: 32,
+      watched: null,
+    });
+
+    await rules.create(mailRule(new Date(Date.now() - 120_000)));
+    await reads(32, new Date());
+    expect(mailed).toEqual([]);
+
+    await rules.deleteMany({});
+    await rules.create(mailRule(new Date(Date.now() - 360_000)));
+    await reads(32, new Date(Date.now() + 1_000));
+    expect(mailed).toEqual(['[TERP CONTROL] Alarm Too warm triggered for Device device-1']);
+  });
+
   it('waits out the cooldown before triggering again', async () => {
     await device();
     await rules.create(ruleFor({ cooldownSeconds: 600, state: { ...ruleFor().state, lastTriggeredAt: new Date(), lastResolvedAt: new Date() } }));
