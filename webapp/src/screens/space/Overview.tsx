@@ -165,14 +165,18 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
             // the dimmed tiles, and that sentence in the panel itself.
             label={t('space.climate24h')}
             // Charts opens from here as well as from the Timeline header: this is
-            // the section a grower is already reading the climate in.
+            // the section a grower is already reading the climate in. Only while
+            // a grow stands here, because a chart is drawn about a grow; an empty
+            // place's climate is drawn by the Timeline this section links to.
             actions={
-              <span className={`mono ${styles.sectionActions}`}>
-                <Link to={`/charts?space=${overview.spaceId}`} className={ui.headLink}>
-                  {t('charts.title')}
-                  <ChevronRight size={12} strokeWidth={2} aria-hidden />
-                </Link>
-              </span>
+              overview.grows.length > 0 ? (
+                <span className={`mono ${styles.sectionActions}`}>
+                  <Link to={`/charts?space=${overview.spaceId}`} className={ui.headLink}>
+                    {t('charts.title')}
+                    <ChevronRight size={12} strokeWidth={2} aria-hidden />
+                  </Link>
+                </span>
+              ) : undefined
             }
             link={{ to: `/spaces/${overview.spaceId}/timeline`, label: t('space.tabs.timeline') }}
           >

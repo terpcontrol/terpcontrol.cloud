@@ -119,12 +119,16 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
           </span>
         ) : null}
         {/* The way into the Charts view. It is not a tab of its own - it opens
-            on the grow standing here, and this row is where the window is
-            chosen. */}
-        <Link to={`/charts?space=${spaceId}`} className={ui.chip}>
-          <LineChart size={13} strokeWidth={1.75} aria-hidden />
-          {t('charts.title')}
-        </Link>
+            on the grow this row shows, and this row is where the window is
+            chosen. With no grow shown there is nothing for it to open on: a
+            chart is drawn about a grow, and the panels below already draw the
+            place. */}
+        {growId !== null ? (
+          <Link to={`/charts?space=${spaceId}&grow=${growId}`} className={ui.chip}>
+            <LineChart size={13} strokeWidth={1.75} aria-hidden />
+            {t('charts.title')}
+          </Link>
+        ) : null}
       </div>
       {data ? <span className={`mono ${styles.days}`}>{dayLabel(t, data)}</span> : null}
     </div>

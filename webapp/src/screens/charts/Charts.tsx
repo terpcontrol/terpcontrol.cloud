@@ -102,10 +102,11 @@ export function Charts() {
 }
 
 /**
- * A tent with a controller and nothing growing in it. The climate is there and
- * the chart is about a grow, which is a sentence and not a wall: the two ways
- * on that the tent's own page offers stand here as well, so the link the app
- * drew itself does not end in a room with one door.
+ * A tent with nothing growing in it. The app draws no link here - the Overview
+ * and the Timeline offer Charts only while a grow is shown - but an address
+ * kept from when one stood here still arrives, and it is a sentence and not a
+ * wall: the tent's Timeline, which draws its climate, and the two ways of
+ * putting a grow in stand here.
  */
 function NoGrow({ spaceId }: { spaceId: string }) {
   const { t } = useTranslation();
@@ -121,6 +122,10 @@ function NoGrow({ spaceId }: { spaceId: string }) {
       <Header spaceId={spaceId} growId={null} subject={space?.name ?? ''} />
       <p className={`${ui.cardDashed} ${ui.note}`}>{t('charts.noGrow')}</p>
       <div className={styles.chips}>
+        {/* The place's climate without a grow is what its Timeline draws. */}
+        <Link to={`/spaces/${spaceId}/timeline`} className={ui.chip}>
+          {t('space.tabs.timeline')}
+        </Link>
         {mayManage ? (
           <Link to={`/log?kind=phase&space=${spaceId}`} className={ui.chip}>
             + {t('space.newGrow')}
