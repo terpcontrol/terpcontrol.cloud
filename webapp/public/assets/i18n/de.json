@@ -1550,6 +1550,24 @@
       "plan": "Plan",
       "system": "System"
     },
+    "entryDone": {
+      "water": "hat gegossen",
+      "water_you": "hast gegossen",
+      "feed": "hat gedüngt",
+      "feed_you": "hast gedüngt",
+      "photo": "hat ein Foto gemacht",
+      "photo_you": "hast ein Foto gemacht",
+      "note": "hat eine Notiz geschrieben",
+      "note_you": "hast eine Notiz geschrieben",
+      "measurement": "hat gemessen",
+      "measurement_you": "hast gemessen",
+      "training": "hat trainiert",
+      "training_you": "hast trainiert",
+      "move": "hat umgestellt",
+      "move_you": "hast umgestellt",
+      "visit": "ist reingegangen",
+      "visit_you": "bist reingegangen"
+    },
     "alert": {
       "threshold": "Alarm",
       "offline": "Offline",

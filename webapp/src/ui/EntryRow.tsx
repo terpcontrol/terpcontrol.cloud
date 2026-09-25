@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Entry, Person, ReadingName } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { entryDetail } from '@/i18n/device-message';
-import { authorOf, headlineOf, KIND_ICON, readingFigure } from './entries';
+import { authorOf, doneByOf, headlineOf, KIND_ICON, readingFigure } from './entries';
 import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, nowThere, useZone, zoned } from './zone';
 import { Photo } from './Photo';
 import { PictureViewer } from './PictureViewer';
@@ -159,12 +159,13 @@ export function EntryRow({
   const shown = entry.mediaIds.filter(mediaId => picture(mediaId, THUMBNAIL_WIDTH.strip) !== null);
   const frames = shown.map(mediaId => picture(mediaId, THUMBNAIL_WIDTH.frame) ?? '');
 
+  const named = byline && entry.source === 'human';
   const said = (
     <>
       {/* A device, the plan or an alarm is named by its mark; a person by name. */}
-      {byline && entry.source === 'human' ? <span className={styles.author}>{authorOf(t, entry, people, user?.id)} </span> : null}
+      {named ? <span className={styles.author}>{authorOf(t, entry, people, user?.id)} </span> : null}
       {/* A person writes in lines, so the breaks they typed are kept rather than collapsed into one run-on sentence. */}
-      <span className={styles.headline}>{headlineOf(t, i18n, entry)}</span>
+      <span className={styles.headline}>{(named ? doneByOf(t, i18n, entry, entry.authorId === user?.id) : null) ?? headlineOf(t, i18n, entry)}</span>
       {repeats && repeats.count > 1 ? (
         <span className="mono">
           {' · '}

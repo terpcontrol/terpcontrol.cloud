@@ -1554,6 +1554,16 @@
       "plan": "Plan",
       "system": "System"
     },
+    "entryDone": {
+      "water": "watered",
+      "feed": "fed",
+      "photo": "took a photo",
+      "note": "wrote a note",
+      "measurement": "measured",
+      "training": "trained",
+      "move": "moved it",
+      "visit": "stepped in"
+    },
     "alert": {
       "threshold": "Alarm",
       "offline": "Offline",

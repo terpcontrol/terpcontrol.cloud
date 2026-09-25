@@ -129,6 +129,22 @@ export const headlineOf = (t: Translate, i18n: I18n, entry: Entry): string => {
 };
 
 /**
+ * What a person did, as the rest of a sentence their name opens - "you stepped
+ * in", "du bist reingegangen" - for a row that names its author first.
+ *
+ * Only where the row would otherwise say nothing but the kind: that label is a
+ * heading, capitalised and in German without its verb, and after a name it read
+ * "you Stepped in" and "du Reingegangen". Somebody's own words, a phase and a
+ * harvest already say what happened and keep saying it. German conjugates for
+ * "du", so a line of one's own asks for its own form.
+ */
+export const doneByOf = (t: Translate, i18n: I18n, entry: Entry, byYou: boolean): string | null => {
+  if (entry.source !== 'human' || entry.values.kind === 'phase' || entry.values.kind === 'harvest' || entryHeadline(i18n, entry)) return null;
+
+  return t(`home.entryDone.${entry.kind}`, { context: byYou ? 'you' : undefined, defaultValue: '' }) || null;
+};
+
+/**
  * A measured value as a grower would write it.
  *
  * A reading is typed by a person, but a change between two of them is
