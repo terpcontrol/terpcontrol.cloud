@@ -48,7 +48,7 @@ import { AuthGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { V1Query, instantQuery, pageQuery } from '@common/v1/validation';
+import { V1Query, inOrder, instantQuery, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { V1Answer } from '../answer-shape';
@@ -90,24 +90,28 @@ const many = <T>(value: T | T[]): T[] => (Array.isArray(value) ? value : [value]
  * them: the range decides it, and a client that could ask for seconds over a
  * season would only be answered a coarser one anyway.
  */
-const growSeriesQuery = z.object({
-  range: growSeriesRange,
-  metrics: z
-    .union([metric, z.array(metric)])
-    .transform(many)
-    .optional(),
-  outputs: z
-    .union([outputMetric, z.array(outputMetric)])
-    .transform(many)
-    .optional(),
-  measurements: z
-    .union([z.string(), z.array(z.string())])
-    .transform(many)
-    .optional()
-    .describe("Keys of the grow's own `measurements[]`."),
-  from: instantQuery().optional().describe('The start of a `custom` range.'),
-  to: instantQuery().optional().describe('The end of a `custom` range, and the instant a rolling one counts back from.'),
-});
+const growSeriesQuery = inOrder(
+  z.object({
+    range: growSeriesRange,
+    metrics: z
+      .union([metric, z.array(metric)])
+      .transform(many)
+      .optional(),
+    outputs: z
+      .union([outputMetric, z.array(outputMetric)])
+      .transform(many)
+      .optional(),
+    measurements: z
+      .union([z.string(), z.array(z.string())])
+      .transform(many)
+      .optional()
+      .describe("Keys of the grow's own `measurements[]`."),
+    from: instantQuery().optional().describe('The start of a `custom` range.'),
+    to: instantQuery().optional().describe('The end of a `custom` range, and the instant a rolling one counts back from.'),
+  }),
+  'from',
+  'to',
+);
 
 @ApiTags('grows')
 @Controller('v1/grows')

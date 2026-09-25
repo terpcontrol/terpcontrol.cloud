@@ -251,3 +251,40 @@ describe('refusing a caller', () => {
     expect(response.headers['content-type']).toMatch(/application\/problem\+json/);
   });
 });
+
+/**
+ * A range the wrong way round is one mistake, and every route that takes a
+ * range reports it the same way: refused, naming the end that came first.
+ * Answered, it was an empty list or an empty curve on three routes and a
+ * refusal naming the start on the fourth.
+ */
+describe('a range that ends before it begins', () => {
+  const LATER = '2026-03-20T00:00:00.000Z';
+  const EARLIER = '2026-03-10T00:00:00.000Z';
+
+  it('is refused alike wherever a range is asked for', async () => {
+    const owner = await createAccount('reversed-range');
+    const device = await provisionDevice(owner, 'controller');
+    const tent = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId;
+    const grow = (await owner.client.post('/v1/grows').send({ name: 'Backwards', type: 'photoperiod', plants: [], spaceId: tent }).expect(201)).body;
+    const camera = (
+      await owner.client.post('/v1/cameras').send({ kind: 'rtsp', spaceId: tent, name: 'Cam', url: 'rtsp://10.0.0.30:554/s' }).expect(201)
+    ).body.id;
+
+    const asked: [string, string][] = [
+      [`/v1/devices/${device.deviceId}/series?metrics=temperature&startsAt=${LATER}&endsAt=${EARLIER}`, 'endsAt'],
+      [`/v1/entries?growId=${grow.id}&startsAt=${LATER}&endsAt=${EARLIER}`, 'endsAt'],
+      [`/v1/cameras/${camera}/frames?startsAt=${LATER}&endsAt=${EARLIER}`, 'endsAt'],
+      [`/v1/cameras/${camera}/timelapses?startsAt=${LATER}&endsAt=${EARLIER}`, 'endsAt'],
+      [`/v1/grows/${grow.id}/series?range=custom&metrics=temperature&from=${LATER}&to=${EARLIER}`, 'to'],
+    ];
+
+    for (const [path, end] of asked) {
+      const refused = await owner.client.get(path).expect(400);
+      expect(refused.body).toMatchObject({ code: 'validation_failed', errors: [expect.objectContaining({ field: end })] });
+    }
+
+    // A range whose ends meet is one instant, and both ends count as inside.
+    await owner.client.get(`/v1/entries?growId=${grow.id}&startsAt=${EARLIER}&endsAt=${EARLIER}`).expect(200);
+  });
+});

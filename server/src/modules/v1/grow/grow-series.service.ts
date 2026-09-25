@@ -144,9 +144,20 @@ export class GrowSeriesService {
       return windowOf(asked.range, grant, grow, asked.to ?? new Date(Math.min(horizonOf(grow, now).getTime(), now.getTime())));
     }
 
-    if (!asked.from || !asked.to || asked.to <= asked.from) {
-      throw badRequest('range_required', 'A custom range names both of its ends, and ends after it begins.', [
-        { field: 'from', code: 'required', detail: 'Name `from` and `to`, or ask for one of the range chips instead.' },
+    // A range whose end comes before its start never gets here: the query is
+    // refused as it is read, the way every route taking a range refuses one.
+    if (!asked.from || !asked.to) {
+      throw badRequest(
+        'range_required',
+        'A custom range names both of its ends.',
+        (['from', 'to'] as const)
+          .filter(end => !asked[end])
+          .map(end => ({ field: end, code: 'required', detail: 'Name `from` and `to`, or ask for one of the range chips instead.' })),
+      );
+    }
+    if (asked.to.getTime() === asked.from.getTime()) {
+      throw badRequest('range_required', 'A custom range ends after it begins.', [
+        { field: 'to', code: 'too_small', detail: 'A chart over one instant has nothing to draw; `to` comes after `from`.' },
       ]);
     }
 

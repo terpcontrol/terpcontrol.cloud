@@ -45,7 +45,7 @@ import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { badRequest } from '@common/v1/problem';
-import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
+import { PageQuery, V1Query, inOrder, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { demoSockets } from '@utils/demo';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
@@ -75,20 +75,24 @@ const deviceListQuery = pageQuery.extend({ spaceId: z.string().optional() });
  */
 const one = <T>(value: T | T[]): T[] => (Array.isArray(value) ? value : [value]);
 
-const seriesFromQuery = seriesQuery.extend({
-  // The contract's list of metrics may be empty, and a caller that wants only
-  // what an output did - the level a dimmable light is running at - names none:
-  // a metric asked for and thrown away is a second field read off the store.
-  metrics: z
-    .union([metric, z.array(metric)])
-    .transform(one)
-    .optional(),
-  outputs: z
-    .union([outputMetric, z.array(outputMetric)])
-    .transform(one)
-    .optional(),
-  stepSeconds: z.coerce.number().int().positive().optional(),
-});
+const seriesFromQuery = inOrder(
+  seriesQuery.extend({
+    // The contract's list of metrics may be empty, and a caller that wants only
+    // what an output did - the level a dimmable light is running at - names none:
+    // a metric asked for and thrown away is a second field read off the store.
+    metrics: z
+      .union([metric, z.array(metric)])
+      .transform(one)
+      .optional(),
+    outputs: z
+      .union([outputMetric, z.array(outputMetric)])
+      .transform(one)
+      .optional(),
+    stepSeconds: z.coerce.number().int().positive().optional(),
+  }),
+  'startsAt',
+  'endsAt',
+);
 
 @ApiTags('devices')
 @Controller('v1/devices')

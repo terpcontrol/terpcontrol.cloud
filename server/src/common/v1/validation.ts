@@ -90,3 +90,22 @@ export type PageQuery = z.infer<typeof pageQuery>;
  * which the document cannot describe and which reads `1` as the year 2001.
  */
 export const instantQuery = () => z.iso.datetime().transform(value => new Date(value));
+
+/**
+ * A query whose range ends before it begins is refused, and refused the same
+ * way on every route that takes one: as `validation_failed` naming the end.
+ *
+ * Answered, it is a window nothing can fall into - an empty list, an empty
+ * curve - and read as "nothing happened then" by a client that only swapped
+ * two dates. One route refused it and the others answered it, so the same
+ * mistake came back two ways. A range whose ends meet is an instant, and both
+ * ends count as inside, so that one is answered.
+ */
+export const inOrder = <T extends z.ZodObject>(schema: T, starts: keyof z.output<T> & string, ends: keyof z.output<T> & string) =>
+  schema.refine(
+    query => {
+      const [from, to] = [(query as Record<string, unknown>)[starts], (query as Record<string, unknown>)[ends]];
+      return from === undefined || to === undefined || new Date(from as string | Date) <= new Date(to as string | Date);
+    },
+    { path: [ends], message: `\`${ends}\` comes before \`${starts}\`: a range ends after it begins.` },
+  );

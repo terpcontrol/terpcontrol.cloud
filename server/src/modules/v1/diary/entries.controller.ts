@@ -7,7 +7,7 @@ import { AuthGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
 import { AccessContext } from '@common/v1/access.types';
 import { V1Body } from '@common/zod-validation.pipe';
-import { V1Query, pageQuery } from '@common/v1/validation';
+import { V1Query, inOrder, pageQuery } from '@common/v1/validation';
 import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { V1Answer } from '../answer-shape';
 import { EntriesService } from './entries.service';
@@ -28,18 +28,22 @@ import { SHARED_READ_OPERATION } from '../../../openapi';
  * read as well as a session and never carries `log`, so a stranger holding one
  * reads the diary and cannot add to it.
  */
-const entryListQuery = pageQuery.extend({
-  growId: z.string().optional().describe('The diary of one grow.'),
-  spaceId: z.string().optional().describe('What happened in one space, its devices’ own lines included.'),
-  deviceId: z.string().optional().describe('One device’s log.'),
-  plantId: z.string().optional().describe('Everything logged about one plant.'),
-  startsAt: z.iso.datetime().optional().describe('Narrowed further where a share link allows less.'),
-  endsAt: z.iso.datetime().optional(),
-  kinds: z
-    .string()
-    .optional()
-    .describe(`Comma-separated; one or more of ${entryKind.options.join(', ')}. Absent is every kind.`),
-});
+const entryListQuery = inOrder(
+  pageQuery.extend({
+    growId: z.string().optional().describe('The diary of one grow.'),
+    spaceId: z.string().optional().describe('What happened in one space, its devices’ own lines included.'),
+    deviceId: z.string().optional().describe('One device’s log.'),
+    plantId: z.string().optional().describe('Everything logged about one plant.'),
+    startsAt: z.iso.datetime().optional().describe('Narrowed further where a share link allows less.'),
+    endsAt: z.iso.datetime().optional(),
+    kinds: z
+      .string()
+      .optional()
+      .describe(`Comma-separated; one or more of ${entryKind.options.join(', ')}. Absent is every kind.`),
+  }),
+  'startsAt',
+  'endsAt',
+);
 
 @ApiTags('diary')
 @Controller('v1/entries')
