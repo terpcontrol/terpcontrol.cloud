@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Me, NotificationChannel, TelegramLink, WebhookMethod } from '@fg2/shared-types/v1';
+import type { Me, NotificationCategory, NotificationChannel, TelegramLink, WebhookMethod } from '@fg2/shared-types/v1';
 import { useMe, useSubscribePush, useTelegramLink, useUnsubscribePush } from '@/api/account';
 import { ApiError } from '@/api/problem';
 import { Refused } from '@/ui/PageState';
@@ -34,6 +34,9 @@ interface CardProps {
 }
 
 const METHODS: WebhookMethod[] = ['GET', 'POST', 'PUT'];
+
+/** The rows whose Telegram messages take a reply into the diary. */
+const REPLYABLE: NotificationCategory[] = ['alerts', 'warnings', 'tasks'];
 
 /** The line under a card that is on: what the grid sends its way. */
 function Carries({ me, channel }: { me: Me; channel: NotificationChannel }) {
@@ -196,6 +199,9 @@ export function TelegramCard({ me, held }: CardProps) {
 
   const on = linked !== null || waiting;
   const cannot = !me.telegramAvailable;
+  // A reply becomes a diary line only under a message about an alarm or a task;
+  // the plan's questions and the weekly recap are about nothing a line can hang on.
+  const answerable = categoriesOn(me.notifications.routing, 'telegram').some(category => REPLYABLE.includes(category));
 
   const toggle = () => {
     if (linked) {
@@ -213,13 +219,18 @@ export function TelegramCard({ me, held }: CardProps) {
     <ChannelCard
       title={t('notifications.channel.telegram')}
       line={
-        cannot
-          ? t('notifications.telegram.noBot')
-          : linked
-            ? t('notifications.telegram.linked', { date: calendarDay(linked.linkedAt, zone) })
-            : waiting
-              ? t('notifications.telegram.waiting')
-              : `${t('notifications.off')} · ${t('notifications.telegram.notLinked')}`
+        cannot ? (
+          t('notifications.telegram.noBot')
+        ) : linked ? (
+          <>
+            {t('notifications.telegram.linked', { date: calendarDay(linked.linkedAt, zone) })} · <Carries me={me} channel="telegram" />
+            {answerable ? ` · ${t('notifications.telegram.replies')}` : ''}
+          </>
+        ) : waiting ? (
+          t('notifications.telegram.waiting')
+        ) : (
+          `${t('notifications.off')} · ${t('notifications.telegram.notLinked')}`
+        )
       }
       on={on}
       disabled={held || cannot || link.isPending}

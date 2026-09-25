@@ -3705,7 +3705,8 @@
       "otherDevice": "subscribed on another device"
     },
     "telegram": {
-      "linked": "linked {{date}} · alarms, weekly recap, log by replying",
+      "linked": "linked {{date}}",
+      "replies": "a reply to an alarm or a task goes into the diary",
       "notLinked": "not linked",
       "noBot": "this install has no Telegram bot",
       "waiting": "open the link in Telegram to finish linking",

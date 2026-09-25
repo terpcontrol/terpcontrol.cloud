@@ -429,11 +429,39 @@ describe('linking Telegram', () => {
     expect(server.patched).toHaveLength(0);
   });
 
+  /**
+   * What a linked chat is sent is the grid's, not a fixed list: the card named
+   * alarms and the weekly recap on an account that routed neither to Telegram.
+   * Replying writes to the diary only under an alarm or a task, so that is said
+   * only where one of those rows goes there.
+   */
+  const chat = { chatId: '42', linkedAt: '2026-09-01T10:00:00.000Z' };
+
+  it('says what the grid sends the chat, and that a reply to an alarm is logged', async () => {
+    server.me = me({
+      channels: { email: null, telegram: chat, webhook: null },
+      routing: { alerts: ['telegram'], warnings: [], tasks: [], plan: [], weekly_timelapse: ['telegram'] },
+    });
+    await drawLoaded();
+
+    expect(screen.getByText(/^linked .* · critical and weekly recap · a reply to an alarm or a task goes into the diary$/)).toBeInTheDocument();
+  });
+
+  it('promises no logging by reply where nothing sent there can take one', async () => {
+    server.me = me({
+      channels: { email: null, telegram: chat, webhook: null },
+      routing: { alerts: [], warnings: [], tasks: [], plan: ['telegram'], weekly_timelapse: [] },
+    });
+    await drawLoaded();
+
+    expect(screen.getByText(/^linked .* · plan asks$/)).toBeInTheDocument();
+  });
+
   it('asks before unlinking a chat, and only then writes null', async () => {
     server.me = me({ channels: { email: null, telegram: { chatId: '42', linkedAt: '2026-09-01T10:00:00.000Z' }, webhook: null } });
     await drawLoaded();
 
-    expect(screen.getByText(/^linked .* · alarms, weekly recap, log by replying$/)).toBeInTheDocument();
+    expect(screen.getByText(/^linked .* · nothing routed here yet$/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('switch', { name: 'Telegram' }));
     expect(server.patched).toHaveLength(0);
 

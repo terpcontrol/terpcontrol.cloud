@@ -3701,7 +3701,8 @@
       "otherDevice": "auf einem anderen Gerät angemeldet"
     },
     "telegram": {
-      "linked": "verknüpft {{date}} · Alarme, Wochenrückblick, Tagebuch per Antwort",
+      "linked": "verknüpft {{date}}",
+      "replies": "eine Antwort auf einen Alarm oder eine Aufgabe kommt ins Tagebuch",
       "notLinked": "nicht verknüpft",
       "noBot": "diese Installation hat keinen Telegram-Bot",
       "waiting": "den Link in Telegram öffnen, um die Verknüpfung abzuschließen",
