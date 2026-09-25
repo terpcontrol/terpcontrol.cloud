@@ -3107,6 +3107,7 @@
     "testing": "Reading…",
     "testWorked": "Taken. It is the newest picture of the day.",
     "testFailed": "That did not reach the camera.",
+    "testNoAnswer": "No answer after two minutes. If the camera still sends the picture, it appears here.",
     "thisCamera": "This camera",
     "connectedVia": "Connected via",
     "reachedAt": "Reached at",

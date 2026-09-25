@@ -23,6 +23,19 @@ import { PAGE_LIMIT } from './pages';
  */
 export const CAMERAS_REFRESH_MS = 30_000;
 
+/**
+ * How long a test picture is waited for. The server's longest honest answer to
+ * a Terp Cam is its whole direct path - rendezvous, login and transfer, 48 s -
+ * followed by the controller's 30 s, and it may queue behind a read the poller
+ * is making. Abandoned at the 30 s every other request gets, the press said the
+ * camera was never reached while the server was still reading it, and the
+ * picture landed a minute later.
+ */
+const CAPTURE_WAIT_MS = 120_000;
+
+/** Whether a call was given up on by this side rather than answered by the other. */
+export const gaveUp = (error: unknown): boolean => error instanceof DOMException && error.name === 'TimeoutError';
+
 /** A render is minutes of ffmpeg, so the job is polled rather than waited for. */
 export const RENDER_POLL_MS = 5_000;
 
@@ -263,7 +276,7 @@ export const useTestCapture = (cameraId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => api.post<TestCaptureAnswer>(`/cameras/${cameraId}/test-captures`),
+    mutationFn: () => api.post<TestCaptureAnswer>(`/cameras/${cameraId}/test-captures`, undefined, CAPTURE_WAIT_MS),
     onSuccess: () =>
       void queryClient.invalidateQueries({
         predicate: query => {
@@ -276,7 +289,7 @@ export const useTestCapture = (cameraId: string) => {
 
 /** A picture from a camera named as the request is made, for the same reason `useAmendCamera` exists. */
 export const useCaptureOnce = () =>
-  useMutation({ mutationFn: (cameraId: string) => api.post<TestCaptureAnswer>(`/cameras/${cameraId}/test-captures`) });
+  useMutation({ mutationFn: (cameraId: string) => api.post<TestCaptureAnswer>(`/cameras/${cameraId}/test-captures`, undefined, CAPTURE_WAIT_MS) });
 
 /**
  * The composer, and the four one-tap buttons above it. The answer is the media

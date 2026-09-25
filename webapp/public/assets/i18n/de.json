@@ -3103,6 +3103,7 @@
     "testing": "Wird gelesen…",
     "testWorked": "Aufgenommen. Es ist das neueste Bild des Tages.",
     "testFailed": "Das hat die Kamera nicht erreicht.",
+    "testNoAnswer": "Nach zwei Minuten keine Antwort. Schickt die Kamera das Bild doch noch, erscheint es hier.",
     "thisCamera": "Diese Kamera",
     "connectedVia": "Verbunden über",
     "reachedAt": "Erreichbar unter",

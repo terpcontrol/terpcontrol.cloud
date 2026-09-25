@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
-import { useCamera, useCameraFrames, useLatestStills, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
+import { gaveUp, useCamera, useCameraFrames, useLatestStills, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
 import { useSpaceGrows } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
@@ -492,7 +492,7 @@ function TestImage({ cameraId, mayOwn }: { cameraId: string; mayOwn: boolean }) 
       </button>
       {test.error ? (
         <span className={styles.testWhy} role="alert">
-          {refusalText(test.error, t('camera.testFailed'))}
+          {gaveUp(test.error) ? t('camera.testNoAnswer') : refusalText(test.error, t('camera.testFailed'))}
         </span>
       ) : test.data?.succeeded ? (
         <span className={`mono ${styles.testWorked}`} role="status">

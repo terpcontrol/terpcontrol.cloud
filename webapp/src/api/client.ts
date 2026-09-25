@@ -25,6 +25,8 @@ export interface RequestOptions {
   query?: Query;
   body?: unknown;
   signal?: AbortSignal;
+  /** For the one call that is known to take longer than every other. */
+  timeoutMs?: number;
 }
 
 const withQuery = (path: string, query: Query | undefined): string => {
@@ -49,11 +51,12 @@ const send = async (path: string, options: RequestOptions, token: string | null)
   // browser's own clock. It costs a pair of local readings around a call that
   // is being made anyway.
   const sentAt = Date.now();
+  const timeout = options.timeoutMs ?? REQUEST_TIMEOUT_MS;
   const response = await fetch(v1(withQuery(path, options.query)), {
     method: options.method ?? 'GET',
     headers,
     body: options.body === undefined ? undefined : form ? (options.body as FormData) : JSON.stringify(options.body),
-    signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]) : AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(timeout)]) : AbortSignal.timeout(timeout),
   });
   noteServerDate(response.headers.get('date'), sentAt, Date.now());
 
@@ -97,7 +100,7 @@ export async function apiBlob(path: string): Promise<Blob> {
 
 export const api = {
   get: <T>(path: string, query?: Query, signal?: AbortSignal) => apiRequest<T>(path, { query, signal }),
-  post: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: 'POST', body }),
+  post: <T>(path: string, body?: unknown, timeoutMs?: number) => apiRequest<T>(path, { method: 'POST', body, timeoutMs }),
   /** A picture on its way to the diary: multipart, and not JSON. */
   upload: <T>(path: string, form: FormData) => apiRequest<T>(path, { method: 'POST', body: form }),
   patch: <T>(path: string, body: unknown) => apiRequest<T>(path, { method: 'PATCH', body }),

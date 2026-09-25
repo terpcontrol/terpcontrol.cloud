@@ -50,6 +50,8 @@ const state = vi.hoisted(() => ({
   askedForDay: null as { startsAt: string; endsAt: string } | null,
   /** What the test button's press answered, which is a picture or a reason and never an error. */
   capture: null as { succeeded: boolean; mediaId: string | null; capturedAt: string | null; error: string | null } | null,
+  /** A press that got no answer at all. */
+  captureError: null as unknown,
 }));
 
 /**
@@ -82,7 +84,7 @@ vi.mock('@/api/cameras', async importOriginal => ({
 
     return { data: state.frames, isPending: false, isError: false, refetch: () => (state.readAgain += 1) };
   },
-  useTestCapture: () => ({ mutate: () => {}, data: state.capture ?? undefined, error: null, isPending: false }),
+  useTestCapture: () => ({ mutate: () => {}, data: state.capture ?? undefined, error: state.captureError, isPending: false }),
   useRequestTimelapse: () => ({ mutate: (body: TimelapseCreate) => state.asked.push(body), error: null, isPending: false }),
   useTimelapses: () => ({
     data: { pages: [{ items: state.films, nextCursor: state.moreFilms ? 'cursor' : null }] },
@@ -192,6 +194,7 @@ beforeEach(() => {
   state.askedForDay = null;
   state.lastStill = null;
   state.capture = null;
+  state.captureError = null;
 });
 
 describe('the composer', () => {
@@ -387,6 +390,22 @@ describe('the camera page, by who is reading', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('the camera stopped the capture');
     expect(screen.getByText('What the camera said')).toBeInTheDocument();
     expect(screen.getByText('device aborted the capture')).toBeInTheDocument();
+  });
+
+  /**
+   * The server can take well over half a minute to read a Terp Cam, and this
+   * side giving up is not the camera being out of reach: the press said "That
+   * did not reach the camera" while the server was still reading it.
+   */
+  it('says that nothing has answered yet where this side gave up, and that the camera was not reached only where it was not', () => {
+    state.captureError = new DOMException('signal timed out', 'TimeoutError');
+    const drawn = drawPage();
+    expect(screen.getByRole('alert')).toHaveTextContent('No answer after two minutes. If the camera still sends the picture, it appears here.');
+    drawn.unmount();
+
+    state.captureError = new TypeError('Failed to fetch');
+    drawPage();
+    expect(screen.getByRole('alert')).toHaveTextContent('That did not reach the camera.');
   });
 
   it('gives a co-manager the kind of failure and not the words that name the hardware', () => {
