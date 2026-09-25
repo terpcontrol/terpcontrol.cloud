@@ -2842,7 +2842,7 @@
         "until": "This link works until {{date}}",
         "accept": "Join {{name}}",
         "signIn": "Sign in to join",
-        "needAnAccount": "You need an account of your own: an e-mail address and a password, and no name.",
+        "needAnAccount": "You need an account of your own: an e-mail address, a username and a password.",
         "demo": "The demo has no account of its own, so it cannot take an invitation up. Sign out and sign in with your own account to join.",
         "dead": {
           "title": "This invitation leads nowhere",
@@ -2882,7 +2882,7 @@
           "week": "7 days",
           "never": "until revoked"
         },
-        "needAccount": "They need their own account (e-mail and password, no name required).",
+        "needAccount": "They need their own account (e-mail, username and password).",
         "sees": "They see: {{what}}.",
         "seesRoom": "They see: every space in {{name}}, what is growing there, and the cams.",
         "whatGrows": "what is growing in it",

@@ -2838,7 +2838,7 @@
         "until": "Dieser Link gilt bis {{date}}",
         "accept": "{{name}} beitreten",
         "signIn": "Zum Beitreten anmelden",
-        "needAnAccount": "Du brauchst ein eigenes Konto: eine E-Mail-Adresse und ein Passwort, keinen Namen.",
+        "needAnAccount": "Du brauchst ein eigenes Konto: eine E-Mail-Adresse, einen Benutzernamen und ein Passwort.",
         "demo": "Die Demo hat kein eigenes Konto und kann eine Einladung deshalb nicht annehmen. Melde dich ab und mit deinem eigenen Konto wieder an.",
         "dead": {
           "title": "Diese Einladung führt nirgendwohin",
@@ -2878,7 +2878,7 @@
           "week": "7 Tage",
           "never": "bis zum Zurückziehen"
         },
-        "needAccount": "Sie brauchen ein eigenes Konto (E-Mail und Passwort, kein Name nötig).",
+        "needAccount": "Sie brauchen ein eigenes Konto (E-Mail, Benutzername und Passwort).",
         "sees": "Sie sehen: {{what}}.",
         "seesRoom": "Sie sehen: jeden Bereich in {{name}}, was darin wächst, und die Kameras.",
         "whatGrows": "was darin wächst",
