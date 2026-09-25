@@ -2386,7 +2386,7 @@
       "rename": "Umbenennen",
       "actionsLabel": "Was mit dieser Pflanze geschieht",
       "move": "Diese Pflanze umziehen",
-      "split": "In eigenen Grow abspalten",
+      "split": "Vom Rest abspalten",
       "harvest": "Diese Pflanze ernten",
       "renameTitle": "{{label}} umbenennen",
       "label": "Bezeichnung",

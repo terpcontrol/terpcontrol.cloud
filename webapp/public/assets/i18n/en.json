@@ -2390,7 +2390,7 @@
       "rename": "Rename",
       "actionsLabel": "What happens to this plant",
       "move": "Move this plant",
-      "split": "Split into own grow",
+      "split": "Split off from the rest",
       "harvest": "Harvest this plant",
       "renameTitle": "Rename {{label}}",
       "label": "Label",
