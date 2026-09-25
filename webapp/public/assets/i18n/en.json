@@ -3577,7 +3577,7 @@
     },
     "edit": "Edit",
     "add": "+ Reminder · every N days · once · chore",
-    "sources": "Sources: watering rhythm, feeding scheme, grow plan, chores, plan suggestions. A task done here writes the diary entry with the same defaults as the Log sheet.",
+    "sources": "Sources: your reminders – watering, feeding, chores and your own – and grow-plan steps waiting to be confirmed. A task done here writes the diary entry with the same defaults as the Log sheet.",
     "sheet": {
       "newTitle": "New reminder",
       "editTitle": "Reminder",

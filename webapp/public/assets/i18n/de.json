@@ -3573,7 +3573,7 @@
     },
     "edit": "Ändern",
     "add": "+ Erinnerung · alle N Tage · einmalig · Routine",
-    "sources": "Quellen: Gießrhythmus, Düngeplan, Grow-Plan, Routinen, Plan-Vorschläge. Eine hier erledigte Aufgabe schreibt die Tagebuchzeile mit denselben Vorgaben wie das Eintrag-Sheet.",
+    "sources": "Quellen: deine Erinnerungen – Gießen, Düngen, Routinen und eigene – sowie Schritte des Grow-Plans, die auf Bestätigung warten. Eine hier erledigte Aufgabe schreibt die Tagebuchzeile mit denselben Vorgaben wie das Eintrag-Sheet.",
     "sheet": {
       "newTitle": "Neue Erinnerung",
       "editTitle": "Erinnerung",
