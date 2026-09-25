@@ -1,15 +1,20 @@
 import { Camera, Droplet, Leaf, Pencil, Ruler, Timer, type LucideIcon } from 'lucide-react';
 import type { DateTime } from 'luxon';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Entry, GrowCard, GrowthStage, HomeSpaceCard, Person } from '@fg2/shared-types/v1';
+import { useRecentEntries, writeEntry } from '@/api/entries';
+import { useHome } from '@/api/home';
 import { THUMBNAIL_WIDTH, useSession, mediaUrl } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { authorOf, headlineOf } from '@/ui/entries';
 import { quietMinutes, VISIT_MINUTES } from '@/ui/maintenance';
 import { STAGES } from '@/ui/stages';
+import { lastCan } from '@/log/defaults';
+import { lineLabel, oneTapBody } from '@/log/lines';
 import { useLog, useMayLog, type TileKind } from '@/log/log-context';
+import { openingTarget, targetsOf } from '@/log/targets';
 import { MoveHereSheet } from '@/screens/space/MoveHereSheet';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -56,7 +61,7 @@ export function GrowHalf({ card, people, now, headed, compact }: GrowHalfProps) 
         <DiaryActions grow={grow} />
       ) : (
         <div className={styles.actions}>
-          <LogAction kind="water" growId={grow.growId} Icon={Droplet} labelKey="home.actions.water" primary />
+          <WaterNow growId={grow.growId} primary />
           <LogAction kind="note" growId={grow.growId} Icon={Pencil} labelKey="home.actions.note" />
           <LogAction kind="photo" growId={grow.growId} Icon={Camera} labelKey="home.actions.photo" />
         </div>
@@ -282,6 +287,43 @@ function LogAction({
   );
 }
 
+/**
+ * The card's Water, which is the Log sheet's Water tile: one tap writes the can
+ * poured last time, the toast offers Undo and Details, and nothing opens first.
+ * A button with the tile's name and icon that opened the form instead was the
+ * same action behaving two ways. The line is aimed exactly as the sheet would
+ * aim it at this grow, and the button waits until the last can has been read,
+ * because the tap writes that figure.
+ */
+function WaterNow({ growId, primary = false }: { growId: string; primary?: boolean }) {
+  const { t } = useTranslation();
+  const { log } = useLog();
+  const mayLog = useMayLog();
+  const { data: home } = useHome();
+  const target = useMemo(() => openingTarget(targetsOf(home), { growId }, null).target, [home, growId]);
+  const { data: recent, isLoading } = useRecentEntries(growId, target?.spaceId ?? null);
+
+  if (!mayLog) return null;
+
+  const water = () => {
+    if (!target) return;
+    const litres = lastCan(recent?.items ?? [], 'water');
+    log({ label: lineLabel(t, 'water', target), details: { kind: 'water', target }, send: () => writeEntry(oneTapBody('water', target, litres)) });
+  };
+
+  return (
+    <button
+      type="button"
+      className={[ui.button, primary ? ui.primary : ui.quiet, styles.action].join(' ')}
+      disabled={!target || isLoading}
+      onClick={water}
+    >
+      <Droplet size={16} strokeWidth={1.75} aria-hidden />
+      {t('home.actions.water')}
+    </button>
+  );
+}
+
 /** What a device-only tent offers: a picture, a note, a quarter hour of presence. */
 export function DeviceActions({ card }: { card: HomeSpaceCard }) {
   return (
@@ -303,7 +345,7 @@ export function DeviceActions({ card }: { card: HomeSpaceCard }) {
 export function DiaryActions({ grow }: { grow: GrowCard }) {
   return (
     <div className={styles.actions}>
-      <LogAction kind="water" growId={grow.growId} Icon={Droplet} labelKey="home.actions.water" />
+      <WaterNow growId={grow.growId} />
       <LogAction kind="photo" growId={grow.growId} Icon={Camera} labelKey="home.actions.photo" />
       <LogAction kind="measurement" growId={grow.growId} Icon={Ruler} labelKey="home.actions.reading" />
     </div>
