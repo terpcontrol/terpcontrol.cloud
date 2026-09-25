@@ -3,6 +3,7 @@ import type { DeviceConfiguration, DeviceSettings, GrowthStage } from '@fg2/shar
 import { climatePreset, PRESETS_OF_STAGE, STAGES_WITH_CLIMATE, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { serverNow } from '@/api/clock';
+import { oClock } from '@/ui/age';
 import { figureOf, sectionOf } from '@/ui/climate-hardware';
 import { CLOCK } from '@/ui/zone';
 
@@ -194,5 +195,5 @@ export const lightWindowLabel = (draft: TargetsDraft, now: DateTime = serverNow(
   const off = there(midnight.plus({ seconds: draft.lightsOn + Math.round(draft.lightHours * HOUR_SECONDS) }));
   const format = on.minute === 0 && off.minute === 0 ? 'HH' : CLOCK;
 
-  return `${on.toFormat(format)}–${off.toFormat(format)} h`;
+  return `${on.toFormat(format)}–${off.toFormat(format)} ${oClock()}`;
 };

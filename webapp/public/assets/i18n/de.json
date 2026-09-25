@@ -3671,7 +3671,7 @@
       "temperature": "°C",
       "humidity": "%",
       "percent": "%",
-      "hours": "h",
+      "hours": "Std",
       "co2": "ppm"
     },
     "planRunning": "Speichern pausiert den laufenden Plan, der sonst innerhalb einer Stunde seine eigenen Zielwerte zurücksetzen würde.",
@@ -4193,7 +4193,8 @@
     "s": "s",
     "min": "Min",
     "h": "Std",
-    "d": "T"
+    "d": "T",
+    "oClock": "Uhr"
   },
   "problem": {
     "status": {

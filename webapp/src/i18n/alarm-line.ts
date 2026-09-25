@@ -73,14 +73,22 @@ const thresholdLine = (i18n: I18n, param: string, triggered: boolean): string | 
   return parts.join(' · ');
 };
 
+/**
+ * The server writes a span in English symbols - "5 d 10 h", "3 h 20 min" - and
+ * the rest of the app writes each unit in the reader's own (`units.*`), so a
+ * German diary read "5 d 10 h" under an alert card saying "vor 5 T".
+ */
+const spanIn = (i18n: I18n, span: string): string =>
+  span.replace(/(\d+) (s|min|h|d)\b/g, (_, figure: string, unit: string) => `${figure} ${i18n.t(`units.${unit}`, { defaultValue: unit })}`);
+
 const silenceLine = (i18n: I18n, param: string, triggered: boolean): string | null => {
   if (triggered) {
     const silent = SILENT.exec(param);
-    return silent ? `${ruleName(i18n, silent[1])} · ${i18n.t('alarmLine.silentFor', { span: silent[2] })}` : null;
+    return silent ? `${ruleName(i18n, silent[1])} · ${i18n.t('alarmLine.silentFor', { span: spanIn(i18n, silent[2]) })}` : null;
   }
 
   const after = BACK_AFTER.exec(param);
-  if (after) return `${ruleName(i18n, after[1])} · ${i18n.t('alarmLine.backAfter', { span: after[2] })}`;
+  if (after) return `${ruleName(i18n, after[1])} · ${i18n.t('alarmLine.backAfter', { span: spanIn(i18n, after[2]) })}`;
 
   const back = BACK.exec(param);
   return back ? `${ruleName(i18n, back[1])} · ${i18n.t('alarmLine.back')}` : null;

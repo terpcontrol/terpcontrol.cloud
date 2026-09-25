@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import type { CardTrend } from '@fg2/shared-types/v1';
+import { durationFigure } from '@/ui/age';
 import styles from './Sparkline.module.css';
 
 interface SparklineProps {
@@ -87,7 +88,7 @@ export function Sparkline({ trend, setpoint, label }: SparklineProps) {
           <span className={styles.now} style={{ left: '100%', top: `${(y(now) / HEIGHT) * 100}%` }} aria-hidden />
         ) : null}
       </div>
-      <span className={`mono ${styles.caption}`}>24 h</span>
+      <span className={`mono ${styles.caption}`}>{durationFigure(24, 'h')}</span>
     </div>
   );
 }

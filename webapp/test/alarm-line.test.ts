@@ -44,8 +44,8 @@ describe('an alarm line', () => {
   });
 
   it('says a silence as how long it had lasted when the alarm was raised, not as an age that stops counting', async () => {
-    expect(alarmLineText(i18next, 'Device offline, last heard 5 d 6 h ago', true)).toBe('Gerät offline · 5 d 6 h ohne Meldung');
-    expect(alarmLineText(i18next, 'Device offline, back after 3 h 20 min', false)).toBe('Gerät offline · wieder da nach 3 h 20 min');
+    expect(alarmLineText(i18next, 'Device offline, last heard 5 d 6 h ago', true)).toBe('Gerät offline · 5 T 6 Std ohne Meldung');
+    expect(alarmLineText(i18next, 'Device offline, back after 3 h 20 min', false)).toBe('Gerät offline · wieder da nach 3 Std 20 Min');
 
     await i18next.changeLanguage('en');
     expect(alarmLineText(i18next, 'Device offline, last heard 5 d 6 h ago', true)).toBe('Device offline · silent for 5 d 6 h');

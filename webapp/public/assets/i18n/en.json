@@ -4189,7 +4189,8 @@
     "s": "s",
     "min": "min",
     "h": "h",
-    "d": "d"
+    "d": "d",
+    "oClock": "h"
   },
   "problem": {
     "status": {
