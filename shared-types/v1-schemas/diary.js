@@ -712,9 +712,10 @@ exports.shareLinkCreate = (0, common_js_1.named)('ShareLinkCreate', exports.shar
 /**
  * `PATCH /share-links/{id}`: what may still be changed once a link is out of the
  * house. Not `kind` and not `subject`: the address is in somebody else's hands,
- * and repointing it would show them something they were never sent. Narrowing
- * the range or taking the cameras back out is what this is for; ending the link
- * altogether is `PUT /share-links/{id}/revocation`.
+ * and repointing it would show them something they were never sent. The range,
+ * the cameras and the expiry can each be changed, wider as well as narrower;
+ * ending the link altogether is `PUT /share-links/{id}/revocation`, and only a
+ * link that has stopped may then be deleted.
  */
 exports.shareLinkUpdate = (0, common_js_1.named)('ShareLinkUpdate', exports.shareLinkCreate.omit({ kind: true, subject: true }).partial());
 // ---------------------------------------------------------------------------

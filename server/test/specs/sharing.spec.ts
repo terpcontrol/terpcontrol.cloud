@@ -109,6 +109,7 @@ describe('making a link', () => {
       })
       .expect(201);
 
+    await owner.client.put(`/v1/share-links/${made.body.id}/revocation`).expect(200);
     await owner.client.delete(`/v1/share-links/${made.body.id}`).expect(204);
   });
 
@@ -368,9 +369,14 @@ describe('a link that is already out of the house', () => {
     await anonymous().get(`/v1/shared/${link.token}`).expect(404);
   });
 
-  it('is deleted outright where somebody wants it forgotten', async () => {
+  it('is forgotten only once it has stopped, so a working key never drops off the list', async () => {
     const link = await aLink();
 
+    const refused = await owner.client.delete(`/v1/share-links/${link.id}`).expect(409);
+    expect(refused.body.code).toBe('share_link_live');
+    await anonymous().get(`/v1/shared/${link.token}`).expect(200);
+
+    await owner.client.put(`/v1/share-links/${link.id}/revocation`).expect(200);
     await owner.client.delete(`/v1/share-links/${link.id}`).expect(204);
     await owner.client.delete(`/v1/share-links/${link.id}`).expect(404);
     await anonymous().get(`/v1/shared/${link.token}`).expect(404);

@@ -25,10 +25,12 @@ import styles from './ShareSheet.module.css';
  * and on again brings back the same one.
  *
  * A **link** is a key handed to one person: a window of days, with or without
- * the camera's pictures, and an end date if it should have one. It can be
- * narrowed after it has left the house but never repointed, and ending it is
- * not deleting it - a link that was sent out and is regretted is revoked, and
- * stays listed with the instant it stopped working on it.
+ * the camera's pictures, and an end date if it should have one. Its window,
+ * pictures and expiry can be changed after it has left the house - wider as
+ * well as narrower - but it is never repointed. Ending it is not deleting it: a
+ * link that was sent out and is regretted is revoked, and stays listed with the
+ * instant it stopped working on it. Only a link that has already stopped can be
+ * forgotten, so no working key disappears from this list while it still opens.
  */
 export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () => void }) {
   const { t } = useTranslation();
@@ -135,7 +137,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
 function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
   const { t } = useTranslation();
   const zone = useZone();
-  const [narrowing, setNarrowing] = useState(false);
+  const [changing, setChanging] = useState(false);
   const update = useUpdateShareLink();
   const revoke = useRevokeShareLink();
   const remove = useDeleteShareLink();
@@ -152,7 +154,7 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
 
       <p className={`mono ${styles.linkMeta}`}>{describe(t, link, now, zone)}</p>
 
-      {narrowing ? (
+      {changing ? (
         <Editor
           busy={update.isPending}
           error={update.error}
@@ -163,22 +165,22 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
             includeCameras: link.includeCameras,
           }}
           submitLabel={t('sharing.save')}
-          onCancel={() => setNarrowing(false)}
+          onCancel={() => setChanging(false)}
           onSubmit={draft =>
             update.mutate(
               {
                 id: link.id,
                 body: { range: rangeOf(draft, zone), includeCameras: draft.includeCameras, expiresAt: instantOf(draft.expires, 'end', zone) },
               },
-              { onSuccess: () => setNarrowing(false) },
+              { onSuccess: () => setChanging(false) },
             )
           }
         />
       ) : (
         <div className={styles.linkActions}>
           {dead ? null : (
-            <button type="button" className={ui.chip} onClick={() => setNarrowing(true)}>
-              {t('sharing.narrow')}
+            <button type="button" className={ui.chip} onClick={() => setChanging(true)}>
+              {t('sharing.change')}
             </button>
           )}
           {link.revokedAt === null ? (
@@ -186,9 +188,11 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
               {t('sharing.revoke')}
             </button>
           ) : null}
-          <button type="button" className={`${ui.chip} ${styles.forget}`} disabled={remove.isPending} onClick={() => remove.mutate(link.id)}>
-            {t('sharing.forget')}
-          </button>
+          {dead ? (
+            <button type="button" className={`${ui.chip} ${styles.forget}`} disabled={remove.isPending} onClick={() => remove.mutate(link.id)}>
+              {t('sharing.forget')}
+            </button>
+          ) : null}
         </div>
       )}
 
@@ -208,7 +212,7 @@ interface Draft {
 const EMPTY: Draft = { from: '', to: '', expires: '', includeCameras: false };
 
 /**
- * The four things a link carries, used both to make one and to narrow one that
+ * The four things a link carries, used both to make one and to change one that
  * is already out. What it points at is not among them on purpose: the address
  * is in somebody else's hands, and repointing it would show them something they
  * were never sent.

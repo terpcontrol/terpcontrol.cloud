@@ -18,7 +18,7 @@ import { ShareLinksService } from './share-links.service';
  * of them can declare its need with the guard: the subject is inside the link
  * and is only known once it has been read. The service asks `access()` about
  * that subject instead, and it asks for `own` - making a key to somebody's
- * diary, narrowing it and ending it are the owner's.
+ * diary, changing it and ending it are the owner's.
  *
  * The token is on the wire here, because handing the link out is the point of
  * it. It is never on the wire through the link.
@@ -45,7 +45,7 @@ export class ShareLinksController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Narrow a link that is already out of the house' })
+  @ApiOperation({ summary: 'Change a link that is already out of the house' })
   @V1Answer(shareLinkShape)
   public update(@Caller() ctx: AccessContext, @Param('id') id: string, @V1Body(shareLinkUpdate) body: ShareLinkUpdate): Promise<ShareLink> {
     return this.links.update(ctx, id, body);
@@ -61,8 +61,8 @@ export class ShareLinksController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Forget a link ever existed' })
-  @ApiNoContentResponse({ description: 'The link is gone from the list and stops resolving.' })
+  @ApiOperation({ summary: 'Forget a link that has stopped' })
+  @ApiNoContentResponse({ description: 'The link is gone from the list. A link that still works is refused with 409: it is revoked first.' })
   public remove(@Caller() ctx: AccessContext, @Param('id') id: string): Promise<void> {
     return this.links.remove(ctx, id);
   }

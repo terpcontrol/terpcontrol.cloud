@@ -131,7 +131,7 @@ describe('the share sheet', () => {
     expect(screen.getByText(/from 1 Sep 2026 · with pictures · opened 3× · last 2 h ago · runs out 10 Oct 2026/)).toBeInTheDocument();
   });
 
-  it('keeps a revoked link listed with the day it stopped, and offers neither its address nor a way to narrow it', () => {
+  it('keeps a revoked link listed with the day it stopped, and offers neither its address nor a way to change it', () => {
     links.items = [link({ revokedAt: '2026-09-17T12:00:00.000Z', includeCameras: false })];
     draw();
 
@@ -139,19 +139,30 @@ describe('the share sheet', () => {
     expect(row).toHaveAttribute('data-dead', 'true');
     expect(row).toHaveTextContent('revoked 17 Sep 2026');
     expect(within(row).queryByRole('button', { name: 'Copy the link' })).not.toBeInTheDocument();
-    expect(within(row).queryByRole('button', { name: 'Narrow' })).not.toBeInTheDocument();
+    expect(within(row).queryByRole('button', { name: 'Change' })).not.toBeInTheDocument();
     expect(within(row).queryByRole('button', { name: 'Revoke' })).not.toBeInTheDocument();
   });
 
-  it('ends a link where it stands, and forgetting one is a second, separate thing', () => {
+  it('ends a link where it stands, and offers no way to forget one that still works', () => {
     draw();
 
+    expect(screen.queryByRole('button', { name: 'Forget' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
     expect(calls.revoked).toEqual(['link-1']);
     expect(calls.removed).toEqual([]);
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Forget' }));
-    expect(calls.removed).toEqual(['link-1']);
+  it('forgets a link only once it has stopped, revoked or run out', () => {
+    links.items = [
+      link({ revokedAt: '2026-09-17T12:00:00.000Z' }),
+      link({ id: 'link-2', token: 'ranout', expiresAt: NOW.minus({ days: 2 }).toISO()! }),
+    ];
+    draw();
+
+    const forget = screen.getAllByRole('button', { name: 'Forget' });
+    expect(forget).toHaveLength(2);
+    forget.forEach(button => fireEvent.click(button));
+    expect(calls.removed).toEqual(['link-1', 'link-2']);
   });
 
   /**
@@ -195,16 +206,16 @@ describe('the share sheet', () => {
     links.items = [link({ range: { startsAt: '2026-08-31T22:00:00.000Z', endsAt: '2026-09-23T21:59:59.999Z' } })];
     draw();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Narrow' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
 
     expect((screen.getByLabelText(/^From/, { selector: 'input' }) as HTMLInputElement).value).toBe('2026-09-01');
     expect((screen.getByLabelText(/^To/, { selector: 'input' }) as HTMLInputElement).value).toBe('2026-09-23');
   });
 
-  it('narrows a link by its window and its pictures, and never by what it points at', () => {
+  it('changes a link by its window and its pictures, and never by what it points at', () => {
     draw();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Narrow' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
     expect(screen.getAllByLabelText(/From|To|Expires/, { selector: 'input' })).toHaveLength(3);
     expect(screen.getByRole('switch', { name: 'Camera pictures' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.queryByText('Spring run', { selector: 'select' })).not.toBeInTheDocument();

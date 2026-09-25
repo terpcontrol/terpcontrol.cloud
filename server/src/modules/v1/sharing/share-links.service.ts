@@ -7,7 +7,7 @@ import type { ShareLink, ShareLinkCreate, ShareLinkUpdate, TimeRange } from '@fg
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
-import { forbidden, notFound, unprocessable } from '@common/v1/problem';
+import { conflict, forbidden, notFound, unprocessable } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
@@ -136,8 +136,9 @@ export class ShareLinksService {
   }
 
   /**
-   * Narrowing a link that is already out of the house: the window, the pictures
-   * and when it stops working. Not what it points at - the address is in
+   * Changing a link that is already out of the house: the window, the pictures
+   * and when it stops working, wider as well as narrower - the owner may hand
+   * the same reader more as readily as less. Not what it points at - the address is in
    * somebody else's hands, and repointing it would show them something they were
    * never sent - which is what `ShareLinkUpdate` leaves out.
    */
@@ -177,9 +178,18 @@ export class ShareLinksService {
     return serialise(changed);
   }
 
-  /** Deleting takes the row with it. A link that was sent out and is regretted is revoked instead. */
-  public async remove(ctx: AccessContext, id: string): Promise<void> {
-    await this.require(ctx, id);
+  /**
+   * Deleting takes the row with it, and only once the link has stopped. A link
+   * that still opens is a key in somebody else's hands, and forgetting it would
+   * end it and erase the record that it was ever sent in one move - so it is
+   * revoked first, which dates the end, and only then taken off the list.
+   */
+  public async remove(ctx: AccessContext, id: string, now: Date = new Date()): Promise<void> {
+    const link = await this.require(ctx, id);
+    if (link.revokedAt === null && (link.expiresAt === null || link.expiresAt.getTime() > now.getTime())) {
+      throw conflict('share_link_live', 'This link still works. Revoke it first; a link that has stopped can then be taken off the list.');
+    }
+
     await this.shareLinks.deleteOne({ id });
   }
 

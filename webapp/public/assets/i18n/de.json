@@ -3348,7 +3348,7 @@
     "newLink": "Neuer Link",
     "createLink": "Link erstellen",
     "noLinks": "Keine Links vergeben",
-    "narrow": "Einengen",
+    "change": "Ändern",
     "revoke": "Zurückziehen",
     "forget": "Löschen",
     "save": "Speichern",
@@ -4426,8 +4426,8 @@
       "text": "Unter dieser Adresse kann jede:r das Tagebuch ohne Konto lesen – die Phasen, die Wochenkarten mit ihren Fotos und die Bilder der Kamera. Die Adresse entsteht aus dem Namen des Grows und ist deshalb kein Geheimnis; ausgeschaltet ist die Seite sofort weg."
     },
     "linkActions": {
-      "title": "Einengen, zurückziehen, löschen",
-      "text": "„Einengen“ ändert Tage, Bilder und Ablauf eines Links – erweitern geht damit auch. „Zurückziehen“ macht die Adresse sofort ungültig und lässt sie in dieser Liste; „Löschen“ entfernt sie, und ein Link, der noch ging, geht dann auch nicht mehr. Beides lässt sich nicht rückgängig machen."
+      "title": "Ändern, zurückziehen, löschen",
+      "text": "„Ändern“ setzt Tage, Bilder und Ablauf eines Links neu – weiter wie enger – und behält seine Adresse. „Zurückziehen“ macht die Adresse sofort ungültig und lässt sie mit dem Tag, an dem sie aufhörte, in dieser Liste. „Löschen“ erscheint, sobald ein Link nicht mehr geht, zurückgezogen oder abgelaufen, und nimmt ihn aus der Liste. Beides lässt sich nicht rückgängig machen."
     },
     "shareWindow": {
       "title": "Ab, bis, läuft ab",

@@ -3352,7 +3352,7 @@
     "newLink": "New link",
     "createLink": "Create link",
     "noLinks": "No links handed out",
-    "narrow": "Narrow",
+    "change": "Change",
     "revoke": "Revoke",
     "forget": "Forget",
     "save": "Save",
@@ -4430,8 +4430,8 @@
       "text": "Anybody can read the diary at this address without an account – the phases, the week cards with their photos and the camera's pictures. The address is made from the grow's name, so it is not a secret; switching the page off takes it down at once."
     },
     "linkActions": {
-      "title": "Narrow, revoke, forget",
-      "text": "Narrow changes a link's days, pictures and expiry – it can widen them as well. Revoke stops the address working at once and keeps it in this list; Forget deletes it, and a link that still worked stops too. Neither can be undone."
+      "title": "Change, revoke, forget",
+      "text": "Change sets a link's days, pictures and expiry anew – wider as well as narrower – and keeps its address. Revoke stops the address working at once and keeps it in this list with the day it stopped. Forget appears once a link has stopped, revoked or run out, and takes it off the list. Neither can be undone."
     },
     "shareWindow": {
       "title": "From, to, expires",
