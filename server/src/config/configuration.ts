@@ -78,18 +78,15 @@ export const authConfig = registerAs('auth', () => ({
 
 export const terpCamConfig = registerAs('terpcam', () => ({
   /**
-   * The controller-relay path: the controller opens a TCP connection to
-   * `relayListenPort` and bridges the camera's P2P over it, so the cloud runs the
-   * P2P client and pulls a full-resolution still. `relayHost`/`relayPort` are what
-   * a controller is told to connect to; the port must be published by the host and
-   * reachable from the customer's network (the same host the device already reaches
-   * for MQTT). 0 / empty host disables the path, and the controller takes the
-   * (smaller) still itself. The defaults and the host fallback live in
-   * docker-compose.yaml, not here.
+   * The controller-relay path: a controller is told to connect to
+   * `relayHost:relayPort` and bridges the camera's P2P over that connection, so the
+   * cloud runs the P2P client and pulls a full-resolution still. The server listens
+   * on the same port number the host publishes. 0 / empty host disables the path,
+   * and the controller takes the (smaller) still itself. The defaults and the host
+   * fallback live in docker-compose.yaml, not here.
    */
-  relayListenPort: number(process.env.TERPCAM_RELAY_PORT, 0),
   relayHost: (process.env.TERPCAM_RELAY_HOST ?? '').trim(),
-  relayPort: number(process.env.TERPCAM_RELAY_PORT_EXTERNAL, number(process.env.TERPCAM_RELAY_PORT, 0)),
+  relayPort: number(process.env.TERPCAM_RELAY_PORT_EXTERNAL, 0),
 }));
 
 export const configNamespaces = [appConfig, databaseConfig, influxConfig, mqttConfig, mailConfig, authConfig, terpCamConfig];

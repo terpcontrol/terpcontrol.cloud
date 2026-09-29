@@ -50,7 +50,7 @@ type RelaySocketLike = {
   close(): Promise<void>;
 };
 
-const RELAY_CONFIG = { relayListenPort: 32250, relayHost: 'relay.invalid', relayPort: 32250 };
+const RELAY_CONFIG = { relayHost: 'relay.invalid', relayPort: 32250 };
 
 function serviceFor(publish: (topic: string, message: string) => boolean = () => true): TerpCamDirectService {
   const devices = {

@@ -16,7 +16,7 @@ import { TerpCamService } from './terpcam.service';
  * Terp Cam stills, fetched by the server itself over the camera's P2P protocol,
  * through the controller.
  *
- * The controller (on the camera's LAN) opens a plain TCP connection to this
+ * The controller (on the camera's LAN) opens a TCP connection to this
  * server and bridges the camera's P2P UDP over it; this service runs the whole
  * P2P client across that bridge and reassembles the still. Full resolution comes
  * from the main video stream: `snapshot.cgi` renders from the MJPEG encoder and
@@ -286,7 +286,6 @@ export class RelayUnavailableError extends Error {}
 @Injectable()
 export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicationShutdown {
   /** The controller-relay path: where controllers connect, and what they are told. */
-  private readonly relayListenPort: number;
   private readonly relayHost: string;
   private readonly relayPort: number;
   private readonly relayEnabled: boolean;
@@ -310,10 +309,9 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     private readonly mqtt: MqttClientService,
     @Inject(terpCamConfig.KEY) config: ConfigType<typeof terpCamConfig>,
   ) {
-    this.relayListenPort = config.relayListenPort;
     this.relayHost = config.relayHost;
     this.relayPort = config.relayPort;
-    this.relayEnabled = this.relayListenPort > 0 && !!this.relayHost && this.relayPort > 0;
+    this.relayEnabled = !!this.relayHost && this.relayPort > 0;
   }
 
   public onApplicationBootstrap(): void {
@@ -324,8 +322,8 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
       this.relayFailed = true;
       logger.error(`[terpcam] relay listener failed, controllers take their own stills: ${err}`);
     });
-    server.listen(this.relayListenPort, '0.0.0.0', () => {
-      logger.info(`[terpcam] controller relay listening on ${this.relayListenPort}, controllers told to reach ${this.relayHost}:${this.relayPort}`);
+    server.listen(this.relayPort, '0.0.0.0', () => {
+      logger.info(`[terpcam] controller relay listening on ${this.relayPort}, controllers told to reach ${this.relayHost}:${this.relayPort}`);
     });
     this.relayServer = server;
   }

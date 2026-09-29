@@ -821,7 +821,7 @@ namespace fg {
       uint8_t     key[32];   // controller->cloud, then cloud->controller
     };
 
-    // A raw-socket bridge between the camera's P2P UDP on the LAN and a plain TCP
+    // A raw-socket bridge between the camera's P2P UDP on the LAN and an enciphered TCP
     // connection to the cloud. The cloud runs the whole P2P client (discovery
     // aside), so the controller neither authenticates nor assembles anything —
     // it only shovels datagrams. That is the point: the full-resolution keyframe

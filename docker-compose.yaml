@@ -119,25 +119,13 @@ services:
         condition: service_started
     ports:
       - ${API_PORT_EXTERNAL}:8081
-      # TCP port the Terp Cam controller relay listens on. The controller dials in
-      # from the customer's network and bridges the camera's P2P over it, so this
-      # must be published and reachable at TERPCAM_RELAY_HOST. Host and container
-      # port match, so the controller reaches the port it is told to.
-      - ${TERPCAM_RELAY_PORT_EXTERNAL:-32250}:${TERPCAM_RELAY_PORT:-32250}/tcp
+      - ${TERPCAM_RELAY_PORT_EXTERNAL:-32250}:${TERPCAM_RELAY_PORT_EXTERNAL:-32250}/tcp
     networks:
       - main
     environment:
       SECRET_KEY: ${TOKEN_SECRET_KEY}
       PORT: 8081
       API_URL_EXTERNAL: ${API_URL_EXTERNAL}
-      # Controller relay, on by default. TERPCAM_RELAY_PORT is the port the server
-      # listens on inside the container and is published on the host (kept equal so
-      # the controller reaches the port it is told to); TERPCAM_RELAY_HOST is the
-      # host a controller dials, falling back to MQTT_HOST_EXTERNAL — the host the
-      # device already reaches for MQTT, which is the right answer for any normal
-      # deployment. Only an unset TERPCAM_RELAY_HOST falls back: set to an empty
-      # value it turns the relay off, and each controller takes its own still.
-      TERPCAM_RELAY_PORT: ${TERPCAM_RELAY_PORT:-32250}
       TERPCAM_RELAY_HOST: ${TERPCAM_RELAY_HOST-${MQTT_HOST_EXTERNAL:-}}
       TERPCAM_RELAY_PORT_EXTERNAL: ${TERPCAM_RELAY_PORT_EXTERNAL:-32250}
       DB_HOST: "mongodb"
