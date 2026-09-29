@@ -302,6 +302,14 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
       return still;
     } catch (e) {
       if (state) state.failures++;
+      // When the direct path is the controller relay, the controller-snapshot
+      // fallback cannot help: the controller is the very thing bridging the relay
+      // and stands its own capture down while it does, so a 640x360 request would
+      // only time out. Fail the poll instead and let the next one retry at full
+      // resolution — the relay already retries a few times internally.
+      if (this.terpCamDirect.usesRelay) {
+        throw new Error(`direct capture failed (${(e as Error).message}); retrying full-resolution next poll`);
+      }
       const exhausted = !state || (!state.succeeded && state.failures >= TERPCAM_DIRECT_FAILURES_BEFORE_FALLBACK);
       if (!alwaysAllowController && !exhausted) {
         throw new Error(`direct capture failed (${(e as Error).message}); keeping the full-resolution path`);

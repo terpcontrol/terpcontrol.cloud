@@ -2576,6 +2576,16 @@ void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {
     const std::string cam_url = sanitizeSettingString(fg::settings().getStr(TERP_CAM_URL_NVS_KEY));
     cloud->log("hardware-info:webcam_url=" +
                ((!cam_url.empty() && cam_url.size() < 200) ? cam_url : std::string("none")), 0);
+    // The password the camera was secured with. Only ever set at securing time
+    // until now, so a controller that secured a camera before this line existed
+    // (or whose report the cloud lost) left the cloud unable to authenticate to
+    // the camera itself. Reporting it on every boot heals that. Empty means the
+    // camera is still on the manufacturer default; hardware-info is stored
+    // against the device, never written into the diary the user reads.
+    const std::string cam_pwd = sanitizeSettingString(fg::settings().getStr(fg::TERP_CAM_PWD_NVS_KEY));
+    if(!cam_pwd.empty() && cam_pwd.size() < 64) {
+      cloud->log("hardware-info:webcam_pwd=" + cam_pwd, 0);
+    }
   }
 }
 
@@ -2767,6 +2777,17 @@ bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
     if(!terpCamCapture(cloud) && cloud) {
       cloud->log("message-aux-command-failed:cam_capture", 1);
     }
+    return true;
+  }
+
+  if(command["action"] == std::string("cam_relay")) {
+    // Bridge the camera's P2P to a TCP connection to the cloud so the cloud pulls
+    // the full-resolution still itself. Runs in its own task (terpCamStartRelay)
+    // and returns at once, so a held session does not block the control loop.
+    const std::string host = command["host"] | "";
+    const uint16_t port = (uint16_t)(command["port"] | 0);
+    const std::string token = command["token"] | "";
+    terpCamStartRelay(cloud, host, port, token);
     return true;
   }
 

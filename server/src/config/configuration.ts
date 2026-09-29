@@ -96,6 +96,17 @@ export const terpCamConfig = registerAs('terpcam', () => ({
    */
   portsStart: number(process.env.TERPCAM_P2P_PORTS_START, 32200),
   portsEnd: number(process.env.TERPCAM_P2P_PORTS_END, 32209),
+  /**
+   * The controller-relay path (docs §option 3): the controller opens a plain TCP
+   * connection to this port and bridges the camera's P2P to it, so the cloud runs
+   * the P2P client and pulls a full-resolution still without the manufacturer's
+   * rendezvous. 0 disables it. `relayHost`/`relayPort` are what a controller is
+   * told to connect to; the port must be published by the host and reachable from
+   * the customer's network (the same host the device already reaches for MQTT).
+   */
+  relayListenPort: number(process.env.TERPCAM_RELAY_PORT, 0),
+  relayHost: (process.env.TERPCAM_RELAY_HOST ?? process.env.MQTT_HOST_EXTERNAL ?? '').trim(),
+  relayPort: number(process.env.TERPCAM_RELAY_PORT_EXTERNAL, number(process.env.TERPCAM_RELAY_PORT, 0)),
 }));
 
 export const configNamespaces = [appConfig, databaseConfig, influxConfig, mqttConfig, mailConfig, authConfig, terpCamConfig];
