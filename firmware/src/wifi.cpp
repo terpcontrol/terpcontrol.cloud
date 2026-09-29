@@ -1214,7 +1214,7 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   if(smart_socket_cloud_handle != nullptr) {
     smart_socket_cloud_handle->log("message-terp-cam-connected", 0);
     smart_socket_cloud_handle->log(std::string("hardware-info:webcam_did=") + did, 0);
-    if(!uid.empty()) smart_socket_cloud_handle->log("hardware-info:webcam_uid=" + uid, 0);
+    smart_socket_cloud_handle->log("hardware-info:webcam_uid=" + (uid.empty() ? std::string("none") : uid), 0);
   }
 
   emit_status("cam configured");
@@ -2573,6 +2573,11 @@ void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {
     const std::string cam_ip = sanitizeSettingString(fg::settings().getStr(TERP_CAM_IP_NVS_KEY));
     cloud->log("hardware-info:webcam_ip=" +
                ((!cam_ip.empty() && cam_ip.size() < 40) ? cam_ip : std::string("none")), 0);
+    // The camera's P2P id. The controller relays the camera to the cloud only
+    // once it knows it, so the cloud asks for a relay only while this is set.
+    const std::string cam_uid = sanitizeSettingString(fg::settings().getStr(TERP_CAM_UID_NVS_KEY));
+    cloud->log("hardware-info:webcam_uid=" +
+               ((!cam_uid.empty() && cam_uid.size() < 40) ? cam_uid : std::string("none")), 0);
     // legacy: also surface a stored RTSP url if one was configured before
     const std::string cam_url = sanitizeSettingString(fg::settings().getStr(TERP_CAM_URL_NVS_KEY));
     cloud->log("hardware-info:webcam_url=" +

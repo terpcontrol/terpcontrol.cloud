@@ -426,12 +426,17 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
    * from the device record on every capture. Its hardware-info reports are
    * written there before anything else sees them, so it is never behind them,
    * and a password that arrives before the camera's id is not lost.
+   *
+   * Only a camera whose P2P id the device has reported counts: the controller
+   * relays nothing until it knows the id, so asking without one would only wait
+   * out the dial-in.
    */
   private async cameraFor(deviceId: string): Promise<Camera | null> {
     const device = await this.devices.findOne({ device_id: deviceId });
     const info = device?.hardwareInfo;
     const label = info?.webcam_did;
-    if (!label || label === 'none') return null;
+    const uid = info?.webcam_uid;
+    if (!label || label === 'none' || !uid || uid === 'none') return null;
     return { label, password: info.webcam_pwd || undefined };
   }
 

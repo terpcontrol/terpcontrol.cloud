@@ -118,6 +118,16 @@ describe('a controller that does not open the relay', () => {
   });
 });
 
+it('leaves a camera whose P2P id the controller has not reported to the controller', async () => {
+  // The controller relays nothing until it knows the id, so asking would only
+  // wait out the dial-in. The device simulator's camera is one of these.
+  for (const webcam_uid of [undefined, 'none']) {
+    const devices = { findOne: async () => ({ hardwareInfo: { webcam_did: PAIRED, webcam_uid } }) };
+    const service = new TerpCamDirectService(devices as never, {} as never, { publish: () => true } as never, RELAY_CONFIG as never);
+    await expect(service.canReachCamera(DEVICE)).resolves.toBe(false);
+  }
+});
+
 it('runs one capture per device however many callers ask at once', async () => {
   const service = serviceFor();
   let finish: (still: Buffer) => void = () => undefined;
