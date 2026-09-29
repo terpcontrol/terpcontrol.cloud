@@ -119,13 +119,10 @@ services:
         condition: service_started
     ports:
       - ${API_PORT_EXTERNAL}:8081
-      # UDP ports the Terp Cam client binds, which have to be published: the
-      # camera's first reply comes from a port we never sent to, so the bridge
-      # has no state for it and drops it unless the port is forwarded in.
-      - ${TERPCAM_P2P_PORTS_EXTERNAL_START:-32200}-${TERPCAM_P2P_PORTS_EXTERNAL_END:-32209}:${TERPCAM_P2P_PORTS_EXTERNAL_START:-32200}-${TERPCAM_P2P_PORTS_EXTERNAL_END:-32209}/udp
-      # TCP port the controller relay listens on (docs §option 3). The controller
-      # dials in from the customer's network, so it must be published and reachable
-      # at TERPCAM_RELAY_HOST. Host and container port match, like the UDP range.
+      # TCP port the Terp Cam controller relay listens on. The controller dials in
+      # from the customer's network and bridges the camera's P2P over it, so this
+      # must be published and reachable at TERPCAM_RELAY_HOST. Host and container
+      # port match, so the controller reaches the port it is told to.
       - ${TERPCAM_RELAY_PORT_EXTERNAL:-32250}:${TERPCAM_RELAY_PORT:-32250}/tcp
     networks:
       - main
@@ -133,19 +130,16 @@ services:
       SECRET_KEY: ${TOKEN_SECRET_KEY}
       PORT: 8081
       API_URL_EXTERNAL: ${API_URL_EXTERNAL}
-      # Same numbers as the published range above: both sides must match.
-      TERPCAM_P2P_PORTS_START: ${TERPCAM_P2P_PORTS_EXTERNAL_START:-32200}
-      TERPCAM_P2P_PORTS_END: ${TERPCAM_P2P_PORTS_EXTERNAL_END:-32209}
-      TERPCAM_RENDEZVOUS_HOSTS: ${TERPCAM_RENDEZVOUS_HOSTS:-}
-      # A stack hosted alongside its cameras is reachable at MQTT_HOST_EXTERNAL,
-      # so that is the default. Only a private address is ever advertised.
-      TERPCAM_ADVERTISE_ADDRESS: ${TERPCAM_ADVERTISE_ADDRESS:-${MQTT_HOST_EXTERNAL:-}}
-      # Controller relay: the port to listen on, and the host:port a controller is
-      # told to dial (reachable from the customer's network — the host it already
-      # reaches for MQTT). 0/unset disables the relay path.
-      TERPCAM_RELAY_PORT: ${TERPCAM_RELAY_PORT:-0}
+      # Controller relay, on by default. TERPCAM_RELAY_PORT is the port the server
+      # listens on inside the container and is published on the host (kept equal so
+      # the controller reaches the port it is told to); TERPCAM_RELAY_HOST is the
+      # host a controller dials, falling back to MQTT_HOST_EXTERNAL — the host the
+      # device already reaches for MQTT, which is the right answer for any normal
+      # deployment. Clearing TERPCAM_RELAY_HOST (no MQTT host either) is what turns
+      # the relay off, and the controller then takes the smaller snapshot itself.
+      TERPCAM_RELAY_PORT: ${TERPCAM_RELAY_PORT:-32250}
       TERPCAM_RELAY_HOST: ${TERPCAM_RELAY_HOST:-${MQTT_HOST_EXTERNAL:-}}
-      TERPCAM_RELAY_PORT_EXTERNAL: ${TERPCAM_RELAY_PORT_EXTERNAL:-}
+      TERPCAM_RELAY_PORT_EXTERNAL: ${TERPCAM_RELAY_PORT_EXTERNAL:-32250}
       DB_HOST: "mongodb"
       DB_PORT: "27017"
       DB_DATABASE: ${MONGODB_DATABASE}

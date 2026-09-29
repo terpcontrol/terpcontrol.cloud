@@ -77,35 +77,18 @@ export const authConfig = registerAs('auth', () => ({
 }));
 
 export const terpCamConfig = registerAs('terpcam', () => ({
-  /** The manufacturer's lookup servers: configuration, never addresses in source. */
-  rendezvousHosts: (process.env.TERPCAM_RENDEZVOUS_HOSTS ?? '')
-    .split(',')
-    .map(host => host.trim())
-    .filter(Boolean),
   /**
-   * Address to tell a camera on this network to punch at. Only a private one is
-   * used - announcing a public address stops the camera punching at all - which
-   * the service checks; a hosted stack correctly advertises nothing.
-   */
-  advertiseAddress: (process.env.TERPCAM_ADVERTISE_ADDRESS ?? '').trim(),
-  /**
-   * UDP ports bound for captures, inclusive. One is held per camera served, so
-   * the width of the range is how many cameras this server can reach at once.
-   * It must be the range the host publishes: the camera answers to the port it
-   * saw.
-   */
-  portsStart: number(process.env.TERPCAM_P2P_PORTS_START, 32200),
-  portsEnd: number(process.env.TERPCAM_P2P_PORTS_END, 32209),
-  /**
-   * The controller-relay path (docs §option 3): the controller opens a plain TCP
-   * connection to this port and bridges the camera's P2P to it, so the cloud runs
-   * the P2P client and pulls a full-resolution still without the manufacturer's
-   * rendezvous. 0 disables it. `relayHost`/`relayPort` are what a controller is
-   * told to connect to; the port must be published by the host and reachable from
-   * the customer's network (the same host the device already reaches for MQTT).
+   * The controller-relay path: the controller opens a plain TCP connection to
+   * `relayListenPort` and bridges the camera's P2P over it, so the cloud runs the
+   * P2P client and pulls a full-resolution still. `relayHost`/`relayPort` are what
+   * a controller is told to connect to; the port must be published by the host and
+   * reachable from the customer's network (the same host the device already reaches
+   * for MQTT). 0 / empty host disables the path, and the controller takes the
+   * (smaller) still itself. The defaults and the host fallback live in
+   * docker-compose.yaml, not here.
    */
   relayListenPort: number(process.env.TERPCAM_RELAY_PORT, 0),
-  relayHost: (process.env.TERPCAM_RELAY_HOST ?? process.env.MQTT_HOST_EXTERNAL ?? '').trim(),
+  relayHost: (process.env.TERPCAM_RELAY_HOST ?? '').trim(),
   relayPort: number(process.env.TERPCAM_RELAY_PORT_EXTERNAL, number(process.env.TERPCAM_RELAY_PORT, 0)),
 }));
 

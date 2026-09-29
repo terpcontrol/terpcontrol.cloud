@@ -17,6 +17,13 @@ describe('checkStatusReply', () => {
     expect(checkStatusReply(reply, PAIRED)).toBe('ours');
   });
 
+  it('reads realdeviceid past the unrelated support_vuid flag', () => {
+    // The accepted reply carries `support_vuid=1` and `vuidResult=0` before the
+    // real id; a bare `vuid=` search would latch onto the "1" and call it foreign.
+    const reply = 'result= 0;var support_vuid=1;var realdeviceid="AAC4004902SCAQ";var vuidResult=0;';
+    expect(checkStatusReply(reply, PAIRED)).toBe('ours');
+  });
+
   it('tells a refused password from a wrong camera', () => {
     expect(checkStatusReply('result=-1;vuid=AAC4004902SCAQ;', PAIRED)).toBe('refused');
     expect(checkStatusReply('result=-1;vuid=AAC2852199TWVA;', PAIRED)).toBe('foreign');
@@ -44,11 +51,11 @@ describe('a camera that refused the server', () => {
     service = new TerpCamDirectService(
       devices as never,
       {} as never,
+      { publish: () => true } as never,
       {
-        rendezvousHosts: ['rendezvous.invalid'],
-        advertiseAddress: '',
-        portsStart: 0,
-        portsEnd: 0,
+        relayListenPort: 32250,
+        relayHost: 'relay.invalid',
+        relayPort: 32250,
       } as never,
     );
     session = jest.fn<Internals['session']>().mockRejectedValue(new CameraRefusedError('UID belongs to a different camera'));

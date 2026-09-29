@@ -26,7 +26,7 @@ type WebcamPollerInternals = {
   readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string, alwaysAllowController?: boolean): Promise<Buffer>;
 };
 
-let direct: { canReachCamera: jest.Mock<() => Promise<boolean>>; captureStill: jest.Mock<() => Promise<Buffer>> };
+let direct: { usesRelay: boolean; canReachCamera: jest.Mock<() => Promise<boolean>>; captureStill: jest.Mock<() => Promise<Buffer>> };
 let controller: { captureViaController: jest.Mock<() => Promise<Buffer>> };
 let service: WebcamPollerInternals;
 
@@ -44,6 +44,7 @@ const directFails = () => direct.captureStill.mockRejectedValueOnce(new Error('n
 
 beforeEach(() => {
   direct = {
+    usesRelay: false,
     canReachCamera: jest.fn<() => Promise<boolean>>().mockResolvedValue(true),
     captureStill: jest.fn<() => Promise<Buffer>>().mockResolvedValue(DIRECT_STILL),
   };
@@ -151,4 +152,19 @@ it('falls back on the first failure for a device no pass has seen yet', async ()
   directFails();
 
   await expect(poll('never-polled')).resolves.toBe(CONTROLLER_STILL);
+});
+
+it('never downgrades to the controller snapshot while the relay is the direct path', async () => {
+  // The relay IS the controller, bridging; asking it for a 640x360 snapshot at the
+  // same time only times out. A failed relay capture is retried next poll instead.
+  direct.usesRelay = true;
+  seenBy('an online device');
+  directFails();
+  directFails();
+  directFails();
+
+  await expect(poll()).rejects.toThrow('retrying full-resolution next poll');
+  await expect(poll()).rejects.toThrow('retrying full-resolution next poll');
+  await expect(poll()).rejects.toThrow('retrying full-resolution next poll');
+  expect(controller.captureViaController).not.toHaveBeenCalled();
 });

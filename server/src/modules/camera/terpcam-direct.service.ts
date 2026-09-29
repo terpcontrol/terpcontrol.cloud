@@ -1,4 +1,3 @@
-import dgram from 'node:dgram';
 import net from 'node:net';
 import { EventEmitter } from 'node:events';
 import { randomBytes } from 'node:crypto';
@@ -14,15 +13,17 @@ import { MqttClientService } from '../mqtt/mqtt-client.service';
 import { TerpCamService } from './terpcam.service';
 
 /**
- * Terp Cam stills, fetched by the server itself over the camera's P2P protocol.
+ * Terp Cam stills, fetched by the server itself over the camera's P2P protocol,
+ * through the controller.
  *
- * The camera is found through the manufacturer's rendezvous (once per session,
- * not per image) and the session is then held open. Full resolution comes from
- * the main video stream: `snapshot.cgi` renders from the MJPEG encoder and is
- * pinned at 640x360 on this firmware, while the stream carries 2304x1296.
+ * The controller (on the camera's LAN) opens a plain TCP connection to this
+ * server and bridges the camera's P2P UDP over it; this service runs the whole
+ * P2P client across that bridge and reassembles the still. Full resolution comes
+ * from the main video stream: `snapshot.cgi` renders from the MJPEG encoder and
+ * is pinned at 640x360 on this firmware, while the stream carries 2304x1296.
  *
- * With no rendezvous configured the server reaches no camera itself and every
- * capture is relayed by its controller instead (terpcam-p2p.service).
+ * With no relay configured the server reaches no camera itself and every capture
+ * is taken by the controller instead (terpcam-p2p.service, the smaller image).
  *
  * The protocol was reverse engineered from the vendor SDK; the notes are kept
  * internally, not in this repository.
@@ -49,9 +50,6 @@ const SBOX = Buffer.from([
   0xea,0x63,0x7d,0x16,0xb6,0x8e,0xd4,0x68,0x35,0xc3,0x52,0x9d,0x46,0x44,0x1e,0x17,
 ]);
 const DK = [44, 212, 96, 6];
-
-const RENDEZVOUS_PORTS = [32100, 32101, 32102];
-const RENDEZVOUS_MS = 20_000;
 
 /** Manufacturer default, for cameras paired before per-camera passwords, or reset since. */
 const DEFAULT_PASSWORD = '888888';
@@ -87,9 +85,9 @@ type Endpoint = { address: string; port: number };
 type Inbox = { message: Buffer; from: Endpoint }[];
 type Camera = { label: string; uid?: string; password?: string };
 /**
- * The slice of dgram.Socket the P2P client uses. A real UDP socket (rendezvous
- * path) and a RelaySocket (controller-relay path) both satisfy it, so login and
- * readKeyframe work over either unchanged.
+ * The dgram-style slice the P2P client uses, satisfied by the RelaySocket the
+ * controller bridge provides. Kept as an interface so login and readKeyframe
+ * neither know nor care how the datagrams get to the camera.
  */
 type P2PSocket = {
   send(msg: Buffer, port?: number, address?: string, cb?: (err?: Error | null) => void): void;
@@ -220,22 +218,6 @@ function buildAck(channel: number, index: number): Buffer {
   return buildPacket(0xd1, body);
 }
 
-/** `VSTH581824TJXUG` / `VSTH-581824-TJXUG` -> the 20-byte packed wire form. */
-export function packDeviceId(uid: string): Buffer {
-  const plain = uid.replace(/-/g, '');
-  const prefix = plain.slice(0, 4);
-  const suffix = plain.slice(-5);
-  const number = plain.slice(4, -5);
-  if (!/^[A-Za-z]{4}$/.test(prefix) || !/^\d+$/.test(number)) {
-    throw new Error(`not a P2P device id: ${uid}`);
-  }
-  const out = Buffer.alloc(20);
-  out.write(prefix, 0, 'latin1');
-  out.writeBigUInt64BE(BigInt(number), 4);
-  out.write(suffix, 12, 'latin1');
-  return out;
-}
-
 /**
  * Which camera answered a `get_status.cgi`, and whether it took the password.
  * Every reply names the camera's printed id (the controller's `webcam_did`):
@@ -261,59 +243,8 @@ export function checkStatusReply(text: string, label: string): StatusVerdict {
 /** Thrown when a camera must not be asked again for a while; see REFUSED_BACKOFF_MS. */
 export class CameraRefusedError extends Error {}
 
-/** The inclusive range of UDP ports to bind, ignoring a range that makes no sense. */
-function portRange(from: number, to: number): number[] {
-  if (!Number.isInteger(from) || from <= 0 || from > 65535) return [];
-  const last = Number.isInteger(to) && to >= from && to <= 65535 ? to : from;
-  return Array.from({ length: last - from + 1 }, (_, index) => from + index);
-}
-
-/** RFC1918, i.e. an address that only means something on our own network. */
-function isPrivate(address: string): boolean {
-  return /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(address);
-}
-
-/**
- * Our own address on the route to `host`, if private. Asked of the routing table
- * rather than picking the first private interface, because a developer machine
- * has several (VM bridges, second NIC) and only one that reaches the camera.
- */
-function routableAddress(host: string): Promise<string | null> {
-  return new Promise(resolve => {
-    const probe = dgram.createSocket('udp4');
-    const done = (address: string | null) => {
-      try {
-        probe.close();
-      } catch {
-        /* already closed */
-      }
-      resolve(address);
-    };
-    probe.once('error', () => done(null));
-    // A connected UDP socket sends nothing; it just fixes the source address.
-    probe.connect(32100, host, () => {
-      const address = probe.address()?.address ?? null;
-      done(address && isPrivate(address) ? address : null);
-    });
-  });
-}
-
-/** Wire addresses are `u16 family, u16 port (BE), u32 ip (LE)`. */
-function parseAddress(body: Buffer, offset = 0): Endpoint | null {
-  if (body.length < offset + 8) return null;
-  const port = body.readUInt16BE(offset + 2);
-  const ip = [body[offset + 7], body[offset + 6], body[offset + 5], body[offset + 4]].join('.');
-  if (!port || ip.startsWith('0.')) return null;
-  return { address: ip, port };
-}
-
 @Injectable()
 export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicationShutdown {
-  /** The lookup servers, the address advertised to a camera, and the ports held. */
-  private readonly rendezvousHosts: string[];
-  private readonly advertiseAddress: string | null;
-  private readonly p2pPorts: number[];
-
   /** The controller-relay path: where controllers connect, and what they are told. */
   private readonly relayListenPort: number;
   private readonly relayHost: string;
@@ -329,9 +260,6 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     private readonly mqtt: MqttClientService,
     @Inject(terpCamConfig.KEY) config: ConfigType<typeof terpCamConfig>,
   ) {
-    this.rendezvousHosts = config.rendezvousHosts;
-    this.advertiseAddress = config.advertiseAddress && isPrivate(config.advertiseAddress) ? config.advertiseAddress : null;
-    this.p2pPorts = portRange(config.portsStart, config.portsEnd);
     this.relayListenPort = config.relayListenPort;
     this.relayHost = config.relayHost;
     this.relayPort = config.relayPort;
@@ -437,9 +365,9 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
   private cameras = new Map<string, Camera>();
 
   /**
-   * One live session per camera, held between captures — that is what keeps the
-   * rendezvous to once per session rather than once per image. Caching the
-   * punched address instead does not work: each session gets a different port.
+   * At most one live session per camera. The relay path opens a fresh one per
+   * still and closes it right after (capture()), so this mostly holds a session
+   * only for the moment a capture is in flight.
    */
   private sessions = new Map<string, Session>();
 
@@ -473,43 +401,19 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
   }
 
   /**
-   * Bind to a published port, falling back to an ephemeral one. The camera
-   * punches from an address we never sent to, so a bridge has no conntrack entry
-   * and drops it unless the port is published (measured: bridge 0/3, published 3/3).
-   */
-  private async bind(socket: dgram.Socket): Promise<void> {
-    for (const port of this.p2pPorts) {
-      const bound = await new Promise<boolean>(resolve => {
-        const onError = () => resolve(false);
-        socket.once('error', onError);
-        socket.bind(port, () => {
-          socket.removeListener('error', onError);
-          resolve(true);
-        });
-      });
-      if (bound) return;
-    }
-    await new Promise<void>((resolve, reject) => {
-      socket.once('error', reject);
-      socket.bind(0, () => resolve());
-    });
-  }
-
-  /**
    * Read back from the device record when not in memory: devices report at boot,
    * so a restarted server would otherwise be blind until every controller rebooted.
+   * The relay learns the camera's P2P id off the controller's header, so a stored
+   * label (and password) is enough to know a camera is there.
    */
   private async cameraFor(deviceId: string): Promise<Camera | null> {
     const known = this.cameras.get(deviceId);
-    // The relay path learns the id off the controller's header, so a stored
-    // label (and password) is enough; the rendezvous path needs the uid to punch.
-    if (known?.uid || (this.relayEnabled && known?.label)) return known;
+    if (known?.label) return known;
 
     const device = await this.devices.findOne({ device_id: deviceId });
     const info = device?.hardwareInfo;
     const label = info?.webcam_did;
     if (!label || label === 'none') return null;
-    if (!this.relayEnabled && !info?.webcam_uid) return null;
 
     const camera = { label, uid: info.webcam_uid || undefined, password: info.webcam_pwd || undefined };
     this.cameras.set(deviceId, camera);
@@ -525,9 +429,9 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
   }
 
   /**
-   * Answer the camera's keepalives between captures. Without this nobody reads
-   * the socket in the gaps, the camera drops the session, and the lookup rate
-   * goes from one per session to one per 1.6 images (measured).
+   * Answer the camera's keepalives so it does not drop a session that is briefly
+   * idle (between the login and the read). The reader stands this down while it
+   * drains video, since they share the one inbox.
    */
   private startHeartbeat(session: Session): NodeJS.Timeout {
     const timer = setInterval(() => {
@@ -542,14 +446,15 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
   }
 
   /**
-   * Close a held session: stop its stream, say goodbye, free the camera's slot.
+   * Close a session: stop its stream, say goodbye, free the camera's slot.
    *
    * The camera keeps a session until it is told to let go (its `f1 f0`), and the
-   * next capture then logs in but gets no video (docs §26.6). On a real socket the
-   * goodbye is already on the wire before close(); over the relay it sits in the
-   * TCP write queue, and destroying the connection at once would drop it before
-   * the controller forwards it. So a relay socket is given a short beat to flush
-   * before it is torn down. The map entry is removed at once either way.
+   * next capture then logs in but gets no video (docs §26.6). Over the relay that
+   * goodbye sits in the TCP write queue, and destroying the connection at once
+   * would drop it before the controller forwards it — so the socket is given a
+   * short beat to flush before it is torn down. (The controller also sends its own
+   * `f1 f0` to the camera when its relay ends, so the slot frees either way.) The
+   * map entry is removed at once.
    */
   private dropSession(deviceId: string): void {
     const session = this.sessions.get(deviceId);
@@ -563,22 +468,14 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     } catch {
       /* socket already gone */
     }
-    if (session.socket instanceof RelaySocket) {
-      const socket = session.socket;
-      setTimeout(() => {
-        try {
-          socket.close();
-        } catch {
-          /* already closed */
-        }
-      }, 800).unref?.();
-      return;
-    }
-    try {
-      session.socket.close();
-    } catch {
-      /* already closed */
-    }
+    const socket = session.socket;
+    setTimeout(() => {
+      try {
+        socket.close();
+      } catch {
+        /* already closed */
+      }
+    }, 800).unref?.();
   }
 
   /** The camera allows only a few sessions, so an unused one is given back. */
@@ -591,11 +488,14 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
   }
 
   /**
-   * Open a session over the controller relay: the controller bridges the camera's
-   * P2P, and the cloud runs the client. No rendezvous — the id comes off the relay
-   * header — so this is the path when the manufacturer's servers are not used.
+   * Open a session over the controller relay, or reuse the one already held: the
+   * controller bridges the camera's P2P and the cloud runs the client. The camera's
+   * P2P id comes off the relay header, so there is no lookup of any kind.
    */
-  private async relaySession(deviceId: string, camera: Camera): Promise<Session> {
+  private async session(deviceId: string, camera: Camera): Promise<Session> {
+    const existing = this.sessions.get(deviceId);
+    if (existing) return existing;
+
     const socket = await this.relayConnect(deviceId);
     const inbox: Inbox = [];
     socket.on('message', (message, rinfo) => {
@@ -612,7 +512,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
       session.alive = this.startHeartbeat(session);
       this.sessions.set(deviceId, session);
       this.touchSession(deviceId);
-      logger.info(`[terpcam] ${deviceId}: relay session opened (controller bridge, no rendezvous)`);
+      logger.info(`[terpcam] ${deviceId}: relay session opened (controller bridge)`);
       return session;
     } catch (error) {
       socket.close();
@@ -620,54 +520,15 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     }
   }
 
-  /** Open a session (one rendezvous, or via the controller relay) or reuse one held. */
-  private async session(deviceId: string, camera: Camera): Promise<Session> {
-    const existing = this.sessions.get(deviceId);
-    if (existing) return existing;
-
-    if (this.relayEnabled) return this.relaySession(deviceId, camera);
-
-    if (!camera.uid) throw new Error('camera has no P2P id to reach it by');
-    const did = packDeviceId(camera.uid);
-    const socket = dgram.createSocket('udp4');
-    const inbox: Inbox = [];
-    socket.on('message', (message, rinfo) => {
-      inbox.push({ message: deobfuscate(message), from: { address: rinfo.address, port: rinfo.port } });
-    });
-    socket.on('error', () => undefined);
-
-    try {
-      await this.bind(socket);
-      const punched = await this.rendezvous(socket, inbox, did);
-      const auth = authFor(camera.password ?? DEFAULT_PASSWORD);
-      // login consumes channel-0 index 0, so requests continue from 1
-      await this.login(socket, inbox, did, punched, auth, camera.label);
-      const session: Session = { socket, peer: punched, inbox, auth, next: 1 };
-      session.alive = this.startHeartbeat(session);
-      this.sessions.set(deviceId, session);
-      this.touchSession(deviceId);
-      logger.info(`[terpcam] ${deviceId}: session opened (one rendezvous, reused for later stills)`);
-      return session;
-    } catch (error) {
-      try {
-        socket.close();
-      } catch {
-        /* never opened */
-      }
-      throw error;
-    }
-  }
-
   /**
-   * Whether this server can go for the camera itself at all: a rendezvous to ask
-   * and a camera the device has reported. Where it cannot, the controller is not
-   * a fallback but the only path there is, and a caller should not spend failed
+   * Whether this server can go for the camera itself at all: the relay configured
+   * and a camera the device has reported. Where it cannot, the controller is not a
+   * fallback but the only path there is, and a caller should not spend failed
    * attempts before taking it.
    */
   public async canReachCamera(deviceId: string): Promise<boolean> {
-    if ((!this.rendezvousHosts.length && !this.relayEnabled) || this.isRefused(deviceId)) return false;
-    const camera = await this.cameraFor(deviceId);
-    return this.relayEnabled ? !!camera : !!camera?.uid;
+    if (!this.relayEnabled || this.isRefused(deviceId)) return false;
+    return !!(await this.cameraFor(deviceId));
   }
 
   /**
@@ -719,79 +580,51 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
    * produce the real image is better handed to the controller than downgraded.
    */
   public async capture(deviceId: string): Promise<{ data: Buffer; h264: boolean }> {
+    if (!this.relayEnabled) {
+      throw new Error('no relay configured, so the camera can only be reached by its controller');
+    }
     // Always the camera this device reported, never one the caller named.
     const camera = await this.cameraFor(deviceId);
-    // The relay path finds the id off the controller; the rendezvous path needs it up front.
-    if (!camera || (!camera.uid && !this.relayEnabled)) {
+    if (!camera) {
       throw new Error('this device has not reported a camera we can reach');
-    }
-    if (!this.rendezvousHosts.length && !this.relayEnabled) {
-      throw new Error('no way to reach the camera directly, so it can only be reached by its controller');
     }
     if (this.isRefused(deviceId)) {
       throw new Error('the camera refused this server recently, leaving it to the controller');
     }
     const identity: Camera = { label: camera.label, uid: camera.uid, password: camera.password };
 
-    // The relay path takes a FRESH session per still and closes it right after.
-    // Reusing a held session over the relay returned the previous keyframe as
-    // often as a new one (a re-requested stream on a live session is ignored), so
-    // a fresh session per capture is both the freshest frame and the most reliable
-    // one: the keyframe is the first frame of a new stream. It does not accumulate
-    // sessions because the controller frees the camera's slot on every relay exit.
-    // A couple of attempts ride out a slot that a previous capture has not freed
-    // yet. The controller runs the relay in its own task, so none of this holds up
-    // the fridge's control loop.
-    if (this.relayEnabled) {
-      const attempts = 3;
-      for (let attempt = 1; attempt <= attempts; attempt++) {
-        try {
-          const keyframe = await this.readStill(deviceId, identity);
-          if (!keyframe) throw new Error('no keyframe arrived');
-          // Close on success too: a fresh session next time keeps the frame fresh
-          // (a re-requested stream on a live session is ignored) and the camera's
-          // one slot free. The controller frees it on the relay's exit.
-          this.dropSession(deviceId);
-          return { data: keyframe, h264: true };
-        } catch (error) {
-          if (error instanceof CameraRefusedError) {
-            this.dropSession(deviceId);
-            logger.warn(`[terpcam] ${deviceId}: ${error.message}, not asking again for ${REFUSED_BACKOFF_MS / 60_000} min`);
-            this.refused.set(deviceId, Date.now() + REFUSED_BACKOFF_MS);
-            throw error;
-          }
-          if (attempt >= attempts) {
-            this.dropSession(deviceId);
-            throw error;
-          }
-          logger.info(`[terpcam] ${deviceId}: capture attempt ${attempt} failed (${(error as Error).message}); retrying on a fresh session`);
-          // Drop and let the controller free the camera's slot before re-opening.
-          await this.dropSessionAndWait(deviceId);
-        }
-      }
-      throw new Error('camera relay exhausted its attempts'); // unreachable; the loop returns or throws
-    }
-
-    // A held session that has gone stale fails exactly like a broken one, so a
-    // reused session gets a second attempt on a freshly opened one.
-    const attempts = this.sessions.has(deviceId) ? 2 : 1;
-    for (let attempt = 1; ; attempt++) {
+    // A FRESH session per still, closed right after. Reusing a held session over
+    // the relay returned the previous keyframe as often as a new one (a
+    // re-requested stream on a live session is ignored), so a fresh session is
+    // both the freshest frame and the most reliable one: the keyframe is the first
+    // frame of a new stream. It does not accumulate sessions because the controller
+    // frees the camera's slot on every relay exit. A couple of attempts ride out a
+    // slot a previous capture has not freed yet. The controller runs the relay in
+    // its own task, so none of this holds up the fridge's control loop.
+    const attempts = 3;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
         const keyframe = await this.readStill(deviceId, identity);
         if (!keyframe) throw new Error('no keyframe arrived');
-        this.touchSession(deviceId);
+        this.dropSession(deviceId); // a fresh session next time keeps the frame fresh and the slot free
         return { data: keyframe, h264: true };
       } catch (error) {
-        this.dropSession(deviceId);
         if (error instanceof CameraRefusedError) {
+          this.dropSession(deviceId);
           logger.warn(`[terpcam] ${deviceId}: ${error.message}, not asking again for ${REFUSED_BACKOFF_MS / 60_000} min`);
           this.refused.set(deviceId, Date.now() + REFUSED_BACKOFF_MS);
           throw error;
         }
-        if (attempt >= attempts) throw error;
-        logger.info(`[terpcam] ${deviceId}: held session went stale, opening a new one`);
+        if (attempt >= attempts) {
+          this.dropSession(deviceId);
+          throw error;
+        }
+        logger.info(`[terpcam] ${deviceId}: capture attempt ${attempt} failed (${(error as Error).message}); retrying on a fresh session`);
+        // Drop and let the controller free the camera's slot before re-opening.
+        await this.dropSessionAndWait(deviceId);
       }
     }
+    throw new Error('camera relay exhausted its attempts'); // unreachable; the loop returns or throws
   }
 
   /**
@@ -807,61 +640,12 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     await new Promise(resolve => setTimeout(resolve, 1_200));
   }
 
-  private async rendezvous(socket: dgram.Socket, inbox: Inbox, did: Buffer): Promise<Endpoint> {
-    // Held in an object because both are assigned from inside a callback.
-    const found: { reflected: Endpoint | null; punched: Endpoint | null } = { reflected: null, punched: null };
-
-    // 1. Hello, to learn our own public endpoint.
-    const helloUntil = Date.now() + 4_000;
-    while (!found.reflected && Date.now() < helloUntil) {
-      for (const host of this.rendezvousHosts) send(socket, { address: host, port: 32100 }, buildPacket(0x00));
-      await this.drain(inbox, 700, entry => {
-        if (entry.message.length >= 12 && entry.message[1] === 0x01) {
-          found.reflected = parseAddress(entry.message.subarray(4));
-        }
-        return false;
-      });
-    }
-
-    // 2. Ask for the camera.
-    const body = Buffer.concat([did, Buffer.alloc(16)]);
-    body.writeUInt16BE(found.reflected?.port ?? 0, 22);
-    const lan = this.advertiseAddress ?? (await routableAddress(this.rendezvousHosts[0]));
-    if (lan) {
-      // Stored least-significant octet first, like every other address here.
-      const octets = lan.split('.').map(Number).reverse();
-      Buffer.from(octets).copy(body, 24);
-    }
-
-    const until = Date.now() + RENDEZVOUS_MS;
-    while (!found.punched && Date.now() < until) {
-      for (const host of this.rendezvousHosts) {
-        for (const port of RENDEZVOUS_PORTS) send(socket, { address: host, port }, buildPacket(0x20, body));
-      }
-      await this.drain(inbox, 2_500, entry => {
-        const isPunch = entry.message.length > 1 && entry.message[1] === 0x41;
-        if (isPunch && !RENDEZVOUS_PORTS.includes(entry.from.port)) {
-          found.punched = entry.from;
-          return true;
-        }
-        return false;
-      });
-    }
-
-    const peer = found.punched;
-    if (!peer) throw new Error('camera did not answer the rendezvous');
-
-    logger.info(`[terpcam] camera punched from ${peer.address}:${peer.port}`);
-    send(socket, peer, buildPacket(0x41, did));
-    return peer;
-  }
-
   /**
-   * Authenticate the punched session, and make sure it is the camera the device
-   * paired. Any answer used to count as success, `result=-1` included, so a uid
-   * pointing at the wrong camera held a session that could never deliver. That
-   * is also a tenant boundary: the server must not hold a session to a camera
-   * the device did not pair, whoever's it is.
+   * Authenticate the session, and make sure it is the camera the device paired.
+   * Any answer used to count as success, `result=-1` included, so a uid pointing
+   * at the wrong camera held a session that could never deliver. That is also a
+   * tenant boundary: the server must not hold a session to a camera the device did
+   * not pair, whoever's it is.
    */
   private async login(socket: P2PSocket, inbox: Inbox, did: Buffer, peer: Endpoint, auth: string, label: string): Promise<void> {
     const trailer = Buffer.from([0x00, 0x02, 0x12, 0x64, 0x10, 0x02, 0x00, 0x0a, 0, 0, 0, 0, 0, 0, 0, 0]);
