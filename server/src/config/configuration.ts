@@ -80,10 +80,11 @@ export const terpCamConfig = registerAs('terpcam', () => ({
   /**
    * The controller-relay path: a controller is told to connect to
    * `relayHost:relayPort` and bridges the camera's P2P over that connection, so the
-   * cloud runs the P2P client and pulls a full-resolution still. The server listens
-   * on the same port number the host publishes. 0 / empty host disables the path,
-   * and the controller takes the (smaller) still itself. The defaults and the host
-   * fallback live in docker-compose.yaml, not here.
+   * cloud runs the P2P client and pulls a full-resolution still. `relayPort` is the
+   * port the host publishes; inside the container the server always listens on
+   * 32250. 0 / empty host disables the path, and the controller takes the
+   * (smaller) still itself. The defaults and the host fallback live in
+   * docker-compose.yaml, not here.
    */
   relayHost: (process.env.TERPCAM_RELAY_HOST ?? '').trim(),
   relayPort: number(process.env.TERPCAM_RELAY_PORT_EXTERNAL, 0),

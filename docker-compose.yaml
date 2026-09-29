@@ -119,7 +119,7 @@ services:
         condition: service_started
     ports:
       - ${API_PORT_EXTERNAL}:8081
-      - ${TERPCAM_RELAY_PORT_EXTERNAL:-32250}:${TERPCAM_RELAY_PORT_EXTERNAL:-32250}/tcp
+      - ${TERPCAM_RELAY_PORT_EXTERNAL:-32250}:32250/tcp
     networks:
       - main
     environment:

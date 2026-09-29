@@ -77,6 +77,8 @@ const MAX_FRAME_BYTES = 4 * 1024 * 1024;
  * taken from its real owner. The controller captures meanwhile.
  */
 const REFUSED_BACKOFF_MS = 30 * 60_000;
+/** Where the relay listens inside the container; the host publishes it on `relayPort`. */
+const RELAY_LISTEN_PORT = 32250;
 /** How long a controller has to dial back in once asked for a relay. */
 const RELAY_DIAL_MS = 10_000;
 /**
@@ -322,8 +324,8 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
       this.relayFailed = true;
       logger.error(`[terpcam] relay listener failed, controllers take their own stills: ${err}`);
     });
-    server.listen(this.relayPort, '0.0.0.0', () => {
-      logger.info(`[terpcam] controller relay listening on ${this.relayPort}, controllers told to reach ${this.relayHost}:${this.relayPort}`);
+    server.listen(RELAY_LISTEN_PORT, '0.0.0.0', () => {
+      logger.info(`[terpcam] controller relay listening on ${RELAY_LISTEN_PORT}, controllers told to reach ${this.relayHost}:${this.relayPort}`);
     });
     this.relayServer = server;
   }
