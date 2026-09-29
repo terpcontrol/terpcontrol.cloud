@@ -135,10 +135,10 @@ services:
       # the controller reaches the port it is told to); TERPCAM_RELAY_HOST is the
       # host a controller dials, falling back to MQTT_HOST_EXTERNAL — the host the
       # device already reaches for MQTT, which is the right answer for any normal
-      # deployment. Clearing TERPCAM_RELAY_HOST (no MQTT host either) is what turns
-      # the relay off, and the controller then takes the smaller snapshot itself.
+      # deployment. Only an unset TERPCAM_RELAY_HOST falls back: set to an empty
+      # value it turns the relay off, and each controller takes its own still.
       TERPCAM_RELAY_PORT: ${TERPCAM_RELAY_PORT:-32250}
-      TERPCAM_RELAY_HOST: ${TERPCAM_RELAY_HOST:-${MQTT_HOST_EXTERNAL:-}}
+      TERPCAM_RELAY_HOST: ${TERPCAM_RELAY_HOST-${MQTT_HOST_EXTERNAL:-}}
       TERPCAM_RELAY_PORT_EXTERNAL: ${TERPCAM_RELAY_PORT_EXTERNAL:-32250}
       DB_HOST: "mongodb"
       DB_PORT: "27017"

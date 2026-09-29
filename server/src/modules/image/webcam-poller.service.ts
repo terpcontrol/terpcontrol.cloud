@@ -10,7 +10,7 @@ import { BackgroundWork, logIfItFails } from '../../common/background-work';
 import { withoutCredentials } from '../../common/log-path';
 import { ImageStore } from '../../database/image-store';
 import { MODEL } from '../../database/models.module';
-import { TerpCamDirectService } from '../camera/terpcam-direct.service';
+import { RelayUnavailableError, TerpCamDirectService } from '../camera/terpcam-direct.service';
 import { TerpCamP2PService, terpCamLabel } from '../camera/terpcam-p2p.service';
 import { DeviceLogService } from '../device/device-log.service';
 import { ONLINE_TIMEOUT } from '../device/device.queries';
@@ -285,8 +285,9 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
    * next poll would store.
    */
   private async captureTerpCamStill(deviceId: string, alwaysAllowController: boolean): Promise<Buffer> {
-    // Where the server reaches no camera of its own - no rendezvous configured,
-    // or a device that has reported none - the controller is the only path and
+    // Where the server reaches no camera of its own - no relay configured, a
+    // device that has reported none, or a controller that does not open the
+    // relay - the controller is the only path and
     // waiting out failed direct attempts would cost every still a poll or two.
     if (!(await this.terpCamDirect.canReachCamera(deviceId))) {
       return this.terpCamP2P.captureViaController(deviceId);
@@ -301,18 +302,14 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
       }
       return still;
     } catch (e) {
-      if (state) state.failures++;
-      // When the direct path is the controller relay, the controller-snapshot
-      // fallback cannot help: the controller is the very thing bridging the relay
-      // and stands its own capture down while it does, so a 640x360 request would
-      // only time out. Fail the poll instead and let the next one retry at full
-      // resolution — the relay already retries a few times internally.
-      if (this.terpCamDirect.usesRelay) {
-        throw new Error(`direct capture failed (${(e as Error).message}); retrying full-resolution next poll`);
-      }
-      const exhausted = !state || (!state.succeeded && state.failures >= TERPCAM_DIRECT_FAILURES_BEFORE_FALLBACK);
-      if (!alwaysAllowController && !exhausted) {
-        throw new Error(`direct capture failed (${(e as Error).message}); keeping the full-resolution path`);
+      // A controller that never opened the relay is not bridging anything, so it
+      // is free to take the still now, and that says nothing about the camera.
+      if (!(e instanceof RelayUnavailableError)) {
+        if (state) state.failures++;
+        const exhausted = !state || (!state.succeeded && state.failures >= TERPCAM_DIRECT_FAILURES_BEFORE_FALLBACK);
+        if (!alwaysAllowController && !exhausted) {
+          throw new Error(`direct capture failed (${(e as Error).message}); keeping the full-resolution path`);
+        }
       }
       logger.info(`Direct capture for ${deviceId} failed (${(e as Error).message}); asking the controller`);
     }

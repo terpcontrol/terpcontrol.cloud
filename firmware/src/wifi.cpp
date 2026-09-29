@@ -405,6 +405,7 @@ void wifiTick() {
     syncSmartSockets();
   }
 
+  fg::terpCamReportPending(smart_socket_cloud_handle);
   tickAuxDeviceSearch();
 }
 
@@ -2787,7 +2788,8 @@ bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
     const std::string host = command["host"] | "";
     const uint16_t port = (uint16_t)(command["port"] | 0);
     const std::string token = command["token"] | "";
-    terpCamStartRelay(cloud, host, port, token);
+    const std::string key = command["key"] | "";
+    fg::terpCamStartRelay(host, port, token, key);
     return true;
   }
 

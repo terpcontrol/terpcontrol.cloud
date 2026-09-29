@@ -1,5 +1,7 @@
+import { createCipheriv, createDecipheriv } from 'node:crypto';
+import net, { AddressInfo } from 'node:net';
 import { jest } from '@jest/globals';
-import { CameraRefusedError, checkStatusReply, TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
+import { CameraRefusedError, checkStatusReply, RelayUnavailableError, TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
 
 /**
  * A camera uid that points at the wrong camera: the controller had cached the
@@ -37,29 +39,34 @@ describe('checkStatusReply', () => {
 });
 
 type Internals = {
-  session: (deviceId: string, camera: unknown) => Promise<never>;
+  readStill: (deviceId: string, camera: unknown) => Promise<Buffer | null>;
+  relayConnect: (deviceId: string) => Promise<RelaySocketLike>;
+  onRelayConnection: (conn: net.Socket) => void;
 };
+type RelaySocketLike = {
+  did: Buffer;
+  on(event: 'message', cb: (message: Buffer) => void): void;
+  send(message: Buffer): void;
+  close(): Promise<void>;
+};
+
+const RELAY_CONFIG = { relayListenPort: 32250, relayHost: 'relay.invalid', relayPort: 32250 };
+
+function serviceFor(publish: (topic: string, message: string) => boolean = () => true): TerpCamDirectService {
+  const devices = {
+    findOne: async () => ({ hardwareInfo: { webcam_did: PAIRED, webcam_uid: 'VSTH828707TXVEW', webcam_pwd: '' } }),
+  };
+  return new TerpCamDirectService(devices as never, {} as never, { publish } as never, RELAY_CONFIG as never);
+}
 
 describe('a camera that refused the server', () => {
   let service: TerpCamDirectService;
-  let session: jest.Mock<Internals['session']>;
+  let readStill: jest.Mock<Internals['readStill']>;
 
   beforeEach(() => {
-    const devices = {
-      findOne: async () => ({ hardwareInfo: { webcam_did: PAIRED, webcam_uid: 'VSTH828707TXVEW', webcam_pwd: '' } }),
-    };
-    service = new TerpCamDirectService(
-      devices as never,
-      {} as never,
-      { publish: () => true } as never,
-      {
-        relayListenPort: 32250,
-        relayHost: 'relay.invalid',
-        relayPort: 32250,
-      } as never,
-    );
-    session = jest.fn<Internals['session']>().mockRejectedValue(new CameraRefusedError('UID belongs to a different camera'));
-    (service as unknown as Internals).session = session;
+    service = serviceFor();
+    readStill = jest.fn<Internals['readStill']>().mockRejectedValue(new CameraRefusedError('UID belongs to a different camera'));
+    (service as unknown as Internals).readStill = readStill;
   });
 
   it('is left to the controller instead of being asked on every poll', async () => {
@@ -68,13 +75,103 @@ describe('a camera that refused the server', () => {
 
     await expect(service.canReachCamera(DEVICE)).resolves.toBe(false);
     await expect(service.capture(DEVICE)).rejects.toThrow('refused');
-    expect(session).toHaveBeenCalledTimes(1);
+    expect(readStill).toHaveBeenCalledTimes(1);
   });
 
   it('is tried again as soon as the device reports something new about it', async () => {
     await expect(service.capture(DEVICE)).rejects.toThrow();
 
-    service.rememberUid(DEVICE, 'VSTH400490SCAQX');
+    service.cameraReported(DEVICE);
     await expect(service.canReachCamera(DEVICE)).resolves.toBe(true);
+  });
+});
+
+describe('a controller that does not open the relay', () => {
+  let service: TerpCamDirectService;
+  let readStill: jest.Mock<Internals['readStill']>;
+
+  beforeEach(() => {
+    service = serviceFor();
+    readStill = jest.fn<Internals['readStill']>().mockRejectedValue(new RelayUnavailableError('the controller did not open a relay'));
+    (service as unknown as Internals).readStill = readStill;
+  });
+
+  it('is asked once, and then left to take its own stills', async () => {
+    await expect(service.capture(DEVICE)).rejects.toThrow(RelayUnavailableError);
+    expect(readStill).toHaveBeenCalledTimes(1);
+
+    await expect(service.canReachCamera(DEVICE)).resolves.toBe(false);
+    await expect(service.capture(DEVICE)).rejects.toThrow(RelayUnavailableError);
+    expect(readStill).toHaveBeenCalledTimes(1);
+  });
+
+  it('is asked again once it reports its camera, as it does after a reboot or learning the id', async () => {
+    await expect(service.capture(DEVICE)).rejects.toThrow();
+
+    service.cameraReported(DEVICE);
+    await expect(service.canReachCamera(DEVICE)).resolves.toBe(true);
+  });
+
+  it('is not asked at all while the broker is down', async () => {
+    service = serviceFor(() => false);
+    await expect((service as unknown as Internals).relayConnect(DEVICE)).rejects.toThrow('could not ask');
+  });
+});
+
+it('runs one capture per device however many callers ask at once', async () => {
+  const service = serviceFor();
+  let finish: (still: Buffer) => void = () => undefined;
+  const readStill = jest.fn<Internals['readStill']>().mockReturnValue(new Promise(resolve => (finish = resolve)));
+  (service as unknown as Internals).readStill = readStill;
+  (service as unknown as { stills: unknown }).stills = { decodeKeyframeToJpeg: async (data: Buffer) => data };
+
+  const poll = service.captureStill(DEVICE);
+  const button = service.captureStill(DEVICE);
+  finish(Buffer.from('keyframe'));
+
+  await expect(poll).resolves.toEqual(Buffer.from('keyframe'));
+  await expect(button).resolves.toEqual(Buffer.from('keyframe'));
+  expect(readStill).toHaveBeenCalledTimes(1);
+});
+
+describe('the relay connection', () => {
+  const u16 = (n: number) => Buffer.from([n >> 8, n & 0xff]);
+  let server: net.Server;
+
+  afterEach(() => server?.close());
+
+  it('enciphers both directions and tells the controller when the cloud is done', async () => {
+    const published: string[] = [];
+    const service = serviceFor((_topic, message) => published.push(message) > 0);
+    const internals = service as unknown as Internals;
+    server = net.createServer(conn => internals.onRelayConnection(conn));
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+
+    const relay = internals.relayConnect(DEVICE);
+    const { token, key } = JSON.parse(published[0]) as { token: string; key: string };
+    const keys = Buffer.from(key, 'hex');
+    const up = createCipheriv('aes-128-ctr', keys.subarray(0, 16), Buffer.alloc(16));
+    const down = createDecipheriv('aes-128-ctr', keys.subarray(16), Buffer.alloc(16));
+
+    // The controller: its header, and the camera's first datagram right behind it.
+    const controller = net.connect((server.address() as AddressInfo).port, '127.0.0.1');
+    const did = Buffer.from('VSTH00000828707TXVEW', 'latin1');
+    const header = Buffer.concat([Buffer.from(token, 'latin1'), Buffer.from([0]), up.update(did)]);
+    const fromCamera = Buffer.from('a camera datagram');
+    controller.write(Buffer.concat([u16(header.length), header, up.update(Buffer.concat([u16(fromCamera.length), fromCamera]))]));
+
+    const socket = await relay;
+    expect(socket.did).toEqual(did);
+    await expect(new Promise(resolve => socket.on('message', resolve))).resolves.toEqual(fromCamera);
+
+    const onTheWire: Buffer[] = [];
+    controller.on('data', chunk => onTheWire.push(chunk));
+    controller.on('end', () => controller.end());
+    const toCamera = Buffer.from('a CGI with the password in it');
+    socket.send(toCamera);
+    await socket.close();
+
+    expect(Buffer.concat(onTheWire).includes(toCamera)).toBe(false);
+    expect(down.update(Buffer.concat(onTheWire))).toEqual(Buffer.concat([u16(toCamera.length), toCamera, u16(0)]));
   });
 });

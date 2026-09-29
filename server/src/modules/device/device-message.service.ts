@@ -206,18 +206,14 @@ export class DeviceMessageService implements OnModuleInit, OnApplicationShutdown
     }
 
     if (infoKey === 'webcam_did') {
-      this.terpCamDirect.rememberCamera(deviceId, infoValue);
+      this.terpCamDirect.cameraReported(deviceId);
       await this.reconcileP2PCamera(deviceId, infoValue);
     }
 
-    // Set by the controller at pairing; stored against the device, never logged.
-    if (infoKey === 'webcam_pwd') {
-      this.terpCamDirect.rememberPassword(deviceId, infoValue);
-    }
-
-    // Read off the camera by its controller, so nothing has to be looked up.
-    if (infoKey === 'webcam_uid') {
-      this.terpCamDirect.rememberUid(deviceId, infoValue);
+    // The password (stored against the device, never logged) and the P2P id the
+    // controller read off the camera are what a relay capture depends on.
+    if (infoKey === 'webcam_pwd' || infoKey === 'webcam_uid') {
+      this.terpCamDirect.cameraReported(deviceId);
     }
   }
 

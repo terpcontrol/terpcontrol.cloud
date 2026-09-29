@@ -1,13 +1,13 @@
 import { jest } from '@jest/globals';
 import { CloudSettings, Device } from '@fg2/shared-types';
-import { TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
+import { RelayUnavailableError, TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
 import { TerpCamP2PService } from '@modules/camera/terpcam-p2p.service';
 import { WebcamPollerService } from '@modules/image/webcam-poller.service';
 
 /**
  * When a Terp Cam still comes from the camera itself and when it comes from the
- * controller instead. Both paths end in a rendezvous server and a P2P session
- * the black-box harness has nothing to answer with, so the two collaborators are
+ * controller instead. Both paths end in a controller and a P2P session the
+ * black-box harness has nothing to answer with, so the two collaborators are
  * stood in for here and the service is driven directly.
  */
 
@@ -26,7 +26,7 @@ type WebcamPollerInternals = {
   readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string, alwaysAllowController?: boolean): Promise<Buffer>;
 };
 
-let direct: { usesRelay: boolean; canReachCamera: jest.Mock<() => Promise<boolean>>; captureStill: jest.Mock<() => Promise<Buffer>> };
+let direct: { canReachCamera: jest.Mock<() => Promise<boolean>>; captureStill: jest.Mock<() => Promise<Buffer>> };
 let controller: { captureViaController: jest.Mock<() => Promise<Buffer>> };
 let service: WebcamPollerInternals;
 
@@ -44,7 +44,6 @@ const directFails = () => direct.captureStill.mockRejectedValueOnce(new Error('n
 
 beforeEach(() => {
   direct = {
-    usesRelay: false,
     canReachCamera: jest.fn<() => Promise<boolean>>().mockResolvedValue(true),
     captureStill: jest.fn<() => Promise<Buffer>>().mockResolvedValue(DIRECT_STILL),
   };
@@ -154,17 +153,14 @@ it('falls back on the first failure for a device no pass has seen yet', async ()
   await expect(poll('never-polled')).resolves.toBe(CONTROLLER_STILL);
 });
 
-it('never downgrades to the controller snapshot while the relay is the direct path', async () => {
-  // The relay IS the controller, bridging; asking it for a 640x360 snapshot at the
-  // same time only times out. A failed relay capture is retried next poll instead.
-  direct.usesRelay = true;
+it('asks the controller at once when it did not open the relay', async () => {
+  // Older firmware, a blocked port: the controller is not bridging, so its own
+  // picture is there to be had, and the camera has not failed at anything.
   seenBy('an online device');
-  directFails();
-  directFails();
-  directFails();
+  direct.captureStill.mockRejectedValueOnce(new RelayUnavailableError('the controller did not open a relay'));
 
-  await expect(poll()).rejects.toThrow('retrying full-resolution next poll');
-  await expect(poll()).rejects.toThrow('retrying full-resolution next poll');
-  await expect(poll()).rejects.toThrow('retrying full-resolution next poll');
-  expect(controller.captureViaController).not.toHaveBeenCalled();
+  await expect(poll()).resolves.toBe(CONTROLLER_STILL);
+
+  directFails();
+  await expect(poll()).rejects.toThrow('keeping the full-resolution path');
 });

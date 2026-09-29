@@ -78,7 +78,7 @@ export const authConfig = registerAs('auth', () => ({
 
 export const terpCamConfig = registerAs('terpcam', () => ({
   /**
-   * The controller-relay path: the controller opens a plain TCP connection to
+   * The controller-relay path: the controller opens a TCP connection to
    * `relayListenPort` and bridges the camera's P2P over it, so the cloud runs the
    * P2P client and pulls a full-resolution still. `relayHost`/`relayPort` are what
    * a controller is told to connect to; the port must be published by the host and
