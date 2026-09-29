@@ -77,25 +77,17 @@ export const authConfig = registerAs('auth', () => ({
 }));
 
 export const terpCamConfig = registerAs('terpcam', () => ({
-  /** The manufacturer's lookup servers: configuration, never addresses in source. */
-  rendezvousHosts: (process.env.TERPCAM_RENDEZVOUS_HOSTS ?? '')
-    .split(',')
-    .map(host => host.trim())
-    .filter(Boolean),
   /**
-   * Address to tell a camera on this network to punch at. Only a private one is
-   * used - announcing a public address stops the camera punching at all - which
-   * the service checks; a hosted stack correctly advertises nothing.
+   * The controller-relay path: a controller is told to connect to
+   * `relayHost:relayPort` and bridges the camera's P2P over that connection, so the
+   * cloud runs the P2P client and pulls a full-resolution still. `relayPort` is the
+   * port the host publishes; inside the container the server always listens on
+   * 32250. 0 / empty host disables the path, and the controller takes the
+   * (smaller) still itself. The defaults and the host fallback live in
+   * docker-compose.yaml, not here.
    */
-  advertiseAddress: (process.env.TERPCAM_ADVERTISE_ADDRESS ?? '').trim(),
-  /**
-   * UDP ports bound for captures, inclusive. One is held per camera served, so
-   * the width of the range is how many cameras this server can reach at once.
-   * It must be the range the host publishes: the camera answers to the port it
-   * saw.
-   */
-  portsStart: number(process.env.TERPCAM_P2P_PORTS_START, 32200),
-  portsEnd: number(process.env.TERPCAM_P2P_PORTS_END, 32209),
+  relayHost: (process.env.TERPCAM_RELAY_HOST ?? '').trim(),
+  relayPort: number(process.env.TERPCAM_RELAY_PORT_EXTERNAL, 0),
 }));
 
 export const configNamespaces = [appConfig, databaseConfig, influxConfig, mqttConfig, mailConfig, authConfig, terpCamConfig];

@@ -42,6 +42,30 @@ namespace fg {
   bool terpCamCapture(Fridgecloud* cloud);
 
   /**
+   * Bridge the camera's P2P UDP (on the LAN) to a TCP connection to the cloud,
+   * so the cloud can run the P2P client itself and pull a full-resolution
+   * (2304x1296) keyframe without the manufacturer's rendezvous servers.
+   *
+   * The controller only shovels datagrams: it discovers the camera, opens the
+   * TCP connection, sends a short header (token + the camera's P2P id) and then
+   * relays bytes both ways, enciphered under `key` (64 hex digits, one AES-128
+   * key per direction), until the cloud closes the connection or it falls idle.
+   * It authenticates nothing and buffers no image, so unlike terpCamCapture the
+   * full-resolution burst is not its problem — that is what makes the reliable
+   * full-resolution path (docs §26) reachable through the controller.
+   *
+   * Runs in its own task and returns at once, so the control loop keeps running
+   * while the cloud holds a session. Returns false without starting anything when
+   * a relay already runs, the camera's P2P id is not known yet, or the key is
+   * missing. While a relay is active the other camera paths (capture, search,
+   * secure) stand down, because they share buffers with it.
+   */
+  bool terpCamStartRelay(const std::string& host, uint16_t port, const std::string& token, const std::string& key);
+
+  /** Report what the last relay learned about the camera. Call from the loop task. */
+  void terpCamReportPending(Fridgecloud* cloud);
+
+  /**
    * Factory-reset the paired camera so it drops back to its `@IPC-<n>` setup AP
    * and can be paired again (by this module or any other). Sends
    * `restore_factory.cgi` over the same P2P session the capture path uses.

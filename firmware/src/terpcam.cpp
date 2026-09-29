@@ -3,6 +3,7 @@
 #include <WiFiUdp.h>
 #include <esp_task_wdt.h>
 #include <algorithm>
+#include "mbedtls/aes.h"
 
 #include "terpcam.h"
 #include "settings.h"
@@ -159,6 +160,15 @@ namespace fg {
     // Consecutive sessions that never found the camera. Reset as soon as one
     // does: a session that opens proves the stored address still reaches it.
     uint8_t g_camera_misses = 0;
+
+    // Set while the relay task owns the camera (see terpCamStartRelay). The other
+    // camera paths share g_rx/g_tx and the discovery state with it, so they stand
+    // down while it is true.
+    volatile bool g_relay_active = false;
+    // Asks a running relay task to end, so a path that must own the camera (a
+    // factory reset on disconnect) can take it over rather than be refused.
+    volatile bool g_relay_stop = false;
+    TaskHandle_t g_relay_task = nullptr;
 
     // Whether a camera is paired at all.
     bool camIsPaired() {
@@ -387,9 +397,12 @@ namespace fg {
     // stored as webcam_did - as `vuid=<id>;` when it refused the password and as
     // `var realdeviceid="<id>";` when it accepted it. So a controller can tell its
     // own camera from a neighbour's without knowing the neighbour's password.
+    // `vuid=` is only read off a refused reply: an accepted one also carries
+    // `support_vuid=1`, which would otherwise be read as the id "1".
     uint8_t checkReply(const char* text, const std::string& ours, bool& refused) {
       if(strstr(text, "result=-1") != nullptr) refused = true;
       for(const char* key : { "realdeviceid=", "vuid=" }) {
+        if(!refused && key[0] == 'v') continue;
         const char* p = strstr(text, key);
         if(p == nullptr) continue;
         p += strlen(key);
@@ -539,6 +552,9 @@ namespace fg {
   }
 
   bool terpCamSearch(Fridgecloud* cloud) {
+    // A relay task owns the camera and the shared buffers; do not search under it.
+    if(g_relay_active) return false;
+
     // Reset up front: the point of a search is to stop retrying, and a search
     // that finds nothing must not keep re-triggering itself.
     g_camera_misses = 0;
@@ -627,6 +643,7 @@ namespace fg {
   }
 
   bool terpCamSecure(Fridgecloud* cloud, uint32_t find_ms) {
+    if(g_relay_active) return false;   // the relay task owns the camera/buffers
     if(!camIsPaired()) return false;
     // Already done: a stored password means this camera is not on the default.
     if(!settingIsEmpty(std::string(fg::settings().getStr(TERP_CAM_PWD_NVS_KEY).c_str()))) return true;
@@ -711,6 +728,16 @@ namespace fg {
   }
 
   bool terpCamFactoryReset(Fridgecloud* cloud) {
+    // Take the camera back from a running relay: ask its task to end and wait for
+    // it, so the reset owns the shared buffers. The relay notices within one
+    // discovery round or connect timeout; one that has still not ended is left
+    // alone rather than raced.
+    if(g_relay_active) {
+      g_relay_stop = true;
+      for(int i = 0; i < 100 && g_relay_active; i++) { delay(100); esp_task_wdt_reset(); }
+      if(g_relay_active) return false;
+    }
+
     const std::string did_str = fg::settings().getStr("webcam_did");
     if(settingIsEmpty(did_str) || did_str == "none" || cloud == nullptr) {
       return false;
@@ -766,7 +793,270 @@ namespace fg {
     return ok;
   }
 
+  namespace {
+    // One direction of the relay's cipher: AES-128-CTR under a key the cloud sends
+    // with each cam_relay and never uses twice. Every CGI the cloud sends carries
+    // the camera's password under nothing but the vendor's fixed table cipher, so
+    // unenciphered the relay would put it on the internet as good as readable;
+    // this keeps the relay exactly as private as the MQTT link the key came over.
+    class RelayCipher {
+      mbedtls_aes_context aes;
+      uint8_t counter[16] = {};
+      uint8_t block[16] = {};
+      size_t offset = 0;
+    public:
+      explicit RelayCipher(const uint8_t* key) {
+        mbedtls_aes_init(&aes);
+        mbedtls_aes_setkey_enc(&aes, key, 128);
+      }
+      ~RelayCipher() { mbedtls_aes_free(&aes); }
+      void apply(uint8_t* p, size_t n) { mbedtls_aes_crypt_ctr(&aes, n, &offset, counter, block, p, p); }
+    };
+
+    struct RelayArgs {
+      std::string host;
+      uint16_t    port;
+      std::string token;
+      std::string uid;       // the paired camera's P2P id; nothing else is relayed to
+      uint8_t     key[32];   // controller->cloud, then cloud->controller
+    };
+
+    // A raw-socket bridge between the camera's P2P UDP on the LAN and an enciphered TCP
+    // connection to the cloud. The cloud runs the whole P2P client (discovery
+    // aside), so the controller neither authenticates nor assembles anything —
+    // it only shovels datagrams. That is the point: the full-resolution keyframe
+    // burst is the cloud's problem to reassemble, where there is RAM and no radio
+    // sharing an antenna, and the controller stays a few KB of scratch.
+    //
+    // Why a raw socket rather than the MQTT tunnel: the tunnel base64s every
+    // datagram into a JSON envelope and publishes it as a blocking QoS-0 TLS
+    // write, which starves the loop and loses the burst (measured, docs §16.1).
+    // A length-framed TCP stream has none of that overhead and is reliable and
+    // ordered on the cloud hop, so the only loss left is the camera's own LAN
+    // burst, which the cloud repairs by re-asking — exactly as it does for a
+    // camera it reaches directly.
+    //
+    // Runs on its own task, so it never logs: the cloud's log queue belongs to the
+    // loop task (see terpCamReportPending).
+    bool relay(const RelayArgs& args) {
+      const bool wifi_was_asleep = WiFi.getSleep();
+      WiFi.setSleep(false);   // power-save silently drops inbound UDP; see terpCamCapture
+
+      WiFiUDP udp;
+      WiFiClient tcp;
+      uint8_t* buf = nullptr;
+      auto finish = [&](bool ran) {
+        free(buf);
+        tcp.stop();
+        udp.stop();
+        WiFi.setSleep(wifi_was_asleep);
+        esp_task_wdt_reset();
+        return ran;
+      };
+      if(!udp.begin(0)) return finish(false);
+
+      g_want_uid = args.uid;
+      g_foreign_n = 0;
+      uint8_t did[20];
+      IPAddress peer_ip;
+      uint16_t peer_port = 0;
+      IPAddress cached_ip;
+      const IPAddress broadcast(255, 255, 255, 255);
+      bool found = cached_ip.fromString(cachedCamIp().c_str()) &&
+                   lanSearch(udp, cached_ip, CACHED_PEER_MS, did, peer_ip, peer_port);
+      const uint32_t discover_start = millis();
+      while(!found && !g_relay_stop && (millis() - discover_start) < DISCOVER_MS) {
+        found = lanSearch(udp, broadcast, 400, did, peer_ip, peer_port);
+      }
+      if(!found) {
+        // Counted like a capture that found nothing, so an id or address that no
+        // longer answers leads to a search (terpCamNeedsSearch) here as well.
+        if(!g_relay_stop && g_camera_misses < 255) ++g_camera_misses;
+        return finish(false);
+      }
+      g_camera_misses = 0;
+      rememberCamIp(peer_ip);
+
+      if(g_relay_stop) return finish(false);
+      tcp.setTimeout(5);
+      if(!tcp.connect(args.host.c_str(), args.port)) return finish(false);
+      tcp.setNoDelay(true);
+
+      // malloc'd for the relay and freed on every exit path, so it costs no
+      // resident RAM — the same discipline as the capture window.
+      constexpr size_t RELAY_BUF = 2048;
+      buf = (uint8_t*)malloc(RELAY_BUF);
+      if(buf == nullptr) return finish(false);
+
+      RelayCipher up(args.key);
+      RelayCipher down(args.key + 16);
+
+      // A frame goes out whole or the relay ends: after a short write the cloud
+      // would read payload bytes as a length, and nothing on the stream can
+      // resynchronise it.
+      auto writeAll = [&](const uint8_t* p, size_t n) {
+        const uint32_t until = millis() + 5000;
+        while(n > 0) {
+          const size_t w = tcp.write(p, n);
+          if(w > 0) { p += w; n -= w; continue; }
+          if(!tcp.connected() || (int32_t)(until - millis()) <= 0) return false;
+          delay(2);
+          esp_task_wdt_reset();
+        }
+        return true;
+      };
+
+      // Header the cloud correlates the connection by: the token in the clear (it
+      // is what picks the key), a NUL, and the 20-byte P2P id the cloud needs for
+      // its own DevLgn, which is the first thing enciphered.
+      size_t hn = 2;
+      for(char c : args.token) {
+        if(hn < 2 + 64) buf[hn++] = (uint8_t)c;
+      }
+      buf[hn++] = 0;
+      memcpy(buf + hn, did, 20);
+      up.apply(buf + hn, 20);
+      hn += 20;
+      buf[0] = (uint8_t)(((hn - 2) >> 8) & 0xff);
+      buf[1] = (uint8_t)((hn - 2) & 0xff);
+      bool done = !writeAll(buf, hn);
+
+      // Framed both ways: a 2-byte big-endian length, then the datagram, the two
+      // enciphered together. The cloud opens a fresh session per still and hangs
+      // up once it has it, which is what ends the relay; the cap only ends one the
+      // cloud has lost track of, well above its own bound on a still.
+      constexpr uint32_t RELAY_MAX_MS  = 2UL * 60UL * 1000UL;
+      constexpr uint32_t RELAY_IDLE_MS = 30000;   // no traffic at all -> done
+      size_t held = 0;                            // bytes of a partial inbound frame
+      const uint32_t started = millis();
+      uint32_t last_traffic = millis();
+      uint32_t last_wdt = millis();
+
+      while(!done && !g_relay_stop && tcp.connected() && (millis() - started) < RELAY_MAX_MS &&
+            (millis() - last_traffic) < RELAY_IDLE_MS) {
+        bool io = false;
+
+        // Camera -> cloud. Drain hard: an undrained datagram is a lost one, and the
+        // mailbox is only a few deep. The datagram is read in behind room for its
+        // length in g_rx (idle here), so each frame is a single write.
+        for(int i = 0; i < 64 && !done; i++) {
+          if(udp.parsePacket() <= 0) break;
+          const int n = udp.read(g_rx + 2, sizeof(g_rx) - 2);
+          if(n <= 0) continue;
+          g_rx[0] = (uint8_t)((n >> 8) & 0xff);
+          g_rx[1] = (uint8_t)(n & 0xff);
+          up.apply(g_rx, (size_t)n + 2);
+          done = !writeAll(g_rx, (size_t)n + 2);
+          io = true;
+          last_traffic = millis();
+        }
+
+        // Cloud -> camera. Append to the partial frame, then forward every whole one.
+        const int avail = tcp.available();
+        if(avail > 0 && held < RELAY_BUF) {
+          const int n = tcp.read(buf + held, std::min(RELAY_BUF - held, (size_t)avail));
+          if(n > 0) {
+            down.apply(buf + held, (size_t)n);
+            held += (size_t)n;
+            io = true;
+            last_traffic = millis();
+          }
+        }
+        size_t off = 0;
+        while(held - off >= 2) {
+          const size_t plen = ((size_t)buf[off] << 8) | buf[off + 1];
+          if(plen == 0) { done = true; break; }   // the cloud is done
+          // Too long to ever fit behind its length in the buffer: the stream is lost.
+          if(plen > RELAY_BUF - 2) { done = true; break; }
+          if(held - off - 2 < plen) break;
+          udp.beginPacket(peer_ip, peer_port);
+          udp.write(buf + off + 2, plen);
+          udp.endPacket();
+          off += 2 + plen;
+        }
+        if(off > 0) {
+          memmove(buf, buf + off, held - off);
+          held -= off;
+        }
+
+        if(!io) delay(2);
+        if(millis() - last_wdt > 200) { last_wdt = millis(); esp_task_wdt_reset(); }
+      }
+
+      // Free the camera's session slot ourselves, here on the LAN, rather than
+      // trusting the cloud's `f1 f0` to cross a TCP connection that is closing at the
+      // same moment. The camera allows only four sessions and hands out no video on
+      // a fifth, so a slot left occupied after every capture is what makes the next
+      // one log in and receive nothing. Sending the close directly from the
+      // controller frees it every time. Repeat it a few times: it is a single
+      // unacked datagram, and the camera is about to stop hearing us.
+      for(int i = 0; i < 3; i++) {
+        sendPacket(udp, peer_ip, peer_port, buildPacket(0xf0, nullptr, 0));
+        delay(15);
+      }
+      return finish(true);
+    }
+
+    void relayTaskEntry(void* param) {
+      RelayArgs* args = (RelayArgs*)param;
+      esp_task_wdt_add(nullptr);            // this task feeds the watchdog itself
+      relay(*args);
+      esp_task_wdt_delete(nullptr);
+      delete args;
+      g_relay_task = nullptr;
+      g_relay_active = false;
+      vTaskDelete(nullptr);
+    }
+
+    bool parseHex(const std::string& hex, uint8_t* out, size_t n) {
+      if(hex.size() != n * 2) return false;
+      for(size_t i = 0; i < n; i++) {
+        const char pair[3] = { hex[i * 2], hex[i * 2 + 1], 0 };
+        if(!isxdigit((unsigned char)pair[0]) || !isxdigit((unsigned char)pair[1])) return false;
+        out[i] = (uint8_t)strtoul(pair, nullptr, 16);
+      }
+      return true;
+    }
+  }
+
+  bool terpCamStartRelay(const std::string& host, uint16_t port, const std::string& token, const std::string& key) {
+    if(g_relay_active || g_relay_task != nullptr) return false;   // one relay at a time
+    // Only a camera whose P2P id is known is relayed to. Discovery alone cannot
+    // tell a neighbour's camera from ours, and whichever answered first would be
+    // handed the cloud's login, password included. Until a session on the
+    // controller's own path has proven the id, the cloud takes the controller's
+    // still instead, and that session is what stores the id.
+    const std::string uid(fg::settings().getStr("webcam_uid").c_str());
+    if(!camIsPaired() || settingIsEmpty(uid) || host.empty() || port == 0 || token.empty()) return false;
+
+    RelayArgs* args = new RelayArgs{ host, port, token, uid, {} };
+    if(!parseHex(key, args->key, sizeof(args->key))) {   // never bridge in the clear
+      delete args;
+      return false;
+    }
+    g_relay_stop = false;
+    g_relay_active = true;   // before the task runs, so the other paths see it at once
+    // 8 KB stack: the body keeps its datagram scratch in a file-static buffer and
+    // one 2 KB heap allocation, so the stack itself only carries the socket
+    // objects, the cipher state and small locals.
+    if(xTaskCreate(relayTaskEntry, "terpcamrelay", 8192, args, 1, &g_relay_task) != pdPASS) {
+      delete args;
+      g_relay_active = false;
+      g_relay_task = nullptr;
+      return false;
+    }
+    return true;
+  }
+
+  void terpCamReportPending(Fridgecloud* cloud) {
+    if(!g_relay_active) reportCamIp(cloud);
+  }
+
   bool terpCamCapture(Fridgecloud* cloud) {
+    // A relay is bridging this camera to the cloud, which is pulling stills
+    // itself; the controller must not also drive the camera (shared buffers).
+    if(g_relay_active) return false;
+
     const std::string did_str = fg::settings().getStr("webcam_did");
     if(settingIsEmpty(did_str) || did_str == "none" || cloud == nullptr) {
       return false;   // no camera paired

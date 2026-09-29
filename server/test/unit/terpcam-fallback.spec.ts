@@ -1,13 +1,13 @@
 import { jest } from '@jest/globals';
 import { CloudSettings, Device } from '@fg2/shared-types';
-import { TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
+import { RelayUnavailableError, TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
 import { TerpCamP2PService } from '@modules/camera/terpcam-p2p.service';
 import { WebcamPollerService } from '@modules/image/webcam-poller.service';
 
 /**
  * When a Terp Cam still comes from the camera itself and when it comes from the
- * controller instead. Both paths end in a rendezvous server and a P2P session
- * the black-box harness has nothing to answer with, so the two collaborators are
+ * controller instead. Both paths end in a controller and a P2P session the
+ * black-box harness has nothing to answer with, so the two collaborators are
  * stood in for here and the service is driven directly.
  */
 
@@ -151,4 +151,16 @@ it('falls back on the first failure for a device no pass has seen yet', async ()
   directFails();
 
   await expect(poll('never-polled')).resolves.toBe(CONTROLLER_STILL);
+});
+
+it('asks the controller at once when it did not open the relay', async () => {
+  // Older firmware, a blocked port: the controller is not bridging, so its own
+  // picture is there to be had, and the camera has not failed at anything.
+  seenBy('an online device');
+  direct.captureStill.mockRejectedValueOnce(new RelayUnavailableError('the controller did not open a relay'));
+
+  await expect(poll()).resolves.toBe(CONTROLLER_STILL);
+
+  directFails();
+  await expect(poll()).rejects.toThrow('keeping the full-resolution path');
 });
