@@ -56,6 +56,8 @@ type ImageMessage = {
 type PendingCapture = {
   capture: number | null;
   chunks: Map<number, Buffer>;
+  /** Sequence number of the final fragment, once it has arrived. */
+  last: number | null;
   bytes: number;
   h264: boolean;
   resolve: (jpeg: Buffer) => void;
@@ -88,7 +90,7 @@ export class TerpCamP2PService {
       }, CAPTURE_TIMEOUT_MS);
       timer.unref?.(); // never hold the event loop open for a still
 
-      this.pending.set(deviceId, { capture: null, chunks: new Map(), bytes: 0, h264: false, resolve, reject, timer });
+      this.pending.set(deviceId, { capture: null, chunks: new Map(), last: null, bytes: 0, h264: false, resolve, reject, timer });
 
       this.mqtt.publish('/devices/' + deviceId + '/command', JSON.stringify({ action: 'cam_capture' }));
     });
@@ -131,9 +133,13 @@ export class TerpCamP2PService {
       this.failPending(deviceId, new Error('image exceeded the size limit'));
       return;
     }
-    state.chunks.set(msg.seq ?? state.chunks.size, chunk);
+    const seq = msg.seq ?? state.chunks.size;
+    state.chunks.set(seq, chunk);
+    if (msg.last) state.last = seq;
 
-    if (msg.last) {
+    // Device messages are handled concurrently and can finish out of order, so
+    // the final fragment only says how many there are, not that all have arrived.
+    if (state.last !== null && state.chunks.size === state.last + 1) {
       const assembled = Buffer.concat([...state.chunks.keys()].sort((a, b) => a - b).map(k => state.chunks.get(k)));
       const wasH264 = state.h264;
       this.clearPending(deviceId);
