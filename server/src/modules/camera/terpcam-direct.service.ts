@@ -24,7 +24,7 @@ import { TerpCamService } from './terpcam.service';
  *
  * With no relay configured the server reaches no camera itself and every capture
  * is taken by the controller instead (terpcam-p2p.service, the smaller image), as
- * it is for a device whose controller does not open the relay.
+ * it is once the relay has delivered nothing for a while.
  *
  * The protocol was reverse engineered from the vendor SDK; the notes are kept
  * internally, not in this repository.
@@ -101,14 +101,6 @@ const RELAY_LISTEN_PORT = 32250;
 const RELAY_DIAL_MS = 30_000;
 /** How long a controller that has connected has to send the relay header. */
 const RELAY_HEADER_MS = 20_000;
-/**
- * How long a device whose controller did not dial in is not asked for a relay
- * again: firmware without the relay, a network that blocks the port, or a
- * controller that has not learned its camera's P2P id yet. Anything the device
- * reports about its camera ends it early, and a reboot into new firmware or a
- * controller that has just learned the id both report.
- */
-const RELAY_UNAVAILABLE_MS = 15 * 60_000;
 /**
  * How long a relay being closed has for the controller to hang up its side. The
  * controller takes no new relay until it has, so a retry sent before that is
@@ -302,12 +294,6 @@ export function checkStatusReply(text: string, label: string): StatusVerdict {
 /** Thrown when a camera must not be asked again for a while; see REFUSED_BACKOFF_MS. */
 export class CameraRefusedError extends Error {}
 
-/**
- * Thrown when the controller did not open the relay at all. Asking for a relay
- * again is left for a while; see RELAY_UNAVAILABLE_MS.
- */
-export class RelayUnavailableError extends Error {}
-
 @Injectable()
 export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicationShutdown {
   /** The controller-relay path: where controllers connect, and what they are told. */
@@ -319,13 +305,6 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
   private relayServer: net.Server | null = null;
   /** Relay connections awaited by token, resolved when a controller dials in. */
   private pendingRelays = new Map<string, { key: Buffer; resolve: (s: RelaySocket) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }>();
-  /**
-   * Devices whose controller has dialled in since the server started. Such a
-   * controller has the relay, so a dial-in that does not arrive in time is a
-   * slow or busy link - an ordinary failed attempt - rather than a reason to
-   * stop asking it for RELAY_UNAVAILABLE_MS.
-   */
-  private relayProven = new Set<string>();
   /** Relays open right now, closed on shutdown. */
   private relays = new Set<RelaySocket>();
   /**
@@ -407,18 +386,13 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     return new Promise<RelaySocket>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pendingRelays.delete(token);
-        reject(
-          this.relayProven.has(deviceId)
-            ? new Error('the controller did not open the relay in time')
-            : new RelayUnavailableError('the controller did not open a relay'),
-        );
+        // An ordinary failed attempt, retried like any other: a slow link, a
+        // controller still ending the previous relay, or one that did not find
+        // the camera on its LAN this time all look like this.
+        reject(new Error('the controller did not open the relay in time'));
       }, RELAY_DIAL_MS);
       timer.unref?.();
-      const dialledIn = (socket: RelaySocket) => {
-        this.relayProven.add(deviceId);
-        resolve(socket);
-      };
-      this.pendingRelays.set(token, { key, resolve: dialledIn, reject, timer });
+      this.pendingRelays.set(token, { key, resolve, reject, timer });
       const asked = this.mqtt.publish(
         '/devices/' + deviceId + '/command',
         JSON.stringify({ action: 'cam_relay', host: this.relayHost, port: this.relayPort, token, key: key.toString('hex') }),
@@ -446,9 +420,6 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
   /** Devices whose camera refused us, and until when it is left alone. */
   private refused = new Map<string, number>();
 
-  /** Devices whose controller did not open a relay, and until when it is not asked. */
-  private relayUnavailable = new Map<string, number>();
-
   /**
    * The device has reported something about its camera: a different camera, a
    * new password, the P2P id its controller has just learned, or simply a reboot.
@@ -456,7 +427,6 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
    */
   public cameraReported(deviceId: string): void {
     this.refused.delete(deviceId);
-    this.relayUnavailable.delete(deviceId);
   }
 
   /**
@@ -491,8 +461,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
    * camera the device has reported. Where it cannot, the controller is not a
    * fallback but the only path there is, and a caller should not spend failed
    * attempts before taking it. A camera left alone for a while (one that refused
-   * us, a controller that did not open the relay) is still reachable in this
-   * sense: capture() fails fast for it, and the caller decides how long that
+   * us) is still reachable in this sense: capture() fails fast for it, and the caller decides how long that
    * may go on before settling for the controller's picture.
    */
   public async canReachCamera(deviceId: string): Promise<boolean> {
@@ -564,9 +533,6 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     if (holds(this.refused, deviceId)) {
       throw new Error('the camera refused this server recently');
     }
-    if (holds(this.relayUnavailable, deviceId)) {
-      throw new RelayUnavailableError('the controller did not open a relay recently');
-    }
 
     // A FRESH session per still, closed right after. Reusing a held session over
     // the relay returned the previous keyframe as often as a new one (a
@@ -582,11 +548,6 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
         if (!keyframe) throw new Error('no keyframe arrived');
         return { data: keyframe, h264: true };
       } catch (error) {
-        if (error instanceof RelayUnavailableError) {
-          logger.info(`[terpcam] ${deviceId}: ${error.message}, not asking again for ${RELAY_UNAVAILABLE_MS / 60_000} min`);
-          this.relayUnavailable.set(deviceId, Date.now() + RELAY_UNAVAILABLE_MS);
-          throw error;
-        }
         if (error instanceof CameraRefusedError) {
           logger.warn(`[terpcam] ${deviceId}: ${error.message}, not asking again for ${REFUSED_BACKOFF_MS / 60_000} min`);
           this.refused.set(deviceId, Date.now() + REFUSED_BACKOFF_MS);

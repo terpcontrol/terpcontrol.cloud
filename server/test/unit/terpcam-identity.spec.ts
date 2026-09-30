@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv } from 'node:crypto';
 import net, { AddressInfo } from 'node:net';
 import { jest } from '@jest/globals';
-import { CameraRefusedError, checkStatusReply, RelayUnavailableError, TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
+import { CameraRefusedError, checkStatusReply, TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
 
 /**
  * A camera uid that points at the wrong camera: the controller had cached the
@@ -94,24 +94,18 @@ describe('a controller that does not open the relay', () => {
 
   beforeEach(() => {
     service = serviceFor();
-    readStill = jest.fn<Internals['readStill']>().mockRejectedValue(new RelayUnavailableError('the controller did not open a relay'));
+    readStill = jest.fn<Internals['readStill']>().mockRejectedValue(new Error('the controller did not open the relay in time'));
     (service as unknown as Internals).readStill = readStill;
   });
 
-  it('is asked once, and then not again for a while', async () => {
-    await expect(service.capture(DEVICE)).rejects.toThrow(RelayUnavailableError);
-    expect(readStill).toHaveBeenCalledTimes(1);
+  it('is an ordinary failed attempt: retried, and asked again on the next poll', async () => {
+    // A slow link, a controller still ending the previous relay, a camera it did
+    // not find on its LAN this time: none of them is a reason to stop asking.
+    await expect(service.capture(DEVICE)).rejects.toThrow('in time');
+    expect(readStill).toHaveBeenCalledTimes(3);
 
-    await expect(service.capture(DEVICE)).rejects.toThrow(RelayUnavailableError);
-    expect(readStill).toHaveBeenCalledTimes(1);
-  });
-
-  it('is asked again once it reports its camera, as it does after a reboot or learning the id', async () => {
-    await expect(service.capture(DEVICE)).rejects.toThrow();
-
-    service.cameraReported(DEVICE);
-    await expect(service.capture(DEVICE)).rejects.toThrow(RelayUnavailableError);
-    expect(readStill).toHaveBeenCalledTimes(2);
+    await expect(service.capture(DEVICE)).rejects.toThrow('in time');
+    expect(readStill).toHaveBeenCalledTimes(6);
   });
 
   it('is not asked at all while the broker is down', async () => {
@@ -187,29 +181,15 @@ describe('the relay connection', () => {
     expect(down.update(Buffer.concat(onTheWire))).toEqual(Buffer.concat([u16(toCamera.length), toCamera, u16(0)]));
   });
 
-  it('takes a late dial-in from a controller that has relayed before for a slow link, not for missing firmware', async () => {
-    const published: string[] = [];
-    const service = serviceFor((_topic, message) => published.push(message) > 0);
+  it('gives up on a dial-in that does not arrive in time', async () => {
+    const service = serviceFor();
     const internals = service as unknown as Internals;
-    server = net.createServer(conn => internals.onRelayConnection(conn));
-    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
-
-    const relay = internals.relayConnect(DEVICE);
-    const { token, key } = JSON.parse(published[0]) as { token: string; key: string };
-    const up = createCipheriv('aes-128-ctr', Buffer.from(key, 'hex').subarray(0, 16), Buffer.alloc(16));
-    const controller = net.connect((server.address() as AddressInfo).port, '127.0.0.1');
-    const header = Buffer.concat([Buffer.from(token, 'latin1'), Buffer.from([0]), up.update(Buffer.alloc(20))]);
-    controller.write(Buffer.concat([u16(header.length), header]));
-    controller.on('end', () => controller.end());
-    await (await relay).close();
 
     jest.useFakeTimers();
     try {
       const late = internals.relayConnect(DEVICE);
       jest.advanceTimersByTime(30_000);
-      const error = await late.catch((e: Error) => e);
-      expect(error).toBeInstanceOf(Error);
-      expect(error).not.toBeInstanceOf(RelayUnavailableError);
+      await expect(late).rejects.toThrow('did not open the relay in time');
     } finally {
       jest.useRealTimers();
     }

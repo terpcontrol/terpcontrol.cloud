@@ -315,7 +315,7 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
    * direct path has delivered nothing for ten minutes - since its last still, or
    * since the device came online - and any direct still closes it again. That
    * includes the direct service leaving a camera alone for a while (one that
-   * refused it, a controller that did not open the relay): those are failures
+   * refused it): those are failures
    * of the direct path like any other. `alwaysAllowController` lifts the wait
    * for the test-image button, where a picture now beats the better picture the
    * next poll would store.
