@@ -10,7 +10,7 @@ import { BackgroundWork, logIfItFails } from '../../common/background-work';
 import { withoutCredentials } from '../../common/log-path';
 import { ImageStore } from '../../database/image-store';
 import { MODEL } from '../../database/models.module';
-import { RelayUnavailableError, TerpCamDirectService } from '../camera/terpcam-direct.service';
+import { TerpCamDirectService } from '../camera/terpcam-direct.service';
 import { TerpCamP2PService, terpCamLabel } from '../camera/terpcam-p2p.service';
 import { DeviceLogService } from '../device/device-log.service';
 import { ONLINE_TIMEOUT } from '../device/device.queries';
@@ -47,12 +47,12 @@ const FFMPEG_FAST_PROBE_ARGS = ['-probesize', '32', '-analyzeduration', '0'];
 const FFMPEG_FULL_PROBE_ARGS = ['-probesize', '5000000', '-analyzeduration', '5000000'];
 const FFMPEG_MISSING_CODEC_PARAMS_PATTERN = /Could not find codec parameters/i;
 
-// How many direct captures in a row have to fail before a Terp Cam still is
-// asked of the controller instead. One failure means nothing: a held session
-// goes stale, the camera reboots, a keyframe is missed - all of which the next
-// poll clears by itself, and a single lost still is invisible in a timelapse
-// while a downgraded one is not.
-const TERPCAM_DIRECT_FAILURES_BEFORE_FALLBACK = 2;
+// How long a Terp Cam's direct path has to have delivered nothing before a
+// still is asked of the controller instead. A failure or two means nothing: a
+// keyframe is missed, the camera reboots, the uplink has a slow minute - all of
+// which a later poll clears by itself, and a few lost stills are invisible in a
+// timelapse while downgraded ones are not.
+const TERPCAM_FALLBACK_AFTER_MS = 10 * 60_000;
 
 /**
  * Which camera a read is of, for telling whether two reads would fetch the same
@@ -74,12 +74,10 @@ function readKey(settings: Pick<CloudSettings, 'rtspStream' | 'rtspStreamTranspo
  * timelapse it ends up in.
  */
 type TerpCamDirectState = {
-  /** Online on the last pass; offline -> online starts a new period and clears the rest. */
+  /** Online on the last pass; offline -> online starts a new period and resets `since`. */
   online: boolean;
-  /** A direct still arrived in this online period, so the fallback stays unused. */
-  succeeded: boolean;
-  /** Direct failures in a row, counted within this online period only. */
-  failures: number;
+  /** When the direct path last delivered a still, or this online period began if it has not yet. */
+  since: number;
 };
 
 /**
@@ -298,35 +296,34 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
     const online = (device.lastseen ?? 0) >= Date.now() - ONLINE_TIMEOUT;
     const state = this.deviceIdToTerpCamDirectState.get(device.device_id);
     if (!state) {
-      this.deviceIdToTerpCamDirectState.set(device.device_id, { online, succeeded: false, failures: 0 });
+      this.deviceIdToTerpCamDirectState.set(device.device_id, { online, since: Date.now() });
       return;
     }
     if (online && !state.online) {
-      state.succeeded = false;
-      state.failures = 0;
+      state.since = Date.now();
     }
     state.online = online;
   }
 
   /**
    * One Terp Cam still: full resolution from the camera itself, and only where
-   * that has produced nothing at all this online period, the controller's
+   * that has produced nothing for TERPCAM_FALLBACK_AFTER_MS, the controller's
    * smaller `snapshot.cgi` picture. Which camera is decided by the device, not
    * by the setting.
    *
    * The fallback is never the answer to a single failure. It is taken once the
-   * direct path has failed TERPCAM_DIRECT_FAILURES_BEFORE_FALLBACK times running
-   * AND has delivered nothing since the device came online - a camera that was
-   * being reached until now is having a bad minute, not a bad day, and the poll
-   * that proves it comes soon enough. `alwaysAllowController` lifts that for
-   * the test-image button, where a picture now beats the better picture the
+   * direct path has delivered nothing for ten minutes - since its last still, or
+   * since the device came online - and any direct still closes it again. That
+   * includes the direct service leaving a camera alone for a while (one that
+   * refused it, a controller that did not open the relay): those are failures
+   * of the direct path like any other. `alwaysAllowController` lifts the wait
+   * for the test-image button, where a picture now beats the better picture the
    * next poll would store.
    */
   private async captureTerpCamStill(deviceId: string, alwaysAllowController: boolean): Promise<Buffer> {
-    // Where the server reaches no camera of its own - no relay configured, a
-    // device that has reported none, or a controller that does not open the
-    // relay - the controller is the only path and
-    // waiting out failed direct attempts would cost every still a poll or two.
+    // Where the server has no way to the camera of its own - no relay
+    // configured, or a device that has reported no camera it can be reached by -
+    // the controller is the only path, and waiting would only cost stills.
     if (!(await this.terpCamDirect.canReachCamera(deviceId))) {
       return this.terpCamP2P.captureViaController(deviceId);
     }
@@ -334,20 +331,12 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
     const state = this.deviceIdToTerpCamDirectState.get(deviceId);
     try {
       const still = await this.terpCamDirect.captureStill(deviceId);
-      if (state) {
-        state.succeeded = true;
-        state.failures = 0;
-      }
+      if (state) state.since = Date.now();
       return still;
     } catch (e) {
-      // A controller that never opened the relay is not bridging anything, so it
-      // is free to take the still now, and that says nothing about the camera.
-      if (!(e instanceof RelayUnavailableError)) {
-        if (state) state.failures++;
-        const exhausted = !state || (!state.succeeded && state.failures >= TERPCAM_DIRECT_FAILURES_BEFORE_FALLBACK);
-        if (!alwaysAllowController && !exhausted) {
-          throw new Error(`direct capture failed (${(e as Error).message}); keeping the full-resolution path`);
-        }
+      const exhausted = !state || Date.now() - state.since >= TERPCAM_FALLBACK_AFTER_MS;
+      if (!alwaysAllowController && !exhausted) {
+        throw new Error(`direct capture failed (${(e as Error).message}); keeping the full-resolution path`);
       }
       logger.info(`Direct capture for ${deviceId} failed (${(e as Error).message}); asking the controller`);
     }

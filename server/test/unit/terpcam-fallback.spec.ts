@@ -42,7 +42,14 @@ const testImage = (deviceId = DEVICE) => service.readRtspStreamImage(CAMERA, dev
 
 const directFails = () => direct.captureStill.mockRejectedValueOnce(new Error('no answer from the camera'));
 
+/** The poller's clock; the fallback is a question of how long the camera has delivered nothing. */
+let now = 0;
+const minutesPass = (minutes: number) => (now += minutes * 60_000);
+
 beforeEach(() => {
+  now = Date.parse('2026-09-30T12:00:00Z');
+  jest.spyOn(Date, 'now').mockImplementation(() => now);
+
   direct = {
     canReachCamera: jest.fn<() => Promise<boolean>>().mockResolvedValue(true),
     captureStill: jest.fn<() => Promise<Buffer>>().mockResolvedValue(DIRECT_STILL),
@@ -59,6 +66,8 @@ beforeEach(() => {
   ) as unknown as WebcamPollerInternals;
 });
 
+afterEach(() => jest.restoreAllMocks());
+
 it('takes the full-resolution picture while the camera answers', async () => {
   seenBy('an online device');
 
@@ -74,70 +83,66 @@ it('asks the controller straight away where it reaches no camera of its own', as
   expect(direct.captureStill).not.toHaveBeenCalled();
 });
 
-it('leaves a poll without a picture rather than downgrading it after one failure', async () => {
+it('leaves polls without a picture rather than downgrading them for the first ten minutes', async () => {
   seenBy('an online device');
-  directFails();
 
-  await expect(poll()).rejects.toThrow('keeping the full-resolution path');
+  for (let minute = 0; minute < 10; minute++) {
+    directFails();
+    await expect(poll()).rejects.toThrow('keeping the full-resolution path');
+    minutesPass(0.99);
+  }
   expect(controller.captureViaController).not.toHaveBeenCalled();
 });
 
-it('asks the controller once two direct captures in a row have failed', async () => {
+it('asks the controller once the camera has delivered nothing for ten minutes since coming online', async () => {
   seenBy('an online device');
   directFails();
-  directFails();
-
   await expect(poll()).rejects.toThrow('keeping the full-resolution path');
+
+  minutesPass(10);
+  directFails();
+  await expect(poll()).resolves.toBe(CONTROLLER_STILL);
+});
+
+it('counts the ten minutes from the last full-resolution picture', async () => {
+  seenBy('an online device');
+  minutesPass(30);
+  await expect(poll()).resolves.toBe(DIRECT_STILL);
+
+  minutesPass(9);
+  directFails();
+  await expect(poll()).rejects.toThrow('keeping the full-resolution path');
+
+  minutesPass(1);
+  directFails();
   await expect(poll()).resolves.toBe(CONTROLLER_STILL);
 });
 
 it('closes the fallback again as soon as a direct capture succeeds', async () => {
   seenBy('an online device');
+  minutesPass(10);
   directFails();
-  directFails();
-  await expect(poll()).rejects.toThrow();
   await expect(poll()).resolves.toBe(CONTROLLER_STILL);
 
   await expect(poll()).resolves.toBe(DIRECT_STILL);
 
-  // The camera has proved itself for this online period, so the failures that
-  // follow are a bad minute rather than a camera the server cannot reach.
   directFails();
-  directFails();
-  await expect(poll()).rejects.toThrow('keeping the full-resolution path');
   await expect(poll()).rejects.toThrow('keeping the full-resolution path');
   expect(controller.captureViaController).toHaveBeenCalledTimes(1);
 });
 
-it('forgets the failures of an earlier online period when the device comes back', async () => {
+it('starts the ten minutes again when the device comes back online', async () => {
   seenBy('an online device');
-  directFails();
-  await expect(poll()).rejects.toThrow();
-
-  seenBy('an offline device');
-  seenBy('an online device');
-
-  // Without the reset this second failure would be the device's second in a row
-  // and would take the controller's picture.
-  directFails();
-  await expect(poll()).rejects.toThrow('keeping the full-resolution path');
-  expect(controller.captureViaController).not.toHaveBeenCalled();
-});
-
-it('forgets an earlier online period having succeeded when the device comes back', async () => {
-  seenBy('an online device');
-  await expect(poll()).resolves.toBe(DIRECT_STILL);
+  minutesPass(20);
 
   seenBy('an offline device');
   seenBy('an online device');
 
   // The camera hangs off the same wifi as the controller, so a device that has
-  // just come back may no longer have it: what the last period proved says
-  // nothing about this one.
+  // just come back is given the same time to reach it as a new one.
   directFails();
-  directFails();
-  await expect(poll()).rejects.toThrow();
-  await expect(poll()).resolves.toBe(CONTROLLER_STILL);
+  await expect(poll()).rejects.toThrow('keeping the full-resolution path');
+  expect(controller.captureViaController).not.toHaveBeenCalled();
 });
 
 it('takes the smaller picture on the first failure for the test-image button', async () => {
@@ -153,14 +158,14 @@ it('falls back on the first failure for a device no pass has seen yet', async ()
   await expect(poll('never-polled')).resolves.toBe(CONTROLLER_STILL);
 });
 
-it('asks the controller at once when it did not open the relay', async () => {
-  // Older firmware, a blocked port: the controller is not bridging, so its own
-  // picture is there to be had, and the camera has not failed at anything.
+it('waits the ten minutes out for a controller that did not open the relay, too', async () => {
+  // A controller that answers the relay most of the time and missed it once
+  // must not cost a quarter of an hour of downgraded stills.
   seenBy('an online device');
   direct.captureStill.mockRejectedValueOnce(new RelayUnavailableError('the controller did not open a relay'));
-
-  await expect(poll()).resolves.toBe(CONTROLLER_STILL);
-
-  directFails();
   await expect(poll()).rejects.toThrow('keeping the full-resolution path');
+
+  minutesPass(10);
+  direct.captureStill.mockRejectedValueOnce(new RelayUnavailableError('the controller did not open a relay recently'));
+  await expect(poll()).resolves.toBe(CONTROLLER_STILL);
 });
