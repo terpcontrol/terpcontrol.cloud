@@ -36,6 +36,15 @@ jobs:
   firmware:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    # One release per environment at a time, never cancelling a running one:
+    # a second would rsync a newer tree underneath the build of the first.
+    # GitHub keeps only the newest waiting release and cancels the ones it
+    # replaces. The newer one builds a newer tree, but only its own variants -
+    # which is why the deploy workflow widens its change detection back to the
+    # last release that went through (see the detect job there).
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
     env:
       DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
       DEPLOY_USER: ${{ vars.DEPLOY_USER }}

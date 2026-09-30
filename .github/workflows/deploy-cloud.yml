@@ -1,9 +1,7 @@
 name: Deploy cloud
 
 # Rsyncs the repo to the host of the given environment and brings the compose
-# stack up there. This is the only part of a deploy a human holds back: required
-# reviewers on the environment (production-cloud) pause the job until somebody
-# approves the run.
+# stack up there.
 
 on:
   workflow_call:
@@ -17,6 +15,15 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    # One deploy per environment at a time: a second one would rsync a newer
+    # tree underneath the stack the first is still bringing up. A running
+    # deploy is never cancelled - it would leave the stack half recreated.
+    # While one runs, GitHub keeps only the newest waiting deploy and cancels
+    # the ones it replaces, which loses nothing: every deploy ships the whole
+    # tree of its commit.
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
     env:
       DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
       DEPLOY_USER: ${{ vars.DEPLOY_USER }}
