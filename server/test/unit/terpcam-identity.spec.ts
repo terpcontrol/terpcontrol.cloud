@@ -187,7 +187,7 @@ describe('the relay connection', () => {
     jest.useFakeTimers();
     try {
       const late = internals.relayConnect(DEVICE);
-      jest.advanceTimersByTime(30_000);
+      jest.advanceTimersByTime(45_000);
       await expect(late).rejects.toThrow('did not open the relay in time');
     } finally {
       jest.useRealTimers();

@@ -91,11 +91,20 @@ const REFUSED_BACKOFF_MS = 30 * 60_000;
 /** Where the relay listens inside the container; the host publishes it on `relayPort`. */
 const RELAY_LISTEN_PORT = 32250;
 /**
- * How long a controller has to dial back in once asked for a relay: the request
- * crosses MQTT, the controller looks for the camera on its LAN (up to ~5s), and
- * only then connects to the cloud over its own uplink.
+ * How long a controller has to dial back in once asked for a relay. Everything
+ * before the dial-in adds up:
+ * - the request crosses MQTT, and the controller only reads it between two
+ *   passes of its loop - a loop that may be busy switching smart sockets (a
+ *   pass can take ~8s when one is unreachable: 2s budget, then 3s connect and
+ *   3s read on the request that overran it) or searching for the camera (12s);
+ * - the relay learns the camera's P2P id first when it does not know it yet
+ *   (discovery and a login, up to ~10s);
+ * - it looks for the camera on its LAN (up to ~5s) and connects to the cloud
+ *   over its own uplink (up to 5s).
+ * The relay itself runs in its own task, so a busy loop no longer matters once
+ * it has started.
  */
-const RELAY_DIAL_MS = 30_000;
+const RELAY_DIAL_MS = 45_000;
 /** How long a controller that has connected has to send the relay header. */
 const RELAY_HEADER_MS = 20_000;
 /**
