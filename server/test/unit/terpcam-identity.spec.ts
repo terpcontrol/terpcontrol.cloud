@@ -184,4 +184,32 @@ describe('the relay connection', () => {
     expect(Buffer.concat(onTheWire).includes(toCamera)).toBe(false);
     expect(down.update(Buffer.concat(onTheWire))).toEqual(Buffer.concat([u16(toCamera.length), toCamera, u16(0)]));
   });
+
+  it('takes a late dial-in from a controller that has relayed before for a slow link, not for missing firmware', async () => {
+    const published: string[] = [];
+    const service = serviceFor((_topic, message) => published.push(message) > 0);
+    const internals = service as unknown as Internals;
+    server = net.createServer(conn => internals.onRelayConnection(conn));
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+
+    const relay = internals.relayConnect(DEVICE);
+    const { token, key } = JSON.parse(published[0]) as { token: string; key: string };
+    const up = createCipheriv('aes-128-ctr', Buffer.from(key, 'hex').subarray(0, 16), Buffer.alloc(16));
+    const controller = net.connect((server.address() as AddressInfo).port, '127.0.0.1');
+    const header = Buffer.concat([Buffer.from(token, 'latin1'), Buffer.from([0]), up.update(Buffer.alloc(20))]);
+    controller.write(Buffer.concat([u16(header.length), header]));
+    controller.on('end', () => controller.end());
+    await (await relay).close();
+
+    jest.useFakeTimers();
+    try {
+      const late = internals.relayConnect(DEVICE);
+      jest.advanceTimersByTime(30_000);
+      const error = await late.catch((e: Error) => e);
+      expect(error).toBeInstanceOf(Error);
+      expect(error).not.toBeInstanceOf(RelayUnavailableError);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
