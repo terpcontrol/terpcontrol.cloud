@@ -9,7 +9,7 @@ import { ConfigType } from '@nestjs/config';
 import { Document, Model } from 'mongoose';
 import { Device } from '@fg2/shared-types';
 import { logger } from '@utils/logger';
-import { RELAY_PATH, terpCamConfig } from '../../config/configuration';
+import { terpCamConfig } from '../../config/configuration';
 import { MODEL } from '../../database/models.module';
 import { MqttClientService } from '../mqtt/mqtt-client.service';
 import { TerpCamService } from './terpcam.service';
@@ -91,6 +91,8 @@ const MAX_FRAME_BYTES = 4 * 1024 * 1024;
  * taken from its real owner.
  */
 const REFUSED_BACKOFF_MS = 30 * 60_000;
+/** Where the API serves the controller relay; docker-compose.yaml builds the URL controllers are sent from it. */
+const RELAY_PATH = '/terpcam/relay';
 /** The `Upgrade` token a controller asks for; anything else on the relay path is turned away. */
 const RELAY_PROTOCOL = 'terpcam-relay';
 /**

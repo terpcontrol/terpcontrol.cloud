@@ -9,9 +9,6 @@ import { registerAs } from '@nestjs/config';
  * an existing deployment needs no new settings.
  */
 
-/** Where the controller-relay upgrade is served; see terpCamConfig. */
-export const RELAY_PATH = '/terpcam/relay';
-
 const flag = (value: string | undefined): boolean => value === 'true';
 
 const number = (value: string | undefined, fallback: number): number => {
@@ -83,14 +80,11 @@ export const terpCamConfig = registerAs('terpcam', () => ({
   /**
    * The controller-relay path: a controller is told to open `relayUrl` as an
    * HTTP upgrade and bridges the camera's P2P over the connection, so the cloud
-   * runs the P2P client and pulls a full-resolution still. It is the API's own
-   * URL, so it reaches the server through whatever already publishes the API (a
-   * reverse proxy has to pass `Upgrade` on). `TERPCAM_RELAY_URL` overrides it; an
-   * empty value turns the path off, and the server reaches no Terp Cam then.
+   * runs the P2P client and pulls a full-resolution still. Empty turns the path
+   * off, and the server reaches no Terp Cam then. The default (the API's own
+   * URL) lives in docker-compose.yaml, not here.
    */
-  relayUrl: (
-    process.env.TERPCAM_RELAY_URL ?? (process.env.API_URL_EXTERNAL ? process.env.API_URL_EXTERNAL.replace(/\/+$/, '') + RELAY_PATH : '')
-  ).trim(),
+  relayUrl: (process.env.TERPCAM_RELAY_URL ?? '').trim(),
 }));
 
 export const configNamespaces = [appConfig, databaseConfig, influxConfig, mqttConfig, mailConfig, authConfig, terpCamConfig];
