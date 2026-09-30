@@ -65,7 +65,12 @@ const VIDEO_CHANNEL = 1;
 const FRAME_MAGIC = Buffer.from([0x55, 0xaa, 0x15, 0xa8]);
 
 const LOGIN_MS = 8_000;
-const TRANSFER_MS = 20_000;
+/**
+ * How long one attempt waits for a keyframe. A fresh stream usually delivers one
+ * in 15-18s even on the LAN, and a camera behind a slower uplink or in night mode
+ * (lower frame rate, so a longer GOP in wall time) needs more than that.
+ */
+const TRANSFER_MS = 60_000;
 const IDLE_MS = 5_000;
 /** A gap this old will not close; take the next keyframe instead of repairing. */
 const GAP_ABANDON_MS = 1_200;
