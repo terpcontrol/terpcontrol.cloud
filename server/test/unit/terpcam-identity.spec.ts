@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv } from 'node:crypto';
+import http from 'node:http';
 import net, { AddressInfo } from 'node:net';
 import { jest } from '@jest/globals';
 import { CameraRefusedError, checkStatusReply, TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
@@ -41,7 +42,7 @@ describe('checkStatusReply', () => {
 type Internals = {
   readStill: (deviceId: string, camera: unknown) => Promise<Buffer | null>;
   relayConnect: (deviceId: string) => Promise<RelaySocketLike>;
-  onRelayConnection: (conn: net.Socket) => void;
+  onUpgrade: (req: http.IncomingMessage, conn: net.Socket, head: Buffer) => void;
 };
 type RelaySocketLike = {
   did: Buffer;
@@ -50,13 +51,13 @@ type RelaySocketLike = {
   close(): Promise<void>;
 };
 
-const RELAY_CONFIG = { relayHost: 'relay.invalid', relayPort: 32250 };
+const RELAY_CONFIG = { relayUrl: 'http://relay.invalid/terpcam/relay' };
 
 function serviceFor(publish: (topic: string, message: string) => boolean = () => true): TerpCamDirectService {
   const devices = {
     findOne: async () => ({ hardwareInfo: { webcam_did: PAIRED, webcam_uid: 'VSTH828707TXVEW', webcam_pwd: '' } }),
   };
-  return new TerpCamDirectService(devices as never, {} as never, { publish } as never, RELAY_CONFIG as never);
+  return new TerpCamDirectService(devices as never, {} as never, { publish } as never, RELAY_CONFIG as never, {} as never);
 }
 
 describe('a camera that refused the server', () => {
@@ -116,7 +117,7 @@ it("asks for a relay before the controller has reported the camera's P2P id", as
   // id is not the server's to wait for.
   for (const webcam_uid of [undefined, 'none']) {
     const devices = { findOne: async () => ({ hardwareInfo: { webcam_did: PAIRED, webcam_uid } }) };
-    const service = new TerpCamDirectService(devices as never, {} as never, { publish: () => true } as never, RELAY_CONFIG as never);
+    const service = new TerpCamDirectService(devices as never, {} as never, { publish: () => true } as never, RELAY_CONFIG as never, {} as never);
     const readStill = jest.fn<Internals['readStill']>().mockResolvedValue(Buffer.from('keyframe'));
     (service as unknown as Internals).readStill = readStill;
     await expect(service.capture(DEVICE)).resolves.toEqual(Buffer.from('keyframe'));
@@ -141,16 +142,45 @@ it('runs one capture per device however many callers ask at once', async () => {
 
 describe('the relay connection', () => {
   const u16 = (n: number) => Buffer.from([n >> 8, n & 0xff]);
-  let server: net.Server;
+  let server: http.Server;
 
   afterEach(() => server?.close());
+
+  /** The API's HTTP server, as the controller reaches it: onUpgrade is all it adds. */
+  const listen = async (internals: Internals) => {
+    server = http.createServer((_req, res) => res.end());
+    server.on('upgrade', internals.onUpgrade);
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    return (server.address() as AddressInfo).port;
+  };
+
+  /** Dial in as the controller does: the upgrade request, and nothing until it is switched over. */
+  const dial = (port: number, path = '/terpcam/relay', upgrade = 'terpcam-relay') =>
+    new Promise<{ conn: net.Socket; status: string }>((resolve, reject) => {
+      const conn = net.connect(port, '127.0.0.1');
+      conn.on('error', reject);
+      conn.write(`GET ${path} HTTP/1.1\r\nHost: relay\r\nUpgrade: ${upgrade}\r\nConnection: Upgrade\r\n\r\n`);
+      let head = '';
+      const onData = (chunk: Buffer) => {
+        head += chunk.toString('latin1');
+        if (!head.includes('\r\n\r\n')) return;
+        conn.off('data', onData);
+        resolve({ conn, status: head.split('\r\n')[0] });
+      };
+      conn.on('data', onData);
+    });
+
+  it('turns away an upgrade that is not a relay', async () => {
+    const port = await listen(serviceFor() as unknown as Internals);
+    await expect(dial(port, '/terpcam/relay', 'websocket')).resolves.toMatchObject({ status: 'HTTP/1.1 404 Not Found' });
+    await expect(dial(port, '/device')).resolves.toMatchObject({ status: 'HTTP/1.1 404 Not Found' });
+  });
 
   it('enciphers both directions and tells the controller when the cloud is done', async () => {
     const published: string[] = [];
     const service = serviceFor((_topic, message) => published.push(message) > 0);
     const internals = service as unknown as Internals;
-    server = net.createServer(conn => internals.onRelayConnection(conn));
-    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const port = await listen(internals);
 
     const relay = internals.relayConnect(DEVICE);
     const { token, key } = JSON.parse(published[0]) as { token: string; key: string };
@@ -159,7 +189,8 @@ describe('the relay connection', () => {
     const down = createDecipheriv('aes-128-ctr', keys.subarray(16), Buffer.alloc(16));
 
     // The controller: its header, and the camera's first datagram right behind it.
-    const controller = net.connect((server.address() as AddressInfo).port, '127.0.0.1');
+    const { conn: controller, status } = await dial(port);
+    expect(status).toBe('HTTP/1.1 101 Switching Protocols');
     const did = Buffer.from('VSTH00000828707TXVEW', 'latin1');
     const header = Buffer.concat([Buffer.from(token, 'latin1'), Buffer.from([0]), up.update(did)]);
     const fromCamera = Buffer.from('a camera datagram');
@@ -169,15 +200,25 @@ describe('the relay connection', () => {
     expect(socket.did).toEqual(did);
     await expect(new Promise(resolve => socket.on('message', resolve))).resolves.toEqual(fromCamera);
 
+    // The controller hangs up once it reads the empty frame, as the firmware does.
     const onTheWire: Buffer[] = [];
-    controller.on('data', chunk => onTheWire.push(chunk));
-    controller.on('end', () => controller.end());
+    const received: Buffer[] = [];
     const toCamera = Buffer.from('a CGI with the password in it');
+    const done = Buffer.concat([u16(toCamera.length), toCamera, u16(0)]);
+    controller.on('data', chunk => {
+      onTheWire.push(chunk);
+      received.push(down.update(chunk));
+      if (Buffer.concat(received).equals(done)) controller.end();
+    });
+    let hungUp = false;
+    controller.on('end', () => (hungUp = true));
     socket.send(toCamera);
     await socket.close();
 
+    // The server waits for the controller rather than closing first.
+    expect(hungUp).toBe(false);
     expect(Buffer.concat(onTheWire).includes(toCamera)).toBe(false);
-    expect(down.update(Buffer.concat(onTheWire))).toEqual(Buffer.concat([u16(toCamera.length), toCamera, u16(0)]));
+    expect(Buffer.concat(received)).toEqual(done);
   });
 
   it('gives up on a dial-in that does not arrive in time', async () => {

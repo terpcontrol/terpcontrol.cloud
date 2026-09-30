@@ -119,15 +119,13 @@ services:
         condition: service_started
     ports:
       - ${API_PORT_EXTERNAL}:8081
-      - ${TERPCAM_RELAY_PORT_EXTERNAL:-32250}:32250/tcp
     networks:
       - main
     environment:
       SECRET_KEY: ${TOKEN_SECRET_KEY}
       PORT: 8081
       API_URL_EXTERNAL: ${API_URL_EXTERNAL}
-      TERPCAM_RELAY_HOST: ${TERPCAM_RELAY_HOST-${MQTT_HOST_EXTERNAL:-}}
-      TERPCAM_RELAY_PORT_EXTERNAL: ${TERPCAM_RELAY_PORT_EXTERNAL:-32250}
+      TERPCAM_RELAY_URL: ${TERPCAM_RELAY_URL-${API_URL_EXTERNAL}/terpcam/relay}
       DB_HOST: "mongodb"
       DB_PORT: "27017"
       DB_DATABASE: ${MONGODB_DATABASE}

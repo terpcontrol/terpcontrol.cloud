@@ -2778,14 +2778,14 @@ bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
   }
 
   if(command["action"] == std::string("cam_relay")) {
-    // Bridge the camera's P2P to a TCP connection to the cloud so the cloud pulls
-    // the full-resolution still itself. Runs in its own task (terpCamStartRelay)
-    // and returns at once, so a held session does not block the control loop.
-    const std::string host = command["host"] | "";
-    const uint16_t port = (uint16_t)(command["port"] | 0);
+    // Bridge the camera's P2P to a connection to the cloud (an HTTP upgrade on
+    // `url`) so the cloud pulls the full-resolution still itself. Runs in its own
+    // task (terpCamStartRelay) and returns at once, so a held session does not
+    // block the control loop.
+    const std::string url = command["url"] | "";
     const std::string token = command["token"] | "";
     const std::string key = command["key"] | "";
-    fg::terpCamStartRelay(host, port, token, key);
+    fg::terpCamStartRelay(url, token, key);
     return true;
   }
 

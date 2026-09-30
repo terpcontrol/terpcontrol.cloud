@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <WiFiClientSecure.h>
 #include <esp_task_wdt.h>
 #include <algorithm>
 #include "mbedtls/aes.h"
@@ -727,19 +728,23 @@ namespace fg {
     };
 
     struct RelayArgs {
+      bool        tls;       // the relay URL, taken apart (parseRelayUrl)
       std::string host;
       uint16_t    port;
+      std::string path;
       std::string token;
       std::string uid;       // the paired camera's P2P id, empty until learned
       uint8_t     key[32];   // controller->cloud, then cloud->controller
     };
 
-    // A raw-socket bridge between the camera's P2P UDP on the LAN and an enciphered TCP
-    // connection to the cloud. The cloud runs the whole P2P client (discovery
-    // aside), so the controller neither authenticates nor assembles anything —
-    // it only shovels datagrams. That is the point: the full-resolution keyframe
-    // burst is the cloud's problem to reassemble, where there is RAM and no radio
-    // sharing an antenna, and the controller stays a few KB of scratch.
+    // A raw-socket bridge between the camera's P2P UDP on the LAN and an enciphered
+    // connection to the cloud: an HTTP upgrade on the API, so it goes wherever the
+    // API's requests go, reverse proxy included, and needs no port of its own. The
+    // cloud runs the whole P2P client (discovery aside), so the controller neither
+    // authenticates nor assembles anything — it only shovels datagrams. That is
+    // the point: the full-resolution keyframe burst is the cloud's problem to
+    // reassemble, where there is RAM and no radio sharing an antenna, and the
+    // controller stays a few KB of scratch.
     //
     // Why a raw socket rather than the MQTT tunnel: the tunnel base64s every
     // datagram into a JSON envelope and publishes it as a blocking QoS-0 TLS
@@ -758,7 +763,9 @@ namespace fg {
       WiFi.setSleep(false);
 
       WiFiUDP udp;
-      WiFiClient tcp;
+      WiFiClient plain;
+      WiFiClientSecure secure;
+      WiFiClient& tcp = args.tls ? secure : plain;
       uint8_t* buf = nullptr;
       auto finish = [&](bool ran) {
         free(buf);
@@ -813,18 +820,17 @@ namespace fg {
       rememberCamIp(peer_ip);
 
       if(g_relay_stop) return finish(false);
-      tcp.setTimeout(5);
+      if(args.tls) {
+        // The relay enciphers everything itself under a key that came over the
+        // verified MQTT link, so TLS here only has to get through to the API.
+        secure.setInsecure();
+        secure.setTimeout(5);
+        secure.setHandshakeTimeout(10);
+      } else {
+        plain.setTimeout(5);
+      }
       if(!tcp.connect(args.host.c_str(), args.port)) return finish(false);
-      tcp.setNoDelay(true);
-
-      // malloc'd for the relay and freed on every exit path, so it costs no
-      // resident RAM.
-      constexpr size_t RELAY_BUF = 2048;
-      buf = (uint8_t*)malloc(RELAY_BUF);
-      if(buf == nullptr) return finish(false);
-
-      RelayCipher up(args.key);
-      RelayCipher down(args.key + 16);
+      if(!args.tls) plain.setNoDelay(true);
 
       // A frame goes out whole or the relay ends: after a short write the cloud
       // would read payload bytes as a length, and nothing on the stream can
@@ -840,6 +846,34 @@ namespace fg {
         }
         return true;
       };
+
+      // Switch the connection over. The response head is read a byte at a time,
+      // so nothing that follows it is taken from the relay.
+      {
+        std::string request = "GET " + args.path + " HTTP/1.1\r\nHost: " + args.host;
+        if(args.port != (args.tls ? 443 : 80)) request += ":" + std::to_string(args.port);
+        request += "\r\nUpgrade: terpcam-relay\r\nConnection: Upgrade\r\n\r\n";
+        if(!writeAll((const uint8_t*)request.data(), request.size())) return finish(false);
+        std::string head;
+        const uint32_t until = millis() + 10000;
+        while(head.size() < 1024 && (head.size() < 4 || head.compare(head.size() - 4, 4, "\r\n\r\n") != 0)) {
+          const int c = tcp.available() > 0 ? tcp.read() : -1;
+          if(c >= 0) { head += (char)c; continue; }
+          if(g_relay_stop || !tcp.connected() || (int32_t)(until - millis()) <= 0) return finish(false);
+          delay(2);
+          esp_task_wdt_reset();
+        }
+        if(head.compare(0, 5, "HTTP/") != 0 || head.size() < 12 || head.compare(8, 4, " 101") != 0) return finish(false);
+      }
+
+      // malloc'd for the relay and freed on every exit path, so it costs no
+      // resident RAM.
+      constexpr size_t RELAY_BUF = 2048;
+      buf = (uint8_t*)malloc(RELAY_BUF);
+      if(buf == nullptr) return finish(false);
+
+      RelayCipher up(args.key);
+      RelayCipher down(args.key + 16);
 
       // Header the cloud correlates the connection by: the token in the clear (it
       // is what picks the key), a NUL, and the 20-byte P2P id the cloud needs for
@@ -943,6 +977,24 @@ namespace fg {
       vTaskDelete(nullptr);
     }
 
+    // http[s]://host[:port][/path]; anything else is not a relay URL.
+    bool parseRelayUrl(const std::string& url, RelayArgs& args) {
+      size_t at;
+      if(url.rfind("https://", 0) == 0) { args.tls = true; args.port = 443; at = 8; }
+      else if(url.rfind("http://", 0) == 0) { args.tls = false; args.port = 80; at = 7; }
+      else return false;
+      const size_t slash = url.find('/', at);
+      std::string authority = url.substr(at, slash == std::string::npos ? std::string::npos : slash - at);
+      args.path = slash == std::string::npos ? "/" : url.substr(slash);
+      const size_t colon = authority.rfind(':');
+      if(colon != std::string::npos) {
+        args.port = (uint16_t)atoi(authority.c_str() + colon + 1);
+        authority.resize(colon);
+      }
+      args.host = authority;
+      return !args.host.empty() && args.port != 0;
+    }
+
     bool parseHex(const std::string& hex, uint8_t* out, size_t n) {
       if(hex.size() != n * 2) return false;
       for(size_t i = 0; i < n; i++) {
@@ -954,15 +1006,15 @@ namespace fg {
     }
   }
 
-  bool terpCamStartRelay(const std::string& host, uint16_t port, const std::string& token, const std::string& key) {
+  bool terpCamStartRelay(const std::string& url, const std::string& token, const std::string& key) {
     if(g_relay_active || g_relay_task != nullptr) return false;   // one relay at a time
     // The camera's P2P id may still be unknown; the relay learns it first then.
     std::string uid(fg::settings().getStr("webcam_uid").c_str());
     if(settingIsEmpty(uid)) uid.clear();
-    if(!camIsPaired() || host.empty() || port == 0 || token.empty()) return false;
+    if(!camIsPaired() || token.empty()) return false;
 
-    RelayArgs* args = new RelayArgs{ host, port, token, uid, {} };
-    if(!parseHex(key, args->key, sizeof(args->key))) {   // never bridge in the clear
+    RelayArgs* args = new RelayArgs{ false, {}, 0, {}, token, uid, {} };
+    if(!parseRelayUrl(url, *args) || !parseHex(key, args->key, sizeof(args->key))) {   // never bridge in the clear
       delete args;
       return false;
     }
@@ -970,8 +1022,10 @@ namespace fg {
     g_relay_active = true;   // before the task runs, so the other paths see it at once
     // 8 KB stack: the body keeps its datagram scratch in a file-static buffer and
     // one 2 KB heap allocation, so the stack itself only carries the socket
-    // objects, the cipher state and small locals.
-    if(xTaskCreate(relayTaskEntry, "terpcamrelay", 8192, args, 1, &g_relay_task) != pdPASS) {
+    // objects, the cipher state and small locals. A TLS handshake runs on this
+    // stack too and needs about another 4 KB.
+    const uint32_t stack = args->tls ? 12288 : 8192;
+    if(xTaskCreate(relayTaskEntry, "terpcamrelay", stack, args, 1, &g_relay_task) != pdPASS) {
       delete args;
       g_relay_active = false;
       g_relay_task = nullptr;
