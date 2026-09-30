@@ -69,11 +69,12 @@ describe('a camera that refused the server', () => {
     (service as unknown as Internals).readStill = readStill;
   });
 
-  it('is left to the controller instead of being asked on every poll', async () => {
-    await expect(service.canReachCamera(DEVICE)).resolves.toBe(true);
+  it('is not asked again on every poll', async () => {
     await expect(service.capture(DEVICE)).rejects.toThrow('different camera');
 
-    await expect(service.canReachCamera(DEVICE)).resolves.toBe(false);
+    // Still a camera this server reaches: how long a camera that fails may go
+    // on failing before its picture comes from the controller is the poller's.
+    await expect(service.canReachCamera(DEVICE)).resolves.toBe(true);
     await expect(service.capture(DEVICE)).rejects.toThrow('refused');
     expect(readStill).toHaveBeenCalledTimes(1);
   });
@@ -82,7 +83,8 @@ describe('a camera that refused the server', () => {
     await expect(service.capture(DEVICE)).rejects.toThrow();
 
     service.cameraReported(DEVICE);
-    await expect(service.canReachCamera(DEVICE)).resolves.toBe(true);
+    await expect(service.capture(DEVICE)).rejects.toThrow('different camera');
+    expect(readStill).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -96,11 +98,10 @@ describe('a controller that does not open the relay', () => {
     (service as unknown as Internals).readStill = readStill;
   });
 
-  it('is asked once, and then left to take its own stills', async () => {
+  it('is asked once, and then not again for a while', async () => {
     await expect(service.capture(DEVICE)).rejects.toThrow(RelayUnavailableError);
     expect(readStill).toHaveBeenCalledTimes(1);
 
-    await expect(service.canReachCamera(DEVICE)).resolves.toBe(false);
     await expect(service.capture(DEVICE)).rejects.toThrow(RelayUnavailableError);
     expect(readStill).toHaveBeenCalledTimes(1);
   });
@@ -109,7 +110,8 @@ describe('a controller that does not open the relay', () => {
     await expect(service.capture(DEVICE)).rejects.toThrow();
 
     service.cameraReported(DEVICE);
-    await expect(service.canReachCamera(DEVICE)).resolves.toBe(true);
+    await expect(service.capture(DEVICE)).rejects.toThrow(RelayUnavailableError);
+    expect(readStill).toHaveBeenCalledTimes(2);
   });
 
   it('is not asked at all while the broker is down', async () => {

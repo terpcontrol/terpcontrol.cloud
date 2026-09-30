@@ -79,7 +79,8 @@ const MAX_FRAME_BYTES = 4 * 1024 * 1024;
 /**
  * How long a camera that refused us is left alone. Every attempt takes one of
  * its few session slots, and when the uid is a neighbour's camera, the slot is
- * taken from its real owner. The controller captures meanwhile.
+ * taken from its real owner. The poller settles for the controller's picture
+ * once the direct path has delivered nothing for long enough.
  */
 const REFUSED_BACKOFF_MS = 30 * 60_000;
 /** Where the relay listens inside the container; the host publishes it on `relayPort`. */
@@ -87,8 +88,8 @@ const RELAY_LISTEN_PORT = 32250;
 /** How long a controller has to dial back in once asked for a relay. */
 const RELAY_DIAL_MS = 10_000;
 /**
- * How long a device whose controller did not dial in is left to take its own
- * stills: firmware without the relay, a network that blocks the port, or a
+ * How long a device whose controller did not dial in is not asked for a relay
+ * again: firmware without the relay, a network that blocks the port, or a
  * controller that has not learned its camera's P2P id yet. Anything the device
  * reports about its camera ends it early, and a reboot into new firmware or a
  * controller that has just learned the id both report.
@@ -284,9 +285,8 @@ export function checkStatusReply(text: string, label: string): StatusVerdict {
 export class CameraRefusedError extends Error {}
 
 /**
- * Thrown when the controller did not open the relay at all. It is not bridging,
- * so its own still is the answer, and asking for a relay again is left for a
- * while; see RELAY_UNAVAILABLE_MS.
+ * Thrown when the controller did not open the relay at all. Asking for a relay
+ * again is left for a while; see RELAY_UNAVAILABLE_MS.
  */
 export class RelayUnavailableError extends Error {}
 
@@ -454,14 +454,16 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
   }
 
   /**
-   * Whether this server can go for the camera itself at all: the relay up, a
-   * camera the device has reported, and nothing that says to leave it to the
-   * controller for now. Where it cannot, the controller is not a fallback but the
-   * only path there is, and a caller should not spend failed attempts before
-   * taking it.
+   * Whether this server can go for the camera itself at all: the relay up and a
+   * camera the device has reported. Where it cannot, the controller is not a
+   * fallback but the only path there is, and a caller should not spend failed
+   * attempts before taking it. A camera left alone for a while (one that refused
+   * us, a controller that did not open the relay) is still reachable in this
+   * sense: capture() fails fast for it, and the caller decides how long that
+   * may go on before settling for the controller's picture.
    */
   public async canReachCamera(deviceId: string): Promise<boolean> {
-    if (!this.relayEnabled || this.relayFailed || holds(this.refused, deviceId) || holds(this.relayUnavailable, deviceId)) {
+    if (!this.relayEnabled || this.relayFailed) {
       return false;
     }
     return !!(await this.cameraFor(deviceId));
@@ -527,10 +529,10 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
       throw new Error('this device has not reported a camera we can reach');
     }
     if (holds(this.refused, deviceId)) {
-      throw new Error('the camera refused this server recently, leaving it to the controller');
+      throw new Error('the camera refused this server recently');
     }
     if (holds(this.relayUnavailable, deviceId)) {
-      throw new RelayUnavailableError('the controller did not open a relay recently, leaving it to the controller');
+      throw new RelayUnavailableError('the controller did not open a relay recently');
     }
 
     // A FRESH session per still, closed right after. Reusing a held session over
@@ -548,7 +550,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
         return { data: keyframe, h264: true };
       } catch (error) {
         if (error instanceof RelayUnavailableError) {
-          logger.info(`[terpcam] ${deviceId}: ${error.message}, leaving stills to it for ${RELAY_UNAVAILABLE_MS / 60_000} min`);
+          logger.info(`[terpcam] ${deviceId}: ${error.message}, not asking again for ${RELAY_UNAVAILABLE_MS / 60_000} min`);
           this.relayUnavailable.set(deviceId, Date.now() + RELAY_UNAVAILABLE_MS);
           throw error;
         }
