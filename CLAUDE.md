@@ -130,7 +130,7 @@ Log messages use the `message-*` keys from `webapp/src/assets/i18n/en.json`; any
 ### The webcam
 
 `run --camera` pairs a simulated Terp Control Cam and reports its P2P id. Every 30 seconds the cloud sends `cam_relay`,
-the device dials the relay port (`TERPCAM_RELAY_PORT_EXTERNAL` on `MQTT_HOST_EXTERNAL`) exactly as the firmware does,
+the device opens the relay URL it is sent (an HTTP upgrade on `API_URL_EXTERNAL`) exactly as the firmware does,
 and the cloud's P2P client pulls a keyframe from a camera emulated in the script: an H.264 picture of a grow tent - lit
 by whatever the light output is doing, so a timelapse tracks the day/night cycle the charts show. That covers the webcam
 tile, the charts page camera view, the test-image button and the timelapses.

@@ -11,7 +11,8 @@ namespace fg {
 
 
   /**
-   * Bridge the camera's P2P UDP (on the LAN) to a TCP connection to the cloud,
+   * Bridge the camera's P2P UDP (on the LAN) to a connection to the cloud - an
+   * HTTP upgrade on `url`, the API's relay path -
    * so the cloud can run the P2P client itself and pull a full-resolution
    * (2304x1296) keyframe without the manufacturer's rendezvous servers.
    *
@@ -27,11 +28,11 @@ namespace fg {
    *
    * Runs in its own task and returns at once, so the control loop keeps running
    * while the cloud holds a session. Returns false without starting anything when
-   * a relay already runs, no camera is paired, or the key is missing. While a
+   * a relay already runs, no camera is paired, or the URL or key is unusable. While a
    * relay is active the other camera paths (search, secure, reset) stand down or
    * end it, because they share buffers with it.
    */
-  bool terpCamStartRelay(const std::string& host, uint16_t port, const std::string& token, const std::string& key);
+  bool terpCamStartRelay(const std::string& url, const std::string& token, const std::string& key);
 
   /** Report what the last relay learned about the camera. Call from the loop task. */
   void terpCamReportPending(Fridgecloud* cloud);

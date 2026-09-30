@@ -10,6 +10,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
+import tls from 'node:tls';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
@@ -854,8 +855,8 @@ class SimulatedDevice {
   }
 
   /**
-   * Answer a cam_relay the way firmware/src/terpcam.cpp relay() does: dial the
-   * cloud, send the header (token in the clear, a NUL, the camera's 20-byte P2P
+   * Answer a cam_relay the way firmware/src/terpcam.cpp relay() does: open `url`
+   * as an HTTP upgrade, send the header (token in the clear, a NUL, the camera's 20-byte P2P
    * id), then carry length-framed datagrams both ways under AES-128-CTR - the
    * key's first half for what goes up, the second for what comes down. An empty
    * frame from the cloud means it has its still, and the device hangs up.
@@ -863,17 +864,28 @@ class SimulatedDevice {
    * The real controller bridges to the camera on its LAN; here the camera is
    * SimulatedTerpCam, so the cloud's P2P client runs against the whole path.
    */
-  #relay({ host, port, token, key }) {
+  #relay({ url, token, key }) {
     const label = this.#pairedCamera();
     const keyBytes = Buffer.from(String(key ?? ''), 'hex');
+    let target;
+    try {
+      target = new URL(String(url));
+    } catch {
+      return;
+    }
+    const secure = target.protocol === 'https:';
     // One relay at a time, and only to a camera the device knows - as the firmware.
-    if (!this.servesCamera || this.relaying || !label || !host || !port || !token || keyBytes.length !== 32) return;
+    if (!this.servesCamera || this.relaying || !label || !token || keyBytes.length !== 32) return;
+    if (!secure && target.protocol !== 'http:') return;
     this.relaying = true;
 
     const up = createCipheriv('aes-128-ctr', keyBytes.subarray(0, 16), Buffer.alloc(16));
     const down = createDecipheriv('aes-128-ctr', keyBytes.subarray(16), Buffer.alloc(16));
     const { did } = cameraUid(label);
-    const conn = net.createConnection({ host, port: Number(port) });
+    const host = target.hostname;
+    const port = Number(target.port || (secure ? 443 : 80));
+    // The relay enciphers everything itself, so TLS only has to get through - as the firmware.
+    const conn = secure ? tls.connect({ host, port, rejectUnauthorized: false }) : net.createConnection({ host, port });
     conn.setNoDelay(true);
 
     const frame = datagram => {
@@ -896,20 +908,39 @@ class SimulatedDevice {
     conn.on('error', error => console.error(`cam_relay: ${error.message}`));
     conn.on('close', finish);
 
-    conn.on('connect', () => {
+    conn.once(secure ? 'secureConnect' : 'connect', () =>
+      conn.write(`GET ${target.pathname} HTTP/1.1\r\nHost: ${target.host}\r\nUpgrade: terpcam-relay\r\nConnection: Upgrade\r\n\r\n`),
+    );
+    const switched = () => {
       const header = Buffer.concat([Buffer.from(String(token), 'latin1'), Buffer.from([0]), up.update(did)]);
       const length = Buffer.alloc(2);
       length.writeUInt16BE(header.length);
       conn.write(Buffer.concat([length, header]));
-    });
+    };
 
+    // The response head is not the relay's; only what follows it is.
+    let response = Buffer.alloc(0);
     let held = Buffer.alloc(0);
-    conn.on('data', chunk => {
+    conn.on('data', data => {
+      let chunk = data;
+      if (response) {
+        response = Buffer.concat([response, chunk]);
+        const end = response.indexOf('\r\n\r\n');
+        if (end < 0) return;
+        if (!/^HTTP\/1\.\d 101/.test(response.toString('latin1'))) {
+          console.error(`cam_relay: ${url} answered ${response.toString('latin1').split('\r\n')[0]}`);
+          conn.destroy();
+          return;
+        }
+        chunk = response.subarray(end + 4);
+        response = null;
+        switched();
+      }
       held = Buffer.concat([held, down.update(chunk)]);
       while (held.length >= 2) {
         const length = held.readUInt16BE(0);
         if (length === 0) {
-          console.error(`cam_relay -> ${picture ? `${picture.length}B keyframe` : 'no keyframe'} to ${host}:${port}`);
+          console.error(`cam_relay -> ${picture ? `${picture.length}B keyframe` : 'no keyframe'} to ${url}`);
           camera.stop();
           conn.end();
           return;

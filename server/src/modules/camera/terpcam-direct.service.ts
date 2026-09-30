@@ -1,13 +1,15 @@
+import type { IncomingMessage } from 'node:http';
 import net from 'node:net';
 import { EventEmitter } from 'node:events';
 import { Cipher, createCipheriv, createDecipheriv, Decipher, randomBytes } from 'node:crypto';
 import { Inject, Injectable, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
+import { HttpAdapterHost } from '@nestjs/core';
 import { InjectModel } from '@nestjs/mongoose';
 import { ConfigType } from '@nestjs/config';
 import { Document, Model } from 'mongoose';
 import { Device } from '@fg2/shared-types';
 import { logger } from '@utils/logger';
-import { terpCamConfig } from '../../config/configuration';
+import { RELAY_PATH, terpCamConfig } from '../../config/configuration';
 import { MODEL } from '../../database/models.module';
 import { MqttClientService } from '../mqtt/mqtt-client.service';
 import { TerpCamService } from './terpcam.service';
@@ -16,8 +18,9 @@ import { TerpCamService } from './terpcam.service';
  * Terp Cam stills, fetched by the server itself over the camera's P2P protocol,
  * through the controller. This is the only way the cloud gets a Terp Cam still.
  *
- * The controller (on the camera's LAN) opens a TCP connection to this
- * server and bridges the camera's P2P UDP over it; this service runs the whole
+ * The controller (on the camera's LAN) opens a connection to the API - an HTTP
+ * upgrade, so it takes the path every other request takes, reverse proxy
+ * included - and bridges the camera's P2P UDP over it; this service runs the whole
  * P2P client across that bridge and reassembles the still. Full resolution comes
  * from the main video stream: `snapshot.cgi` renders from the MJPEG encoder and
  * is pinned at 640x360 on this firmware, while the stream carries 2304x1296.
@@ -88,8 +91,8 @@ const MAX_FRAME_BYTES = 4 * 1024 * 1024;
  * taken from its real owner.
  */
 const REFUSED_BACKOFF_MS = 30 * 60_000;
-/** Where the relay listens inside the container; the host publishes it on `relayPort`. */
-const RELAY_LISTEN_PORT = 32250;
+/** The `Upgrade` token a controller asks for; anything else on the relay path is turned away. */
+const RELAY_PROTOCOL = 'terpcam-relay';
 /**
  * How long a controller has to dial back in once asked for a relay. Everything
  * before the dial-in adds up:
@@ -100,7 +103,8 @@ const RELAY_LISTEN_PORT = 32250;
  * - the relay learns the camera's P2P id first when it does not know it yet
  *   (discovery and a login, up to ~10s);
  * - it looks for the camera on its LAN (up to ~5s) and connects to the cloud
- *   over its own uplink (up to 5s).
+ *   over its own uplink (a few seconds, a TLS handshake included where the API
+ *   is https).
  * The relay itself runs in its own task, so a busy loop no longer matters once
  * it has started.
  */
@@ -163,6 +167,8 @@ class RelaySocket extends EventEmitter implements P2PSocket {
   ) {
     super();
     this.hungUp = new Promise(resolve => conn.once('close', () => resolve()));
+    // The HTTP server leaves an upgraded socket half-open; a controller that has hung up is done.
+    conn.once('end', () => conn.end());
     this.held = decipher.update(initial);
     conn.on('data', chunk => this.onData(decipher.update(chunk)));
     conn.on('error', () => undefined);
@@ -190,12 +196,16 @@ class RelaySocket extends EventEmitter implements P2PSocket {
    * Tell the controller the cloud is done, and wait for it to hang up: it does
    * so only after closing the camera session on the LAN, so once this resolves
    * the relay has ended and the camera's slot is free for the next capture.
+   *
+   * The empty frame is the only signal; this side does not close first. A
+   * reverse proxy ends both sides as soon as one of them does, so a close from
+   * here would come back as the controller's hang-up while it is still ending
+   * the relay - and it turns down the next one until it has.
    */
   public close(): Promise<void> {
     if (!this.closing) {
       this.removeAllListeners('message');
       this.send(Buffer.alloc(0));
-      this.conn.end();
       const timer = setTimeout(() => this.conn.destroy(), RELAY_CLOSE_MS);
       timer.unref?.();
       this.closing = this.hungUp.finally(() => clearTimeout(timer));
@@ -302,12 +312,9 @@ export class CameraRefusedError extends Error {}
 
 @Injectable()
 export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicationShutdown {
-  /** The controller-relay path: where controllers connect, and what they are told. */
-  private readonly relayHost: string;
-  private readonly relayPort: number;
-  private readonly relayEnabled: boolean;
-  /** Set when the listener could not start, so no controller can dial in. */
-  private relayFailed = false;
+  /** The controller-relay path: the URL controllers are told to open. */
+  private readonly relayUrl: string;
+  /** The API's HTTP server, which hands relay dial-ins to onUpgrade. */
   private relayServer: net.Server | null = null;
   /** Relay connections awaited by token, resolved when a controller dials in. */
   private pendingRelays = new Map<string, { key: Buffer; resolve: (s: RelaySocket) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }>();
@@ -325,34 +332,45 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     private readonly stills: TerpCamService,
     private readonly mqtt: MqttClientService,
     @Inject(terpCamConfig.KEY) config: ConfigType<typeof terpCamConfig>,
+    private readonly http: HttpAdapterHost,
   ) {
-    this.relayHost = config.relayHost;
-    this.relayPort = config.relayPort;
-    this.relayEnabled = !!this.relayHost && this.relayPort > 0;
+    this.relayUrl = config.relayUrl;
   }
 
   public onApplicationBootstrap(): void {
-    if (!this.relayEnabled) return;
-    const server = net.createServer(conn => this.onRelayConnection(conn));
-    server.on('error', err => {
-      // Every capture would otherwise wait out a dial-in that cannot arrive.
-      this.relayFailed = true;
-      logger.error(`[terpcam] relay listener failed, controllers take their own stills: ${err}`);
-    });
-    server.listen(RELAY_LISTEN_PORT, '0.0.0.0', () => {
-      logger.info(`[terpcam] controller relay listening on ${RELAY_LISTEN_PORT}, controllers told to reach ${this.relayHost}:${this.relayPort}`);
-    });
+    if (!this.relayUrl) return;
+    const server = this.http.httpAdapter?.getHttpServer() as net.Server | undefined;
+    if (!server) return;
+    server.on('upgrade', this.onUpgrade);
     this.relayServer = server;
+    logger.info(`[terpcam] controller relay served on ${RELAY_PATH}, controllers told to open ${this.relayUrl}`);
   }
 
   /**
-   * A controller has dialled in. Read the one header frame (token + NUL + the
+   * The API's HTTP server hands every upgrade request here. Node destroys an
+   * upgrade nobody listens for, and nothing else on this server takes one, so
+   * whatever is not a relay is answered and closed rather than left hanging.
+   */
+  private readonly onUpgrade = (req: IncomingMessage, conn: net.Socket, head: Buffer): void => {
+    const path = (req.url ?? '').split('?')[0];
+    if (!path.endsWith(RELAY_PATH) || req.headers.upgrade?.toLowerCase() !== RELAY_PROTOCOL) {
+      conn.end('HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
+      return;
+    }
+    conn.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: ${RELAY_PROTOCOL}\r\nConnection: Upgrade\r\n\r\n`);
+    this.onRelayConnection(conn, head);
+  };
+
+  /**
+   * A controller has dialled in and been switched over (onUpgrade). Read the one header frame (token + NUL + the
    * camera's 20-byte P2P id, the id already enciphered), match it to a pending
    * capture by token, and hand the rest of the stream to a RelaySocket. An
    * unmatched or malformed dial-in is dropped rather than trusted.
    */
-  private onRelayConnection(conn: net.Socket): void {
+  private onRelayConnection(conn: net.Socket, head: Buffer = Buffer.alloc(0)): void {
     conn.setNoDelay(true);
+    // The HTTP server's idle timeout would otherwise end a relay mid-still.
+    conn.setTimeout(0);
     conn.on('error', () => undefined);
     let buf: Buffer = Buffer.alloc(0);
     const drop = setTimeout(() => conn.destroy(), RELAY_HEADER_MS);
@@ -383,6 +401,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
       pending.resolve(new RelaySocket(conn, did, decipher, cipher, rest));
     };
     conn.on('data', onHeader);
+    if (head.length) onHeader(head);
   }
 
   /** Ask the controller to open a relay, and wait for it to dial back in. */
@@ -401,7 +420,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
       this.pendingRelays.set(token, { key, resolve, reject, timer });
       const asked = this.mqtt.publish(
         '/devices/' + deviceId + '/command',
-        JSON.stringify({ action: 'cam_relay', host: this.relayHost, port: this.relayPort, token, key: key.toString('hex') }),
+        JSON.stringify({ action: 'cam_relay', url: this.relayUrl, token, key: key.toString('hex') }),
       );
       if (!asked) {
         clearTimeout(timer);
@@ -418,7 +437,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
       pending.reject(new Error('server is shutting down'));
     }
     this.pendingRelays.clear();
-    this.relayServer?.close();
+    this.relayServer?.off('upgrade', this.onUpgrade);
     this.relayServer = null;
     await Promise.all([...this.relays].map(relay => relay.close()));
   }
@@ -511,7 +530,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
    * picture is better than a downgraded one in the timelapse.
    */
   public async capture(deviceId: string): Promise<Buffer> {
-    if (!this.relayEnabled || this.relayFailed) {
+    if (!this.relayUrl) {
       throw new Error('no relay configured, so the server cannot reach a Terp Cam');
     }
     const camera = await this.cameraFor(deviceId);
