@@ -1222,6 +1222,27 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   return true;
 }
 
+// Forget everything stored about the paired camera and tell the cloud, so the
+// module is left as if no camera had ever been paired.
+static void forgetTerpCam() {
+  fg::settings().erase(TERP_CAM_DID_NVS_KEY);
+  fg::settings().erase(TERP_CAM_IP_NVS_KEY);    // and where it used to answer
+  fg::settings().erase(TERP_CAM_UID_NVS_KEY);   // and who it was on the wire
+  fg::settings().erase(fg::TERP_CAM_PWD_NVS_KEY);   // reset restores the default
+  fg::settings().erase(TERP_CAM_URL_NVS_KEY);   // clear legacy slot too
+  fg::settings().commit();
+
+  if(smart_socket_cloud_handle != nullptr) {
+    // Report every slot as cleared — otherwise a device that once had the legacy
+    // RTSP url keeps advertising it, and the cloud keeps asking for relays to a
+    // camera the module no longer knows.
+    smart_socket_cloud_handle->log("hardware-info:webcam_did=none", 0);
+    smart_socket_cloud_handle->log("hardware-info:webcam_uid=none", 0);
+    smart_socket_cloud_handle->log("hardware-info:webcam_ip=none", 0);
+    smart_socket_cloud_handle->log("hardware-info:webcam_url=none", 0);
+  }
+}
+
 void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
   using namespace fg;
   ui_handle = ui;
@@ -1311,6 +1332,10 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
   menu->addOption("disconnect cam", []() {
     if(sanitizeSettingString(fg::settings().getStr(TERP_CAM_DID_NVS_KEY)).empty()) {
+      // No camera id, but an interrupted pairing or an older build can still have
+      // left the camera's other keys behind. Clear them anyway, so disconnecting
+      // always leaves the module as if no camera had ever been paired.
+      forgetTerpCam();
       ui_handle->push<TextDisplay>("no cam connected", 1, []() {
         ui_handle->pop();
       });
@@ -1338,19 +1363,7 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
       const bool reset_ok = fg::terpCamFactoryReset(smart_socket_cloud_handle);
       ui_handle->pop();
 
-      fg::settings().erase(TERP_CAM_DID_NVS_KEY);
-      fg::settings().erase(TERP_CAM_IP_NVS_KEY);    // and where it used to answer
-      fg::settings().erase(TERP_CAM_UID_NVS_KEY);   // and who it was on the wire
-      fg::settings().erase(fg::TERP_CAM_PWD_NVS_KEY);   // reset restores the default
-      fg::settings().erase(TERP_CAM_URL_NVS_KEY);   // clear legacy slot too
-      fg::settings().commit();
-
-      if(smart_socket_cloud_handle != nullptr) {
-        // Both slots are erased above, so report both as cleared — otherwise a
-        // device that once had the legacy RTSP url keeps advertising it.
-        smart_socket_cloud_handle->log("hardware-info:webcam_did=none", 0);
-        smart_socket_cloud_handle->log("hardware-info:webcam_url=none", 0);
-      }
+      forgetTerpCam();
 
       ui_handle->push<TextDisplay>(reset_ok ? "cam disconnected\nand reset"
                                             : "cam disconnected\ncam did not\nanswer - reset\nit by hand",
