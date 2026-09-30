@@ -38,8 +38,11 @@ export function terpCamLabel(stream?: string): string | null {
   return prefix && stream ? stream.slice(prefix.length) : null;
 }
 
-/** A controller has this long to deliver a complete image once asked. */
-const CAPTURE_TIMEOUT_MS = 30_000;
+/**
+ * A controller has this long to deliver a complete image once asked. The image
+ * crosses MQTT in chunks over the controller's uplink, which may be slow.
+ */
+const CAPTURE_TIMEOUT_MS = 90_000;
 /** Guard against a malfunctioning device streaming without end. */
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 

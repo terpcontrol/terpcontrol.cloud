@@ -64,16 +64,24 @@ const CMD_CHANNEL = 0;
 const VIDEO_CHANNEL = 1;
 const FRAME_MAGIC = Buffer.from([0x55, 0xaa, 0x15, 0xa8]);
 
-const LOGIN_MS = 8_000;
+// The timeouts below assume a slow path between the camera's site and the cloud:
+// every datagram crosses the controller's uplink inside the relay, so a round
+// trip can take seconds when the uplink is busy with the keyframe itself.
+const LOGIN_MS = 15_000;
 /**
  * How long one attempt waits for a keyframe. A fresh stream usually delivers one
  * in 15-18s even on the LAN, and a camera behind a slower uplink or in night mode
  * (lower frame rate, so a longer GOP in wall time) needs more than that.
  */
 const TRANSFER_MS = 60_000;
-const IDLE_MS = 5_000;
-/** A gap this old will not close; take the next keyframe instead of repairing. */
-const GAP_ABANDON_MS = 1_200;
+/** How long the stream may stay silent, including before its first datagram. */
+const IDLE_MS = 15_000;
+/**
+ * A gap this old will not close; take the next keyframe instead of repairing.
+ * Repairing takes an ack to the camera and the resend back, both queued behind
+ * the burst the keyframe itself is, so on a slow uplink it needs a few seconds.
+ */
+const GAP_ABANDON_MS = 3_000;
 /** A malfunctioning camera must not stream without end. */
 const MAX_FRAME_BYTES = 4 * 1024 * 1024;
 /**
@@ -84,8 +92,14 @@ const MAX_FRAME_BYTES = 4 * 1024 * 1024;
 const REFUSED_BACKOFF_MS = 30 * 60_000;
 /** Where the relay listens inside the container; the host publishes it on `relayPort`. */
 const RELAY_LISTEN_PORT = 32250;
-/** How long a controller has to dial back in once asked for a relay. */
-const RELAY_DIAL_MS = 10_000;
+/**
+ * How long a controller has to dial back in once asked for a relay: the request
+ * crosses MQTT, the controller looks for the camera on its LAN (up to ~5s), and
+ * only then connects to the cloud over its own uplink.
+ */
+const RELAY_DIAL_MS = 30_000;
+/** How long a controller that has connected has to send the relay header. */
+const RELAY_HEADER_MS = 20_000;
 /**
  * How long a device whose controller did not dial in is left to take its own
  * stills: firmware without the relay, a network that blocks the port, or a
@@ -94,8 +108,12 @@ const RELAY_DIAL_MS = 10_000;
  * controller that has just learned the id both report.
  */
 const RELAY_UNAVAILABLE_MS = 15 * 60_000;
-/** How long a relay being closed has for the controller to hang up its side. */
-const RELAY_CLOSE_MS = 3_000;
+/**
+ * How long a relay being closed has for the controller to hang up its side. The
+ * controller takes no new relay until it has, so a retry sent before that is
+ * turned down; waiting here is cheaper than a retry that cannot succeed.
+ */
+const RELAY_CLOSE_MS = 10_000;
 
 type Endpoint = { address: string; port: number };
 type Inbox = { message: Buffer; from: Endpoint }[];
@@ -301,6 +319,13 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
   private relayServer: net.Server | null = null;
   /** Relay connections awaited by token, resolved when a controller dials in. */
   private pendingRelays = new Map<string, { key: Buffer; resolve: (s: RelaySocket) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }>();
+  /**
+   * Devices whose controller has dialled in since the server started. Such a
+   * controller has the relay, so a dial-in that does not arrive in time is a
+   * slow or busy link - an ordinary failed attempt - rather than a reason to
+   * stop asking it for RELAY_UNAVAILABLE_MS.
+   */
+  private relayProven = new Set<string>();
   /** Relays open right now, closed on shutdown. */
   private relays = new Set<RelaySocket>();
   /**
@@ -345,7 +370,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     conn.setNoDelay(true);
     conn.on('error', () => undefined);
     let buf: Buffer = Buffer.alloc(0);
-    const drop = setTimeout(() => conn.destroy(), 8_000);
+    const drop = setTimeout(() => conn.destroy(), RELAY_HEADER_MS);
     const onHeader = (chunk: Buffer) => {
       buf = buf.length ? Buffer.concat([buf, chunk]) : chunk;
       if (buf.length < 2) return;
@@ -382,10 +407,18 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     return new Promise<RelaySocket>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pendingRelays.delete(token);
-        reject(new RelayUnavailableError('the controller did not open a relay'));
+        reject(
+          this.relayProven.has(deviceId)
+            ? new Error('the controller did not open the relay in time')
+            : new RelayUnavailableError('the controller did not open a relay'),
+        );
       }, RELAY_DIAL_MS);
       timer.unref?.();
-      this.pendingRelays.set(token, { key, resolve, reject, timer });
+      const dialledIn = (socket: RelaySocket) => {
+        this.relayProven.add(deviceId);
+        resolve(socket);
+      };
+      this.pendingRelays.set(token, { key, resolve: dialledIn, reject, timer });
       const asked = this.mqtt.publish(
         '/devices/' + deviceId + '/command',
         JSON.stringify({ action: 'cam_relay', host: this.relayHost, port: this.relayPort, token, key: key.toString('hex') }),
