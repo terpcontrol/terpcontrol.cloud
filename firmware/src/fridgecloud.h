@@ -48,7 +48,6 @@ namespace fg {
     String topic_control;
     String topic_tunnel_read;
     String topic_tunnel_write;
-    String topic_image;
 
 
     std::string device_id;
@@ -141,12 +140,6 @@ namespace fg {
     bool registerWithCloud(std::string url, std::string password);
     void handleTunnelCloses();
     void handleTunnelReads();
-    /**
-     * Publish one already-serialised webcam image message (see terpcam.cpp).
-     * Takes a caller-owned buffer so the image path can stream fragments out of
-     * a single static buffer without allocating.
-     */
-    bool publishImageMessage(const char* payload);
     void publishFetchMessage();
     void notePublishFailure();
     inline bool directMode() { return custom_mqtt; }

@@ -1,28 +1,24 @@
 import { jest } from '@jest/globals';
 import { CloudSettings, Device } from '@fg2/shared-types';
 import { TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
-import { TerpCamP2PService } from '@modules/camera/terpcam-p2p.service';
 import { WebcamPollerService } from '@modules/image/webcam-poller.service';
 
 /**
  * The test-image button while a poll is reading the same camera. A Terp Cam's
  * controller bridges one relay at a time, so a second capture beside the poll's
- * is turned down - and read by the cloud as a controller that cannot relay at
- * all. The button waits for the poll's picture instead.
+ * would be turned down. The button waits for the poll's picture instead.
  */
 
 const DEVICE = 'terpcam-device';
 const CAMERA: CloudSettings = { rtspStream: 'terpcam://cam-1' };
 const DIRECT_STILL = Buffer.from('2304x1296, off the video stream');
-const CONTROLLER_STILL = Buffer.from('1280x720, from snapshot.cgi');
 
 /** One pass of the poller is the seam the spec drives besides the button. */
 type WebcamPollerInternals = Pick<WebcamPollerService, 'testRtspStream' | 'onApplicationShutdown'> & {
   readFromRtspStreams(): Promise<void>;
 };
 
-let direct: { canReachCamera: jest.Mock<() => Promise<boolean>>; captureStill: jest.Mock<() => Promise<Buffer>> };
-let controller: { captureViaController: jest.Mock<() => Promise<Buffer>> };
+let direct: { captureStill: jest.Mock<() => Promise<Buffer>> };
 let store: { createImage: jest.Mock<(meta: unknown, image: Buffer) => Promise<void>> };
 let service: WebcamPollerInternals;
 
@@ -42,10 +38,8 @@ const settle = () => new Promise(r => setImmediate(r));
 
 beforeEach(() => {
   direct = {
-    canReachCamera: jest.fn<() => Promise<boolean>>().mockResolvedValue(true),
     captureStill: jest.fn<() => Promise<Buffer>>().mockResolvedValue(DIRECT_STILL),
   };
-  controller = { captureViaController: jest.fn<() => Promise<Buffer>>().mockResolvedValue(CONTROLLER_STILL) };
   store = { createImage: jest.fn<(meta: unknown, image: Buffer) => Promise<void>>().mockResolvedValue(undefined) };
   const devices = {
     find: async () => [{ device_id: DEVICE, lastseen: Date.now(), cloudSettings: CAMERA } as Device],
@@ -56,7 +50,6 @@ beforeEach(() => {
     store as never,
     {} as never,
     {} as never,
-    controller as unknown as TerpCamP2PService,
     direct as unknown as TerpCamDirectService,
   ) as unknown as WebcamPollerInternals;
 });
@@ -78,7 +71,7 @@ it("answers with the poll's picture instead of capturing beside it", async () =>
   expect(store.createImage).toHaveBeenCalledWith(expect.anything(), DIRECT_STILL);
 });
 
-it("takes the controller's picture when the poll it waited for comes back empty", async () => {
+it('shares the failure of the poll it waited for', async () => {
   const capture = held();
   direct.captureStill.mockReturnValueOnce(capture.promise);
 
@@ -87,7 +80,7 @@ it("takes the controller's picture when the poll it waited for comes back empty"
   const button = service.testRtspStream(DEVICE, CAMERA);
   capture.reject(new Error('no keyframe arrived'));
 
-  await expect(button).resolves.toBe(CONTROLLER_STILL);
+  await expect(button).rejects.toThrow('no keyframe arrived');
   await pass;
   expect(direct.captureStill).toHaveBeenCalledTimes(1);
 });

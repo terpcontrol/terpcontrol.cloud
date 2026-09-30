@@ -2777,15 +2777,6 @@ bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
     return false;
   }
 
-  if(command["action"] == std::string("cam_capture")) {
-    // Grab a still from the paired camera and stream it to the cloud. Runs on
-    // the loop task; terpCamCapture() is bounded and feeds the watchdog.
-    if(!terpCamCapture(cloud) && cloud) {
-      cloud->log("message-aux-command-failed:cam_capture", 1);
-    }
-    return true;
-  }
-
   if(command["action"] == std::string("cam_relay")) {
     // Bridge the camera's P2P to a TCP connection to the cloud so the cloud pulls
     // the full-resolution still itself. Runs in its own task (terpCamStartRelay)

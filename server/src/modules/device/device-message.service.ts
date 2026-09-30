@@ -9,7 +9,7 @@ import { BackgroundWork } from '../../common/background-work';
 import { MODEL } from '../../database/models.module';
 import { AlarmService } from '../alarm/alarm.service';
 import { TerpCamDirectService } from '../camera/terpcam-direct.service';
-import { TerpCamP2PService, TERPCAM_STREAM_PREFIX, TERPCAM_STREAM_PREFIXES } from '../camera/terpcam-p2p.service';
+import { TERPCAM_STREAM_PREFIX, TERPCAM_STREAM_PREFIXES } from '../camera/terpcam-stream';
 import { DataService } from '../data/data.service';
 import { MqttClientService } from '../mqtt/mqtt-client.service';
 import { TunnelService } from '../tunnel/tunnel.service';
@@ -54,7 +54,6 @@ export class DeviceMessageService implements OnModuleInit, OnApplicationShutdown
     private readonly rollout: DeviceFirmwareRolloutService,
     private readonly alarms: AlarmService,
     private readonly data: DataService,
-    private readonly terpCamP2P: TerpCamP2PService,
     private readonly terpCamDirect: TerpCamDirectService,
     private readonly tunnel: TunnelService,
   ) {}
@@ -152,9 +151,6 @@ export class DeviceMessageService implements OnModuleInit, OnApplicationShutdown
         break;
       case 'tunnel_read':
         await this.tunnel.onTunnelReadDataReceived(device.device_id, payload);
-        break;
-      case 'image':
-        this.terpCamP2P.onImageMessage(device.device_id, payload);
         break;
       case 'tunnel_write':
       case 'command':

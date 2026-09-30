@@ -72,9 +72,6 @@ describe('a camera that refused the server', () => {
   it('is not asked again on every poll', async () => {
     await expect(service.capture(DEVICE)).rejects.toThrow('different camera');
 
-    // Still a camera this server reaches: how long a camera that fails may go
-    // on failing before its picture comes from the controller is the poller's.
-    await expect(service.canReachCamera(DEVICE)).resolves.toBe(true);
     await expect(service.capture(DEVICE)).rejects.toThrow('refused');
     expect(readStill).toHaveBeenCalledTimes(1);
   });
@@ -114,13 +111,15 @@ describe('a controller that does not open the relay', () => {
   });
 });
 
-it('leaves a camera whose P2P id the controller has not reported to the controller', async () => {
-  // The controller relays nothing until it knows the id, so asking would only
-  // wait out the dial-in. The device simulator's camera is one of these.
+it("asks for a relay before the controller has reported the camera's P2P id", async () => {
+  // The controller learns the id on its LAN before it opens the relay, so the
+  // id is not the server's to wait for.
   for (const webcam_uid of [undefined, 'none']) {
     const devices = { findOne: async () => ({ hardwareInfo: { webcam_did: PAIRED, webcam_uid } }) };
     const service = new TerpCamDirectService(devices as never, {} as never, { publish: () => true } as never, RELAY_CONFIG as never);
-    await expect(service.canReachCamera(DEVICE)).resolves.toBe(false);
+    const readStill = jest.fn<Internals['readStill']>().mockResolvedValue(Buffer.from('keyframe'));
+    (service as unknown as Internals).readStill = readStill;
+    await expect(service.capture(DEVICE)).resolves.toEqual(Buffer.from('keyframe'));
   }
 });
 

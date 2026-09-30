@@ -11,9 +11,8 @@ import { withoutCredentials } from '../../common/log-path';
 import { ImageStore } from '../../database/image-store';
 import { MODEL } from '../../database/models.module';
 import { TerpCamDirectService } from '../camera/terpcam-direct.service';
-import { TerpCamP2PService, terpCamLabel } from '../camera/terpcam-p2p.service';
+import { terpCamLabel } from '../camera/terpcam-stream';
 import { DeviceLogService } from '../device/device-log.service';
-import { ONLINE_TIMEOUT } from '../device/device.queries';
 import { TunnelService } from '../tunnel/tunnel.service';
 
 const READ_IMAGE_CHECK_INTERVAL_MS = 5_000;
@@ -47,13 +46,6 @@ const FFMPEG_FAST_PROBE_ARGS = ['-probesize', '32', '-analyzeduration', '0'];
 const FFMPEG_FULL_PROBE_ARGS = ['-probesize', '5000000', '-analyzeduration', '5000000'];
 const FFMPEG_MISSING_CODEC_PARAMS_PATTERN = /Could not find codec parameters/i;
 
-// How long a Terp Cam's direct path has to have delivered nothing before a
-// still is asked of the controller instead. A failure or two means nothing: a
-// keyframe is missed, the camera reboots, the uplink has a slow minute - all of
-// which a later poll clears by itself, and a few lost stills are invisible in a
-// timelapse while downgraded ones are not.
-const TERPCAM_FALLBACK_AFTER_MS = 10 * 60_000;
-
 /**
  * Which camera a read is of, for telling whether two reads would fetch the same
  * picture. A Terp Cam's camera is decided by the device rather than by the
@@ -65,25 +57,9 @@ function readKey(settings: Pick<CloudSettings, 'rtspStream' | 'rtspStreamTranspo
 }
 
 /**
- * What is known about a Terp Cam's direct path for the device's current online
- * period, i.e. since it last came online. The controller renders through
- * `snapshot.cgi` and tops out at 1280x720 where the direct path takes the full
- * 2304x1296 off the video stream, so its picture is a fallback rather than an
- * equal: for a camera the server does reach, a poll is better left without an
- * image than filled with a downgraded one, which would also stand out in the
- * timelapse it ends up in.
- */
-type TerpCamDirectState = {
-  /** Online on the last pass; offline -> online starts a new period and resets `since`. */
-  online: boolean;
-  /** When the direct path last delivered a still, or this online period began if it has not yet. */
-  since: number;
-};
-
-/**
  * Reads one still from every configured camera on a schedule, and stores it.
- * How often a camera is tried, which of a Terp Cam's two paths the picture
- * comes from, and what a failed read costs the next one all live here.
+ * How often a camera is tried and what a failed read costs the next one live
+ * here.
  */
 @Injectable()
 export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown {
@@ -99,11 +75,9 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
    *
    * The read itself is kept so the test-image button can wait for it instead of
    * starting a second one: a Terp Cam's controller bridges one relay at a time
-   * and turns a second request down, which the cloud takes for a controller
-   * that cannot relay at all. `settings` says which camera the read is of.
+   * and turns a second request down. `settings` says which camera the read is of.
    */
   private readonly readsInFlight = new Map<string, { settings: string; image: Promise<Buffer> }>();
-  private deviceIdToTerpCamDirectState = new Map<string, TerpCamDirectState>();
   private readonly work = new BackgroundWork();
 
   constructor(
@@ -111,7 +85,6 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
     private readonly store: ImageStore,
     private readonly logs: DeviceLogService,
     private readonly tunnel: TunnelService,
-    private readonly terpCamP2P: TerpCamP2PService,
     private readonly terpCamDirect: TerpCamDirectService,
   ) {}
 
@@ -164,7 +137,6 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
         if (!this.deviceIdToLastRtspState.has((await device).device_id)) {
           this.deviceIdToLastRtspState.set(device.device_id, { lastTry: 0, failureCount: 0 });
         }
-        this.trackTerpCamOnlinePeriod(device);
 
         if (this.readsInFlight.has(device.device_id)) {
           continue;
@@ -248,25 +220,15 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
     settings: Pick<CloudSettings, 'rtspStream' | 'rtspStreamTransport' | 'tunnelRtspStream'>,
   ): Promise<Buffer> {
     // A read of the same camera already under way is waited for rather than
-    // joined by a second one, and its picture is the answer.
+    // joined by a second one, and its outcome is the answer.
     const running = this.readsInFlight.get(device_id);
     if (running?.settings === readKey(settings)) {
-      try {
-        return await running.image;
-      } catch (e) {
-        // A poll keeps a Terp Cam's full-resolution path rather than downgrade a
-        // stored still; the button wants any picture, so the controller takes
-        // one. Anything else would only fail the same way again.
-        if (!terpCamLabel(settings.rtspStream)) throw e;
-        return this.terpCamP2P.captureViaController(device_id);
-      }
+      return running.image;
     }
 
-    // The button asks for a picture to look at right now, so a Terp Cam whose
-    // direct path is unwell answers with the controller's smaller one rather
-    // than with an error. Nothing here is stored. While it runs, a poll leaves
-    // the camera to it, and a second click waits for it.
-    const image = this.ffmpegLimit(() => this.readRtspStreamImage({ ...settings, logRtspStreamErrors: false }, device_id, true));
+    // Nothing here is stored. While it runs, a poll leaves the camera to it,
+    // and a second click waits for it.
+    const image = this.ffmpegLimit(() => this.readRtspStreamImage({ ...settings, logRtspStreamErrors: false }, device_id));
     if (!running) {
       this.readsInFlight.set(device_id, { settings: readKey(settings), image });
       const forget = () => {
@@ -286,70 +248,14 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
     }
   }
 
-  /**
-   * Note whether the device is online, and forget what an earlier online period
-   * knew about its camera. A device that has just come back may have taken the
-   * camera with it (both hang off the same wifi), so the direct path is worth
-   * proving again before its picture is given up on.
-   */
-  private trackTerpCamOnlinePeriod(device: Device): void {
-    const online = (device.lastseen ?? 0) >= Date.now() - ONLINE_TIMEOUT;
-    const state = this.deviceIdToTerpCamDirectState.get(device.device_id);
-    if (!state) {
-      this.deviceIdToTerpCamDirectState.set(device.device_id, { online, since: Date.now() });
-      return;
-    }
-    if (online && !state.online) {
-      state.since = Date.now();
-    }
-    state.online = online;
-  }
-
-  /**
-   * One Terp Cam still: full resolution from the camera itself, and only where
-   * that has produced nothing for TERPCAM_FALLBACK_AFTER_MS, the controller's
-   * smaller `snapshot.cgi` picture. Which camera is decided by the device, not
-   * by the setting.
-   *
-   * The fallback is never the answer to a single failure. It is taken once the
-   * direct path has delivered nothing for ten minutes - since its last still, or
-   * since the device came online - and any direct still closes it again. That
-   * includes the direct service leaving a camera alone for a while (one that
-   * refused it): those are failures
-   * of the direct path like any other. `alwaysAllowController` lifts the wait
-   * for the test-image button, where a picture now beats the better picture the
-   * next poll would store.
-   */
-  private async captureTerpCamStill(deviceId: string, alwaysAllowController: boolean): Promise<Buffer> {
-    // Where the server has no way to the camera of its own - no relay
-    // configured, or a device that has reported no camera it can be reached by -
-    // the controller is the only path, and waiting would only cost stills.
-    if (!(await this.terpCamDirect.canReachCamera(deviceId))) {
-      return this.terpCamP2P.captureViaController(deviceId);
-    }
-
-    const state = this.deviceIdToTerpCamDirectState.get(deviceId);
-    try {
-      const still = await this.terpCamDirect.captureStill(deviceId);
-      if (state) state.since = Date.now();
-      return still;
-    } catch (e) {
-      const exhausted = !state || Date.now() - state.since >= TERPCAM_FALLBACK_AFTER_MS;
-      if (!alwaysAllowController && !exhausted) {
-        throw new Error(`direct capture failed (${(e as Error).message}); keeping the full-resolution path`);
-      }
-      logger.info(`Direct capture for ${deviceId} failed (${(e as Error).message}); asking the controller`);
-    }
-
-    return this.terpCamP2P.captureViaController(deviceId);
-  }
-
-  private async readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string, alwaysAllowController = false): Promise<Buffer> {
-    // Terp Cams have no RTSP; they speak P2P. They are configured as
-    // `terpcam://<id>` so the poll schedule, backoff, maintenance gating, the
-    // test-image button, storage, timelapses and thinning are reused unchanged.
+  private async readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string): Promise<Buffer> {
+    // Terp Cams have no RTSP; they speak P2P, and the server reaches them over
+    // the controller's relay. They are configured as `terpcam://<id>` so the
+    // poll schedule, backoff, maintenance gating, the test-image button,
+    // storage, timelapses and thinning are reused unchanged. Which camera is
+    // decided by the device, not by the setting.
     if (terpCamLabel(cloudSettings.rtspStream)) {
-      return this.captureTerpCamStill(deviceId, alwaysAllowController);
+      return this.terpCamDirect.captureStill(deviceId);
     }
 
     let streamUrl = cloudSettings.rtspStream;

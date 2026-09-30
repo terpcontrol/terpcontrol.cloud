@@ -14,7 +14,7 @@ import { TerpCamService } from './terpcam.service';
 
 /**
  * Terp Cam stills, fetched by the server itself over the camera's P2P protocol,
- * through the controller.
+ * through the controller. This is the only way the cloud gets a Terp Cam still.
  *
  * The controller (on the camera's LAN) opens a TCP connection to this
  * server and bridges the camera's P2P UDP over it; this service runs the whole
@@ -22,9 +22,7 @@ import { TerpCamService } from './terpcam.service';
  * from the main video stream: `snapshot.cgi` renders from the MJPEG encoder and
  * is pinned at 640x360 on this firmware, while the stream carries 2304x1296.
  *
- * With no relay configured the server reaches no camera itself and every capture
- * is taken by the controller instead (terpcam-p2p.service, the smaller image), as
- * it is once the relay has delivered nothing for a while.
+ * With no relay configured the server reaches no Terp Cam at all.
  *
  * The protocol was reverse engineered from the vendor SDK; the notes are kept
  * internally, not in this repository.
@@ -87,8 +85,7 @@ const MAX_FRAME_BYTES = 4 * 1024 * 1024;
 /**
  * How long a camera that refused us is left alone. Every attempt takes one of
  * its few session slots, and when the uid is a neighbour's camera, the slot is
- * taken from its real owner. The poller settles for the controller's picture
- * once the direct path has delivered nothing for long enough.
+ * taken from its real owner.
  */
 const REFUSED_BACKOFF_MS = 30 * 60_000;
 /** Where the relay listens inside the container; the host publishes it on `relayPort`. */
@@ -435,16 +432,15 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
    * written there before anything else sees them, so it is never behind them,
    * and a password that arrives before the camera's id is not lost.
    *
-   * Only a camera whose P2P id the device has reported counts: the controller
-   * relays nothing until it knows the id, so asking without one would only wait
-   * out the dial-in.
+   * The camera's P2P id is the controller's business: a controller that does
+   * not know it yet learns it on the LAN before it opens the relay, and the
+   * camera's own reply is what this server checks (checkStatusReply).
    */
   private async cameraFor(deviceId: string): Promise<Camera | null> {
     const device = await this.devices.findOne({ device_id: deviceId });
     const info = device?.hardwareInfo;
     const label = info?.webcam_did;
-    const uid = info?.webcam_uid;
-    if (!label || label === 'none' || !uid || uid === 'none') return null;
+    if (!label || label === 'none') return null;
     return { label, password: info.webcam_pwd || undefined };
   }
 
@@ -456,22 +452,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     send(session.socket, session.peer, buildCgi(CMD_CHANNEL, session.next++, cgi));
   }
 
-  /**
-   * Whether this server can go for the camera itself at all: the relay up and a
-   * camera the device has reported. Where it cannot, the controller is not a
-   * fallback but the only path there is, and a caller should not spend failed
-   * attempts before taking it. A camera left alone for a while (one that refused
-   * us) is still reachable in this sense: capture() fails fast for it, and the caller decides how long that
-   * may go on before settling for the controller's picture.
-   */
-  public async canReachCamera(deviceId: string): Promise<boolean> {
-    if (!this.relayEnabled || this.relayFailed) {
-      return false;
-    }
-    return !!(await this.cameraFor(deviceId));
-  }
-
-  /** Pull one still as a ready JPEG, decoding the keyframe when there is one. */
+  /** Pull one still as a ready JPEG. */
   public captureStill(deviceId: string): Promise<Buffer> {
     const running = this.inflight.get(deviceId);
     if (running) return running;
@@ -481,8 +462,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
   }
 
   private async captureJpeg(deviceId: string): Promise<Buffer> {
-    const { data, h264 } = await this.capture(deviceId);
-    if (!h264) return data;
+    const data = await this.capture(deviceId);
     const jpeg = await this.stills.decodeKeyframeToJpeg(data);
     logger.info(`[terpcam] ${deviceId}: ${data.length}B keyframe -> ${jpeg.length}B jpeg`);
     return jpeg;
@@ -492,7 +472,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
    * One still over a fresh relay: the controller bridges the camera's P2P and the
    * cloud runs the client, taking the camera's P2P id off the relay header. The
    * relay is closed before this returns, whatever happened, so the controller is
-   * free for its own capture straight after.
+   * free for the next one straight after.
    */
   private async readStill(deviceId: string, camera: Camera): Promise<Buffer | null> {
     const socket = await this.relayConnect(deviceId);
@@ -518,13 +498,12 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
 
   /**
    * Pull one still, always a full-resolution H.264 keyframe. There is no
-   * `snapshot.cgi` fallback here: it only returns 640x360, and a capture that
-   * cannot produce the real image is better handed to the controller (the
-   * poller's call) than downgraded.
+   * `snapshot.cgi` fallback: it only returns 640x360, and a poll left without a
+   * picture is better than a downgraded one in the timelapse.
    */
-  public async capture(deviceId: string): Promise<{ data: Buffer; h264: boolean }> {
+  public async capture(deviceId: string): Promise<Buffer> {
     if (!this.relayEnabled || this.relayFailed) {
-      throw new Error('no relay configured, so the camera can only be reached by its controller');
+      throw new Error('no relay configured, so the server cannot reach a Terp Cam');
     }
     const camera = await this.cameraFor(deviceId);
     if (!camera) {
@@ -546,7 +525,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
       try {
         const keyframe = await this.readStill(deviceId, camera);
         if (!keyframe) throw new Error('no keyframe arrived');
-        return { data: keyframe, h264: true };
+        return keyframe;
       } catch (error) {
         if (error instanceof CameraRefusedError) {
           logger.warn(`[terpcam] ${deviceId}: ${error.message}, not asking again for ${REFUSED_BACKOFF_MS / 60_000} min`);
