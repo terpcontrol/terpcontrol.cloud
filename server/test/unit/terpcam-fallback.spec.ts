@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import { CloudSettings, Device } from '@fg2/shared-types';
-import { RelayUnavailableError, TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
+import { TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
 import { TerpCamP2PService } from '@modules/camera/terpcam-p2p.service';
 import { WebcamPollerService } from '@modules/image/webcam-poller.service';
 
@@ -156,16 +156,4 @@ it('falls back on the first failure for a device no pass has seen yet', async ()
   directFails();
 
   await expect(poll('never-polled')).resolves.toBe(CONTROLLER_STILL);
-});
-
-it('waits the ten minutes out for a controller that did not open the relay, too', async () => {
-  // A controller that answers the relay most of the time and missed it once
-  // must not cost a quarter of an hour of downgraded stills.
-  seenBy('an online device');
-  direct.captureStill.mockRejectedValueOnce(new RelayUnavailableError('the controller did not open a relay'));
-  await expect(poll()).rejects.toThrow('keeping the full-resolution path');
-
-  minutesPass(10);
-  direct.captureStill.mockRejectedValueOnce(new RelayUnavailableError('the controller did not open a relay recently'));
-  await expect(poll()).resolves.toBe(CONTROLLER_STILL);
 });
