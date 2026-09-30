@@ -7,15 +7,16 @@ name: Deploy
 #   garmin     garmin
 #
 # Each job reads its host, path and SSH key from the GitHub environment it is
-# named after, and rsyncs the repo there itself. Jobs of one run all sync the
-# same commit, so those sharing a host do not put each other out of step.
+# named after, and rsyncs the repo there itself - into a directory of that
+# environment's own, so jobs of different environments never touch each other's
+# tree. Within an environment only one job runs at a time, across all runs:
+# pushes landing in quick succession queue up instead of deploying on top of
+# each other (see the concurrency blocks of the jobs).
 #
 # A track only moves on when its own staging step succeeded, and never waits for
-# another track. That is what keeps firmware unattended: the single job a human
-# holds back is production-cloud, so required reviewers belong on that
-# environment and nowhere else. The one edge across tracks is staging-firmware
-# following staging-cloud - the firmware is built against the server it uploads
-# to, so staging is brought up to date first.
+# another track. The one edge across tracks is staging-firmware following
+# staging-cloud - the firmware is built against the server it uploads to, so
+# staging is brought up to date first.
 
 on:
   push:
@@ -49,6 +50,9 @@ env:
 jobs:
   detect:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     outputs:
       hardwares: ${{ steps.resolve.outputs.hardwares }}
       firmware_needed: ${{ steps.resolve.outputs.firmware_needed }}
@@ -57,13 +61,53 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
-      - name: Detect changed paths
-        id: changes
+      # The firmware variants to build are the ones changed since the last
+      # firmware release that went through, not just those this push changed.
+      # A release waiting for its environment is cancelled by GitHub as soon as
+      # a newer one queues up behind it, and the newer one only builds its own
+      # variants: without this, the fridge change of a push followed closely by
+      # a plug change would never be released. A release that failed or never
+      # got that far is caught up on the same way.
+      #
+      # Only push runs count: a manual run may have built a hand-picked subset.
+      # A run whose production release is still going counts too - should it
+      # fail, the run after this one catches up on it. Finding none, every
+      # variant is built.
+      - name: Find the last firmware release
+        id: released
         if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BASE=""
+          for RUN in $(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/deploy.yml/runs?branch=master&event=push&per_page=100" \
+                --jq ".workflow_runs[] | select(.run_number < ${GITHUB_RUN_NUMBER}) | \"\(.id),\(.head_sha)\""); do
+            ID="${RUN%,*}"
+            SHA="${RUN#*,}"
+            RELEASED="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${ID}/jobs?per_page=100" \
+              --jq '[.jobs[] | select(.name == "production-firmware / firmware")
+                            | select(.conclusion == "success" or .status == "in_progress")] | length')"
+            if [ "$RELEASED" != "0" ] && git merge-base --is-ancestor "$SHA" "$GITHUB_SHA"; then
+              BASE="$SHA"
+              break
+            fi
+          done
+          if [ -n "$BASE" ]; then
+            echo "Firmware changes are taken since ${BASE}"
+          else
+            echo "No earlier firmware release found - building every variant"
+          fi
+          echo "base=${BASE}" >> "$GITHUB_OUTPUT"
+
+      - name: Detect changed firmware paths
+        id: changes
+        if: github.event_name == 'push' && steps.released.outputs.base != ''
         uses: dorny/paths-filter@v4
         with:
+          base: ${{ steps.released.outputs.base }}
           filters: |
             shared:
               - 'firmware/src/**'
@@ -87,6 +131,14 @@ jobs:
               - 'firmware/src_hwtype/fan/**'
             light:
               - 'firmware/src_hwtype/light/**'
+
+      # The Garmin app is always built whole, so this push's changes are enough.
+      - name: Detect changed Garmin paths
+        id: garmin_changes
+        if: github.event_name == 'push'
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
             garmin:
               - 'garmin/**'
               - 'garmin-buildcontainer/**'
@@ -98,7 +150,8 @@ jobs:
           INPUT_HARDWARES: ${{ inputs.hardwares }}
           INPUT_DESCRIPTION: ${{ inputs.description }}
           INPUT_BUILD_GARMIN: ${{ inputs.build_garmin }}
-          CHG_GARMIN: ${{ steps.changes.outputs.garmin }}
+          CHG_GARMIN: ${{ steps.garmin_changes.outputs.garmin }}
+          FW_RELEASED_BASE: ${{ steps.released.outputs.base }}
           CHG_SHARED: ${{ steps.changes.outputs.shared }}
           CHG_FRIDGE: ${{ steps.changes.outputs.fridge }}
           CHG_CONTROLLER: ${{ steps.changes.outputs.controller }}
@@ -114,6 +167,8 @@ jobs:
           elif [ -n "${INPUT_HARDWARES}" ]; then
             HW="${INPUT_HARDWARES}"
           elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            HW="${ALL_HARDWARES}"
+          elif [ -z "${FW_RELEASED_BASE}" ]; then
             HW="${ALL_HARDWARES}"
           elif [ "${CHG_SHARED}" = "true" ]; then
             HW="${ALL_HARDWARES}"
@@ -223,6 +278,11 @@ jobs:
     if: needs.detect.outputs.garmin_needed == 'true'
     runs-on: ubuntu-latest
     environment: garmin
+    # Like the deploy workflows: one build at a time, the newest waiting one
+    # replaces the older ones, a running one is never cancelled.
+    concurrency:
+      group: deploy-garmin
+      cancel-in-progress: false
     env:
       DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
       DEPLOY_USER: ${{ vars.DEPLOY_USER }}
