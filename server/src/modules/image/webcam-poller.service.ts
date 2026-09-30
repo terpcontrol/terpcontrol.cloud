@@ -55,6 +55,16 @@ const FFMPEG_MISSING_CODEC_PARAMS_PATTERN = /Could not find codec parameters/i;
 const TERPCAM_DIRECT_FAILURES_BEFORE_FALLBACK = 2;
 
 /**
+ * Which camera a read is of, for telling whether two reads would fetch the same
+ * picture. A Terp Cam's camera is decided by the device rather than by the
+ * setting, so every Terp Cam read of a device is the same one.
+ */
+function readKey(settings: Pick<CloudSettings, 'rtspStream' | 'rtspStreamTransport' | 'tunnelRtspStream'>): string {
+  if (terpCamLabel(settings.rtspStream)) return 'terpcam';
+  return JSON.stringify([settings.rtspStream, settings.rtspStreamTransport ?? 'tcp', !!settings.tunnelRtspStream]);
+}
+
+/**
  * What is known about a Terp Cam's direct path for the device's current online
  * period, i.e. since it last came online. The controller renders through
  * `snapshot.cgi` and tops out at 1280x720 where the direct path takes the full
@@ -88,8 +98,13 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
    * twice at once: a read that outlives it would otherwise be joined by the next
    * pass, and then by every pass after that, each holding an ffmpeg run open on
    * the same camera.
+   *
+   * The read itself is kept so the test-image button can wait for it instead of
+   * starting a second one: a Terp Cam's controller bridges one relay at a time
+   * and turns a second request down, which the cloud takes for a controller
+   * that cannot relay at all. `settings` says which camera the read is of.
    */
-  private readonly camerasBeingRead = new Set<string>();
+  private readonly readsInFlight = new Map<string, { settings: string; image: Promise<Buffer> }>();
   private deviceIdToTerpCamDirectState = new Map<string, TerpCamDirectState>();
   private readonly work = new BackgroundWork();
 
@@ -153,7 +168,7 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
         }
         this.trackTerpCamOnlinePeriod(device);
 
-        if (this.camerasBeingRead.has(device.device_id)) {
+        if (this.readsInFlight.has(device.device_id)) {
           continue;
         }
 
@@ -170,51 +185,50 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
           (state?.lastTry ?? 0) <=
           Date.now() - Math.min(IMAGE_LOAD_INTERVAL_MS * Math.pow(2, state?.failureCount ?? 0), IMAGE_LOAD_MAX_BACKOFF_INTERVAL_MS)
         ) {
-          this.camerasBeingRead.add(device.device_id);
+          const read = this.ffmpegLimit(() => this.readRtspStreamImage(device.cloudSettings, device.device_id));
+          this.readsInFlight.set(device.device_id, { settings: readKey(device.cloudSettings), image: read });
           logIfItFails(
             `Reading the camera of device ${device.device_id}`,
-            this.ffmpegLimit(() =>
-              this.readRtspStreamImage(device.cloudSettings, device.device_id)
-                .then(async image => {
-                  // The camera answered, so the backoff is reset: how far apart
-                  // to try is about reaching the camera, and a camera that is
-                  // working must not be backed off to the two-hour cap because
-                  // of something on this side.
-                  state.failureCount = 0;
+            read
+              .then(async image => {
+                // The camera answered, so the backoff is reset: how far apart
+                // to try is about reaching the camera, and a camera that is
+                // working must not be backed off to the two-hour cap because
+                // of something on this side.
+                state.failureCount = 0;
 
-                  try {
-                    await this.store.createImage(
-                      {
-                        image_id: uuidv4(),
-                        device_id: device.device_id,
-                        format: 'jpeg',
-                        timestamp: Date.now(),
-                      },
-                      image,
-                    );
-                  } catch (e) {
-                    // Caught here rather than below, so it is neither an
-                    // unhandled rejection nor reported as the camera failing.
-                    logger.error(`Could not store the still read from device ${device.device_id}: ${e?.message ?? e}`);
-                  }
-                })
-                .catch(e => {
-                  // Both halves are redacted: the URL is stored with the
-                  // camera's credentials in it, and an ffmpeg failure quotes
-                  // the whole command line - including that URL - back.
-                  logger.error(
-                    withoutCredentials(
-                      `Error reading RTSP stream ${device.cloudSettings.rtspStream} for device ${device.device_id}: ${e?.message ?? e}`,
-                    ),
+                try {
+                  await this.store.createImage(
+                    {
+                      image_id: uuidv4(),
+                      device_id: device.device_id,
+                      format: 'jpeg',
+                      timestamp: Date.now(),
+                    },
+                    image,
                   );
-                  state.failureCount = e instanceof CorruptFrameError ? 0 : (state.failureCount ?? 0) + 1;
-                  return Promise.resolve();
-                })
-                .finally(() => {
-                  state.lastTry = Date.now();
-                  this.camerasBeingRead.delete(device.device_id);
-                }),
-            ),
+                } catch (e) {
+                  // Caught here rather than below, so it is neither an
+                  // unhandled rejection nor reported as the camera failing.
+                  logger.error(`Could not store the still read from device ${device.device_id}: ${e?.message ?? e}`);
+                }
+              })
+              .catch(e => {
+                // Both halves are redacted: the URL is stored with the
+                // camera's credentials in it, and an ffmpeg failure quotes
+                // the whole command line - including that URL - back.
+                logger.error(
+                  withoutCredentials(
+                    `Error reading RTSP stream ${device.cloudSettings.rtspStream} for device ${device.device_id}: ${e?.message ?? e}`,
+                  ),
+                );
+                state.failureCount = e instanceof CorruptFrameError ? 0 : (state.failureCount ?? 0) + 1;
+                return Promise.resolve();
+              })
+              .finally(() => {
+                state.lastTry = Date.now();
+                this.readsInFlight.delete(device.device_id);
+              }),
           );
         }
 
@@ -235,10 +249,34 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
     device_id: string,
     settings: Pick<CloudSettings, 'rtspStream' | 'rtspStreamTransport' | 'tunnelRtspStream'>,
   ): Promise<Buffer> {
+    // A read of the same camera already under way is waited for rather than
+    // joined by a second one, and its picture is the answer.
+    const running = this.readsInFlight.get(device_id);
+    if (running?.settings === readKey(settings)) {
+      try {
+        return await running.image;
+      } catch (e) {
+        // A poll keeps a Terp Cam's full-resolution path rather than downgrade a
+        // stored still; the button wants any picture, so the controller takes
+        // one. Anything else would only fail the same way again.
+        if (!terpCamLabel(settings.rtspStream)) throw e;
+        return this.terpCamP2P.captureViaController(device_id);
+      }
+    }
+
     // The button asks for a picture to look at right now, so a Terp Cam whose
     // direct path is unwell answers with the controller's smaller one rather
-    // than with an error. Nothing here is stored.
-    return this.ffmpegLimit(() => this.readRtspStreamImage({ ...settings, logRtspStreamErrors: false }, device_id, true));
+    // than with an error. Nothing here is stored. While it runs, a poll leaves
+    // the camera to it, and a second click waits for it.
+    const image = this.ffmpegLimit(() => this.readRtspStreamImage({ ...settings, logRtspStreamErrors: false }, device_id, true));
+    if (!running) {
+      this.readsInFlight.set(device_id, { settings: readKey(settings), image });
+      const forget = () => {
+        if (this.readsInFlight.get(device_id)?.image === image) this.readsInFlight.delete(device_id);
+      };
+      image.then(forget, forget);
+    }
+    return image;
   }
 
   /** The settings may be the ones that were failing, so the camera is tried again at once. */
