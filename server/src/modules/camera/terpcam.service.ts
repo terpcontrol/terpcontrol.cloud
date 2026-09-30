@@ -1,31 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { execFile } from 'node:child_process';
-import { v4 as uuidv4 } from 'uuid';
-import { Image } from '@fg2/shared-types';
-import { ImageStore } from '../../database/image-store';
 
 /**
- * Terp Cam camera stills.
+ * Terp Cam stills: the shipped webcam is a VStarcam OEM that, once on the home
+ * wifi, only speaks a proprietary P2P transport (no LAN RTSP/HTTP; the protocol
+ * notes are kept internally). TerpCamDirectService pulls one H.264 keyframe off
+ * its video stream; this turns it into the JPEG the RTSP poller's pipeline
+ * stores (timelapses, thinning, sharing and the /image/:device_id route).
  *
- * The shipped webcam is a VStarcam OEM that, once on the home wifi, only speaks a
- * proprietary P2P transport (no LAN RTSP/HTTP; the protocol notes are kept
- * internally). The controller, which sits on the
- * camera's LAN, runs the lightweight reverse-engineered P2P client, grabs one
- * H.264 keyframe every 1-2 min and uploads the raw elementary stream to the
- * server. This service turns that keyframe into a JPEG and stores it through the
- * same pipeline the RTSP poller uses (format 'jpeg' -> timelapses, thinning,
- * sharing and the /image/:device_id route all come for free).
- *
- * The keyframe is a standard H.264 Annex-B GOP head (SPS + PPS + IDR); the
- * VStarcam 55aa15a8 frame headers are stripped controller-side.
+ * The keyframe is a standard H.264 Annex-B GOP head (SPS + PPS + IDR) with the
+ * VStarcam 55aa15a8 frame header already stripped.
  */
 
 const FFMPEG_TIMEOUT_MS = 15_000;
 
 @Injectable()
 export class TerpCamService {
-  constructor(private readonly store: ImageStore) {}
-
   /** Decode a single H.264 keyframe (Annex-B elementary stream) to a JPEG buffer. */
   public decodeKeyframeToJpeg(h264: Buffer): Promise<Buffer> {
     return new Promise((resolve, reject) => {
@@ -45,24 +35,5 @@ export class TerpCamService {
       child.stdin?.on('error', () => undefined); // ignore EPIPE if ffmpeg exits early
       child.stdin?.end(h264);
     });
-  }
-
-  /** Decode a controller-supplied keyframe and store it as a device still. */
-  public async ingestKeyframe(deviceId: string, h264: Buffer, timestamp?: number): Promise<Image> {
-    const jpeg = await this.decodeKeyframeToJpeg(h264);
-    return this.ingestJpeg(deviceId, jpeg, timestamp);
-  }
-
-  /** Store a ready JPEG (e.g. from snapshot.cgi) as a device still. */
-  public async ingestJpeg(deviceId: string, jpeg: Buffer, timestamp?: number): Promise<Image> {
-    return this.store.createImage(
-      {
-        image_id: uuidv4(),
-        device_id: deviceId,
-        format: 'jpeg',
-        timestamp: Number.isFinite(timestamp) ? (timestamp as number) : Date.now(),
-      },
-      jpeg,
-    );
   }
 }

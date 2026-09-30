@@ -74,7 +74,6 @@ beforeEach(async () => {
     {} as never,
     {} as never,
     {} as never,
-    {} as never,
   ) as unknown as MessageInternals;
 });
 
