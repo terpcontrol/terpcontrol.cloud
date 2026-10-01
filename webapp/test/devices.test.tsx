@@ -614,7 +614,7 @@ describe('what the sockets offer, by who is reading', () => {
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
     wrap(<DeviceList />);
-    await screen.findByText('Devices');
+    await screen.findByText(/^Devices?$/);
   };
 
   it('gives the owner the lamp’s brightness and the three states of the plug', async () => {
@@ -734,7 +734,7 @@ describe('what the Devices tab calls a device', () => {
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
     wrap(<DeviceList />);
-    await screen.findByText('Devices');
+    await screen.findByText(/^Devices?$/);
   };
 
   /**
@@ -825,6 +825,15 @@ describe('what the Devices tab calls a device', () => {
 
     expect(screen.getByText('Devices')).toBeInTheDocument();
     expect(screen.queryByText('Controllers')).toBeNull();
+  });
+
+  it('heads a list of one device in the singular, under a tab that says the same', async () => {
+    list.devices = [standing({})];
+    list.cameras = [];
+    await drawList();
+
+    expect(screen.getByText('Device')).toBeInTheDocument();
+    expect(screen.queryByText('Devices')).toBeNull();
   });
 
   it('draws a device nobody has named by its type as a word, with enough of its id to tell two apart', async () => {
@@ -1050,7 +1059,7 @@ describe('the device panel', () => {
     });
     vi.mocked(api.post).mockResolvedValue({ publishedAt: DateTime.now().toISO(), deviceOnline: true } as never);
     wrap(<DeviceList />);
-    await screen.findByText('Devices');
+    await screen.findByText(/^Devices?$/);
   };
 
   beforeEach(() => vi.mocked(api.post).mockClear());

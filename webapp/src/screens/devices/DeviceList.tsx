@@ -112,7 +112,10 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
       {/* What the account has, and what those things drive: two columns on a
           wide Devices tab, one run of sections everywhere else. */}
       <div className={styles.column}>
-        <Section label={t('devices.controllers')} empty={mine.length === 0 ? t(maySetUp ? 'devices.noDevices' : 'devices.noDevicesHere') : null}>
+        <Section
+          label={t('devices.controllers', { count: mine.length })}
+          empty={mine.length === 0 ? t(maySetUp ? 'devices.noDevices' : 'devices.noDevicesHere') : null}
+        >
           {mine.map((device, index) => (
             <DeviceRow
               key={device.id}
