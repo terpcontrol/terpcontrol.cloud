@@ -729,7 +729,8 @@ describe('the plan panel', () => {
     state.plan = plan({}, { lastAppliedAt: DateTime.now().minus({ minutes: 20 }).toISO()! });
     draw(device(DateTime.now().minus({ hours: 2 })));
 
-    const line = screen.getByText(/the controller has said nothing for 2 h/);
+    // In the one wording the app has for a device gone quiet, rather than "the controller has said nothing for 2 h" about a fridge module.
+    const line = screen.getByText(/offline since \d\d:\d\d · what the device is really running may be older than this/);
     expect(line).toHaveAttribute('data-age', 'offline');
   });
 });

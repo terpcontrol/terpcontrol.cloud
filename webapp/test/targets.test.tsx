@@ -288,6 +288,16 @@ describe('the targets page', () => {
    * grower opens to change a temperature was seven stages to choose from. The
    * figures come first now and the stages are one way of setting them, under.
    */
+  it('says a device gone quiet is offline since when, in the words the rest of the app uses', async () => {
+    const quiet = DateTime.now().minus({ hours: 8 });
+    await drawn([device({ state: { ...device().state, lastSeenAt: quiet.toISO()! } })]);
+
+    // A clock time, with the day in front where the silence began before today.
+    expect(
+      screen.getByText(new RegExp(`^Offline since .*${quiet.toFormat('HH:mm')} · what the device is really running may be older than this$`)),
+    ).toBeInTheDocument();
+  });
+
   it('draws the sliders first and the presets under them', async () => {
     await drawn();
 

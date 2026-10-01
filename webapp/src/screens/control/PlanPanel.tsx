@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify, StepDuration } from '@fg2/shared-types/v1';
 import { useDevices, useHeardAt } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTemplates, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
-import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
+import { ageAttribute, ageLabel, deviceLiveness, offlineLabel } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -12,6 +12,7 @@ import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { serverNow } from '@/api/clock';
 import { useNow } from '@/ui/useNow';
+import { useZone } from '@/ui/zone';
 import { deviceTitle } from '../devices/naming';
 import { PlanEditor } from './PlanEditor';
 import { KeepAsTemplateSheet, StartFromTemplateSheet } from './PlanTemplates';
@@ -233,6 +234,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
   const next = nextStepIndex(plan);
   const heard = useHeardAt(device);
   const liveness = deviceLiveness(heard, now);
+  const zone = useZone();
   // A plan at rest has no clock, so it is not given one: the step it stands at
   // is where starting it would begin, and a bar filling up beside a tent that
   // is being run by nothing would be the screen inventing a state.
@@ -326,7 +328,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
         {plan.state.lastAppliedAt
           ? t('space.control.applied.at', { age: ageLabel(plan.state.lastAppliedAt, now) })
           : t(going ? 'space.control.applied.never' : 'space.control.applied.atRest')}
-        {liveness === 'offline' ? ` · ${t('space.control.applied.quiet', { age: ageLabel(heard, now) })}` : ''}
+        {liveness === 'offline' ? ` · ${t('space.control.applied.quiet', { offline: offlineLabel(heard, now, zone) })}` : ''}
       </p>
     </>
   );

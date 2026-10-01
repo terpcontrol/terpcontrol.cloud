@@ -7,7 +7,7 @@ import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useDevices, useHeardAt, useSaveConfiguration } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
-import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
+import { ageAttribute, deviceLiveness, offlineLabel } from '@/ui/age';
 import { awaitingClimate, hasCo2Sensor, statesTargets } from '@/ui/climate-hardware';
 import { Help, Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
@@ -384,7 +384,7 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
 
       {liveness === 'offline' ? (
         <p className={`mono ${styles.quiet}`} {...ageAttribute(liveness)}>
-          {t('space.control.applied.quiet', { age: ageLabel(heard, now) })}
+          {t('space.control.applied.quiet', { offline: offlineLabel(heard, now, zone, true) })}
         </p>
       ) : null}
 
