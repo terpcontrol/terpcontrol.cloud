@@ -30,10 +30,20 @@
   line-height: var(--line-tight);
 }
 
+/*
+ * The name wraps rather than trailing off: beside the pill and the ⋯ a phone
+ * left "Growsch…" of "Growschrank im Keller", the one word on the page that
+ * says which place this is. Two lines, hyphenated in the reader's language
+ * where a word is longer than the room, then the rest is cut.
+ */
 .name > span {
+  display: -webkit-box;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .name svg {
