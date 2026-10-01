@@ -38,5 +38,6 @@ export const MODEL_V1 = {
   session: 'V1Session',
   shareLink: 'V1ShareLink',
   space: 'V1Space',
+  targetChange: 'V1TargetChange',
   user: 'V1User',
 } as const;

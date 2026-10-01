@@ -42,7 +42,7 @@ const climateTargetsSchema = new Schema<ClimateTargets>(
   embedded,
 );
 
-const phaseTargetsSchema = new Schema<PhaseTargets>(
+export const phaseTargetsSchema = new Schema<PhaseTargets>(
   {
     day: { type: climateTargetsSchema, required: true },
     night: { type: climateTargetsSchema, required: true },

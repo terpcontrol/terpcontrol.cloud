@@ -3,6 +3,7 @@ import { Grant } from '@common/v1/access.types';
 import { clampRange } from '@common/v1/range';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { dayNumberOf, horizonOf, originOf } from '../diary/grow-calendar';
 import { targetsOf } from '../phase/phase-targets';
 import { TargetStretch } from './timeline-series';
@@ -138,37 +139,83 @@ const stepFor = (startsAt: Date, endsAt: Date): number => {
 };
 
 /**
+ * The device a place's band is the targets of: the first standing there whose
+ * configuration states any, which is the one the cockpit judges the place's
+ * readings against.
+ */
+export const steeringOf = (devices: readonly StoredDevice[]): StoredDevice | null =>
+  devices.find(device => targetsOf(device.configuration) !== null) ?? null;
+
+/**
  * The stretches the bands are drawn over: the grow's own phases, clipped to the
- * window, because a phase records the targets that were running when it began
- * and the store holds readings and never setpoints.
+ * window, and cut again wherever the steering device's record says its targets
+ * moved.
  *
- * A band is a claim about what was being aimed at over the stretch it is drawn
- * across, and the controller's configuration can only ever say what is being
- * aimed at now. So a phase that recorded no snapshot borrows it for the one
- * stretch where now and then are the same thing - a grow still running, drawn
- * as far as the instant the read is about - and is drawn against nothing
- * anywhere else. A fridge set for a flowering run in September is not what a
- * January seedling week was aimed at, which is the same reason the report
- * refuses to grade a chapter it has no snapshot for; shading 218 days of
- * somebody's record green against a figure they changed last week says the
- * opposite of what the report says about the same row.
+ * The record is what the device really aimed at, so wherever it reaches it is
+ * what a band is drawn from - over a phase's snapshot as well. A snapshot is
+ * what ran when the phase was written; somebody who puts the tent on another
+ * preset, or nudges the humidity, a week into the phase has the cockpit judge
+ * the tent against the new figures from that moment, and a Timeline still
+ * banding the rest of the phase by the old ones said the opposite of the
+ * cockpit about the same reading.
+ *
+ * Where the record does not reach - a window older than the record itself - the
+ * phase's snapshot is the best there is. A phase that has none borrows what is
+ * known for the one stretch where now and then are the same thing - a grow
+ * still running, drawn as far as the instant the read is about - and is drawn
+ * against nothing anywhere else. A fridge set for a flowering run in September
+ * is not what a January seedling week was aimed at, which is the same reason
+ * the report refuses to grade a chapter it has no snapshot for.
  *
  * A tent with no grow in it is the other way round: there is no past to mistake
- * the configuration for, the window is the tent's own present, and the live
- * view would otherwise lose its band altogether.
+ * the configuration for, and the live view would otherwise lose its band
+ * altogether. What is borrowed is the nearest thing known about the stretch:
+ * the first row of the record where there is one, which is closer to that
+ * stretch than the configuration of today.
  */
-export const stretchesOf = (grow: GrowDocument | null, devices: StoredDevice[], window: TimelineWindow, asOf: Date): TargetStretch[] => {
-  const configured = devices.map(device => targetsOf(device.configuration)).find(targets => targets !== null) ?? null;
+export const stretchesOf = (
+  grow: GrowDocument | null,
+  devices: StoredDevice[],
+  window: TimelineWindow,
+  asOf: Date,
+  record: readonly StoredTargetChange[] = [],
+): TargetStretch[] => {
+  const steering = steeringOf(devices);
+  const moves = record.filter(row => row.deviceId === steering?.id).sort((one, other) => one.at.getTime() - other.at.getTime());
+  const borrowed = moves.length > 0 ? moves[0].targets : steering ? targetsOf(steering.configuration) : null;
   const spine = grow ? spineOf(grow) : [];
   const running = grow !== null && grow.endedAt === null;
-  const stretches = spine.flatMap((phase, index) => {
+  const phases = spine.flatMap((phase, index) => {
     const startsAt = new Date(Math.max(phase.startedAt.getTime(), window.startsAt.getTime()));
     const endsAt = new Date(Math.min(spine[index + 1]?.startedAt.getTime() ?? window.endsAt.getTime(), window.endsAt.getTime()));
     if (endsAt <= startsAt) return [];
 
     const steered = running && endsAt >= asOf;
-    return [{ startsAt, endsAt, phaseId: phase.id, stage: phase.stage, targets: phase.targets ?? (steered ? configured : null) }];
+    return [{ startsAt, endsAt, phaseId: phase.id, stage: phase.stage, targets: phase.targets ?? (steered ? borrowed : null) }];
   });
+  const stretches =
+    phases.length > 0 ? phases : [{ startsAt: window.startsAt, endsAt: window.endsAt, phaseId: null, stage: null, targets: borrowed }];
 
-  return stretches.length > 0 ? stretches : [{ startsAt: window.startsAt, endsAt: window.endsAt, phaseId: null, stage: null, targets: configured }];
+  return joined(stretches.flatMap(stretch => recorded(stretch, moves)));
 };
+
+/** A stretch cut where the record says the targets moved, each piece drawn against the row standing at its start. */
+const recorded = (stretch: TargetStretch, moves: readonly StoredTargetChange[]): TargetStretch[] => {
+  const cuts = moves.filter(row => row.at > stretch.startsAt && row.at < stretch.endsAt).map(row => row.at);
+  const edges = [stretch.startsAt, ...cuts, stretch.endsAt];
+
+  return edges.slice(0, -1).map((startsAt, index) => {
+    const standing = moves.filter(row => row.at <= startsAt).at(-1);
+    return { ...stretch, startsAt, endsAt: edges[index + 1], targets: standing ? standing.targets : stretch.targets };
+  });
+};
+
+/** Neighbours of one phase aimed at the same figures are one stretch, so a row that confirmed a snapshot draws no seam. */
+const joined = (stretches: readonly TargetStretch[]): TargetStretch[] =>
+  stretches.reduce<TargetStretch[]>((kept, stretch) => {
+    const last = kept.at(-1);
+    if (last && last.phaseId === stretch.phaseId && JSON.stringify(last.targets) === JSON.stringify(stretch.targets)) {
+      return [...kept.slice(0, -1), { ...last, endsAt: stretch.endsAt }];
+    }
+    return [...kept, stretch];
+  }, []);

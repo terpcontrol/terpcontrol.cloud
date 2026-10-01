@@ -3764,10 +3764,12 @@ export declare const timelineTarget: z.ZodObject<{
 /**
  * One stretch of the window in which the same targets applied.
  *
- * The band moves with the phase, because a phase records the targets that were
- * running when it began and the store holds readings and never setpoints. So a
- * window spanning two phases carries two of these rather than one average, and a
- * tent with no grow in it carries one, from the controller's own configuration.
+ * The band moves wherever what the controller aimed at moved: the server keeps
+ * a record of every change of its targets, and a phase keeps the targets that
+ * were running when it began for the stretch older than that record. So a
+ * window spanning two phases, or a preset applied in the middle of one, carries
+ * two of these rather than one average, and the last of them is what the
+ * controller is aiming at now.
  */
 export declare const timelineTargets: z.ZodObject<{
     startsAt: z.ZodISODateTime;

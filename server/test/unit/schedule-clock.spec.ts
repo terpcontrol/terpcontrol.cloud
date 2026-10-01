@@ -93,11 +93,12 @@ beforeEach(async () => {
 
   const publisher = new DevicePublisherService(db.devices, mqtt);
   const plans = new PlanService(db.plans, db.devices, {} as never);
-  configuration = new DeviceConfigurationService(db.devices, db.users, publisher, new EntryWriterService(db.entries), plans);
+  configuration = new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, new EntryWriterService(db.entries), plans);
   clocks = new ScheduleClockService(db.devices, db.users, configuration);
   ingest = new DeviceIngestService(
     db.devices,
     db.cameras,
+    db.targetChanges,
     mqtt,
     publisher,
     new HardwareReportService(db.devices, db.cameras),

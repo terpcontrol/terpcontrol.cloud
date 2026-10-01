@@ -15,6 +15,7 @@ import { migrationsSchema } from '@database/schemas/v1/migrations.schema';
 import { planTemplatesSchema } from '@database/schemas/v1/plan-templates.schema';
 import { plansSchema } from '@database/schemas/v1/plans.schema';
 import { spacesSchema } from '@database/schemas/v1/spaces.schema';
+import { targetChangesSchema } from '@database/schemas/v1/target-changes.schema';
 import { usersSchema } from '@database/schemas/v1/users.schema';
 import { cameraIdOf, planIdOf, spaceIdOf } from '@/migrations/ids';
 import { grows } from '@/migrations/steps/010-grows';
@@ -25,6 +26,7 @@ import { MIGRATION_STEPS } from '@/migrations/steps';
 import { warningsRouting } from '@/migrations/steps/015-warnings-routing';
 import { measurementBand } from '@/migrations/steps/016-measurement-band';
 import { entryCredentials } from '@/migrations/steps/017-entry-credentials';
+import { targetRecord } from '@/migrations/steps/018-target-record';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -63,6 +65,7 @@ const V1_SCHEMAS: Record<string, Schema> = {
   planTemplates: planTemplatesSchema,
   plans: plansSchema,
   spaces: spacesSchema,
+  targetChanges: targetChangesSchema,
   users: usersSchema,
 };
 
@@ -70,7 +73,8 @@ const V1_SCHEMAS: Record<string, Schema> = {
  * What a migration stamps from its own clock, which two runs of it cannot agree
  * on: the entitlement a camera is given twelve months of, the day a camera was
  * retired, the instant an alert record was made, the day a running grow was last
- * touched and the day a picture's bytes were moved into the bucket. Everything
+ * touched, the day a picture's bytes were moved into the bucket and the instant
+ * a device's target record was opened. Everything
  * else a migration writes is derived from the old document, so two runs over the
  * same data produce it byte for byte.
  */
@@ -79,6 +83,7 @@ const STAMPED_BY_THE_RUN: Record<string, string[]> = {
   cameras: ['entitlement.validUntil', 'removedAt'],
   grows: ['updatedAt'],
   'imagedata.files': ['uploadDate'],
+  targetChanges: ['at'],
 };
 
 type Document = Record<string, unknown>;
@@ -542,6 +547,46 @@ describe('devices', () => {
     const light = await one<Record<string, any>>('devices', { id: LEGACY_DEVICE_IDS.light });
     expect(light?.ownerId).toBeNull();
     expect(light?.spaceId).toBeNull();
+  });
+});
+
+describe('the record of what a device aims at', () => {
+  const recordOf = () =>
+    collection<Document>('targetChanges')
+      .find({}, { projection: { _id: 0, id: 0 } })
+      .sort({ deviceId: 1 })
+      .toArray();
+
+  it('opens it for every device that states targets, with what it aims at when the migration runs', async () => {
+    await migrate();
+
+    const record = await recordOf();
+    expect(record.map(row => row.deviceId)).toEqual(expect.arrayContaining([LEGACY_DEVICE_IDS.controller, LEGACY_DEVICE_IDS.fridge]));
+    // A plug, a fan and a light state no targets, and have no band to draw.
+    expect(record.map(row => row.deviceId)).not.toContain(LEGACY_DEVICE_IDS.plug);
+    expect(record.find(row => row.deviceId === LEGACY_DEVICE_IDS.controller)).toEqual({
+      deviceId: LEGACY_DEVICE_IDS.controller,
+      at: expect.any(Date),
+      targets: { day: { temperature: 27, humidity: 60 }, night: { temperature: 21, humidity: 55 }, co2: 900 },
+    });
+  });
+
+  it('leaves a record that has begun alone, and writes nothing in a rehearsal', async () => {
+    await migrate();
+    const before = await recordOf();
+    await collection('targetChanges').deleteMany({ deviceId: LEGACY_DEVICE_IDS.fridge });
+
+    await targetRecord.run(new MigrationContext(db(), true, new Date(AT + DAY)));
+    expect(await recordOf()).toHaveLength(before.length - 1);
+
+    const context = new MigrationContext(db(), false, new Date(AT + DAY));
+    await targetRecord.run(context);
+    await context.flushAll();
+
+    expect(await recordOf()).toHaveLength(before.length);
+    expect(context.stats).toMatchObject({ 'targetChanges.written': 1 });
+    const fridge = (await recordOf()).find(row => row.deviceId === LEGACY_DEVICE_IDS.fridge);
+    expect(fridge?.at).toEqual(new Date(AT + DAY));
   });
 });
 

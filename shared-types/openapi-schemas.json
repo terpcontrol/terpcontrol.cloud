@@ -11824,7 +11824,7 @@
             "type": "null"
           }
         ],
-        "description": "Null where the targets are the controller's configuration rather than a phase's snapshot."
+        "description": "The phase of the grow the stretch falls in; null where no grow stood here."
       },
       "stage": {
         "anyOf": [

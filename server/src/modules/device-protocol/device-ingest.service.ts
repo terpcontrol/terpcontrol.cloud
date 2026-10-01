@@ -11,8 +11,10 @@ import { BackgroundWork } from '@common/background-work';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { logger } from '@utils/logger';
 import { MqttClientService } from '../mqtt/mqtt-client.service';
+import { recordTargets } from '../v1/phase/target-record';
 import {
   DEVICE_IMAGE_SINK,
   DEVICE_METRIC_SINK,
@@ -75,6 +77,7 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
   constructor(
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @InjectModel(MODEL_V1.camera) private readonly cameras: Model<CameraDocument>,
+    @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange>,
     private readonly mqtt: MqttClientService,
     private readonly publisher: DevicePublisherService,
     private readonly hardware: HardwareReportService,
@@ -333,6 +336,7 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
 
     const retimed = !sameClockTimes(device.configuration, configuration);
     await this.devices.updateOne({ id: device.id }, { $set: { configuration, ...(retimed ? { scheduleClock: null } : {}) } });
+    await recordTargets(this.targetRecord, device.id, device.configuration, configuration, new Date());
   }
 }
 

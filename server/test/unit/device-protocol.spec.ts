@@ -50,6 +50,16 @@ const messageOn = (topic: string, payload: unknown) =>
 
 const stored = () => db.devices.findOne({ id: DEVICE }).lean<StoredDevice>();
 
+/** The device's target record, oldest first, without the ids and instants every write draws for itself. */
+const recordOf = async () =>
+  (await db.targetChanges.find({}).sort({ at: 1, _id: 1 }).lean()).map(row => ({ deviceId: row.deviceId, targets: row.targets }));
+
+const targets = (over: { day?: { temperature: number | null; humidity: number | null }; co2?: number }) => ({
+  day: over.day ?? { temperature: null, humidity: null },
+  night: { temperature: null, humidity: null },
+  co2: over.co2 ?? null,
+});
+
 beforeAll(async () => {
   db = await startV1TestDatabase();
   claimCodes = db.connection.model<StoredClaimCode>(MODEL_V1.claimCode, claimCodesSchema);
@@ -86,6 +96,7 @@ beforeEach(async () => {
   ingest = new DeviceIngestService(
     db.devices,
     db.cameras,
+    db.targetChanges,
     mqtt,
     publisher,
     hardware,
@@ -247,6 +258,17 @@ describe('what a device reports', () => {
     await messageOn('configuration', { day: { temperature: 28 }, workmode: 'breed' });
 
     expect((await stored())?.configuration).toEqual({ day: { temperature: 28 }, workmode: 'breed' });
+  });
+
+  it('records the targets it reports where they moved, and nothing for its own echo of them', async () => {
+    await device({ configuration: { day: { temperature: 25 } } });
+
+    await messageOn('configuration', { day: { temperature: 28 }, workmode: 'breed' });
+    // What the cloud sends comes back on the same topic, and moved nothing.
+    await messageOn('configuration', { day: { temperature: 28 }, workmode: 'breed' });
+    await messageOn('configuration', { day: { temperature: 28 }, workmode: 'small' });
+
+    expect(await recordOf()).toEqual([{ deviceId: DEVICE, targets: targets({ day: { temperature: 28, humidity: null } }) }]);
   });
 });
 
@@ -539,10 +561,13 @@ describe('what the cloud tells a device', () => {
       configuration: { workmode: 'small', day: { temperature: 25, humidity: 60, heating: 'hard' }, lights: { limit: 80, sunrise: 15 } },
     });
 
-    await new DeviceConfigurationService(db.devices, db.users, publisher, new EntryWriterService(db.entries)).applyConfiguration(DEVICE, {
-      day: { humidity: 55 },
-      lights: { limit: 0 },
-    });
+    await new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, new EntryWriterService(db.entries)).applyConfiguration(
+      DEVICE,
+      {
+        day: { humidity: 55 },
+        lights: { limit: 0 },
+      },
+    );
 
     const expected = { workmode: 'small', day: { temperature: 25, humidity: 55, heating: 'hard' }, lights: { limit: 0, sunrise: 15 } };
     expect((await stored())?.configuration).toEqual(expected);
@@ -551,7 +576,7 @@ describe('what the cloud tells a device', () => {
 
   it('writes down which figures a person moved when they save the whole document, and nothing when none moved', async () => {
     await device({ configuration: { workmode: 'small', day: { temperature: 24, humidity: 60 } } });
-    const configuration = new DeviceConfigurationService(db.devices, db.users, publisher, new EntryWriterService(db.entries));
+    const configuration = new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, new EntryWriterService(db.entries));
 
     await configuration.replace(DEVICE, { workmode: 'small', day: { temperature: 25, humidity: 60 } }, OWNER);
     await configuration.replace(DEVICE, { workmode: 'small', day: { temperature: 25, humidity: 60 } }, OWNER);
@@ -567,13 +592,34 @@ describe('what the cloud tells a device', () => {
     ]);
   });
 
+  it('records the targets each write moved, whoever made it, and nothing for a write that moved none', async () => {
+    await device({ configuration: { workmode: 'small', day: { temperature: 24, humidity: 60 }, lights: { limit: 80 } } });
+    const configuration = new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, new EntryWriterService(db.entries));
+
+    await configuration.replace(DEVICE, { workmode: 'small', day: { temperature: 25, humidity: 60 }, lights: { limit: 80 } }, OWNER);
+    // A plan re-sending its step, the lamp dimmed, the clocks changed: the
+    // document is written again and the targets are where they were.
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 25 } });
+    await configuration.applyConfiguration(DEVICE, { lights: { limit: 60 } });
+    await configuration.keepOnClock(DEVICE);
+    await configuration.applyConfiguration(DEVICE, { day: { humidity: 55 }, co2: { target: 900 } });
+
+    expect(await recordOf()).toEqual([
+      { deviceId: DEVICE, targets: targets({ day: { temperature: 25, humidity: 60 } }) },
+      { deviceId: DEVICE, targets: targets({ day: { temperature: 25, humidity: 55 }, co2: 900 }) },
+    ]);
+  });
+
   it('replaces what is not a section on both sides rather than merging into it', async () => {
     await device({ configuration: { day: 68400, night: 25200, limit: 65 } });
 
-    await new DeviceConfigurationService(db.devices, db.users, publisher, new EntryWriterService(db.entries)).applyConfiguration(DEVICE, {
-      day: { temperature: 24 },
-      limit: 40,
-    });
+    await new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, new EntryWriterService(db.entries)).applyConfiguration(
+      DEVICE,
+      {
+        day: { temperature: 24 },
+        limit: 40,
+      },
+    );
 
     expect((await stored())?.configuration).toEqual({ day: { temperature: 24 }, night: 25200, limit: 40 });
   });

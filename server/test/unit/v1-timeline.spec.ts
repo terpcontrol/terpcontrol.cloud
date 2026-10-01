@@ -194,6 +194,7 @@ const build = (): TimelineService => {
     db.alerts,
     db.alarmRules,
     db.users,
+    db.targetChanges,
     places,
     new SpaceLiveService(db.devices, db.cameras, fakeData),
     fakeData,
@@ -675,6 +676,72 @@ describe('the band that applied', () => {
     await db.grows.updateOne({ id: GROW }, { $set: { 'phases.1.targets': null, endedAt: NOW } });
 
     expect((await bandsOf('temperature')).map(one => [one.phaseId, one.day?.setpoint])).toEqual([['phase-veg', 24]]);
+  });
+
+  describe('the record of what the controller aimed at', () => {
+    /** What the controller is configured with now, which is what the cockpit judges the tent against. */
+    const NOW_AIMED = { day: { temperature: 27, humidity: 40 }, night: { temperature: 22, humidity: 45 }, co2: 1100 };
+    const FLOWER_AIMED = { day: { temperature: 26, humidity: 45 }, night: { temperature: 21, humidity: 50 }, co2: 900 };
+    const aimed = (temperature: number) => ({ day: { temperature, humidity: 50 }, night: { temperature: temperature - 4, humidity: 55 }, co2: 900 });
+
+    const recorded = (...rows: [string, object][]) =>
+      db.targetChanges.create(rows.map(([at, targets], index) => ({ id: `change-${index}`, deviceId: CONTROLLER, at: new Date(at), targets })));
+    const setpoints = async (asked?: { range: TimelineRange; at?: Date }) =>
+      ((await readAs(session(OWNER), asked)).panels.find(panel => panel.metric === 'temperature')?.targets ?? []).map(one => [
+        one.startsAt,
+        one.phaseId,
+        one.day?.setpoint,
+      ]);
+
+    it('draws the band from the record over a phase´s snapshot, so the present is what the cockpit judges against', async () => {
+      // The tent was put on another climate this morning, a phase that began
+      // overnight: from then on the snapshot is not what the controller holds.
+      await recorded(['2026-06-01T00:00:00.000Z', aimed(24)], [FLOWERING_FROM.toISOString(), FLOWER_AIMED], ['2026-06-10T09:00:00.000Z', NOW_AIMED]);
+
+      expect(await setpoints()).toEqual([
+        ['2026-06-09T12:00:00.000Z', 'phase-veg', 24],
+        [FLOWERING_FROM.toISOString(), 'phase-flower', 26],
+        ['2026-06-10T09:00:00.000Z', 'phase-flower', 27],
+      ]);
+    });
+
+    it('keeps a phase´s snapshot for the part of the window the record does not reach back to', async () => {
+      await recorded(['2026-06-10T09:00:00.000Z', NOW_AIMED]);
+
+      expect(await setpoints()).toEqual([
+        ['2026-06-09T12:00:00.000Z', 'phase-veg', 24],
+        [FLOWERING_FROM.toISOString(), 'phase-flower', 26],
+        ['2026-06-10T09:00:00.000Z', 'phase-flower', 27],
+      ]);
+    });
+
+    it('draws no seam where the record only confirms what the phase took down', async () => {
+      await recorded(['2026-06-10T03:00:00.000Z', FLOWER_AIMED]);
+
+      expect(await setpoints()).toEqual([
+        ['2026-06-09T12:00:00.000Z', 'phase-veg', 24],
+        [FLOWERING_FROM.toISOString(), 'phase-flower', 26],
+      ]);
+    });
+
+    it('reads only the record of the device the band is the targets of', async () => {
+      await db.targetChanges.create({ id: 'change-plug', deviceId: PLUG, at: new Date('2026-06-10T09:00:00.000Z'), targets: aimed(30) });
+
+      expect((await setpoints()).map(([, , setpoint]) => setpoint)).toEqual([24, 26]);
+    });
+
+    it('borrows the first thing the record knows rather than today´s figures where nothing grows here', async () => {
+      await db.grows.deleteMany({});
+      await recorded(['2026-06-10T06:00:00.000Z', aimed(25)], ['2026-06-10T10:00:00.000Z', NOW_AIMED]);
+
+      expect(await setpoints()).toEqual([
+        ['2026-06-09T12:00:00.000Z', null, 25],
+        ['2026-06-10T10:00:00.000Z', null, 27],
+      ]);
+      // A week back the record has not begun yet, and its first row is still
+      // nearer to that week than this morning's change.
+      expect(await setpoints({ range: '24h', at: new Date('2026-06-05T12:00:00.000Z') })).toEqual([['2026-06-04T12:00:00.000Z', null, 25]]);
+    });
   });
 
   it('falls back to what the controller is configured with where nothing grows here', async () => {

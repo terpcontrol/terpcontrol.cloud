@@ -3476,7 +3476,7 @@ export interface TimelineTargets {
   startsAt: string;
   endsAt: string;
   /**
-   * Null where the targets are the controller's configuration rather than a phase's snapshot.
+   * The phase of the grow the stretch falls in; null where no grow stood here.
    */
   phaseId: string | null;
   stage: GrowthStage | null;

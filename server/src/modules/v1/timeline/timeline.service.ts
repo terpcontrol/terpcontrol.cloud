@@ -14,15 +14,17 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
+import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { DIARY_KINDS, MACHINE_KINDS, authorIdsOf, peopleOf, readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
 import { NOTHING_HIDDEN, Redaction, redactionOf } from '../grow/grow-serialiser';
+import { recordOf } from '../phase/target-record';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { lastReadingOf } from './last-reading';
 import { PANEL_METRICS, lanesOf, nightsOf, panelsOf } from './timeline-series';
-import { TimelineWindow, stretchesOf, windowOf } from './timeline-window';
+import { TimelineWindow, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
 /**
  * The Timeline tab, as one answer.
@@ -33,14 +35,16 @@ import { TimelineWindow, stretchesOf, windowOf } from './timeline-window';
  * would draw six windows that disagree at their edges and would have to scrub
  * them into agreement afterwards.
  *
- * **What the whole answer costs, for every range.** Up to ten reads of Mongo -
- * the space, the devices standing in it, the grows that have stood in it, the
- * alerts overlapping the window, the metrics their rules watch, the diary over
- * the window and the machines' own lines over it, the cameras, one aggregation
- * for the frames, and the people the rail names - and two time-series reads per
- * device in the space, the curve and the switchings behind it. The last two of
- * the Mongo reads are skipped where there is nothing to look up, and a redacted
- * reader reads the diary alone. A third time-series read per device is paid by
+ * **What the whole answer costs, for every range.** Up to thirteen reads of
+ * Mongo - the space, the devices standing in it, the grows that have stood in
+ * it, the alerts overlapping the window, the metrics their rules watch, the
+ * diary over the window and the machines' own lines over it, the cameras, one
+ * aggregation for the frames, the people the rail names, and two or three of
+ * the steering device's target record - and two time-series reads per device
+ * in the space, the curve and the switchings behind it. The frames and the
+ * people are skipped where there is nothing to look up, the third read of the
+ * record where the first two found it, and a redacted reader reads the diary
+ * alone. A third time-series read per device is paid by
  * a window with no curves in it at all, and by no other: it is the one window
  * that cannot say for itself whether this place measures - see `lastReadingOf`.
  *
@@ -91,6 +95,7 @@ export class TimelineService {
     @InjectModel(MODEL_V1.alert) private readonly alerts: Model<StoredAlert>,
     @InjectModel(MODEL_V1.alarmRule) private readonly rules: Model<StoredAlarmRule>,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
+    @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange>,
     private readonly places: SpacesService,
     private readonly live: SpaceLiveService,
     private readonly data: DataService,
@@ -116,7 +121,7 @@ export class TimelineService {
     const window = windowOf(asked.range, grant, grow, at);
     const growIds = known.filter(one => stoodDuring(one, spaceId, window)).map(one => one.id);
 
-    const [series, alerts, recorded, cameras] = await Promise.all([
+    const [series, alerts, recorded, cameras, aimed] = await Promise.all([
       Promise.all(
         devices.map(device =>
           this.data.history(device.id, {
@@ -136,6 +141,7 @@ export class TimelineService {
       grant.includeCameras
         ? this.cameras.find({ spaceId, removedAt: null }).sort({ createdAt: 1, id: 1 }).lean<CameraDocument[]>()
         : Promise.resolve([]),
+      recordOf(this.targetRecord, steeringOf(devices)?.id ?? null, window),
     ]);
 
     const [watched, frames, hide] = await Promise.all([this.metricsOf(alerts), this.framesOf(cameras, window), this.redactionFor(grant)]);
@@ -143,7 +149,7 @@ export class TimelineService {
     const people = await this.users.find({ id: { $in: authorIdsOf(told) } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
     const panels = panelsOf(
       series.map(one => one.series),
-      stretchesOf(grow, devices, window, at),
+      stretchesOf(grow, devices, window, at, aimed),
     );
 
     return {

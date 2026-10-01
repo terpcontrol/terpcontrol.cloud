@@ -1,4 +1,5 @@
 import { createAccount, Session } from '../support/api';
+import { seedMeasurements } from '../support/control';
 import { provisionDevice } from '../support/device';
 import { joinSpace } from '../support/fixtures';
 
@@ -10,6 +11,8 @@ import { joinSpace } from '../support/fixtures';
  * request is refused with, and that a caller who has nothing to do with a space
  * is told it does not exist rather than that they may not have it.
  */
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 let owner: Session;
 let stranger: Session;
@@ -215,6 +218,36 @@ describe('applying a climate preset', () => {
     expect(read.body.summary).toMatchObject({ stage: 'flowering', preset: 'late_flowering', isAuto: true });
     expect(read.body.phases[0]).toMatchObject({ source: 'preset', setBy: null });
     expect(read.body.phases[0].targets).toMatchObject({ day: { temperature: 24 } });
+  });
+
+  it('bands the Timeline by the climate the tent was put on from the moment it was put on it', async () => {
+    const spaceId = await tentWithAController();
+    const deviceId = (await owner.client.get('/v1/devices').expect(200)).body.items.find((one: { spaceId: string }) => one.spaceId === spaceId).id;
+    const startedAt = new Date(Date.now() - 2 * DAY_MS).toISOString();
+    const grow = (
+      await owner.client
+        .post('/v1/grows')
+        .send({ name: 'Veg run', type: 'photoperiod', plants: [{ strain: 'Gelato', count: 1 }], spaceId, startedAt })
+        .expect(201)
+    ).body;
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'vegetative', startedAt }).expect(201);
+    await seedMeasurements(
+      Array.from({ length: 48 }, (_, index) => ({ time: Date.now() - index * 30 * 60_000, device_id: deviceId, fields: { temperature: 25 } })),
+    );
+
+    // The grow is in veg already, so no phase is written: only the controller
+    // moves, and the phase keeps the 25 °C it took down when it began.
+    const applied = await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'vegetative' }).expect(201);
+    expect((await owner.client.get(`/v1/grows/${grow.id}`).expect(200)).body.phases.map((one: { stage: string }) => one.stage)).toEqual([
+      'vegetative',
+    ]);
+
+    const timeline = (await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=24h`).expect(200)).body;
+    const bands = timeline.panels.find((panel: { metric: string }) => panel.metric === 'temperature').targets;
+
+    expect(bands.map((band: { day: { setpoint: number } }) => band.day.setpoint)).toEqual([25, 26]);
+    expect(Date.parse(bands[1].startsAt)).toBeGreaterThanOrEqual(Date.parse(applied.body.appliedAt));
+    expect(bands[1].endsAt).toBe(timeline.endsAt);
   });
 
   it('refuses a stage the contract does not have', async () => {

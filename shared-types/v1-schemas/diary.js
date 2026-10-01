@@ -1078,15 +1078,17 @@ exports.timelineTarget = (0, common_js_1.named)('TimelineTarget', zod_1.z.object
 /**
  * One stretch of the window in which the same targets applied.
  *
- * The band moves with the phase, because a phase records the targets that were
- * running when it began and the store holds readings and never setpoints. So a
- * window spanning two phases carries two of these rather than one average, and a
- * tent with no grow in it carries one, from the controller's own configuration.
+ * The band moves wherever what the controller aimed at moved: the server keeps
+ * a record of every change of its targets, and a phase keeps the targets that
+ * were running when it began for the stretch older than that record. So a
+ * window spanning two phases, or a preset applied in the middle of one, carries
+ * two of these rather than one average, and the last of them is what the
+ * controller is aiming at now.
  */
 exports.timelineTargets = (0, common_js_1.named)('TimelineTargets', zod_1.z.object({
     startsAt: (0, common_js_1.instant)(),
     endsAt: (0, common_js_1.instant)(),
-    phaseId: (0, common_js_1.id)().nullable().describe("Null where the targets are the controller's configuration rather than a phase's snapshot."),
+    phaseId: (0, common_js_1.id)().nullable().describe('The phase of the grow the stretch falls in; null where no grow stood here.'),
     stage: common_js_1.growthStage.nullable(),
     day: exports.timelineTarget.nullable(),
     night: exports.timelineTarget.nullable().describe('Null where the metric is not steered in the dark half at all: CO2 is only raised while the light is on.'),

@@ -26,6 +26,7 @@ import { StoredSession, sessionsSchema } from '@database/schemas/v1/sessions.sch
 import { SchemeDocument, schemesSchema } from '@database/schemas/v1/schemes.schema';
 import { ShareLinkDocument, shareLinksSchema } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument, spacesSchema } from '@database/schemas/v1/spaces.schema';
+import { StoredTargetChange, targetChangesSchema } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser, usersSchema } from '@database/schemas/v1/users.schema';
 import { stopMongod } from './mongod';
 
@@ -60,6 +61,7 @@ export interface V1TestDatabase {
   notificationLog: Model<StoredNotificationLogEntry>;
   follows: Model<FollowDocument>;
   shareLinks: Model<ShareLinkDocument>;
+  targetChanges: Model<StoredTargetChange>;
   users: Model<StoredUser>;
   sessions: Model<StoredSession>;
   passwordResets: Model<StoredPasswordReset>;
@@ -97,6 +99,7 @@ export const startV1TestDatabase = async (): Promise<V1TestDatabase> => {
     notificationLog: connection.model<StoredNotificationLogEntry>(MODEL_V1.notificationLogEntry, notificationLogSchema),
     follows: connection.model<FollowDocument>(MODEL_V1.follow, followsSchema),
     shareLinks: connection.model<ShareLinkDocument>(MODEL_V1.shareLink, shareLinksSchema),
+    targetChanges: connection.model<StoredTargetChange>(MODEL_V1.targetChange, targetChangesSchema),
     users: connection.model<StoredUser>(MODEL_V1.user, usersSchema),
     sessions: connection.model<StoredSession>(MODEL_V1.session, sessionsSchema),
     passwordResets: connection.model<StoredPasswordReset>(MODEL_V1.passwordReset, passwordResetsSchema),

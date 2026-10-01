@@ -9,13 +9,15 @@ import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { DataService } from '@modules/data/data.service';
 import { READING_KINDS } from '../diary/diary-entries';
 import { horizonOf, originOf } from '../diary/grow-calendar';
 import { spacesDuring } from '../diary/grow-places';
+import { recordOf } from '../phase/target-record';
 import { lastReadingOf } from '../timeline/last-reading';
 import { lanesOf, nightsOf, panelsOf } from '../timeline/timeline-series';
-import { TimelineWindow, narrowedTo, stretchesOf, windowOf } from '../timeline/timeline-window';
+import { TimelineWindow, narrowedTo, steeringOf, stretchesOf, windowOf } from '../timeline/timeline-window';
 import { Redaction } from './grow-serialiser';
 import { GrowsService } from './grows.service';
 
@@ -37,7 +39,8 @@ import { GrowsService } from './grows.service';
  * measurement store.
  *
  * **What the whole answer costs.** One read of the grow, one of the devices
- * standing where it stood, one of the diary over the window, and two
+ * standing where it stood, one of the diary over the window, two or three of
+ * the target record of the device the band is drawn from, and two
  * time-series reads per device - the windowed curve, and the switchings of the
  * outputs that were ticked. A long range costs no more than a short one,
  * because the step follows from the width of the window and the switchings are
@@ -68,6 +71,7 @@ export class GrowSeriesService {
   constructor(
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @InjectModel(MODEL_V1.entry) private readonly entries: Model<EntryDocument>,
+    @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange>,
     private readonly grows: GrowsService,
     private readonly data: DataService,
   ) {}
@@ -79,7 +83,7 @@ export class GrowSeriesService {
 
     const devices = asked.metrics?.length || asked.outputs?.length ? await this.devicesWhereItStood(grow, window) : ([] as StoredDevice[]);
 
-    const [series, readings] = await Promise.all([
+    const [series, readings, aimed] = await Promise.all([
       Promise.all(
         devices.map(device =>
           this.data.history(device.id, {
@@ -92,11 +96,12 @@ export class GrowSeriesService {
         ),
       ),
       keys.length > 0 ? this.readingsIn(grow.id, window) : Promise.resolve([] as EntryDocument[]),
+      recordOf(this.targetRecord, steeringOf(devices)?.id ?? null, window),
     ]);
 
     const climate = panelsOf(
       series.map(one => one.series),
-      stretchesOf(grow, devices, window, now),
+      stretchesOf(grow, devices, window, now, aimed),
       asked.metrics ?? [],
     );
 

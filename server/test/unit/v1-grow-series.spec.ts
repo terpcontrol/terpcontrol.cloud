@@ -282,7 +282,7 @@ beforeEach(async () => {
   silent = false;
   lastReading = {};
   access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-  series = new GrowSeriesService(db.devices, db.entries, growsService(), fakeData);
+  series = new GrowSeriesService(db.devices, db.entries, db.targetChanges, growsService(), fakeData);
   await world();
 });
 
@@ -305,6 +305,24 @@ describe('what a chart is drawn from', () => {
     expect(bands[1].day).toEqual({ setpoint: 26, band: { low: 25, high: 27 } });
     // Nothing aims a controller at a VPD, so its panel carries no band at all.
     expect(answer.climate[1].targets).toEqual([]);
+  });
+
+  it('draws the band the tent´s Timeline draws, from what the controller´s record says it aimed at', async () => {
+    const moved = new Date(FLOWERING_FROM.getTime() + 6 * 3600 * 1000);
+    await db.targetChanges.create({
+      id: 'change-1',
+      deviceId: CONTROLLER,
+      at: moved,
+      targets: { day: { temperature: 27, humidity: 40 }, night: { temperature: 22, humidity: 45 }, co2: 1100 },
+    });
+
+    const bands = (await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] })).climate[0].targets;
+
+    expect(bands.map(band => [band.startsAt, band.stage, band.day?.setpoint])).toEqual([
+      [bands[0].startsAt, 'vegetative', 24],
+      [FLOWERING_FROM.toISOString(), 'flowering', 26],
+      [moved.toISOString(), 'flowering', 27],
+    ]);
   });
 
   /**

@@ -6,9 +6,11 @@ import { HttpException } from '@common/http-exception';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { MODEL_V1 } from '@database/models';
 import { ScheduleClock, StoredDevice } from '@database/schemas/v1/devices.schema';
+import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 // The plan hands over what its step stored; the port it asks through is the plan's.
 import { DeviceConfigurationWriter } from '../v1/plan/device-configuration.port';
+import { recordTargets } from '../v1/phase/target-record';
 import { DevicePublisherService } from './device-publisher.service';
 import { driftBetween, keepsTime, SCHEDULE_FOLLOWER, ScheduleFollower, sameClockTimes, scheduleClockOf, withClockTimesMoved } from './schedule-clock';
 
@@ -35,6 +37,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
   constructor(
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
+    @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange>,
     private readonly publisher: DevicePublisherService,
     private readonly entries: EntryWriterService,
     @Optional() @Inject(SCHEDULE_FOLLOWER) private readonly followers: ScheduleFollower | null = null,
@@ -134,6 +137,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     const configuration = drift !== 0 && sameClockTimes(before, wanted) ? withClockTimesMoved(wanted, drift) : wanted;
 
     await this.devices.updateOne({ id: deviceId }, { $set: { configuration, scheduleClock: keepsTime(configuration) ? clock : null } });
+    await recordTargets(this.targetRecord, deviceId, before, configuration, at);
 
     // Not required after the write: the device asks for its configuration when
     // it connects and is answered from what is stored, so a send that fails

@@ -39,7 +39,7 @@ export const PANEL_METRICS: readonly Metric[] = ['temperature', 'humidity', 'co2
 export interface TargetStretch {
   startsAt: Date;
   endsAt: Date;
-  /** Null where the targets are the controller's own configuration rather than a phase's snapshot. */
+  /** The phase of the grow the stretch falls in; null where no grow stood here. */
   phaseId: string | null;
   stage: GrowthStage | null;
   targets: PhaseTargets | null;

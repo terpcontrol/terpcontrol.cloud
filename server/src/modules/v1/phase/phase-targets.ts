@@ -4,8 +4,10 @@ import type { PhaseTargets } from '@fg2/shared-types/v1';
  * The targets a controller is running, as the phase records them.
  *
  * Influx stores what was measured and what was switched, never a setpoint, so a
- * phase that is over has no other way to draw its target band than the snapshot
- * taken when it began.
+ * phase keeps a snapshot of what ran when it began. It is what the phase's band
+ * is drawn from wherever the device's target record (`target-record.ts`) does
+ * not reach back that far, and the same reading of a configuration is what
+ * that record stores.
  *
  * The keys are the device's own configuration document, which every type states
  * as a path (`day.temperature`). A device that reports it nested and a client

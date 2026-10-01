@@ -28,6 +28,7 @@ import { schemesSchema } from '@database/schemas/v1/schemes.schema';
 import { sessionsSchema } from '@database/schemas/v1/sessions.schema';
 import { shareLinksSchema } from '@database/schemas/v1/share-links.schema';
 import { spacesSchema } from '@database/schemas/v1/spaces.schema';
+import { targetChangesSchema } from '@database/schemas/v1/target-changes.schema';
 import { usersSchema } from '@database/schemas/v1/users.schema';
 import { ImageStore } from './image-store';
 import { IndexBuildLog } from './index-build-log';
@@ -63,6 +64,7 @@ const features = [
   { name: MODEL_V1.session, schema: sessionsSchema },
   { name: MODEL_V1.shareLink, schema: shareLinksSchema },
   { name: MODEL_V1.space, schema: spacesSchema },
+  { name: MODEL_V1.targetChange, schema: targetChangesSchema },
   { name: MODEL_V1.user, schema: usersSchema },
 ];
 
