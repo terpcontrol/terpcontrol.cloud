@@ -97,7 +97,11 @@ export function AlertCard({ alert, rule, names, me, mayManage, now, explainSilen
             offered is what to try in front of it - and, as on the place's own
             page, the way to the device itself, opened, with since when it has
             been quiet. */}
-        {open && alert.kind === 'offline' ? <OfflineSteps devicesLink={alert.spaceId ? devicesPath(alert.spaceId) : null} /> : null}
+        {open && alert.kind === 'offline' ? (
+          <div className={styles.steps}>
+            <OfflineSteps devicesLink={alert.spaceId ? devicesPath(alert.spaceId) : null} />
+          </div>
+        ) : null}
       </div>
 
       {open && mayManage ? (

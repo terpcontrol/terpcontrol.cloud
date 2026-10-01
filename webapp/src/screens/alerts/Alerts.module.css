@@ -163,6 +163,12 @@
   text-wrap: pretty;
 }
 
+/* What to check on a device gone quiet: across both columns of a wide card,
+   so "Das kannst du prüfen:" is not left in one with its list in the other. */
+.steps {
+  grid-column: 1 / -1;
+}
+
 .meta {
   font-size: var(--text-sm);
   line-height: var(--line-body);

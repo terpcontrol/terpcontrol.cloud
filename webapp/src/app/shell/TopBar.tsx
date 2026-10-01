@@ -23,7 +23,7 @@ export function Freshness({ className }: { className?: string }) {
 }
 
 /**
- * The phone's header: the logo with the freshness line, the alerts bell,
+ * The phone's header: the logo, the alerts bell,
  * and the avatar that opens Me. The bell carries the open count, or nothing at
  * all when none is open, so it reads as quiet rather than as a zero; the link
  * says the count too, for anybody who cannot see the badge.
@@ -39,7 +39,10 @@ export function TopBar() {
         <div className={styles.wordmark}>
           <Logo />
         </div>
-        <Freshness />
+        {/* No "aktualisiert vor 0 s" under the logo on a phone: it stood there
+            on three pages and not on the others, as a stray line, while every
+            place, device and camera already carries a pill that says how
+            fresh it is. The rail beside a wide screen keeps it. */}
       </div>
       <Link to="/alerts" className={styles.action} aria-label={bell ? t(bell.key, { count: bell.count }) : t('shell.alerts')}>
         <Bell size={20} strokeWidth={1.75} aria-hidden />
