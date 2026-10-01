@@ -231,13 +231,20 @@ export const levelFigure = (value: number): string => looseFigure(value);
 
 const figureOf = (watch: AlarmWatch, value: number): string => (watch.kind === 'reading' ? targetFigure(value, watch.metric) : levelFigure(value));
 
+/** The two bounds of a rule as figures with their unit, "30 °C", each null where the rule sets none; an output watched for running sets neither. */
+export const boundsOf = (watch: AlarmWatch): { upper: string | null; lower: string | null } => {
+  if (watch.kind === 'output_running') return { upper: null, lower: null };
+  const unit = unitOf(watch);
+  const one = (value: number | null) => (value === null ? null : `${figureOf(watch, value)}${unit ? ` ${unit}` : ''}`);
+
+  return { upper: one(watch.upper), lower: one(watch.lower) };
+};
+
 /** "› 30 °C", "‹ 16 °C", both with a space between; an output watched for running has no bound and answers nothing. */
 export const boundLabel = (watch: AlarmWatch): string => {
-  if (watch.kind === 'output_running') return '';
-  const unit = unitOf(watch);
-  const one = (sign: string, value: number) => `${sign} ${figureOf(watch, value)}${unit ? ` ${unit}` : ''}`;
+  const { upper, lower } = boundsOf(watch);
 
-  return [watch.upper !== null ? one('›', watch.upper) : null, watch.lower !== null ? one('‹', watch.lower) : null].filter(Boolean).join(' ');
+  return [upper !== null ? `› ${upper}` : null, lower !== null ? `‹ ${lower}` : null].filter(Boolean).join(' ');
 };
 
 /** The order the channels are named in, whatever order the grid holds them in. */

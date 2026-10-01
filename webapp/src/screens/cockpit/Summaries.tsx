@@ -11,7 +11,7 @@ import { awaitingClimate } from '@/ui/climate-hardware';
 import { Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
-import { boundLabel, channelsLabel, ruleTitle } from '../control/alarms/rules';
+import { boundsOf, channelsLabel, ruleTitle } from '../control/alarms/rules';
 import { targetFigure, UNIT } from '../home/units';
 import { alarmsReach, reachedBy } from '../notifications/reach';
 import { hoursFigure, lightWindowOf } from './place';
@@ -112,9 +112,10 @@ export function TargetsSummary({
 const NAMED = 3;
 
 /**
- * "Gerät offline · Zu warm › 30 °C" and whether any of it reaches the grower:
- * a rule that tells nobody is not watching over anything, so the summary says
- * so and links to the fix.
+ * "Gerät offline · Zu warm über 30 °C" and whether any of it reaches the
+ * grower: a rule that tells nobody is not watching over anything, so the
+ * summary says so and links to the fix. The bounds are written out in words:
+ * in a run of prose "›" reads as the chevron every link beside it ends in.
  */
 export function AlarmsSummary({ spaceId, devices, me, mayChange }: { spaceId: string; devices: Device[]; me: Me | undefined; mayChange: boolean }) {
   const { t } = useTranslation();
@@ -157,6 +158,14 @@ const lineOf = (t: Translate, rule: AlarmRule, devices: Device[]): string => {
   if (rule.origin === 'always') return t('cockpit.alarms.offline');
   const device = devices.find(one => one.id === rule.deviceId);
   const title = device ? ruleTitle(t, rule, device) : rule.name;
-  const bound = boundLabel(rule.watch);
+  const { upper, lower } = boundsOf(rule.watch);
+  const bound =
+    upper !== null && lower !== null
+      ? t('cockpit.alarms.outside', { lower, upper })
+      : upper !== null
+        ? t('cockpit.alarms.above', { value: upper })
+        : lower !== null
+          ? t('cockpit.alarms.below', { value: lower })
+          : null;
   return bound ? `${title} ${bound}` : title;
 };

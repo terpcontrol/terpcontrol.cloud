@@ -224,20 +224,22 @@ const me = (diary: boolean, email: string | null = null): Me =>
     layers: { diary },
   }) as unknown as Me;
 
+const rules = (): AlarmRule[] => [
+  rule({}),
+  rule({
+    id: 'rule-2',
+    name: 'Too warm',
+    origin: 'human',
+    watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null, forSeconds: 600 } as never,
+  }),
+];
+
 const server = {
   me: me(false),
   youMay: 'own' as AccessNeed,
   devices: [fridge()],
   live: deviceLive(),
-  rules: [
-    rule({}),
-    rule({
-      id: 'rule-2',
-      name: 'Too warm',
-      origin: 'human',
-      watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null, forSeconds: 600 } as never,
-    }),
-  ],
+  rules: rules(),
   home: null as HomeAnswer | null,
   overviews: new Map<string, SpaceOverview>(),
 };
@@ -298,6 +300,7 @@ beforeEach(() => {
   server.youMay = 'own';
   server.devices = [fridge()];
   server.live = deviceLive();
+  server.rules = rules();
   server.home = null;
   server.overviews = new Map();
 });
@@ -357,10 +360,32 @@ describe('the cockpit of a place that is fine', () => {
     expect(within(targets).getByRole('link', { name: 'Change' })).toHaveAttribute('href', '/control?space=space-1');
 
     const alarms = screen.getByRole('region', { name: 'Alarms' });
-    expect(await within(alarms).findByText('Device offline · Too warm › 30 °C')).toBeInTheDocument();
+    // The bound in words: a "›" in a run of prose reads as the chevron of the link under it.
+    expect(await within(alarms).findByText('Device offline · Too warm above 30 °C')).toBeInTheDocument();
     expect(within(alarms).getByRole('link', { name: 'Change' })).toHaveAttribute('href', '/control/alarms?space=space-1');
     // Nothing reaches this account, so the summary says so and links to the fix.
     expect(await within(alarms).findByRole('link', { name: /don't reach you/ })).toHaveAttribute('href', '/me/notifications');
+  });
+
+  it('writes a rule with a floor as "below", and one with both bounds as the band it keeps', async () => {
+    server.rules = [
+      rule({
+        id: 'cold',
+        name: 'Too cold',
+        origin: 'human',
+        watch: { kind: 'reading', metric: 'temperature', upper: null, lower: 16, forSeconds: 600 } as never,
+      }),
+      rule({
+        id: 'band',
+        name: 'Humidity',
+        origin: 'human',
+        watch: { kind: 'reading', metric: 'humidity', upper: 70, lower: 40, forSeconds: 600 } as never,
+      }),
+    ];
+    draw(<PlaceCockpit overview={overviewOf()} />);
+
+    const alarms = await screen.findByRole('region', { name: 'Alarms' });
+    expect(await within(alarms).findByText('Too cold below 16 °C · Humidity below 40 % or above 70 %')).toBeInTheDocument();
   });
 
   it('says where alarms go once something reaches the grower', async () => {

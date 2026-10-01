@@ -4737,6 +4737,9 @@
       "title": "Alarme",
       "none": "Noch kein Alarm eingeschaltet.",
       "offline": "Gerät offline",
+      "above": "über {{value}}",
+      "below": "unter {{value}}",
+      "outside": "unter {{lower}} oder über {{upper}}",
       "more": "+{{count}} weitere",
       "reaches": "Kritische Alarme per {{channels}}",
       "reachesNobody": "erreichen dich nicht · einrichten ›"

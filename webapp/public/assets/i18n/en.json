@@ -4733,6 +4733,9 @@
       "title": "Alarms",
       "none": "No alarm switched on yet.",
       "offline": "Device offline",
+      "above": "above {{value}}",
+      "below": "below {{value}}",
+      "outside": "below {{lower}} or above {{upper}}",
       "more": "+{{count}} more",
       "reaches": "Critical alarms by {{channels}}",
       "reachesNobody": "don't reach you · set up ›"
