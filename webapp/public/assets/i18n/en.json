@@ -2318,7 +2318,7 @@
       "tells": {
         "occupied": "{{grow}} is already growing in {{place}}.",
         "occupiedSteered": "{{grow}} is already growing in {{place}}: its climate goes to the {{stage}} preset now, and a plan running there pauses.",
-        "preset": "{{place}} goes on the {{stage}} preset now.",
+        "preset": "The targets in {{place}} go onto the {{stage}} climate with it.",
         "noController": "Nothing in {{place}} steers a climate, so the stage is recorded and nothing is written to anything.",
         "hardwareUnknown": "What stands in {{place}} is not known, so no climate is written there; the stages are recorded all the same.",
         "nowhere": "No place, so nothing is steered; the stages are recorded all the same.",

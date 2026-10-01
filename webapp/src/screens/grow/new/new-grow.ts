@@ -163,7 +163,10 @@ export const tells = (draft: Draft, place: TellPlace | null, stageName: string):
       });
     }
     if (place.steered === null) told.push({ key: 'grow.new.tells.hardwareUnknown', values: { place: place.name } });
-    else if (place.steered) told.push({ key: 'grow.new.tells.preset', values: { place: place.name, stage: stageName } });
+    // Said beside the button as well as under the chips: starting the grow
+    // changes the targets, and the sentence that says so used to scroll away
+    // below the fold on a phone while the button stayed in view.
+    else if (place.steered) told.push({ key: 'grow.new.tells.preset', values: { place: place.name, stage: stageName }, warns: true });
     else told.push({ key: 'grow.new.tells.noController', values: { place: place.name } });
   }
 

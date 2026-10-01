@@ -87,7 +87,7 @@ describe('opening the new-grow sheet by address', () => {
     await draw('/grows/new?space=space-1&stage=flowering');
 
     expect(screen.getByRole('button', { name: /^Flower · / })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.queryByText(/goes on the Germination preset now/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/go onto the Germination climate/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Start the grow/ }));
 
@@ -99,7 +99,7 @@ describe('opening the new-grow sheet by address', () => {
     await draw('/grows/new?space=space-1');
 
     expect(screen.getByRole('button', { name: /^Germination · / })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText(/Blue Dream tent goes on the Germination preset now/)).toBeInTheDocument();
+    expect(screen.getAllByText(/The targets in Blue Dream tent go onto the Germination climate/).length).toBeGreaterThan(0);
   });
 
   /** A bookmark outlives a stage list, and drying is not a stage a grow begins in. */

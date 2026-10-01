@@ -192,7 +192,8 @@ describe('the new-grow sheet', () => {
     // The run after the last one *here*, offered rather than filled in - the
     // account's newest run stands on the balcony and is not what the tent is counted from.
     expect(screen.getByRole('button', { name: 'Spring run #2' })).toBeInTheDocument();
-    expect(screen.getByText('Blue Dream tent goes on the Germination preset now.')).toBeInTheDocument();
+    // Under the chips, and again beside the button, where it cannot have scrolled away.
+    expect(screen.getAllByText('The targets in Blue Dream tent go onto the Germination climate with it.')).toHaveLength(2);
   });
 
   it('counts the suggestion over the place that is chosen, not over the account', async () => {
@@ -372,7 +373,7 @@ describe('where the plants go', () => {
     press('New place');
 
     expect(screen.getByRole('button', { name: 'Blue Dream tent · Controller + Cam' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.queryByText('Blue Dream tent goes on the Germination preset now.')).not.toBeInTheDocument();
+    expect(screen.queryByText('The targets in Blue Dream tent go onto the Germination climate with it.')).not.toBeInTheDocument();
     expect(screen.getByText('Make the place first, or pick one of the chips.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start the grow · Day 1' })).toBeDisabled();
   });

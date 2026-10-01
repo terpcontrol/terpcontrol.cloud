@@ -2322,7 +2322,7 @@
       "tells": {
         "occupied": "In {{place}} wächst bereits {{grow}}.",
         "occupiedSteered": "In {{place}} wächst bereits {{grow}}: Das Klima dort geht jetzt auf das Preset für {{stage}}, und ein laufender Plan pausiert.",
-        "preset": "{{place}} geht jetzt auf das Preset für {{stage}}.",
+        "preset": "Die Zielwerte in {{place}} gehen damit auf das Klima für {{stage}}.",
         "noController": "In {{place}} steuert nichts ein Klima, die Phase wird also nur festgehalten und nirgendwohin geschrieben.",
         "hardwareUnknown": "Was in {{place}} steht, ist nicht bekannt, dort wird also kein Klima geschrieben; die Phasen werden trotzdem festgehalten.",
         "nowhere": "Kein Ort, also wird nichts gesteuert; die Phasen werden trotzdem festgehalten.",
