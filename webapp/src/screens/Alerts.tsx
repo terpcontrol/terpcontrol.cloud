@@ -15,6 +15,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { clock, WEEKDAY_DAY, zoneOf } from '@/ui/zone';
 import { AlertCard } from './alerts/AlertCard';
+import { TasksDoor } from './alerts/TasksDoor';
 import { isAhead } from '@/ui/age';
 import { groupsOf, type GroupHeading } from './alerts/inbox';
 import { useInboxNames } from './alerts/names';
@@ -134,6 +135,8 @@ export function Alerts() {
   return (
     <section className={styles.page}>
       {head}
+      {/* Read off the account the page holds anyway, so an account that keeps no diary is asked for no task list. */}
+      {me.data?.layers?.diary === true ? <TasksDoor /> : null}
       <RefreshFailed failedAt={failedAt} now={now} />
       {names.failed ? (
         <p className={`mono ${styles.namesFailed}`} role="status">

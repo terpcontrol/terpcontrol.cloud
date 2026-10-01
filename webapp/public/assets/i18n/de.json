@@ -3903,7 +3903,14 @@
       "warning": "Warnung",
       "info": "Info"
     },
-    "namesFailed": "Namen nicht lesbar · Bereiche, Geräte und Cams stehen mit ihrer Id"
+    "namesFailed": "Namen nicht lesbar · Bereiche, Geräte und Cams stehen mit ihrer Id",
+    "tasks": {
+      "due_one": "1 Aufgabe fällig",
+      "due_other": "{{count}} Aufgaben fällig",
+      "later_one": "nichts fällig · 1 geplant",
+      "later_other": "nichts fällig · {{count}} geplant",
+      "none": "nichts geplant"
+    }
   },
   "claim": {
     "title": "Gerät hinzufügen · {{step}} von {{of}}",

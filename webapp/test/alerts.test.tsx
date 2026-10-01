@@ -149,6 +149,7 @@ const server = {
   devices: [deviceRow()] as Record<string, unknown>[],
   cameras: [{ id: 'cam-2', name: 'Cam 2' }] as Record<string, unknown>[],
   me,
+  tasks: [] as Record<string, unknown>[],
   sent: [] as { method: string; path: string; body: unknown }[],
 };
 
@@ -178,6 +179,7 @@ const answer = (method: string, path: string, body: unknown): Response => {
   if (method === 'GET' && path === '/v1/cameras') return json({ items: server.cameras, nextCursor: null });
   if (method === 'GET' && path.startsWith('/v1/devices/device-1/alarm-rules')) return json({ items: server.rules, nextCursor: null });
   if (method === 'GET' && path === '/v1/me') return json(server.me);
+  if (method === 'GET' && path.startsWith('/v1/tasks')) return json({ items: server.tasks, nextCursor: null });
   if (method === 'PUT' && path.startsWith('/v1/alarm-rules/')) return json(server.rules[0]);
   if (method === 'DELETE' && path.startsWith('/v1/alarm-rules/')) return json(server.rules[0]);
   if (method === 'PATCH' && path === '/v1/me') return json({ ...server.me, ...(body as Partial<Me>) });
@@ -217,6 +219,7 @@ beforeEach(() => {
   server.devices = [deviceRow()];
   server.cameras = [{ id: 'cam-2', name: 'Cam 2' }];
   server.me = me;
+  server.tasks = [];
   server.sent = [];
   vi.stubGlobal(
     'fetch',
@@ -1004,6 +1007,41 @@ describe('the bell', () => {
     await waitFor(() => expect(sentTo('GET', '/v1/alerts')).toHaveLength(1));
     expect(await screen.findByRole('link', { name: 'Alerts' })).toBeInTheDocument();
     expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Tasks have no tab of their own: whoever keeps a diary finds them in the grow
+ * block of a place and behind the bell, beside everything else that is
+ * waiting on them. An account that keeps none is not asked for a list.
+ */
+describe('the way to the tasks', () => {
+  const task = (id: string, dueAt: DateTime) => ({ id, dueAt: iso(dueAt), label: 'Water', kind: 'water', subject: { type: 'grow', id: 'grow-1' } });
+
+  it('stands at the top of the inbox for a diary, saying how many are due today', async () => {
+    server.me = { ...me, layers: { diary: true } } as Me;
+    server.tasks = [task('t1', NOW.minus({ hours: 2 })), task('t2', NOW.plus({ days: 3 }))];
+    draw();
+
+    const door = await screen.findByRole('link', { name: /Tasks/ });
+    expect(door).toHaveAttribute('href', '/tasks');
+    expect(door).toHaveTextContent('1 task due');
+  });
+
+  it('says nothing is due rather than nothing at all', async () => {
+    server.me = { ...me, layers: { diary: true } } as Me;
+    draw();
+
+    expect(await screen.findByRole('link', { name: /Tasks/ })).toHaveTextContent('nothing planned');
+  });
+
+  it('asks an account that keeps no diary for no task list', async () => {
+    server.me = { ...me, layers: { diary: false } } as Me;
+    draw();
+
+    expect(await screen.findByText('Nothing has gone wrong.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Tasks/ })).not.toBeInTheDocument();
+    expect(readsOf('/v1/tasks')).toHaveLength(0);
   });
 });
 

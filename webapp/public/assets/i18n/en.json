@@ -3899,7 +3899,14 @@
       "warning": "warning",
       "info": "info"
     },
-    "namesFailed": "Could not read the names · spaces, devices and cams are shown by their id"
+    "namesFailed": "Could not read the names · spaces, devices and cams are shown by their id",
+    "tasks": {
+      "due_one": "1 task due",
+      "due_other": "{{count}} tasks due",
+      "later_one": "nothing due · 1 planned",
+      "later_other": "nothing due · {{count}} planned",
+      "none": "nothing planned"
+    }
   },
   "claim": {
     "title": "Add a device · {{step}} of {{of}}",
