@@ -258,12 +258,12 @@ describe('the Charts view', () => {
 
     // CO2 is not offered: no controller reported it. Nor is EC, which the grow
     // defines and nobody has yet measured. Three outputs, so the rest fold away.
-    for (const label of ['Temp', 'RH', 'VPD', 'Height', 'Light', 'Dehum', '+ more']) {
+    for (const label of ['Temp', 'RH', 'VPD', 'Height', 'Light', 'Dehumidifier', '+ more']) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
     }
     expect(screen.queryByRole('button', { name: 'CO2' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'EC' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Heat' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Heater' })).not.toBeInTheDocument();
 
     // Temperature and humidity belong together, so they are one panel of two
     // axes; VPD is its own, and says what the leaf was taken to be.

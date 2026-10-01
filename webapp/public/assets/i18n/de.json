@@ -1534,8 +1534,8 @@
       "enteredPhase": "{{stage}} begonnen"
     },
     "metric": {
-      "temperature": "Temp",
-      "humidity": "rF",
+      "temperature": "Temperatur",
+      "humidity": "Luftfeuchte",
       "co2": "CO₂",
       "vpd": "VPD"
     },
@@ -3100,20 +3100,20 @@
       "co2": "CO₂"
     },
     "panelAlt": "{{metric}} über den Zeitraum",
-    "band": "Band {{low}}–{{high}}",
+    "band": "Ziel {{low}}–{{high}}",
     "noTarget": "kein Ziel",
     "allOff": "alles aus",
     "outputOn": "{{output}} an",
     "output": {
       "heater": "Heizung",
-      "dehumidifier": "Entf.",
+      "dehumidifier": "Entfeuchter",
       "co2": "CO₂",
       "light": "Licht",
       "fan": "Lüfter",
       "relais": "Relais",
-      "fanInternal": "Lüfter in",
+      "fanInternal": "Lüfter innen",
       "fanExternal": "Abluft",
-      "fanBackwall": "Rückw."
+      "fanBackwall": "Rückwand\u00adlüfter"
     },
     "events": "Einträge",
     "noEvents": "Nichts geschrieben in diesem Zeitraum",

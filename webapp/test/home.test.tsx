@@ -435,7 +435,7 @@ describe('what needs a person', () => {
 
     const attention = screen.getByRole('list', { name: 'Needs attention' });
     expect(within(attention).getAllByRole('listitem')).toHaveLength(1);
-    expect(attention).toHaveTextContent('Alarm · 68 % RH · Flower room B');
+    expect(attention).toHaveTextContent('Alarm · 68 % Humidity · Flower room B');
 
     const dueList = screen.getByRole('list', { name: 'Due' });
     expect(dueList).toHaveTextContent('Water · Spring run');

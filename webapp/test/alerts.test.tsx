@@ -1069,9 +1069,9 @@ describe('the arithmetic behind the cards', () => {
       ...over,
     });
 
-    expect(alertLabel(i18next.t, open({}), NOW)).toBe('Alarm · 68 % RH');
+    expect(alertLabel(i18next.t, open({}), NOW)).toBe('Alarm · 68 % Humidity');
     // Two rules on one sensor are two banners on one place, told apart by name.
-    expect(alertLabel(i18next.t, open({ name: 'Mould watch' }), NOW)).toBe('Mould watch · 68 % RH');
+    expect(alertLabel(i18next.t, open({ name: 'Mould watch' }), NOW)).toBe('Mould watch · 68 % Humidity');
     // A rule watching an output leaves a number with no unit and no name, and
     // "Alarm · 1" reads as a count of something.
     expect(alertLabel(i18next.t, open({ metric: null, value: 1 }), NOW)).toBe('Alarm');

@@ -207,13 +207,13 @@ describe('the timeline', () => {
 
     // The end of the window: light on, the day's band, the newest picture.
     expect(header()).toHaveTextContent(`${clock(24)}26.0 °C62 %Light on`);
-    expect(screen.getByText(/band 25–27/i)).toBeInTheDocument();
+    expect(screen.getByText(/target 25–27/i)).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Canopy cam at the cursor' })).toHaveAttribute('src', '/media/media-late');
 
     // Back into the night: the other band, the other readings, the other picture.
     scrubTo(3);
-    expect(header()).toHaveTextContent(`${clock(3)}21.0 °C58 %Heat on`);
-    expect(screen.getByText(/band 20–22/i)).toBeInTheDocument();
+    expect(header()).toHaveTextContent(`${clock(3)}21.0 °C58 %Heater on`);
+    expect(screen.getByText(/target 20–22/i)).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Canopy cam at the cursor' })).toHaveAttribute('src', '/media/media-early');
     expect(screen.getByRole('img', { name: 'Canopy cam at the cursor' }).parentElement).toHaveTextContent(`Canopy cam · ${stamp(2)} · day 34`);
   });
@@ -397,7 +397,7 @@ describe('the timeline', () => {
     expect(screen.queryByText('Events')).not.toBeInTheDocument();
     expect(screen.queryByText(/Nothing written in this window/)).not.toBeInTheDocument();
     // The lanes of the outputs are still there.
-    expect(screen.getByText('Heat')).toBeInTheDocument();
+    expect(screen.getByText('Heater')).toBeInTheDocument();
   });
 
   /**

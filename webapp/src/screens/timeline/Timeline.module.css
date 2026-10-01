@@ -1,11 +1,11 @@
 /* The stacked timeline. Every plot and every lane leaves the same gutter on the
    left - set once here as `--gutter`, which the canvas of each plot is moved
    over by - so one cursor runs straight down through the whole stack. It holds
-   a lane's name ("Lüfter in", "Events") without cutting it, and widens where
-   the screen does. */
+   a lane's name written out ("Entfeuchter", "Lüfter innen") without cutting
+   it, and widens where the screen does. */
 
 .screen {
-  --gutter: 64px;
+  --gutter: 88px;
 
   display: flex;
   flex-direction: column;
@@ -478,12 +478,12 @@
   flex-shrink: 0;
   width: var(--gutter);
   /* A lane's name lives in the plot's gutter, which has no room for the
-     tracked capitals a section label takes: it is a caption instead. */
+     tracked capitals a section label takes: it is a caption instead. The one
+     name too long for it ("Rückwandlüfter") breaks at its soft hyphen onto a
+     second line rather than being cut. */
   padding-right: 12px;
-  overflow: hidden;
   text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  hyphens: manual;
 }
 
 .track {
@@ -625,7 +625,7 @@
 
 @media (min-width: 900px) {
   .screen {
-    --gutter: 80px;
+    --gutter: 96px;
 
     max-width: var(--reading-width);
     padding-top: 0;
