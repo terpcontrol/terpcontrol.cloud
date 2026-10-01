@@ -44,7 +44,8 @@ const home: HomeAnswer = {
       kind: 'tent',
       roomId: null,
       deviceIds: ['device-1'],
-      values: [],
+      // A reading a minute old: the tent is live, which is what maintenance is offered on.
+      values: [{ metric: 'temperature', value: 25, measuredAt: new Date(NOW.getTime() - 60_000).toISOString(), state: 'live' }],
       setpoints: [],
       trend: null,
       grow: {
@@ -275,7 +276,7 @@ describe('the log sheet', () => {
     expect(within(sheet).getByRole('button', { name: 'Tent 1' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Amnesia 1' })).toBeInTheDocument();
 
-    const tiles = ['Water', 'Feed', 'Photo', 'Note', 'Measure', 'Training', 'Phase', 'Step in'];
+    const tiles = ['Water', 'Feed', 'Photo', 'Note', 'Measure', 'Training', 'Phase', 'Maintenance · 15 min'];
     for (const tile of tiles) expect(within(sheet).getByRole('button', { name: new RegExp(`^${tile}`) })).toBeInTheDocument();
 
     // The captions: the last can, the scheme's week, the grow's own measurements, the phase after this one.
@@ -296,7 +297,7 @@ describe('the log sheet', () => {
     await openSheet();
     const sheet = screen.getByRole('dialog', { name: 'Log' });
 
-    for (const tile of ['Water', 'Feed', 'Photo', 'Note', 'Measure', 'Training', 'Step in'])
+    for (const tile of ['Water', 'Feed', 'Photo', 'Note', 'Measure', 'Training', 'Maintenance · 15 min'])
       expect(within(sheet).getByRole('button', { name: new RegExp(`^${tile}`) })).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: /^Phase/ })).not.toBeInTheDocument();
   });
@@ -419,23 +420,39 @@ describe('the log sheet', () => {
   });
 
   /**
-   * Stepping in is the one tile whose line is the smaller half of what it does:
+   * Maintenance reaches the hardware, so a tent whose device has gone quiet is
+   * not offered it: the command would be heard by nobody, and the tile read as
+   * if the tent were being looked after.
+   */
+  it('offers no maintenance where the place is offline', async () => {
+    const quiet = { ...home.spaces[0], values: [{ ...home.spaces[0].values[0], measuredAt: daysAgo(1), state: 'offline' as const }] };
+    vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/home' ? { ...home, spaces: [quiet] } : answers(path)));
+    await openSheet();
+    const sheet = screen.getByRole('dialog', { name: 'Log' });
+
+    expect(within(sheet).getByRole('button', { name: /^Water/ })).toBeInTheDocument();
+    expect(within(sheet).queryByRole('button', { name: /^Maintenance/ })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Maintenance is the one tile whose line is the smaller half of what it does:
    * the server puts every device standing in the place into maintenance mode for
    * a quarter of an hour, and deleting the line afterwards leaves them parked. So
    * it asks first, names what it reaches by the names those rows carry, and the
    * toast does not offer an Undo that would only be half of one.
    */
-  it('asks before it steps in, names every device it will quieten, and offers no Undo for the quiet', async () => {
+  it('asks before it starts maintenance, names every device it will quieten, and offers no Undo for the quiet', async () => {
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
-    fireEvent.click(screen.getByRole('button', { name: /^Step in/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Maintenance · 15 min/ }));
 
-    const asked = await screen.findByRole('dialog', { name: 'Step in' });
+    const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 min' });
     expect(api.post).not.toHaveBeenCalled();
     expect(await within(asked).findByText(/all 2 devices standing in Tent 1 into maintenance mode for 15 minutes/)).toBeInTheDocument();
-    // By the name each device's own row carries, and only the ones standing here.
+    // By the name each device's own row carries, and only the ones standing here:
+    // the one plug of the account is called a plug, with no tail of its id.
     expect(within(asked).getByText('Big tent controller')).toBeInTheDocument();
-    expect(within(asked).getByText('Plug · VICE-2')).toBeInTheDocument();
+    expect(within(asked).getByText('Plug')).toBeInTheDocument();
     expect(within(asked).queryByText('Somewhere else')).not.toBeInTheDocument();
     // The window is fifteen minutes and the quiet is twenty-five: the engine
     // holds a worked-on device's alarms for ten minutes after it is let go, and
@@ -445,7 +462,7 @@ describe('the log sheet', () => {
     // The day is not asked for: the quiet starts when this is saved, so the line is now.
     expect(within(asked).queryByLabelText('When')).not.toBeInTheDocument();
 
-    fireEvent.click(within(asked).getByRole('button', { name: 'Step in · quieten 2 devices' }));
+    fireEvent.click(within(asked).getByRole('button', { name: 'Start maintenance · 2 devices' }));
 
     expect(api.post).toHaveBeenCalledWith('/entries', {
       kind: 'visit',
@@ -456,7 +473,7 @@ describe('the log sheet', () => {
       values: { kind: 'visit' },
     });
 
-    expect(await screen.findByText('Stepped in · Tent 1')).toBeInTheDocument();
+    expect(await screen.findByText('Maintenance · Tent 1')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
   });
 
@@ -470,13 +487,13 @@ describe('the log sheet', () => {
   it('names what each device will stop, and says so where the hardware stops nothing', async () => {
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
-    fireEvent.click(screen.getByRole('button', { name: /^Step in/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Maintenance · 15 min/ }));
 
-    const asked = await screen.findByRole('dialog', { name: 'Step in' });
+    const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 min' });
     const controller = (await within(asked).findByText('Big tent controller')).closest('li')!;
     expect(controller).toHaveTextContent('stops the heater, the dehumidifier and the CO₂ valve');
 
-    const plug = within(asked).getByText('Plug · VICE-2').closest('li')!;
+    const plug = within(asked).getByText('Plug').closest('li')!;
     expect(plug).toHaveTextContent('stops nothing: this hardware takes no maintenance command');
     expect(plug).not.toHaveTextContent('heater');
   });
@@ -488,9 +505,9 @@ describe('the log sheet', () => {
     );
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
-    fireEvent.click(screen.getByRole('button', { name: /^Step in/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Maintenance · 15 min/ }));
 
-    const asked = await screen.findByRole('dialog', { name: 'Step in' });
+    const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 min' });
     const controller = (await within(asked).findByText('Big tent controller')).closest('li')!;
     expect(controller).toHaveTextContent('stops the heater and the dehumidifier');
     expect(controller).not.toHaveTextContent('CO₂');
@@ -501,9 +518,9 @@ describe('the log sheet', () => {
 
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
-    fireEvent.click(screen.getByRole('button', { name: /^Step in/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Maintenance · 15 min/ }));
 
-    const asked = await screen.findByRole('dialog', { name: 'Step in' });
+    const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 min' });
     expect(await within(asked).findByText('Nothing stands in Tent 1, so this is a line in the diary and nothing else.')).toBeInTheDocument();
     expect(within(asked).getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });

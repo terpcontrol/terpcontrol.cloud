@@ -429,11 +429,11 @@ describe('the alarm rules page', () => {
 
   /**
    * The engine skips a worked-on device for ten minutes after its window has
-   * run out, so a step-in the app calls fifteen minutes keeps the alarms quiet
-   * for twenty-five. The explanation states both spans rather than the one
-   * that was promised and not kept.
+   * run out, so a maintenance the app calls fifteen minutes keeps the alarms
+   * quiet for twenty-five. The explanation states both spans rather than the
+   * one that was promised and not kept.
    */
-  it('names the settling the engine adds to a step-in, not the window alone', async () => {
+  it('names the settling the engine adds to a maintenance window, not the window alone', async () => {
     draw();
 
     expect(await screen.findByRole('button', { name: 'About Muting and maintenance' })).toHaveAccessibleDescription(

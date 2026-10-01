@@ -1,4 +1,4 @@
-import { Camera, ChartNoAxesColumn, Clock, Droplet, FlaskConical, Leaf, Pencil, Scissors, type LucideIcon } from 'lucide-react';
+import { Camera, ChartNoAxesColumn, Droplet, FlaskConical, Leaf, Pencil, Scissors, Wrench, type LucideIcon } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,8 +6,9 @@ import type { GrowListItem } from '@fg2/shared-types/v1';
 import { useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { useHome } from '@/api/home';
+import { livenessOf } from '@/screens/home/attention';
 import { ageLabel } from '@/ui/age';
-import { quietMinutes, VISIT_MINUTES } from '@/ui/maintenance';
+import { VISIT_MINUTES } from '@/ui/maintenance';
 import { readingFigure } from '@/ui/entries';
 import { enough, standsIn, useMayWith } from '@/ui/session-access';
 import { useNow } from '@/ui/useNow';
@@ -39,7 +40,7 @@ const TILES: { kind: TileKind; Icon: LucideIcon }[] = [
   { kind: 'measurement', Icon: ChartNoAxesColumn },
   { kind: 'training', Icon: Scissors },
   { kind: 'phase', Icon: Leaf },
-  { kind: 'visit', Icon: Clock },
+  { kind: 'visit', Icon: Wrench },
 ];
 
 /**
@@ -47,7 +48,7 @@ const TILES: { kind: TileKind; Icon: LucideIcon }[] = [
  *
  * Four of them are there because nothing can be guessed for them - a picture,
  * words, a reading, a phase - and writing one on a tap would file a line nobody
- * filled in. The fifth is there for the opposite reason: stepping in is the one
+ * filled in. The fifth is there for the opposite reason: maintenance is the one
  * tile whose line is not the whole of what it does. The server puts every device
  * standing in the place into maintenance mode for a quarter of an hour, which
  * stops the heater, the dehumidifier and the CO2 valve and holds the alarms, and
@@ -104,7 +105,13 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   const mayStartAPhase = grow ? enough(mayWith({ ownerId: grow.ownerId, spaceId: standsIn(grow) }), 'manage') : false;
   // A reading is written against a grow's own measurements, so a tent with
   // nothing growing in it has nothing to measure and is not offered the tile.
-  const tiles = TILES.filter(tile => (tile.kind === 'measurement' ? Boolean(target?.growId) : tile.kind === 'phase' ? mayStartAPhase : true));
+  // Maintenance is offered where something would hear it: a place whose
+  // hardware is reporting, and not one that is offline or has none at all.
+  const card = home?.spaces.find(one => one.spaceId !== null && one.spaceId === (target?.standsIn ?? target?.spaceId)) ?? null;
+  const reachable = card !== null && livenessOf(card, now) !== 'offline' && livenessOf(card, now) !== 'none';
+  const tiles = TILES.filter(tile =>
+    tile.kind === 'measurement' ? Boolean(target?.growId) : tile.kind === 'phase' ? mayStartAPhase : tile.kind === 'visit' ? reachable : true,
+  );
 
   // A tile says what it is about to write - "2 L · last 3 d" - and one tap
   // writes exactly that, so until the lines it reads that off are here it
@@ -173,7 +180,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
         return next ? `→ ${t(`home.stage.${next}`)}` : '';
       }
       case 'visit':
-        return t('log.tile.visitCaption', { quiet: quietMinutes(VISIT_MINUTES * 60) });
+        return t('log.tile.visitCaption');
       default:
         return '';
     }
@@ -210,6 +217,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
                 key={kind}
                 type="button"
                 className={`${ui.card} ${styles.tile}`}
+                data-wide={kind === 'visit' || undefined}
                 disabled={!ready}
                 onPointerDown={() => {
                   held.current = false;
@@ -235,7 +243,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
                 }}
               >
                 <Icon size={18} strokeWidth={1.75} className={styles.tileIcon} aria-hidden />
-                <span className={styles.tileName}>{t(`log.tile.${kind}`)}</span>
+                <span className={styles.tileName}>{t(`log.tile.${kind}`, { minutes: VISIT_MINUTES })}</span>
                 <span className={`mono ${styles.tileCaption}`}>{caption(kind)}</span>
               </button>
             ))}

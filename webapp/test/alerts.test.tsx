@@ -713,7 +713,7 @@ describe('the inbox', () => {
     server.rules = [rule()];
     draw();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Maintenance 15 min' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Maintenance · 15 min' }));
     expect(sentTo('POST', '/v1/devices/device-1/commands')).toHaveLength(0);
     expect(screen.getByText(/stops the heater, the dehumidifier and the CO₂ valve for 15 minutes/)).toBeInTheDocument();
     // The engine holds a worked-on device's alarms for ten minutes after the
@@ -740,7 +740,7 @@ describe('the inbox', () => {
     server.rules = [rule()];
     draw();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Maintenance 15 min' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Maintenance · 15 min' }));
     expect(screen.getByText(/takes no maintenance command, so nothing it drives will stop/)).toBeInTheDocument();
     expect(screen.queryByText(/the heater/)).not.toBeInTheDocument();
 
@@ -765,7 +765,7 @@ describe('the inbox', () => {
     expect(
       await screen.findByText(new RegExp(`device in maintenance, nothing raised until ${clock(NOW.plus({ minutes: 18 }))}`)),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Maintenance 15 min' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Maintenance · 15 min' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'End maintenance' }));
 
@@ -792,7 +792,23 @@ describe('the inbox', () => {
       await screen.findByText(new RegExp(`device out of maintenance, nothing raised until ${clock(NOW.plus({ minutes: 8 }))}`)),
     ).toBeInTheDocument();
     expect(screen.queryByText(/device in maintenance/)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Maintenance 15 min' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Maintenance · 15 min' })).toBeInTheDocument();
+  });
+
+  /**
+   * A device that is offline hears neither a window nor its end. The card
+   * offered a quarter of an hour of maintenance to a fridge nobody could
+   * reach, beside the alert saying it could not be reached.
+   */
+  it('offers no maintenance to a device that is offline', async () => {
+    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 25 })) } })];
+    server.alerts = [alert({})];
+    server.rules = [rule()];
+    draw();
+
+    expect(await screen.findByRole('button', { name: 'Silence 1 h' })).toBeInTheDocument();
+    await expect(screen.findByRole('button', { name: 'Maintenance · 15 min' }, { timeout: 400 })).rejects.toThrow();
+    expect(readsOf('/v1/devices')).toHaveLength(1);
   });
 
   it('sends nothing when the maintenance question is cancelled', async () => {
@@ -800,7 +816,7 @@ describe('the inbox', () => {
     server.rules = [rule()];
     draw();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Maintenance 15 min' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Maintenance · 15 min' }));
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     expect(screen.queryByText(/stops the heater/)).not.toBeInTheDocument();
@@ -917,7 +933,10 @@ describe('the inbox', () => {
       expect(readsOf('/v1/devices/device-1/alarm-rules')).toHaveLength(1);
       expect(readsOf('/v1/devices')).toHaveLength(1);
     } finally {
+      // Back to the file's own noon, which the cases after this one date their devices by.
       vi.useRealTimers();
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(NOW.toJSDate());
     }
   });
 });
@@ -941,7 +960,7 @@ describe('a member who may only log', () => {
 
     expect(await screen.findByText(/Flower room B/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Silence 1 h' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Maintenance 15 min' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Maintenance · 15 min' })).not.toBeInTheDocument();
   });
 
   it('is what the owner is not: the owner gets both chips', async () => {
@@ -951,7 +970,7 @@ describe('a member who may only log', () => {
     draw();
 
     expect(await screen.findByRole('button', { name: 'Silence 1 h' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Maintenance 15 min' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Maintenance · 15 min' })).toBeInTheDocument();
   });
 });
 

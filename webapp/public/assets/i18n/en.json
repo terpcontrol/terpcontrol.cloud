@@ -1575,7 +1575,7 @@
       "phase": "Phase",
       "move": "Moved",
       "harvest": "Harvested",
-      "visit": "Stepped in",
+      "visit": "Maintenance",
       "alarm": "Alarm",
       "plan": "Plan",
       "system": "System"
@@ -1588,7 +1588,7 @@
       "measurement": "measured",
       "training": "trained",
       "move": "moved it",
-      "visit": "stepped in"
+      "visit": "started maintenance"
     },
     "alert": {
       "threshold": "Alarm",
@@ -1599,7 +1599,6 @@
       "water": "Water",
       "note": "Note",
       "photo": "Photo",
-      "visit": "Alarms off {{quiet}} min",
       "reading": "Reading"
     },
     "invite": {
@@ -2991,7 +2990,7 @@
     "close": "Close",
     "longPress": "long-press a tile for details",
     "targetLabel": "What the line is about",
-    "oneTap": "One tap logs it now with sensible defaults, Undo for 5 s, details optional. Photo opens the photo entry, and stepping in asks first because it quietens the hardware.",
+    "oneTap": "One tap logs it now with sensible defaults, Undo for 5 s, details optional. Photo opens the photo entry, and maintenance asks first because it pauses the control.",
     "nowhere": "Nothing to log against yet · start a grow or add a device first",
     "notHere": "The grow or place this link names is not on your home · it may have finished, or it may not be yours to write in · pick where the line should go",
     "litres": "{{litres}} L",
@@ -3004,9 +3003,9 @@
       "measurement": "Measure",
       "training": "Training",
       "phase": "Phase",
-      "visit": "Step in",
+      "visit": "Maintenance · {{minutes}} min",
       "photoCaption": "cam still or camera",
-      "visitCaption": "alarms off {{quiet}} min"
+      "visitCaption": "pause control and alarms"
     },
     "visit": {
       "hereFallback": "this place",
@@ -3018,8 +3017,8 @@
       "nothingThere": "Nothing stands in {{name}}, so this is a line in the diary and nothing else.",
       "unreadable": "What stands in {{name}} could not be read, so nothing can be named here. Every device there is put into maintenance mode for {{minutes}} minutes all the same.",
       "notUndone": "The line can be taken back afterwards. The quiet cannot: the hardware picks up where it left off after {{minutes}} minutes, and no alarm is raised on it for {{quiet}} minutes in all — the last {{settle}} are the climate coming back.",
-      "save_one": "Step in · quieten {{count}} device",
-      "save_other": "Step in · quieten {{count}} devices"
+      "save_one": "Start maintenance · {{count}} device",
+      "save_other": "Start maintenance · {{count}} devices"
     },
     "water": "Water",
     "when": "When",
@@ -3903,7 +3902,7 @@
     "action": {
       "silence": "Silence 1 h",
       "unsilence": "Unsilence",
-      "maintenance": "Maintenance {{minutes}} min",
+      "maintenance": "Maintenance · {{minutes}} min",
       "endMaintenance": "End maintenance",
       "timeline": "Open timeline",
       "editRule": "Edit rule",

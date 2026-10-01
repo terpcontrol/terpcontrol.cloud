@@ -8,7 +8,7 @@ import { useDeviceCommand } from '@/api/commands';
 import { clockLabel } from '@/screens/notifications/settings';
 import { maintenanceQuiet, parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES } from '@/ui/maintenance';
 import { levelFigure, repeatsEvery, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
-import { ageAttribute, isAhead, offlineLabel, silentSince, spanLabel } from '@/ui/age';
+import { ageAttribute, deviceLiveness, isAhead, offlineLabel, silentSince, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
@@ -451,6 +451,8 @@ function OpenChips({
   const parked = device !== null && maintenanceQuiet(device, DateTime.max(now, serverNow()))?.parked === true;
   const busy = silence.isPending || unsilence.isPending || maintenance.isPending;
   const camera = alert.kind === 'camera_stale';
+  // A device that is offline would hear neither the window nor its end.
+  const reachable = device !== null && deviceLiveness(device.state.lastSeenAt, now) !== 'offline';
 
   return (
     <>
@@ -475,7 +477,7 @@ function OpenChips({
             is a different sentence on a controller and on a fan, so a card that
             cannot yet say which would have to guess, and guessing is what put a
             heater, a dehumidifier and a CO2 valve on a fan in the first place. */}
-        {!camera && device && alert.deviceId ? (
+        {!camera && device && reachable && alert.deviceId ? (
           <button
             type="button"
             className={ui.chip}
@@ -494,7 +496,7 @@ function OpenChips({
         ) : null}
       </div>
 
-      {asking && device ? (
+      {asking && device && reachable ? (
         <div className={ask.asking}>
           <p className={ui.note}>{maintenanceAsk(t, device)}</p>
           <div className={ask.actions}>

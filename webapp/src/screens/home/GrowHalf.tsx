@@ -1,23 +1,28 @@
-import { Camera, Droplet, Leaf, Pencil, Ruler, Timer, type LucideIcon } from 'lucide-react';
+import { Camera, Droplet, Leaf, Pencil, Ruler, type LucideIcon } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Entry, GrowCard, GrowthStage, HomeSpaceCard, Person } from '@fg2/shared-types/v1';
+import { useDevices } from '@/api/devices';
 import { useRecentEntries, writeEntry } from '@/api/entries';
 import { useHome } from '@/api/home';
 import { THUMBNAIL_WIDTH, useSession, mediaUrl } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { authorOf, headlineOf } from '@/ui/entries';
-import { quietMinutes, VISIT_MINUTES } from '@/ui/maintenance';
+import { parksAnything } from '@/ui/maintenance';
 import { STAGES } from '@/ui/stages';
 import { lastCan } from '@/log/defaults';
 import { lineLabel, oneTapBody } from '@/log/lines';
 import { useLog, useMayLog, type TileKind } from '@/log/log-context';
 import { openingTarget, targetsOf } from '@/log/targets';
 import { MoveHereSheet } from '@/screens/space/MoveHereSheet';
+import { MaintenanceButton } from '@/screens/devices/Maintenance';
+import maintenance from '@/screens/devices/Maintenance.module.css';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
+import { useNow } from '@/ui/useNow';
+import { livenessOf } from './attention';
 import styles from './SpaceCard.module.css';
 
 interface GrowHalfProps {
@@ -257,7 +262,6 @@ function LogAction({
   spaceId = null,
   Icon,
   labelKey,
-  values,
   primary = false,
 }: {
   kind: TileKind;
@@ -265,8 +269,6 @@ function LogAction({
   spaceId?: string | null;
   Icon: LucideIcon;
   labelKey: string;
-  /** What the label interpolates, for the one chip whose words carry a span. */
-  values?: Record<string, unknown>;
   primary?: boolean;
 }) {
   const { t } = useTranslation();
@@ -282,7 +284,7 @@ function LogAction({
       onClick={() => openSheet({ kind, growId, spaceId })}
     >
       <Icon size={16} strokeWidth={1.75} aria-hidden />
-      {t(labelKey, values)}
+      {t(labelKey)}
     </button>
   );
 }
@@ -324,21 +326,32 @@ function WaterNow({ growId, primary = false }: { growId: string; primary?: boole
   );
 }
 
-/** What a device-only tent offers: a picture, a note, a quarter hour of presence - the first two only to somebody who keeps a diary. */
+/** What a device-only tent offers: a picture and a note to somebody who keeps a diary, a quarter hour of maintenance. */
 export function DeviceActions({ card, diary = true }: { card: HomeSpaceCard; diary?: boolean }) {
   return (
-    <div className={styles.actions}>
+    <div className={`${styles.actions} ${maintenance.wrap}`}>
       {diary ? <LogAction kind="photo" spaceId={card.spaceId} Icon={Camera} labelKey="home.actions.photo" /> : null}
       {diary ? <LogAction kind="note" spaceId={card.spaceId} Icon={Pencil} labelKey="home.actions.note" /> : null}
-      <LogAction
-        kind="visit"
-        spaceId={card.spaceId}
-        Icon={Timer}
-        labelKey="home.actions.visit"
-        values={{ quiet: quietMinutes(VISIT_MINUTES * 60) }}
-      />
+      <CardMaintenance card={card} />
     </div>
   );
+}
+
+/**
+ * Maintenance for every device standing in the place, which is what working in
+ * the tent needs held. It is offered only where it can do what it says: a
+ * device that is offline would not hear it, and a place whose hardware parks
+ * nothing - a plug, a fan - has no regulation to pause.
+ */
+function CardMaintenance({ card }: { card: HomeSpaceCard }) {
+  const now = useNow();
+  const devices = useDevices(card.deviceIds !== null && card.deviceIds.length > 0);
+  const mayManage = useMayManage(card.spaceId);
+  const here = (devices.data?.items ?? []).filter(device => card.deviceIds?.includes(device.id));
+
+  if (!mayManage || livenessOf(card, now) === 'offline' || !here.some(parksAnything)) return null;
+
+  return <MaintenanceButton devices={here} now={now} className={ui.quiet} />;
 }
 
 /** What a diary-only grow offers in place of the climate: water, a picture, a reading by hand. */

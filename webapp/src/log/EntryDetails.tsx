@@ -372,6 +372,8 @@ interface Quietened {
   name: string | null;
   /** What stands there; null while the list has not been read, or where nothing was asked. */
   devices: Device[] | null;
+  /** Every device of the account, which is what says whether a name needs the tail of its id. */
+  among: Device[];
   isPending: boolean;
   failed: boolean;
 }
@@ -394,6 +396,7 @@ const useQuietened = (spaceId: string | null): Quietened => {
   return {
     name: card?.name ?? null,
     devices: spaceId === null || !devices.data ? null : devices.data.items.filter(device => device.spaceId === spaceId),
+    among: devices.data?.items ?? [],
     isPending: spaceId !== null && devices.isPending,
     failed: spaceId !== null && devices.isError,
   };
@@ -422,7 +425,7 @@ const useQuietened = (spaceId: string | null): Quietened => {
  */
 function WhatItQuietens({ quietens }: { quietens: Quietened }) {
   const { t } = useTranslation();
-  const { name, devices, isPending, failed } = quietens;
+  const { name, devices, among, isPending, failed } = quietens;
   // The window, how much longer the cloud stays quiet afterwards, and the sum
   // of the two - which is the span a grower is actually unwatched for.
   const where = {
@@ -442,7 +445,7 @@ function WhatItQuietens({ quietens }: { quietens: Quietened }) {
       <ul className={`mono ${styles.quietensList}`}>
         {devices.map(device => (
           <li key={device.id}>
-            <span>{deviceTitle(device, t)}</span>
+            <span>{deviceTitle(device, t, among)}</span>
             <span className={styles.quietensParks}>
               {' — '}
               {parksAnything(device) ? t('log.visit.parksOutputs', { outputs: parkedLabel(t, device) }) : t('log.visit.parksNothing')}
@@ -514,7 +517,7 @@ function Stages({
 }
 
 const title = (t: Translate, kind: TileKind, week: number | null): string =>
-  kind === 'feed' && week !== null ? t('log.feedWeek', { week }) : t(`log.tile.${kind}`);
+  kind === 'feed' && week !== null ? t('log.feedWeek', { week }) : t(`log.tile.${kind}`, { minutes: VISIT_MINUTES });
 
 /** "Biobizz · Light·Mix": which grid the doses come from, in the words the grow stores it under. */
 const schemeLine = (grow: GrowListItem | undefined): string => {

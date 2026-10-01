@@ -1571,7 +1571,7 @@
       "phase": "Phase",
       "move": "Umgezogen",
       "harvest": "Geerntet",
-      "visit": "Reingegangen",
+      "visit": "Wartung",
       "alarm": "Alarm",
       "plan": "Plan",
       "system": "System"
@@ -1591,8 +1591,8 @@
       "training_you": "hast trainiert",
       "move": "hat umgestellt",
       "move_you": "hast umgestellt",
-      "visit": "ist reingegangen",
-      "visit_you": "bist reingegangen"
+      "visit": "hat die Wartung gestartet",
+      "visit_you": "hast die Wartung gestartet"
     },
     "alert": {
       "threshold": "Alarm",
@@ -1603,7 +1603,6 @@
       "water": "Gießen",
       "note": "Notiz",
       "photo": "Foto",
-      "visit": "Alarme aus {{quiet}} Min",
       "reading": "Messwert"
     },
     "invite": {
@@ -2995,7 +2994,7 @@
     "close": "Schließen",
     "longPress": "lange drücken für Details",
     "targetLabel": "Worum es in dem Eintrag geht",
-    "oneTap": "Ein Tipp schreibt den Eintrag mit sinnvollen Vorgaben, 5 s lang widerrufbar, Details optional. Foto öffnet den Fotoeintrag, und Reingehen fragt vorher, weil es die Geräte ruhigstellt.",
+    "oneTap": "Ein Tipp schreibt den Eintrag mit sinnvollen Vorgaben, 5 s lang widerrufbar, Details optional. Foto öffnet den Fotoeintrag, und Wartung fragt vorher, weil sie die Regelung pausiert.",
     "nowhere": "Noch nichts da, wofür sich ein Eintrag lohnt · zuerst einen Grow starten oder ein Gerät hinzufügen",
     "notHere": "Der Grow oder Ort aus diesem Link steht nicht auf deiner Startseite · vielleicht ist er zu Ende, vielleicht darfst du dort nicht schreiben · wähle, wohin der Eintrag gehört",
     "litres": "{{litres}} l",
@@ -3008,9 +3007,9 @@
       "measurement": "Messen",
       "training": "Training",
       "phase": "Phase",
-      "visit": "Reingehen",
+      "visit": "Wartung · {{minutes}} Min",
       "photoCaption": "Cam-Bild oder Kamera",
-      "visitCaption": "Alarme aus {{quiet}} Min"
+      "visitCaption": "Regelung und Alarme pausieren"
     },
     "visit": {
       "hereFallback": "diesem Ort",
@@ -3022,8 +3021,8 @@
       "nothingThere": "In {{name}} steht nichts, das ist also eine Zeile im Tagebuch und sonst nichts.",
       "unreadable": "Was in {{name}} steht, ließ sich nicht lesen, hier lässt sich also nichts benennen. In den Wartungsmodus für {{minutes}} Minuten geht trotzdem jedes Gerät dort.",
       "notUndone": "Die Zeile lässt sich danach zurücknehmen. Die Ruhe nicht: Nach {{minutes}} Minuten machen die Geräte dort weiter, wo sie aufgehört haben, und Alarm wird auf ihnen insgesamt {{quiet}} Minuten lang keiner ausgelöst — die letzten {{settle}} davon, während das Klima zurückkommt.",
-      "save_one": "Reingehen · {{count}} Gerät ruhigstellen",
-      "save_other": "Reingehen · {{count}} Geräte ruhigstellen"
+      "save_one": "Wartung starten · {{count}} Gerät",
+      "save_other": "Wartung starten · {{count}} Geräte"
     },
     "water": "Wasser",
     "when": "Wann",
@@ -3907,7 +3906,7 @@
     "action": {
       "silence": "1 Std stumm",
       "unsilence": "Wieder laut",
-      "maintenance": "Wartung {{minutes}} Min",
+      "maintenance": "Wartung · {{minutes}} Min",
       "endMaintenance": "Wartung beenden",
       "timeline": "Verlauf öffnen",
       "editRule": "Regel bearbeiten",

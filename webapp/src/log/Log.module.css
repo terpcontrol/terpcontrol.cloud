@@ -28,6 +28,12 @@
   text-align: center;
 }
 
+/* Maintenance says what it is and what it stops, which two narrow lines of a
+   tile cannot hold; it takes two columns rather than a cut-off sentence. */
+.tile[data-wide] {
+  grid-column: span 2;
+}
+
 /* The instant before the tiles know what they would write. */
 .tile:disabled {
   opacity: 0.5;

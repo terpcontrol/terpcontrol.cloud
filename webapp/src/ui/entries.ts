@@ -12,7 +12,7 @@ import {
   Pencil,
   Ruler,
   Scissors,
-  Timer,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react';
 import type { Entry, EntryKind, GrowListItem, GrowReadingNames, GrowWeekCard, Person, ReadingName } from '@fg2/shared-types/v1';
@@ -44,7 +44,7 @@ export const KIND_ICON: Record<EntryKind, LucideIcon> = {
   phase: Flag,
   move: MoveRight,
   harvest: Package,
-  visit: Timer,
+  visit: Wrench,
   alarm: Bell,
   plan: ListChecks,
   system: Cpu,
