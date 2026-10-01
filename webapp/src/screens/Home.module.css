@@ -16,20 +16,14 @@
   padding-top: var(--space-2);
 }
 
-/* The phone's top bar already says where you are; the wide screen has a rail and needs the title. */
-.head {
-  display: none;
-}
-
-.title {
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  line-height: var(--line-tight);
-}
-
-.caption {
-  font-size: var(--text-xs);
-  color: var(--label);
+/* The page's name for a screen reader; the cards are what the eye reads it by. */
+.hiddenTitle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .failed {
@@ -100,14 +94,6 @@
   .page {
     max-width: var(--reading-width);
     padding-top: 0;
-  }
-
-  .head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--space-3);
-    margin-bottom: var(--space-2);
   }
 }
 

@@ -1508,7 +1508,6 @@
       "opening": "Demo wird geöffnet…",
       "failed": "Die Demo konnte nicht geöffnet werden."
     },
-    "sortedByAttention": "nach Dringlichkeit",
     "waiting": "lädt",
     "retry": "Noch einmal versuchen",
     "refreshFailed": "Konnte nicht aktualisieren · Stand von vor {{age}}",
@@ -4340,10 +4339,6 @@
       "title": "Im Ziel",
       "text": "Nah genug am Zielwert, um als getroffen zu gelten: bis ±1 °C, ±5 % Feuchte oder ±200 ppm CO₂. Nachts hat CO₂ kein Band, weil der Controller CO₂ nur bei Licht zugibt."
     },
-    "sortedByAttention": {
-      "title": "Nach Dringlichkeit",
-      "text": "Orte mit offenem Alarm stehen oben, kritische vor Warnungen, danach die mit fälliger Aufgabe, dann die, deren Messwerte ausbleiben. Sonst bleibt die gewohnte Reihenfolge."
-    },
     "verdict": {
       "title": "Im Zielband über 24 Stunden",
       "text": "Der Anteil der letzten 24 Stunden, in dem Temperatur, Feuchte und tagsüber CO₂ alle im Zielband lagen – gemessen an den Zielwerten, wie sie jetzt sind. Abweichungen unter 10 Minuten zählen mit, werden aber nicht einzeln genannt."
@@ -4659,8 +4654,6 @@
     }
   },
   "cockpit": {
-    "places_one": "{{count}} Ort",
-    "places_other": "{{count}} Orte",
     "change": "Ändern",
     "menu": {
       "label": "Mehr zu {{name}}",

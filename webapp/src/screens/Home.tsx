@@ -9,7 +9,6 @@ import { useHome } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
 import { useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
-import { Term } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { EmptyHome } from './EmptyHome';
@@ -140,12 +139,11 @@ function Places({
 
   return (
     <section className={styles.page}>
-      <header className={styles.head}>
-        <h1 className={styles.title}>{t('shell.tabs.home')}</h1>
-        <span className={`mono ${styles.caption}`}>
-          {t('cockpit.places', { count: places.length })} · <Term topic="sortedByAttention">{t('home.sortedByAttention')}</Term>
-        </span>
-      </header>
+      {/* Start says what it is with its cards, on a desktop as on a phone and
+          as the cockpit of a single place does: the title it had - "Start · 2
+          Orte · nach Dringlichkeit" - was the old Start's and stands only for
+          whoever hears the page rather than sees it. */}
+      <h1 className={styles.hiddenTitle}>{t('shell.tabs.home')}</h1>
 
       {failedAt ? (
         <p className={`mono ${styles.failed}`} role="status">

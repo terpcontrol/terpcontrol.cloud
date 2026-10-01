@@ -9,7 +9,6 @@ export const HELP_TOPICS = [
   'vpd',
   'liveness',
   'band',
-  'sortedByAttention',
   'verdict',
   'climatePreset',
   'presetApply',

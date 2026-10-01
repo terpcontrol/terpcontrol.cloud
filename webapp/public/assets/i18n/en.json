@@ -1512,7 +1512,6 @@
       "opening": "Opening the demo…",
       "failed": "The demo could not be opened."
     },
-    "sortedByAttention": "sorted by attention",
     "waiting": "loading",
     "retry": "Try again",
     "refreshFailed": "Could not refresh · showing what was known {{age}} ago",
@@ -4336,10 +4335,6 @@
       "title": "In band",
       "text": "Close enough to the target to count as on it: within ±1 °C, ±5 % humidity or ±200 ppm CO₂. At night CO₂ has no band, because the controller only adds CO₂ while the light is on."
     },
-    "sortedByAttention": {
-      "title": "Sorted by attention",
-      "text": "Places with an open alarm come first, critical before warning, then those with a task due, then those whose readings have stopped. Otherwise they keep their usual order."
-    },
     "verdict": {
       "title": "In band over 24 hours",
       "text": "The share of the last 24 hours in which temperature, humidity and, by day, CO₂ were all in their band – judged against the targets as they are now. Dips shorter than 10 minutes count, but are not named."
@@ -4655,8 +4650,6 @@
     }
   },
   "cockpit": {
-    "places_one": "{{count}} place",
-    "places_other": "{{count}} places",
     "change": "Change",
     "menu": {
       "label": "More about {{name}}",
