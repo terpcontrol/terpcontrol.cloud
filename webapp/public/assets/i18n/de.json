@@ -1554,6 +1554,7 @@
     },
     "author": {
       "you": "du",
+      "youLead": "Du",
       "device": "Gerät",
       "plan": "auto",
       "preset": "auto",

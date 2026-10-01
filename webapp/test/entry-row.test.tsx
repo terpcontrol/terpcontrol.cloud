@@ -442,3 +442,49 @@ describe('the pictures past the fourth', () => {
     expect(dialog.querySelector('img')).toHaveAttribute('src', '/link/three');
   });
 });
+
+/**
+ * Who wrote a line, said the way a person would. What somebody did opens with
+ * them as its subject - "You watered", "anna watered" - and somebody's own
+ * words are their own: a line of the reader's carries no name at all, and
+ * another person's is introduced as theirs. "you Stripped the lower leaves"
+ * read as a sentence nobody would write.
+ */
+describe('who a line is by', () => {
+  const people = [{ id: 'user-anna', handle: 'anna' }];
+  const row = (over: Partial<Entry>) => {
+    render(
+      <ul>
+        <EntryRow entry={entryOf(over)} people={people} />
+      </ul>,
+    );
+    return screen.getByRole('listitem');
+  };
+
+  it('puts no name before the reader´s own words', () => {
+    const line = row({ text: 'Stripped the lower leaves' });
+
+    expect(line).toHaveTextContent('Stripped the lower leaves');
+    expect(line.textContent).not.toMatch(/you/i);
+  });
+
+  it('introduces another person´s words as theirs', () => {
+    const line = row({ authorId: 'user-anna', text: 'Stripped the lower leaves' });
+
+    expect(screen.getByText('anna')).toBeInTheDocument();
+    expect(line).toHaveTextContent('anna: Stripped the lower leaves');
+  });
+
+  it('makes the reader the subject of what they did, capitalised as a sentence opens', () => {
+    const line = row({ kind: 'water', values: { kind: 'water' } as Entry['values'] });
+
+    expect(line).toHaveTextContent('You watered');
+  });
+
+  it('makes another person the subject of what they did', () => {
+    const line = row({ kind: 'water', authorId: 'user-anna', values: { kind: 'water' } as Entry['values'] });
+
+    expect(line).toHaveTextContent('anna watered');
+    expect(line.textContent).not.toMatch(/anna:/);
+  });
+});

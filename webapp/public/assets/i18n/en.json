@@ -1558,6 +1558,7 @@
     },
     "author": {
       "you": "you",
+      "youLead": "You",
       "device": "device",
       "plan": "auto",
       "preset": "auto",

@@ -166,13 +166,24 @@ export function EntryRow({
   const shown = entry.mediaIds.filter(mediaId => picture(mediaId, THUMBNAIL_WIDTH.strip) !== null);
   const frames = shown.map(mediaId => picture(mediaId, THUMBNAIL_WIDTH.frame) ?? '');
 
-  const named = byline && entry.source === 'human';
+  const byYou = entry.authorId === user?.id;
+  const doneBy = byline && entry.source === 'human' ? doneByOf(t, i18n, entry, byYou) : null;
+  const named = byline && entry.source === 'human' && (doneBy !== null || !byYou);
   const said = (
     <>
-      {/* A device, the plan or an alarm is named by its mark; a person by name. */}
-      {named ? <span className={styles.author}>{authorOf(t, entry, people, user?.id)} </span> : null}
+      {/* A device, the plan or an alarm is named by its mark; a person by
+          name - as the subject of what they did ("Du hast gegossen", "lea hat
+          gegossen"), or ahead of their own words as a speaker is ("lea: Untere
+          Blätter ausgelichtet"). Somebody's own words need no name: "du Untere
+          Blätter ausgelichtet" read as a sentence nobody would write. */}
+      {named ? (
+        <>
+          <span className={styles.author}>{byYou ? t('home.author.youLead') : authorOf(t, entry, people, user?.id)}</span>
+          {doneBy === null ? ': ' : ' '}
+        </>
+      ) : null}
       {/* A person writes in lines, so the breaks they typed are kept rather than collapsed into one run-on sentence. */}
-      <span className={styles.headline}>{(named ? doneByOf(t, i18n, entry, entry.authorId === user?.id) : null) ?? headlineOf(t, i18n, entry)}</span>
+      <span className={styles.headline}>{doneBy ?? headlineOf(t, i18n, entry)}</span>
       {repeats && repeats.count > 1 ? (
         <span className="mono">
           {' · '}
