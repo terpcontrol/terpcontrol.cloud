@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -9,9 +9,9 @@ import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, HomeSpaceCard } from '@fg2/shared-types/v1';
-import { attentionOf, isClub, livenessOf, sortedByAttention } from '@/screens/home/attention';
-import { SpaceCard } from '@/screens/home/SpaceCard';
-import { AttentionStrip, DueStrip, FollowingStrip } from '@/screens/home/Strips';
+import { LooseGrowCard, PlaceCard } from '@/screens/cockpit/PlaceCard';
+import { attentionOf, livenessOf, sortedByAttention } from '@/screens/home/attention';
+import { DueStrip, FollowingStrip } from '@/screens/home/Strips';
 import { LogProvider } from '@/log/LogProvider';
 
 // What a card offers depends on who is looking, so a test says who that is.
@@ -118,8 +118,6 @@ const card = (over: Partial<HomeSpaceCard>): HomeSpaceCard => ({
   ...over,
 });
 
-const people = [{ id: 'user-mia', handle: 'mia' }];
-
 // Every card can log: the sheet and the toast live above the screens, so a
 // screen drawn on its own is drawn inside them.
 const draw = (node: React.ReactNode) =>
@@ -138,267 +136,47 @@ beforeAll(async () => {
     .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
 });
 
-describe('the climate half', () => {
-  it('shows each value large with its target beside it, and says whether it is in band', () => {
-    draw(<SpaceCard card={card({})} people={people} now={NOW} compact={false} />);
-
-    const temperature = screen.getByText('25.1').closest('[data-age]')!;
-    expect(temperature).toHaveAttribute('data-age', 'live');
-    expect(temperature).toHaveTextContent('→ 25');
-    expect(temperature).toHaveTextContent('in band');
-
-    // Judged by the band the server put on the setpoint: 5 either side, so 57 is out and 55 would not be.
-    // A reading out of band says which way in words, as its in-band siblings say theirs.
-    const humidity = screen.getByText('57').closest('[data-age]')!;
-    expect(humidity).toHaveTextContent('→ 50');
-    expect(humidity).toHaveTextContent('+7 high');
-  });
-
-  it('dims an old value by its age, never hides it, and calls it the last value rather than judging it', () => {
-    const stale = card({
-      values: [{ metric: 'temperature', value: 24.2, measuredAt: at(3 * 3600), state: 'offline' }],
-    });
-    draw(<SpaceCard card={stale} people={people} now={NOW} compact={false} />);
-
-    const value = screen.getByText('24.2').closest('[data-age]')!;
-    expect(value).toHaveAttribute('data-age', 'offline');
-    // 24.2 is inside the band around 25, and three hours ago it was; nobody knows what it is now.
-    expect(value).toHaveTextContent(`→ 25last value${since(at(3 * 3600))}`);
-    expect(value).not.toHaveTextContent('in band');
-    expect(screen.getByText(`offline since ${since(at(3 * 3600))}`)).toBeInTheDocument();
-  });
-
-  // The card the home failed to refresh is the card it already had: every
-  // value on it still says "live", because it did when the answer was made.
-  it('dims and renames a value the screen has gone on drawing past its own age', () => {
-    const answered = card({ values: [{ metric: 'temperature', value: 23.8, measuredAt: at(20), state: 'live' }] });
-
-    draw(<SpaceCard card={answered} people={people} now={NOW} compact={false} />);
-    expect(screen.getByText('23.8').closest('[data-age]')).toHaveAttribute('data-age', 'live');
-    expect(screen.getByText(/^live · 20 s$/)).toBeInTheDocument();
-
-    // Twelve minutes on with nothing new to draw, the app's own constant calls
-    // that reading offline, so the figure dims and the pill stops saying live.
-    draw(<SpaceCard card={answered} people={people} now={NOW.plus({ minutes: 12 })} compact={false} />);
-    const frozen = screen.getAllByText('23.8').at(-1)!.closest('[data-age]')!;
-    expect(frozen).toHaveAttribute('data-age', 'offline');
-    expect(screen.getByText(`offline since ${since(at(20))}`)).toBeInTheDocument();
-    expect(screen.queryByText(/^live · 12 min$/)).not.toBeInTheDocument();
-  });
-
-  /**
-   * A silence is said one way wherever it is met - the pill, the banner, the
-   * card and the alert - and dated rather than aged: "no reading · 4 d" on the
-   * pill, "Offline · last heard 4 d ago" on the banner and "Alarm triggered" on
-   * the card were three words for one tent nobody could hear. And the card says
-   * what to try, in the order somebody in front of the device would try it.
-   */
-  it('says a place gone quiet is offline since its newest reading, once, and what to try', () => {
-    const quiet = card({
-      grow: null,
-      entries: [],
-      values: [{ metric: 'temperature', value: 24.2, measuredAt: at(4 * 86_400), state: 'offline' }],
-      openAlerts: [
-        { alertId: 'alert-off', kind: 'offline', severity: 'critical', startedAt: at(3 * 86_400), value: 86_400, metric: null, name: null },
-      ],
-    });
-    draw(<SpaceCard card={quiet} people={people} now={NOW} compact={false} />);
-
-    expect(screen.getByText(`offline since ${since(at(4 * 86_400))}`)).toBeInTheDocument();
-    const help = screen.getByRole('status');
-    expect(help).toHaveTextContent(`Offline since ${since(at(4 * 86_400))}`);
-    expect(
-      within(help)
-        .getAllByRole('listitem')
-        .map(step => step.textContent),
-    ).toEqual([
-      'Power: is the adapter plugged in, is the socket live?',
-      'Wi-Fi and router: is the router on, does the signal reach the device?',
-      'Unplug the device, wait 10 seconds, plug it back in.',
-    ]);
-    // The box says it, so the alert's own line under the name does not say it again.
-    expect(screen.queryByText(/^Offline since/, { selector: 'p.mono' })).not.toBeInTheDocument();
-    // Nothing to invite a grow into while nobody can hear the place.
-    expect(screen.queryByText(/Nothing growing here yet/)).not.toBeInTheDocument();
-  });
-
-  it('draws the day of temperature the card came with, and asks for nothing more', () => {
-    draw(<SpaceCard card={card({})} people={people} now={NOW} compact={false} />);
-
-    expect(screen.getByRole('img', { name: 'Temperature in Tent 1 over the last 24 hours' })).toBeInTheDocument();
-    expect(screen.getByText('24 h')).toBeInTheDocument();
-  });
-
-  it('says a metric has no target where the controller holds none', () => {
-    draw(<SpaceCard card={card({ setpoints: [] })} people={people} now={NOW} compact={false} />);
-
-    expect(screen.getByText('1010').closest('[data-age]')).toHaveTextContent('no target');
-  });
-
-  it('invites a place with nothing measuring to log a reading or add a device', () => {
-    draw(<SpaceCard card={card({ deviceIds: [], values: [], setpoints: [], grow: null, entries: [] })} people={people} now={NOW} compact={false} />);
-
-    expect(screen.getByText(/No sensor/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Log a reading' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Add a device' })).toBeInTheDocument();
-    expect(screen.queryByText(/live/)).not.toBeInTheDocument();
-  });
-});
-
-describe('the grow half', () => {
-  it('shows the day counter, the phase with its auto tag, the strains and who wrote the newest entry', () => {
-    draw(<SpaceCard card={card({})} people={people} now={NOW} compact={false} />);
-
-    expect(screen.getByText('34')).toBeInTheDocument();
-    expect(screen.getByText(/Flower · wk 2/)).toBeInTheDocument();
-    expect(screen.getByText('auto')).toBeInTheDocument();
-    expect(screen.getByText(/Amnesia, Gelato/)).toBeInTheDocument();
-    expect(screen.getByText('Defoliated')).toBeInTheDocument();
-    expect(screen.getByText(/1 d ago · mia/)).toBeInTheDocument();
-    // The place and the grow each open their page. The three actions go
-    // nowhere: they open the Log sheet over the card they were tapped on.
-    expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/spaces/space-1', '/grows/grow-1']);
-    expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(['Water', 'Note', 'Photo']);
-  });
-
-  /** A grow started in veg did not germinate here, and the grow page´s own bar leaves those stages empty too. */
-  it('fills only the stages the grow went through, not every stage before the one it is in', () => {
-    const { container } = draw(<SpaceCard card={card({})} people={people} now={NOW} compact={false} />);
-
-    const filled = [...container.querySelectorAll('[data-reached]')].map(segment => segment.getAttribute('data-reached'));
-    expect(filled).toEqual(['false', 'false', 'true', 'true', 'false', 'false']);
-  });
-
-  it('draws no auto tag for a phase a person set', () => {
-    const grow = { ...card({}).grow!, isAuto: false };
-    draw(<SpaceCard card={card({ grow })} people={people} now={NOW} compact={false} />);
-
-    expect(screen.queryByText('auto')).not.toBeInTheDocument();
-  });
-
-  it('invites a place without a grow in the record´s words, and takes "not now" for an answer', () => {
-    draw(<SpaceCard card={card({ grow: null, entries: [] })} people={people} now={NOW} compact={false} />);
-
-    const invite = screen.getByText(/Nothing growing here yet/);
-    expect(invite).toHaveTextContent('Nothing growing here yet · Start a grow · Move a grow here · Not now');
-
-    fireEvent.click(screen.getByRole('button', { name: /Not now/ }));
-    expect(screen.queryByText(/Nothing growing here yet/)).not.toBeInTheDocument();
-  });
-
-  // Both ways out of an empty half are about this card's place. A sheet opened
-  // with no subject falls back to whatever the account has running elsewhere,
-  // which is how one tap on an empty tent ends a flowering grow in another.
-  it('points both invitations at this card´s own place', () => {
-    draw(<SpaceCard card={card({ spaceId: 'space-empty', grow: null, entries: [] })} people={people} now={NOW} compact={false} />);
-
-    expect(screen.getByRole('link', { name: 'Start a grow' })).toHaveAttribute('href', '/grows/new?space=space-empty');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Move a grow here' }));
-    expect(screen.getByRole('dialog', { name: 'Move a grow into Tent 1' })).toBeInTheDocument();
-  });
-
-  /**
-   * Starting a grow here and moving one in are both `manage` on this place, and
-   * the server refuses either from a membership that only logs. Offered on the
-   * card they are two dead ends: the New-grow sheet drops the very place the
-   * invitation names, and Move here opens a sheet whose primary the server will
-   * turn down. The tent's own Overview has hidden the same pair all along.
-   */
-  it('offers neither way into an empty place to somebody who may only write lines in it', () => {
-    may.youMay = 'log';
-    draw(<SpaceCard card={card({ spaceId: 'space-empty', grow: null, entries: [] })} people={people} now={NOW} compact={false} />);
-
-    expect(screen.getByText('Nothing growing here yet')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Start a grow' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Move a grow here' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Not now/ })).not.toBeInTheDocument();
-  });
-
-  it('keeps both ways in for somebody who steers the place', () => {
-    may.youMay = 'manage';
-    draw(<SpaceCard card={card({ spaceId: 'space-empty', grow: null, entries: [] })} people={people} now={NOW} compact={false} />);
-
-    expect(screen.getByRole('link', { name: 'Start a grow' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Move a grow here' })).toBeInTheDocument();
-  });
-
-  it('draws a grow with no place at all, and opens it at the grow because there is no place to open', () => {
-    const nowhere = card({ spaceId: null, kind: null, name: 'Windowsill basil', deviceIds: [], values: [], setpoints: [], trend: null });
-    draw(<SpaceCard card={nowhere} people={people} now={NOW} compact={false} />);
-
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Spring run');
-    expect(screen.getByText('No fixed place')).toBeInTheDocument();
-    expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/grows/grow-1']);
-    expect(screen.queryByText(/No sensor/)).not.toBeInTheDocument();
-  });
-
-  /**
-   * "auto" means nobody picked this, which is what the app's own vocabulary
-   * uses the word for. The plan engine records the person behind a transition
-   * all the way to the entry, so a step somebody activated by hand was bylined
-   * "auto" over a sentence reading "has been manually activated by the user",
-   * with the store holding the author the whole time.
-   */
-  it('bylines a plan line somebody drove as theirs, and the engine´s own moves as auto', () => {
-    const drove = { ...card({}).entries[0], kind: 'plan' as const, source: 'plan' as const, authorId: 'user-mia', text: 'Recipe step activated' };
-    draw(<SpaceCard card={card({ grow: null, entries: [drove] })} people={people} now={NOW} compact={false} />);
-
-    expect(screen.getByText(/· mia/)).toBeInTheDocument();
-    expect(screen.queryByText(/· auto/)).not.toBeInTheDocument();
-  });
-
-  it('keeps auto for the plan line no person stands behind', () => {
-    const itself = { ...card({}).entries[0], kind: 'plan' as const, source: 'plan' as const, authorId: null, text: 'Recipe moved on' };
-    draw(<SpaceCard card={card({ grow: null, entries: [itself] })} people={people} now={NOW} compact={false} />);
-
-    expect(screen.getByText(/· auto/)).toBeInTheDocument();
-  });
-
-  it('shows a place without a grow its own newest line - what its device or an alarm wrote', () => {
-    const line = { ...card({}).entries[0], growId: null, source: 'alarm' as const, authorId: null, text: 'Humidity high 72 % · resolved' };
-    draw(<SpaceCard card={card({ spaceId: 'space-device-only', grow: null, entries: [line] })} people={people} now={NOW} compact={false} />);
-
-    expect(screen.getByText('Humidity high 72 % · resolved')).toBeInTheDocument();
-    expect(screen.getByText(/· alarm/)).toBeInTheDocument();
-    expect(screen.getByText(/Nothing growing here yet/)).toBeInTheDocument();
-  });
-
-  it('lets the grow take the header when there is no device', () => {
-    const diaryOnly = card({ name: 'Balcony', kind: 'balcony', deviceIds: [], values: [], setpoints: [] });
-    draw(<SpaceCard card={diaryOnly} people={people} now={NOW} compact={false} />);
-
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Spring run');
-    expect(screen.getByText('Balcony')).toBeInTheDocument();
-    expect(screen.getAllByRole('link').map(link => link.textContent)).toEqual(['Spring run', 'Balcony']);
-    expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(['Water', 'Photo', 'Reading']);
-  });
-});
-
 /**
- * An account that keeps no diary is shown its climate and what is done with it.
- * The invitation to start a grow, and a photo and a note that would write the
- * first diary lines, are the diary's, and are not drawn on its cards at all.
+ * A place on the Start of an account with several: its name opens its cockpit,
+ * and the card says what the cockpit's first sentence says, with the readings
+ * judged the same way.
  */
-describe('a card without the diary', () => {
-  it('invites no grow and offers no photo or note', () => {
-    draw(
-      <SpaceCard card={card({ spaceId: 'space-device-only', grow: null, entries: [] })} people={people} now={NOW} compact={false} diary={false} />,
-    );
+describe('a place among several', () => {
+  const place = (over: Partial<HomeSpaceCard>) => card({ grow: null, entries: [], ...over }) as HomeSpaceCard & { spaceId: string };
 
-    expect(screen.queryByText(/Nothing growing here yet/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Photo' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Note' })).not.toBeInTheDocument();
-    // The climate is all there.
-    expect(screen.getByText('25.1')).toBeInTheDocument();
+  it('opens the place´s cockpit and says how it is in the cockpit´s words', () => {
+    draw(<PlaceCard card={place({})} devices={[]} now={NOW} diary={false} />);
+
+    expect(screen.getByRole('link', { name: 'Tent 1' })).toHaveAttribute('href', '/spaces/space-1');
+    // 57 % against a target of 50 ± 5 is off, and the card says so the way the cockpit does.
+    expect(screen.getByText('Humidity 7 % too high just now')).toBeInTheDocument();
+    expect(screen.getByText('57').closest('[data-verdict]')).toHaveAttribute('data-verdict', 'high');
+    expect(screen.getByText('25.1').closest('[data-verdict]')).toHaveAttribute('data-verdict', 'in');
   });
 
-  it('draws both for an account that keeps one', () => {
-    draw(<SpaceCard card={card({ spaceId: 'space-device-only', grow: null, entries: [] })} people={people} now={NOW} compact={false} diary />);
+  it('says a place gone quiet is offline since its newest reading, and judges none of its figures', () => {
+    const quiet = place({ values: card({}).values.map(value => ({ ...value, measuredAt: at(3 * 3600), state: 'offline' as const })) });
+    draw(<PlaceCard card={quiet} devices={[]} now={NOW} diary={false} />);
 
-    expect(screen.getByText(/Nothing growing here yet/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Photo' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Note' })).toBeInTheDocument();
+    expect(screen.getByText(`Offline since ${since(at(3 * 3600))}`)).toBeInTheDocument();
+    expect(screen.getByText('25.1').closest('[data-verdict]')).toHaveAttribute('data-verdict', 'last');
+  });
+
+  it('names the grow standing there only for an account that keeps a diary', () => {
+    const growing = place({ grow: card({}).grow });
+    const { unmount } = draw(<PlaceCard card={growing} devices={[]} now={NOW} diary />);
+    expect(screen.getByText('Spring run · Day 34 · Flower')).toBeInTheDocument();
+    unmount();
+
+    draw(<PlaceCard card={growing} devices={[]} now={NOW} diary={false} />);
+    expect(screen.queryByText(/Spring run/)).not.toBeInTheDocument();
+  });
+
+  it('opens a grow that stands in no place at the grow, because there is no place to open', () => {
+    draw(<LooseGrowCard card={card({ spaceId: null, name: 'Spring run', deviceIds: [] })} />);
+
+    expect(screen.getByRole('link', { name: 'Spring run' })).toHaveAttribute('href', '/grows/grow-1');
+    expect(screen.getByText(/No fixed place · Day 34 · Flower/)).toBeInTheDocument();
   });
 });
 
@@ -420,22 +198,8 @@ describe('what needs a person', () => {
     expect(attentionOf(alarming)).toBeGreaterThan(attentionOf(due));
   });
 
-  it('is a club once places are grouped under rooms', () => {
-    expect(isClub([card({}), card({})])).toBe(false);
-    expect(isClub([card({ roomId: 'room-1' })])).toBe(true);
-  });
-
-  it('draws the attention and due strips only from what is open or due', () => {
-    draw(
-      <>
-        <AttentionStrip cards={[card({}), alarming]} now={NOW} />
-        <DueStrip cards={[card({}), due]} now={NOW} />
-      </>,
-    );
-
-    const attention = screen.getByRole('list', { name: 'Needs attention' });
-    expect(within(attention).getAllByRole('listitem')).toHaveLength(1);
-    expect(attention).toHaveTextContent('Alarm · 68 % Humidity · Flower room B');
+  it('draws the due strip only from what is due', () => {
+    draw(<DueStrip cards={[card({}), due]} now={NOW} />);
 
     const dueList = screen.getByRole('list', { name: 'Due' });
     expect(dueList).toHaveTextContent('Water · Spring run');
@@ -499,7 +263,6 @@ describe('what needs a person', () => {
   it('draws nothing at all when nothing is open, due or followed', () => {
     const { container } = draw(
       <>
-        <AttentionStrip cards={[card({})]} now={NOW} />
         <DueStrip cards={[card({})]} now={NOW} />
         <FollowingStrip grows={[]} now={NOW} />
       </>,

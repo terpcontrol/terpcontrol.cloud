@@ -55,15 +55,8 @@ export const worstAlertOf = (card: Pick<HomeSpaceCard, 'openAlerts'>) =>
   );
 
 /** Stable: two cards that need nothing keep the order the server gave them, which is the order the places were set up in. */
-export const sortedByAttention = (cards: HomeSpaceCard[]): HomeSpaceCard[] =>
+export const sortedByAttention = <T extends HomeSpaceCard>(cards: T[]): T[] =>
   cards
     .map((card, index) => ({ card, index, attention: attentionOf(card) }))
     .sort((a, b) => b.attention - a.attention || a.index - b.index)
     .map(row => row.card);
-
-/**
- * From when the home is a club's: places grouped under rooms, which a home
- * grower never has. Cards go compact; the order by attention is everybody's,
- * because an alarm belongs at the top of two cards as much as of twenty.
- */
-export const isClub = (cards: HomeSpaceCard[]): boolean => cards.some(card => card.roomId !== null);

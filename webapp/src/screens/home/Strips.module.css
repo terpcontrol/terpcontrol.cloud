@@ -36,20 +36,6 @@
   color: var(--muted);
 }
 
-.alert[data-severity='critical'] {
-  border-color: var(--alarm-edge);
-  background: var(--alarm-wash);
-}
-
-.alert[data-severity='critical'] strong {
-  color: var(--alarm);
-}
-
-.alert[data-severity='warning'] {
-  border-color: var(--warning-edge);
-  background: var(--warning-wash);
-}
-
 .circle {
   flex-shrink: 0;
   color: var(--green);

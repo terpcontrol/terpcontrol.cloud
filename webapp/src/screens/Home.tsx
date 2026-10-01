@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { HomeAnswer } from '@fg2/shared-types/v1';
+import type { HomeAnswer, HomeSpaceCard } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { fetchedAt } from '@/api/clock';
+import { useDevices } from '@/api/devices';
 import { useHome } from '@/api/home';
 import { useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
@@ -15,29 +16,33 @@ import { NotifyNotice } from './notifications/NotifyNotice';
 import { ArchiveLink } from './grow/Archive';
 import { NewGrowRow } from './grow/new/NewGrowRow';
 import { NewGrowSheet } from './grow/new/NewGrowSheet';
-import { isClub, livenessOf, sortedByAttention } from './home/attention';
+import { LooseGrowCard, PlaceCard } from './cockpit/PlaceCard';
+import { PlaceCockpitRead } from './cockpit/PlaceCockpit';
+import { sortedByAttention } from './home/attention';
 import { DiaryOffer } from './home/DiaryOffer';
-import { SpaceCard } from './home/SpaceCard';
-import { AttentionStrip, DueStrip, FollowingStrip } from './home/Strips';
+import { DueStrip, FollowingStrip } from './home/Strips';
 import styles from './Home.module.css';
 
+type Place = HomeSpaceCard & { spaceId: string };
+
+const isPlace = (card: HomeSpaceCard): card is Place => card.spaceId !== null;
+
 /**
- * Home is one card per space, plus one for each open grow that stands in no
- * space at all - "no fixed place" is a card and not a hole. It waits in its own
- * shape, and once it has answered it never goes blank again: a refresh that
- * fails keeps the last answer on the screen with its ages, which is what the
- * ages are for.
+ * Start. With one place it is that place's cockpit, the same page the place
+ * opens at its own address; with several it is one compact card per place,
+ * each opening that cockpit. A grow standing in no place is a card of its own
+ * under either, because there is no place page for it to be part of.
+ *
+ * It waits in its own shape, and once it has answered it never goes blank
+ * again: a refresh that fails keeps the last answer with its ages.
  */
 export function Home() {
   const { t } = useTranslation();
   const home = useHome();
-  // The sheet is held here rather than in either half of the home, because the
-  // first thing it writes - a grow, or the place to stand it in - is what
-  // decides which half is drawn, and a sheet inside that half would close on
-  // its own first answer.
+  // The sheet is held here rather than in the list, because the first thing it
+  // writes - a grow, or the place to stand it in - can change which Start is
+  // drawn, and a sheet inside the half that goes would close on its own answer.
   const [starting, setStarting] = useState(false);
-
-  useReportFreshness(home.dataUpdatedAt ? fetchedAt(home.dataUpdatedAt) : null);
 
   if (home.isPending) return <Waiting />;
   if (home.isError && !home.data) {
@@ -54,18 +59,24 @@ export function Home() {
   }
 
   const answer = home.data!;
-  // Owning nothing is what makes the home empty. Following somebody is not
-  // owning something, so a grower who follows a friend while their hardware is
-  // in the post keeps the two doors and the claim-code field, with the strip
-  // under them where a strip belongs.
-  const nothingYet = answer.spaces.length === 0;
+  const places = answer.spaces.filter(isPlace);
+  const loose = answer.spaces.filter(card => !isPlace(card));
 
   return (
     <>
-      {nothingYet ? (
+      {answer.spaces.length === 0 ? (
         <Nothing grows={answer.followedGrows} onStartGrow={() => setStarting(true)} />
+      ) : places.length === 1 ? (
+        <OnePlace place={places[0]} loose={loose} answer={answer} />
       ) : (
-        <Cards answer={answer} failedAt={home.isError ? home.dataUpdatedAt : null} onStartGrow={() => setStarting(true)} />
+        <Places
+          places={places}
+          loose={loose}
+          answer={answer}
+          failedAt={home.isError ? home.dataUpdatedAt : null}
+          updatedAt={home.dataUpdatedAt}
+          onStartGrow={() => setStarting(true)}
+        />
       )}
       {starting ? <NewGrowSheet onClose={() => setStarting(false)} /> : null}
     </>
@@ -87,26 +98,61 @@ function Nothing({ grows, onStartGrow }: { grows: HomeAnswer['followedGrows']; o
   );
 }
 
-function Cards({ answer, failedAt, onStartGrow }: { answer: HomeAnswer; failedAt: number | null; onStartGrow: () => void }) {
+/** One place: its cockpit is Start, and the diary's account-wide doors stand under it for whoever keeps one. */
+function OnePlace({ place, loose, answer }: { place: Place; loose: HomeSpaceCard[]; answer: HomeAnswer }) {
+  const now = useNow();
+  // A server too old to answer the layers drew the diary everywhere, and so does this.
+  const diary = answer.layers?.diary ?? true;
+
+  return (
+    <div className={styles.one}>
+      <PlaceCockpitRead spaceId={place.spaceId} />
+      {loose.length > 0 ? (
+        <div className={styles.cards}>
+          {loose.map(card => (
+            <LooseGrowCard key={card.grow?.growId} card={card} />
+          ))}
+        </div>
+      ) : null}
+      {diary ? <ArchiveLink /> : null}
+      <FollowingStrip grows={answer.followedGrows} now={now} />
+    </div>
+  );
+}
+
+function Places({
+  places,
+  loose,
+  answer,
+  failedAt,
+  updatedAt,
+  onStartGrow,
+}: {
+  places: Place[];
+  loose: HomeSpaceCard[];
+  answer: HomeAnswer;
+  failedAt: number | null;
+  updatedAt: number;
+  onStartGrow: () => void;
+}) {
   const { t } = useTranslation();
   const now = useNow();
   const { user } = useSession();
   const me = useMe(false, user !== null && user.isDemo !== true);
-  const club = isClub(answer.spaces);
-  const cards = sortedByAttention(answer.spaces);
-  // A server too old to answer the layers drew the diary everywhere, and so does this.
+  const devices = useDevices(places.some(place => place.deviceIds.length > 0));
+  const cards = sortedByAttention(places);
   const diary = answer.layers?.diary ?? true;
   // Offered once the account has been read and only where nobody said no; the demo has no account to keep an answer with.
   const offerDiary = !diary && me.data !== undefined && me.data.preferences.diary !== 'off';
-  // The words a card's readings are said in are explained once, on the first card that has readings to say them about.
-  const teacher = cards.find(card => livenessOf(card, now) !== 'none') ?? null;
+
+  useReportFreshness(updatedAt ? fetchedAt(updatedAt) : null);
 
   return (
     <section className={styles.page}>
       <header className={styles.head}>
         <h1 className={styles.title}>{t('shell.tabs.home')}</h1>
         <span className={`mono ${styles.caption}`}>
-          {t('home.count', { count: cards.length })} · <Term topic="sortedByAttention">{t('home.sortedByAttention')}</Term>
+          {t('cockpit.places', { count: places.length })} · <Term topic="sortedByAttention">{t('home.sortedByAttention')}</Term>
         </span>
       </header>
 
@@ -116,31 +162,22 @@ function Cards({ answer, failedAt, onStartGrow }: { answer: HomeAnswer; failedAt
         </p>
       ) : null}
 
-      <AttentionStrip cards={cards} now={now} />
-      <DueStrip cards={cards} now={now} />
       {/* Only where something could raise an alarm: a place with no device has nobody to warn about. */}
-      {cards.some(card => (card.deviceIds?.length ?? 0) > 0) ? <NotifyNotice later /> : null}
+      {places.some(place => place.deviceIds.length > 0) ? <NotifyNotice later /> : null}
+      {diary ? <DueStrip cards={cards} now={now} /> : null}
 
       <div className={styles.cards}>
         {cards.map(card => (
-          // A card with no place is known by its grow, which is the only id it has.
-          <SpaceCard
-            key={card.spaceId ?? card.grow?.growId}
-            card={card}
-            people={answer.people}
-            now={now}
-            compact={club}
-            explain={card === teacher}
-            diary={diary}
-          />
+          <PlaceCard key={card.spaceId} card={card} devices={devices.data?.items} now={now} diary={diary} />
+        ))}
+        {loose.map(card => (
+          <LooseGrowCard key={card.grow?.growId} card={card} />
         ))}
       </div>
 
       {diary ? <NewGrowRow onOpen={onStartGrow} /> : null}
-      <ArchiveLink />
-
+      {diary ? <ArchiveLink /> : null}
       <FollowingStrip grows={answer.followedGrows} now={now} />
-
       {offerDiary ? <DiaryOffer /> : null}
     </section>
   );

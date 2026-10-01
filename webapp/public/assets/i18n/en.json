@@ -1503,8 +1503,6 @@
       "opening": "Opening the demo…",
       "failed": "The demo could not be opened."
     },
-    "count_one": "{{count}} space",
-    "count_other": "{{count}} spaces",
     "sortedByAttention": "sorted by attention",
     "waiting": "loading",
     "retry": "Try again",
@@ -1520,7 +1518,6 @@
       "offline": "offline"
     },
     "card": {
-      "sparkline": "Temperature in {{name}} over the last 24 hours",
       "noReading": "–",
       "inBand": "in band",
       "noTarget": "no target",
@@ -1533,7 +1530,6 @@
       "dayN": "Day {{day}}",
       "noEntries": "Nothing in the diary yet",
       "ago": "{{age}} ago",
-      "cam": "Cam",
       "stillAlt": "The newest picture of {{name}}",
       "enteredPhase": "Entered {{stage}}"
     },
@@ -1595,20 +1591,11 @@
       "offline": "Offline",
       "camera_stale": "Cam not delivering"
     },
-    "actions": {
-      "water": "Water",
-      "note": "Note",
-      "photo": "Photo",
-      "reading": "Reading"
-    },
     "invite": {
       "noGrow": "Nothing growing here yet",
       "startGrow": "Start a grow",
       "moveGrow": "Move a grow here",
-      "notNow": "Not now",
-      "notNowFor": "Not now, for {{name}}",
       "noSensor": "No sensor",
-      "logReading": "Log a reading",
       "addDevice": "Add a device"
     },
     "diary": {
@@ -1616,7 +1603,6 @@
       "decline": "No thanks"
     },
     "strip": {
-      "attention": "Needs attention",
       "due": "Due",
       "done": "Done",
       "today": "today",
@@ -2735,8 +2721,6 @@
       "youMayLog": "You may log in this space, not steer it. The plan, the targets and the alarm rules stand here as they are set; changing them is for whoever steers the space."
     },
     "noReadingsYet": "Nothing reported yet",
-    "high": "high",
-    "low": "low",
     "growingHere": "Growing here",
     "newGrow": "Grow",
     "moveHere": "Move here",
@@ -4622,6 +4606,8 @@
     }
   },
   "cockpit": {
+    "places_one": "{{count}} place",
+    "places_other": "{{count}} places",
     "change": "Change",
     "menu": {
       "label": "More about {{name}}",
@@ -4728,6 +4714,12 @@
       "title": "Latest",
       "more": "Timeline",
       "none": "Nothing has happened yet."
+    },
+    "card": {
+      "lightOn": "Light on",
+      "lightOff": "Light off",
+      "lightOnUntil": "Light on until {{time}}",
+      "lightOffUntil": "Light off until {{time}}"
     }
   }
 }

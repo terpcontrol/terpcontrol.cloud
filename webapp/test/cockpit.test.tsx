@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -15,11 +15,13 @@ import type {
   DeviceLive,
   Entry,
   HomeAnswer,
+  HomeSpaceCard,
   Me,
   SpaceOverview,
   SpaceTimeline,
 } from '@fg2/shared-types/v1';
 import { LogProvider } from '@/log/LogProvider';
+import { Home } from '@/screens/Home';
 import { PlaceCockpit } from '@/screens/cockpit/PlaceCockpit';
 import { outputsFor, statusOf } from '@/screens/cockpit/place';
 import { spacePage, spaceWhere } from './session';
@@ -37,7 +39,8 @@ vi.mock('@/api/session', async importOriginal => {
  * last three things that happened. These tests draw it from what the server
  * answers, through the wire, in the states a grower actually meets: a fridge
  * that is fine, one that is off target, one that has gone quiet, a tent with
- * leaf sensors and no CO2, a camera, and a diary on and off.
+ * leaf sensors and no CO2, a camera, and a diary on and off. Start is then one
+ * cockpit or a card per place.
  *
  * Everything is dated against the real clock, because the page ages its
  * readings by it, and the account is kept in UTC so the hours below are the
@@ -562,6 +565,52 @@ describe('the place menu', () => {
     expect(await screen.findByRole('link', { name: 'Members' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Apply a climate preset' })).not.toBeInTheDocument();
     expect(screen.queryAllByRole('link', { name: 'Change' })).toHaveLength(0);
+  });
+});
+
+describe('Start', () => {
+  const card = (spaceId: string, name: string): HomeSpaceCard => ({
+    spaceId,
+    name,
+    kind: 'fridge',
+    roomId: null,
+    deviceIds: spaceId === 'space-1' ? ['device-1'] : [],
+    values: spaceId === 'space-1' ? values() : [],
+    setpoints: spaceId === 'space-1' ? setpoints : [],
+    trend: null,
+    grow: null,
+    entries: [],
+    latestStill: null,
+    dueTasks: [],
+    openAlerts: [],
+  });
+
+  const answer = (...cards: HomeSpaceCard[]): HomeAnswer => ({ spaces: cards, followedGrows: [], people: [], layers: { diary: false } });
+
+  it('is the cockpit of the one place an account has', async () => {
+    server.home = answer(card('space-1', 'Fridge 1'));
+    server.overviews.set('space-1', overviewOf());
+    draw(<Home />);
+
+    expect(await screen.findByRole('heading', { name: 'Fridge 1' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^Temperature/ })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('All on target');
+  });
+
+  it('is a card per place once there are several, each opening that place´s cockpit', async () => {
+    server.home = answer(card('space-1', 'Fridge 1'), card('space-2', 'Tent 2'));
+    draw(<Home />);
+
+    const fridgeCard = (await screen.findByRole('link', { name: 'Fridge 1' })).closest('article')!;
+    expect(screen.getByRole('link', { name: 'Fridge 1' })).toHaveAttribute('href', '/spaces/space-1');
+    expect(screen.getByRole('link', { name: 'Tent 2' })).toHaveAttribute('href', '/spaces/space-2');
+    expect(fridgeCard).toHaveTextContent('All on target');
+    expect(fridgeCard).toHaveTextContent('25.1');
+    // The device line is the cockpit's, in its names.
+    await waitFor(() => expect(fridgeCard).toHaveTextContent('Light on until 18:00 · Compressor running · Heater off'));
+    expect(screen.getByText(/^2 places ·/)).toBeInTheDocument();
+    // Neither card is a cockpit of its own.
+    expect(screen.queryByRole('link', { name: /^Temperature/ })).not.toBeInTheDocument();
   });
 });
 

@@ -759,3 +759,123 @@
   padding-block: var(--space-1);
   list-style: none;
 }
+
+/* -------------------------------------------------- a place on a list */
+
+.placeCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.placeCard:hover {
+  border-color: var(--rule-strong);
+}
+
+.placeCard[data-tone='warn'] {
+  box-shadow:
+    inset 3px 0 0 var(--warning-edge),
+    var(--shadow);
+}
+
+.placeCard[data-tone='alarm'] {
+  box-shadow:
+    inset 3px 0 0 var(--alarm),
+    var(--shadow);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.cardName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--text-name);
+  font-weight: var(--weight-heading);
+  color: var(--heading);
+}
+
+.cardName::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.cardName svg {
+  flex: none;
+  color: var(--label);
+}
+
+.cardStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.cardStatus[data-tone='good'] {
+  color: var(--green-ink);
+}
+
+.cardStatus[data-tone='warn'] {
+  color: var(--warning);
+}
+
+.cardStatus[data-tone='alarm'] {
+  color: var(--alarm);
+}
+
+.cardStatus[data-tone='quiet'] {
+  color: var(--muted);
+}
+
+.cardValues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-5);
+}
+
+.cardValue {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  color: var(--ink);
+}
+
+.cardValue > .figure,
+.cardValue > :first-child {
+  font-size: var(--text-figure);
+  font-weight: var(--weight-figure);
+  line-height: 1.2;
+}
+
+.cardValue > :last-child {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.cardValue[data-verdict='high'] > :first-child,
+.cardValue[data-verdict='low'] > :first-child {
+  color: var(--warning);
+}
+
+.cardLine {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}

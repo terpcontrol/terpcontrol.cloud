@@ -1499,8 +1499,6 @@
       "opening": "Demo wird geöffnet…",
       "failed": "Die Demo konnte nicht geöffnet werden."
     },
-    "count_one": "{{count}} Bereich",
-    "count_other": "{{count}} Bereiche",
     "sortedByAttention": "nach Dringlichkeit",
     "waiting": "lädt",
     "retry": "Noch einmal versuchen",
@@ -1516,7 +1514,6 @@
       "offline": "offline"
     },
     "card": {
-      "sparkline": "Temperatur in {{name}} über die letzten 24 Stunden",
       "noReading": "–",
       "inBand": "im Ziel",
       "noTarget": "kein Ziel",
@@ -1529,7 +1526,6 @@
       "dayN": "Tag {{day}}",
       "noEntries": "Noch nichts im Tagebuch",
       "ago": "vor {{age}}",
-      "cam": "Cam",
       "stillAlt": "Das neueste Bild aus {{name}}",
       "enteredPhase": "{{stage}} begonnen"
     },
@@ -1599,20 +1595,11 @@
       "offline": "Offline",
       "camera_stale": "Cam liefert nicht"
     },
-    "actions": {
-      "water": "Gießen",
-      "note": "Notiz",
-      "photo": "Foto",
-      "reading": "Messwert"
-    },
     "invite": {
       "noGrow": "Hier wächst noch nichts",
       "startGrow": "Grow starten",
       "moveGrow": "Grow hierher",
-      "notNow": "Jetzt nicht",
-      "notNowFor": "Jetzt nicht, für {{name}}",
       "noSensor": "Kein Sensor",
-      "logReading": "Messwert eintragen",
       "addDevice": "Gerät hinzufügen"
     },
     "diary": {
@@ -1620,7 +1607,6 @@
       "decline": "Nein danke"
     },
     "strip": {
-      "attention": "Braucht Aufmerksamkeit",
       "due": "Fällig",
       "done": "Erledigt",
       "today": "heute",
@@ -2739,8 +2725,6 @@
       "youMayLog": "Du darfst in diesem Bereich loggen, ihn aber nicht steuern. Plan, Sollwerte und Alarmregeln stehen hier so, wie sie eingestellt sind; ändern kann sie nur, wer den Bereich steuert."
     },
     "noReadingsYet": "Noch nichts gemeldet",
-    "high": "zu hoch",
-    "low": "zu tief",
     "growingHere": "Wächst hier",
     "newGrow": "Grow",
     "moveHere": "Hierher verschieben",
@@ -4626,6 +4610,8 @@
     }
   },
   "cockpit": {
+    "places_one": "{{count}} Ort",
+    "places_other": "{{count}} Orte",
     "change": "Ändern",
     "menu": {
       "label": "Mehr zu {{name}}",
@@ -4732,6 +4718,12 @@
       "title": "Zuletzt",
       "more": "Verlauf",
       "none": "Noch nichts passiert."
+    },
+    "card": {
+      "lightOn": "Licht an",
+      "lightOff": "Licht aus",
+      "lightOnUntil": "Licht an bis {{time}}",
+      "lightOffUntil": "Licht aus bis {{time}}"
     }
   }
 }

@@ -11,38 +11,13 @@ import { ageLabel } from '@/ui/age';
 import { DAY, useZone } from '@/ui/zone';
 import { daysUntil } from '@/screens/tasks/tasks';
 import styles from './Strips.module.css';
-import { alertLabel, isSilence } from './units';
 
 /**
- * The three strips around the cards. Each is there only while it has something
- * to say: an alert that is open, a task that is due, a grow that is followed.
+ * The two strips around the cards. Each is there only while it has something
+ * to say: a task that is due, a grow that is followed.
  */
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
-
-export function AttentionStrip({ cards, now }: { cards: HomeSpaceCard[]; now: DateTime }) {
-  const { t } = useTranslation();
-  const zone = useZone();
-  const open = cards.flatMap(card => card.openAlerts.map(alert => ({ card, alert })));
-  if (open.length === 0) return null;
-
-  return (
-    <ul className={styles.strip} aria-label={t('home.strip.attention')}>
-      {open.map(({ card, alert }) => (
-        <li key={alert.alertId}>
-          <Link to="/alerts" className={`${styles.chip} ${styles.alert}`} data-severity={alert.severity}>
-            <span className={styles.chipText}>
-              <strong>{alertLabel(t, alert, now, zone)}</strong> · {card.name}
-            </span>
-            {isSilence(alert) ? null : (
-              <span className={`mono ${styles.chipMeta}`}>{t('home.card.ago', { age: ageLabel(alert.startedAt, now) })}</span>
-            )}
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 export function DueStrip({ cards, now }: { cards: HomeSpaceCard[]; now: DateTime }) {
   const { t } = useTranslation();
