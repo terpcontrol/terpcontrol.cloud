@@ -52,7 +52,11 @@ const state = vi.hoisted(() => ({
   capture: null as { succeeded: boolean; mediaId: string | null; capturedAt: string | null; error: string | null } | null,
   /** A press that got no answer at all. */
   captureError: null as unknown,
+  /** Whether the account keeps a grow diary, whose films are a phase and a whole grow. */
+  diary: true,
 }));
+
+vi.mock('@/api/layers', async importOriginal => ({ ...(await importOriginal<object>()), useDiaryLayer: () => state.diary }));
 
 /**
  * The account's own zone, which is what every clock time on these screens is
@@ -195,6 +199,7 @@ beforeEach(() => {
   state.lastStill = null;
   state.capture = null;
   state.captureError = null;
+  state.diary = true;
 });
 
 describe('the composer', () => {
@@ -266,6 +271,20 @@ describe('the composer', () => {
     expect(screen.getByRole('button', { name: 'Render · SD' })).toBeDisabled();
   });
 
+  it('leaves the phase and the whole grow out where they are not asked to be offered', () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <Composer camera={camera} grow={null} growFilms={false} pending={false} onRender={() => {}} onClose={() => {}} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Week' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Phase/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Whole grow' })).not.toBeInTheDocument();
+  });
+
   it('marks HD as Premium and does not offer it to a camera that is not entitled', () => {
     draw(grow, { entitlement: { validUntil: null, grant: null, tier: 'free', renewalVisible: true } });
 
@@ -326,6 +345,29 @@ describe('the camera page, by who is reading', () => {
     expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Unpair' })).toBeInTheDocument();
     expect(screen.getByText(/192\.168\.1\.40/)).toBeInTheDocument();
+  });
+
+  /**
+   * A phase and a whole grow are the diary's films. Somebody who keeps none
+   * and has no grow here is not shown two refused buttons and a sentence about
+   * a grow they never meant to start; a diary with nothing growing here is,
+   * because the grow it could start is what is missing.
+   */
+  it('offers the films of a phase and a grow only to a diary, refused while nothing grows here', () => {
+    state.diary = false;
+    const { unmount } = drawPage();
+
+    expect(screen.getByRole('button', { name: /^Today/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Week/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Phase/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Whole grow/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nothing grows here/)).not.toBeInTheDocument();
+    unmount();
+
+    state.diary = true;
+    drawPage();
+    expect(screen.getByRole('button', { name: /^Phase/ })).toBeDisabled();
+    expect(screen.getByText(/Nothing grows here/)).toBeInTheDocument();
   });
 
   it('gives a member the pictures, none of the controls, and not the address the cloud reaches it at', () => {

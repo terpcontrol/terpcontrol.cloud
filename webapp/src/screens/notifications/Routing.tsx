@@ -22,7 +22,9 @@ import styles from './Notifications.module.css';
  *
  * The weekly film is made from a camera's stills, so its row is there only for
  * an account that has a camera; without one it was a switch for something that
- * could never arrive.
+ * could never arrive. Due tasks are the diary's reminders - watering, feeding,
+ * a chore of the grow - so their row is there only for an account that keeps
+ * one. The plan's questions are Steuerung's and stay.
  */
 export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
   const { t } = useTranslation();
@@ -31,7 +33,9 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
   const { channels, routing } = me.notifications;
   const cameras = useCameras();
   const filmed = cameras.data !== undefined && ownsCamera(cameras.data.items);
-  const categories = CATEGORIES.filter(category => category !== 'weekly_timelapse' || filmed);
+  // Until a server says otherwise the diary is there, which is the app as it has always been.
+  const diary = me.layers?.diary !== false;
+  const categories = CATEGORIES.filter(category => (category !== 'weekly_timelapse' || filmed) && (category !== 'tasks' || diary));
 
   const configured: Record<NotificationChannel, boolean> = {
     // Push goes somewhere as soon as any browser of the account is subscribed, not only this one.

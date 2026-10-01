@@ -24,6 +24,8 @@ interface ComposerProps {
   camera: Camera;
   /** The grow standing where this camera does; null where nothing grows there. */
   grow: GrowListItem | null;
+  /** Whether the ranges of a phase and of a whole grow are offered: they are the diary's, and left out without it and without a grow. */
+  growFilms?: boolean;
   pending: boolean;
   onRender: (body: TimelapseCreate) => void;
   onClose: () => void;
@@ -39,7 +41,7 @@ interface ComposerProps {
  * server can guess. A range that needs a grow and has none is drawn refused
  * with the reason, rather than offered and then turned down.
  */
-export function Composer({ camera, grow, pending, onRender, onClose }: ComposerProps) {
+export function Composer({ camera, grow, growFilms = true, pending, onRender, onClose }: ComposerProps) {
   const { t } = useTranslation();
   const { user } = useSession();
   // A date somebody picks here is a day of theirs, so the days the fields open
@@ -103,7 +105,7 @@ export function Composer({ camera, grow, pending, onRender, onClose }: ComposerP
         </div>
 
         <Group label={t('composer.range')}>
-          {RANGES.map(one => (
+          {RANGES.filter(one => growFilms || (one !== 'phase' && one !== 'grow')).map(one => (
             <button key={one} type="button" className={ui.chip} aria-pressed={one === range} onClick={() => setRange(one)}>
               {t(`camera.window.${one}`)}
               {one === 'phase' && grow?.summary.stage ? ` · ${t(`home.stage.${grow.summary.stage}`)}` : ''}

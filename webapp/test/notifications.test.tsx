@@ -171,6 +171,20 @@ describe('an account with nothing configured', () => {
     expect(await screen.findByRole('rowheader', { name: 'Weekly recap video' })).toBeInTheDocument();
   });
 
+  /** Due tasks are the diary's reminders; an account that keeps no diary has nothing that could fall due. */
+  it('routes due tasks only for an account that keeps a diary, and the plan´s questions either way', async () => {
+    server.me = me({}, { layers: { diary: false } });
+    const first = draw();
+    expect(await screen.findByRole('rowheader', { name: 'Critical alarms' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'Plan asks' })).toBeInTheDocument();
+    expect(screen.queryByRole('rowheader', { name: 'Tasks due' })).not.toBeInTheDocument();
+    first.unmount();
+
+    server.me = me();
+    await drawLoaded();
+    expect(await screen.findByRole('rowheader', { name: 'Tasks due' })).toBeInTheDocument();
+  });
+
   it('says every channel is off and offers no routing to any of them', async () => {
     await drawLoaded();
 

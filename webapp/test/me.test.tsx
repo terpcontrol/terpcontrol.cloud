@@ -398,6 +398,24 @@ describe('what is empty', () => {
   });
 
   /**
+   * A feeding scheme is what a grow's feed lines are dosed from. An account
+   * that keeps no diary was shown a door to a shelf of nutrient charts it has
+   * no use for; one that wrote a scheme of its own keeps the door to it.
+   */
+  it('has a door to the feeding schemes only for a diary, or for whoever wrote one of their own', async () => {
+    server.me = me({ layers: { diary: false } });
+    server.own = [];
+    const none = draw();
+    expect(await lineUnder('Notifications')).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole('link', { name: /^Feeding schemes/ })).not.toBeInTheDocument());
+    none.unmount();
+
+    server.own = [OWN];
+    draw();
+    expect(await lineUnder('Feeding schemes')).toContain('1 own');
+  });
+
+  /**
    * Premium is what a camera can do beyond its free tier. An account with no
    * camera was handed a door to a table about hardware it does not own, fourth
    * of eight, above its notifications.

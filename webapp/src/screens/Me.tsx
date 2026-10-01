@@ -6,6 +6,7 @@ import { useMe } from '@/api/account';
 import { useCameras } from '@/api/cameras';
 import { APP_VERSION, BUILD_MODE } from '@/api/config';
 import { useGrows } from '@/api/grows';
+import { useDiaryLayer } from '@/api/layers';
 import { useOwnSchemes, useSchemes } from '@/api/schemes';
 import { session, useSession } from '@/api/session';
 import { useFollows, useShareLinks } from '@/api/sharing';
@@ -87,6 +88,8 @@ function AccountDoors({ handle }: { handle: string }) {
   const cameras = useCameras();
   const shipped = useSchemes();
   const own = useOwnSchemes();
+  // Feeding schemes are what a grow's feed lines are dosed from, so they are a door of the diary's - kept for whoever wrote one of their own.
+  const feeds = useDiaryLayer() || (own.data?.items.length ?? 0) > 0;
 
   /**
    * One door's line, drawn only once every read it is worked out from has
@@ -128,11 +131,13 @@ function AccountDoors({ handle }: { handle: string }) {
         ) : null}
         <Door to="/me/notifications" title={t('notifications.title')} line={line([me], () => notificationsLine(t, me.data!, now))} />
         <Door to="/me/privacy" title={t('me.privacy.title')} line={line([me], () => privacyLine(t, me.data!))} />
-        <Door
-          to="/me/schemes"
-          title={t('me.schemes.title')}
-          line={line([grows, shipped, own], () => schemesLine(t, grows.data!.items, shipped.data!, own.data!.items))}
-        />
+        {feeds ? (
+          <Door
+            to="/me/schemes"
+            title={t('me.schemes.title')}
+            line={line([grows, shipped, own], () => schemesLine(t, grows.data!.items, shipped.data!, own.data!.items))}
+          />
+        ) : null}
         <Door to="/me/account" title={t('me.account.title')} line={t('me.door.account')} />
       </div>
     </>

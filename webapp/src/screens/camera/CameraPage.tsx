@@ -7,6 +7,7 @@ import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-t
 import { useMe } from '@/api/account';
 import { gaveUp, useCamera, useCameraFrames, useLatestStills, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
 import { useSpaceGrows } from '@/api/grows';
+import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { ageLabel, instantOf } from '@/ui/age';
@@ -112,6 +113,9 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   const ask = useRequestTimelapse(camera.id);
 
   const grow = growOf(grows.data?.items ?? []);
+  // The films of a phase and of a whole grow are the diary's: without it, and with no grow here, they are not offered at all.
+  const diary = useDiaryLayer();
+  const growFilms = grow !== null || diary;
   const shots = useMemo(() => [...(frames.data?.items ?? [])].sort((one, other) => at(one.capturedAt) - at(other.capturedAt)), [frames.data]);
   const from = shots.length > 0 ? at(shots[0].capturedAt) : DateTime.fromISO(day.startsAt).toMillis();
   const newest = shots.at(-1) ?? null;
@@ -307,7 +311,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
             {t('camera.timelapses')}
             <Help topic="timelapses" />
           </span>
-          {mayManage ? <Quick buttons={quickFilms(t, camera, grow, now)} onPick={request} /> : null}
+          {mayManage ? <Quick buttons={quickFilms(t, camera, grow, now, growFilms)} onPick={request} /> : null}
           {mayManage ? (
             <button type="button" className={`${ui.button} ${styles.compose}`} onClick={() => setComposing(true)}>
               {t('camera.makeOne')}
@@ -343,7 +347,9 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
         <CameraSettings camera={camera} mayManage={mayManage} mayOwn={mayOwn} />
       </div>
 
-      {composing ? <Composer camera={camera} grow={grow} pending={ask.isPending} onRender={request} onClose={() => setComposing(false)} /> : null}
+      {composing ? (
+        <Composer camera={camera} grow={grow} growFilms={growFilms} pending={ask.isPending} onRender={request} onClose={() => setComposing(false)} />
+      ) : null}
     </section>
   );
 }
@@ -357,7 +363,7 @@ interface QuickFilm {
 }
 
 /**
- * The four one-tap films. One that cannot be asked for is drawn refused rather
+ * The one-tap films. One that cannot be asked for is drawn refused rather
  * than left out, so the film that is missing has a reason beside it - and the
  * reason is given once however many buttons share it. Where the reason is
  * Premium, the page that says what Premium covers is one tap away from it.
@@ -401,7 +407,10 @@ function Quick({ buttons, onPick }: { buttons: QuickFilm[]; onPick: (body: Timel
 /**
  * What each of the four asks for. Today carries the instant the server works
  * its bucket out around; a phase and a whole grow name both of their own ends,
- * because where either began is the grow's record.
+ * because where either began is the grow's record. Those two are a diary's
+ * films: for somebody who keeps none and has no grow here they are left out
+ * rather than refused, because nothing is missing that they could start.
+ * A diary with no grow standing here keeps them, refused with the reason.
  *
  * The week asks for a week and names no instant at all, which is what the route
  * documents as "the most recent complete window" and what it does with an
@@ -426,7 +435,7 @@ function Quick({ buttons, onPick }: { buttons: QuickFilm[]; onPick: (body: Timel
  * of today's pictures is the wrong test, because that is the account's day and
  * the bucket is the server's.
  */
-const quickFilms = (t: Translate, camera: Camera, grow: GrowListItem | null, now: DateTime): QuickFilm[] => {
+const quickFilms = (t: Translate, camera: Camera, grow: GrowListItem | null, now: DateTime, growFilms: boolean): QuickFilm[] => {
   const free = camera.entitlement.tier === 'free';
   const noGrow = grow ? null : t('camera.noGrowHere');
   const empty = (window: 'day' | 'week'): string | null => {
@@ -436,9 +445,14 @@ const quickFilms = (t: Translate, camera: Camera, grow: GrowListItem | null, now
   const nothingToFilm = empty('day');
   const nothingThatWeek = empty('week');
 
-  return [
+  const rolling: QuickFilm[] = [
     { label: t('camera.window.day'), body: { window: 'day', startsAt: instantOf(now) }, reason: nothingToFilm, premium: false },
     { label: t('camera.window.week'), body: { window: 'week' }, reason: nothingThatWeek, premium: false },
+  ];
+  if (!growFilms) return rolling;
+
+  return [
+    ...rolling,
     {
       label: t('camera.window.phase'),
       body: { window: 'phase', startsAt: phaseStart(grow) ?? '', endsAt: instantOf(now) },
