@@ -576,6 +576,23 @@ describe('the stacked panels', () => {
     expect(points[points.length - 1].value).not.toBeNull();
   });
 
+  it('breaks a month after the last reading too, where the tent went quiet this morning', async () => {
+    quietFrom = new Date(NOW.getTime() - 4 * 3600 * 1000);
+    quietUntil = new Date(NOW.getTime() + 24 * 3600 * 1000);
+    const points = (await readAs(session(OWNER), { range: '30d' })).panels[0].points;
+
+    // Four of a month's windows are six hours: held to those, the morning's
+    // figures stood under the afternoon's clock on a screen that said offline.
+    expect(points.at(-2)!.value).not.toBeNull();
+    expect(points.at(-1)!.value).toBeNull();
+  });
+
+  it('carries a month to the edge of the window where the tent is still reporting', async () => {
+    const points = (await readAs(session(OWNER), { range: '30d' })).panels[0].points;
+
+    expect(points.at(-1)!.value).not.toBeNull();
+  });
+
   /**
    * A metric with no reading in the window has no panel, which makes an empty
    * stack the answer both for a tent nothing measures in and for one whose

@@ -168,7 +168,11 @@ const SILENT_AFTER = 4;
  * window - and never falls below the threshold the rest of the app calls a
  * device gone by.
  */
-const silenceOf = (points: readonly SeriesPoint[], stepSeconds: number): number => {
+const silenceOf = (points: readonly SeriesPoint[], stepSeconds: number): number =>
+  Math.max(VALUE_AGE.staleSeconds * 1000, SILENT_AFTER * usualGapOf(points, stepSeconds));
+
+/** The gap between two readings this device usually leaves in this window. */
+const usualGapOf = (points: readonly SeriesPoint[], stepSeconds: number): number => {
   const heard = points.flatMap(point => (point.value === null ? [] : [millis(point.measuredAt)]));
   const gaps = heard
     .slice(1)
@@ -176,9 +180,7 @@ const silenceOf = (points: readonly SeriesPoint[], stepSeconds: number): number 
     .sort((one, other) => one - other);
   // Three quarters of the way up rather than the middle: a device that is slow
   // every fourth sample is keeping that rhythm too.
-  const usual = gaps.length === 0 ? stepSeconds * 1000 : gaps[Math.floor(gaps.length * 0.75)];
-
-  return Math.max(VALUE_AGE.staleSeconds * 1000, SILENT_AFTER * usual);
+  return gaps.length === 0 ? stepSeconds * 1000 : gaps[Math.floor(gaps.length * 0.75)];
 };
 
 /**
@@ -320,8 +322,10 @@ const pooled = (series: readonly DeviceSeries[], metric: Metric): SeriesPoint[] 
     .sort(([one], [other]) => one.localeCompare(other))
     .map(([measuredAt, values]) => ({ measuredAt, value: rounded(mean(values), metric) }));
 
-  const silence = silenceOf(heard, series[0]?.stepSeconds ?? 0);
-  return closed(broken(heard, silence), series[0] ? millis(series[0].endsAt) : null, silence);
+  const step = series[0]?.stepSeconds ?? 0;
+  const silence = silenceOf(heard, step);
+  const quietAtTheEnd = Math.max(VALUE_AGE.staleSeconds * 1000, usualGapOf(heard, step));
+  return closed(broken(heard, silence), series[0] ? millis(series[0].endsAt) : null, quietAtTheEnd);
 };
 
 /** The readings with a null between the two the space went quiet between, which is where the line stops and starts again. */
@@ -337,6 +341,15 @@ const broken = (points: readonly SeriesPoint[], silence: number): SeriesPoint[] 
 
 /**
  * The same break after the last reading, where the window runs on past it.
+ *
+ * The end is held to one usual gap rather than four. A window is stamped where
+ * it closes, so a device reporting now has its last point on the window's own
+ * end, and one that stopped has it at most a window after its last sample.
+ * Four of a month's hour-and-a-half windows let a fridge that went offline in
+ * the morning print its morning figures under the afternoon's clock, on a
+ * screen whose pill already said offline. Never less than the ten minutes after
+ * which the rest of the app calls a device offline, and never less than the
+ * rhythm the device keeps, so an hourly history is not cut an hour short.
  *
  * A silence at the end of a window is the one nobody closed, and it is the one
  * a reader is most likely to be looking at: both screens read a line at the
