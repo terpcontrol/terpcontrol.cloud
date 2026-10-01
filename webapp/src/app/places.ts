@@ -105,10 +105,9 @@ export const useCurrentPlace = () => {
     if (named) rememberPlace(named);
   }, [named]);
 
-  const choose = (spaceId: string) => {
-    rememberPlace(spaceId);
-    setParams({ space: spaceId }, { replace: true });
-  };
+  // Remembered once the address names it, by the effect above: a switch that
+  // a page holds back - targets nobody saved - must not move the next tab too.
+  const choose = (spaceId: string) => setParams({ space: spaceId }, { replace: true });
 
   return { home, places, here, choose };
 };

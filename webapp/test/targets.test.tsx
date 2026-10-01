@@ -1,12 +1,12 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { createMemoryRouter, Link, MemoryRouter, RouterProvider } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceConfiguration, Me, Plan } from '@fg2/shared-types/v1';
 import { Targets } from '@/screens/control/targets/Targets';
@@ -511,6 +511,87 @@ describe('the targets page', () => {
 
     expect(slider('Day temperature').value).toBe('25');
     expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
+  });
+
+  it('asks before a change nobody saved is left behind, and goes on only once it is saved or thrown away', async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/control',
+          element: (
+            <>
+              <Link to="/control/alarms?space=space-1">Alarms</Link>
+              <Link to="/control?space=space-2">Other place</Link>
+              <Targets spaceId="space-1" devices={[device()]} mayManage />
+            </>
+          ),
+        },
+        { path: '/control/alarms', element: <p>The alarm rules</p> },
+      ],
+      { initialEntries: ['/control?space=space-1'] },
+    );
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole('slider', { name: 'Day temperature' });
+
+    // Nothing changed: leaving is not asked about.
+    fireEvent.click(screen.getByRole('link', { name: 'Alarms' }));
+    expect(await screen.findByText('The alarm rules')).toBeInTheDocument();
+    await router.navigate('/control?space=space-1');
+    await screen.findByRole('slider', { name: 'Day temperature' });
+
+    slide('Day temperature', 30);
+    fireEvent.click(screen.getByRole('link', { name: 'Other place' }));
+    const question = await screen.findByRole('dialog', { name: 'Targets not saved' });
+    expect(question).toHaveTextContent('Without saving, the device keeps running on the old ones.');
+
+    // Staying keeps the draft and the address.
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(slider('Day temperature').value).toBe('30');
+    expect(router.state.location.search).toBe('?space=space-1');
+
+    // Saving sends the draft and then goes where the tap was going.
+    fireEvent.click(screen.getByRole('link', { name: 'Alarms' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save and go on' }));
+    expect(await screen.findByText('The alarm rules')).toBeInTheDocument();
+    const [save] = sent('PUT');
+    expect((save?.body as { configuration: DeviceConfiguration }).configuration.day).toEqual({ temperature: 30, humidity: 60, heating: 'hard' });
+  });
+
+  it('throws an unsaved change away when asked to, and leaves', async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/control',
+          element: (
+            <>
+              <Link to="/">Start</Link>
+              <Targets spaceId="space-1" devices={[device()]} mayManage />
+            </>
+          ),
+        },
+        { path: '/', element: <p>Start page</p> },
+      ],
+      { initialEntries: ['/control?space=space-1'] },
+    );
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole('slider', { name: 'Day temperature' });
+
+    slide('Day temperature', 30);
+    fireEvent.click(screen.getByRole('link', { name: 'Start' }));
+    const question = await screen.findByRole('dialog', { name: 'Targets not saved' });
+    fireEvent.click(within(question).getByRole('button', { name: 'Discard' }));
+
+    expect(await screen.findByText('Start page')).toBeInTheDocument();
+    expect(sent('PUT')).toHaveLength(0);
   });
 
   it('heads each panel with the device name when more than one states a climate', async () => {

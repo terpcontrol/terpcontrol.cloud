@@ -1641,14 +1641,14 @@
       "units": "Einheiten",
       "unitsLine": "beim Konto gespeichert · jede Ansicht zeigt noch metrisch",
       "clock": "Uhrzeit",
-    "features": "Funktionen",
-    "diary": "Grow-Tagebuch",
-    "diaryLine": "beim Konto gespeichert · Automatisch: erscheint, sobald du einen Grow startest oder etwas einträgst",
-    "diaryChoice": {
-      "auto": "Automatisch",
-      "on": "An",
-      "off": "Aus"
-    },
+      "features": "Funktionen",
+      "diary": "Grow-Tagebuch",
+      "diaryLine": "beim Konto gespeichert · Automatisch: erscheint, sobald du einen Grow startest oder etwas einträgst",
+      "diaryChoice": {
+        "auto": "Automatisch",
+        "on": "An",
+        "off": "Aus"
+      },
       "timezone": "Zeitzone",
       "timezoneLine": "beim Konto gespeichert · Ruhezeiten und jede Uhrzeit, die die App zeigt, werden darin gelesen.",
       "timezoneHere": "Dieses Gerät steht in {{zone}}.",
@@ -2977,8 +2977,8 @@
       "hereFallback": "diesem Ort",
       "reading": "Lese, was in {{name}} steht …",
       "parks_one": "Speichern setzt das Gerät in {{name}} für {{minutes}} Minuten in den Wartungsmodus. Was es dabei abstellt, steht neben seinem Namen.",
-    "parksOutputs": "stellt {{outputs}} ab",
-    "parksNothing": "stellt nichts ab: Diese Hardware kennt den Wartungsbefehl nicht",
+      "parksOutputs": "stellt {{outputs}} ab",
+      "parksNothing": "stellt nichts ab: Diese Hardware kennt den Wartungsbefehl nicht",
       "parks_other": "Speichern setzt alle {{count}} Geräte in {{name}} für {{minutes}} Minuten in den Wartungsmodus. Was jedes dabei abstellt, steht neben seinem Namen.",
       "nothingThere": "In {{name}} steht nichts, das ist also eine Zeile im Tagebuch und sonst nichts.",
       "unreadable": "Was in {{name}} steht, ließ sich nicht lesen, hier lässt sich also nichts benennen. In den Wartungsmodus für {{minutes}} Minuten geht trotzdem jedes Gerät dort.",
@@ -3741,7 +3741,14 @@
     "discard": "Verwerfen",
     "sentAt": "Um {{time}} an den Controller geschickt",
     "sentNote": "Der Controller bestätigt keine Einstellung; was er wirklich fährt, meldet er nicht zurück.",
-    "readOnly": "Diese Sitzung darf schauen, aber nichts einstellen."
+    "readOnly": "Diese Sitzung darf schauen, aber nichts einstellen.",
+    "leave": {
+      "title": "Zielwerte nicht gespeichert",
+      "body": "Du hast Zielwerte geändert, aber noch nicht gespeichert. Ohne Speichern regelt das Gerät weiter nach den alten Werten.",
+      "save": "Speichern und weiter",
+      "discard": "Verwerfen",
+      "stay": "Weiter bearbeiten"
+    }
   },
   "notifications": {
     "title": "Benachrichtigungen",

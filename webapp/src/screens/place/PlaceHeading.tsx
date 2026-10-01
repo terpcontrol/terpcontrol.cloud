@@ -33,7 +33,7 @@ export function PlaceHeading({
     <h1 className={styles.title}>
       {title}
       <span className={styles.dot}>·</span>
-      <span className={styles.picker}>
+      <span className={styles.picker} data-switch={places.length > 1 ? '' : undefined}>
         <span className={styles.name}>{here.name}</span>
         {places.length > 1 ? (
           <>

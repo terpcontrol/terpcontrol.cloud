@@ -1637,14 +1637,14 @@
       "units": "Units",
       "unitsLine": "kept with your account · every screen still draws metric",
       "clock": "Clock",
-    "features": "Features",
-    "diary": "Grow diary",
-    "diaryLine": "kept with your account · Automatic: appears once you start a grow or log something",
-    "diaryChoice": {
-      "auto": "Automatic",
-      "on": "On",
-      "off": "Off"
-    },
+      "features": "Features",
+      "diary": "Grow diary",
+      "diaryLine": "kept with your account · Automatic: appears once you start a grow or log something",
+      "diaryChoice": {
+        "auto": "Automatic",
+        "on": "On",
+        "off": "Off"
+      },
       "timezone": "Time zone",
       "timezoneLine": "kept with your account · quiet hours and every clock time the app draws are read in it.",
       "timezoneHere": "This device is in {{zone}}.",
@@ -2973,8 +2973,8 @@
       "hereFallback": "this place",
       "reading": "Reading what stands in {{name}} …",
       "parks_one": "Saving this puts the device standing in {{name}} into maintenance mode for {{minutes}} minutes. What it stops driving meanwhile is beside its name.",
-    "parksOutputs": "stops {{outputs}}",
-    "parksNothing": "stops nothing: this hardware takes no maintenance command",
+      "parksOutputs": "stops {{outputs}}",
+      "parksNothing": "stops nothing: this hardware takes no maintenance command",
       "parks_other": "Saving this puts all {{count}} devices standing in {{name}} into maintenance mode for {{minutes}} minutes. What each one stops driving meanwhile is beside its name.",
       "nothingThere": "Nothing stands in {{name}}, so this is a line in the diary and nothing else.",
       "unreadable": "What stands in {{name}} could not be read, so nothing can be named here. Every device there is put into maintenance mode for {{minutes}} minutes all the same.",
@@ -3737,7 +3737,14 @@
     "discard": "Discard",
     "sentAt": "Sent to the controller {{time}}",
     "sentNote": "The controller acknowledges no setting, so what it is running is not reported back.",
-    "readOnly": "This session may look and not set."
+    "readOnly": "This session may look and not set.",
+    "leave": {
+      "title": "Targets not saved",
+      "body": "You changed targets but have not saved them. Without saving, the device keeps running on the old ones.",
+      "save": "Save and go on",
+      "discard": "Discard",
+      "stay": "Keep editing"
+    }
   },
   "notifications": {
     "title": "Notifications",

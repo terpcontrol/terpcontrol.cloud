@@ -1,5 +1,5 @@
 import type { DateTime } from 'luxon';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { controlPath } from '@/app/places';
@@ -18,6 +18,7 @@ import { useNow } from '@/ui/useNow';
 import { nowThere, CLOCK, useZone } from '@/ui/zone';
 import { deviceTitle } from '../../devices/naming';
 import { figure } from '../../home/units';
+import { LeaveGuard, type Unsaved } from './LeaveGuard';
 import { LightsOnRow } from './LightsOnRow';
 import { TargetRow } from './TargetRow';
 import {
@@ -79,6 +80,18 @@ export function Targets({
   // states a climate and offered a second device it has no use for. The
   // Devices tab of the same tent has always said this correctly.
   const waiting = devices.filter(awaitingClimate);
+  // The panels whose sliders stand somewhere nobody has saved, so that leaving the page asks first.
+  const [unsaved, setUnsaved] = useState<ReadonlyMap<string, Unsaved>>(new Map());
+  const report = useCallback((deviceId: string, entry: Unsaved | null) => {
+    setUnsaved(current => {
+      if (entry === null && !current.has(deviceId)) return current;
+      const next = new Map(current);
+      if (entry) next.set(deviceId, entry);
+      else next.delete(deviceId);
+      return next;
+    });
+  }, []);
+  const [asking, setAsking] = useState(false);
 
   if (controllers.length === 0) {
     return (
@@ -116,8 +129,17 @@ export function Targets({
       </header>
 
       {controllers.map(({ device, configuration }) => (
-        <Panel key={device.id} device={device} stored={configuration} mayManage={mayManage} titled={controllers.length > 1} />
+        <Panel
+          key={device.id}
+          device={device}
+          stored={configuration}
+          mayManage={mayManage}
+          titled={controllers.length > 1}
+          report={report}
+          asking={asking}
+        />
       ))}
+      <LeaveGuard unsaved={unsaved} onAsking={setAsking} />
     </div>
   );
 }
@@ -134,7 +156,22 @@ interface Sent {
   at: DateTime;
 }
 
-function Panel({ device, stored, mayManage, titled }: { device: Device; stored: DeviceConfiguration; mayManage: boolean; titled: boolean }) {
+function Panel({
+  device,
+  stored,
+  mayManage,
+  titled,
+  report,
+  asking,
+}: {
+  device: Device;
+  stored: DeviceConfiguration;
+  mayManage: boolean;
+  titled: boolean;
+  report: (deviceId: string, entry: Unsaved | null) => void;
+  /** Whether leaving the page is being asked about, which the bar then stands aside for. */
+  asking: boolean;
+}) {
   const { t } = useTranslation();
   const now = useNow();
   // When the save went out is a clock time the grower reads against the hours
@@ -165,15 +202,31 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
   // Saving over a running plan pauses it first: a plan that kept running would
   // write its step's targets over these within the hour. The errors of either
   // step are the mutations' own and are drawn from there.
-  const commit = async () => {
+  const commit = async (): Promise<boolean> => {
     try {
       if (status === 'running') await move.mutateAsync({ kind: 'pause', reason: t('targets.pauseReason') });
       await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, draft) });
       setSent({ draft, at: serverNow() });
+      return true;
     } catch {
       // Shown under the bar, from the mutation that refused.
+      return false;
     }
   };
+
+  // Handed up while there is something to lose, so that leaving the page asks
+  // about it. The save is read through a ref, because the draft it sends is the
+  // one standing when the question is answered and not when it was first asked.
+  const latest = useRef(commit);
+  useEffect(() => {
+    latest.current = commit;
+  });
+  const unsaved = dirty && mayManage;
+  useEffect(() => {
+    if (!unsaved) return;
+    report(device.id, { save: () => latest.current(), discard: () => setEdit(null) });
+    return () => report(device.id, null);
+  }, [unsaved, device.id, report]);
 
   const chosen = (chip: ClimateChoice): boolean => {
     const preset = presetOf(chip);
@@ -388,7 +441,7 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
         </p>
       ) : null}
 
-      {dirty && mayManage ? (
+      {dirty && mayManage && !asking ? (
         <div className={`${ui.card} ${styles.bar}`}>
           <span className={styles.barText}>{busy ? t('targets.saving') : t('targets.unsaved')}</span>
           <button type="button" className={ui.button} disabled={busy} onClick={() => setEdit(null)}>

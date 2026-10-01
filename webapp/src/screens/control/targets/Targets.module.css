@@ -304,3 +304,10 @@
     padding-inline: var(--space-4);
   }
 }
+
+/* The question before unsaved targets are left behind. */
+.leaveText {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}

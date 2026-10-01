@@ -37,6 +37,16 @@
   color: var(--muted);
 }
 
+/* Where there is more than one place, which one the page is about is what a
+   change made here lands on - so the name is in ink and drawn as the control
+   it is, not as a grey aside to the tab's own word. */
+.picker[data-switch] {
+  padding: 2px var(--space-2);
+  color: var(--ink);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
 .picker svg {
   flex-shrink: 0;
 }
