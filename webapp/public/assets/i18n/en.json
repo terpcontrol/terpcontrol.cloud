@@ -3055,7 +3055,9 @@
     "noPanels": "Nothing measures here, so there are no curves to draw",
     "quietWindow": "Nothing heard in this window · last measured {{age}} ago",
     "noSpaces": "Nothing to draw yet. Add a device or start a grow on the",
-    "demoNoSpaces": "The demo has nothing to draw; nothing has been left in this one to look at."
+    "demoNoSpaces": "The demo has nothing to draw; nothing has been left in this one to look at.",
+    "leafShort": "leaf",
+    "noTargetNow": "no target at this time"
   },
   "camera": {
     "never": "never",
@@ -4703,7 +4705,9 @@
       "noWindow": "no schedule",
       "offAt": "off at {{time}}",
       "onAt": "on at {{time}}",
-      "barAlt": "Light on from {{on}} to {{off}}"
+      "barAlt": "Light on from {{on}} to {{off}}",
+      "wasOn": "Was on",
+      "wasOff": "Was off"
     },
     "leaf": {
       "leaf": "Leaf temperature",

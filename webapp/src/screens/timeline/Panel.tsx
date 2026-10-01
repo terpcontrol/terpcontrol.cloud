@@ -28,6 +28,8 @@ const UNSTEERED: Partial<Record<Metric, 'leafTemperature' | 'lux'>> = { leafTemp
 interface PanelProps {
   panel: TimelinePanel;
   nights: TimelineSpan[];
+  /** Where the place fell silent, after which no band is drawn; null while it is still heard. */
+  heardUntil?: number | null;
   alarms: TimelineAlarm[];
   from: number;
   to: number;
@@ -45,9 +47,10 @@ interface PanelProps {
  * drawn once per answer and the cursor is an overlay over it, so scrubbing
  * costs no redraw.
  */
-export function Panel({ panel, nights, alarms, from, to, cursor, scrub, explain, focused = false }: PanelProps) {
+export function Panel({ panel, nights, alarms, from, to, heardUntil = null, cursor, scrub, explain, focused = false }: PanelProps) {
   const { t } = useTranslation();
-  const stretches = useMemo(() => stretchesOf(panel, nights, from, to), [panel, nights, from, to]);
+  // The band stops where the place fell silent, as the nights do: nothing was aimed at that anybody heard.
+  const stretches = useMemo(() => stretchesOf(panel, nights, from, heardUntil ?? to), [panel, nights, from, to, heardUntil]);
   const scale = useMemo(() => scaleOf(panel, stretches), [panel, stretches]);
   const mine = useMemo(() => alarmsOf(alarms, panel.metric), [alarms, panel.metric]);
   const option = useMemo(
@@ -75,7 +78,17 @@ export function Panel({ panel, nights, alarms, from, to, cursor, scrub, explain,
         <span className={`mono ${styles.panelUnit}`}>{unit}</span>
         {term ? null : (
           <span className={`label ${styles.band}`}>
-            {target && bandLabel ? explain ? <Term topic="band">{bandLabel}</Term> : bandLabel : t('timeline.noTarget')}
+            {/* A panel that has a band elsewhere in the window - CO₂ by day - has
+                none at the cursor, which is not the same as having none at all. */}
+            {target && bandLabel ? (
+              explain ? (
+                <Term topic="band">{bandLabel}</Term>
+              ) : (
+                bandLabel
+              )
+            ) : (
+              t(stretches.length > 0 ? 'timeline.noTargetNow' : 'timeline.noTarget')
+            )}
           </span>
         )}
       </header>

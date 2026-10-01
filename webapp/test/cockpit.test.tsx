@@ -459,6 +459,20 @@ describe('a reading off its target', () => {
   });
 });
 
+describe('the edge of the band', () => {
+  it('counts a reading that is written as on the edge as in target, so the status line does not flip on rounding', () => {
+    const now = DateTime.now();
+    const edge = values().map(value => (value.metric === 'temperature' ? { ...value, value: 26.04 } : value));
+    expect(statusOf({ values: edge, setpoints, deviceIds: ['device-1'], openAlerts: [], quiet: null }, now).kind).toBe('good');
+
+    const past = values().map(value => (value.metric === 'temperature' ? { ...value, value: 26.06 } : value));
+    expect(statusOf({ values: past, setpoints, deviceIds: ['device-1'], openAlerts: [], quiet: null }, now)).toMatchObject({
+      kind: 'off',
+      delta: 1.1,
+    });
+  });
+});
+
 describe('a place that has gone quiet', () => {
   it('says since when and what to try, calls every figure its last value, and claims nothing about the hardware', async () => {
     const overview = overviewOf({ values: values(180) });

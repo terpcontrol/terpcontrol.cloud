@@ -51,12 +51,12 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
   const focus = params.get('focus');
   // A link that names a moment - an alert's "Verlauf öffnen" - opens on the
   // shortest window that holds it, with the cursor standing on it.
-  const [at] = useState(() => momentOf(params.get('at')));
-  const [range, setRange] = useState<TimelineRange>(() => (at === null ? '24h' : rangeHolding(at, now.toMillis())));
+  const [moment] = useState(() => momentOf(params.get('at')));
+  const [range, setRange] = useState<TimelineRange>(() => (moment === null ? '24h' : rangeHolding(moment, now.toMillis())));
   /** Set only when a stretch chip is tapped: the two rolling ranges let the server pick the grow standing here. */
   const [pinned, setPinned] = useState<string | null>(null);
   /** Null is "the end of the window", so a refresh carries the cursor along with it rather than pinning it to an instant that has scrolled out. */
-  const [cursor, setCursor] = useState<number | null>(at);
+  const [cursor, setCursor] = useState<number | null>(moment);
   const [opened, setOpened] = useState<string | null>(null);
   const screen = useRef<HTMLDivElement>(null);
   const focused = useRef<string | null>(null);
@@ -173,6 +173,15 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
   // on a "now" nothing was heard at.
   const lastReading = rangeNeedsGrow(data.range) ? null : quietSince(data);
   const here = Math.min(to, Math.max(from, cursor ?? lastReading ?? to));
+  // After the last thing heard nothing is known, the light schedule included:
+  // the nights stop there with the band, so the stretch after it is drawn as
+  // the blank it is rather than as a day that went on until now.
+  const heardNights =
+    lastReading === null
+      ? data.nights
+      : data.nights
+          .filter(night => at(night.startsAt) < lastReading)
+          .map(night => (at(night.endsAt) > lastReading ? { ...night, endsAt: DateTime.fromMillis(lastReading).toISO()! } : night));
   const frames = data.cameras.filter(camera => camera.frames.length > 0);
 
   return (
@@ -226,10 +235,11 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
         <Panel
           key={panel.metric}
           panel={panel}
-          nights={data.nights}
+          nights={heardNights}
           alarms={data.alarms}
           from={from}
           to={to}
+          heardUntil={lastReading}
           cursor={here}
           scrub={scrub}
           explain={index === 0}
@@ -313,6 +323,8 @@ function ScrubHeader({ timeline, cursor, resting, nameOf }: { timeline: SpaceTim
         const value = pointAt(panel, cursor);
         return (
           <span key={panel.metric} className={styles.scrubValue} data-metric={panel.metric}>
+            {/* The leaf is the second °C in the line, told from the air's by more than its colour. */}
+            {panel.metric === 'leafTemperature' ? <span className={styles.scrubUnit}>{t('timeline.leafShort')} </span> : null}
             {value === null ? '—' : figure(value, panel.metric)} <span className={styles.scrubUnit}>{UNIT[panel.metric] ?? ''}</span>
           </span>
         );

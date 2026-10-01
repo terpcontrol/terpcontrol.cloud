@@ -28,6 +28,9 @@ const grouped = (written: string, metric: Metric): string => (metric === 'lux' ?
  * the written form is the reader's and a German one has a comma in the middle
  * that no arithmetic here could read back.
  */
+/** A reading rounded as it is written, so a judgement made on it agrees with the figure printed beside it. */
+export const asWritten = (value: number, metric: Metric): number => Number(value.toFixed(DECIMALS[metric] ?? 0));
+
 export const figure = (value: number, metric: Metric): string => {
   const decimals = DECIMALS[metric] ?? 0;
   const rounded = Number(value.toFixed(decimals));

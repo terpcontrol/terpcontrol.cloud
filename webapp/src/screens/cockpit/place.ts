@@ -24,7 +24,7 @@ import type { Quiet } from '@/ui/maintenance';
 import { clock } from '@/ui/zone';
 import { draftOf, lightsOffOf, offsetOf } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from '../home/attention';
-import { alertLabel, figure, isSilence, UNIT } from '../home/units';
+import { alertLabel, asWritten, figure, isSilence, UNIT } from '../home/units';
 
 /**
  * What a place's cockpit decides before it draws anything: which device holds
@@ -84,9 +84,13 @@ export const verdictOf = (value: CardValue | null, setpoint: CardSetpoint | null
   if (!value || value.value === null) return null;
   if (valueAge(value, now) !== 'live') return { kind: 'last', at: value.measuredAt };
   if (setpoint?.value == null || setpoint.band == null) return null;
+  // Judged on the difference as it is written: 22.04 °C against 21 ± 1 was
+  // "1,0 °C zu hoch" beside a help text that says ±1 °C is in target, and the
+  // status line flipped on every sample that crossed a rounding edge.
   const delta = value.value - setpoint.value;
-  if (Math.abs(delta) <= setpoint.band) return { kind: 'in' };
-  return { kind: delta > 0 ? 'high' : 'low', delta: Math.abs(delta) };
+  const off = asWritten(Math.abs(delta), value.metric);
+  if (off <= setpoint.band) return { kind: 'in' };
+  return { kind: delta > 0 ? 'high' : 'low', delta: off };
 };
 
 export const setpointOf = (setpoints: CardSetpoint[], metric: Metric): CardSetpoint | null =>

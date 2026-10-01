@@ -3059,7 +3059,9 @@
     "noPanels": "Hier misst nichts, also gibt es keine Kurven zu zeichnen",
     "quietWindow": "In diesem Zeitraum nichts gehört · zuletzt gemessen vor {{age}}",
     "noSpaces": "Noch nichts zu zeichnen. Gerät hinzufügen oder Grow starten auf der",
-    "demoNoSpaces": "Die Demo hat nichts zu zeichnen; in dieser wurde nichts zum Anschauen hinterlegt."
+    "demoNoSpaces": "Die Demo hat nichts zu zeichnen; in dieser wurde nichts zum Anschauen hinterlegt.",
+    "leafShort": "Blatt",
+    "noTargetNow": "um diese Zeit kein Ziel"
   },
   "camera": {
     "never": "nie",
@@ -4707,7 +4709,9 @@
       "noWindow": "kein Zeitplan",
       "offAt": "aus um {{time}}",
       "onAt": "an um {{time}}",
-      "barAlt": "Licht an von {{on}} bis {{off}}"
+      "barAlt": "Licht an von {{on}} bis {{off}}",
+      "wasOn": "War an",
+      "wasOff": "War aus"
     },
     "leaf": {
       "leaf": "Blatttemperatur",

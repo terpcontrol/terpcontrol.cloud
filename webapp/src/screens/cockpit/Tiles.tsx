@@ -243,8 +243,15 @@ function LightTile({ spaceId, device, live, now, offline }: TilesProps) {
     <Frame spaceId={spaceId} tileKey="light">
       <div className={styles.tileText}>
         <div className={styles.figureLine} {...ageAttribute(age)}>
-          <span className={`figure ${styles.figure}`}>{known ? t(on ? 'cockpit.light.on' : 'cockpit.light.off') : '–'}</span>
-          {on ? <span className={`mono ${styles.second}`}>{`${decimalFigure(Math.round(level.value!), 0)} %`}</span> : null}
+          {/* A lamp nobody has heard from in ten minutes is said in the past:
+              a big "An 100 %" at nine in the evening, from a fridge silent
+              since the morning, read as the light being on now. */}
+          <span className={`figure ${styles.figure}`}>
+            {known
+              ? t(age === 'offline' ? (on ? 'cockpit.light.wasOn' : 'cockpit.light.wasOff') : on ? 'cockpit.light.on' : 'cockpit.light.off')
+              : '–'}
+          </span>
+          {on && age !== 'offline' ? <span className={`mono ${styles.second}`}>{`${decimalFigure(Math.round(level.value!), 0)} %`}</span> : null}
         </div>
         <p className={`mono ${styles.targetLine}`}>
           {window ? (
