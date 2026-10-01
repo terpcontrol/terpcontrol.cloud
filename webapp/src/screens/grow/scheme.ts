@@ -8,9 +8,17 @@ import type { GrowListItem, SchemeAmount } from '@fg2/shared-types/v1';
  */
 export const amountLabel = (amount: SchemeAmount): string => `${amount.name} ${amount.value} ${amount.unit}`;
 
-/** The name a scheme is known by: the shipped asset's id, or "own" for one the person made. */
+/** "Biobizz Light Mix" for the asset id "biobizz-light-mix": the words of the id, each with its capital, and no slug. */
+export const assetTitle = (assetId: string): string =>
+  assetId
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+/** The name a scheme is known by: the shipped asset's, or "own" for one the person made. */
 export const schemeName = (grow: GrowListItem, t: (key: string) => string): string => {
   const origin = grow.scheme?.origin;
   if (!origin) return '';
-  return origin.type === 'asset' ? origin.assetId.charAt(0).toUpperCase() + origin.assetId.slice(1) : t('grow.ownScheme');
+  return origin.type === 'asset' ? assetTitle(origin.assetId) : t('grow.ownScheme');
 };

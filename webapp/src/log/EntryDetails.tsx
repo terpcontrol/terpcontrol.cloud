@@ -22,6 +22,7 @@ import { deviceTitle } from '@/screens/devices/naming';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { ClimatePick } from '@/screens/grow/ClimatePick';
+import { assetTitle } from '@/screens/grow/scheme';
 import { climateRequest, KEEP_CLIMATE, type PhaseClimate } from '@/screens/grow/phase-climate';
 import { dayOf, momentOn } from '@/ui/days';
 import { readingFigure } from '@/ui/entries';
@@ -541,7 +542,7 @@ const title = (t: Translate, kind: TileKind, week: number | null): string =>
 const schemeLine = (grow: GrowListItem | undefined): string => {
   const origin = grow?.scheme?.origin;
   if (!origin) return '';
-  const name = origin.type === 'asset' ? origin.assetId.charAt(0).toUpperCase() + origin.assetId.slice(1) : origin.schemeId;
+  const name = origin.type === 'asset' ? assetTitle(origin.assetId) : origin.schemeId;
 
   return [name, grow?.scheme?.plantType].filter(Boolean).join(' · ');
 };

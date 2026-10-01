@@ -94,6 +94,11 @@
   border-color: transparent;
 }
 
+/* A week no camera and no photo pictured: the days, without seven empty squares. */
+.days[data-pictureless] .thumb {
+  display: none;
+}
+
 .dayTile[data-future='true'] .thumb {
   background: transparent;
   border: var(--rule-dashed);

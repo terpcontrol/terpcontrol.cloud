@@ -656,6 +656,26 @@ describe('the pictures a diary line carries', () => {
   });
 });
 
+describe('the days of a week without a camera', () => {
+  const noStills = { ...week, days: week.days.map(day => ({ ...day, mediaId: null, cameraId: null, capturedAt: null })) };
+
+  it('draws no empty squares where nothing pictured the week', () => {
+    const { container } = draw(<WeekCard week={{ ...noStills, entries: [] }} grow={grow} people={people} now={NOW} current />);
+
+    expect(container.querySelector('ul[data-pictureless]')).not.toBeNull();
+    expect(screen.queryByAltText(/^Day \d+$/)).not.toBeInTheDocument();
+  });
+
+  it('puts the photo written into the diary on the day it was taken', () => {
+    const photo = entry({ id: 'e-photo', kind: 'note', occurredAt: at(3, 12), mediaIds: ['media-photo'] });
+    const { container } = draw(<WeekCard week={{ ...noStills, entries: [photo] }} grow={grow} people={people} now={NOW} current />);
+
+    expect(container.querySelector('ul[data-pictureless]')).toBeNull();
+    const tiles = container.querySelectorAll('li img');
+    expect([...tiles].some(img => img.getAttribute('src')?.startsWith('/media/media-photo'))).toBe(true);
+  });
+});
+
 describe('the archive', () => {
   const finished: GrowListItem = { ...grow, id: 'grow-old', name: 'Autumn run', endedAt: at(20, 15), summary: { ...grow.summary, dayNumber: 14 } };
 

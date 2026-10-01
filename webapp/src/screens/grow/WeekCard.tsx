@@ -58,6 +58,11 @@ export function WeekCard({ week, grow, people, now, current, explain }: WeekCard
   const temperature = week.climate.find(row => row.metric === 'temperature');
   const humidity = week.climate.find(row => row.metric === 'humidity');
   const readingName = (key: string) => grow.measurements.find(definition => definition.key === key);
+  // A day's tile is the camera's still of it, else a photo written into the
+  // diary that day. A week with neither - a grow with no camera and no photo
+  // that week - draws its days without the seven empty squares, which read as
+  // pictures that failed to load.
+  const pictureless = week.days.every(day => !day.mediaId && !photoOn(day.startsAt, week.entries));
 
   return (
     <article className={styles.card} aria-label={t('grow.weekN', { week: week.weekNumber })}>
@@ -78,7 +83,7 @@ export function WeekCard({ week, grow, people, now, current, explain }: WeekCard
         <ChevronDown size={16} strokeWidth={1.75} className={styles.chevron} data-open={open} aria-hidden />
       </button>
 
-      <ul className={styles.days}>
+      <ul className={styles.days} data-pictureless={pictureless || undefined}>
         {/* A tile is one of the grow's own days, and those begin when the grow
             began rather than at midnight - so a tile straddles two dates and is
             named after neither. Called after the weekday it opens on, it put
@@ -88,7 +93,8 @@ export function WeekCard({ week, grow, people, now, current, explain }: WeekCard
             unique inside the card, and the lines below are stamped with it. */}
         {week.days.map(day => {
           const at = DateTime.fromISO(day.startsAt);
-          const src = day.mediaId ? mediaUrl(day.mediaId, THUMBNAIL_WIDTH.dayTile) : null;
+          const picture = day.mediaId ?? photoOn(day.startsAt, week.entries);
+          const src = picture ? mediaUrl(picture, THUMBNAIL_WIDTH.dayTile) : null;
           return (
             <li key={day.dayNumber} className={styles.dayTile} data-future={at > lived}>
               <span className={styles.thumb} title={t('home.card.dayN', { day: day.dayNumber })}>
@@ -143,7 +149,7 @@ export function WeekCard({ week, grow, people, now, current, explain }: WeekCard
                     named the manufacturer alone would credit that chart with figures it never published. */}
                 <span className={styles.feedingTitle}>
                   {schemeName(grow, t)}
-                  {grow.scheme?.edited ? ` · ${t('grow.edited')}` : ''} · {t('grow.weekN', { week: week.weekNumber }).toLowerCase()}
+                  {grow.scheme?.edited ? ` · ${t('grow.edited')}` : ''} · {t('grow.weekN', { week: week.weekNumber })}
                 </span>
                 <span className={styles.feedingAmounts}>
                   {week.feeding.amounts
@@ -235,3 +241,16 @@ function Stat({ value, unit, label }: { value: string; unit: string; label: Reac
     </div>
   );
 }
+
+const DAY_MS = 86_400_000;
+
+/** The first photo written into the diary during the grow's day that begins at `startsAt`, or null. */
+const photoOn = (startsAt: string, entries: { occurredAt: string; mediaIds: string[] }[]): string | null => {
+  const from = DateTime.fromISO(startsAt).toMillis();
+  const photo = entries.find(entry => {
+    const at = DateTime.fromISO(entry.occurredAt).toMillis();
+    return entry.mediaIds.length > 0 && at >= from && at < from + DAY_MS;
+  });
+
+  return photo?.mediaIds[0] ?? null;
+};
