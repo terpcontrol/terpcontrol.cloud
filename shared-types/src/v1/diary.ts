@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import {
+  accountLayers,
   alertKind,
   anyValue,
   cameraKind,
@@ -1177,6 +1178,7 @@ export const homeAnswer = named(
     spaces: z.array(homeSpaceCard),
     followedGrows: z.array(followedGrowCard),
     people: z.array(person).describe('Everyone the cards name, so a card can say who wrote an entry without another read.'),
+    layers: accountLayers,
   }),
 );
 

@@ -62,6 +62,7 @@ const me = (notifications: Partial<NotificationSettings> = {}, over: Partial<Me>
   pushPublicKey: 'BAbC',
   telegramAvailable: true,
   pushSubscribed: false,
+  layers: { diary: true },
   ...over,
 });
 

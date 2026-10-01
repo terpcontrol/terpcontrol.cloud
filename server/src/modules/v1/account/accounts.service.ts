@@ -9,12 +9,15 @@ import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v
 import { PageQuery } from '@common/v1/validation';
 import { conflict, notFound } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
+import { EntryDocument } from '@database/schemas/v1/entries.schema';
+import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { StoredPushSubscription } from '@database/schemas/v1/push-subscriptions.schema';
 import { StoredSession } from '@database/schemas/v1/sessions.schema';
 import { StoredNotificationSettings, StoredUser } from '@database/schemas/v1/users.schema';
 import { authConfig, notificationsConfig, premiumConfig, retentionConfig } from '@config/configuration';
 import { climateWindowOf } from '@modules/retention/climate-window';
 import { freeTierOf } from '../camera/entitlement.service';
+import { layersOf } from './diary-layer';
 import { logger } from '@utils/logger';
 
 /**
@@ -42,6 +45,8 @@ export class AccountsService implements OnModuleInit {
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
     @InjectModel(MODEL_V1.pushSubscription) private readonly pushSubscriptions: Model<StoredPushSubscription>,
     @InjectModel(MODEL_V1.session) private readonly sessions: Model<StoredSession>,
+    @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
+    @InjectModel(MODEL_V1.entry) private readonly entries: Model<EntryDocument>,
     @Inject(authConfig.KEY) private readonly auth: ConfigType<typeof authConfig>,
     @Inject(premiumConfig.KEY) private readonly premium: ConfigType<typeof premiumConfig>,
     @Inject(notificationsConfig.KEY) private readonly notifications: ConfigType<typeof notificationsConfig>,
@@ -156,21 +161,21 @@ export class AccountsService implements OnModuleInit {
     const { notifications, ...rest } = body;
     const changes: Partial<StoredUser> = { ...rest };
     if (notifications !== undefined) changes.notifications = stored(notifications);
-    if (rest.preferences !== undefined) changes.preferences = { ...rest.preferences, timezoneChosen: await this.zoneChosen(id, rest.preferences) };
+    if (rest.preferences !== undefined) changes.preferences = await this.preferencesFrom(id, rest.preferences);
 
     return this.apply(id, changes);
   }
 
   /**
-   * Whether the zone is now one a person picked. Changing it is picking it, and
-   * so is saying so outright - keeping UTC on purpose. Once picked it stays
-   * picked: a body that sends the preferences back without the flag, as a
-   * change of units does, is not a person un-choosing their zone.
+   * The preferences a body replaces, with the two things it may leave out kept
+   * as they are: a body that only means to change the units sends the object
+   * back as some screen read it, and must neither un-choose the zone nor take
+   * back an answer about the diary given on another device.
    */
-  private async zoneChosen(id: string, wanted: NonNullable<MeUpdate['preferences']>): Promise<boolean> {
+  private async preferencesFrom(id: string, wanted: NonNullable<MeUpdate['preferences']>): Promise<StoredUser['preferences']> {
     const current = (await this.require(id)).preferences;
 
-    return current.timezoneChosen === true || wanted.timezoneChosen === true || wanted.timezone !== current.timezone;
+    return { ...wanted, timezoneChosen: zoneChosen(current, wanted), diary: wanted.diary === undefined ? (current.diary ?? null) : wanted.diary };
   }
 
   /** The same fields an administrator may create, each only if it changes. */
@@ -272,6 +277,7 @@ export class AccountsService implements OnModuleInit {
         locale: user.preferences.locale,
         timezone: user.preferences.timezone,
         timezoneChosen: user.preferences.timezoneChosen === true,
+        diary: user.preferences.diary ?? null,
       },
       retention: { climateDays: user.retention.climateDays },
       notifications: {
@@ -342,6 +348,7 @@ export class AccountsService implements OnModuleInit {
       pushPublicKey: this.notifications.pushPrivateKey && this.notifications.pushContact ? this.notifications.pushPublicKey : null,
       telegramAvailable: !!(this.notifications.telegramBotToken && this.notifications.telegramBotUsername),
       pushSubscribed,
+      layers: await layersOf(user.id, user.preferences.diary, this.grows, this.entries),
     };
   }
 
@@ -436,3 +443,12 @@ const stored = (settings: NotificationSettings): StoredNotificationSettings => (
   quietHours: settings.quietHours,
   mutedUntil: settings.mutedUntil === null ? null : new Date(settings.mutedUntil),
 });
+
+/**
+ * Whether the zone is now one a person picked. Changing it is picking it, and
+ * so is saying so outright - keeping UTC on purpose. Once picked it stays
+ * picked: a body that sends the preferences back without the flag, as a change
+ * of units does, is not a person un-choosing their zone.
+ */
+const zoneChosen = (current: StoredUser['preferences'], wanted: NonNullable<MeUpdate['preferences']>): boolean =>
+  current.timezoneChosen === true || wanted.timezoneChosen === true || wanted.timezone !== current.timezone;

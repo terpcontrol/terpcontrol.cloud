@@ -52,6 +52,7 @@ const me = (): Me => ({
   pushPublicKey: null,
   telegramAvailable: false,
   pushSubscribed: false,
+  layers: { diary: true },
 });
 
 const server = { me: me(), patched: [] as MeUpdate[], asked: [] as string[] };

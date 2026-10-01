@@ -68,3 +68,7 @@ entriesSchema.index({ deviceId: 1, occurredAt: -1 });
 entriesSchema.index({ taskId: 1 }, { unique: true, partialFilterExpression: { taskId: { $type: 'string' } } });
 // Everything logged about one plant, which is what a split grow is read by.
 entriesSchema.index({ plantIds: 1, occurredAt: -1 });
+// Whether somebody has ever written a line themselves, which decides whether the
+// diary is offered to them and is asked on every read of the home. Partial,
+// because the machines write most lines and none of theirs answers it.
+entriesSchema.index({ authorId: 1, kind: 1 }, { partialFilterExpression: { source: 'human' } });

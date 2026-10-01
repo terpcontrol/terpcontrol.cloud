@@ -71,6 +71,7 @@ const home: HomeAnswer = {
   ],
   followedGrows: [],
   people: [],
+  layers: { diary: true },
 };
 
 const grow: GrowListItem = {

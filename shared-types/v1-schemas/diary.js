@@ -885,6 +885,7 @@ exports.homeAnswer = (0, common_js_1.named)('HomeAnswer', zod_1.z.object({
     spaces: zod_1.z.array(exports.homeSpaceCard),
     followedGrows: zod_1.z.array(exports.followedGrowCard),
     people: zod_1.z.array(common_js_1.person).describe('Everyone the cards name, so a card can say who wrote an entry without another read.'),
+    layers: common_js_1.accountLayers,
 }));
 exports.verdictRating = (0, common_js_1.named)('VerdictRating', zod_1.z.enum(['good', 'watch', 'poor']));
 /** A target widened by `TARGET_BAND`: what a chart shades green and a verdict counts time inside. */

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import type {
+  AccountLayers,
   CardTrend,
   DueTask,
   FollowedGrowCard,
@@ -28,6 +29,7 @@ import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
+import { layersOf } from '../account/diary-layer';
 import { diaryMovedAt } from '../diary/diary-entries';
 import { NOTHING_HIDDEN, Redaction, redactionOf, serialisePublicCard, stagesReachedOf, summaryOf } from '../grow/grow-serialiser';
 import { mergeLive } from '../space/space-live';
@@ -195,9 +197,21 @@ export class HomeService {
       }),
     );
 
-    const followedGrows = ctx.userId && !ctx.isDemo ? await this.followed(ctx.userId, now) : [];
+    const [followedGrows, people, layers] = await Promise.all([
+      ctx.userId && !ctx.isDemo ? this.followed(ctx.userId, now) : Promise.resolve([]),
+      this.peopleIn(answers),
+      this.layersOf(ctx),
+    ]);
 
-    return { spaces: answers, followedGrows, people: await this.peopleIn(answers) };
+    return { spaces: answers, followedGrows, people, layers };
+  }
+
+  /** The demo tour is shown everything there is, because showing it is the tour's whole purpose. */
+  private async layersOf(ctx: AccessContext): Promise<AccountLayers> {
+    if (ctx.isDemo || ctx.userId === null) return { diary: true };
+
+    const user = await this.users.findOne({ id: ctx.userId }, { 'preferences.diary': 1 }).lean<Pick<StoredUser, 'preferences'>>();
+    return layersOf(ctx.userId, user?.preferences.diary, this.grows, this.entries);
   }
 
   /**

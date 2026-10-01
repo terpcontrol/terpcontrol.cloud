@@ -2892,6 +2892,9 @@ export declare const homeAnswer: z.ZodObject<{
         id: z.ZodString;
         handle: z.ZodString;
     }, z.core.$strip>>;
+    layers: z.ZodObject<{
+        diary: z.ZodBoolean;
+    }, z.core.$strip>;
 }, z.core.$strip>;
 export declare const verdictRating: z.ZodEnum<{
     watch: "watch";

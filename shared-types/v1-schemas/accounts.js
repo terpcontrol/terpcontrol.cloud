@@ -31,6 +31,10 @@ exports.userPreferences = (0, common_js_1.named)('UserPreferences', zod_1.z.obje
         .boolean()
         .optional()
         .describe('Whether a person picked `timezone`. False while it is still the UTC every account starts on and every migrated account was given, because the old cloud never knew a zone; the app then adopts the zone of the device it is signed in on, once, and says so. Any change of `timezone` sets it, and a client may set it to keep UTC deliberately. It is never set back.'),
+    diary: common_js_1.diaryChoice
+        .nullable()
+        .optional()
+        .describe('Whether the grow diary is offered, as the person answered; null where they have not, and `layers.diary` then follows what the account has used. A body that leaves it out keeps what is stored.'),
 }));
 /** How long raw climate points are kept; `null` keeps them for as long as the install does. */
 exports.userRetention = (0, common_js_1.named)('UserRetention', zod_1.z.object({
@@ -198,6 +202,7 @@ exports.me = (0, common_js_1.named)('Me', exports.user.omit({ activationCode: tr
     pushPublicKey: zod_1.z.string().nullable().describe('VAPID public key; null until the install configures a key pair.'),
     telegramAvailable: zod_1.z.boolean(),
     pushSubscribed: zod_1.z.boolean().describe('Whether any browser of this account is subscribed to push, so a screen can say whether the push row of the grid goes anywhere.'),
+    layers: common_js_1.accountLayers,
 }));
 /**
  * `PATCH /me`. Only what the person owns: the login address is the identity and

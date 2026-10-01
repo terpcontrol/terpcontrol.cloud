@@ -76,6 +76,7 @@ const me = (premium: Partial<Me['premium']> = {}): Me => ({
   pushPublicKey: null,
   telegramAvailable: false,
   pushSubscribed: false,
+  layers: { diary: true },
 });
 
 const camera = (over: Partial<Camera> & { entitlement: Camera['entitlement'] }): Camera => ({

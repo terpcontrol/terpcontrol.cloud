@@ -66,6 +66,7 @@ const me = (over: Partial<Me> = {}): Me => ({
   pushPublicKey: null,
   telegramAvailable: false,
   pushSubscribed: false,
+  layers: { diary: true },
   ...over,
 });
 

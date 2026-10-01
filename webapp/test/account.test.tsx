@@ -57,6 +57,7 @@ const me = (): Me => ({
   pushPublicKey: null,
   telegramAvailable: false,
   pushSubscribed: false,
+  layers: { diary: true },
 });
 
 const at = (id: string, userAgent: string | null, lastSeenAt: string): Session => ({

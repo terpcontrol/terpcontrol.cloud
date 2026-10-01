@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FIELD_OUTPUT_METRIC = exports.FIELD_METRIC = exports.OUTPUT_METRIC_FIELD = exports.METRIC_FIELD = exports.METRIC_DECIMALS = exports.TARGET_BAND = exports.outputMetric = exports.metric = exports.schemeWeek = exports.schemeAmount = exports.unitPreference = exports.volumeUnit = exports.weightUnit = exports.temperatureUnit = exports.growOrSpaceRef = exports.growOrSpaceType = exports.shareKind = exports.reminderKind = exports.growType = exports.spaceKind = exports.planStatus = exports.grantKind = exports.mediaKind = exports.cameraKind = exports.seriesPoint = exports.metricValue = exports.VALUE_AGE = exports.valueState = exports.socketRole = exports.planTransitionKind = exports.notificationChannel = exports.webhookMethod = exports.alertKind = exports.severity = exports.entrySource = exports.entryKind = exports.person = exports.memberRole = exports.growthStage = exports.subjectRef = exports.problem = exports.problemError = exports.page = exports.bytes = exports.anyValue = exports.id = exports.instant = exports.named = exports.registry = void 0;
+exports.FIELD_METRIC = exports.OUTPUT_METRIC_FIELD = exports.METRIC_FIELD = exports.METRIC_DECIMALS = exports.TARGET_BAND = exports.outputMetric = exports.metric = exports.schemeWeek = exports.schemeAmount = exports.accountLayers = exports.diaryChoice = exports.unitPreference = exports.volumeUnit = exports.weightUnit = exports.temperatureUnit = exports.growOrSpaceRef = exports.growOrSpaceType = exports.shareKind = exports.reminderKind = exports.growType = exports.spaceKind = exports.planStatus = exports.grantKind = exports.mediaKind = exports.cameraKind = exports.seriesPoint = exports.metricValue = exports.VALUE_AGE = exports.valueState = exports.socketRole = exports.planTransitionKind = exports.notificationChannel = exports.webhookMethod = exports.alertKind = exports.severity = exports.entrySource = exports.entryKind = exports.person = exports.memberRole = exports.growthStage = exports.subjectRef = exports.problem = exports.problemError = exports.page = exports.bytes = exports.anyValue = exports.id = exports.instant = exports.named = exports.registry = void 0;
+exports.FIELD_OUTPUT_METRIC = void 0;
 const zod_1 = require("zod");
 /**
  * The base of the `/v1` wire contract: the registry, the scalar helpers, the
@@ -234,6 +235,21 @@ exports.weightUnit = (0, exports.named)('WeightUnit', zod_1.z.enum(['grams', 'ou
 exports.volumeUnit = (0, exports.named)('VolumeUnit', zod_1.z.enum(['liters', 'gallons']));
 /** Display only: everything is stored and served in the first value of each enum. */
 exports.unitPreference = (0, exports.named)('UnitPreference', zod_1.z.object({ temperature: exports.temperatureUnit, weight: exports.weightUnit, volume: exports.volumeUnit }));
+/**
+ * Whether the grow diary is offered: `on` and `off` are a person's answer, and
+ * `null` is "not said", where the account's own use decides - see `AccountLayers`.
+ */
+exports.diaryChoice = (0, exports.named)('DiaryChoice', zod_1.z.enum(['on', 'off']));
+/**
+ * What the app lays over the climate for this account, worked out by the server
+ * so that a phone and a laptop agree and no client guesses from what it happens
+ * to have read.
+ */
+exports.accountLayers = (0, exports.named)('AccountLayers', zod_1.z.object({
+    diary: zod_1.z
+        .boolean()
+        .describe('Whether the grow diary is shown: grows, diary lines, the invitations to start either. True where the person said `on`, false where they said `off`, and where they said nothing, true once the account has ever had a grow (an ended or archived one included) or written a diary line itself.'),
+}));
 /**
  * A feeding grid, defined once: a person's own scheme and the effective grid a
  * grow carries are the same table, and only their origin differs.

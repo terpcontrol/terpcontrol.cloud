@@ -336,7 +336,47 @@ describe('the cards', () => {
   });
 
   it('is empty for somebody with nothing, rather than a refusal', async () => {
-    await expect(home.read(session('user-nobody'), NOW)).resolves.toEqual({ spaces: [], followedGrows: [], people: [] });
+    await expect(home.read(session('user-nobody'), NOW)).resolves.toEqual({ spaces: [], followedGrows: [], people: [], layers: { diary: false } });
+  });
+});
+
+/**
+ * Whether the home lays the diary over the climate. The rule itself is the
+ * account's and is asserted with it; what is asserted here is that the home
+ * answers the same thing for the person reading it, and that the tour answers
+ * everything.
+ */
+describe('the diary layer', () => {
+  const LOOKER = 'user-looker';
+
+  beforeEach(async () => {
+    await db.users.create({ id: LOOKER, email: 'looker@test.invalid', handle: 'looker', passwordHash: 'x' });
+    await db.memberships.create({ id: 'membership-looker', spaceId: TENT, userId: LOOKER, role: 'can_log' });
+  });
+
+  it('is on for the grower whose grows these are', async () => {
+    expect((await home.read(session(OWNER), NOW)).layers).toEqual({ diary: true });
+  });
+
+  it('is off for somebody who has kept no diary, though a grow of somebody else´s stands on their card', async () => {
+    const answer = await home.read(session(LOOKER), NOW);
+
+    expect(answer.spaces.map(card => card.grow?.growId)).toEqual([GROW]);
+    expect(answer.layers).toEqual({ diary: false });
+  });
+
+  it('follows the answer the person gave', async () => {
+    await db.users.updateOne({ id: LOOKER }, { $set: { 'preferences.diary': 'on' } });
+    expect((await home.read(session(LOOKER), NOW)).layers).toEqual({ diary: true });
+
+    await db.users.updateOne({ id: OWNER }, { $set: { 'preferences.diary': 'off' } });
+    expect((await home.read(session(OWNER), NOW)).layers).toEqual({ diary: false });
+  });
+
+  it('shows the demo tour everything there is', async () => {
+    const demo: AccessContext = { userId: null, isAdmin: false, isDemo: true, shareToken: null };
+
+    expect((await home.read(demo, NOW)).layers).toEqual({ diary: true });
   });
 });
 

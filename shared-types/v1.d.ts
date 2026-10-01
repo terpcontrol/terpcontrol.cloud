@@ -61,6 +61,8 @@ export type WeightUnit = 'grams' | 'ounces';
 
 export type VolumeUnit = 'liters' | 'gallons';
 
+export type DiaryChoice = 'on' | 'off';
+
 export type Metric = 'temperature' | 'humidity' | 'co2' | 'leafTemperature' | 'lux' | 'vpd' | 'ppfd' | 'offline';
 
 export type OutputMetric = 'heater' | 'dehumidifier' | 'co2' | 'light' | 'fan' | 'relais' | 'fanInternal' | 'fanExternal' | 'fanBackwall';
@@ -284,6 +286,13 @@ export interface UnitPreference {
   volume: VolumeUnit;
 }
 
+export interface AccountLayers {
+  /**
+   * Whether the grow diary is shown: grows, diary lines, the invitations to start either. True where the person said `on`, false where they said `off`, and where they said nothing, true once the account has ever had a grow (an ended or archived one included) or written a diary line itself.
+   */
+  diary: boolean;
+}
+
 export interface SchemeAmount {
   productKey: string;
   name: string;
@@ -323,6 +332,10 @@ export interface UserPreferences {
    * Whether a person picked `timezone`. False while it is still the UTC every account starts on and every migrated account was given, because the old cloud never knew a zone; the app then adopts the zone of the device it is signed in on, once, and says so. Any change of `timezone` sets it, and a client may set it to keep UTC deliberately. It is never set back.
    */
   timezoneChosen?: boolean;
+  /**
+   * Whether the grow diary is offered, as the person answered; null where they have not, and `layers.diary` then follows what the account has used. A body that leaves it out keeps what is stored.
+   */
+  diary?: DiaryChoice | null;
 }
 
 export interface UserRetention {
@@ -453,6 +466,7 @@ export interface Me {
    * Whether any browser of this account is subscribed to push, so a screen can say whether the push row of the grid goes anywhere.
    */
   pushSubscribed: boolean;
+  layers: AccountLayers;
 }
 
 export interface MeUpdate {
@@ -3216,6 +3230,7 @@ export interface HomeAnswer {
    * Everyone the cards name, so a card can say who wrote an entry without another read.
    */
   people: Person[];
+  layers: AccountLayers;
 }
 
 export interface TargetBand {

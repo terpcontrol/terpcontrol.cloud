@@ -1,6 +1,14 @@
 import { HydratedDocument, Schema } from 'mongoose';
 import type { NotificationChannels, NotificationSettings, TelegramChannel, User } from '@fg2/shared-types/v1';
-import { notificationCategory, notificationChannel, temperatureUnit, volumeUnit, webhookMethod, weightUnit } from '@fg2/shared-types/v1-schemas';
+import {
+  diaryChoice,
+  notificationCategory,
+  notificationChannel,
+  temperatureUnit,
+  volumeUnit,
+  webhookMethod,
+  weightUnit,
+} from '@fg2/shared-types/v1-schemas';
 
 /**
  * The account as it is stored: the contract's `User`, with its instants as BSON
@@ -100,6 +108,9 @@ export const usersSchema = new Schema<StoredUser>(
       // starts on - which is every migrated account, the old cloud never having
       // known a zone. The app adopts the device's zone while this is false.
       timezoneChosen: { type: Boolean, default: false },
+      // Whether the grow diary is offered, as the person answered; null is "not
+      // said", and then what the account has used decides.
+      diary: { type: String, enum: [...diaryChoice.options, null], default: null },
     },
     retention: {
       climateDays: { type: Number, default: null },

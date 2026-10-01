@@ -42,7 +42,7 @@ const followed: FollowedGrowCard = {
   updatedAt: NOW.minus({ hours: 3 }).toISO()!,
 };
 
-const server = { home: { spaces: [], followedGrows: [followed], people: [] } as HomeAnswer, unfollowed: [] as string[] };
+const server = { home: { spaces: [], followedGrows: [followed], people: [], layers: { diary: true } } as HomeAnswer, unfollowed: [] as string[] };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -85,7 +85,7 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);
   session.demo = false;
-  server.home = { spaces: [], followedGrows: [followed], people: [] };
+  server.home = { spaces: [], followedGrows: [followed], people: [], layers: { diary: true } };
   server.unfollowed = [];
 });
 
@@ -113,7 +113,7 @@ describe('the followed grows', () => {
   });
 
   it('says so when nobody is followed', async () => {
-    server.home = { spaces: [], followedGrows: [], people: [] };
+    server.home = { spaces: [], followedGrows: [], people: [], layers: { diary: true } };
     draw();
 
     expect(await screen.findByText('You follow nobody yet. Follow sits at the top of any public diary.')).toBeInTheDocument();

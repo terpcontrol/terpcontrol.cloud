@@ -69,6 +69,8 @@ const build = (): void => {
     database.users,
     database.pushSubscriptions,
     database.sessions,
+    database.grows,
+    database.entries,
     { ...auth },
     { ...premium },
     { ...notifications },
@@ -140,6 +142,8 @@ describe('signing up', () => {
       database.users,
       database.pushSubscriptions,
       database.sessions,
+      database.grows,
+      database.entries,
       { ...auth, requireActivation: true },
       { ...premium },
       { ...notifications },
@@ -171,6 +175,8 @@ describe('what is serialised', () => {
       database.users,
       database.pushSubscriptions,
       database.sessions,
+      database.grows,
+      database.entries,
       { ...auth, requireActivation: true },
       { ...premium },
       { ...notifications },
@@ -226,6 +232,8 @@ describe('what is serialised', () => {
         database.users,
         database.pushSubscriptions,
         database.sessions,
+        database.grows,
+        database.entries,
         { ...auth },
         { ...premium },
         { ...notifications },
@@ -332,6 +340,101 @@ describe('changing an account', () => {
 });
 
 /**
+ * Whether the grow diary is laid over the climate. A grower with one device who
+ * has never written a line is shown the climate alone; whoever has used the
+ * diary keeps it; and what somebody answered outright wins over either, on
+ * every device they sign in on.
+ */
+describe('the diary layer', () => {
+  const units = { temperature: 'celsius' as const, weight: 'grams' as const, volume: 'liters' as const };
+  const layersOf = async (id: string) => (await accounts.serialiseMe((await database.users.findOne({ id }).lean<StoredUser>())!)).layers;
+
+  const grow = (ownerId: string, over: Record<string, unknown> = {}) =>
+    database.grows.create({
+      id: `grow-${ownerId}`,
+      ownerId,
+      name: 'Spring run',
+      type: 'photoperiod',
+      phases: [],
+      placements: [],
+      slug: `spring-${ownerId}`,
+      startedAt: new Date('2026-05-01T08:00:00.000Z'),
+      endedAt: null,
+      ...over,
+    });
+
+  const line = (authorId: string, kind: string, source = 'human') =>
+    database.entries.create({
+      id: `entry-${authorId}-${kind}-${source}`,
+      createdAt: new Date(),
+      kind,
+      occurredAt: new Date(),
+      source,
+      authorId,
+      growId: null,
+      spaceId: 'space-1',
+      deviceId: null,
+      plantIds: [],
+      values: { kind },
+      mediaIds: [],
+    });
+
+  it('is off for an account that has kept no diary and said nothing about it', async () => {
+    const user = await signUp('climate-only');
+
+    expect((await accounts.serialiseMe(user)).preferences.diary).toBeNull();
+    expect(await layersOf(user.id)).toEqual({ diary: false });
+  });
+
+  it('comes on with a grow of the account´s own, an ended one included', async () => {
+    const user = await signUp('ended-grow');
+    await grow(user.id, { endedAt: new Date('2026-08-01T08:00:00.000Z') });
+
+    expect(await layersOf(user.id)).toEqual({ diary: true });
+  });
+
+  it('comes on with a line the account wrote itself, and not with a step-in or what a machine wrote', async () => {
+    const user = await signUp('wrote');
+    await line(user.id, 'visit');
+    await line(user.id, 'note', 'device');
+    expect(await layersOf(user.id)).toEqual({ diary: false });
+
+    await line(user.id, 'note');
+    expect(await layersOf(user.id)).toEqual({ diary: true });
+  });
+
+  it('is not turned on by somebody else´s grow', async () => {
+    const user = await signUp('neighbour');
+    await grow('somebody-else');
+
+    expect(await layersOf(user.id)).toEqual({ diary: false });
+  });
+
+  it('takes an answer over what the account did, in both directions', async () => {
+    const user = await signUp('answered');
+    await grow(user.id);
+
+    await accounts.updateOwn(user.id, { preferences: { units, locale: 'en', timezone: 'UTC', diary: 'off' } });
+    expect(await layersOf(user.id)).toEqual({ diary: false });
+
+    const unused = await signUp('asked-for-it');
+    await accounts.updateOwn(unused.id, { preferences: { units, locale: 'en', timezone: 'UTC', diary: 'on' } });
+    expect(await layersOf(unused.id)).toEqual({ diary: true });
+  });
+
+  it('keeps the answer through a change that leaves it out, and forgets it only when told to', async () => {
+    const user = await signUp('kept-answer');
+    await accounts.updateOwn(user.id, { preferences: { units, locale: 'en', timezone: 'UTC', diary: 'off' } });
+
+    const unitsOnly = await accounts.updateOwn(user.id, { preferences: { units: { ...units, weight: 'ounces' }, locale: 'en', timezone: 'UTC' } });
+    expect(accounts.serialise(unitsOnly).preferences.diary).toBe('off');
+
+    const forgotten = await accounts.updateOwn(user.id, { preferences: { units, locale: 'en', timezone: 'UTC', diary: null } });
+    expect(accounts.serialise(forgotten).preferences.diary).toBeNull();
+  });
+});
+
+/**
  * A webhook with no headers of its own is the ordinary one - somebody pastes a
  * URL from their home automation and types nothing else - and its empty map has
  * to survive both the write and the read. Mongoose leaves an empty object out
@@ -397,6 +500,8 @@ describe('signing in', () => {
       database.users,
       database.pushSubscriptions,
       database.sessions,
+      database.grows,
+      database.entries,
       { ...auth, requireActivation: true },
       { ...premium },
       { ...notifications },
@@ -536,6 +641,8 @@ describe('the account the install seeds', () => {
       database.users,
       database.pushSubscriptions,
       database.sessions,
+      database.grows,
+      database.entries,
       { ...auth, adminPassword: NEW_PASSWORD },
       { ...premium },
       { ...notifications },

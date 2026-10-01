@@ -338,6 +338,22 @@ export declare const unitPreference: z.ZodObject<{
     }>;
 }, z.core.$strip>;
 /**
+ * Whether the grow diary is offered: `on` and `off` are a person's answer, and
+ * `null` is "not said", where the account's own use decides - see `AccountLayers`.
+ */
+export declare const diaryChoice: z.ZodEnum<{
+    off: "off";
+    on: "on";
+}>;
+/**
+ * What the app lays over the climate for this account, worked out by the server
+ * so that a phone and a laptop agree and no client guesses from what it happens
+ * to have read.
+ */
+export declare const accountLayers: z.ZodObject<{
+    diary: z.ZodBoolean;
+}, z.core.$strip>;
+/**
  * A feeding grid, defined once: a person's own scheme and the effective grid a
  * grow carries are the same table, and only their origin differs.
  */

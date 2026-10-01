@@ -283,6 +283,28 @@ export const unitPreference = named(
 );
 
 /**
+ * Whether the grow diary is offered: `on` and `off` are a person's answer, and
+ * `null` is "not said", where the account's own use decides - see `AccountLayers`.
+ */
+export const diaryChoice = named('DiaryChoice', z.enum(['on', 'off']));
+
+/**
+ * What the app lays over the climate for this account, worked out by the server
+ * so that a phone and a laptop agree and no client guesses from what it happens
+ * to have read.
+ */
+export const accountLayers = named(
+  'AccountLayers',
+  z.object({
+    diary: z
+      .boolean()
+      .describe(
+        'Whether the grow diary is shown: grows, diary lines, the invitations to start either. True where the person said `on`, false where they said `off`, and where they said nothing, true once the account has ever had a grow (an ended or archived one included) or written a diary line itself.',
+      ),
+  }),
+);
+
+/**
  * A feeding grid, defined once: a person's own scheme and the effective grid a
  * grow carries are the same table, and only their origin differs.
  */

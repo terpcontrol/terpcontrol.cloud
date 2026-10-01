@@ -37,6 +37,10 @@ export declare const userPreferences: z.ZodObject<{
     locale: z.ZodString;
     timezone: z.ZodString;
     timezoneChosen: z.ZodOptional<z.ZodBoolean>;
+    diary: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
+        off: "off";
+        on: "on";
+    }>>>;
 }, z.core.$strip>;
 /** How long raw climate points are kept; `null` keeps them for as long as the install does. */
 export declare const userRetention: z.ZodObject<{
@@ -206,6 +210,10 @@ export declare const user: z.ZodObject<{
         locale: z.ZodString;
         timezone: z.ZodString;
         timezoneChosen: z.ZodOptional<z.ZodBoolean>;
+        diary: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
+            off: "off";
+            on: "on";
+        }>>>;
     }, z.core.$strip>;
     retention: z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
@@ -368,6 +376,10 @@ export declare const me: z.ZodObject<{
         locale: z.ZodString;
         timezone: z.ZodString;
         timezoneChosen: z.ZodOptional<z.ZodBoolean>;
+        diary: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
+            off: "off";
+            on: "on";
+        }>>>;
     }, z.core.$strip>;
     retention: z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
@@ -396,6 +408,9 @@ export declare const me: z.ZodObject<{
     pushPublicKey: z.ZodNullable<z.ZodString>;
     telegramAvailable: z.ZodBoolean;
     pushSubscribed: z.ZodBoolean;
+    layers: z.ZodObject<{
+        diary: z.ZodBoolean;
+    }, z.core.$strip>;
 }, z.core.$strip>;
 /**
  * `PATCH /me`. Only what the person owns: the login address is the identity and
@@ -461,6 +476,10 @@ export declare const meUpdate: z.ZodObject<{
         locale: z.ZodString;
         timezone: z.ZodString;
         timezoneChosen: z.ZodOptional<z.ZodBoolean>;
+        diary: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
+            off: "off";
+            on: "on";
+        }>>>;
     }, z.core.$strip>>;
     retention: z.ZodOptional<z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
@@ -789,6 +808,10 @@ export declare const adminUserPage: z.ZodObject<{
             locale: z.ZodString;
             timezone: z.ZodString;
             timezoneChosen: z.ZodOptional<z.ZodBoolean>;
+            diary: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
+                off: "off";
+                on: "on";
+            }>>>;
         }, z.core.$strip>;
         retention: z.ZodObject<{
             climateDays: z.ZodNullable<z.ZodNumber>;
