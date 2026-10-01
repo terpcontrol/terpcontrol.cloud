@@ -3048,7 +3048,9 @@
     "metric": {
       "temperature": "Temperatur",
       "humidity": "Luftfeuchte",
-      "co2": "CO₂"
+      "co2": "CO₂",
+      "leafTemperature": "Blatttemperatur",
+      "lux": "Lichtstärke"
     },
     "panelAlt": "{{metric}} über den Zeitraum",
     "band": "Ziel {{low}}–{{high}}",
@@ -4615,6 +4617,14 @@
     "ppfd": {
       "title": "PPFD",
       "text": "Wie viel für die Pflanze nutzbares Licht auf der Blattebene ankommt, in µmol pro Quadratmeter und Sekunde. Es wird aus dem Lux-Wert des Sensors geschätzt, mit dem Faktor, der für dein Gerät eingestellt ist."
+    },
+    "leafTemperature": {
+      "title": "Blatttemperatur",
+      "text": "Wie warm die Blätter selbst sind, gemessen vom Blattsensor. Bei Licht liegen sie meist etwas unter der Luft, weil sie Wasser verdunsten – daraus wird der VPD berechnet. Einen eigenen Zielwert gibt es nicht: Die Blätter folgen der Luft und dem Licht."
+    },
+    "lux": {
+      "title": "Lichtstärke",
+      "text": "Wie hell es am Lichtsensor ist, in Lux. Die Kurve zeigt, wann und wie stark die Lampe leuchtet. Wie viel davon die Pflanze nutzen kann, sagt der PPFD-Wert, der aus den Lux geschätzt wird."
     }
   },
   "place": {

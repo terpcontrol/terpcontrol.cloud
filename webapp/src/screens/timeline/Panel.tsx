@@ -9,8 +9,21 @@ import { alarmsOf, at, fractionOf, pointAt, scaleOf, stretchesOf, targetAt, type
 import { Term } from '@/ui/Help';
 import styles from './Timeline.module.css';
 
-/** The signal colour a curve is drawn in. Only the three steered metrics have a panel, so only they have one. */
-const METRIC_TOKEN: Partial<Record<Metric, ChartToken>> = { temperature: 'temperature', humidity: 'humidity', co2: 'co2' };
+/** The signal colour a curve is drawn in: the leaf in the green its tile draws it in, the light in the lamp's amber. */
+const METRIC_TOKEN: Partial<Record<Metric, ChartToken>> = {
+  temperature: 'temperature',
+  humidity: 'humidity',
+  co2: 'co2',
+  leafTemperature: 'green',
+  lux: 'warning',
+};
+
+/**
+ * The readings that are measured and never steered. Nothing aims a controller
+ * at the leaf or the light, so their panels have no target to miss and do not
+ * say "no target"; their name explains what is measured instead.
+ */
+const UNSTEERED: Partial<Record<Metric, 'leafTemperature' | 'lux'>> = { leafTemperature: 'leafTemperature', lux: 'lux' };
 
 interface PanelProps {
   panel: TimelinePanel;
@@ -49,18 +62,22 @@ export function Panel({ panel, nights, alarms, from, to, cursor, scrub, explain,
   const bandLabel = target
     ? t('timeline.band', { low: targetFigure(target.band.low, panel.metric), high: targetFigure(target.band.high, panel.metric) })
     : null;
+  const name = t(`timeline.metric.${panel.metric}`, { defaultValue: panel.metric });
+  const term = UNSTEERED[panel.metric];
 
   return (
     <section className={styles.panel} data-focus={focused || undefined}>
       <header className={styles.panelHead}>
         <span className={styles.metric} data-metric={panel.metric}>
-          {t(`timeline.metric.${panel.metric}`, { defaultValue: panel.metric })}
+          {term ? <Term topic={term}>{name}</Term> : name}
         </span>
         <span className={`figure ${styles.panelValue}`}>{value === null ? '—' : figure(value, panel.metric)}</span>
         <span className={`mono ${styles.panelUnit}`}>{unit}</span>
-        <span className={`label ${styles.band}`}>
-          {target && bandLabel ? explain ? <Term topic="band">{bandLabel}</Term> : bandLabel : t('timeline.noTarget')}
-        </span>
+        {term ? null : (
+          <span className={`label ${styles.band}`}>
+            {target && bandLabel ? explain ? <Term topic="band">{bandLabel}</Term> : bandLabel : t('timeline.noTarget')}
+          </span>
+        )}
       </header>
       <div className={styles.plot}>
         <Chart option={option} height="100%" ariaLabel={t('timeline.panelAlt', { metric: t(`timeline.metric.${panel.metric}`) })} />

@@ -516,6 +516,33 @@ describe('a timeline opened on one reading', () => {
     expect(scrolled.mock.contexts[0]).toBe(humidity);
   });
 
+  it('stacks the leaf and the light where they are measured, opens on the leaf, and claims no target for either', () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    state.answer = {
+      ...answer,
+      panels: [
+        ...answer.panels,
+        {
+          metric: 'leafTemperature',
+          points: Array.from({ length: 24 }, (_, hour) => ({ measuredAt: at(hour), value: hour < 6 ? 20.5 : 24.2 })),
+          targets: [],
+        },
+        { metric: 'lux', points: Array.from({ length: 24 }, (_, hour) => ({ measuredAt: at(hour), value: hour < 6 ? 0 : 41_250 })), targets: [] },
+      ],
+    };
+    drawAt('/timeline?focus=leafTemperature');
+
+    const leaf = screen.getByText('Leaf temperature').closest('section')!;
+    const light = screen.getByText('Light intensity').closest('section')!;
+    expect(leaf).toHaveAttribute('data-focus', 'true');
+    expect(light).not.toHaveAttribute('data-focus');
+    // Nothing aims a controller at either, so neither says it has missed a target.
+    expect(leaf).not.toHaveTextContent('no target');
+    expect(light).toHaveTextContent('41 250lx');
+    // The name explains what is measured, where a steered panel names its band.
+    expect(within(leaf).getByRole('button', { name: /Leaf temperature/ })).toBeInTheDocument();
+  });
+
   it('marks the lamp´s lane for the light', () => {
     Element.prototype.scrollIntoView = vi.fn();
     drawAt('/timeline?focus=light');

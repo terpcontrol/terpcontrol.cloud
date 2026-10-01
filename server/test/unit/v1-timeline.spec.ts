@@ -96,6 +96,8 @@ const controllerReport = (at: Date): Reading | null => {
     temperature: lit ? 24.799999999999997 : 20.049999999999997,
     humidity: lit ? 55 : 62,
     co2: lit ? 910 : 430,
+    leafTemperature: lit ? 22.9 : 19.8,
+    lux: lit ? 41_250 : 0,
   };
 
   return {
@@ -512,10 +514,19 @@ describe('the window a range chip names', () => {
 });
 
 describe('the stacked panels', () => {
-  it('stacks temperature, humidity and CO2 and nothing else: VPD belongs to the charting view', async () => {
+  it('stacks temperature, humidity and CO2 and not VPD, which belongs to the charting view', async () => {
     const page = await readAs(session(OWNER));
 
     expect(page.panels.map(panel => panel.metric)).toEqual(['temperature', 'humidity', 'co2']);
+  });
+
+  it('stacks the leaf and the light under them where a canopy sensor measures them, with no band to miss', async () => {
+    sensed = ['temperature', 'humidity', 'co2', 'leafTemperature', 'lux'];
+    const page = await readAs(session(OWNER));
+
+    expect(page.panels.map(panel => panel.metric)).toEqual(['temperature', 'humidity', 'co2', 'leafTemperature', 'lux']);
+    expect(page.panels.slice(3).map(panel => panel.targets)).toEqual([[], []]);
+    expect(new Set(page.panels[4].points.map(point => point.value))).toEqual(new Set([0, 41_250]));
   });
 
   it('leaves the CO2 panel out altogether where nothing in the tent measures it', async () => {

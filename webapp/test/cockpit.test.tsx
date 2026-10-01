@@ -496,11 +496,21 @@ describe('what a place reports decides its tiles', () => {
     expect(leaf).toHaveTextContent('2.0 °C cooler than the air');
     // The thousands are set apart by a narrow space, which reads as a space.
     expect(leaf).toHaveTextContent('40 000 lx');
+    expect(screen.getByRole('link', { name: /^Leaf & light/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=leafTemperature');
     expect(screen.queryByRole('link', { name: /^CO₂/ })).not.toBeInTheDocument();
     // A tent controller cannot cool, so its temperature lists the heater and nothing that would promise otherwise.
     const temperature = await tile('Temperature');
     expect(await within(temperature).findByText(/Heater/)).toBeInTheDocument();
     expect(temperature).not.toHaveTextContent('Compressor');
+  });
+
+  it('opens the Timeline on the light where the canopy sensor measures no leaf', async () => {
+    server.devices = [fridge({ type: 'controller' })];
+    const overview = overviewOf({ kind: 'tent', values: [...values(), { metric: 'lux', value: 12_500, measuredAt: ago(0.3), state: 'live' }] });
+    draw(<PlaceCockpit overview={overview} />);
+
+    expect(await tile('Leaf & light')).toHaveTextContent('12 500lx');
+    expect(screen.getByRole('link', { name: /^Leaf & light/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=lux');
   });
 
   it('shows the newest still a tap from the camera´s page, and no camera where there is none', async () => {

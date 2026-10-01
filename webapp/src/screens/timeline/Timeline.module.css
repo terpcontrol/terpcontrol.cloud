@@ -321,6 +321,16 @@
   color: var(--co2);
 }
 
+.metric[data-metric='leafTemperature'],
+.scrubValue[data-metric='leafTemperature'] {
+  color: var(--green-ink);
+}
+
+.metric[data-metric='lux'],
+.scrubValue[data-metric='lux'] {
+  color: var(--warning);
+}
+
 .plot {
   position: relative;
   /* Three panels and the lanes fit a phone without scrolling past the camera. */

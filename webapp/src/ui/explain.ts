@@ -81,6 +81,8 @@ export const HELP_TOPICS = [
   'compressor',
   'dayCurve',
   'ppfd',
+  'leafTemperature',
+  'lux',
 ] as const;
 
 export type HelpTopic = (typeof HELP_TOPICS)[number];

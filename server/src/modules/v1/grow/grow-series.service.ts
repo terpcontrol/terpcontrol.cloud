@@ -33,7 +33,7 @@ import { GrowsService } from './grows.service';
  * must not find them disagreeing about what was being aimed at.
  *
  * What is new here is that the client chooses the lines. The timeline stacks
- * three panels it decides on; the Charts view draws what was ticked - VPD among
+ * the panels it decides on; the Charts view draws what was ticked - VPD among
  * them, which the timeline leaves out on purpose - beside the outputs and the
  * grow's own measurements, which come from the diary rather than from the
  * measurement store.

@@ -80,13 +80,26 @@ const ICON: Record<TileKey, LucideIcon> = { temperature: Thermometer, humidity: 
  * inside that explain themselves stand above the stretch and keep their own
  * press.
  */
-function Frame({ spaceId, tileKey, verdict, children }: { spaceId: string; tileKey: TileKey; verdict?: Verdict; children: ReactNode }) {
+function Frame({
+  spaceId,
+  tileKey,
+  values,
+  verdict,
+  children,
+}: {
+  spaceId: string;
+  tileKey: TileKey;
+  /** What the place reads, for the one tile whose panel depends on it. */
+  values?: CardValue[];
+  verdict?: Verdict;
+  children: ReactNode;
+}) {
   const { t } = useTranslation();
   const Icon = ICON[tileKey];
 
   return (
     <article className={styles.tile} data-tile={tileKey} data-verdict={verdict?.kind === 'high' || verdict?.kind === 'low' ? 'off' : undefined}>
-      <Link to={focusLink(spaceId, tileKey)} className={styles.tileName}>
+      <Link to={focusLink(spaceId, tileKey, values)} className={styles.tileName}>
         <Icon size={15} strokeWidth={1.75} aria-hidden />
         {t(`cockpit.metric.${tileKey}`)}
         <ChevronRight size={14} strokeWidth={2} className={styles.tileChevron} aria-hidden />
@@ -267,18 +280,16 @@ function LeafTile({ spaceId, values, device, now }: TilesProps) {
   const age = lead ? valueAge(lead, now) : 'offline';
   const offset = leaf?.value != null && air?.value != null ? leaf.value - air.value : null;
   const luxLine = [
-    lux?.value != null && leaf ? t('cockpit.leaf.lux', { value: luxFigure(lux.value) }) : null,
+    lux?.value != null && leaf ? t('cockpit.leaf.lux', { value: figure(lux.value, 'lux') }) : null,
     ppfd?.value != null ? t('cockpit.leaf.ppfd', { value: decimalFigure(Math.round(ppfd.value), 0) }) : null,
   ].filter((part): part is string => part !== null);
   const panel: TimelinePanel | null = series ? { metric: 'leafTemperature', points: series.metrics[0]?.points ?? [], targets: [] } : null;
 
   return (
-    <Frame spaceId={spaceId} tileKey="leaf">
+    <Frame spaceId={spaceId} tileKey="leaf" values={values}>
       <div className={styles.tileText}>
         <div className={styles.figureLine} {...ageAttribute(age)}>
-          <span className={`figure ${styles.figure}`}>
-            {lead?.value == null ? '–' : leaf ? figure(lead.value, 'temperature') : luxFigure(lead.value)}
-          </span>
+          <span className={`figure ${styles.figure}`}>{lead?.value == null ? '–' : figure(lead.value, leaf ? 'leafTemperature' : 'lux')}</span>
           <span className={`mono ${styles.unit}`}>{leaf ? '°C' : 'lx'}</span>
         </div>
         <p className={`mono ${styles.targetLine}`}>
@@ -313,13 +324,6 @@ function LeafTile({ spaceId, values, device, now }: TilesProps) {
     </Frame>
   );
 }
-
-/**
- * Lux runs to five digits, which unbroken read as a lump. The thousands are set
- * apart with a narrow space rather than the language's own separator, which is
- * the other language's decimal point.
- */
-const luxFigure = (value: number): string => decimalFigure(Math.round(value), 0).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');
 
 /** A tenth of a degree either way is the sensor and not the leaf. */
 const offsetKey = (offset: number): string =>

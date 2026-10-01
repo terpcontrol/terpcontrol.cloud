@@ -3044,7 +3044,9 @@
     "metric": {
       "temperature": "Temperature",
       "humidity": "Humidity",
-      "co2": "CO₂"
+      "co2": "CO₂",
+      "leafTemperature": "Leaf temperature",
+      "lux": "Light intensity"
     },
     "panelAlt": "{{metric}} over the window",
     "band": "target {{low}}–{{high}}",
@@ -4611,6 +4613,14 @@
     "ppfd": {
       "title": "PPFD",
       "text": "How much light the plant can use arrives at leaf level, in µmol per square metre and second. It is estimated from the sensor's lux reading with the factor set for your device."
+    },
+    "leafTemperature": {
+      "title": "Leaf temperature",
+      "text": "How warm the leaves themselves are, measured by the leaf sensor. Under the light they usually sit a little below the air, because they evaporate water – that is what the VPD is worked out from. There is no target of its own: the leaves follow the air and the light."
+    },
+    "lux": {
+      "title": "Light intensity",
+      "text": "How bright it is at the light sensor, in lux. The curve shows when and how strongly the lamp shines. How much of it the plant can use is the PPFD, which is estimated from the lux."
     }
   },
   "place": {

@@ -4,9 +4,17 @@ import { offlineLabel, silentSince } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 
 /** How a card writes a figure: the unit beside it, and as many decimals as the sensor is good for. */
-export const UNIT: Partial<Record<Metric, string>> = { temperature: '°C', humidity: '%', co2: 'ppm', vpd: 'kPa' };
+export const UNIT: Partial<Record<Metric, string>> = { temperature: '°C', humidity: '%', co2: 'ppm', vpd: 'kPa', leafTemperature: '°C', lux: 'lx' };
 
-const DECIMALS: Partial<Record<Metric, number>> = { temperature: 1, humidity: 0, co2: 0, vpd: 2 };
+const DECIMALS: Partial<Record<Metric, number>> = { temperature: 1, humidity: 0, co2: 0, vpd: 2, leafTemperature: 1, lux: 0 };
+
+/**
+ * Lux runs to five digits, which unbroken read as a lump. The thousands are set
+ * apart with a narrow space rather than the language's own separator, which is
+ * the other language's decimal point; every other reading has four digits at
+ * most and is left together.
+ */
+const grouped = (written: string, metric: Metric): string => (metric === 'lux' ? written.replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f') : written);
 
 /**
  * A reading as a card writes it. A figure that rounds away to nothing is
@@ -24,11 +32,12 @@ export const figure = (value: number, metric: Metric): string => {
   const decimals = DECIMALS[metric] ?? 0;
   const rounded = Number(value.toFixed(decimals));
 
-  return decimalFigure(rounded === 0 ? 0 : rounded, decimals);
+  return grouped(decimalFigure(rounded === 0 ? 0 : rounded, decimals), metric);
 };
 
 /** A target, a band edge and the corner of an axis are round numbers more often than not, and read as one. */
-export const targetFigure = (value: number, metric: Metric): string => (Number.isInteger(value) ? String(value) : figure(value, metric));
+export const targetFigure = (value: number, metric: Metric): string =>
+  Number.isInteger(value) ? grouped(String(value), metric) : figure(value, metric);
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 

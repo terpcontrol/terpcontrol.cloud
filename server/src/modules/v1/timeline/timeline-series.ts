@@ -29,11 +29,14 @@ import type { OutputSwitching } from '@modules/data/flux';
  */
 
 /**
- * The three panels the timeline stacks, in the order it stacks them. VPD is
+ * The panels the timeline stacks, in the order it stacks them: the three a
+ * controller steers, then the leaf and the light a canopy sensor measures,
+ * which the cockpit has a tile for and the tile opens the Timeline on. VPD is
  * deliberately not among them: it is a computed number that wants its own axis
- * and its leaf offset explained, and it belongs to the charting view.
+ * and its leaf offset explained, and it belongs to the charting view; nor is
+ * PPFD, which is the lux panel over again times a factor.
  */
-export const PANEL_METRICS: readonly Metric[] = ['temperature', 'humidity', 'co2'];
+export const PANEL_METRICS: readonly Metric[] = ['temperature', 'humidity', 'co2', 'leafTemperature', 'lux'];
 
 /** One stretch of the window over which the same targets applied, before it is stated per metric. */
 export interface TargetStretch {
@@ -49,10 +52,12 @@ export interface TargetStretch {
  * The panels, each with the bands that applied across it.
  *
  * A metric with no reading in the window has no panel rather than a panel of
- * nulls: a tent without a CO2 sensor reports no CO2, and that is what makes the
- * third panel appear only where there is something to draw in it.
+ * nulls: a tent without a CO2 sensor reports no CO2, and a fridge has no leaf
+ * sensor, and that is what makes those panels appear only where there is
+ * something to draw in them. The leaf and the light are never steered, so
+ * theirs carry no band.
  *
- * Which metrics are stacked is the timeline's three unless a caller says
+ * Which metrics are stacked is the timeline's own unless a caller says
  * otherwise. The Charts view says otherwise: it draws whatever was ticked,
  * VPD included, and there is no second way of turning points into a panel.
  *
