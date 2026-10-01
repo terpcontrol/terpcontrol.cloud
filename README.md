@@ -21,7 +21,7 @@ license, no separate agreement needed.
 
 ### Quickstart
 1. `cd myfolder`
-1. `git clone https://github.com/novazer/fg2.git`
+1. `git clone https://github.com/terpcontrol/terpcontrol.cloud`
 1. `cd fg2/`
 1. `cp .env.sample .env`
 1. `vi .env` (or edit this file in any other way) 
@@ -122,7 +122,7 @@ To remove all data and start fresh:
 
 1. `cd webapp/`
 2. `npm install`
-3. Optional: Edit `src/environments/environment.ts` to point to `https://fg2.novazer.com/api` for easier testing.
+3. Optional: Edit `src/environments/environment.ts` to point to `https://terpcontrol.cloud/api` for easier testing.
 4. `npm start`
 
 And before committing:
@@ -157,8 +157,8 @@ CI regenerates and fails if the result differs.
 
 Make sure that the following environment variables are set in `.env`:
 ```
-API_URL_EXTERNAL=https://fg2.novazer.com/api
-MQTT_HOST_EXTERNAL=fg2.novazer.com
+API_URL_EXTERNAL=https://terpcontrol.cloud/api
+MQTT_HOST_EXTERNAL=terpcontrol.cloud
 MQTT_PORT_EXTERNAL=4883
 ```
 

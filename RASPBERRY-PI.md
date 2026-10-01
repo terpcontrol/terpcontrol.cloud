@@ -26,7 +26,7 @@ This stack runs multiple resource-heavy database services (MongoDB + InfluxDB) s
 
 
 1. `cd myfolder`
-1. `git clone https://github.com/novazer/fg2.git`
+1. `git clone https://github.com/terpcontrol/terpcontrol.cloud`
 1. `cd fg2/`
 1. `cp .env.sample .env`
 1. `vi .env` (or edit this file in any other way)
