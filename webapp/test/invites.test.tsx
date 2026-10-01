@@ -265,7 +265,7 @@ describe('the room a tent stands in', () => {
     drawTab();
     expect(await screen.findByRole('button', { name: 'Make a link' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Put it in a room' })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Room members see every space/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Room members see every place/)).not.toBeInTheDocument();
   });
 
   it('makes a room and puts the tent in it', async () => {

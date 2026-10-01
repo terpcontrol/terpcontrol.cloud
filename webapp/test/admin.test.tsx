@@ -755,7 +755,7 @@ describe("the administrator's own row", () => {
     const rows = await drawUsers();
 
     fireEvent.click(within(rows[2]).getByRole('button', { name: 'Delete' }));
-    expect(await screen.findByText(/What they wrote in other people's spaces stays there and loses their name/)).toBeInTheDocument();
+    expect(await screen.findByText(/What they wrote in other people's places stays there and loses their name/)).toBeInTheDocument();
     expect(screen.queryByText(/the server keeps it/)).not.toBeInTheDocument();
     // The prompt is set in small caps and a phone capitalises the first
     // letter, so the handle counts however it is cased.

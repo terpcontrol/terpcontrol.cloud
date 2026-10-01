@@ -971,7 +971,7 @@
       "noPlaces": "There is no other place you steer to move it to."
     },
     "unnamed": "{{type}} · {{tag}}",
-    "youMayLog": "What the devices here are doing is shown. A socket or the lamp is switched by whoever steers this space."
+    "youMayLog": "What the devices here are doing is shown. A socket or the lamp is switched by whoever steers this place."
   },
   "diary": {
     "title": "Diary",
@@ -1260,7 +1260,7 @@
       "confirm": "Switch off"
     },
     "maintenance": {
-      "title": "Stepping into the space",
+      "title": "Stepping in",
       "text": "Maintenance mode pauses the regulation for a while, so watering or repotting does not raise alarms. Everything resumes automatically afterwards.",
       "button": "Start maintenance mode"
     }
@@ -1450,7 +1450,7 @@
       "signIn": "Sign in instead"
     },
     "gone": {
-      "space": "This space cannot be opened.",
+      "space": "This place cannot be opened.",
       "grow": "This grow cannot be opened.",
       "camera": "This camera cannot be opened.",
       "device": "This device cannot be opened.",
@@ -1478,14 +1478,14 @@
     "entryRepeats": "{{count}}× since {{since}}",
     "empty": {
       "title": "Nothing here yet.",
-      "text": "Both doors lead to the same place: a space with a diary and, if you have one, a controller.",
+      "text": "Both doors lead to the same thing: a place with a diary and, if you have one, a controller.",
       "following": "Following someone? Open their share link and tap Follow; their grow appears here."
     },
     "demoEmpty": {
       "title": "The demo is empty.",
       "text": "A demo is a grow somebody has left here to be looked at, and nothing has been left in this one. Your own account is missing nothing: the demo is a session of its own, and it holds only what this install has put in it.",
       "ownTitle": "Your own account",
-      "ownText": "Sign in and this page fills with your spaces, their diaries and whatever your controllers report.",
+      "ownText": "Sign in and this page fills with your places, their diaries and whatever your controllers report.",
       "signIn": "Sign in with my own account"
     },
     "startGrow": {
@@ -1796,7 +1796,7 @@
         "title": "Delete my account",
         "line": "really deleted, not hidden · devices stay claimable",
         "open": "…",
-        "what": "Everything this account owns goes: the spaces, the grows, the entries, the photos, the plans and the alarms. It is deleted rather than hidden, and there is no way back.",
+        "what": "Everything this account owns goes: the places, the grows, the entries, the photos, the plans and the alarms. It is deleted rather than hidden, and there is no way back.",
         "grows": "Devices you claimed become claimable again by whoever holds them. A single grow is deleted from the grow's own page.",
         "typeHandle": "Type {{handle}} to confirm",
         "notHandle": "That is not your handle.",
@@ -1823,7 +1823,7 @@
       "links_other": "{{count}} links open it",
       "switch": "Public page of {{name}}",
       "none": "No grows of your own yet",
-      "stranger": "A public grow shows a stranger the diary from its first day: the phases, the week cards with their photos and the camera's pictures, the climate averages, the strains, and your handle. Harvest weights and plant counts follow your privacy settings. It never shows the space's live values, its devices, its alarms or its tasks, and never your e-mail. Followers see the same page, and nobody can write."
+      "stranger": "A public grow shows a stranger the diary from its first day: the phases, the week cards with their photos and the camera's pictures, the climate averages, the strains, and your handle. Harvest weights and plant counts follow your privacy settings. It never shows the place's live values, its devices, its alarms or its tasks, and never your e-mail. Followers see the same page, and nobody can write."
     },
     "following": {
       "title": "Following",
@@ -1860,15 +1860,15 @@
       "opens_other": "{{count}} opens",
       "notOpened": "not opened yet",
       "gone": "no longer here",
-      "closing": "Two kinds: the public page of a grow (permanent until you make the grow private) and a read-only view of a space or a time range with an expiry. Both can include the cams or not. Followers see the public page; a link never grants writing.",
-      "new": "+ New link · grow or space · cams · expiry",
+      "closing": "Two kinds: the public page of a grow (permanent until you make the grow private) and a read-only view of a place or a time range with an expiry. Both can include the cams or not. Followers see the public page; a link never grants writing.",
+      "new": "+ New link · grow or place · cams · expiry",
       "noSubjects": "Nothing of your own to share yet",
       "address": "Address",
       "revokeNote": "Revoking ends the link now. Whoever has it sees from then on exactly what a link nobody made shows: nothing. It stays listed here with the date, and it cannot be started again - handing the grow out once more takes a new link.",
       "forgetNote": "Forgetting takes the link off this list. It has already stopped working.",
       "sheet": {
         "title": "New link",
-        "subject": "Grow or space",
+        "subject": "Grow or place",
         "kind": "Kind",
         "publicPage": "Public page",
         "view": "Read-only view",
@@ -2283,20 +2283,20 @@
       "photoperiod": "Photoperiod",
       "autoflower": "Autoflower",
       "where": "Where",
-      "whereAside": "the space's preset and cams follow the grow",
+      "whereAside": "the place's preset and cams follow the grow",
       "devicesUnread": "What stands in these places could not be read, so no chip names its hardware.",
       "cam": "Cam",
-      "newSpace": "New space",
-      "spaceName": "Name of the space",
-      "spaceKind": "Kind of space",
+      "newSpace": "New place",
+      "spaceName": "Name of the place",
+      "spaceKind": "Kind of place",
       "kind": {
         "tent": "Tent",
         "fridge": "Fridge",
         "balcony": "Balcony",
         "other": "Other place"
       },
-      "makeSpace": "Make the space",
-      "makingSpace": "Making the space …",
+      "makeSpace": "Make the place",
+      "makingSpace": "Making the place …",
       "startingAt": "Starting at",
       "startingAside": "seeds usually show in 2–5 days",
       "today": "today",
@@ -2322,7 +2322,7 @@
       "submit": "Start the grow · Day {{day}}",
       "starting": "Starting the grow …",
       "notReady": "The chosen scheme has not been read yet, so the grow cannot be started on it.",
-      "placeFirst": "Make the space first, or pick one of the chips.",
+      "placeFirst": "Make the place first, or pick one of the chips.",
       "growStands": "The grow is made and stands where it was put; only its first stage is missing. Trying again writes just that.",
       "climateLeft": "The grow and its first stage stand; only the place's climate was not written.",
       "readOnly": "The demo may look at a grow, not start one."
@@ -2505,7 +2505,7 @@
       "keepMine": "Keep mine",
       "takeTheirs": "Take theirs"
     },
-    "youMayLog": "You may write in this grow's diary. Moving it, splitting it and harvesting it are for whoever steers the space it stands in."
+    "youMayLog": "You may write in this grow's diary. Moving it, splitting it and harvesting it are for whoever steers the place it stands in."
   },
   "space": {
     "later": {
@@ -2514,10 +2514,10 @@
     },
     "control": {
       "title": "Grow plan",
-      "noController": "Nothing stands here yet. Targets, alarms and a plan come with the first device in this space.",
+      "noController": "Nothing stands here yet. Targets, alarms and a plan come with the first device in this place.",
       "noControllerAdd": "Add a device",
       "none": "No plan yet.",
-      "noneNote": "A plan is a list of steps: a stage, how long it lasts, and what the space should hold while it does. Saving one does not start it.",
+      "noneNote": "A plan is a list of steps: a stage, how long it lasts, and what the place should hold while it does. Saving one does not start it.",
       "noClimate": "Nothing here runs on a plan.",
       "noClimateNote": "A plan step writes a climate — day and night targets, the CO₂ target, the light's limit — and this device states none of them. Its sockets and its output are on the Devices tab.",
       "noClimateHasPlan": "This device states no climate, so what these steps write lands in a document that has nowhere for it. A step whose settings are emptied sends nothing at all, and a stopped plan sends nothing until it is started again.",
@@ -2573,13 +2573,13 @@
         "remove": "Remove the plan"
       },
       "ask": {
-        "extend": "More time on the step the space is on. The step keeps the length it was written with and only its clock is put back, so a step that had already asked to be confirmed asks again when the longer time is up.",
+        "extend": "More time on the step the place is on. The step keeps the length it was written with and only its clock is put back, so a step that had already asked to be confirmed asks again when the longer time is up.",
         "extendYes": "Add {{length}}",
         "skip": "The plan moves on to step {{number}}, {{name}}, and starts its clock. What this step still had to run is not kept.",
         "skipPaused": "The plan moves on to step {{number}}, {{name}}, and stays paused: that step's clock starts when the plan is resumed. What this step still had to run is not kept.",
         "skipEnds": "This is the last step, so skipping it completes the plan. The controller keeps the settings this step gave it.",
         "skipYes": "Skip the step",
-        "stop": "The plan keeps its steps and stands at the first one again, ready to be started. The controller keeps the settings the last step gave it: stopping says nothing about what the space should be doing instead.",
+        "stop": "The plan keeps its steps and stands at the first one again, ready to be started. The controller keeps the settings the last step gave it: stopping says nothing about what the place should be doing instead.",
         "stopYes": "Stop the plan",
         "remove": "The plan and its steps are taken off this controller. The controller keeps whatever it was last set to, and what the plan wrote stays in the diary. Keep it as a template first to start from it again.",
         "removeYes": "Remove the plan"
@@ -2669,16 +2669,16 @@
         "ownAddress": "your own address",
         "emailNote": "Left empty, the plan writes to the address this account signs in with.",
         "writeEntries": "Write it in the diary",
-        "writeEntriesNote": "A step change leaves a line on the space's timeline, whether or not a mail goes out."
+        "writeEntriesNote": "A step change leaves a line on the place's timeline, whether or not a mail goes out."
       },
       "effect": {
         "newPlan": "This controller is being run by nothing, so the plan is saved at rest. Starting it is a separate tap.",
         "atRest": "This plan is not running, so saving moves nothing: starting it begins at step 1.",
         "empties": "A plan without steps has nothing to run, so it stops and the controller keeps what the last step gave it.",
-        "stays": "The space goes on running {{name}} as step {{number}}, with the time it has already served.",
-        "moves": "{{name}} is the step the space is on: it moves from {{from}} to {{to}} and keeps the time it has already served.",
+        "stays": "The place goes on running {{name}} as step {{number}}, with the time it has already served.",
+        "moves": "{{name}} is the step the place is on: it moves from {{from}} to {{to}} and keeps the time it has already served.",
         "relength": "Its new length is measured against that time, so a step that has already served longer than it now lasts is over at once.",
-        "restarts": "{{gone}} is the step the space is on and it is gone from the list, so {{starts}} takes its place as step {{number}} and starts from zero. A confirmation it was waiting for is forgotten.",
+        "restarts": "{{gone}} is the step the place is on and it is gone from the list, so {{starts}} takes its place as step {{number}} and starts from zero. A confirmation it was waiting for is forgotten.",
         "resends": "The step's settings are sent to the controller again within the next minute rather than at the next hour."
       },
       "refused": {
@@ -2701,8 +2701,8 @@
         "publish": "Let anybody start from it",
         "publishNote": "A published template can be read and copied by every account; it stays yours to change and to throw away.",
         "keep": "Keep the template",
-        "startNote": "Choosing one opens the plan with its steps in it. Nothing is written until it is saved, and what a save does to a space that is already running is said there.",
-        "none": "No templates yet. Keeping the plan on a space as one is how the first is made.",
+        "startNote": "Choosing one opens the plan with its steps in it. Nothing is written until it is saved, and what a save does to a place where a plan is already running is said there.",
+        "none": "No templates yet. Keeping the plan of a place as one is how the first is made.",
         "steps_one": "{{count}} step",
         "steps_other": "{{count}} steps",
         "yours": "yours",
@@ -2719,7 +2719,7 @@
       "planRowLine": "Moves the targets on step by step, from veg to flower for instance",
       "planNamed": "Grow plan “{{name}}”",
       "backToTargets": "‹ targets",
-      "youMayLog": "You may log in this space, not steer it. The plan, the targets and the alarm rules stand here as they are set; changing them is for whoever steers the space."
+      "youMayLog": "You may log in this place, not steer it. The plan, the targets and the alarm rules stand here as they are set; changing them is for whoever steers the place."
     },
     "noReadingsYet": "Nothing reported yet",
     "growingHere": "Growing here",
@@ -2737,15 +2737,15 @@
       "preset": "Preset",
       "growHere": "{{name}} grows here · {{stage}}",
       "noGrowHere": "No grow stands here.",
-      "writesClimateOnly": "A preset writes the target climate and nothing else: temperature and humidity for day and night, the CO₂ target, how long the light stays on and how bright it may get – the drying preset turns the lamp off. The work mode, the heating and dehumidifying behaviour, the fans and the dimming ramps are what this space is tuned to and stay as they are.",
-      "writesClimateOnlyNoCo2": "A preset writes the target climate and nothing else: temperature and humidity for day and night, how long the light stays on and how bright it may get – the drying preset turns the lamp off. Nothing standing here reports a CO₂ sensor, so no CO₂ target is written — a controller without one holds its target at zero whatever it is told. The work mode, the heating and dehumidifying behaviour, the fans and the dimming ramps are what this space is tuned to and stay as they are.",
+      "writesClimateOnly": "A preset writes the target climate and nothing else: temperature and humidity for day and night, the CO₂ target, how long the light stays on and how bright it may get – the drying preset turns the lamp off. The work mode, the heating and dehumidifying behaviour, the fans and the dimming ramps are what this place is tuned to and stay as they are.",
+      "writesClimateOnlyNoCo2": "A preset writes the target climate and nothing else: temperature and humidity for day and night, how long the light stays on and how bright it may get – the drying preset turns the lamp off. Nothing standing here reports a CO₂ sensor, so no CO₂ target is written — a controller without one holds its target at zero whatever it is told. The work mode, the heating and dehumidifying behaviour, the fans and the dimming ramps are what this place is tuned to and stay as they are.",
       "noClimateRow": "Curing has no climate of its own — jars are not steered — so applying it writes nothing to anything standing here.",
       "nothingToWriteTo": "Nothing standing here states a climate, so there is nothing to write one to.",
       "waitingToWriteTo": "Nothing standing here has sent its settings yet, so there is nothing to write a climate into, and this preset passes it by. Changing any setting on the device itself sends them; connecting alone does not.",
       "phaseFollows": "{{name}} enters the stage with it.",
       "noPhaseFollows": "No grow stands here, so no phase is written – only the climate is.",
       "noPhaseFollowsNoClimate": "No grow stands here, so no phase is written either.",
-      "submit": "Put the space on {{stage}}",
+      "submit": "Put the place on {{stage}}",
       "whatHappened": "What happened",
       "wroteTo_one": "Written to {{count}} controller.",
       "wroteTo_other": "Written to {{count}} controllers.",
@@ -2772,10 +2772,10 @@
     },
     "members": {
       "scopeLabel": "What is shared",
-      "roomWithTents_one": "{{room}} · {{count}} space",
-      "roomWithTents_other": "{{room}} · {{count}} spaces",
-      "oneModel": "Share one space, or the room it belongs to. Room members see every space in the room; space members see just this one.",
-      "demo": "The demo looks at somebody else's space and owns nothing, so there is nobody to let in and nobody to let go.",
+      "roomWithTents_one": "{{room}} · {{count}} place",
+      "roomWithTents_other": "{{room}} · {{count}} places",
+      "oneModel": "Share one place, or the room it belongs to. Room members see every place in the room; members of this place see just this one.",
+      "demo": "The demo looks at somebody else's place and owns nothing, so there is nobody to let in and nobody to let go.",
       "invite": "Invite",
       "noLink": "No link out",
       "makeLink": "Make a link",
@@ -2799,8 +2799,8 @@
       "neverLogged": "nothing logged yet",
       "owns": "owner of {{name}}",
       "roleOf": "What {{name}} may do here",
-      "removeOf": "Take {{name}} out of this space",
-      "leaveThis": "Leave this space",
+      "removeOf": "Take {{name}} out of this place",
+      "leaveThis": "Leave this place",
       "role": {
         "owner": "owner",
         "can_log": "can log",
@@ -2825,16 +2825,16 @@
       "noViewerRole": "Read-only viewing is what share links do; there is no viewer role. Every entry carries its author. Tasks filter Mine / All, notifications are per person.",
       "remove": {
         "title": "Take @{{name}} out?",
-        "body": "They lose this space and everything standing in it. What they wrote here stays here and goes on carrying their name.",
-        "bodyKeepsRoom": "They keep this space through {{room}} and lose only what they held here. What they wrote here stays here and goes on carrying their name.",
+        "body": "They lose this place and everything standing in it. What they wrote here stays here and goes on carrying their name.",
+        "bodyKeepsRoom": "They keep this place through {{room}} and lose only what they held here. What they wrote here stays here and goes on carrying their name.",
         "yes": "Take them out",
         "alsoTheLink": "They came in on the link {{code}}, and taking them out stops it: anybody else you sent that one to can no longer join. Whoever is already in stays in, your other links are untouched, and a new link is one tap away."
       },
       "leave": {
-        "title": "Leave this space?",
+        "title": "Leave this place?",
         "body": "It goes off your home and you can only come back in if you are let in again. What you wrote here stays here and goes on carrying your name.",
-        "bodyKeepsRoom": "You keep this space through {{room}} and give up only the role you held here. What you wrote here stays here and goes on carrying your name.",
-        "yes": "Leave the space"
+        "bodyKeepsRoom": "You keep this place through {{room}} and give up only the role you held here. What you wrote here stays here and goes on carrying your name.",
+        "yes": "Leave the place"
       },
       "join": {
         "label": "Invitation",
@@ -2846,7 +2846,7 @@
           "can_manage": "You would be able to log here, and to change the targets, the plan, the alarms and the sockets."
         },
         "sees": "You see: {{name}}, every grow that has stood in it – private and finished ones too – and the cams.",
-        "doesNotSee": "You do not see: their other spaces, grows that never stood here, or who else holds a link.",
+        "doesNotSee": "You do not see: their other places, grows that never stood here, or who else holds a link.",
         "until": "This link works until {{date}}",
         "accept": "Join {{name}}",
         "signIn": "Sign in to join",
@@ -2892,10 +2892,10 @@
         },
         "needAccount": "They need their own account (e-mail, username and password).",
         "sees": "They see: {{what}}.",
-        "seesRoom": "They see: every space in {{name}}, what is growing there, and the cams.",
+        "seesRoom": "They see: every place in {{name}}, what is growing there, and the cams.",
         "whatGrows": "what is growing in it",
         "theCams": "the cams",
-        "doesNotSee": "They can also read every grow that stood here before, private ones too. They do not see: your other spaces, or grows that never stood here.",
+        "doesNotSee": "They can also read every grow that stood here before, private ones too. They do not see: your other places, or grows that never stood here.",
         "make": "Make the link",
         "making": "Making the link …",
         "waysLabel": "How to hand it over",
@@ -2925,14 +2925,14 @@
         "make": "Make the room",
         "making": "Making the room …",
         "aRoom": "a room",
-        "note": "A room groups spaces for sharing: whoever is let into the room sees every space in it. A room never stands in a room, and a space stands in one room at most.",
+        "note": "A room groups places for sharing: whoever is let into the room sees every place in it. A room never stands in a room, and a place stands in one room at most.",
         "submit": "Put {{name}} in {{room}}",
         "moving": "Moving …",
         "takeOut": "Take it out of {{room}}",
-        "roomModel": "Share the whole room: whoever is let in here sees every space grouped under it.",
-        "tentsIn_one": "{{count}} space in this room",
-        "tentsIn_other": "{{count}} spaces in this room",
-        "noTents": "No space stands in this room yet. A space is put in from ⋯ › Members & sharing on its own page."
+        "roomModel": "Share the whole room: whoever is let in here sees every place grouped under it.",
+        "tentsIn_one": "{{count}} place in this room",
+        "tentsIn_other": "{{count}} places in this room",
+        "noTents": "No place stands in this room yet. A place is put in from ⋯ › Members & sharing on its own page."
       },
       "linkStopped": "The link {{code}} was stopped when @{{name}} was taken out."
     }
@@ -3173,7 +3173,7 @@
     },
     "noFilms": "No film of this camera yet.",
     "moreFilms": "More films",
-    "youMayLog": "You can see what this camera sees. Its settings, its test image and its timelapses are for whoever steers the space it stands in."
+    "youMayLog": "You can see what this camera sees. Its settings, its test image and its timelapses are for whoever steers the place it stands in."
   },
   "cameras": {
     "add": {
@@ -3218,7 +3218,7 @@
       },
       "standalone": {
         "label": "Standalone Terp Cam",
-        "text": "Joins your Wi-Fi from this phone (QR on the cam). Lives in a space with no controller; gets its own timelapses; Premium included 12 months.",
+        "text": "Joins your Wi-Fi from this phone (QR on the cam). Lives in a place with no controller; gets its own timelapses; Premium included 12 months.",
         "coming": "Coming soon."
       },
       "rtsp": {
@@ -3242,7 +3242,7 @@
         "failed": "No picture: {{reason}}",
         "noReason": "the camera gave no reason",
         "shotAlt": "The picture the test came back with",
-        "pickAPlace": "Pick the place it looks at below: a space with a controller in it is reached through that controller, one without is not.",
+        "pickAPlace": "Pick the place it looks at below: a place with a controller in it is reached through that controller, one without is not.",
         "throughWhich": "Through which controller?",
         "carrier": {
           "stale": "{{controller}} last said something {{age}} ago",
@@ -3384,7 +3384,7 @@
     "toOpen": "open end",
     "never": "never",
     "cameras": "Camera pictures",
-    "camerasNote": "Without this the link carries the diary and its photos, but no still from the space.",
+    "camerasNote": "Without this the link carries the diary and its photos, but no still from the place.",
     "withPictures": "with pictures",
     "withoutPictures": "without pictures",
     "opened_one": "opened {{count}}×",
@@ -3436,7 +3436,7 @@
     "title": "Alarms",
     "backToPlan": "‹ back to the plan",
     "backToTargets": "‹ targets",
-    "noController": "Nothing stands here that has alarm rules. A device has to be claimed into this space first.",
+    "noController": "Nothing stands here that has alarm rules. A device has to be claimed into this place first.",
     "quietLine": "Muting and maintenance",
     "add": "+ Custom alarm",
     "group": {
@@ -3607,7 +3607,7 @@
     "nothingDue": "Nothing is due.",
     "nothingForYou_one": "Nothing for you · {{count}} waiting for others",
     "nothingForYou_other": "Nothing for you · {{count}} waiting for others",
-    "demoNoList": "The demo has no task list; open a space to see what is due there.",
+    "demoNoList": "The demo has no task list; open a place to see what is due there.",
     "doneAria": "Done: {{label}}",
     "every": "every {{count}} d",
     "once": "once",
@@ -3654,7 +3654,7 @@
       "litres": "Litres per can · optional",
       "about": "About",
       "aboutFixed": "cannot be changed later",
-      "nowhere": "Nothing to remind about yet · start a grow or add a space first",
+      "nowhere": "Nothing to remind about yet · start a grow or add a place first",
       "rhythm": "Rhythm",
       "every": "every N days",
       "everyDays": "Every … days",
@@ -3680,7 +3680,7 @@
       "yes": "Confirm the step",
       "cancel": "Cancel"
     },
-    "stepIsManaged": "Confirming a step moves the plan on and sends the next step's targets to the controller. Only whoever steers the space can do that."
+    "stepIsManaged": "Confirming a step moves the plan on and sends the next step's targets to the controller. Only whoever steers the place can do that."
   },
   "targets": {
     "title": "Targets",
@@ -3897,13 +3897,13 @@
     "bellMore_other": "Alerts · more than {{count}} open",
     "earlier": "Earlier",
     "nothingWatching": "Nothing is watching yet. Alerts come from a controller's alarm rules and from a cam.",
-    "demoNoInbox": "The demo has no inbox; open a space to see its alarms.",
+    "demoNoInbox": "The demo has no inbox; open a place to see its alarms.",
     "severity": {
       "critical": "critical",
       "warning": "warning",
       "info": "info"
     },
-    "namesFailed": "Could not read the names · spaces, devices and cams are shown by their id",
+    "namesFailed": "Could not read the names · places, devices and cams are shown by their id",
     "tasks": {
       "due_one": "1 task due",
       "due_other": "{{count}} tasks due",
@@ -3947,8 +3947,8 @@
     "place": {
       "next": "where is it?",
       "title": "Where is it?",
-      "text": "The name of the space; devices and grows attach to it.",
-      "field": "Name of the space",
+      "text": "The name of the place; devices and grows attach to it.",
+      "field": "Name of the place",
       "newName": {
         "controller": "Tent {{n}}",
         "fridge": "Fridge {{n}}",
@@ -4155,7 +4155,7 @@
       "willStage": "The stage goes from {{from}} % to {{to}} %, which is about {{after}} rather than {{before}} {{ofDevices}}.",
       "willPace": "At most {{devices}} installing at once, and the rollout stops by itself after {{failures}}.",
       "confirmTitle": "Change the rollout for {{name}}?",
-      "confirmBody": "This reaches hardware standing in somebody's space, within minutes:",
+      "confirmBody": "This reaches hardware standing in somebody's place, within minutes:",
       "confirmYes": "Apply the change",
       "register": "Register a build",
       "registerHow": "A build is registered before it has any bytes; its files are uploaded against it afterwards. The version is the uuid the build container stamped it with, and is never compared with another.",
@@ -4223,7 +4223,7 @@
       "save": "Save",
       "activationCode": "Activation code · {{code}}",
       "deleteTitle": "Delete @{{handle}}",
-      "deleteBody": "Everything @{{handle}} owns goes with the account: their spaces, grows, entries, pictures and films. What they wrote in other people's spaces stays there and loses their name. It cannot be taken back.",
+      "deleteBody": "Everything @{{handle}} owns goes with the account: their places, grows, entries, pictures and films. What they wrote in other people's places stays there and loses their name. It cannot be taken back.",
       "deleteAdmin": "If this is the account the install is configured with, the server keeps it: that account is looked up by its address on every start and is not deleted from here.",
       "deleteDevices": "The devices they had claimed become claimable again by whoever is holding them.",
       "deleteMine": "This is your own account. Deleting it signs you out and leaves this install without you.",
@@ -4239,7 +4239,7 @@
     },
     "demo": {
       "title": "Demo device",
-      "what": "What a demo visitor sees: every space, device, camera and grow marked as a demo object. Nothing on this screen writes - the mark is a property of the database with no route behind it, and is set where the demo is seeded.",
+      "what": "What a demo visitor sees: every place, device, camera and grow marked as a demo object. Nothing on this screen writes - the mark is a property of the database with no route behind it, and is set where the demo is seeded.",
       "empty": "Nothing on this install is marked as a demo object, so the demo tour has nothing to show.",
       "devices": "Devices",
       "deviceCount": "{{devices}} in the demo",
@@ -4424,7 +4424,7 @@
     },
     "muteAll": {
       "title": "Mute all",
-      "text": "For an hour nothing is sent to you, critical alarms included, and alarm messages from that hour are not sent later. Only you are muted: the others in your spaces are still told, and a rule with its own e-mail or webhook still sends."
+      "text": "For an hour nothing is sent to you, critical alarms included, and alarm messages from that hour are not sent later. Only you are muted: the others you share your places with are still told, and a rule with its own e-mail or webhook still sends."
     },
     "silence": {
       "title": "Silence 1 h",
@@ -4464,11 +4464,11 @@
     },
     "tellBy": {
       "title": "Tell me by",
-      "text": "My notification settings reaches everyone who keeps this space, each by their own settings, mute and quiet hours. An e-mail address or a webhook reaches only that address, whatever anybody's mute or quiet hours."
+      "text": "My notification settings reaches everyone who keeps this place, each by their own settings, mute and quiet hours. An e-mail address or a webhook reaches only that address, whatever anybody's mute or quiet hours."
     },
     "routingGrid": {
       "title": "What goes where",
-      "text": "Each row is a kind of message, each column a way to reach you; nothing is sent until you switch a cell on. The grid is yours alone – everyone in your spaces sets their own – and an alarm rule with its own e-mail or webhook does not go through it."
+      "text": "Each row is a kind of message, each column a way to reach you; nothing is sent until you switch a cell on. The grid is yours alone – everyone you share places with sets their own – and an alarm rule with its own e-mail or webhook does not go through it."
     },
     "emailAlarms": {
       "title": "Alarms by e-mail",
@@ -4567,12 +4567,12 @@
       "text": "From and To decide which days of the diary the reader sees; left empty, they start at the beginning and keep up with the diary. Expires is the day the address itself stops working, at the end of that day in your time zone."
     },
     "spaceLink": {
-      "title": "Grow or space",
-      "text": "A link to a space shows its live climate against the targets – once its To date has passed, the climate of its last day instead – the grows standing there – private ones too – and its latest diary lines; a link to a grow shows that grow's diary. Neither shows tasks or alerts."
+      "title": "Grow or place",
+      "text": "A link to a place shows its live climate against the targets – once its To date has passed, the climate of its last day instead – the grows standing there – private ones too – and its latest diary lines; a link to a grow shows that grow's diary. Neither shows tasks or alerts."
     },
     "privacyRedaction": {
       "title": "Shared views",
-      "text": "These hide figures from everyone who reads through a link, your public page or a follow. People you let into a space are not strangers: they still see weights and counts."
+      "text": "These hide figures from everyone who reads through a link, your public page or a follow. People you let into a place are not strangers: they still see weights and counts."
     },
     "publicProfile": {
       "title": "Public profile",
@@ -4580,7 +4580,7 @@
     },
     "deleteAccount": {
       "title": "Deleting the account",
-      "text": "Everyone you let into your spaces loses access, and followers lose your grows. Lines you wrote in other people's spaces stay, without your name, and the climate readings stay with the devices, which can then be claimed again."
+      "text": "Everyone you let into your places loses access, and followers lose your grows. Lines you wrote in other people's places stay, without your name, and the climate readings stay with the devices, which can then be claimed again."
     },
     "passwordChange": {
       "title": "Changing the password",
@@ -4592,7 +4592,7 @@
     },
     "invite": {
       "title": "Inviting",
-      "text": "Anybody who has an invite link can join with it, as often as it is used, until it expires or you revoke it – revoking stops new joins, and whoever is in stays. A username you already share a space with is added at once as can log, without being asked."
+      "text": "Anybody who has an invite link can join with it, as often as it is used, until it expires or you revoke it – revoking stops new joins, and whoever is in stays. A username you already share a place with is added at once as can log, without being asked."
     },
     "diaryLayer": {
       "title": "Grow diary",

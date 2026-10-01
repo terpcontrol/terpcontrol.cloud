@@ -146,7 +146,7 @@ const drawClaimed = async () => {
   fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
   fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
   await screen.findByRole('heading', { level: 2, name: /Claimed/ });
-  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Name of the space' })).toHaveValue('Terp Controller'));
+  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Name of the place' })).toHaveValue('Terp Controller'));
 };
 
 beforeAll(async () => {
@@ -201,7 +201,7 @@ describe('adding a device', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 1 of 5');
     expect(screen.getByRole('textbox', { name: 'Claim code' })).toHaveValue('');
     expect(screen.getByRole('button', { name: /Next/ })).toBeDisabled();
-    expect(screen.queryByRole('textbox', { name: 'Name of the space' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Name of the place' })).not.toBeInTheDocument();
   });
 
   it('takes the code the empty home already read', () => {
@@ -293,7 +293,7 @@ describe('adding a device', () => {
 
   it('renames the space the claim already made rather than making another', async () => {
     await drawClaimed();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Name of the space' }), { target: { value: 'Blue room' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name of the place' }), { target: { value: 'Blue room' } });
     fireEvent.click(screen.getByRole('button', { name: 'rename' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/space-new', { name: 'Blue room' }));
@@ -453,7 +453,7 @@ describe('adding a device', () => {
   it('says so before a second place is given a name another one already has', async () => {
     state.spaces = [space, { ...space, id: 'space-other', name: 'Mother tent' }];
     await drawClaimed();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Name of the space' }), { target: { value: 'mother tent' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name of the place' }), { target: { value: 'mother tent' } });
 
     expect(screen.getByText('A place is already called that.')).toBeInTheDocument();
   });

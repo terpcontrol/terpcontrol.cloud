@@ -180,7 +180,7 @@ describe('the new-grow sheet', () => {
     expect(screen.getByRole('dialog', { name: 'New grow' })).toBeInTheDocument();
     expect(screen.getByText('a count is enough; names help you compare later')).toBeInTheDocument();
     expect(screen.getByText('autoflowers skip the 12/12 flip and feed lighter')).toBeInTheDocument();
-    expect(screen.getByText("the space's preset and cams follow the grow")).toBeInTheDocument();
+    expect(screen.getByText("the place's preset and cams follow the grow")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Blue Dream tent · Controller + Cam' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Balcony' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Germination · today' })).toBeInTheDocument();
@@ -211,7 +211,7 @@ describe('the new-grow sheet', () => {
     const hints = [
       'a count is enough; names help you compare later',
       'autoflowers skip the 12/12 flip and feed lighter',
-      "the space's preset and cams follow the grow",
+      "the place's preset and cams follow the grow",
       'seeds usually show in 2\u20135 days',
       'a starting point, not a rule; edit any week',
     ];
@@ -226,7 +226,7 @@ describe('the new-grow sheet', () => {
     await drawLoaded();
 
     expect(screen.queryByRole('button', { name: /Blue Dream/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'New space' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New place' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'First grow' })).toBeInTheDocument();
     expect(screen.getByText('No place, so nothing is steered; the stages are recorded all the same.')).toBeInTheDocument();
   });
@@ -369,11 +369,11 @@ describe('where the plants go', () => {
   it('lets go of the held place while a new one is being invented, and keeps the primary out of reach', async () => {
     await drawLoaded();
 
-    press('New space');
+    press('New place');
 
     expect(screen.getByRole('button', { name: 'Blue Dream tent · Controller + Cam' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.queryByText('Blue Dream tent goes on the Germination preset now.')).not.toBeInTheDocument();
-    expect(screen.getByText('Make the space first, or pick one of the chips.')).toBeInTheDocument();
+    expect(screen.getByText('Make the place first, or pick one of the chips.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start the grow · Day 1' })).toBeDisabled();
   });
 });

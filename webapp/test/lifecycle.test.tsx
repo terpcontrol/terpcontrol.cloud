@@ -620,7 +620,7 @@ describe('the climate preset sheet', () => {
     };
     draw(<PresetSheet overview={{ ...overview, grows: [] }} onClose={() => {}} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Put the space on Veg' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put the place on Veg' }));
 
     // The reason is the one this tent actually has, rather than the other one.
     expect(screen.getByText(/has not sent its settings yet, so there is nothing to write one into/)).toBeInTheDocument();
@@ -643,7 +643,7 @@ describe('the climate preset sheet', () => {
     };
     draw(<PresetSheet overview={{ ...overview, grows: [] }} onClose={() => {}} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Put the space on Veg' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put the place on Veg' }));
 
     expect(screen.getByText('The climate is written either way. What about the grow?')).toBeInTheDocument();
   });
