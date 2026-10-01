@@ -10,7 +10,7 @@ import { TargetStretch } from './timeline-series';
 /**
  * What a range chip means in instants.
  *
- * `24 h` and `7 d` are windows ending where the request points; `Phase` and
+ * `24 h`, `7 d` and `30 d` are windows ending where the request points; `Phase` and
  * `Grow` are stretches of one grow, which is why the route insists on being told
  * which grow before it will answer either.
  *
@@ -30,8 +30,13 @@ const MIN_STEP_SECONDS = 60;
 
 const HOUR_MS = 60 * 60 * 1000;
 
-/** The two ranges that are a width back from an instant rather than a stretch of a grow. */
-const ROLLING_MS = { '24h': 24 * HOUR_MS, '7d': 7 * 24 * HOUR_MS } as const;
+/**
+ * The ranges that are a width back from an instant rather than a stretch of a
+ * grow. A month is what a place with nothing growing in it has instead of a
+ * phase: read at the same 480 windows, it comes to an hour and a half a point,
+ * sixteen to a day, which still draws every night of the month apart.
+ */
+const ROLLING_MS = { '24h': 24 * HOUR_MS, '7d': 7 * 24 * HOUR_MS, '30d': 30 * 24 * HOUR_MS } as const;
 
 export interface TimelineWindow {
   startsAt: Date;
@@ -112,7 +117,7 @@ const daysOf = (grow: GrowDocument | null, asOf: Date, startsAt: Date, endsAt: D
 };
 
 const rollingOf = (range: TimelineRange, at: Date): { startsAt: Date; endsAt: Date } => ({
-  startsAt: new Date(at.getTime() - (range === '7d' ? ROLLING_MS['7d'] : ROLLING_MS['24h'])),
+  startsAt: new Date(at.getTime() - (range === '7d' || range === '30d' ? ROLLING_MS[range] : ROLLING_MS['24h'])),
   endsAt: at,
 });
 

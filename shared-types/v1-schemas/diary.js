@@ -1061,11 +1061,11 @@ exports.spaceLive = (0, common_js_1.named)('SpaceLive', zod_1.z.object({
     cameras: zod_1.z.array(exports.spaceLiveCamera),
 }));
 /**
- * What the Timeline tab is asked for. `24h` and `7d` are windows ending at the
- * instant the request names; `phase` and `grow` are stretches of one grow and so
- * cannot be answered without being told which.
+ * What the Timeline tab is asked for. `24h`, `7d` and `30d` are windows ending
+ * at the instant the request names; `phase` and `grow` are stretches of one grow
+ * and so cannot be answered without being told which.
  */
-exports.timelineRange = (0, common_js_1.named)('TimelineRange', zod_1.z.enum(['24h', '7d', 'phase', 'grow']));
+exports.timelineRange = (0, common_js_1.named)('TimelineRange', zod_1.z.enum(['24h', '7d', '30d', 'phase', 'grow']));
 /**
  * A stretch of the window in which something was so: the light was off, an
  * output was running. Both ends are inside the window - a stretch still going

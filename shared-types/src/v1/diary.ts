@@ -1409,11 +1409,11 @@ export const spaceLive = named(
 );
 
 /**
- * What the Timeline tab is asked for. `24h` and `7d` are windows ending at the
- * instant the request names; `phase` and `grow` are stretches of one grow and so
- * cannot be answered without being told which.
+ * What the Timeline tab is asked for. `24h`, `7d` and `30d` are windows ending
+ * at the instant the request names; `phase` and `grow` are stretches of one grow
+ * and so cannot be answered without being told which.
  */
-export const timelineRange = named('TimelineRange', z.enum(['24h', '7d', 'phase', 'grow']));
+export const timelineRange = named('TimelineRange', z.enum(['24h', '7d', '30d', 'phase', 'grow']));
 
 /**
  * A stretch of the window in which something was so: the light was off, an

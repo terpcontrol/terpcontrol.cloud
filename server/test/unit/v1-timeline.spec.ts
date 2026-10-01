@@ -456,6 +456,21 @@ describe('the window a range chip names', () => {
     expect(grow.panels[0].points.length).toBeLessThanOrEqual(day.panels[0].points.length);
   });
 
+  // A place with nothing growing in it has no phase to ask for, so a month is
+  // what it gets instead - read at the same few hundred windows as a day.
+  it('reads the last 30 days for the same number of queries as a day, at an hour and a half a point', async () => {
+    const day = await readAs(session(OWNER));
+    const dayReads = reads.length;
+    reads = [];
+    const month = await readAs(session(OWNER), { range: '30d' });
+
+    expect(reads.length).toBe(dayReads);
+    expect(month).toMatchObject({ range: '30d', startsAt: '2026-05-11T12:00:00.000Z', endsAt: NOW.toISOString(), stepSeconds: 5400 });
+    expect(month.panels[0].points.length).toBeLessThanOrEqual(day.panels[0].points.length);
+    // Sixteen points to a day still tells every night of the month apart.
+    expect(month.nights.length).toBeGreaterThanOrEqual(29);
+  });
+
   it('refuses a phase or a grow that names no grow: a tent may hold two at once', async () => {
     await expect(readAs(session(OWNER), { range: 'phase' })).rejects.toMatchObject({ problem: { status: 400, code: 'grow_required' } });
   });

@@ -3732,15 +3732,16 @@ export declare const spaceLive: z.ZodObject<{
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
- * What the Timeline tab is asked for. `24h` and `7d` are windows ending at the
- * instant the request names; `phase` and `grow` are stretches of one grow and so
- * cannot be answered without being told which.
+ * What the Timeline tab is asked for. `24h`, `7d` and `30d` are windows ending
+ * at the instant the request names; `phase` and `grow` are stretches of one grow
+ * and so cannot be answered without being told which.
  */
 export declare const timelineRange: z.ZodEnum<{
     phase: "phase";
     grow: "grow";
     "24h": "24h";
     "7d": "7d";
+    "30d": "30d";
 }>;
 /**
  * A stretch of the window in which something was so: the light was off, an
@@ -3957,6 +3958,7 @@ export declare const spaceTimeline: z.ZodObject<{
         grow: "grow";
         "24h": "24h";
         "7d": "7d";
+        "30d": "30d";
     }>;
     growId: z.ZodNullable<z.ZodString>;
     dayFrom: z.ZodNullable<z.ZodNumber>;

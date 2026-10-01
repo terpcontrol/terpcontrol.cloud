@@ -226,7 +226,7 @@ export type ChartViewLayout = 'stacked' | 'overlay' | 'day_of_grow';
 
 export type VerdictRating = 'good' | 'watch' | 'poor';
 
-export type TimelineRange = '24h' | '7d' | 'phase' | 'grow';
+export type TimelineRange = '24h' | '7d' | '30d' | 'phase' | 'grow';
 
 export type GrowSeriesRange = '24h' | '7d' | 'phase' | 'grow' | 'custom';
 
