@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
-import { useHeardAt, useSaveConfiguration } from '@/api/devices';
+import { useDevices, useHeardAt, useSaveConfiguration } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import { awaitingClimate, hasCo2Sensor, statesTargets } from '@/ui/climate-hardware';
@@ -66,6 +66,7 @@ export function Targets({
   crumb?: boolean;
 }) {
   const { t } = useTranslation();
+  const all = useDevices();
   // A device that has never sent its document, or whose document states no
   // climate - a plug, a light - has nothing a target could be written into.
   const controllers = devices.flatMap(device =>
@@ -87,7 +88,7 @@ export function Targets({
         {waiting.length > 0 ? (
           waiting.map(device => (
             <p key={device.id} className={`${ui.cardDashed} ${ui.note}`}>
-              {t('targets.waiting', { device: deviceTitle(device, t) })}
+              {t('targets.waiting', { device: deviceTitle(device, t, all.data?.items) })}
             </p>
           ))
         ) : (

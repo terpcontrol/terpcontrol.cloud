@@ -2,7 +2,7 @@ import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify, StepDuration } from '@fg2/shared-types/v1';
-import { useHeardAt } from '@/api/devices';
+import { useDevices, useHeardAt } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTemplates, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
@@ -67,6 +67,7 @@ import { deviceName } from '@/screens/devices/naming';
 export function PlanPanel({ device, mayManage, landing }: { device: Device; mayManage: boolean; landing: ClimateLanding }) {
   const { t } = useTranslation();
   const plan = useDevicePlan(device.id);
+  const all = useDevices();
   // The beat re-renders the panel, and the reading is taken at the render: a
   // clock read up to a beat before the answer arrived puts a plan that was just
   // started in the panel's future, which is how an extension looks.
@@ -113,7 +114,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
               {landing === 'document'
                 ? t('space.control.noneNote')
                 : landing === 'awaited'
-                  ? t('targets.waiting', { device: deviceTitle(device, t) })
+                  ? t('targets.waiting', { device: deviceTitle(device, t, all.data?.items) })
                   : t('space.control.noClimateNote')}
             </p>
             {mayManage && landing === 'document' ? (
