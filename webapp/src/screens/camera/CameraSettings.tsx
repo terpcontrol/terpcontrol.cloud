@@ -8,6 +8,7 @@ import { useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
+import { deviceName } from '@/screens/devices/naming';
 import { countdownDays } from '@/screens/me/premium/entitlement';
 import { missingLine } from '@/screens/me/premium/free-tier';
 import type { HelpTopic } from '@/ui/explain';
@@ -68,7 +69,9 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
   const changed = Object.keys(draft).length > 0;
 
   const place = spaces.data?.items.find(space => space.id === camera.spaceId)?.name ?? null;
-  const through = devices.data?.items.find(device => device.id === camera.deviceId)?.name ?? null;
+  // The carrier by the name every other screen gives it, never the type key a claim stored as one.
+  const carrier = devices.data?.items.find(device => device.id === camera.deviceId) ?? null;
+  const through = carrier ? deviceName(carrier, t) : null;
 
   const save = () =>
     update.mutate(draft, {

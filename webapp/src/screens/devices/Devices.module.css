@@ -135,6 +135,10 @@
     display: -webkit-box;
     white-space: normal;
     overflow-wrap: anywhere;
+    /* A compound that does not fit breaks where the language would break it -
+       "Kühlschrank-modul" - before it breaks anywhere at all ("Kühlschrankmod
+       / ul" beside an offline pill). */
+    hyphens: auto;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -188,6 +192,76 @@
   padding: 0;
 }
 
+/* A row whose head opens its panel answers a tap anywhere on it, not only on
+   the chevron. */
+.rowHead[data-opens] {
+  cursor: pointer;
+}
+
+/* The opened device: the facts, what is standing on it, the two things done to
+   the hardware, the way to rename it, and the technical details folded away. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.panel > .facts:first-child {
+  margin-bottom: var(--space-1);
+}
+
+/* A window that is standing, in the amber every held thing in the app wears. */
+.quiet {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--warning-wash);
+  border: var(--rule-width) solid var(--warning-edge);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-3);
+}
+
+/* Why the two are greyed out, under them. */
+.actions + p {
+  margin-top: var(--space-2);
+}
+
+/* A two-line action and the (i) that says more about it. Two share a line
+   where the card is wide enough, and stack on a phone. */
+.withHelp {
+  display: flex;
+  flex: 1 1 15rem;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.technical {
+  margin-top: var(--space-3);
+}
+
+.technical > summary {
+  cursor: pointer;
+  width: fit-content;
+}
+
+.technical .facts {
+  margin-top: var(--space-2);
+}
+
+/* With no camera yet, the way to add one is a line of small print under the
+   way to add a device, rather than a box of its own. */
+.addCamera {
+  align-self: center;
+  margin-top: calc(var(--space-3) * -1);
+}
+
 /* What a row has to say once it is opened: one fact per line, label left. */
 .facts {
   display: flex;
@@ -203,6 +277,11 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
+}
+
+/* The name of a fact keeps its line, (i) and all; a long value wraps instead. */
+.fact > dt {
+  flex: none;
 }
 
 .factValue {

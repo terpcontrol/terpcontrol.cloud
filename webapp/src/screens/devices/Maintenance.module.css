@@ -1,0 +1,58 @@
+/* The maintenance button and the two questions behind it. The buttons, the
+   sheet and the notes are the app's own; only the second line under a button's
+   name and the room between the sentences are said here. */
+
+/* Two lines - what it is, and what it does - so it takes the height those need
+   rather than the single line every other card action has. The element is
+   named so this wins over the card's own fixed action height. */
+button.button {
+  flex: 1 1 13rem;
+  height: auto;
+  min-height: var(--action-height);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  white-space: normal;
+}
+
+.words {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.subline {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+/* A card's actions make room for it on a line of its own when the row is full. */
+.wrap {
+  flex-wrap: wrap;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.body p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}

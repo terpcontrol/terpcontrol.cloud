@@ -827,10 +827,8 @@
       "explained": "Das Gerät dimmt diesen Ausgang selbst und fährt ihn über Sonnenauf- und -untergang hoch und runter; die Helligkeit ist das Maximum, das es gibt. Eine smarte Steckdose mit Licht-Rolle hat keine eigene Stufe — sie folgt diesem Ausgang an oder aus, solange sie nicht von Hand gehalten wird. Lichtstunden zählen jede Stunde, in der die Lampe über null liegt: Dimmen ändert, wie hell der Tag ist, nicht wie lang."
     },
     "noDevices": "Hier steht noch kein Gerät. Ein Controller kommt mit dem Code auf seinem Display dazu.",
-    "noCameras": "Hier hängt noch keine Kamera.",
     "readingSockets": "Steckdosen werden gelesen…",
     "socketsFailed": "Eine Steckdosentabelle ließ sich nicht lesen; hier stehen nur die, die geantwortet haben.",
-    "firmware": "Firmware {{version}}",
     "socketCount_one": "{{count}} Steckdose",
     "socketCount_other": "{{count}} Steckdosen",
     "camCount_one": "{{count}} Kamera",
@@ -842,9 +840,7 @@
     "ago": "vor {{age}}",
     "buildUnread": "ließ sich nicht lesen",
     "update": {
-      "newBuild": "ein neuer Build",
-      "owed": "{{build}} soll installiert werden; das Gerät wird gefragt, solange es verbunden ist, und läuft noch nicht damit",
-      "failed": "{{build}} wurde nicht übernommen ({{ago}}). Das Gerät läuft noch mit dem Build darüber und wird erneut gefragt, solange es verbunden ist."
+      "newBuild": "ein neuer Build"
     },
     "fact": {
       "id": "Geräte-ID",
@@ -853,7 +849,8 @@
       "channel": "Updates",
       "update": "Update",
       "can": "Versteht",
-      "place": "Steht in"
+      "place": "Steht in",
+      "owed": "Soll installiert werden"
     },
     "channel": {
       "stable": "stabil",
@@ -867,9 +864,39 @@
       "light": "Licht-Handbetrieb",
       "nothing": "nichts über die Rollen hinaus, mit denen es gebaut wurde"
     },
+    "panel": {
+      "connection": "Verbindung",
+      "connected": "verbunden",
+      "connectedLate": "verbunden · letzte Meldung vor {{age}}",
+      "offlineSince": "offline seit {{time}}",
+      "neverHeard": "hat sich noch nie gemeldet",
+      "firmware": "Firmware",
+      "firmwareFrom": "vom {{day}}",
+      "firmwareUnknown": "Version nicht bekannt",
+      "updateOwed": "Neue Firmware wird installiert; das Gerät startet dabei einmal neu.",
+      "updateFailed": "Neue Firmware ließ sich nicht installieren ({{ago}}). Das Gerät läuft mit der bisherigen weiter, und es wird erneut versucht, solange es verbunden ist.",
+      "channel": {
+        "stable": "automatisch – stabile Versionen",
+        "beta": "automatisch – auch Testversionen (Beta)",
+        "alpha": "automatisch – frühe Testversionen (Alpha)",
+        "manual": "von Hand – neue Firmware kommt nicht automatisch"
+      },
+      "offlineNote": "Neu starten und Wartung gehen erst wieder, wenn das Gerät verbunden ist.",
+      "technical": "Technische Details"
+    },
+    "reboot": {
+      "action": "Neu starten",
+      "does": "kurz offline, Einstellungen bleiben",
+      "title": "{{name}} neu starten?",
+      "text": "Das Gerät startet neu und ist dabei kurz nicht erreichbar, meist weniger als eine Minute. In der Zeit regelt es nicht.",
+      "kept": "Zielwerte und Einstellungen bleiben erhalten. Was du von Hand geschaltet hast – Licht oder Steckdosen –, endet mit dem Neustart.",
+      "yes": "Jetzt neu starten",
+      "sent": "Neustart angefragt. Das Gerät meldet sich gleich wieder.",
+      "unheard": "Das Gerät war gerade nicht erreichbar und hat den Befehl wohl nicht bekommen."
+    },
     "type": {
       "controller": "Controller",
-      "fridge": "Kühlschrankmodul",
+      "fridge": "Kühlschrank\u00admodul",
       "plug": "Steckdose",
       "fan": "Lüfter",
       "light": "Licht"
@@ -931,7 +958,7 @@
       "open": "Umbenennen oder umziehen",
       "title": "{{name}}",
       "name": "Name",
-      "nameNote": "Bleibt das Feld leer, heißt das Gerät wieder nach seinem Typ und den letzten Zeichen seiner ID - denen, die auf ihm stehen.",
+      "nameNote": "Bleibt das Feld leer, heißt das Gerät nach seinem Typ – und wenn du mehrere davon hast, dazu nach den letzten Zeichen seiner ID, die auf ihm stehen.",
       "save": "Namen speichern",
       "saving": "wird gespeichert…",
       "place": "Steht in",
@@ -3430,9 +3457,28 @@
     "end": "Jetzt beenden",
     "ending": "Wird beendet …",
     "ended": "Beenden angefragt. Die Alarme kommen zurück, sobald sich das Klima beruhigt hat.",
+    "action": "Wartung · {{minutes}} Min",
+    "actionNote": "Regelung und Alarme pausieren",
+    "running": "Wartung bis {{until}}",
+    "runningNote": "Regelung und Alarme pausiert",
+    "title": "Wartung · {{minutes}} Minuten",
+    "pauses": "Für {{minutes}} Minuten stellt das Gerät {{outputs}} ab, damit du in Ruhe arbeiten kannst.",
+    "pausesNothing": "Dieses Gerät kennt die Wartung nicht und stellt nichts ab. Nur seine Alarme bleiben aus.",
+    "pausesEach_one": "Für {{minutes}} Minuten pausiert das Gerät hier:",
+    "pausesEach_other": "Für {{minutes}} Minuten pausieren alle {{count}} Geräte hier:",
+    "alarms": "Alarme bleiben {{quiet}} Minuten aus – die {{minutes}} Minuten und {{settle}} weitere, bis das Klima wieder stimmt.",
+    "after_one": "Danach regelt das Gerät von selbst weiter. Du kannst die Wartung auch vorher beenden.",
+    "after_other": "Danach regeln die Geräte von selbst weiter. Du kannst die Wartung auch vorher beenden.",
+    "runningText": "Die Regelung ist bis {{until}} pausiert, Alarme sind bis {{alarms}} aus. Beendest du die Wartung jetzt, regelt das Gerät sofort weiter; die Alarme kommen zurück, sobald sich das Klima beruhigt hat.",
+    "start": "Wartung starten",
+    "cancel": "Abbrechen",
+    "done": "Fertig",
+    "started": "Die Wartung läuft. Nach {{minutes}} Minuten regelt alles von selbst weiter, Alarme kommen nach {{quiet}} Minuten zurück.",
+    "unheard": "Ein Gerät war gerade nicht erreichbar und hat den Befehl vielleicht nicht bekommen. Seine Alarme bleiben trotzdem {{quiet}} Minuten aus.",
     "output": {
       "heater": "die Heizung",
       "dehumidifier": "den Entfeuchter",
+      "compressor": "den Kompressor",
       "co2": "das CO₂-Ventil"
     }
   },
@@ -4427,6 +4473,14 @@
       "title": "1 Std stumm",
       "text": "Diese eine Regel sagt eine Stunde lang niemandem Bescheid – keinem Mitglied, auf keinem Kanal, auch nicht per eigener E-Mail oder eigenem Webhook. Sie beobachtet weiter: Die Meldung erscheint trotzdem und steht im Tagebuch."
     },
+    "maintenance": {
+      "title": "Wartung",
+      "text": "Für die Arbeit im Zelt oder Schrank: 15 Minuten lang stellt das Gerät Heizung, Entfeuchter oder Kompressor und CO₂-Ventil ab und dimmt das Licht. Alarme bleiben 25 Minuten aus – die Wartung und 10 Minuten, bis das Klima wieder stimmt. Danach regelt alles von selbst weiter."
+    },
+    "reboot": {
+      "title": "Neu starten",
+      "text": "Startet das Gerät neu – hilfreich, wenn es hängt oder sich seltsam verhält. Es ist dabei meist weniger als eine Minute offline und regelt in der Zeit nicht. Zielwerte und Einstellungen bleiben erhalten; was von Hand geschaltet ist, endet."
+    },
     "endMaintenance": {
       "title": "Jetzt beenden",
       "text": "Das Gerät nimmt seine Arbeit sofort wieder auf. Seine Alarme bleiben noch 10 Minuten zurückgehalten, während das Klima zurückkommt."
@@ -4496,8 +4550,8 @@
       "text": "An lässt die Lampe mit ihrer Lichtgrenze leuchten, auch nachts; Aus hält sie dunkel – für die angezeigte Zeit oder bis das Gerät neu startet. Das Gerät meldet das Halten nicht zurück, deshalb kann diese Zeile es nicht zeigen; Auto beendet es."
     },
     "firmwareChannel": {
-      "title": "Update-Kanal",
-      "text": "Die Release-Linie, aus der dieses Gerät Firmware bekommt: stabil, beta oder alpha. Ohne Kanal bleibt es beim Build, den es hat, und neue Releases erreichen es nicht. Während ein Update installiert wird, schalten Controller und Fridge alle Ausgänge und smarten Steckdosen aus und starten dann neu."
+      "title": "Updates",
+      "text": "Woher das Gerät neue Firmware bekommt. Von Hand: Es bleibt bei der Version, die es hat, und neue Versionen kommen nicht von selbst. Automatisch: Neue Versionen werden installiert, sobald sie erscheinen – stabile, bei Beta und Alpha auch Testversionen. Während eines Updates schalten Controller und Kühlschrankmodul alle Ausgänge und Steckdosen kurz aus und starten neu."
     },
     "stillCadence": {
       "title": "Bild alle",

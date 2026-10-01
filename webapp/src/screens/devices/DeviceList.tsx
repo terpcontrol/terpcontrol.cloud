@@ -1,27 +1,31 @@
 import { Camera as CameraIcon, ChevronDown, ChevronRight, Cpu, Pencil } from 'lucide-react';
-import type { DateTime } from 'luxon';
+import { DateTime } from 'luxon';
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { ActuatorRuns, Camera, ClimateVerdict, Device, Firmware, OutputMetric, SocketPage, SocketRole, ValueState } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useCameras, useLatestStills } from '@/api/cameras';
-import { fetchedAt } from '@/api/clock';
+import { fetchedAt, serverNow } from '@/api/clock';
 import { useDeviceFirmwares, useDevices, useLiveReads, useSocketTables } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces, useSpaceVerdicts } from '@/api/spaces';
 import { ageAttribute, ageLabel, deviceLiveness, heardAt } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { Help, Term } from '@/ui/Help';
+import { maintenanceQuiet, parksAnything } from '@/ui/maintenance';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, useMayLogIn, useMayManage, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { calendarDay, clock, useZone } from '@/ui/zone';
+import { clockLabel } from '@/screens/notifications/settings';
 import { cameraFreshness } from './cameras';
 import { DeviceSettingsSheet } from './DeviceSettingsSheet';
 import { Fact, Facts } from './Facts';
 import { isLightRole, lightOutputOf } from './lights';
 import { LightOutputRow } from './LightOutputRow';
+import { MaintenanceButton, RebootButton } from './Maintenance';
 import { cameraTitle, deviceName, deviceTitle } from './naming';
 import { rowsOf, type SocketRowModel } from './sockets';
 import { SocketRow } from './SocketRow';
@@ -116,6 +120,7 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
               key={device.id}
               explain={index === 0}
               device={device}
+              among={devices.data!.items}
               place={placeOf(device.spaceId)}
               sockets={tables.tables.get(device.id)}
               cameras={shown.filter(camera => camera.deviceId === device.id).length}
@@ -135,27 +140,37 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
           </Link>
         ) : null}
 
-        <Section label={t('devices.cameras')} empty={shown.length === 0 ? t('devices.noCameras') : null}>
-          {shown.map(camera => (
-            <CameraRow
-              key={camera.id}
-              camera={camera}
-              place={placeOf(camera.spaceId)}
-              devices={devices.data!.items}
-              stillId={stills.get(camera.id) ?? null}
-              now={now}
-            />
-          ))}
-        </Section>
+        {/* No camera, no section: an empty box between the device and its light
+            said nothing to somebody who never had one, and read as something
+            missing. The way to add one is then a single small line. */}
+        {shown.length > 0 ? (
+          <Section label={t('devices.cameras')} empty={null}>
+            {shown.map(camera => (
+              <CameraRow
+                key={camera.id}
+                camera={camera}
+                place={placeOf(camera.spaceId)}
+                devices={devices.data!.items}
+                stillId={stills.get(camera.id) ?? null}
+                now={now}
+              />
+            ))}
+          </Section>
+        ) : null}
 
         {/* Only on the Devices tab: a tent's own list is the same component,
             and the screen behind this asks which place a camera is for rather
-            than taking the one it was opened from. It closes the list it adds
-            to, as the way to add a device closes that one. */}
+            than taking the one it was opened from. */}
         {maySetUp && spaceId === undefined ? (
-          <Link className={ui.addRow} to="/cameras/add">
-            + {t('cameras.add.title')}
-          </Link>
+          shown.length > 0 ? (
+            <Link className={ui.addRow} to="/cameras/add">
+              + {t('cameras.add.title')}
+            </Link>
+          ) : (
+            <Link className={`${ui.headLink} ${styles.addCamera}`} to="/cameras/add">
+              + {t('cameras.add.title')}
+            </Link>
+          )
         ) : null}
       </div>
 
@@ -196,7 +211,7 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
           const needsFirmware = !table.capabilities.socketOverride ? t('devices.socket.needsFirmware') : null;
           const refusal = unheard ?? needsFirmware;
           const refusals = [unheard, needsFirmware].filter((one): one is string => one !== null);
-          const place = placeOf(device.spaceId) ?? deviceTitle(device, t);
+          const place = placeOf(device.spaceId) ?? deviceTitle(device, t, devices.data!.items);
           // A socket and the lamp above it are this device's configuration, which
           // is `manage` where the device stands.
           const mayManage = enough(mayWith(device), 'manage');
@@ -286,6 +301,8 @@ function Section({ label, empty, children }: { label: string; empty: string | nu
 
 interface DeviceRowProps {
   device: Device;
+  /** Every device of the account, which is what says whether this one's name needs the tail of its id. */
+  among: Device[];
   place: string | null;
   sockets: SocketPage | undefined;
   cameras: number;
@@ -298,21 +315,33 @@ interface DeviceRowProps {
   explain: boolean;
 }
 
-/** A controller: where it stands, what it runs, how much it drives, and how long ago it last said anything. */
-function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now, explain }: DeviceRowProps) {
+/**
+ * A controller: where it stands, what it runs, how much it drives, and how long
+ * ago it last said anything - and, opened, the device in plain words and the
+ * two things done to the hardware itself.
+ *
+ * The whole head opens it, not only the chevron: a tap on the name used to do
+ * nothing at all. The chevron stays the control a keyboard and a screen reader
+ * use, and the click it receives is the head's own.
+ */
+function DeviceRow({ device, among, place, sockets, cameras, linked, spokeAt, now, explain }: DeviceRowProps) {
   const { t } = useTranslation();
+  const zone = useZone();
   const [open, setOpen] = useState(false);
   const [naming, setNaming] = useState(false);
   const firmwares = useDeviceFirmwares(device.id, open);
   const liveness = deviceLiveness(spokeAt, now);
+  const offline = liveness === 'offline';
+  const title = deviceTitle(device, t, among);
+  const quiet = maintenanceQuiet(device, DateTime.max(now, serverNow()));
   // What a build takes is said only of a type that drives sockets at all: a
   // plug, a fan or a light announces no override because it has nothing to
-  // override. It is said in the panel, as what the build takes, rather than as
-  // a bare "legacy" on the row that nothing on the page explained.
+  // override.
   const drivesSockets = SOCKET_HOST_TYPES.includes(device.type);
-  // Naming a device and moving it are both `manage`, and asked of this device
-  // rather than of the screen: the whole-account list draws rows from every
-  // place at once, and the same reader owns one tent and only reads the next.
+  // Naming a device, moving it and sending it a command are all `manage`, and
+  // asked of this device rather than of the screen: the whole-account list
+  // draws rows from every place at once, and the same reader owns one tent and
+  // only reads the next.
   const mayCorrect = enough(useMayWith()(device), 'manage');
 
   const build = firmwares.data?.items.find(one => one.id === device.state.firmwareId);
@@ -324,84 +353,75 @@ function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now, expl
 
   // What the row says about the device, in the order it would be missed: the
   // line is one line, and what does not fit is in the panel behind the chevron.
-  //
-  // The build is named and never identified. What the hardware reports is the
-  // uuid its build container stamped, which is three lines of hex to a grower
-  // and cannot be compared with anything, so the build list is what turns it
-  // into something readable - and until that list has been read, the segment is
-  // left out rather than printed as the uuid it is. The list is one request per
-  // class and is fetched when the panel opens, which is where this fact is
-  // wanted; asking for it on first paint would be one request per row.
   const line = [
     place,
     sockets && sockets.items.length > 0 ? t('devices.socketCount', { count: sockets.items.length }) : null,
     cameras > 0 ? t('devices.camCount', { count: cameras }) : null,
-    buildLabel(build) ? t('devices.firmware', { version: buildLabel(build) }) : null,
   ]
     .filter(Boolean)
     .join(' · ');
 
+  // Connected or not, and since when, in the words the rest of the app uses
+  // for it: a stale device is still connected, only late.
+  const connection =
+    liveness === 'live'
+      ? t('devices.panel.connected')
+      : liveness === 'stale' && spokeAt
+        ? t('devices.panel.connectedLate', { age: ageLabel(spokeAt, now) })
+        : spokeAt
+          ? t('devices.panel.offlineSince', { time: clockLabel(spokeAt, now, zone) })
+          : t('devices.panel.neverHeard');
+
+  // The build is named by the day it was made, which is the one thing about it
+  // a grower can compare. What the build container stamped it with is a commit
+  // and a branch, so that is a technical detail; and until the build list has
+  // been read nothing is said rather than the uuid the hardware reports.
+  const firmware = build ? (
+    t('devices.panel.firmwareFrom', { day: calendarDay(build.createdAt, zone) })
+  ) : firmwares.isPending ? (
+    t('home.waiting')
+  ) : firmwares.isError ? (
+    // A read that failed is not a build nobody knows, so it does not say the same.
+    <>
+      {t('devices.buildUnread')}{' '}
+      <button type="button" className={ui.chip} onClick={() => void firmwares.refetch()}>
+        {t('home.retry')}
+      </button>
+    </>
+  ) : (
+    t('devices.panel.firmwareUnknown')
+  );
+
   return (
     <li className={`${ui.card} ${styles.row}`}>
-      <div className={styles.rowHead}>
+      <div className={styles.rowHead} data-opens onClick={() => setOpen(!open)}>
         <Cpu className={styles.rowIcon} size={18} strokeWidth={1.75} aria-hidden />
         <div className={styles.rowText}>
-          <span className={styles.rowTitle}>{deviceTitle(device, t)}</span>
-          <span className={styles.rowNote}>{line}</span>
+          <span className={styles.rowTitle}>{title}</span>
+          {line ? <span className={styles.rowNote}>{line}</span> : null}
         </div>
         <span className={ui.live} data-liveness={liveness}>
           <span className={ui.liveDot} aria-hidden />
           {explain ? <Term topic="liveness">{t(`home.liveness.${liveness}`)}</Term> : t(`home.liveness.${liveness}`)}
           {spokeAt ? ` · ${ageLabel(spokeAt, now)}` : ''}
         </span>
-        <button
-          type="button"
-          className={styles.expand}
-          aria-expanded={open}
-          aria-label={t('devices.details', { name: deviceTitle(device, t) })}
-          onClick={() => setOpen(!open)}
-        >
+        <button type="button" className={styles.expand} aria-expanded={open} aria-label={t('devices.details', { name: title })}>
           {open ? <ChevronDown size={16} strokeWidth={2} aria-hidden /> : <ChevronRight size={16} strokeWidth={2} aria-hidden />}
         </button>
       </div>
 
       {open ? (
-        <>
+        <div className={styles.panel}>
           <Facts>
-            <Fact label={t('devices.fact.id')} value={device.id} />
-            {/* Through the catalogue, like the thirteen other places that print a
-                type: it is a contract key and not a word, so drawn as it stands
-                it reads as lowercase English under a row title the German app has
-                already translated. A type from a newer contract than this build
-                still prints, rather than showing a missing key. */}
-            <Fact label={t('devices.fact.type')} value={t(`devices.type.${device.type}`, { defaultValue: device.type })} />
-            <Fact
-              label={t('devices.fact.build')}
-              value={
-                buildLabel(build) ??
-                (firmwares.isPending ? (
-                  t('home.waiting')
-                ) : firmwares.isError ? (
-                  // A read that failed is not a build nobody knows, so it does
-                  // not print the same dash.
-                  <>
-                    {t('devices.buildUnread')}{' '}
-                    <button type="button" className={ui.chip} onClick={() => void firmwares.refetch()}>
-                      {t('home.retry')}
-                    </button>
-                  </>
-                ) : (
-                  '—'
-                ))
-              }
-            />
-            {owedLabel ? (
+            <Fact label={t('devices.panel.connection')} value={connection} />
+            <Fact label={t('devices.panel.firmware')} value={firmware} />
+            {owedId ? (
               <Fact
                 label={t('devices.fact.update')}
                 value={
                   device.state.updateFailedAt
-                    ? t('devices.update.failed', { build: owedLabel, ago: t('devices.ago', { age: ageLabel(device.state.updateFailedAt, now) }) })
-                    : t('devices.update.owed', { build: owedLabel })
+                    ? t('devices.panel.updateFailed', { ago: t('devices.ago', { age: ageLabel(device.state.updateFailedAt, now) }) })
+                    : t('devices.panel.updateOwed')
                 }
               />
             ) : null}
@@ -412,9 +432,8 @@ function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now, expl
                   <Help topic="firmwareChannel" />
                 </>
               }
-              value={t(`devices.channel.${device.firmware.channel}`)}
+              value={t(`devices.panel.channel.${device.firmware.channel}`)}
             />
-            {drivesSockets && sockets ? <Fact label={t('devices.fact.can')} value={capabilityLine(t, sockets)} /> : null}
             {place && linked && device.spaceId ? (
               <Fact
                 label={t('devices.fact.place')}
@@ -428,17 +447,60 @@ function DeviceRow({ device, place, sockets, cameras, linked, spokeAt, now, expl
             ) : null}
           </Facts>
 
+          {quiet ? (
+            <p className={`mono ${styles.quiet}`} role="status">
+              {t(quiet.parked ? 'maintenance.parked' : 'maintenance.settling', {
+                until: clock(quiet.until, zone),
+                alarms: clock(quiet.alarmsUntil, zone),
+              })}
+            </p>
+          ) : null}
+
+          {/* The two things done to the hardware itself, each asked first. A
+              device nobody is listening on would hear neither, so they wait
+              for it with the reason under them rather than vanishing. */}
+          {mayCorrect ? (
+            <div className={styles.actions}>
+              <span className={styles.withHelp}>
+                <RebootButton device={device} name={title} disabled={offline} />
+                <Help topic="reboot" />
+              </span>
+              {parksAnything(device) ? (
+                <span className={styles.withHelp}>
+                  <MaintenanceButton devices={[device]} now={now} disabled={offline} />
+                  <Help topic="maintenance" />
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+          {mayCorrect && offline ? <p className={ui.note}>{t('devices.panel.offlineNote')}</p> : null}
+
           {/* Beside the facts it corrects, which is where the name and the place
               are read: the panel is the only screen in the app a device has of
-              its own, and both of these were until now the claim flow's alone -
-              the name not even there. */}
+              its own. */}
           {mayCorrect ? (
             <button type="button" className={`${ui.chip} ${settings.open}`} onClick={() => setNaming(true)}>
               <Pencil size={13} strokeWidth={1.75} aria-hidden />
               {t('devices.settings.open')}
             </button>
           ) : null}
-        </>
+
+          {/* What only support asks for: the id printed on the hardware, the
+              build as its container stamped it, and what that build takes. */}
+          <details className={styles.technical}>
+            <summary className="label">{t('devices.panel.technical')}</summary>
+            <Facts>
+              <Fact label={t('devices.fact.id')} value={device.id} />
+              {/* Through the catalogue, like every other place that prints a
+                  type: it is a contract key and not a word. A type from a newer
+                  contract than this build still prints, rather than a missing key. */}
+              <Fact label={t('devices.fact.type')} value={t(`devices.type.${device.type}`, { defaultValue: device.type })} />
+              <Fact label={t('devices.fact.build')} value={buildLabel(build) ?? '—'} />
+              {owedLabel ? <Fact label={t('devices.fact.owed')} value={owedLabel} /> : null}
+              {drivesSockets && sockets ? <Fact label={t('devices.fact.can')} value={capabilityLine(t, sockets)} /> : null}
+            </Facts>
+          </details>
+        </div>
       ) : null}
 
       {naming ? <DeviceSettingsSheet device={device} onClose={() => setNaming(false)} /> : null}

@@ -831,10 +831,8 @@
       "explained": "The device dims this output itself and ramps it through sunrise and sunset; the brightness is the most it gives. A smart socket with a light role has no level of its own — it follows this output on or off, unless it is being held. Hours of light count every hour the lamp is above zero, so dimming changes how bright the day is and not how long it is."
     },
     "noDevices": "No device here yet. A controller joins with the claim code on its display.",
-    "noCameras": "No camera here yet.",
     "readingSockets": "Reading the socket tables…",
     "socketsFailed": "One socket table could not be read; the rows that are here are the ones that answered.",
-    "firmware": "firmware {{version}}",
     "socketCount_one": "{{count}} socket",
     "socketCount_other": "{{count}} sockets",
     "camCount_one": "{{count}} cam",
@@ -846,9 +844,7 @@
     "ago": "{{age}} ago",
     "buildUnread": "could not be read",
     "update": {
-      "newBuild": "a new build",
-      "owed": "{{build}} is to be installed; the device is asked while it is connected and has not come back running it yet",
-      "failed": "{{build}} did not take ({{ago}}). The device is still on the build above and is asked again while it is connected."
+      "newBuild": "a new build"
     },
     "fact": {
       "id": "Device id",
@@ -857,7 +853,8 @@
       "channel": "Updates",
       "update": "Update",
       "can": "Takes",
-      "place": "Stands in"
+      "place": "Stands in",
+      "owed": "To be installed"
     },
     "channel": {
       "stable": "stable",
@@ -870,6 +867,36 @@
       "timer": "socket timers",
       "light": "light override",
       "nothing": "nothing beyond the roles it was built with"
+    },
+    "panel": {
+      "connection": "Connection",
+      "connected": "connected",
+      "connectedLate": "connected · last heard {{age}} ago",
+      "offlineSince": "offline since {{time}}",
+      "neverHeard": "has never reported",
+      "firmware": "Firmware",
+      "firmwareFrom": "from {{day}}",
+      "firmwareUnknown": "version not known",
+      "updateOwed": "New firmware is being installed; the device restarts once while it is.",
+      "updateFailed": "New firmware did not install ({{ago}}). The device keeps running the one it has, and it is tried again while it is connected.",
+      "channel": {
+        "stable": "automatic – stable releases",
+        "beta": "automatic – test releases too (beta)",
+        "alpha": "automatic – early test releases (alpha)",
+        "manual": "by hand – new firmware does not arrive by itself"
+      },
+      "offlineNote": "Restart and maintenance work again once the device is connected.",
+      "technical": "Technical details"
+    },
+    "reboot": {
+      "action": "Restart",
+      "does": "offline for a moment, settings kept",
+      "title": "Restart {{name}}?",
+      "text": "The device restarts and cannot be reached for a moment, usually less than a minute. It regulates nothing meanwhile.",
+      "kept": "Targets and settings are kept. Anything you switched by hand – the light or a socket – ends with the restart.",
+      "yes": "Restart now",
+      "sent": "Restart asked for. The device will be back in a moment.",
+      "unheard": "The device could not be reached just now and most likely did not get the command."
     },
     "type": {
       "controller": "Controller",
@@ -935,7 +962,7 @@
       "open": "Rename or move",
       "title": "{{name}}",
       "name": "Name",
-      "nameNote": "Leave it empty and the device is called after its type and the last characters of its id again - the ones printed on it.",
+      "nameNote": "Leave it empty and the device is called after its type – and, where you have more than one of them, after the last characters of its id, the ones printed on it.",
       "save": "Save the name",
       "saving": "Saving…",
       "place": "Stands in",
@@ -3426,9 +3453,28 @@
     "end": "End now",
     "ending": "Ending …",
     "ended": "Asked to end it. The alarms come back once the climate has settled.",
+    "action": "Maintenance · {{minutes}} min",
+    "actionNote": "Pause control and alarms",
+    "running": "Maintenance until {{until}}",
+    "runningNote": "Control and alarms paused",
+    "title": "Maintenance · {{minutes}} minutes",
+    "pauses": "For {{minutes}} minutes the device stops {{outputs}}, so you can work in peace.",
+    "pausesNothing": "This device takes no maintenance command and stops nothing. Only its alarms stay off.",
+    "pausesEach_one": "For {{minutes}} minutes this pauses the device here:",
+    "pausesEach_other": "For {{minutes}} minutes this pauses all {{count}} devices here:",
+    "alarms": "Alarms stay off for {{quiet}} minutes – the {{minutes}} minutes and {{settle}} more, until the climate is back.",
+    "after_one": "Afterwards the device carries on by itself. You can also end maintenance sooner.",
+    "after_other": "Afterwards the devices carry on by themselves. You can also end maintenance sooner.",
+    "runningText": "Control is paused until {{until}} and alarms are off until {{alarms}}. Ending maintenance now lets the device regulate again at once; the alarms come back once the climate has settled.",
+    "start": "Start maintenance",
+    "cancel": "Cancel",
+    "done": "Done",
+    "started": "Maintenance is on. After {{minutes}} minutes everything carries on by itself; alarms come back after {{quiet}} minutes.",
+    "unheard": "A device could not be reached just now and may not have got the command. Its alarms stay off for {{quiet}} minutes all the same.",
     "output": {
       "heater": "the heater",
       "dehumidifier": "the dehumidifier",
+      "compressor": "the compressor",
       "co2": "the CO₂ valve"
     }
   },
@@ -4423,6 +4469,14 @@
       "title": "Silence 1 h",
       "text": "Stops this one rule telling anybody for an hour – every member, every channel, its own e-mail or webhook too. The rule keeps watching: the alert still opens and is written to the diary."
     },
+    "maintenance": {
+      "title": "Maintenance",
+      "text": "For working in the tent or cabinet: for 15 minutes the device stops the heater, the dehumidifier or compressor and the CO₂ valve, and dims the light. Alarms stay off for 25 minutes – the maintenance and 10 minutes for the climate to come back. Then everything carries on by itself."
+    },
+    "reboot": {
+      "title": "Restart",
+      "text": "Restarts the device – useful when it hangs or behaves oddly. It is usually offline for less than a minute and regulates nothing meanwhile. Targets and settings are kept; anything switched by hand ends."
+    },
     "endMaintenance": {
       "title": "End now",
       "text": "The device takes up its work again at once. Its alarms stay held for another 10 minutes while the climate comes back."
@@ -4492,8 +4546,8 @@
       "text": "On runs the lamp at its light limit, even at night; Off keeps it dark – for the time shown, or until the device restarts. The device does not report a hold back, so this row cannot show one running; Auto ends it."
     },
     "firmwareChannel": {
-      "title": "Update channel",
-      "text": "The release line this device takes firmware from: stable, beta or alpha. On no channel it stays on the build it has, and releases do not reach it. While an update installs, a controller or fridge switches every output and smart socket off, then restarts."
+      "title": "Updates",
+      "text": "Where the device gets new firmware from. By hand: it stays on the version it has, and new versions do not arrive by themselves. Automatic: new versions are installed as they come out – stable ones, or with beta and alpha test versions too. While an update installs, a controller or fridge module switches every output and socket off for a moment, then restarts."
     },
     "stillCadence": {
       "title": "Still every",

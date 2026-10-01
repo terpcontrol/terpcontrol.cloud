@@ -18,3 +18,14 @@ export const useDeviceCommand = () => {
     onSettled: () => client.invalidateQueries({ queryKey: ['devices'], exact: true }),
   });
 };
+
+/** One command to every device of a place at once: one receipt per device, in the order they were named. */
+export const useDevicesCommand = () => {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ deviceIds, command }: { deviceIds: string[]; command: DeviceCommand }) =>
+      Promise.all(deviceIds.map(deviceId => api.post<DeviceCommandResult>(`/devices/${deviceId}/commands`, command))),
+    onSettled: () => client.invalidateQueries({ queryKey: ['devices'], exact: true }),
+  });
+};

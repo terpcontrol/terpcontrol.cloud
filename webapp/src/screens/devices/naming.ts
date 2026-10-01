@@ -26,9 +26,22 @@ export const deviceName = (device: Device, t: Translate): string => given(device
  * unnamed controllers would be one word repeated, so an unnamed one carries the
  * tail of its id as well - the same few characters the claim summary prints,
  * which is what a person has to hand to tell two of a kind apart.
+ *
+ * Only where there are two of a kind, though. Given the account's devices, one
+ * that nothing else would be called alike is called by its name alone: a grower
+ * with one fridge module read "Fridge module · DC891B" on one screen and the
+ * place's name on the next, and the six characters told nothing apart. Without
+ * the list there is no telling, and the tag stays.
  */
-export const deviceTitle = (device: Device, t: Translate): string =>
-  given(device) ?? t('devices.unnamed', { type: deviceName(device, t), tag: deviceTag(device) });
+export const deviceTitle = (device: Device, t: Translate, among?: Device[]): string => {
+  const name = given(device);
+  if (name) return name;
+
+  const word = deviceName(device, t);
+  const alike = among?.some(other => other.id !== device.id && deviceName(other, t) === word) ?? true;
+
+  return alike ? t('devices.unnamed', { type: word, tag: deviceTag(device) }) : word;
+};
 
 /**
  * The few characters printed on the cam, which is what it is called before

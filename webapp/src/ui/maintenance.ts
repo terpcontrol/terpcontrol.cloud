@@ -73,8 +73,12 @@ export const parksAnything = (device: Device): boolean => parkedOutputs(device).
  * to the name the alarm screen uses.
  */
 export const parkedLabel = (t: Translate, device: Device): string => {
+  // A fridge module drives one compressor that both cools and dries, on the
+  // output the firmware calls the dehumidifier; "the dehumidifier" named a
+  // machine that cabinet does not have.
+  const word = (output: OutputMetric): string => (device.type === 'fridge' && output === 'dehumidifier' ? 'compressor' : output);
   const names = parkedOutputs(device).map(output =>
-    t(`maintenance.output.${output}`, { defaultValue: t(`alarms.output.${output}`, { defaultValue: output }) }),
+    t(`maintenance.output.${word(output)}`, { defaultValue: t(`alarms.output.${output}`, { defaultValue: output }) }),
   );
   if (names.length < 2) return names[0] ?? '';
 
@@ -128,3 +132,14 @@ export const maintenanceQuiet = (device: Device, now: DateTime): Quiet | null =>
 
   return alarms > now ? { until, alarmsUntil: alarms.toISO() ?? until, parked: window > now } : null;
 };
+
+/**
+ * The window standing on any of these devices that is still parking hardware,
+ * or null while none is. The one ending first is the one named, because that is
+ * the moment the first of them picks up again.
+ */
+export const parkedQuiet = (devices: Device[], now: DateTime): Quiet | null =>
+  devices
+    .map(device => maintenanceQuiet(device, now))
+    .filter((quiet): quiet is Quiet => quiet?.parked === true)
+    .sort((one, other) => one.until.localeCompare(other.until))[0] ?? null;

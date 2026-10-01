@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, Space } from '@fg2/shared-types/v1';
-import { useUpdateDevice } from '@/api/devices';
+import { useDevices, useUpdateDevice } from '@/api/devices';
 import { useSpaces } from '@/api/spaces';
 import { Sheet } from '@/log/Sheet';
 import { Refused } from '@/ui/PageState';
@@ -39,6 +39,8 @@ export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClo
   const { t } = useTranslation();
   const write = useUpdateDevice(device.id);
   const spaces = useSpaces();
+  const devices = useDevices();
+  const title = deviceTitle(device, t, devices.data?.items);
   const [typed, setTyped] = useState<string | null>(null);
 
   // The stored name until somebody types, and the stored name again once a save
@@ -59,7 +61,7 @@ export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClo
   const move = (space: Space) => write.mutate({ spaceId: space.id });
 
   return (
-    <Sheet title={t('devices.settings.title', { name: deviceTitle(device, t) })} onClose={onClose}>
+    <Sheet title={t('devices.settings.title', { name: title })} onClose={onClose}>
       <div className={styles.body}>
         <Block label={t('devices.settings.name')}>
           <div className={ui.fieldRow}>
@@ -67,7 +69,7 @@ export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClo
               className={ui.input}
               value={name}
               aria-label={t('devices.settings.name')}
-              placeholder={deviceTitle(device, t)}
+              placeholder={title}
               autoComplete="off"
               disabled={write.isPending}
               onChange={event => setTyped(event.target.value)}

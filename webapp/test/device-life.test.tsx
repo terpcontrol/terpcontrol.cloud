@@ -72,7 +72,8 @@ const drawTab = async (youMay: AccessNeed = 'own') => {
   vi.mocked(api.patch).mockImplementation((_path: string, body: unknown) => Promise.resolve({ ...THE_PLUG, ...(body as object) }) as never);
 
   wrap(<DeviceList />);
-  fireEvent.click(await screen.findByRole('button', { name: /^What Plug · / }));
+  // The account's one plug is called a plug: the tail of its id is for telling two apart.
+  fireEvent.click(await screen.findByRole('button', { name: 'What Plug is' }));
 };
 
 beforeAll(async () => {

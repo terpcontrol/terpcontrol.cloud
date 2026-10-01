@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -614,7 +614,7 @@ describe('what the sockets offer, by who is reading', () => {
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
     wrap(<DeviceList spaceId="space-1" />);
-    await screen.findByText('Cameras');
+    await screen.findByText('Devices');
   };
 
   it('gives the owner the lamp’s brightness and the three states of the plug', async () => {
@@ -739,7 +739,7 @@ describe('what the Devices tab calls a device', () => {
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
     wrap(<DeviceList />);
-    await screen.findByText('Cameras');
+    await screen.findByText('Devices');
   };
 
   /**
@@ -762,9 +762,10 @@ describe('what the Devices tab calls a device', () => {
     list.cameras = [];
     await drawList();
 
-    fireEvent.click(await screen.findByRole('button', { name: /What Fridge module · C0FFEE is/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'What Fridge module is' }));
 
-    expect(await screen.findByText('Fridge module')).toBeInTheDocument();
+    const technical = (await screen.findByText('Technical details')).closest('details')!;
+    expect(within(technical).getByText('Fridge module')).toBeInTheDocument();
     // The raw key would read as lowercase English under a translated title.
     expect(screen.queryByText('fridge')).toBeNull();
   });
@@ -774,9 +775,10 @@ describe('what the Devices tab calls a device', () => {
     list.cameras = [];
     await drawList();
 
-    fireEvent.click(await screen.findByRole('button', { name: /C0FFEE is/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'What hydro is' }));
 
-    expect(await screen.findByText('hydro')).toBeInTheDocument();
+    const technical = (await screen.findByText('Technical details')).closest('details')!;
+    expect(within(technical).getByText('hydro')).toBeInTheDocument();
     expect(screen.queryByText('devices.type.hydro')).toBeNull();
   });
 
@@ -828,12 +830,28 @@ describe('what the Devices tab calls a device', () => {
   });
 
   it('draws a device nobody has named by its type as a word, with enough of its id to tell two apart', async () => {
-    list.devices = [standing({})];
+    list.devices = [standing({}), standing({ id: 'device-ccccdddd-beef42' })];
     list.cameras = [];
     await drawList();
 
     expect(await screen.findByText('Controller · C0FFEE')).toBeInTheDocument();
+    expect(screen.getByText('Controller · BEEF42')).toBeInTheDocument();
     expect(screen.queryByText('controller')).not.toBeInTheDocument();
+  });
+
+  /**
+   * The tail of the id is there to tell two of a kind apart. A grower with one
+   * fridge module read "Fridge module · DC891B" on every screen, beside the
+   * place's own name, and the six characters told nothing from anything.
+   */
+  it('calls the only device of its kind by its type alone, whatever else the account has', async () => {
+    list.devices = [standing({ type: 'fridge', name: null }), standing({ id: 'device-2', name: null })];
+    list.cameras = [];
+    await drawList();
+
+    expect(await screen.findByText('Fridge module')).toBeInTheDocument();
+    expect(screen.getByText('Controller')).toBeInTheDocument();
+    expect(screen.queryByText(/· C0FFEE/)).not.toBeInTheDocument();
   });
 
   it('keeps the name a grower gave, and says which device a camera hangs on by that name', async () => {
@@ -861,11 +879,17 @@ describe('what the Devices tab calls a device', () => {
     expect(await screen.findByText('via Controller · Tent 1')).toBeInTheDocument();
   });
 
-  it('names the build a device runs and never prints the uuid it reports', async () => {
+  it('names the build a device runs by its day, keeps the version for the details, and never prints the uuid', async () => {
     // Every build carried over from the old cloud is named after its class, so
     // two fridges on two different builds both read "fridge"; the version is
-    // the one field that says which build a device is on.
-    const build = { id: 'eac2f377-729c-483c-ad31-0b41eba4276d', name: 'fridge', version: '082eda0-fix-smart-socket-wipe' };
+    // the one field that says which build a device is on, and it is a commit
+    // and a branch - so the plain line names the day the build was made.
+    const build = {
+      id: 'eac2f377-729c-483c-ad31-0b41eba4276d',
+      createdAt: '2026-09-12T10:00:00.000Z',
+      name: 'fridge',
+      version: '082eda0-fix-smart-socket-wipe',
+    };
     list.devices = [standing({ state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: build.id } } as Partial<Device>)];
     list.cameras = [];
     vi.mocked(api.get).mockImplementation((path: string) => {
@@ -880,15 +904,17 @@ describe('what the Devices tab calls a device', () => {
     });
     wrap(<DeviceList />);
 
-    fireEvent.click(await screen.findByRole('button', { name: /What Controller · C0FFEE is/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'What Controller is' }));
 
-    expect(await screen.findByText('082eda0-fix-smart-socket-wipe')).toBeInTheDocument();
-    expect(await screen.findByText(/firmware 082eda0-fix-smart-socket-wipe/)).toBeInTheDocument();
+    expect(await screen.findByText('from 12 Sep 2026')).toBeInTheDocument();
+    const technical = screen.getByText('Technical details').closest('details')!;
+    expect(technical).not.toHaveAttribute('open');
+    expect(technical).toHaveTextContent('082eda0-fix-smart-socket-wipe');
     expect(screen.queryByText(new RegExp(build.id))).toBeNull();
   });
 
   /** Draws the list with one device whose panel is opened, and answers its build list as given. */
-  const drawOpened = async (device: Device, firmwares: () => Promise<unknown>, title: RegExp) => {
+  const drawOpened = async (device: Device, firmwares: () => Promise<unknown>, title: string) => {
     list.devices = [device];
     list.cameras = [];
     vi.mocked(api.get).mockImplementation((path: string) => {
@@ -912,7 +938,7 @@ describe('what the Devices tab calls a device', () => {
    * about roles it does not have.
    */
   it('does not call a plug on its current build old, nor say which socket roles it takes', async () => {
-    await drawOpened(standing({ name: null, type: 'plug' }), () => Promise.resolve({ items: [], nextCursor: null }), /What Plug · C0FFEE is/);
+    await drawOpened(standing({ name: null, type: 'plug' }), () => Promise.resolve({ items: [], nextCursor: null }), 'What Plug is');
 
     expect(screen.queryByText(/legacy/)).toBeNull();
     expect(screen.queryByText('Takes')).toBeNull();
@@ -920,7 +946,7 @@ describe('what the Devices tab calls a device', () => {
 
   /** "legacy" on the row was explained nowhere; what the build takes is the panel's fact. */
   it('says what a controller´s build takes in its panel rather than calling it legacy on the row', async () => {
-    await drawOpened(standing({}), () => Promise.resolve({ items: [], nextCursor: null }), /What Controller · C0FFEE is/);
+    await drawOpened(standing({}), () => Promise.resolve({ items: [], nextCursor: null }), 'What Controller is');
 
     expect(screen.queryByText(/legacy/)).toBeNull();
     expect(screen.getByText('Takes')).toBeInTheDocument();
@@ -928,52 +954,55 @@ describe('what the Devices tab calls a device', () => {
 
   /** A build list that never came back ended as the dash a device with no known build gets. */
   it('says a build it could not read could not be read, and reads it again on asking', async () => {
-    const build = { id: 'fw-1', name: 'controller', version: '2.4.0' };
+    const build = { id: 'fw-1', createdAt: '2026-09-01T10:00:00.000Z', name: 'controller', version: '2.4.0' };
     let fails = true;
     await drawOpened(
       standing({ state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: build.id } } as Partial<Device>),
       () => (fails ? Promise.reject(new Error('timed out')) : Promise.resolve({ items: [build], nextCursor: null })),
-      /What Controller · C0FFEE is/,
+      'What Controller is',
     );
 
     expect(await screen.findByText(/could not be read/, undefined, { timeout: 8000 })).toBeInTheDocument();
     fails = false;
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
-    expect(await screen.findByText('2.4.0')).toBeInTheDocument();
+    expect(await screen.findByText('from 1 Sep 2026')).toBeInTheDocument();
+    expect(screen.getByText('2.4.0')).toBeInTheDocument();
   }, 10000);
 
   /** Only the diary used to say that a device owed an update, or that one had not taken. */
-  it('says which build a device owes, and that it did not take once the wait ran out', async () => {
-    const running = { id: 'fw-old', name: 'plug', version: '0.0.0' };
-    const owed = { id: 'fw-new', name: 'plug', version: '84ef30ca' };
+  it('says that new firmware is on its way, and that it did not take once the wait ran out', async () => {
+    const running = { id: 'fw-old', createdAt: '2026-08-01T10:00:00.000Z', name: 'plug', version: '0.0.0' };
+    const owed = { id: 'fw-new', createdAt: '2026-09-15T10:00:00.000Z', name: 'plug', version: '84ef30ca' };
     const pinned = (updateFailedAt: string | null) =>
       standing({
         firmware: { channel: 'manual', targetId: owed.id },
         state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: running.id, updateFailedAt },
       } as Partial<Device>);
 
-    await drawOpened(pinned(null), () => Promise.resolve({ items: [running, owed], nextCursor: null }), /What Controller · C0FFEE is/);
-    expect(await screen.findByText(/84ef30ca is to be installed/)).toBeInTheDocument();
+    await drawOpened(pinned(null), () => Promise.resolve({ items: [running, owed], nextCursor: null }), 'What Controller is');
+    expect(await screen.findByText(/New firmware is being installed/)).toBeInTheDocument();
+    // Which build, by its version, is for the technical details.
+    expect(screen.getByText('Technical details').closest('details')).toHaveTextContent('To be installed84ef30ca');
     cleanup();
 
     await drawOpened(
       pinned(NOW.minus({ minutes: 5 }).toISO()!),
       () => Promise.resolve({ items: [running, owed], nextCursor: null }),
-      /What Controller · C0FFEE is/,
+      'What Controller is',
     );
-    expect((await screen.findAllByText(/84ef30ca did not take \(.* ago\)/)).length).toBeGreaterThan(0);
+    expect(await screen.findByText(/New firmware did not install \(.* ago\)/)).toBeInTheDocument();
   });
 
   it('says nothing about an update where the device runs what it was pinned to', async () => {
-    const running = { id: 'fw-old', name: 'plug', version: '0.0.0' };
+    const running = { id: 'fw-old', createdAt: '2026-08-01T10:00:00.000Z', name: 'plug', version: '0.0.0' };
     await drawOpened(
       standing({
         firmware: { channel: 'manual', targetId: running.id },
         state: { lastSeenAt: NOW.toISO()!, firmwareId: running.id },
       } as Partial<Device>),
       () => Promise.resolve({ items: [running], nextCursor: null }),
-      /What Controller · C0FFEE is/,
+      'What Controller is',
     );
 
     expect(await screen.findByText('0.0.0')).toBeInTheDocument();
@@ -987,5 +1016,133 @@ describe('what the Devices tab calls a device', () => {
 
     expect(await screen.findByText('Terp Cam · A41C')).toBeInTheDocument();
     expect(screen.queryByText('controller')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The device's own panel: what it is in plain words, and the two things done to
+ * the hardware itself - a restart and a quarter of an hour of maintenance - each
+ * asked first, and neither offered to a device nobody is listening on.
+ *
+ * Liveness is read against the wall clock, so the devices here are dated by it.
+ */
+describe('the device panel', () => {
+  const heard = (minutesAgo: number) => DateTime.now().minus({ minutes: minutesAgo }).toISO()!;
+
+  const fridge = (over: Partial<Device['state']> = {}): Device =>
+    ({
+      id: 'sim-fridge-dc891b',
+      name: 'fridge',
+      type: 'fridge',
+      ownerId: THE_HOST,
+      spaceId: 'space-1',
+      firmware: { channel: 'manual', targetId: null },
+      state: { lastSeenAt: heard(0.2), firmwareId: null, hardware: {}, maintenanceUntil: null, ...over },
+    }) as unknown as Device;
+
+  const drawWith = async (devices: Device[], cameras: Camera[] = []) => {
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: devices, nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: cameras, nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [spaceWhere('own')], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
+      if (path.endsWith('/sockets')) return Promise.resolve({ items: [], capabilities: CAPABILITIES }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    vi.mocked(api.post).mockResolvedValue({ publishedAt: DateTime.now().toISO(), deviceOnline: true } as never);
+    wrap(<DeviceList />);
+    await screen.findByText('Devices');
+  };
+
+  beforeEach(() => vi.mocked(api.post).mockClear());
+
+  it('opens on a tap anywhere on the row, not only on the chevron', async () => {
+    await drawWith([fridge()]);
+
+    fireEvent.click(await screen.findByText('Fridge module'));
+
+    expect(screen.getByRole('button', { name: 'What Fridge module is' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('connected')).toBeInTheDocument();
+    expect(screen.getByText('by hand – new firmware does not arrive by itself')).toBeInTheDocument();
+    expect(await screen.findByText('version not known')).toBeInTheDocument();
+  });
+
+  it('asks before it restarts the device, says what a restart costs, and sends nothing until asked', async () => {
+    await drawWith([fridge()]);
+    fireEvent.click(await screen.findByText('Fridge module'));
+    fireEvent.click(screen.getByRole('button', { name: /^Restart/ }));
+
+    const asked = await screen.findByRole('dialog', { name: 'Restart Fridge module?' });
+    expect(within(asked).getByText(/Anything you switched by hand – the light or a socket – ends with the restart/)).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+
+    fireEvent.click(within(asked).getByRole('button', { name: 'Restart now' }));
+
+    expect(await within(asked).findByText('Restart asked for. The device will be back in a moment.')).toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/commands', { kind: 'reboot' });
+  });
+
+  /** A fridge module has one compressor that cools and dries; it has no dehumidifier to name. */
+  it('says what maintenance stops on a fridge module, for how long the alarms stay off, and starts it on the answer', async () => {
+    await drawWith([fridge()]);
+    fireEvent.click(await screen.findByText('Fridge module'));
+    fireEvent.click(screen.getByRole('button', { name: /^Maintenance · 15 min/ }));
+
+    const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 minutes' });
+    expect(within(asked).getByText(/the device stops the heater, the compressor and the CO₂ valve/)).toBeInTheDocument();
+    expect(within(asked).getByText(/Alarms stay off for 25 minutes – the 15 minutes and 10 more/)).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+
+    fireEvent.click(within(asked).getByRole('button', { name: 'Start maintenance' }));
+
+    expect(await within(asked).findByText(/Maintenance is on/)).toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/commands', { kind: 'maintenance', forSeconds: 900 });
+  });
+
+  it('says a window is standing, until when, and offers its end instead of a second one', async () => {
+    await drawWith([fridge({ maintenanceUntil: DateTime.now().plus({ minutes: 8 }).toISO()! })]);
+    fireEvent.click(await screen.findByText('Fridge module'));
+
+    expect(screen.getByText(/^In maintenance until \d\d:\d\d — no alarm on this device until \d\d:\d\d$/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Maintenance until/ }));
+
+    const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 minutes' });
+    expect(within(asked).queryByRole('button', { name: 'Start maintenance' })).not.toBeInTheDocument();
+    fireEvent.click(within(asked).getByRole('button', { name: 'End now' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/commands', { kind: 'maintenance', forSeconds: 0 }));
+  });
+
+  it('holds both back while the device is offline, says since when, and why they wait', async () => {
+    await drawWith([fridge({ lastSeenAt: heard(25) })]);
+    fireEvent.click(await screen.findByText('Fridge module'));
+
+    expect(screen.getByText(/^offline since \d\d:\d\d$/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Restart/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Maintenance · 15 min/ })).toBeDisabled();
+    expect(screen.getByText('Restart and maintenance work again once the device is connected.')).toBeInTheDocument();
+  });
+
+  /** A plug parks nothing, so it is offered the restart and no maintenance that would only be a promise. */
+  it('offers a plug the restart and no maintenance', async () => {
+    await drawWith([{ ...fridge(), id: 'plug-1', type: 'plug', name: null } as Device]);
+    fireEvent.click(await screen.findByText('Plug'));
+
+    expect(screen.getByRole('button', { name: /^Restart/ })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /^Maintenance/ })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Without a camera the list had two dashed boxes between the device and its
+   * light - "No camera here yet." and the way to add one. Somebody who never had
+   * a camera is told nothing by the first, and the second is one small line.
+   */
+  it('draws no camera section without a camera, only the small line that adds one', async () => {
+    await drawWith([fridge()]);
+
+    expect(await screen.findByRole('link', { name: '+ Add a camera' })).toHaveAttribute('href', '/cameras/add');
+    expect(screen.queryByText('Cameras')).not.toBeInTheDocument();
+    expect(screen.queryByText(/No camera here yet/)).not.toBeInTheDocument();
   });
 });
