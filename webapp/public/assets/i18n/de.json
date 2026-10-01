@@ -3033,6 +3033,7 @@
     "range": {
       "24h": "24 Std",
       "7d": "7 T",
+      "30d": "30 T",
       "phase": "Phase",
       "grow": "Grow"
     },
@@ -3046,6 +3047,8 @@
     "scrubber": "Cursor durch den Zeitraum bewegen",
     "frameAlt": "{{name}} am Cursor",
     "noFrames": "Keine Bilder in diesem Zeitraum",
+    "recordingSince": "Aufzeichnung seit {{time}} – die Kurve füllt sich",
+    "lastReading": "letzte Messung",
     "metric": {
       "temperature": "Temperatur",
       "humidity": "Luftfeuchte",

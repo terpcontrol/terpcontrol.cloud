@@ -28,6 +28,8 @@ interface LanesProps {
   onSelect: (key: string | null) => void;
   onScrub: (time: number) => void;
   scrub: React.HTMLAttributes<HTMLDivElement>;
+  /** Whether the rail of lines is drawn: a window nobody and nothing wrote in is not shown an empty one. */
+  events?: boolean;
 }
 
 /**
@@ -36,7 +38,7 @@ interface LanesProps {
  * that a line exists there, and tapping it puts the line under the rail and the
  * cursor on its moment - which is the whole reason the two are drawn together.
  */
-export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onScrub, scrub }: LanesProps) {
+export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onScrub, scrub, events = true }: LanesProps) {
   const { t } = useTranslation();
   // A mark tapped open is the one place the rail draws what somebody wrote, so
   // it is also where they can put right what they wrote. The place that decides
@@ -57,7 +59,8 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width || PHONE_RAIL));
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+    // The rail comes and goes with the lines in the window, and is measured again when it comes.
+  }, [events]);
 
   const marks = clusterOf(timeline.events, from, to, width);
   const open = marks.find(mark => mark.key === selected) ?? null;
@@ -81,34 +84,36 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
         </div>
       ))}
 
-      <div className={styles.lane}>
-        <span className={`caption ${styles.laneName}`}>{t('timeline.events')}</span>
-        <div className={styles.rail} ref={rail}>
-          {marks.length === 0 ? <span className={`mono ${styles.noEvents}`}>{t('timeline.noEvents')}</span> : null}
-          {marks.map(mark => {
-            const Icon = KIND_ICON[mark.entries[0].kind];
-            return (
-              <button
-                key={mark.key}
-                type="button"
-                className={styles.mark}
-                data-severity={mark.entries.find(entry => entry.severity)?.severity ?? undefined}
-                aria-pressed={mark.key === selected}
-                style={{ left: `${fractionOf(mark.time, from, to) * 100}%` }}
-                title={stampOf(mark.time, to - from, zone)}
-                onClick={() => {
-                  onSelect(mark.key === selected ? null : mark.key);
-                  onScrub(mark.time);
-                }}
-              >
-                <Icon size={12} strokeWidth={2} aria-hidden />
-                {mark.entries.length > 1 ? <span className={`mono ${styles.markCount}`}>{mark.entries.length}</span> : null}
-              </button>
-            );
-          })}
-          <span className={styles.cursor} style={{ left }} />
+      {events ? (
+        <div className={styles.lane}>
+          <span className={`caption ${styles.laneName}`}>{t('timeline.events')}</span>
+          <div className={styles.rail} ref={rail}>
+            {marks.length === 0 ? <span className={`mono ${styles.noEvents}`}>{t('timeline.noEvents')}</span> : null}
+            {marks.map(mark => {
+              const Icon = KIND_ICON[mark.entries[0].kind];
+              return (
+                <button
+                  key={mark.key}
+                  type="button"
+                  className={styles.mark}
+                  data-severity={mark.entries.find(entry => entry.severity)?.severity ?? undefined}
+                  aria-pressed={mark.key === selected}
+                  style={{ left: `${fractionOf(mark.time, from, to) * 100}%` }}
+                  title={stampOf(mark.time, to - from, zone)}
+                  onClick={() => {
+                    onSelect(mark.key === selected ? null : mark.key);
+                    onScrub(mark.time);
+                  }}
+                >
+                  <Icon size={12} strokeWidth={2} aria-hidden />
+                  {mark.entries.length > 1 ? <span className={`mono ${styles.markCount}`}>{mark.entries.length}</span> : null}
+                </button>
+              );
+            })}
+            <span className={styles.cursor} style={{ left }} />
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className={styles.axis}>
         {Array.from({ length: AXIS_STOPS }, (_, index) => {

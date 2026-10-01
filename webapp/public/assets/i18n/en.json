@@ -3029,6 +3029,7 @@
     "range": {
       "24h": "24 h",
       "7d": "7 d",
+      "30d": "30 d",
       "phase": "Phase",
       "grow": "Grow"
     },
@@ -3042,6 +3043,8 @@
     "scrubber": "Move the cursor through the window",
     "frameAlt": "{{name}} at the cursor",
     "noFrames": "No pictures in this window",
+    "recordingSince": "Recording since {{time}} – the curve fills in from here",
+    "lastReading": "last reading",
     "metric": {
       "temperature": "Temperature",
       "humidity": "Humidity",

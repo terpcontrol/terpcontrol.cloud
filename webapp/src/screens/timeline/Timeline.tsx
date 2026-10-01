@@ -7,7 +7,7 @@ import { fetchedAt } from '@/api/clock';
 import { useGrow } from '@/api/grows';
 import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { ageLabel } from '@/ui/age';
+import { ageLabel, sinceLabel } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -19,7 +19,7 @@ import { Panel } from './Panel';
 import { at, pointAt, spans, stampOf } from './window';
 import styles from './Timeline.module.css';
 
-const RANGES: TimelineRange[] = ['24h', '7d', 'phase', 'grow'];
+const RANGES: TimelineRange[] = ['24h', '7d', '30d', 'phase', 'grow'];
 
 interface TimelineProps {
   spaceId: string;
@@ -45,6 +45,7 @@ export function Timeline({ spaceId, heading, reportsAge }: TimelineProps) {
 function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
   const { t } = useTranslation();
   const now = useNow();
+  const zone = useZone();
   const [range, setRange] = useState<TimelineRange>('24h');
   /** Set only when a stretch chip is tapped: the two rolling ranges let the server pick the grow standing here. */
   const [pinned, setPinned] = useState<string | null>(null);
@@ -60,8 +61,14 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
   useReportFreshness(reportsAge && timeline.dataUpdatedAt ? fetchedAt(timeline.dataUpdatedAt) : null);
 
   const scrub = useScrub(fraction => {
-    if (data) setCursor(at(data.startsAt) + fraction * (at(data.endsAt) - at(data.startsAt)));
+    if (!data) return;
+    const { from, to } = boundsOf(data);
+    setCursor(from + fraction * (to - from));
   });
+
+  // The stretches of a grow are offered where a grow is, and a month where none
+  // is: nothing is drawn greyed out for somebody who has never started one.
+  const offered = RANGES.filter(one => (rangeNeedsGrow(one) ? growId !== null : one !== '30d' || growId === null || range === one));
 
   const chips = (
     // Which days are drawn is the answer to the chips, not one of them, so it
@@ -71,14 +78,12 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
     // anywhere else.
     <div className={styles.rangeBar}>
       <div className={`${ui.scrollRow} ${styles.chips}`} role="group" aria-label={t('timeline.rangeLabel')}>
-        {RANGES.map(one => (
+        {offered.map(one => (
           <button
             key={one}
             type="button"
             className={ui.chip}
             aria-pressed={one === range}
-            // A stretch of a grow cannot be asked for where nothing is growing, so it is not offered there.
-            disabled={rangeNeedsGrow(one) && growId === null}
             onClick={() => {
               setRange(one);
               setPinned(rangeNeedsGrow(one) ? growId : null);
@@ -146,9 +151,12 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
   }
   if (!data) return <LoadFailed retry={() => void timeline.refetch()} />;
 
-  const from = at(data.startsAt);
-  const to = at(data.endsAt);
-  const here = Math.min(to, Math.max(from, cursor ?? to));
+  const { from, to, recordingSince } = boundsOf(data);
+  // At rest the cursor is at the end of the window, unless the place has gone
+  // quiet: then it rests on the last thing measured, and says so, rather than
+  // on a "now" nothing was heard at.
+  const lastReading = rangeNeedsGrow(data.range) ? null : quietSince(data);
+  const here = Math.min(to, Math.max(from, cursor ?? lastReading ?? to));
   const frames = data.cameras.filter(camera => camera.frames.length > 0);
 
   return (
@@ -180,7 +188,13 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
         </div>
       )}
 
-      <ScrubHeader timeline={data} cursor={here} />
+      <ScrubHeader timeline={data} cursor={here} resting={cursor === null && lastReading !== null} />
+
+      {recordingSince !== null ? (
+        <p className={`mono ${styles.recording}`} role="note">
+          {t('timeline.recordingSince', { time: sinceLabel(new Date(recordingSince).toISOString(), now, zone) })}
+        </p>
+      ) : null}
 
       {/* Two different states, and only the payload can tell them apart: a
           metric whose every point in the window is null has no panel, so an
@@ -206,7 +220,18 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
         />
       ))}
 
-      <Lanes timeline={data} from={from} to={to} cursor={here} now={now} selected={opened} onSelect={setOpened} onScrub={setCursor} scrub={scrub} />
+      <Lanes
+        timeline={data}
+        from={from}
+        to={to}
+        cursor={here}
+        now={now}
+        selected={opened}
+        onSelect={setOpened}
+        onScrub={setCursor}
+        scrub={scrub}
+        events={data.events.length > 0}
+      />
     </div>
   );
 }
@@ -217,7 +242,7 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
  * thumb is over it - so the reading is pinned above the panels instead, and
  * sticks to the top of the screen while the stack is scrolled.
  */
-function ScrubHeader({ timeline, cursor }: { timeline: SpaceTimeline; cursor: number }) {
+function ScrubHeader({ timeline, cursor, resting }: { timeline: SpaceTimeline; cursor: number; resting: boolean }) {
   const { t } = useTranslation();
   const zone = useZone();
   /**
@@ -239,7 +264,11 @@ function ScrubHeader({ timeline, cursor }: { timeline: SpaceTimeline; cursor: nu
 
   return (
     <p className={`mono ${styles.scrubHead}`} role="status">
-      <span className={styles.scrubTime}>{stampOf(cursor, at(timeline.endsAt) - at(timeline.startsAt), zone)}</span>
+      <span className={styles.scrubTime}>
+        {/* Not the clock of the point it rests on: a point stands for the window it
+            closes, and the pill above already dates the silence to the minute. */}
+        {resting ? t('timeline.lastReading') : stampOf(cursor, at(timeline.endsAt) - at(timeline.startsAt), zone)}
+      </span>
       {timeline.panels.map(panel => {
         const value = pointAt(panel, cursor);
         return (
@@ -261,6 +290,37 @@ function ScrubHeader({ timeline, cursor }: { timeline: SpaceTimeline; cursor: nu
 }
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/** The instants a panel's first and last readings in the window were taken at, or null where no panel has one. */
+const readingsSpan = (timeline: SpaceTimeline): { first: number; last: number } | null => {
+  const heard = timeline.panels.flatMap(panel => panel.points.filter(point => point.value !== null).map(point => at(point.measuredAt)));
+  return heard.length === 0 ? null : { first: Math.min(...heard), last: Math.max(...heard) };
+};
+
+/**
+ * The stretch the panels are drawn across. A place that started measuring well
+ * inside the window - a device claimed this morning - is drawn from its first
+ * reading, with a line saying since when, rather than as a flat band with a dot
+ * at its far end that a new grower reads as a fault.
+ */
+const boundsOf = (timeline: SpaceTimeline): { from: number; to: number; recordingSince: number | null } => {
+  const startsAt = at(timeline.startsAt);
+  const to = at(timeline.endsAt);
+  const first = readingsSpan(timeline)?.first ?? null;
+  if (first === null || first - startsAt <= (to - startsAt) / 4) return { from: startsAt, to, recordingSince: null };
+
+  // A little air before the first reading, so its dot is not on the edge.
+  return { from: Math.max(startsAt, first - (to - first) / 20), to, recordingSince: first };
+};
+
+/**
+ * When the place last measured, where it has been quiet since; null while it is
+ * still reporting. The server closes every curve the place fell silent before
+ * the end of with a break, by the same measure it breaks the curve anywhere
+ * else, so a stack whose every panel ends in one is a place nobody is hearing.
+ */
+const quietSince = (timeline: SpaceTimeline): number | null =>
+  timeline.panels.length > 0 && timeline.panels.every(panel => panel.points.at(-1)?.value === null) ? (readingsSpan(timeline)?.last ?? null) : null;
 
 /** "day 34" over one day of a grow, "day 33–34" where the window straddles the turn, nothing at all without a grow. */
 const dayLabel = (t: Translate, timeline: SpaceTimeline): string => {

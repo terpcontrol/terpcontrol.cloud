@@ -373,13 +373,77 @@ describe('the timeline', () => {
     expect(screen.queryByLabelText('Which grow')).not.toBeInTheDocument();
   });
 
-  it('will not ask for a stretch of a grow where nothing is growing', () => {
-    state.answer = { ...answer, growId: null, dayFrom: null, dayTo: null };
+  // Not greyed out but gone: a grower who has never started a grow is not
+  // shown two chips that can never be pressed, and is given a month instead.
+  it('offers a month rather than the stretches of a grow where nothing is growing', () => {
+    state.answer = { ...answer, growId: null, dayFrom: null, dayTo: null, grows: [] };
     draw();
 
-    expect(screen.getByRole('button', { name: 'Phase' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Grow' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: '24 h' })).toBeEnabled();
+    const chips = within(screen.getByRole('group', { name: 'Range' })).getAllByRole('button');
+    expect(chips.map(chip => chip.textContent)).toEqual(['24 h', '7 d', '30 d']);
+  });
+
+  it('offers the stretches of the grow standing here, and no month beside them', () => {
+    draw();
+
+    const chips = within(screen.getByRole('group', { name: 'Range' })).getAllByRole('button');
+    expect(chips.map(chip => chip.textContent)).toEqual(['24 h', '7 d', 'Phase', 'Grow']);
+  });
+
+  it('draws no rail of lines where nothing was written in the window', () => {
+    state.answer = { ...answer, events: [] };
+    draw();
+
+    expect(screen.queryByText('Events')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nothing written in this window/)).not.toBeInTheDocument();
+    // The lanes of the outputs are still there.
+    expect(screen.getByText('Heat')).toBeInTheDocument();
+  });
+
+  /**
+   * A device claimed this morning has a few hours of a 24-hour window. Drawn
+   * across the whole of it, every panel was a band with a dot at its far end,
+   * which a new grower reads as a fault; drawn from the first reading, with a
+   * line saying since when, it is the start of a curve.
+   */
+  it('starts the panels at the first reading of a place that began recording inside the window, and says so', () => {
+    const late = (panel: SpaceTimeline['panels'][number]) => ({ ...panel, points: panel.points.filter(point => point.measuredAt >= at(18)) });
+    state.answer = { ...answer, panels: answer.panels.map(late) };
+    draw();
+
+    expect(screen.getByRole('note')).toHaveTextContent(new RegExp(`Recording since (.* )?${clock(18)} – the curve fills in from here`));
+    // The window is drawn from just before the first reading rather than from its start.
+    const starts = Number(screen.getByLabelText('Move the cursor through the window').getAttribute('min'));
+    expect(starts).toBeGreaterThan(FROM.plus({ hours: 17 }).toMillis());
+    expect(starts).toBeLessThan(FROM.plus({ hours: 18 }).toMillis());
+  });
+
+  it('says nothing about recording where the window is full', () => {
+    draw();
+
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  });
+
+  /**
+   * A place that has gone quiet has its curves closed with a break by the
+   * server. The cursor then rests on the last thing it measured, and the header
+   * says that it is the last reading, rather than printing the clock of now
+   * beside nothing.
+   */
+  it('rests on the last reading of a place that has gone quiet, and names it so', () => {
+    const quiet = (panel: SpaceTimeline['panels'][number]) => ({
+      ...panel,
+      points: [...panel.points.filter(point => point.measuredAt <= at(20)), { measuredAt: at(20.001), value: null }],
+    });
+    state.answer = { ...answer, panels: answer.panels.map(quiet) };
+    draw();
+
+    expect(header()).toHaveTextContent('last reading26.0 °C62 %');
+
+    // Moved by hand it is a cursor like any other again.
+    scrubTo(3);
+    expect(header()).toHaveTextContent(`${clock(3)}21.0 °C58 %`);
+    expect(header()).not.toHaveTextContent('last reading');
   });
 });
 

@@ -70,16 +70,21 @@ export function Timeline() {
           <span className={styles.titleDot}>·</span>
           <span className={styles.picker}>
             <span className={styles.pickerName}>{here.name}</span>
-            <ChevronDown size={16} strokeWidth={2} aria-hidden />
-            {/* The name is what is read and the select is what is used, so the
-                picker is one native control with the caption drawn over it. */}
-            <select value={here.spaceId} aria-label={t('timeline.pickSpace')} onChange={event => choose(event.target.value)}>
-              {places.map(space => (
-                <option key={space.spaceId} value={space.spaceId}>
-                  {space.name}
-                </option>
-              ))}
-            </select>
+            {/* With one place there is nothing to pick, and its name is the whole answer. */}
+            {places.length > 1 ? (
+              <>
+                <ChevronDown size={16} strokeWidth={2} aria-hidden />
+                {/* The name is what is read and the select is what is used, so the
+                    picker is one native control with the caption drawn over it. */}
+                <select value={here.spaceId} aria-label={t('timeline.pickSpace')} onChange={event => choose(event.target.value)}>
+                  {places.map(space => (
+                    <option key={space.spaceId} value={space.spaceId}>
+                      {space.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : null}
           </span>
           {/* How alive the place is, read off the home's own card rather than asked for again. */}
           <LivenessPill liveness={livenessOf(here)} measuredAt={measuredAtOf(here.values)} now={now} explain />
