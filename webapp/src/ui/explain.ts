@@ -38,6 +38,8 @@ export const HELP_TOPICS = [
   'endMaintenance',
   'presetRules',
   'offlineRule',
+  'alarmTemplates',
+  'alarmQuiet',
   'severity',
   'tellBy',
   'routingGrid',

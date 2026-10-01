@@ -3433,9 +3433,10 @@
   "alarms": {
     "title": "Alarme",
     "backToPlan": "‹ zurück zum Plan",
+    "backToTargets": "‹ Zielwerte",
     "noController": "Hier steht nichts, das Alarmregeln hat. Erst muss ein Gerät in diesen Bereich geholt werden.",
-    "footer": "Eine stummgeschaltete Regel beobachtet weiter: Sie öffnet weiterhin eine Meldung, schreibt weiterhin die Tagebuchzeile und markiert weiterhin den Ort auf der Startseite, sie sagt nur niemandem mehr Bescheid. Der Wartungsmodus hält den Alarm selbst zurück, und „Reingehen“ aus dem Log-Blatt ebenso — die {{minutes}} Minuten, die dort stehen, und {{settle}} weitere, während das Klima zurückkommt.",
-    "add": "+ Alarm · Schwelle · Dauer · Stufe · Webhook",
+    "quietLine": "Stummschalten und Wartung",
+    "add": "+ Eigener Alarm",
     "group": {
       "presetOf": "Aus dem Preset {{name}}",
       "presetNone": "Aus dem Stadium-Preset",
@@ -3483,7 +3484,11 @@
       "light": "braucht einen Lichtsensor"
     },
     "metric": {
-      "leafTemperature": "Blatttemp",
+      "temperature": "Temperatur",
+      "humidity": "Luftfeuchte",
+      "vpd": "VPD",
+      "co2": "CO₂",
+      "leafTemperature": "Blatttemperatur",
       "lux": "Lux",
       "ppfd": "PPFD",
       "offline": "Offline"
@@ -3560,6 +3565,25 @@
       "tooCold": "Zu kalt",
       "tooHumid": "Zu feucht",
       "co2High": "CO₂ zu hoch"
+    },
+    "template": {
+      "label": "Mit einem Tipp einrichten",
+      "upper": "über {{value}} · {{length}}",
+      "lower": "unter {{value}} · {{length}}",
+      "make": "{{name}} einrichten: {{line}}",
+      "making": "wird eingerichtet…",
+      "warm": {
+        "name": "Zu warm"
+      },
+      "cold": {
+        "name": "Zu kalt"
+      },
+      "humid": {
+        "name": "Zu feucht"
+      },
+      "dry": {
+        "name": "Zu trocken"
+      }
     },
     "channelOff": "{{channel}} (aus)",
     "addDevice": "Gerät hinzufügen"
@@ -4409,6 +4433,14 @@
     "offlineRule": {
       "title": "Die Offline-Regel",
       "text": "Jedes Gerät hat eine Regel, die einen kritischen Alarm auslöst, sobald zehn Minuten lang nichts von ihm kam, plus die eigene Wartezeit der Regel. Löschen lässt sie sich nicht – nur ausschalten, stummschalten oder woandershin schicken."
+    },
+    "alarmTemplates": {
+      "title": "Mit einem Tipp einrichten",
+      "text": "Ein Tipp legt eine gewöhnliche Alarmregel an. Ihre Grenze kommt aus deinen Zielwerten: 5 °C über der wärmeren, 4 °C unter der kühleren, 10 Punkte Luftfeuchte über der höheren und 20 unter der niedrigeren. Sie ist kritisch, geht also über deine Benachrichtigungseinstellungen raus, auch in der Ruhezeit. Grenze, Dauer und alles andere änderst du, indem du die Regel antippst."
+    },
+    "alarmQuiet": {
+      "title": "Stummschalten und Wartung",
+      "text": "Eine stummgeschaltete Regel beobachtet weiter: Die Meldung erscheint, steht im Tagebuch und markiert den Ort auf Start – sie sagt nur niemandem Bescheid. Der Wartungsmodus hält die Alarme selbst zurück: für seine 15 Minuten und 10 weitere, während das Klima zurückkommt."
     },
     "severity": {
       "title": "Stufe",

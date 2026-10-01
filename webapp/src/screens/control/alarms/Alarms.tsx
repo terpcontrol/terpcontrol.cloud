@@ -1,22 +1,25 @@
+import { CloudRain, Snowflake, Sun, Thermometer, type LucideIcon } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import type { AlarmRule, Device, Me, OverviewGrow } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
-import { useAlarmRulesOf, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
+import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
 import { useSession } from '@/api/session';
 import { useSpaceOverview } from '@/api/spaces';
 import { durationLabel } from '@/screens/devices/sockets';
+import { targetFigure } from '@/screens/home/units';
 import { timeOf } from '@/screens/notifications/settings';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
-import { maintenanceQuiet, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
+import { maintenanceQuiet } from '@/ui/maintenance';
 import { useNow } from '@/ui/useNow';
 import { clock, zoneOf } from '@/ui/zone';
 import { RuleSheet } from './RuleSheet';
+import { ruleFor, templateBody, templatesFor, type AlarmTemplate, type TemplateKey } from './templates';
 import {
   boundLabel,
   channelsLabel,
@@ -27,6 +30,7 @@ import {
   routedChannels,
   ruleTitle,
   type Translate,
+  unitOf,
   watchable,
   watchLabel,
 } from './rules';
@@ -35,7 +39,7 @@ import { deviceName } from '@/screens/devices/naming';
 import { serverNow } from '@/api/clock';
 
 /**
- * The alarm rules of the tent, under Control › Advanced.
+ * The alarm rules of the tent, under Control › Alarms.
  *
  * A rule belongs to the device that measures what it watches, so a tent with
  * two controllers has two lists, each under the name of its device. Within a
@@ -66,7 +70,18 @@ import { serverNow } from '@/api/clock';
  * an answer for an account that has not spoken - the browser's zone, and no
  * verdict at all.
  */
-export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
+export function Alarms({
+  spaceId,
+  devices,
+  mayManage,
+  back = 'targets',
+}: {
+  spaceId: string;
+  devices: Device[];
+  mayManage: boolean;
+  /** What the Control tab opens on, which is where the way back leads: the targets, or a plan that is running. */
+  back?: 'targets' | 'plan';
+}) {
   const { t } = useTranslation();
   const { user } = useSession();
   const now = useNow();
@@ -87,7 +102,7 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
         <span className="label">{[t('alarms.title'), overview.data?.name].filter(Boolean).join(' · ')}</span>
         {watched.length > 0 ? (
           <Link to={`/spaces/${spaceId}/control`} className={`mono ${ui.headLink}`}>
-            {t('alarms.backToPlan')}
+            {t(back === 'plan' ? 'alarms.backToPlan' : 'alarms.backToTargets')}
           </Link>
         ) : null}
       </header>
@@ -116,15 +131,16 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
         ))
       )}
 
-      {/* Silencing a rule and quietening a device are not the same thing, and
-          the footer used to put both behind the word "pause". Only maintenance
-          reaches the engine: `alarm-engine.service.ts` skips a device that is
-          being worked on, so no alert is opened at all. A silence is read by
-          the delivery alone, so the rule goes on tripping, the episode goes on
-          being written and Home goes on carrying the chip - the one thing that
-          stops is the announcement. A grower who silenced a noisy rule for an
-          hour and was then alarmed by it anyway had been told otherwise here. */}
-      <p className={ui.note}>{t('alarms.footer', { minutes: VISIT_MINUTES, settle: SETTLE_MINUTES })}</p>
+      {/* Silencing a rule and quietening a device are not the same thing. Only
+          maintenance reaches the engine: `alarm-engine.service.ts` skips a
+          device that is being worked on, so no alert is opened at all. A
+          silence is read by the delivery alone, so the rule goes on tripping
+          and the one thing that stops is the announcement. That difference is
+          one tap away rather than a paragraph under every list. */}
+      <p className={`mono ${styles.quietLine}`}>
+        {t('alarms.quietLine')}
+        <Help topic="alarmQuiet" />
+      </p>
     </div>
   );
 }
@@ -149,6 +165,9 @@ function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: D
   const update = useUpdateAlarmRule(device.id);
   const unsilence = useUnsilenceAlarmRule(device.id);
   const [open, setOpen] = useState<AlarmRule | 'new' | null>(null);
+  // The rule a template has just written, marked like a linked one so the eye
+  // finds where the tap went: the template leaves its place, the rule takes one.
+  const [made, setMade] = useState<string | null>(null);
 
   // An alert's "Edit rule" lands here with the rule named, and is taken at its
   // word: the rule opens, once, for whoever may change it. Only marking the row
@@ -219,7 +238,7 @@ function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: D
                 device={device}
                 me={me}
                 mayManage={mayManage}
-                highlighted={rule.id === highlighted}
+                highlighted={rule.id === highlighted || rule.id === made}
                 busy={update.isPending || unsilence.isPending}
                 now={now}
                 onOpen={() => setOpen(rule)}
@@ -233,6 +252,8 @@ function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: D
 
       <Refused error={update.error ?? unsilence.error} />
 
+      {mayManage ? <Templates device={device} rules={rules.data.items} onMade={setMade} /> : null}
+
       {mayManage && watchable(device) ? (
         <button type="button" className={`${ui.cardDashed} ${styles.add}`} onClick={() => setOpen('new')}>
           {t('alarms.add')}
@@ -241,6 +262,69 @@ function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: D
 
       {open ? <RuleSheet device={device} rule={open === 'new' ? null : open} me={me} onClose={() => setOpen(null)} /> : null}
     </section>
+  );
+}
+
+const TEMPLATE_ICON: Record<TemplateKey, LucideIcon> = { warm: Thermometer, cold: Snowflake, humid: CloudRain, dry: Sun };
+
+/**
+ * Too warm, too cold, too humid, too dry: each one tap from a rule. A template
+ * whose rule this device already has - written here, by a stage or by the
+ * firmware - is not offered again; the rule is in the list above and opens like
+ * every other. Once all four are there the offer goes away.
+ */
+function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule[]; onMade: (ruleId: string) => void }) {
+  const { t } = useTranslation();
+  const create = useCreateAlarmRule(device.id);
+  const [making, setMaking] = useState<TemplateKey | null>(null);
+  const offered = templatesFor(device).filter(template => ruleFor(rules, template) === null);
+
+  if (offered.length === 0) return null;
+
+  const make = (template: AlarmTemplate) => {
+    setMaking(template.key);
+    create.mutate(templateBody(t, template), {
+      onSuccess: rule => onMade(rule.id),
+      onSettled: () => setMaking(null),
+    });
+  };
+
+  return (
+    <div className={styles.templates}>
+      <span className="label">
+        {t('alarms.template.label')}
+        <Help topic="alarmTemplates" />
+      </span>
+      <ul className={styles.templateList}>
+        {offered.map(template => {
+          const Icon = TEMPLATE_ICON[template.key];
+          const line = t(`alarms.template.${template.edge}`, {
+            value: `${targetFigure(template.value, template.metric)} ${unitOf({ kind: 'reading', metric: template.metric, upper: null, lower: null })}`,
+            length: durationLabel(template.forMinutes * 60),
+          });
+          const name = t(`alarms.template.${template.key}.name`);
+
+          return (
+            <li key={template.key}>
+              <button
+                type="button"
+                className={`${ui.card} ${styles.template}`}
+                disabled={create.isPending}
+                aria-label={t('alarms.template.make', { name, line })}
+                onClick={() => make(template)}
+              >
+                <Icon size={18} strokeWidth={1.75} aria-hidden className={styles.templateIcon} />
+                <span className={styles.templateText}>
+                  <span className={styles.templateName}>{name}</span>
+                  <span className={`mono ${styles.templateLine}`}>{making === template.key ? t('alarms.template.making') : line}</span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <Refused error={create.error} />
+    </div>
   );
 }
 

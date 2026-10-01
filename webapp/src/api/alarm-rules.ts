@@ -56,7 +56,7 @@ export const useAlarmRulesOf = (deviceIds: string[], { refetchIntervalMs = RULES
     },
   });
 
-const useRuleMutation = <Body>(deviceId: string, run: (body: Body) => Promise<unknown>) => {
+const useRuleMutation = <Body, Result>(deviceId: string, run: (body: Body) => Promise<Result>) => {
   const client = useQueryClient();
 
   return useMutation({

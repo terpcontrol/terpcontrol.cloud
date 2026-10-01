@@ -13,6 +13,7 @@ import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { Alarms } from '@/screens/control/alarms/Alarms';
 import { boundLabel, channelsLabel, routedChannels, scaleNote, type Translate, watchLabel } from '@/screens/control/alarms/rules';
+import { templatesFor } from '@/screens/control/alarms/templates';
 import { headersOf } from '@/ui/headers';
 
 /**
@@ -201,7 +202,8 @@ describe('the alarm rules page', () => {
     draw([device({ id: 'mystery-1', type: 'watering-computer' })]);
 
     expect(await screen.findByText('Tank empty')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /\+ Alarm/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ Custom alarm' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Set up/ })).not.toBeInTheDocument();
   });
 
   it('draws no bound at all on an output watched for running at all with no duration', async () => {
@@ -243,7 +245,8 @@ describe('the alarm rules page', () => {
     expect(await screen.findByText('From the Flower preset')).toBeInTheDocument();
     expect(screen.getByText('thresholds move with the stage')).toBeInTheDocument();
     expect(screen.getByText('Alarms · Tent 1')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '‹ back to the plan' })).toHaveAttribute('href', '/spaces/space-1/control');
+    // The tab opens on the targets unless a plan runs, so that is where the way back leads.
+    expect(screen.getByRole('link', { name: '‹ targets' })).toHaveAttribute('href', '/spaces/space-1/control');
 
     const labels = screen.getAllByText(/^(From the Flower preset|Always on|From the device|Written here)$/).map(label => label.textContent);
     expect(labels).toEqual(['From the Flower preset', 'Always on', 'From the device', 'Written here']);
@@ -413,28 +416,29 @@ describe('the alarm rules page', () => {
    * behind the one word "pause". Only maintenance reaches the engine; a silence
    * is read by the delivery alone, so the rule goes on tripping and the grower
    * who silenced it for an hour is alarmed by it anyway. The page has to say
-   * which of the two it is offering.
+   * which of the two it is offering - one tap away, rather than in a paragraph
+   * under every list.
    */
-  it('says that a silenced rule keeps watching, and that maintenance is the one that holds the alarm', async () => {
+  it('says that a muted rule keeps watching, and that maintenance is the one that holds the alarm', async () => {
     draw();
 
-    const footer = await screen.findByText(/A silenced rule goes on watching/);
-    expect(footer).toHaveTextContent('it only stops telling anybody');
-    expect(footer).toHaveTextContent('Maintenance mode holds the alarm itself back');
-    expect(footer.textContent).not.toMatch(/Silence and maintenance mode pause/);
+    const info = await screen.findByRole('button', { name: 'About Muting and maintenance' });
+    expect(info).toHaveAccessibleDescription(/A muted rule keeps watching: .* it only tells nobody\./);
+    expect(info).toHaveAccessibleDescription(/Maintenance mode holds the alarms themselves back/);
   });
 
   /**
    * The engine skips a worked-on device for ten minutes after its window has
    * run out, so a step-in the app calls fifteen minutes keeps the alarms quiet
-   * for twenty-five. The footer is where that is read, so it states both spans
-   * rather than the one that was promised and not kept.
+   * for twenty-five. The explanation states both spans rather than the one
+   * that was promised and not kept.
    */
   it('names the settling the engine adds to a step-in, not the window alone', async () => {
     draw();
 
-    const footer = await screen.findByText(/A silenced rule goes on watching/);
-    expect(footer).toHaveTextContent('for the 15 minutes it names and 10 more, while the climate comes back');
+    expect(await screen.findByRole('button', { name: 'About Muting and maintenance' })).toHaveAccessibleDescription(
+      /for its 15 minutes and 10 more, while the climate comes back/,
+    );
   });
 
   /**
@@ -552,7 +556,8 @@ describe('the alarm rules page', () => {
     // absent rather than drawn dead, which is the rule for every control here.
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     expect(within(hot as HTMLElement).getByText('On')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /\+ Alarm/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ Custom alarm' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Set up/ })).not.toBeInTheDocument();
     expect(screen.getAllByText('preset · for 10 min · critical · announced once')).toHaveLength(1);
     expect(vi.mocked(api.get).mock.calls.map(([path]) => path)).not.toContain('/me');
   });
@@ -580,7 +585,7 @@ describe('the alarm rules page', () => {
 describe('the rule sheet', () => {
   const openNew = async () => {
     draw([device({}, { co2: 'on' })]);
-    fireEvent.click(await screen.findByRole('button', { name: /\+ Alarm/ }));
+    fireEvent.click(await screen.findByRole('button', { name: '+ Custom alarm' }));
 
     return screen.getByRole('dialog', { name: 'New alarm' });
   };
@@ -639,7 +644,7 @@ describe('the rule sheet', () => {
       (path: string) => Promise.resolve(path === '/devices/fan-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
     );
     draw([device({ id: 'fan-1', type: 'fan', name: 'Exhaust fan' })]);
-    fireEvent.click(await screen.findByRole('button', { name: /\+ Alarm/ }));
+    fireEvent.click(await screen.findByRole('button', { name: '+ Custom alarm' }));
     const sheet = screen.getByRole('dialog', { name: 'New alarm' });
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Fan' }));
@@ -655,7 +660,7 @@ describe('the rule sheet', () => {
     const watch = within(sheet).getByRole('group', { name: 'Watch' });
 
     expect(within(watch).getByRole('button', { name: 'CO₂' })).toBeInTheDocument();
-    expect(within(watch).queryByRole('button', { name: 'Leaf temp' })).not.toBeInTheDocument();
+    expect(within(watch).queryByRole('button', { name: 'Leaf temperature' })).not.toBeInTheDocument();
     expect(within(watch).queryByRole('button', { name: 'Offline' })).not.toBeInTheDocument();
     expect(within(watch).getByRole('button', { name: 'Dehumidifier' })).toBeInTheDocument();
     expect(within(watch).queryByRole('button', { name: 'Internal fan' })).not.toBeInTheDocument();
@@ -675,11 +680,11 @@ describe('the rule sheet', () => {
     );
     draw([device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })]);
 
-    fireEvent.click(await screen.findByRole('button', { name: /\+ Alarm/ }));
+    fireEvent.click(await screen.findByRole('button', { name: '+ Custom alarm' }));
     const watch = within(screen.getByRole('dialog', { name: 'New alarm' })).getByRole('group', { name: 'Watch' });
 
     expect(within(watch).getByRole('button', { name: 'Relay' })).toBeInTheDocument();
-    expect(within(watch).getByRole('button', { name: 'Temp' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(watch).getByRole('button', { name: 'Temperature' })).toHaveAttribute('aria-pressed', 'true');
     expect(within(watch).getByRole('button', { name: 'VPD' })).toBeInTheDocument();
     expect(within(watch).queryByRole('button', { name: 'CO₂' })).not.toBeInTheDocument();
   });
@@ -697,11 +702,11 @@ describe('the rule sheet', () => {
     );
     draw([device({ id: 'fan-2', type: 'fan', name: 'Exhaust fan' })]);
 
-    fireEvent.click(await screen.findByRole('button', { name: /\+ Alarm/ }));
+    fireEvent.click(await screen.findByRole('button', { name: '+ Custom alarm' }));
     const watch = within(screen.getByRole('dialog', { name: 'New alarm' })).getByRole('group', { name: 'Watch' });
 
-    expect(within(watch).getByRole('button', { name: 'Temp' })).toHaveAttribute('aria-pressed', 'true');
-    expect(within(watch).getByRole('button', { name: 'RH' })).toBeInTheDocument();
+    expect(within(watch).getByRole('button', { name: 'Temperature' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(watch).getByRole('button', { name: 'Humidity' })).toBeInTheDocument();
     expect(within(watch).getByRole('button', { name: 'VPD' })).toBeInTheDocument();
     expect(within(watch).getByRole('button', { name: 'Fan' })).toBeInTheDocument();
     // A fan reports no CO2 and no light, so neither is offered for it.
@@ -736,7 +741,7 @@ describe('the rule sheet', () => {
     const sheet = await openNew();
 
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'Name' }), { target: { value: 'Too humid' } });
-    fireEvent.click(within(sheet).getByRole('button', { name: 'RH' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Humidity' }));
     fireEvent.change(within(sheet).getByLabelText('above'), { target: { value: '60' } });
     fireEvent.change(within(sheet).getByRole('spinbutton', { name: 'For how long' }), { target: { value: '20' } });
     fireEvent.change(within(sheet).getByRole('spinbutton', { name: 'every' }), { target: { value: '15' } });
@@ -974,6 +979,87 @@ describe('the rule sheet', () => {
 
     expect(sheet.querySelector('footer')).toContainElement(within(sheet).getByRole('button', { name: 'Save the alarm' }));
     expect(within(sheet).getByRole('group', { name: 'Watch' }).closest('footer')).toBeNull();
+  });
+});
+
+/**
+ * Too warm, too cold, too humid, too dry: the four alarms most tents want, each
+ * one tap from an ordinary rule. The full sheet stays behind "+ Custom alarm".
+ */
+describe('the alarm templates', () => {
+  it('offers the templates whose rule this device lacks, and writes one in a single tap', async () => {
+    draw();
+
+    // The stage's "Too hot" already watches the temperature from above, so that one is not offered again.
+    expect(await screen.findByRole('button', { name: 'Set up Too cold: below 15 °C · 15 min' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Set up Too warm/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Set up Too dry: below 35 % · 20 min' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set up Too humid: above 75 % · 20 min' }));
+
+    const body: AlarmRuleCreate = {
+      name: 'Too humid',
+      watch: { kind: 'reading', metric: 'humidity', upper: 75, lower: null },
+      forSeconds: 1200,
+      severity: 'critical',
+      enabled: true,
+      cooldownSeconds: 0,
+      repeatSeconds: 0,
+      delivery: { mode: 'routing', custom: null },
+    };
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/alarm-rules', body));
+    // Nothing else was asked: no sheet opened on the way.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('marks the rule a template wrote, which opens like any other', async () => {
+    const made = rule({
+      id: 'rule-made',
+      name: 'Too cold',
+      watch: { kind: 'reading', metric: 'temperature', upper: null, lower: 15 },
+      forSeconds: 900,
+    });
+    let written = false;
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(
+          path === '/devices/device-1/alarm-rules' ? { items: written ? [...RULES, made] : RULES, nextCursor: null } : answers(path),
+        ) as never,
+    );
+    vi.mocked(api.post).mockImplementation(() => {
+      written = true;
+      return Promise.resolve(made) as never;
+    });
+    draw();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Set up Too cold/ }));
+
+    const card = await waitFor(() => {
+      const one = screen.getByRole('button', { name: /^Too cold/ }).closest('li')!;
+      expect(one).toHaveAttribute('data-highlight', 'true');
+      return one;
+    });
+    expect(screen.queryByRole('button', { name: /^Set up Too cold/ })).not.toBeInTheDocument();
+    fireEvent.click(within(card).getByRole('button', { name: /^Too cold/ }));
+    expect(within(screen.getByRole('dialog')).getByRole('textbox', { name: 'Name' })).toHaveValue('Too cold');
+  });
+
+  it('works each line out from the targets the device holds, and falls back where it states none', () => {
+    const held = device({ configuration: { day: { temperature: 26, humidity: 60 }, night: { temperature: 20, humidity: 55 } } });
+    const lines = (one: Device) =>
+      Object.fromEntries(templatesFor(one).map(template => [template.key, [template.edge, template.value, template.forMinutes]]));
+
+    expect(lines(held)).toEqual({ warm: ['upper', 31, 10], cold: ['lower', 16, 15], humid: ['upper', 70, 20], dry: ['lower', 35, 20] });
+    expect(lines(device({ configuration: null }))).toEqual({
+      warm: ['upper', 30, 10],
+      cold: ['lower', 15, 15],
+      humid: ['upper', 75, 20],
+      dry: ['lower', 35, 20],
+    });
+  });
+
+  it('offers nothing a device does not measure', () => {
+    expect(templatesFor(device({ type: 'watering-computer' }))).toEqual([]);
   });
 });
 

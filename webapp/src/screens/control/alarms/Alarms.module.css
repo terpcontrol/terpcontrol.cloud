@@ -326,3 +326,71 @@
   font-size: var(--text-xs);
   color: var(--muted);
 }
+
+/* The four alarms most tents want, each a tap from a rule: a card per alarm,
+   two across on a phone, its name over the line it would trip at. */
+.templates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.templateList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.template {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  width: 100%;
+  height: 100%;
+  padding: var(--space-3);
+  color: var(--ink);
+  text-align: left;
+  transition: border-color 120ms ease-out;
+}
+
+.template:hover:not(:disabled) {
+  border-color: var(--brand);
+}
+
+.template:disabled {
+  opacity: 0.6;
+}
+
+.templateIcon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--brand);
+}
+
+.templateText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.templateName {
+  font-weight: var(--weight-semibold);
+}
+
+.templateLine {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* What muting a rule and maintenance each hold back, behind its (i). */
+.quietLine {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}

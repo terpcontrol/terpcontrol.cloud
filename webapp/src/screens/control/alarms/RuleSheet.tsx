@@ -289,9 +289,13 @@ const routingNote = (t: Translate, draft: RuleDraft, me: Me | undefined): string
     : t('alarms.sheet.routingNone', { severity: t(`alarms.severity.${draft.severity}`) });
 };
 
-/** What a reading is called: the card's own word where the home has one, the alarm screen's for the sensors the home does not draw. */
+/**
+ * What a reading is called, written out: the home card abbreviates to fit four
+ * figures across, and a chip somebody is choosing what to watch from has room
+ * for the whole word.
+ */
 const metricName = (t: Translate, metric: Metric): string =>
-  t(`home.metric.${metric}`, { defaultValue: t(`alarms.metric.${metric}`, { defaultValue: metric }) });
+  t(`alarms.metric.${metric}`, { defaultValue: t(`home.metric.${metric}`, { defaultValue: metric }) });
 
 /** Whether an output is watched for how hard it runs or for running at all. */
 function OutputHow({

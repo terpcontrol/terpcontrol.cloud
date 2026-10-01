@@ -3429,9 +3429,10 @@
   "alarms": {
     "title": "Alarms",
     "backToPlan": "‹ back to the plan",
+    "backToTargets": "‹ targets",
     "noController": "Nothing stands here that has alarm rules. A device has to be claimed into this space first.",
-    "footer": "A silenced rule goes on watching: it still opens an alert, still writes the diary line and still marks the place on Home, it only stops telling anybody. Maintenance mode holds the alarm itself back, and so does \"Step in\" from the Log sheet — for the {{minutes}} minutes it names and {{settle}} more, while the climate comes back.",
-    "add": "+ Alarm · threshold · duration · severity · webhook",
+    "quietLine": "Muting and maintenance",
+    "add": "+ Custom alarm",
     "group": {
       "presetOf": "From the {{name}} preset",
       "presetNone": "From the stage preset",
@@ -3479,7 +3480,11 @@
       "light": "needs a light sensor"
     },
     "metric": {
-      "leafTemperature": "Leaf temp",
+      "temperature": "Temperature",
+      "humidity": "Humidity",
+      "vpd": "VPD",
+      "co2": "CO₂",
+      "leafTemperature": "Leaf temperature",
       "lux": "Lux",
       "ppfd": "PPFD",
       "offline": "Offline"
@@ -3556,6 +3561,25 @@
       "tooCold": "Too cold",
       "tooHumid": "Too humid",
       "co2High": "CO₂ too high"
+    },
+    "template": {
+      "label": "Set up in one tap",
+      "upper": "above {{value}} · {{length}}",
+      "lower": "below {{value}} · {{length}}",
+      "make": "Set up {{name}}: {{line}}",
+      "making": "setting up…",
+      "warm": {
+        "name": "Too warm"
+      },
+      "cold": {
+        "name": "Too cold"
+      },
+      "humid": {
+        "name": "Too humid"
+      },
+      "dry": {
+        "name": "Too dry"
+      }
     },
     "channelOff": "{{channel}} (off)",
     "addDevice": "Add a device"
@@ -4405,6 +4429,14 @@
     "offlineRule": {
       "title": "The offline rule",
       "text": "Every device has one rule that raises a critical alarm once nothing has been heard from it for ten minutes, plus the rule's own wait. It cannot be deleted – only switched off, silenced or sent elsewhere."
+    },
+    "alarmTemplates": {
+      "title": "Set up in one tap",
+      "text": "One tap writes an ordinary alarm rule. Its line comes from your targets: 5 °C over the warmer one, 4 °C under the cooler one, 10 points of humidity over the higher one and 20 under the lower one. It is critical, so it goes out by your notification settings, quiet hours included. Tap the rule to change its line, how long it waits or anything else."
+    },
+    "alarmQuiet": {
+      "title": "Muting and maintenance",
+      "text": "A muted rule keeps watching: the alert still opens, is written in the diary and marks the place on Home – it only tells nobody. Maintenance mode holds the alarms themselves back: for its 15 minutes and 10 more, while the climate comes back."
     },
     "severity": {
       "title": "Severity",
