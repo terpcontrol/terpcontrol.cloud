@@ -322,8 +322,8 @@ describe('the inbox', () => {
         `Humidity high · critical · since ${clock(NOW.minus({ hours: 2, minutes: 20 }))} · for 2 h · repeats every 30 min until resolved`,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open timeline' })).toHaveAttribute('href', '/spaces/space-1/timeline');
-    expect(screen.getByRole('link', { name: 'Edit rule' })).toHaveAttribute('href', '/spaces/space-1/control/alarms?rule=rule-1');
+    expect(screen.getByRole('link', { name: 'Open timeline' })).toHaveAttribute('href', '/timeline?space=space-1');
+    expect(screen.getByRole('link', { name: 'Edit rule' })).toHaveAttribute('href', '/control/alarms?space=space-1&rule=rule-1');
   });
 
   it('names the severity to anybody who cannot see the coloured edge, and keeps the figure and its unit in one piece', async () => {
@@ -984,8 +984,8 @@ describe('the bell', () => {
       </>,
     );
 
-    const links = await screen.findAllByRole('link', { name: 'Alerts · 2 open' });
-    expect(links).toHaveLength(2);
+    await waitFor(() => expect(screen.getAllByRole('link', { name: 'Alerts · 2 open' })).toHaveLength(2));
+    const links = screen.getAllByRole('link', { name: 'Alerts · 2 open' });
     for (const link of links) expect(within(link).getByText('2')).toBeInTheDocument();
   });
 

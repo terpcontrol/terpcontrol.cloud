@@ -220,7 +220,7 @@ describe('the tab of a place with nothing standing in it', () => {
     );
 
     expect(screen.getByText(/Nothing stands here yet/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/spaces/space-1/devices');
+    expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/claim');
     expect(screen.queryByRole('link', { name: /^Targets/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^Alarms/ })).not.toBeInTheDocument();
   });
@@ -308,8 +308,8 @@ describe('what the Control tab offers, by who is reading', () => {
     drawTab();
 
     expect(await screen.findByRole('button', { name: 'Pause' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^Targets/ })).toHaveAttribute('href', '/spaces/space-1/control/targets');
-    expect(screen.getByRole('link', { name: /^Alarms/ })).toHaveAttribute('href', '/spaces/space-1/control/alarms');
+    expect(screen.getByRole('link', { name: /^Targets/ })).toHaveAttribute('href', '/control/targets?space=space-1');
+    expect(screen.getByRole('link', { name: /^Alarms/ })).toHaveAttribute('href', '/control/alarms?space=space-1');
     expect(screen.queryByText(/You may log in this space, not steer it/)).not.toBeInTheDocument();
   });
 
@@ -358,8 +358,8 @@ describe('what the Control tab opens on', () => {
     expect(screen.getByText('Targets')).toBeInTheDocument();
     expect(screen.queryByText('No plan yet.')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^Alarms/ })).toHaveAttribute('href', '/spaces/space-1/control/alarms');
-    expect(screen.getByRole('link', { name: /Run on a grow plan automatically/ })).toHaveAttribute('href', '/spaces/space-1/control/plan');
+    expect(screen.getByRole('link', { name: /^Alarms/ })).toHaveAttribute('href', '/control/alarms?space=space-1');
+    expect(screen.getByRole('link', { name: /Run on a grow plan automatically/ })).toHaveAttribute('href', '/control/plan?space=space-1');
   });
 
   it('opens on the targets while a plan is paused, and names the plan and its state in the row', async () => {
@@ -377,7 +377,7 @@ describe('what the Control tab opens on', () => {
 
     expect(await screen.findByText('No plan yet.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Write a plan' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '‹ targets' })).toHaveAttribute('href', '/spaces/space-1/control');
+    expect(screen.getByRole('link', { name: '‹ targets' })).toHaveAttribute('href', '/control?space=space-1');
   });
 
   it('offers no template to start from while there is none', async () => {

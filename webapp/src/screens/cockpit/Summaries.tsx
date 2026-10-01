@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { controlPath } from '@/app/places';
 import type { AlarmRule, CardSetpoint, Device, Me, Metric, OverviewTargets } from '@fg2/shared-types/v1';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { awaitingClimate } from '@/ui/climate-hardware';
@@ -83,7 +84,7 @@ export function TargetsSummary({
   }
 
   return (
-    <Summary title={t('cockpit.targets.title')} change={mayChange ? `/spaces/${spaceId}/control` : null}>
+    <Summary title={t('cockpit.targets.title')} change={mayChange ? controlPath(spaceId) : null}>
       {rows.length > 0 ? (
         <dl className={styles.facts}>
           {rows.map(row => (
@@ -123,7 +124,7 @@ export function AlarmsSummary({ spaceId, devices, me, mayChange }: { spaceId: st
   const lines = [...new Set(watching.map(rule => lineOf(t, rule, devices)))];
 
   return (
-    <Summary title={t('cockpit.alarms.title')} change={mayChange ? `/spaces/${spaceId}/control/alarms` : null}>
+    <Summary title={t('cockpit.alarms.title')} change={mayChange ? controlPath(spaceId, 'alarms') : null}>
       {rules.isPending ? (
         <Waiting lines={1} />
       ) : (

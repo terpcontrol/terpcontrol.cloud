@@ -2,6 +2,7 @@ import { DateTime } from 'luxon';
 import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { controlPath, timelinePath } from '@/app/places';
 import type { Alert, AlarmRule, AlarmWatch, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
@@ -401,7 +402,7 @@ function TimelineChip({ spaceId }: { spaceId: string }) {
   const { t } = useTranslation();
 
   return (
-    <Link to={`/spaces/${spaceId}/timeline`} className={ui.chip}>
+    <Link to={timelinePath(spaceId)} className={ui.chip}>
       {t('alerts.action.timeline')}
     </Link>
   );
@@ -490,7 +491,7 @@ function OpenChips({
         ) : null}
         {alert.spaceId ? <TimelineChip spaceId={alert.spaceId} /> : null}
         {!camera && rule && alert.spaceId ? (
-          <Link to={`/spaces/${alert.spaceId}/control/alarms?rule=${rule.id}`} className={ui.chip}>
+          <Link to={controlPath(alert.spaceId, 'alarms', { rule: rule.id })} className={ui.chip}>
             {t('alerts.action.editRule')}
           </Link>
         ) : null}

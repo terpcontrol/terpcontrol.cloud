@@ -93,8 +93,9 @@ describe('a session that may only look', () => {
   it('is not offered the Log button, and keeps the four places', () => {
     const { container } = draw(<TabBar />);
 
+    // The demo is shown the diary, and still may not write a line of it.
     expect(screen.queryByRole('button', { name: 'Log' })).not.toBeInTheDocument();
-    expect([...container.querySelectorAll('nav > *')].map(tab => tab.textContent)).toEqual(['Home', 'Timeline', 'Devices', 'Tasks']);
+    expect([...container.querySelectorAll('nav > *')].map(tab => tab.textContent)).toEqual(['Home', 'Timeline', 'Control', 'Device']);
   });
 
   it('sees the grow and what is due on it, and is offered neither Water nor Done', () => {

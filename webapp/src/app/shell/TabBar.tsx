@@ -1,45 +1,45 @@
 import { useTranslation } from 'react-i18next';
-import { NavLink } from 'react-router';
-import { useLog, useMayLog } from '@/log/log-context';
+import { Link } from 'react-router';
+import { useLog } from '@/log/log-context';
 import { useOpeningUnderneath } from '@/log/underneath';
-import { TABS } from './tabs';
+import { useIsOn, useTabs } from './tabs';
 import styles from './TabBar.module.css';
 
 /**
  * The phone's navigation. Replaced by the rail from the tablet breakpoint up.
  *
- * Four of the five are places; the raised one is not. Logging happens over the
- * screen you are on, so the button does not take you anywhere - and a session
- * that may not write is not offered it, which leaves the four places.
+ * Every tab is a place but the raised one: logging happens over the screen you
+ * are on, so the button does not take you anywhere.
  */
 export function TabBar() {
   const { t } = useTranslation();
   const { openSheet } = useLog();
   const underneath = useOpeningUnderneath();
-  const mayLog = useMayLog();
+  const tabs = useTabs();
+  const isOn = useIsOn();
 
   return (
     <nav className={styles.bar} aria-label={t('shell.navigation')} data-print="omit">
-      {TABS.filter(tab => mayLog || !tab.raised).map(({ path, labelKey, Icon, raised }) =>
-        raised ? (
-          <button key={path} type="button" className={`${styles.tab} ${styles.raised}`} onClick={() => openSheet(underneath)}>
+      {tabs.map(tab =>
+        tab.raised ? (
+          <button key={tab.path} type="button" className={`${styles.tab} ${styles.raised}`} onClick={() => openSheet(underneath)}>
             <span className={styles.icon}>
-              <Icon size={26} strokeWidth={2} aria-hidden />
+              <tab.Icon size={26} strokeWidth={2} aria-hidden />
             </span>
-            <span className={styles.caption}>{t(labelKey)}</span>
+            <span className={styles.caption}>{t(tab.labelKey)}</span>
           </button>
         ) : (
-          <NavLink
-            key={path}
-            to={path}
-            end={path === '/'}
-            className={({ isActive }) => [styles.tab, isActive ? styles.active : ''].filter(Boolean).join(' ')}
+          <Link
+            key={tab.path}
+            to={tab.path}
+            className={[styles.tab, isOn(tab) ? styles.active : ''].filter(Boolean).join(' ')}
+            aria-current={isOn(tab) ? 'page' : undefined}
           >
             <span className={styles.icon}>
-              <Icon size={22} strokeWidth={1.75} aria-hidden />
+              <tab.Icon size={22} strokeWidth={1.75} aria-hidden />
             </span>
-            <span className={styles.caption}>{t(labelKey)}</span>
-          </NavLink>
+            <span className={styles.caption}>{t(tab.labelKey)}</span>
+          </Link>
         ),
       )}
     </nav>

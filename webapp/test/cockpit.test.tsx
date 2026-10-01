@@ -354,11 +354,11 @@ describe('the cockpit of a place that is fine', () => {
     expect(targets).toHaveTextContent('Day25 °C · 60 % · CO₂ 900 ppm');
     expect(targets).toHaveTextContent('Night21 °C · 55 %');
     expect(await within(targets).findByText('06:00–18:00 · 12 h')).toBeInTheDocument();
-    expect(within(targets).getByRole('link', { name: 'Change' })).toHaveAttribute('href', '/spaces/space-1/control');
+    expect(within(targets).getByRole('link', { name: 'Change' })).toHaveAttribute('href', '/control?space=space-1');
 
     const alarms = screen.getByRole('region', { name: 'Alarms' });
     expect(await within(alarms).findByText('Device offline · Too warm › 30 °C')).toBeInTheDocument();
-    expect(within(alarms).getByRole('link', { name: 'Change' })).toHaveAttribute('href', '/spaces/space-1/control/alarms');
+    expect(within(alarms).getByRole('link', { name: 'Change' })).toHaveAttribute('href', '/control/alarms?space=space-1');
     // Nothing reaches this account, so the summary says so and links to the fix.
     expect(await within(alarms).findByRole('link', { name: /don't reach you/ })).toHaveAttribute('href', '/me/notifications');
   });

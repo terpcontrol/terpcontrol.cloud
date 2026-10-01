@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import { placePath } from '@/app/places';
 import type { Camera, Device, DeviceClass, Firmware, User } from '@fg2/shared-types/v1';
 
 /**
@@ -113,7 +114,7 @@ export const fleetRows = ({ devices, cameras, classes, firmwares, people, reader
       sockets: socketsOf(device),
       cams: readerId !== null && device.ownerId === readerId ? camsOf(device.id) : null,
       onStable: calledStable === null ? null : device.state.firmwareId === calledStable,
-      opens: device.spaceId ? `/spaces/${device.spaceId}/devices` : null,
+      opens: device.spaceId ? placePath(device.spaceId) : null,
     };
   });
 

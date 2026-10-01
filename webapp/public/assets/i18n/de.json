@@ -1430,7 +1430,8 @@
       "timeline": "Verlauf",
       "log": "Eintrag",
       "devices": "Geräte",
-      "tasks": "Aufgaben"
+      "control": "Steuerung",
+      "device": "Gerät"
     },
     "updated": "aktualisiert vor {{age}}",
     "accountNote": "Du · Profil, Einstellungen",
@@ -2503,14 +2504,6 @@
     "youMayLog": "Du darfst in das Tagebuch dieses Grows schreiben. Umziehen, teilen und ernten kann nur, wer den Bereich steuert, in dem er steht."
   },
   "space": {
-    "tabsLabel": "Bereichsseite",
-    "tabs": {
-      "overview": "Übersicht",
-      "timeline": "Verlauf",
-      "devices": "Geräte",
-      "control": "Steuerung",
-      "members": "Mitglieder"
-    },
     "later": {
       "devices": "Jeder Controller, jede Kamera und jede Steckdose hier, mit Rolle und Schalter.",
       "members": "Wer hier eintragen und wer verwalten darf, und die Einladungen dazu."
@@ -2935,7 +2928,7 @@
         "roomModel": "Teile den ganzen Raum: Wer hier hereingelassen wird, sieht jeden Bereich darin.",
         "tentsIn_one": "{{count}} Bereich in diesem Raum",
         "tentsIn_other": "{{count}} Bereiche in diesem Raum",
-        "noTents": "Noch kein Bereich steht in diesem Raum. Ein Bereich kommt über seinen eigenen Mitglieder-Tab hinein."
+        "noTents": "Noch kein Bereich steht in diesem Raum. Ein Bereich kommt über ⋯ › Mitglieder & Teilen auf seiner eigenen Seite hinein."
       },
       "linkStopped": "Der Link {{code}} wurde zurückgezogen, als @{{name}} aus dem Bereich genommen wurde."
     }
@@ -3033,7 +3026,6 @@
       "phase": "Phase",
       "grow": "Grow"
     },
-    "pickSpace": "Welcher Ort",
     "pickGrow": "Welcher Grow",
     "dayN": "Tag {{day}}",
     "dayRange": "Tag {{from}}–{{to}}",
@@ -4590,7 +4582,7 @@
     },
     "diaryLayer": {
       "title": "Grow-Tagebuch",
-      "text": "Im Tagebuch hältst du fest, was du an deinen Pflanzen machst – Gießen, Düngen, Fotos, Notizen – und führst Grows mit Tagen und Phasen. Solange du es nicht nutzt, zeigt die App nur Klima und Gerät. Es schaltet sich ein, sobald du einen Grow startest oder etwas einträgst; unter Ich › Darstellung kannst du es auch von Hand ein- oder ausschalten."
+      "text": "Im Tagebuch hältst du fest, was du an deinen Pflanzen machst – Gießen, Düngen, Fotos, Notizen – und führst Grows mit Tagen und Phasen. Solange du es nicht nutzt, zeigt die App nur Klima und Gerät. Es schaltet sich ein, sobald du einen Grow startest oder etwas einträgst, und bringt „Eintrag“ in die Mitte der Leiste; unter Ich › Darstellung kannst du es auch von Hand ein- oder ausschalten."
     },
     "follow": {
       "title": "Folgen",
@@ -4607,6 +4599,19 @@
     "ppfd": {
       "title": "PPFD",
       "text": "Wie viel für die Pflanze nutzbares Licht auf der Blattebene ankommt, in µmol pro Quadratmeter und Sekunde. Es wird aus dem Lux-Wert des Sensors geschätzt, mit dem Faktor, der für dein Gerät eingestellt ist."
+    }
+  },
+  "place": {
+    "switch": "Ort wechseln",
+    "backTo": "Zurück zu {{name}}",
+    "members": {
+      "title": "Mitglieder & Teilen",
+      "lookOnly": "Nur zum Ansehen, ohne Konto:",
+      "shareLink": "Freigabelink erstellen"
+    },
+    "control": {
+      "nothing": "Hier gibt es noch nichts zu steuern: Zielwerte und Alarme kommen mit dem ersten Gerät.",
+      "demoNothing": "Die Demo steuert nichts; öffne einen Ort auf Start, um seine Zielwerte zu sehen."
     }
   },
   "cockpit": {

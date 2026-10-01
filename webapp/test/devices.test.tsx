@@ -613,7 +613,7 @@ describe('what the sockets offer, by who is reading', () => {
 
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
-    wrap(<DeviceList spaceId="space-1" />);
+    wrap(<DeviceList />);
     await screen.findByText('Devices');
   };
 
@@ -651,7 +651,7 @@ describe('what the sockets offer, by who is reading', () => {
 
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
-    wrap(<DeviceList spaceId="space-1" />);
+    wrap(<DeviceList />);
 
     const offline = await screen.findByText('Offline · nothing is listening, so nothing is sent.');
     const build = screen.getByText(/This build takes no override\./);
@@ -670,12 +670,11 @@ describe('what the sockets offer, by who is reading', () => {
 
   /**
    * How often an output came on today is the place's own 24 h verdict, and the
-   * account-wide tab used to be handed none - so the identical panel answered
-   * "Came on" on a tent's tab and silently dropped the row on /devices, with
-   * nothing saying the figure was unavailable there. The list now asks each
-   * place it draws a row from.
+   * account-wide tab used to be handed none - so the panel silently dropped the
+   * row on /devices, with nothing saying the figure was unavailable there. The
+   * list asks each place it draws a row from.
    */
-  it('counts how often an output came on wherever the row is opened from', async () => {
+  it('counts how often an output came on from the place the device stands in', async () => {
     const verdict = { actuators: [{ output: 'light', runCount: 3, forSeconds: 900 }] };
     vi.mocked(api.get).mockImplementation((path: string) => {
       if (path === '/devices') return Promise.resolve({ items: [standing], nextCursor: null }) as never;
@@ -688,10 +687,6 @@ describe('what the sockets offer, by who is reading', () => {
 
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
-
-    const here = wrap(<DeviceList spaceId="space-1" />);
-    expect(await screen.findByText(/ran 3×/)).toBeInTheDocument();
-    here.unmount();
 
     wrap(<DeviceList />);
     expect(await screen.findByText(/ran 3×/)).toBeInTheDocument();

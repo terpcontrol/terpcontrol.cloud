@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { placePath } from '@/app/places';
 import { useAdminCameras, useAdminDevices } from '@/api/admin';
 import { useGrows } from '@/api/grows';
 import { useSpaces } from '@/api/spaces';
@@ -101,7 +102,7 @@ export function Demo() {
                   {device.state.lastSeenAt ? ` · ${ageLabel(device.state.lastSeenAt, now)}` : ''}
                 </span>
                 {device.spaceId ? (
-                  <Link className={ui.chip} to={`/spaces/${device.spaceId}/devices`}>
+                  <Link className={ui.chip} to={placePath(device.spaceId)}>
                     {t('admin.demo.open')}
                   </Link>
                 ) : null}
@@ -119,7 +120,7 @@ export function Demo() {
         <ul className={styles.lines}>
           {shownSpaces.map(space => (
             <li key={space.id} className={styles.row}>
-              <Link className="mono" to={`/spaces/${space.id}`}>
+              <Link className="mono" to={placePath(space.id)}>
                 {space.name}
               </Link>
               <span className={styles.consequence}>{t(`publicPage.spaceKind.${space.kind}`, { defaultValue: space.kind })}</span>

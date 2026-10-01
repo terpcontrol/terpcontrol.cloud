@@ -2,24 +2,38 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { DiaryChoice, Me } from '@fg2/shared-types/v1';
 import { meKey, useMe } from './account';
 import { api } from './client';
+import { useHomeShape } from './home';
 import { useSession } from './session';
 
 /**
  * Whether the grow diary is laid over the climate - grows, diary lines and the
  * invitations to either - as the server worked it out for this account. The
- * home answers it beside its cards and the account beside itself; a screen that
- * has neither to hand asks the account, which is read once rather than polled.
+ * home answers it beside its cards and the account beside itself, and the two
+ * can disagree for a moment: starting a grow reads the home again, and the
+ * account only when somebody asks. The fresher of the two answers, so the bar,
+ * Start and the cockpit change together.
  *
- * Until an answer is there, and from a server too old to give one, the diary is
- * shown: that is the app as it has always been, and the demo tour is shown
- * everything anyway.
+ * Undefined until either has answered. The demo is shown everything.
  */
-export const useDiaryLayer = (): boolean => {
+export const useDiaryAnswer = (): boolean | undefined => {
   const { user } = useSession();
   const me = useMe(false, user !== null && user.isDemo !== true);
+  const home = useHomeShape(user !== null);
+  if (user?.isDemo === true) return true;
 
-  return me.data?.layers?.diary ?? true;
+  const fromHome = home.data?.layers?.diary;
+  const fromMe = me.data?.layers?.diary;
+  if (fromHome === undefined) return fromMe;
+  if (fromMe === undefined) return fromHome;
+  return home.dataUpdatedAt >= me.dataUpdatedAt ? fromHome : fromMe;
 };
+
+/**
+ * The same answer for a screen that draws now: until it is there, and from a
+ * server too old to give one, the diary is shown, which is the app as it has
+ * always been.
+ */
+export const useDiaryLayer = (): boolean => useDiaryAnswer() ?? true;
 
 /**
  * An answer about the diary, kept with the account so that every device agrees:

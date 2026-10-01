@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router';
+import { placePath } from '@/app/places';
 import type { Device } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useClaimedDevice, useNameNewPlace } from '@/api/claims';
@@ -123,7 +124,7 @@ export function Claim() {
 
   if (!mayManage) return <OnlyLooking />;
 
-  const leave = () => void navigate(spaceId ? `/spaces/${spaceId}` : '/', { replace: true });
+  const leave = () => void navigate(spaceId ? placePath(spaceId) : '/', { replace: true });
   const go = (index: number, claimedId = deviceId) => {
     setStep(index);
     setFurthest(was => Math.max(was, index));

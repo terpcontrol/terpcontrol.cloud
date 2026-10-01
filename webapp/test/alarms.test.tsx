@@ -134,7 +134,7 @@ const answers = (path: string): unknown => {
   throw new Error(`no answer for ${path}`);
 };
 
-const draw = (devices: Device[] = [device()], mayManage = true, at = '/spaces/space-1/control/alarms') =>
+const draw = (devices: Device[] = [device()], mayManage = true, at = '/control/alarms?space=space-1') =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
       <MemoryRouter initialEntries={[at]}>
@@ -171,7 +171,7 @@ describe('the alarm rules page', () => {
 
     expect(await screen.findByText(/Nothing stands here that has alarm rules/)).toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/spaces/space-1/devices');
+    expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/claim');
     expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
   });
 
@@ -244,9 +244,10 @@ describe('the alarm rules page', () => {
 
     expect(await screen.findByText('From the Flower preset')).toBeInTheDocument();
     expect(screen.getByText('thresholds move with the stage')).toBeInTheDocument();
-    expect(screen.getByText('Alarms · Tent 1')).toBeInTheDocument();
+    // The place is named by the title of Steuerung above the page, not a second time here.
+    expect(screen.getByText('Alarms')).toBeInTheDocument();
     // The tab opens on the targets unless a plan runs, so that is where the way back leads.
-    expect(screen.getByRole('link', { name: '‹ targets' })).toHaveAttribute('href', '/spaces/space-1/control');
+    expect(screen.getByRole('link', { name: '‹ targets' })).toHaveAttribute('href', '/control?space=space-1');
 
     const labels = screen.getAllByText(/^(From the Flower preset|Always on|From the device|Written here)$/).map(label => label.textContent);
     expect(labels).toEqual(['From the Flower preset', 'Always on', 'From the device', 'Written here']);
@@ -479,7 +480,7 @@ describe('the alarm rules page', () => {
     const ended = device({ state: { ...device().state, maintenanceUntil: DateTime.now().toISO()! } });
     drawn.rerender(
       <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter initialEntries={['/spaces/space-1/control/alarms']}>
+        <MemoryRouter initialEntries={['/control/alarms?space=space-1']}>
           <Alarms spaceId="space-1" devices={[ended]} mayManage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -521,7 +522,7 @@ describe('the alarm rules page', () => {
   });
 
   it('marks the rule an alert linked to, and opens it for whoever may change it', async () => {
-    draw([device()], true, '/spaces/space-1/control/alarms?rule=rule-offline');
+    draw([device()], true, '/control/alarms?space=space-1&rule=rule-offline');
 
     expect(await card('Blue Dream tent offline')).toHaveAttribute('data-highlight');
     expect(await card('Too hot')).not.toHaveAttribute('data-highlight');
@@ -529,7 +530,7 @@ describe('the alarm rules page', () => {
   });
 
   it('only marks the linked rule for a reader who may not change it', async () => {
-    draw([device()], false, '/spaces/space-1/control/alarms?rule=rule-offline');
+    draw([device()], false, '/control/alarms?space=space-1&rule=rule-offline');
 
     expect(await card('Blue Dream tent offline')).toHaveAttribute('data-highlight');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

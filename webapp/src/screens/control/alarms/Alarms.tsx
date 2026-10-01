@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
+import { controlPath } from '@/app/places';
 import type { AlarmRule, Device, Me, OverviewGrow } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
@@ -99,9 +100,10 @@ export function Alarms({
   return (
     <div className={styles.page}>
       <header className={ui.subhead}>
-        <span className="label">{[t('alarms.title'), overview.data?.name].filter(Boolean).join(' · ')}</span>
+        {/* Which place it is, the title above already says. */}
+        <span className="label">{t('alarms.title')}</span>
         {watched.length > 0 ? (
-          <Link to={`/spaces/${spaceId}/control`} className={`mono ${ui.headLink}`}>
+          <Link to={controlPath(spaceId)} className={`mono ${ui.headLink}`}>
             {t(back === 'plan' ? 'alarms.backToPlan' : 'alarms.backToTargets')}
           </Link>
         ) : null}
@@ -112,7 +114,7 @@ export function Alarms({
       ) : watched.length === 0 ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>
           {t('alarms.noController')}{' '}
-          <Link to={`/spaces/${spaceId}/devices`} className={styles.addDevice}>
+          <Link to="/claim" className={styles.addDevice}>
             {t('alarms.addDevice')}
           </Link>
         </p>

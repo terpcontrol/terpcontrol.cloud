@@ -223,7 +223,7 @@ describe('the targets page', () => {
 
     expect(screen.getByText(/Nothing standing here states a climate/)).toBeInTheDocument();
     expect(screen.queryByRole('slider')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/spaces/space-1/devices');
+    expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/claim');
     expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
   });
 
@@ -299,7 +299,7 @@ describe('the targets page', () => {
   it('offers the way back to a plan only where the tab opens on one', async () => {
     draw([device()], true, true);
 
-    expect(await screen.findByRole('link', { name: '‹ back to the plan' })).toHaveAttribute('href', '/spaces/space-1/control');
+    expect(await screen.findByRole('link', { name: '‹ back to the plan' })).toHaveAttribute('href', '/control?space=space-1');
   });
 
   /**

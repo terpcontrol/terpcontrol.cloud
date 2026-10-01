@@ -1,7 +1,8 @@
-import { Camera, ChevronRight, CircleCheck, Clock, Info, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
+import { Camera, ChevronLeft, ChevronRight, CircleCheck, Clock, Info, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { controlPath, devicesPath, timelinePath, useRememberPlace } from '@/app/places';
 import type { Device, SpaceOverview } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useLatestStills } from '@/api/cameras';
@@ -27,7 +28,6 @@ import { DiaryOffer } from '../home/DiaryOffer';
 import { LivenessPill } from '../home/LivenessPill';
 import { OfflineHelp } from '../home/OfflineHelp';
 import { NotifyNotice } from '../notifications/NotifyNotice';
-import { useRememberSpace } from '../timeline/last-space';
 import { GrowBlock } from './GrowBlock';
 import { climateDeviceOf, focusLink, KIND_ICON, statusOf, statusText, toneOf, type Status } from './place';
 import { PlaceMenu } from './PlaceMenu';
@@ -48,9 +48,21 @@ import styles from './Cockpit.module.css';
  * are, so a second device or a link from an alert lands on the same page.
  *
  * `headed` draws the place's name, its pill and its menu above it, for where
- * the page around it does not already.
+ * the page around it does not already, and `back` the way to Start before the
+ * name, where Start is a card per place rather than this page.
  */
-export function PlaceCockpit({ overview, headed = false, failedAt = null }: { overview: SpaceOverview; headed?: boolean; failedAt?: number | null }) {
+export function PlaceCockpit({
+  overview,
+  headed = false,
+  back = false,
+  failedAt = null,
+}: {
+  overview: SpaceOverview;
+  headed?: boolean;
+  back?: boolean;
+  failedAt?: number | null;
+}) {
+  const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
   const { user } = useSession();
@@ -73,12 +85,17 @@ export function PlaceCockpit({ overview, headed = false, failedAt = null }: { ov
   const Icon = KIND_ICON[overview.kind];
 
   // Verlauf and Steuerung land on the place last looked at, and looking at one here is what makes it that place.
-  useRememberSpace(spaceId);
+  useRememberPlace(spaceId);
 
   return (
     <section className={styles.cockpit} aria-label={headed ? undefined : overview.name} aria-labelledby={headed ? `${spaceId}-name` : undefined}>
       {headed ? (
         <header className={styles.head}>
+          {back ? (
+            <Link to="/" className={ui.back} aria-label={t('shell.tabs.home')}>
+              <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
+            </Link>
+          ) : null}
           <h1 className={styles.name} id={`${spaceId}-name`}>
             <Icon size={20} strokeWidth={1.75} aria-hidden />
             <span>{overview.name}</span>
@@ -130,7 +147,7 @@ export function PlaceCockpit({ overview, headed = false, failedAt = null }: { ov
  * The cockpit of one place on its own, for Start: it reads the place itself,
  * waits in its own shape, and says so plainly where the place has gone.
  */
-export function PlaceCockpitRead({ spaceId }: { spaceId: string }) {
+export function PlaceCockpitRead({ spaceId, back = false }: { spaceId: string; back?: boolean }) {
   const { read, current, failedAt } = usePlace(spaceId);
 
   if (read.isPending) {
@@ -143,7 +160,7 @@ export function PlaceCockpitRead({ spaceId }: { spaceId: string }) {
   }
   if (!current) return noLongerThere(read.error) ? <NoLongerHere what="space" /> : <LoadFailed retry={() => void read.refetch()} />;
 
-  return <PlaceCockpit overview={current} headed failedAt={failedAt} />;
+  return <PlaceCockpit overview={current} headed back={back} failedAt={failedAt} />;
 }
 
 /** The window standing on any device here: the one still parking hardware first, then one whose alarms are still held. */
@@ -186,11 +203,7 @@ function StatusLine({
 
   if (status.kind === 'offline') {
     return (
-      <OfflineHelp
-        since={measuredAtOf(overview.values)}
-        now={now}
-        devicesLink={overview.deviceIds === null ? null : `/spaces/${overview.spaceId}/devices`}
-      />
+      <OfflineHelp since={measuredAtOf(overview.values)} now={now} devicesLink={overview.deviceIds === null ? null : devicesPath(overview.spaceId)} />
     );
   }
   if (status.kind === 'none') {
@@ -213,7 +226,7 @@ function StatusLine({
       : status.kind === 'off'
         ? focusLink(overview.spaceId, status.metric)
         : status.kind === 'noTargets' && mayManage
-          ? `/spaces/${overview.spaceId}/control`
+          ? controlPath(overview.spaceId)
           : null;
   const body = (
     <>
@@ -279,7 +292,7 @@ function Latest({ overview, now }: { overview: SpaceOverview; now: DateTime }) {
     <section className={styles.latest} aria-label={t('cockpit.latest.title')}>
       <header className={styles.latestHead}>
         <span className="label">{t('cockpit.latest.title')}</span>
-        <Link to={`/timeline?space=${overview.spaceId}`} className={`mono ${ui.headLink}`}>
+        <Link to={timelinePath(overview.spaceId)} className={`mono ${ui.headLink}`}>
           {t('cockpit.latest.more')}
           <ChevronRight size={12} strokeWidth={2} aria-hidden />
         </Link>

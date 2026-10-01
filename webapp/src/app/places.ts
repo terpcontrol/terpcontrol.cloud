@@ -1,0 +1,98 @@
+import { useEffect } from 'react';
+import { useSearchParams } from 'react-router';
+import type { HomeSpaceCard } from '@fg2/shared-types/v1';
+import { useHome } from '@/api/home';
+
+/**
+ * Where a place's pages are, and which place the tabs that are about one place
+ * open on.
+ *
+ * A place has one page of its own, its cockpit, and the pages it is a tap from
+ * - who else is let in. Verlauf and Steuerung are tabs of the bar and not pages
+ * of a place, so they carry the place they are about in the query rather than
+ * in the path: a link from an alert names it, and the tab opened on its own
+ * lands on the place last looked at.
+ */
+
+/** A card of the home that stands for a place, rather than for a grow standing in none. */
+export type PlaceCard = HomeSpaceCard & { spaceId: string };
+
+export const isPlace = (card: HomeSpaceCard): card is PlaceCard => card.spaceId !== null;
+
+const withQuery = (path: string, query: Record<string, string>): string => `${path}?${new URLSearchParams(query).toString()}`;
+
+export const placePath = (spaceId: string): string => `/spaces/${spaceId}`;
+
+export const membersPath = (spaceId: string): string => `/spaces/${spaceId}/members`;
+
+/** The pages below Steuerung: the targets it opens on where a plan runs, the alarm rules, and the plan where none does. */
+export const CONTROL_PAGES = ['targets', 'alarms', 'plan'] as const;
+export type ControlPage = (typeof CONTROL_PAGES)[number];
+
+export const controlPath = (spaceId: string, page: ControlPage | null = null, query: Record<string, string> = {}): string =>
+  withQuery(page ? `/control/${page}` : '/control', { space: spaceId, ...query });
+
+/** The Timeline of a place, opened on one reading where `focus` names it. */
+export const timelinePath = (spaceId: string, focus: string | null = null): string =>
+  withQuery('/timeline', focus ? { space: spaceId, focus } : { space: spaceId });
+
+/** The account's devices, with the ones standing in a place opened where it is named. */
+export const devicesPath = (spaceId: string | null = null): string => (spaceId ? withQuery('/devices', { space: spaceId }) : '/devices');
+
+/**
+ * Which place Verlauf and Steuerung open on: a preference of this browser
+ * rather than a fact about the account, which is why it is not on the server.
+ */
+const KEY = 'terp.place';
+
+export const lastPlace = (): string | null => {
+  try {
+    return localStorage.getItem(KEY);
+  } catch {
+    return null;
+  }
+};
+
+export const rememberPlace = (spaceId: string) => {
+  try {
+    localStorage.setItem(KEY, spaceId);
+  } catch {
+    // Private mode: the tabs then open on whatever the home lists first, which is no worse.
+  }
+};
+
+/** Looking at a place makes it the one the tabs open on next. */
+export const useRememberPlace = (spaceId: string) => {
+  useEffect(() => {
+    if (spaceId) rememberPlace(spaceId);
+  }, [spaceId]);
+};
+
+/**
+ * The place a tab about one place is showing: the one its address names, else
+ * the one last looked at, else the first the home lists - which is the only one
+ * for most accounts. A place the address names is remembered, so a link from an
+ * alert carries Steuerung along with Verlauf. Choosing another one puts it in
+ * the address, and drops whatever else the address said about the place being
+ * left.
+ */
+export const useCurrentPlace = () => {
+  const home = useHome();
+  const [params, setParams] = useSearchParams();
+  const asked = params.get('space');
+  const places = (home.data?.spaces ?? []).filter(isPlace);
+  const remembered = lastPlace();
+  const here = places.find(place => place.spaceId === asked) ?? places.find(place => place.spaceId === remembered) ?? places[0] ?? null;
+  const named = here !== null && here.spaceId === asked ? here.spaceId : null;
+
+  useEffect(() => {
+    if (named) rememberPlace(named);
+  }, [named]);
+
+  const choose = (spaceId: string) => {
+    rememberPlace(spaceId);
+    setParams({ space: spaceId }, { replace: true });
+  };
+
+  return { home, places, here, choose };
+};

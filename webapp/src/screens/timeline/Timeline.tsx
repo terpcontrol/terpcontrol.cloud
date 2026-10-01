@@ -23,17 +23,14 @@ const RANGES: TimelineRange[] = ['24h', '7d', '30d', 'phase', 'grow'];
 
 interface TimelineProps {
   spaceId: string;
-  /** The title row, where this is the whole screen; inside the tent page the page's own header is the title. */
+  /** The title row: the tab's name and the place it shows, with the switcher where there are several. */
   heading?: React.ReactNode;
-  /** Whether the top bar's "how old is this" line is this read's to answer; the page it sits in answers it otherwise. */
-  reportsAge?: boolean;
 }
 
 /**
- * The Timeline, reached from the tab bar for the place last looked at and from
- * a tent's own Timeline tab. One screen either way: the frame at the cursor,
- * the stacked panels under it, the output lanes and the rail, all of one
- * window and all moved by one cursor.
+ * The Timeline of one place: the frame at the cursor, the stacked panels under
+ * it, the output lanes and the rail, all of one window and all moved by one
+ * cursor.
  *
  * The state is keyed by the space, so picking another place starts it clean
  * rather than asking the new one about the old one's grow.
@@ -42,11 +39,11 @@ interface TimelineProps {
  * the lamp's lane - and the screen opens scrolled to it with it marked, so the
  * tap lands on the curve it was about rather than at the top of the stack.
  */
-export function Timeline({ spaceId, heading, reportsAge }: TimelineProps) {
-  return <TimelineFor key={spaceId} spaceId={spaceId} heading={heading} reportsAge={reportsAge} />;
+export function Timeline({ spaceId, heading }: TimelineProps) {
+  return <TimelineFor key={spaceId} spaceId={spaceId} heading={heading} />;
 }
 
-function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
+function TimelineFor({ spaceId, heading }: TimelineProps) {
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
@@ -74,7 +71,7 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
   const growId = pinned ?? data?.growId ?? null;
   const grow = useGrow(growId);
 
-  useReportFreshness(reportsAge && timeline.dataUpdatedAt ? fetchedAt(timeline.dataUpdatedAt) : null);
+  useReportFreshness(timeline.dataUpdatedAt ? fetchedAt(timeline.dataUpdatedAt) : null);
 
   const scrub = useScrub(fraction => {
     if (!data) return;

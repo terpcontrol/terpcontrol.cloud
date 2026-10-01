@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { placePath } from '@/app/places';
 import type { Device, HomeSpaceCard, Metric } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { ageAttribute, valueAge } from '@/ui/age';
@@ -73,7 +74,7 @@ export function PlaceCard({
   return (
     <article className={styles.placeCard} data-tone={toneOf(status)}>
       <header className={styles.cardHead}>
-        <Link to={`/spaces/${card.spaceId}`} className={styles.cardName}>
+        <Link to={placePath(card.spaceId)} className={styles.cardName}>
           <Icon size={16} strokeWidth={1.75} aria-hidden />
           {card.name}
         </Link>

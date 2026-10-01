@@ -91,7 +91,7 @@ const draw = (at: string) =>
             <Route path="/join/:code" element={<JoinRoute />} />
             <Route path="/sign-up" element={<SignUp />} />
             <Route path="/sign-in" element={<SignIn />} />
-            <Route path="/spaces/:spaceId/overview" element={<Landed />} />
+            <Route path="/spaces/:spaceId" element={<Landed />} />
           </Routes>
         </ThemeProvider>
       </MemoryRouter>

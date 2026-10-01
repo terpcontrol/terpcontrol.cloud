@@ -2,6 +2,7 @@ import { ChevronLeft, CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucid
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
+import { placePath } from '@/app/places';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
 import { fetchedAt } from '@/api/clock';
 import { useGrow, useGrowPlants } from '@/api/grows';
@@ -152,7 +153,7 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
   const stood = places.length > 0 ? null : lastPlaceOf(grow);
   const placeLink = (spaceId: string | null, label: string) =>
     spaceId ? (
-      <Link to={`/spaces/${spaceId}`} className={styles.place}>
+      <Link to={placePath(spaceId)} className={styles.place}>
         {label}
       </Link>
     ) : (

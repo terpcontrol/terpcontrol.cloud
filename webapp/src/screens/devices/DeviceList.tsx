@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { placePath } from '@/app/places';
 import type { ActuatorRuns, Camera, ClimateVerdict, Device, Firmware, OutputMetric, SocketPage, SocketRole, ValueState } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useCameras, useLatestStills } from '@/api/cameras';
@@ -15,7 +16,7 @@ import { useReportFreshness } from '@/ui/freshness';
 import { Help, Term } from '@/ui/Help';
 import { maintenanceQuiet, parksAnything } from '@/ui/maintenance';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { enough, useMayLogIn, useMayManage, useMayWith } from '@/ui/session-access';
+import { enough, useMayManage, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay, clock, useZone } from '@/ui/zone';
@@ -37,10 +38,12 @@ import styles from './Devices.module.css';
  * - through a controller, standalone, or a stream this cloud pulls - and every
  * smart socket with its role and its switch.
  *
- * The tent page shows the same list narrowed to one place, which is why this is
- * a component and not a screen: the Devices tab is this with a header over it.
+ * The Devices tab is this with a header over it. `opened` names a place whose
+ * devices are drawn open, which is what a link about that place - the offline
+ * box on its cockpit, an old address of its devices tab - asks for: the row
+ * that says since when it has been quiet and what to try.
  */
-export function DeviceList({ spaceId }: { spaceId?: string }) {
+export function DeviceList({ opened = null }: { opened?: string | null }) {
   const { t } = useTranslation();
   const now = useNow();
   // The whole-account list draws rows from every place at once, so what may be
@@ -49,13 +52,11 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
   // look alike. Claiming makes a place of its own and belongs to the session.
   const mayWith = useMayWith();
   const maySetUp = useMayManage();
-  const mayManageHere = useMayManage(spaceId ?? null);
-  const mayLogHere = useMayLogIn(spaceId ?? null);
   const devices = useDevices();
-  const cameras = useCameras(spaceId);
+  const cameras = useCameras();
   const spaces = useSpaces();
 
-  const here = (devices.data?.items ?? []).filter(device => spaceId === undefined || device.spaceId === spaceId);
+  const here = devices.data?.items ?? [];
   // What each controller is reading and what its lamp is running at. The level
   // is a reading and not a setting, and it is the only word the device gives on
   // its own light output: a brightness is never acknowledged and an override is
@@ -82,11 +83,8 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
       return table ? lightOutputOf(device, table.capabilities, reads.levels.get(device.id) ?? null) !== null : false;
     })?.id ?? null;
   // How often an output came on today is counted per place, so the list asks
-  // each place it draws a row from rather than only the one it was opened in.
-  // On a tent's own tab that is the overview the page above this has already
-  // read, under the same key; on the account-wide tab it is what used to be
-  // missing, and the panels there ended at "Running at" with nothing saying
-  // why.
+  // each place it draws a row from - under the key the cockpit reads the same
+  // overview by, so a place already looked at costs nothing more.
   const verdicts = useSpaceVerdicts([...new Set(mine.map(device => device.spaceId).filter((id): id is string => id !== null))]);
 
   useReportFreshness(devices.dataUpdatedAt ? fetchedAt(devices.dataUpdatedAt) : null);
@@ -101,10 +99,10 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
     <div className={styles.list}>
       <RefreshFailed failedAt={failedAt} now={now} />
 
-      {/* On a tent's own tab the switches below are simply gone for somebody
-          who may only write lines, and a list of rows with nothing to press is
+      {/* The switches below are simply gone on the devices of a place somebody
+          may only write lines in, and a list of rows with nothing to press is
           the kind of absence that reads as a fault. */}
-      {spaceId !== undefined && mayLogHere && !mayManageHere ? <p className={`mono ${styles.role}`}>{t('devices.youMayLog')}</p> : null}
+      {mine.some(device => !enough(mayWith(device), 'manage')) ? <p className={`mono ${styles.role}`}>{t('devices.youMayLog')}</p> : null}
 
       {/* "Devices" and not "Controllers": this list holds whatever the account
           has claimed - a light, a fan and a smart socket among them - and each
@@ -124,7 +122,7 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
               place={placeOf(device.spaceId)}
               sockets={tables.tables.get(device.id)}
               cameras={shown.filter(camera => camera.deviceId === device.id).length}
-              linked={spaceId === undefined}
+              startOpen={opened !== null && device.spaceId === opened}
               spokeAt={spokeAt(device)}
               now={now}
             />
@@ -134,7 +132,7 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
         {/* A claim always makes a place of its own, so this is offered on the tab
           that shows everything and not on a tent's list, where it would read as
           adding a device to that tent. */}
-        {spaceId === undefined && maySetUp ? (
+        {maySetUp ? (
           <Link className={ui.addRow} to="/claim">
             + {t('claim.addDevice')}
           </Link>
@@ -161,7 +159,7 @@ export function DeviceList({ spaceId }: { spaceId?: string }) {
         {/* Only on the Devices tab: a tent's own list is the same component,
             and the screen behind this asks which place a camera is for rather
             than taking the one it was opened from. */}
-        {maySetUp && spaceId === undefined ? (
+        {maySetUp ? (
           shown.length > 0 ? (
             <Link className={ui.addRow} to="/cameras/add">
               + {t('cameras.add.title')}
@@ -306,13 +304,13 @@ interface DeviceRowProps {
   place: string | null;
   sockets: SocketPage | undefined;
   cameras: number;
-  /** The tent's own list is already in the tent, so a row there does not offer the way back to it. */
-  linked: boolean;
   /** When the device was last heard, which is its own last message or its own newest reading, whichever is later. */
   spokeAt: string | null;
   now: DateTime;
   /** The first row on the page, whose liveness pill says what live and stale mean. */
   explain: boolean;
+  /** Whether the row opens drawn open: a link about the place it stands in asked for it. */
+  startOpen?: boolean;
 }
 
 /**
@@ -324,10 +322,10 @@ interface DeviceRowProps {
  * nothing at all. The chevron stays the control a keyboard and a screen reader
  * use, and the click it receives is the head's own.
  */
-function DeviceRow({ device, among, place, sockets, cameras, linked, spokeAt, now, explain }: DeviceRowProps) {
+function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, explain, startOpen = false }: DeviceRowProps) {
   const { t } = useTranslation();
   const zone = useZone();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   const [naming, setNaming] = useState(false);
   const firmwares = useDeviceFirmwares(device.id, open);
   const liveness = deviceLiveness(spokeAt, now);
@@ -437,11 +435,11 @@ function DeviceRow({ device, among, place, sockets, cameras, linked, spokeAt, no
               }
               value={t(`devices.panel.channel.${device.firmware.channel}`)}
             />
-            {place && linked && device.spaceId ? (
+            {place && device.spaceId ? (
               <Fact
                 label={t('devices.fact.place')}
                 value={
-                  <Link className={styles.placeLink} to={`/spaces/${device.spaceId}/devices`}>
+                  <Link className={styles.placeLink} to={placePath(device.spaceId)}>
                     {place}
                     <ChevronRight size={12} strokeWidth={2} aria-hidden />
                   </Link>

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { HomeAnswer, HomeSpaceCard } from '@fg2/shared-types/v1';
+import { isPlace, type PlaceCard as Place } from '@/app/places';
 import { useMe } from '@/api/account';
 import { fetchedAt } from '@/api/clock';
 import { useDevices } from '@/api/devices';
 import { useHome } from '@/api/home';
+import { useDiaryLayer } from '@/api/layers';
 import { useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { Term } from '@/ui/Help';
@@ -22,10 +24,6 @@ import { sortedByAttention } from './home/attention';
 import { DiaryOffer } from './home/DiaryOffer';
 import { DueStrip, FollowingStrip } from './home/Strips';
 import styles from './Home.module.css';
-
-type Place = HomeSpaceCard & { spaceId: string };
-
-const isPlace = (card: HomeSpaceCard): card is Place => card.spaceId !== null;
 
 /**
  * Start. With one place it is that place's cockpit, the same page the place
@@ -101,8 +99,7 @@ function Nothing({ grows, onStartGrow }: { grows: HomeAnswer['followedGrows']; o
 /** One place: its cockpit is Start, and the diary's account-wide doors stand under it for whoever keeps one. */
 function OnePlace({ place, loose, answer }: { place: Place; loose: HomeSpaceCard[]; answer: HomeAnswer }) {
   const now = useNow();
-  // A server too old to answer the layers drew the diary everywhere, and so does this.
-  const diary = answer.layers?.diary ?? true;
+  const diary = useDiaryLayer();
 
   return (
     <div className={styles.one}>
@@ -141,7 +138,7 @@ function Places({
   const me = useMe(false, user !== null && user.isDemo !== true);
   const devices = useDevices(places.some(place => place.deviceIds.length > 0));
   const cards = sortedByAttention(places);
-  const diary = answer.layers?.diary ?? true;
+  const diary = useDiaryLayer();
   // Offered once the account has been read and only where nobody said no; the demo has no account to keep an answer with.
   const offerDiary = !diary && me.data !== undefined && me.data.preferences.diary !== 'off';
 

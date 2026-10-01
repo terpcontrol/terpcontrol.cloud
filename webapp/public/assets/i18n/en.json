@@ -1434,7 +1434,8 @@
       "timeline": "Timeline",
       "log": "Log",
       "devices": "Devices",
-      "tasks": "Tasks"
+      "control": "Control",
+      "device": "Device"
     },
     "updated": "updated {{age}} ago",
     "accountNote": "You · profile, settings",
@@ -2499,14 +2500,6 @@
     "youMayLog": "You may write in this grow's diary. Moving it, splitting it and harvesting it are for whoever steers the space it stands in."
   },
   "space": {
-    "tabsLabel": "Space page",
-    "tabs": {
-      "overview": "Overview",
-      "timeline": "Timeline",
-      "devices": "Devices",
-      "control": "Control",
-      "members": "Members"
-    },
     "later": {
       "devices": "Every controller, camera and smart socket standing here, with its role and its switch.",
       "members": "Who can log and who can manage here, and the invites that bring them in."
@@ -2931,7 +2924,7 @@
         "roomModel": "Share the whole room: whoever is let in here sees every space grouped under it.",
         "tentsIn_one": "{{count}} space in this room",
         "tentsIn_other": "{{count}} spaces in this room",
-        "noTents": "No space stands in this room yet. A space is put in from its own Members tab."
+        "noTents": "No space stands in this room yet. A space is put in from ⋯ › Members & sharing on its own page."
       },
       "linkStopped": "The link {{code}} was stopped when @{{name}} was taken out."
     }
@@ -3029,7 +3022,6 @@
       "phase": "Phase",
       "grow": "Grow"
     },
-    "pickSpace": "Which place",
     "pickGrow": "Which grow",
     "dayN": "day {{day}}",
     "dayRange": "day {{from}}–{{to}}",
@@ -4586,7 +4578,7 @@
     },
     "diaryLayer": {
       "title": "Grow diary",
-      "text": "The diary is where you keep what you do to your plants – watering, feeding, photos, notes – and run grows with days and phases. While you do not use it, the app shows the climate and the device alone. It switches itself on once you start a grow or log something; under Me › Appearance you can also switch it on or off by hand."
+      "text": "The diary is where you keep what you do to your plants – watering, feeding, photos, notes – and run grows with days and phases. While you do not use it, the app shows the climate and the device alone. It switches itself on once you start a grow or log something, and puts “Log” in the middle of the bar; under Me › Appearance you can also switch it on or off by hand."
     },
     "follow": {
       "title": "Follow",
@@ -4603,6 +4595,19 @@
     "ppfd": {
       "title": "PPFD",
       "text": "How much light the plant can use arrives at leaf level, in µmol per square metre and second. It is estimated from the sensor's lux reading with the factor set for your device."
+    }
+  },
+  "place": {
+    "switch": "Switch place",
+    "backTo": "Back to {{name}}",
+    "members": {
+      "title": "Members & sharing",
+      "lookOnly": "Just to look, without an account:",
+      "shareLink": "Create a share link"
+    },
+    "control": {
+      "nothing": "Nothing to control yet: targets and alarms come with the first device.",
+      "demoNothing": "The demo controls nothing; open a place on Home to see its targets."
     }
   },
   "cockpit": {

@@ -14,6 +14,7 @@ import type {
   TimelineOutputLane,
   TimelineSpan,
 } from '@fg2/shared-types/v1';
+import { timelinePath } from '@/app/places';
 import { offlineLabel, sinceLabel, valueAge } from '@/ui/age';
 import { statesTargets } from '@/ui/climate-hardware';
 import type { Quiet } from '@/ui/maintenance';
@@ -55,7 +56,7 @@ export const KIND_ICON: Record<SpaceKind, LucideIcon> = { tent: Box, fridge: Ref
 /** Where a tile opens the Timeline. The leaf has no panel of its own there, and is read against the air it is compared with. */
 const FOCUS: Record<TileKey, string> = { temperature: 'temperature', humidity: 'humidity', light: 'light', co2: 'co2', leaf: 'temperature' };
 
-export const focusLink = (spaceId: string, key: TileKey): string => `/timeline?space=${spaceId}&focus=${FOCUS[key]}`;
+export const focusLink = (spaceId: string, key: TileKey): string => timelinePath(spaceId, FOCUS[key]);
 
 /** Whether this place reports the reading a tile is about. Light is the climate device's own output and needs a document to say its window. */
 export const reports = (values: CardValue[], key: TileKey): boolean => {

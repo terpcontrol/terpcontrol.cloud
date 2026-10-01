@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { placePath } from '@/app/places';
 import type { InvitePreview } from '@fg2/shared-types/v1';
 import { useAcceptInvite, useInvitePreview } from '@/api/invites';
 import { session, useSession } from '@/api/session';
@@ -71,7 +72,7 @@ function Invitation({ preview, code, signedIn, isDemo }: { preview: InvitePrevie
   useEffect(() => {
     if (!takeUp || !signedIn || isDemo || tried.current) return;
     tried.current = true;
-    acceptInvite(code, { onSuccess: accepted => void navigate(`/spaces/${accepted.space.id}/overview`, { replace: true }) });
+    acceptInvite(code, { onSuccess: accepted => void navigate(placePath(accepted.space.id), { replace: true }) });
   }, [takeUp, signedIn, isDemo, acceptInvite, code, navigate]);
 
   return (
@@ -99,7 +100,7 @@ function Invitation({ preview, code, signedIn, isDemo }: { preview: InvitePrevie
             type="button"
             className={`${ui.button} ${ui.primary} ${styles.go}`}
             disabled={accept.isPending}
-            onClick={() => accept.mutate(code, { onSuccess: accepted => void navigate(`/spaces/${accepted.space.id}/overview`, { replace: true }) })}
+            onClick={() => accept.mutate(code, { onSuccess: accepted => void navigate(placePath(accepted.space.id), { replace: true }) })}
           >
             {accept.isPending ? t('space.members.join.takingUp') : t('space.members.join.accept', { name })}
           </button>

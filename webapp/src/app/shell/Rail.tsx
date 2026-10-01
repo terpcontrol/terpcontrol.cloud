@@ -1,13 +1,13 @@
 import { Bell } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NavLink } from 'react-router';
+import { Link, NavLink } from 'react-router';
 import { bellOf, useOpenAlertCount } from '@/api/alerts';
 import { useSession } from '@/api/session';
-import { useLog, useMayLog } from '@/log/log-context';
+import { useLog } from '@/log/log-context';
 import { useOpeningUnderneath } from '@/log/underneath';
 import { Logo } from '@/ui/Logo';
-import { TABS, initials } from './tabs';
+import { initials, useIsOn, useTabs } from './tabs';
 import { Freshness } from './TopBar';
 import styles from './Rail.module.css';
 
@@ -24,21 +24,23 @@ const ADMIN_LINKS = [
 const isTyping = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 
-/** The desktop's navigation, down the left edge: the Log button with its key, the four tabs, alerts and the account. */
+/** The desktop's navigation, down the left edge: the Log button with its key where the diary is kept, the tabs, alerts and the account. */
 export function Rail() {
   const { t } = useTranslation();
   const { user } = useSession();
   const { openSheet } = useLog();
   const underneath = useOpeningUnderneath();
-  const mayLog = useMayLog();
   const bell = bellOf(useOpenAlertCount());
+  const all = useTabs();
+  const isOn = useIsOn();
 
-  const log = mayLog ? TABS.find(tab => tab.raised) : undefined;
-  const tabs = TABS.filter(tab => !tab.raised);
+  const log = all.find(tab => tab.raised);
+  const logs = log !== undefined;
+  const tabs = all.filter(tab => !tab.raised);
 
   // The key the button advertises. A wide screen has a keyboard; a field keeps its letters.
   useEffect(() => {
-    if (!mayLog) return;
+    if (!logs) return;
 
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== LOG_KEY || event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
@@ -48,7 +50,7 @@ export function Rail() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [mayLog, openSheet, underneath]);
+  }, [logs, openSheet, underneath]);
 
   const itemClass = ({ isActive }: { isActive: boolean }) => [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ');
 
@@ -70,11 +72,11 @@ export function Rail() {
           </button>
         ) : null}
 
-        {tabs.map(({ path, labelKey, Icon }) => (
-          <NavLink key={path} to={path} end={path === '/'} className={itemClass}>
-            <Icon size={18} strokeWidth={1.75} aria-hidden />
-            <span>{t(labelKey)}</span>
-          </NavLink>
+        {tabs.map(tab => (
+          <Link key={tab.path} to={tab.path} className={itemClass({ isActive: isOn(tab) })} aria-current={isOn(tab) ? 'page' : undefined}>
+            <tab.Icon size={18} strokeWidth={1.75} aria-hidden />
+            <span>{t(tab.labelKey)}</span>
+          </Link>
         ))}
 
         <div className={styles.spacer} />

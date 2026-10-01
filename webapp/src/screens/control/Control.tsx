@@ -1,6 +1,7 @@
 import { Bell, CalendarRange, ChevronRight, SlidersHorizontal, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate } from 'react-router';
+import { CONTROL_PAGES, controlPath, type ControlPage } from '@/app/places';
 import type { Device, Plan } from '@fg2/shared-types/v1';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { useDevices } from '@/api/devices';
@@ -14,15 +15,11 @@ import { PlanPanel } from './PlanPanel';
 import { Targets } from './targets/Targets';
 import styles from './Control.module.css';
 
-/** The pages below the tab: the targets, the alarm rules, and the plan where it is not what the tab opens on. */
-const SUBPAGES = ['targets', 'alarms', 'plan'] as const;
-type ControlSub = (typeof SUBPAGES)[number];
-
-const isSub = (value: string | null): value is ControlSub => (SUBPAGES as readonly string[]).includes(value ?? '');
+const isSub = (value: string | null): value is ControlPage => (CONTROL_PAGES as readonly string[]).includes(value ?? '');
 
 /**
- * The tent's Control tab: what the place is held at, what watches over it, and
- * what - if anything - is setting those targets by itself.
+ * Steuerung for one place: what the place is held at, what watches over it,
+ * and what - if anything - is setting those targets by itself.
  *
  * It opens on the targets, because that is what somebody with one tent comes
  * here to change, and a sentence about a plan nobody wrote read as "this tent
@@ -50,7 +47,7 @@ export function Control({ spaceId, sub }: { spaceId: string; sub: string | null 
   const plans = useDevicePlans(here.map(device => device.id));
   const planFirst = plans.plans.some(plan => plan.state.status === 'running');
 
-  if (sub !== null && !isSub(sub)) return <Navigate to={`/spaces/${spaceId}/control`} replace />;
+  if (sub !== null && !isSub(sub)) return <Navigate to={controlPath(spaceId)} replace />;
 
   if (devices.isPending) return <Waiting lines={4} />;
   if (!devices.data) return <LoadFailed retry={() => void devices.refetch()} />;
@@ -60,7 +57,7 @@ export function Control({ spaceId, sub }: { spaceId: string; sub: string | null 
       <div className={styles.page}>
         <p className={`${ui.cardDashed} ${ui.note}`}>
           {t('space.control.noController')}{' '}
-          <Link to={`/spaces/${spaceId}/devices`} className={styles.addDevice}>
+          <Link to="/claim" className={styles.addDevice}>
             {t('space.control.noControllerAdd')}
           </Link>
         </p>
@@ -69,7 +66,7 @@ export function Control({ spaceId, sub }: { spaceId: string; sub: string | null 
   }
 
   if (sub === 'alarms') return <Alarms spaceId={spaceId} devices={here} mayManage={mayManage} back={planFirst ? 'plan' : 'targets'} />;
-  if (sub === 'plan') return planFirst ? <Navigate to={`/spaces/${spaceId}/control`} replace /> : <PlanPage spaceId={spaceId} here={here} />;
+  if (sub === 'plan') return planFirst ? <Navigate to={controlPath(spaceId)} replace /> : <PlanPage spaceId={spaceId} here={here} />;
   // Whether the tab opens on the plan is not guessed while the plans are on
   // their way: drawing the targets first and swapping them for a running plan
   // a moment later would put the page out from under a finger.
@@ -99,7 +96,7 @@ function PlanPage({ spaceId, here, first = false }: { spaceId: string; here: Dev
       <header className={ui.subhead}>
         <span className="label">{t('space.control.title')}</span>
         {first ? null : (
-          <Link to={`/spaces/${spaceId}/control`} className={`mono ${ui.headLink}`}>
+          <Link to={controlPath(spaceId)} className={`mono ${ui.headLink}`}>
             {t('space.control.backToTargets')}
           </Link>
         )}
@@ -145,21 +142,21 @@ function Rows({ spaceId, here, plans, targets = false }: { spaceId: string; here
       <ul className={ui.group}>
         {targets ? (
           <Row
-            to={`/spaces/${spaceId}/control/targets`}
+            to={controlPath(spaceId, 'targets')}
             icon={SlidersHorizontal}
             title={t('space.control.targets')}
             line={t('space.control.targetsLine')}
           />
         ) : null}
         <Row
-          to={`/spaces/${spaceId}/control/alarms`}
+          to={controlPath(spaceId, 'alarms')}
           icon={Bell}
           title={t('space.control.alarms')}
           line={rules.isPending ? null : t('space.control.alarmsOn', { count: on })}
         />
         {planned ? (
           <Row
-            to={`/spaces/${spaceId}/control/plan`}
+            to={controlPath(spaceId, 'plan')}
             icon={CalendarRange}
             title={plan ? t('space.control.planNamed', { name: plan.name }) : t('space.control.planRow')}
             line={plan ? t(`space.control.status.${plan.state.status}`) : t('space.control.planRowLine')}

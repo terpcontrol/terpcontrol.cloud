@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { membersPath } from '@/app/places';
 import type { Space, SpaceKind } from '@fg2/shared-types/v1';
 import { useMembers } from '@/api/members';
 import { useSession } from '@/api/session';
@@ -96,7 +97,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
               <span className={`${ui.segment} ${styles.scopeOption} ${styles.scopeHere}`} aria-current="page">
                 {name}
               </span>
-              <Link to={`/spaces/${room.id}/members`} className={`${ui.segment} ${styles.scopeOption}`}>
+              <Link to={membersPath(room.id)} className={`${ui.segment} ${styles.scopeOption}`}>
                 {t('space.members.roomWithTents', { room: room.name, count: tents })}
               </Link>
             </nav>
@@ -194,7 +195,7 @@ function TentsInRoom({ tents, pending }: { tents: Space[]; pending: boolean }) {
       <li>{t('space.members.room.tentsIn', { count: tents.length })}:</li>
       {tents.map(tent => (
         <li key={tent.id}>
-          <Link to={`/spaces/${tent.id}/members`}>{tent.name}</Link>
+          <Link to={membersPath(tent.id)}>{tent.name}</Link>
         </li>
       ))}
     </ul>

@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
+import { timelinePath } from '@/app/places';
 import type { ChartView, ChartViewDefinition, ChartViewSpan, GrowListItem, GrowSeries, GrowSeriesRange } from '@fg2/shared-types/v1';
 import { useChartViews } from '@/api/chart-views';
 import { askable, useGrowSeries } from '@/api/charts';
@@ -123,8 +124,8 @@ function NoGrow({ spaceId }: { spaceId: string }) {
       <p className={`${ui.cardDashed} ${ui.note}`}>{t('charts.noGrow')}</p>
       <div className={styles.chips}>
         {/* The place's climate without a grow is what its Timeline draws. */}
-        <Link to={`/spaces/${spaceId}/timeline`} className={ui.chip}>
-          {t('space.tabs.timeline')}
+        <Link to={timelinePath(spaceId)} className={ui.chip}>
+          {t('shell.tabs.timeline')}
         </Link>
         {mayManage ? (
           <Link to={`/log?kind=phase&space=${spaceId}`} className={ui.chip}>
@@ -644,7 +645,7 @@ const readingOf = (t: Translate, line: PlotLine, cursor: number, span: number): 
 /** The title, and in the corner the place and the grow it is about. */
 function Header({ spaceId, growId, subject }: { spaceId: string | null; growId: string | null; subject: string }) {
   const { t } = useTranslation();
-  const back = spaceId ? `/spaces/${spaceId}/timeline` : growId ? `/grows/${growId}` : '/';
+  const back = spaceId ? timelinePath(spaceId) : growId ? `/grows/${growId}` : '/';
 
   return (
     <header className={styles.header}>

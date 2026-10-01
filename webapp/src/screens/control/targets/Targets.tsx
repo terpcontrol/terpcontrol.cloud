@@ -2,6 +2,7 @@ import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { controlPath } from '@/app/places';
 import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useDevices, useHeardAt, useSaveConfiguration } from '@/api/devices';
@@ -94,7 +95,7 @@ export function Targets({
         ) : (
           <p className={`${ui.cardDashed} ${ui.note}`}>
             {t('targets.nothing')}{' '}
-            <Link to={`/spaces/${spaceId}/devices`} className={styles.addDevice}>
+            <Link to="/claim" className={styles.addDevice}>
               {t('space.control.noControllerAdd')}
             </Link>
           </p>
@@ -108,7 +109,7 @@ export function Targets({
       <header className={ui.subhead}>
         <span className="label">{t('targets.title')}</span>
         {crumb ? (
-          <Link to={`/spaces/${spaceId}/control`} className={`mono ${ui.headLink}`}>
+          <Link to={controlPath(spaceId)} className={`mono ${ui.headLink}`}>
             {t('targets.backToPlan')}
           </Link>
         ) : null}

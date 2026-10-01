@@ -11,7 +11,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, SpaceOverview } from '@fg2/shared-types/v1';
 import { fetchedAt } from '@/api/clock';
 import { ApiError } from '@/api/problem';
-import { SpacePage } from '@/screens/space/SpacePage';
+import { PlacePage } from '@/screens/place/PlacePage';
 import { useFreshness } from '@/ui/freshness';
 import { LaterRound } from '@/ui/LaterRound';
 import { LogProvider } from '@/log/LogProvider';
@@ -46,7 +46,7 @@ beforeEach(() => {
 const may = vi.hoisted(() => ({ youMay: 'own' as AccessNeed }));
 
 /**
- * What the tent page's own two reads answer, so that a failure can be given its
+ * What the two reads behind a place's page answer, so that a failure can be given its
  * real shape - and so that the two halves can be made to disagree, which is
  * what a recovery looks like from inside the page.
  */
@@ -54,6 +54,12 @@ const read = vi.hoisted(() => ({
   error: null as unknown,
   overview: null as Record<string, unknown> | null,
   live: null as Record<string, unknown> | null,
+}));
+
+// A home that lists no place, so a place's own address draws its page rather than handing over to Start.
+vi.mock('@/api/home', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useHome: () => ({ isPending: false, data: { spaces: [] }, refetch: () => {} }),
 }));
 
 vi.mock('@/api/spaces', async importOriginal => {
@@ -224,10 +230,10 @@ describe('a tent that is no longer shared with the reader', () => {
   const drawPage = () =>
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/spaces/space-1/overview']}>
+        <MemoryRouter initialEntries={['/spaces/space-1']}>
           <LogProvider>
             <Routes>
-              <Route path="/spaces/:spaceId/:tab" element={<SpacePage />} />
+              <Route path="/spaces/:spaceId" element={<PlacePage />} />
             </Routes>
           </LogProvider>
         </MemoryRouter>
@@ -262,10 +268,10 @@ describe('the banner over a page that could not refresh', () => {
   const drawPage = () =>
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/spaces/space-1/overview']}>
+        <MemoryRouter initialEntries={['/spaces/space-1']}>
           <LogProvider>
             <Routes>
-              <Route path="/spaces/:spaceId/:tab" element={<SpacePage />} />
+              <Route path="/spaces/:spaceId" element={<PlacePage />} />
             </Routes>
           </LogProvider>
         </MemoryRouter>
@@ -300,7 +306,7 @@ describe('the banner over a page that could not refresh', () => {
  * "updated 0 s ago" over a header pill reading "no reading · 4 d" - and this is
  * the screen somebody opens to ask exactly that question.
  */
-describe('how old the tent page says it is', () => {
+describe('how old a place´s page says it is', () => {
   /** Stands where the shell's own freshness line does, and shows the instant it was handed. */
   function Reported() {
     return <p data-testid="freshness">{useFreshness() ?? 'nothing'}</p>;
@@ -309,10 +315,10 @@ describe('how old the tent page says it is', () => {
   const drawPage = () =>
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/spaces/space-1/overview']}>
+        <MemoryRouter initialEntries={['/spaces/space-1']}>
           <LogProvider>
             <Routes>
-              <Route path="/spaces/:spaceId/:tab" element={<SpacePage />} />
+              <Route path="/spaces/:spaceId" element={<PlacePage />} />
             </Routes>
             <Reported />
           </LogProvider>

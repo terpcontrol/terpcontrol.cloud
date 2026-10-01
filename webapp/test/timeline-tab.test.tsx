@@ -97,6 +97,6 @@ describe('the timeline tab opened from a place', () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByRole('combobox', { name: 'Which place' })).toHaveValue('space-2');
+    expect(screen.getByRole('combobox', { name: 'Switch place' })).toHaveValue('space-2');
   });
 });

@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, Outlet } from 'react-router';
+import { createBrowserRouter, Navigate, Outlet, type RouteObject } from 'react-router';
 import { AppShell } from './shell/AppShell';
 import { RequireSession } from './RequireSession';
 import { RouteError } from './RouteError';
@@ -32,20 +32,73 @@ import { Measurements } from '@/screens/grow/measurements/Measurements';
 import { NewGrowRoute } from '@/screens/grow/new/NewGrowRoute';
 import { NotFound } from '@/screens/NotFound';
 import { PlantPage } from '@/screens/grow/plant/PlantPage';
+import { ControlTab } from '@/screens/place/ControlTab';
+import { OldPlaceLink } from '@/screens/place/OldPlaceLink';
+import { PlaceMembers } from '@/screens/place/PlaceMembers';
+import { PlacePage } from '@/screens/place/PlacePage';
 import { Notifications } from '@/screens/notifications/Notifications';
 import { PublicGrowRoute } from '@/screens/public/PublicGrowRoute';
 import { PublicProfileRoute } from '@/screens/public/PublicProfileRoute';
 import { SharedRoute } from '@/screens/public/SharedRoute';
 import { SignIn } from '@/screens/SignIn';
 import { SignUp } from '@/screens/SignUp';
-import { SpacePage } from '@/screens/space/SpacePage';
 import { Tasks } from '@/screens/Tasks';
 import { Timeline } from '@/screens/Timeline';
 
+/** Every screen behind the session, in the shell: the table a test can lay under the shell on its own. */
+export const screens: RouteObject[] = [
+  { index: true, element: <Home /> },
+  { path: 'timeline', element: <Timeline /> },
+  { path: 'control/:page?', element: <ControlTab /> },
+  { path: 'charts', element: <Charts /> },
+  { path: 'log', element: <LogRoute /> },
+  { path: 'devices', element: <Devices /> },
+  { path: 'claim', element: <Claim /> },
+  { path: 'cameras/add', element: <AddCamera /> },
+  { path: 'cameras/:cameraId', element: <CameraPage /> },
+  { path: 'tasks', element: <Tasks /> },
+  { path: 'me', element: <Me /> },
+  { path: 'me/notifications', element: <Notifications /> },
+  { path: 'me/privacy', element: <Privacy /> },
+  { path: 'me/public', element: <PublicGrows /> },
+  { path: 'me/following', element: <Following /> },
+  { path: 'me/share-links', element: <ShareLinks /> },
+  { path: 'me/premium', element: <Premium /> },
+  { path: 'me/schemes', element: <Schemes /> },
+  { path: 'me/appearance', element: <Appearance /> },
+  { path: 'me/account', element: <Account /> },
+  { path: 'me/about', element: <About /> },
+  {
+    path: 'admin',
+    element: (
+      <AdminOnly>
+        <Outlet />
+      </AdminOnly>
+    ),
+    children: [
+      { path: 'fleet', element: <Fleet /> },
+      { path: 'firmware', element: <FirmwareScreen /> },
+      { path: 'users', element: <AdminUsers /> },
+      { path: 'demo', element: <Demo /> },
+    ],
+  },
+  { path: 'alerts', element: <Alerts /> },
+  { path: 'grows/new', element: <NewGrowRoute /> },
+  { path: 'grows/archive', element: <GrowArchive /> },
+  { path: 'grows/:growId/measurements', element: <Measurements /> },
+  { path: 'grows/:growId/plants/:plantId', element: <PlantPage /> },
+  { path: 'grows/:growId/:tab?', element: <GrowPage /> },
+  { path: 'spaces/:spaceId', element: <PlacePage /> },
+  { path: 'spaces/:spaceId/members', element: <PlaceMembers /> },
+  { path: 'spaces/:spaceId/:tab/:sub?', element: <OldPlaceLink /> },
+  { path: 'index.html', element: <Navigate to="/" replace /> },
+  { path: '*', element: <NotFound /> },
+];
+
 /**
- * The five tabs, the account page, the alerts behind the bell, and the two
- * pages a home card opens: a grow and a space, each with its tab in the path so
- * a tab survives a reload. Every screen below the shell is behind a session;
+ * The tabs of the bar, the account page, the alerts behind the bell, and the
+ * two pages a card opens: a grow, with its tab in the path so a tab survives a
+ * reload, and a place. Every screen below the shell is behind a session;
  * the sign-in and sign-up pages and the public addresses are the routes that
  * are not.
  *
@@ -90,9 +143,12 @@ import { Timeline } from '@/screens/Timeline';
  * it is about in its query, so a link to a particular chart is a link somebody
  * can send.
  *
- * A space's tab may have a page of its own below it - the manual targets and
- * the alarm rules under Control - which is the third segment, so that a link
- * from an alert can open the rule it came from and a reload lands where it was.
+ * A place has one page, its cockpit, and one page below it: who else is let
+ * in. Verlauf and Steuerung are tabs of the bar about one place at a time, and
+ * carry it in the query; Steuerung's own pages - the targets, the alarm rules,
+ * the plan - are a segment of its path, so that a link from an alert opens the
+ * rule it came from and a reload lands where it was. The addresses a place had
+ * while it was a page of five tabs are sent on to where those things are now.
  * Me is a page of doors rather than a screen of settings, so each of them is a
  * route below it: what is public, what is followed, the links that were sent
  * out, Premium, the feeding schemes, the appearance, the account itself and
@@ -129,56 +185,7 @@ export const router = createBrowserRouter([
             <AppShell />
           </RequireSession>
         ),
-        children: [
-          {
-            errorElement: <RouteError />,
-            children: [
-              { index: true, element: <Home /> },
-              { path: 'timeline', element: <Timeline /> },
-              { path: 'charts', element: <Charts /> },
-              { path: 'log', element: <LogRoute /> },
-              { path: 'devices', element: <Devices /> },
-              { path: 'claim', element: <Claim /> },
-              { path: 'cameras/add', element: <AddCamera /> },
-              { path: 'cameras/:cameraId', element: <CameraPage /> },
-              { path: 'tasks', element: <Tasks /> },
-              { path: 'me', element: <Me /> },
-              { path: 'me/notifications', element: <Notifications /> },
-              { path: 'me/privacy', element: <Privacy /> },
-              { path: 'me/public', element: <PublicGrows /> },
-              { path: 'me/following', element: <Following /> },
-              { path: 'me/share-links', element: <ShareLinks /> },
-              { path: 'me/premium', element: <Premium /> },
-              { path: 'me/schemes', element: <Schemes /> },
-              { path: 'me/appearance', element: <Appearance /> },
-              { path: 'me/account', element: <Account /> },
-              { path: 'me/about', element: <About /> },
-              {
-                path: 'admin',
-                element: (
-                  <AdminOnly>
-                    <Outlet />
-                  </AdminOnly>
-                ),
-                children: [
-                  { path: 'fleet', element: <Fleet /> },
-                  { path: 'firmware', element: <FirmwareScreen /> },
-                  { path: 'users', element: <AdminUsers /> },
-                  { path: 'demo', element: <Demo /> },
-                ],
-              },
-              { path: 'alerts', element: <Alerts /> },
-              { path: 'grows/new', element: <NewGrowRoute /> },
-              { path: 'grows/archive', element: <GrowArchive /> },
-              { path: 'grows/:growId/measurements', element: <Measurements /> },
-              { path: 'grows/:growId/plants/:plantId', element: <PlantPage /> },
-              { path: 'grows/:growId/:tab?', element: <GrowPage /> },
-              { path: 'spaces/:spaceId/:tab?/:sub?', element: <SpacePage /> },
-              { path: 'index.html', element: <Navigate to="/" replace /> },
-              { path: '*', element: <NotFound /> },
-            ],
-          },
-        ],
+        children: [{ errorElement: <RouteError />, children: screens }],
       },
     ],
   },
