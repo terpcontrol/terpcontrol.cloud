@@ -815,7 +815,10 @@ describe('what the Devices tab calls a device', () => {
 
     const pill = await screen.findByText((_, node) => node?.getAttribute('data-liveness') === 'offline');
 
-    expect(pill).toHaveTextContent('offline · 3 d');
+    // Offline, said the way Start says it: since the reading, not the older message.
+    expect(pill.textContent).toMatch(/^offline since /);
+    expect(pill).toHaveTextContent(DateTime.fromISO(measured).toFormat('d LLL'));
+    expect(pill).not.toHaveTextContent(DateTime.fromISO(heard).toFormat('d LLL'));
   });
 
   it('heads the list with what it holds rather than calling a socket a controller', async () => {
@@ -1118,7 +1121,8 @@ describe('the device panel', () => {
     await drawWith([fridge({ lastSeenAt: heard(25) })]);
     fireEvent.click(await screen.findByText('Fridge module'));
 
-    expect(screen.getByText(/^offline since \d\d:\d\d$/)).toBeInTheDocument();
+    // The row's pill and the panel's connection line, in the same words.
+    expect(screen.getAllByText(/^offline since \d\d:\d\d$/)).toHaveLength(2);
     expect(screen.getByRole('button', { name: /^Restart/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /^Maintenance · 15 min/ })).toBeDisabled();
     expect(screen.getByText('Restart and maintenance work again once the device is connected.')).toBeInTheDocument();

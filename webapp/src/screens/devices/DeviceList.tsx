@@ -10,7 +10,7 @@ import { fetchedAt, serverNow } from '@/api/clock';
 import { useDeviceFirmwares, useDevices, useLiveReads, useSocketTables } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces, useSpaceVerdicts } from '@/api/spaces';
-import { ageAttribute, ageLabel, deviceLiveness, heardAt } from '@/ui/age';
+import { ageAttribute, ageLabel, deviceLiveness, heardAt, offlineLabel } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { Help, Term } from '@/ui/Help';
 import { maintenanceQuiet, parksAnything } from '@/ui/maintenance';
@@ -372,6 +372,9 @@ function DeviceRow({ device, among, place, sockets, cameras, linked, spokeAt, no
           ? t('devices.panel.offlineSince', { time: clockLabel(spokeAt, now, zone) })
           : t('devices.panel.neverHeard');
 
+  // The pill says offline in the words Start and the alerts use for it.
+  const pill = offline ? offlineLabel(spokeAt, now, zone) : t(`home.liveness.${liveness}`);
+
   // The build is named by the day it was made, which is the one thing about it
   // a grower can compare. What the build container stamped it with is a commit
   // and a branch, so that is a technical detail; and until the build list has
@@ -402,8 +405,8 @@ function DeviceRow({ device, among, place, sockets, cameras, linked, spokeAt, no
         </div>
         <span className={ui.live} data-liveness={liveness}>
           <span className={ui.liveDot} aria-hidden />
-          {explain ? <Term topic="liveness">{t(`home.liveness.${liveness}`)}</Term> : t(`home.liveness.${liveness}`)}
-          {spokeAt ? ` · ${ageLabel(spokeAt, now)}` : ''}
+          {explain ? <Term topic="liveness">{pill}</Term> : pill}
+          {spokeAt && !offline ? ` · ${ageLabel(spokeAt, now)}` : ''}
         </span>
         <button type="button" className={styles.expand} aria-expanded={open} aria-label={t('devices.details', { name: title })}>
           {open ? <ChevronDown size={16} strokeWidth={2} aria-hidden /> : <ChevronRight size={16} strokeWidth={2} aria-hidden />}
