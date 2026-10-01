@@ -375,6 +375,33 @@ describe('the grow half', () => {
   });
 });
 
+/**
+ * An account that keeps no diary is shown its climate and what is done with it.
+ * The invitation to start a grow, and a photo and a note that would write the
+ * first diary lines, are the diary's, and are not drawn on its cards at all.
+ */
+describe('a card without the diary', () => {
+  it('invites no grow and offers no photo or note', () => {
+    draw(
+      <SpaceCard card={card({ spaceId: 'space-device-only', grow: null, entries: [] })} people={people} now={NOW} compact={false} diary={false} />,
+    );
+
+    expect(screen.queryByText(/Nothing growing here yet/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Photo' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Note' })).not.toBeInTheDocument();
+    // The climate is all there.
+    expect(screen.getByText('25.1')).toBeInTheDocument();
+  });
+
+  it('draws both for an account that keeps one', () => {
+    draw(<SpaceCard card={card({ spaceId: 'space-device-only', grow: null, entries: [] })} people={people} now={NOW} compact={false} diary />);
+
+    expect(screen.getByText(/Nothing growing here yet/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Photo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Note' })).toBeInTheDocument();
+  });
+});
+
 describe('what needs a person', () => {
   const alarming = card({
     spaceId: 'space-2',

@@ -1585,6 +1585,10 @@
       "logReading": "Log a reading",
       "addDevice": "Add a device"
     },
+    "diary": {
+      "offer": "Keep a grow diary",
+      "decline": "No thanks"
+    },
     "strip": {
       "attention": "Needs attention",
       "due": "Due",
@@ -1612,6 +1616,14 @@
       "units": "Units",
       "unitsLine": "kept with your account · every screen still draws metric",
       "clock": "Clock",
+    "features": "Features",
+    "diary": "Grow diary",
+    "diaryLine": "kept with your account · Automatic: appears once you start a grow or log something",
+    "diaryChoice": {
+      "auto": "Automatic",
+      "on": "On",
+      "off": "Off"
+    },
       "timezone": "Time zone",
       "timezoneLine": "kept with your account · quiet hours and every clock time the app draws are read in it.",
       "timezoneHere": "This device is in {{zone}}.",
@@ -4500,6 +4512,10 @@
     "invite": {
       "title": "Inviting",
       "text": "Anybody who has an invite link can join with it, as often as it is used, until it expires or you revoke it – revoking stops new joins, and whoever is in stays. A username you already share a space with is added at once as can log, without being asked."
+    },
+    "diaryLayer": {
+      "title": "Grow diary",
+      "text": "The diary is where you keep what you do to your plants – watering, feeding, photos, notes – and run grows with days and phases. While you do not use it, the app shows the climate and the device alone. It switches itself on once you start a grow or log something; under Me › Appearance you can also switch it on or off by hand."
     },
     "follow": {
       "title": "Follow",

@@ -1,5 +1,6 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { Me, UnitPreference } from '@fg2/shared-types/v1';
+import type { DiaryChoice, Me, UnitPreference } from '@fg2/shared-types/v1';
 import { useMe, useUpdateMe, useUpdatingMe } from '@/api/account';
 import { useSession } from '@/api/session';
 import { LANGUAGES, setLanguage, type Language } from '@/i18n/i18n';
@@ -14,6 +15,13 @@ import { MePage, Menu, Row } from '../parts';
 import styles from './Appearance.module.css';
 
 const THEMES: ThemeChoice[] = ['system', 'light', 'dark'];
+
+/** The three answers about the diary, as the menu offers them: let the account's use decide, or say so outright. */
+const DIARY: { key: 'auto' | DiaryChoice; choice: DiaryChoice | null }[] = [
+  { key: 'auto', choice: null },
+  { key: 'on', choice: 'on' },
+  { key: 'off', choice: 'off' },
+];
 
 /** The three questions the contract asks about units, in the order the page asks them, each with its two answers. */
 const UNITS: { kind: keyof UnitPreference; choices: string[] }[] = [
@@ -85,6 +93,7 @@ function FromTheAccount() {
   const mayManage = useMayManage();
   const update = useUpdateMe();
   const updating = useUpdatingMe();
+  const client = useQueryClient();
 
   if (me.isPending) return <Waiting lines={3} />;
   if (!me.data) return <LoadFailed retry={() => void me.refetch()} />;
@@ -112,6 +121,28 @@ function FromTheAccount() {
           </Menu>
         </Row>
       ))}
+
+      <span className="label">{t('me.appearance.features')}</span>
+      <Row title={t('me.appearance.diary')} line={t('me.appearance.diaryLine')} help="diaryLayer">
+        <Menu
+          name={t('me.appearance.diary')}
+          value={account.preferences.diary ?? 'auto'}
+          disabled={held}
+          onChange={value =>
+            // The home draws what this decides, so it is read again once the answer has landed.
+            update.mutate(
+              { preferences: { ...account.preferences, diary: DIARY.find(option => option.key === value)?.choice ?? null } },
+              { onSuccess: () => void client.invalidateQueries({ queryKey: ['home'] }) },
+            )
+          }
+        >
+          {DIARY.map(option => (
+            <option key={option.key} value={option.key}>
+              {t(`me.appearance.diaryChoice.${option.key}`)}
+            </option>
+          ))}
+        </Menu>
+      </Row>
 
       <span className="label">{t('me.appearance.clock')}</span>
       <Row title={t('me.appearance.timezone')} line={zoneLine(t, account.preferences.timezone)}>

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { HomeAnswer } from '@fg2/shared-types/v1';
+import { useMe } from '@/api/account';
 import { fetchedAt } from '@/api/clock';
 import { useHome } from '@/api/home';
+import { useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { Term } from '@/ui/Help';
 import { useReportFreshness } from '@/ui/freshness';
@@ -13,6 +15,7 @@ import { ArchiveLink } from './grow/Archive';
 import { NewGrowRow } from './grow/new/NewGrowRow';
 import { NewGrowSheet } from './grow/new/NewGrowSheet';
 import { isClub, livenessOf, sortedByAttention } from './home/attention';
+import { DiaryOffer } from './home/DiaryOffer';
 import { SpaceCard } from './home/SpaceCard';
 import { AttentionStrip, DueStrip, FollowingStrip } from './home/Strips';
 import styles from './Home.module.css';
@@ -86,8 +89,14 @@ function Nothing({ grows, onStartGrow }: { grows: HomeAnswer['followedGrows']; o
 function Cards({ answer, failedAt, onStartGrow }: { answer: HomeAnswer; failedAt: number | null; onStartGrow: () => void }) {
   const { t } = useTranslation();
   const now = useNow();
+  const { user } = useSession();
+  const me = useMe(false, user !== null && user.isDemo !== true);
   const club = isClub(answer.spaces);
   const cards = sortedByAttention(answer.spaces);
+  // A server too old to answer the layers drew the diary everywhere, and so does this.
+  const diary = answer.layers?.diary ?? true;
+  // Offered once the account has been read and only where nobody said no; the demo has no account to keep an answer with.
+  const offerDiary = !diary && me.data !== undefined && me.data.preferences.diary !== 'off';
   // The words a card's readings are said in are explained once, on the first card that has readings to say them about.
   const teacher = cards.find(card => livenessOf(card, now) !== 'none') ?? null;
 
@@ -112,14 +121,24 @@ function Cards({ answer, failedAt, onStartGrow }: { answer: HomeAnswer; failedAt
       <div className={styles.cards}>
         {cards.map(card => (
           // A card with no place is known by its grow, which is the only id it has.
-          <SpaceCard key={card.spaceId ?? card.grow?.growId} card={card} people={answer.people} now={now} compact={club} explain={card === teacher} />
+          <SpaceCard
+            key={card.spaceId ?? card.grow?.growId}
+            card={card}
+            people={answer.people}
+            now={now}
+            compact={club}
+            explain={card === teacher}
+            diary={diary}
+          />
         ))}
       </div>
 
-      <NewGrowRow onOpen={onStartGrow} />
+      {diary ? <NewGrowRow onOpen={onStartGrow} /> : null}
       <ArchiveLink />
 
       <FollowingStrip grows={answer.followedGrows} now={now} />
+
+      {offerDiary ? <DiaryOffer /> : null}
     </section>
   );
 }

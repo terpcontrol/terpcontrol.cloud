@@ -26,6 +26,12 @@ interface SpaceCardProps {
   compact: boolean;
   /** The first card that shows readings: its words explain themselves, once for the whole page. */
   explain?: boolean;
+  /**
+   * Whether the grow diary is offered to this account. Without it a place with
+   * nothing growing is its climate and what is done with it, and the
+   * invitations to start a grow or write a line are not drawn at all.
+   */
+  diary?: boolean;
 }
 
 /** "Not now" is remembered per place and per browser; it is a preference, not a fact about the space. */
@@ -61,7 +67,7 @@ const dismiss = (key: string) => {
  * leaf no kind of place carries, and nothing on it opens a space page, because
  * there is no space to open.
  */
-export function SpaceCard({ card, people, now, compact, explain }: SpaceCardProps) {
+export function SpaceCard({ card, people, now, compact, explain, diary = true }: SpaceCardProps) {
   const { t } = useTranslation();
   const zone = useZone();
   const [hidden, setHidden] = useState(() => dismissed().includes(keyOf(card)));
@@ -136,11 +142,11 @@ export function SpaceCard({ card, people, now, compact, explain }: SpaceCardProp
           {card.entries.length > 0 && !(offline && card.entries[0].kind === 'alarm') ? (
             <NewestEntry entry={card.entries[0]} people={people} now={now} />
           ) : null}
-          {hidden || offline ? null : <NoGrow card={card} onNotNow={notNow} />}
+          {hidden || !diary || offline ? null : <NoGrow card={card} onNotNow={notNow} />}
         </>
       )}
 
-      {card.grow === null && liveness !== 'none' ? <DeviceActions card={card} /> : null}
+      {card.grow === null && liveness !== 'none' ? <DeviceActions card={card} diary={diary} /> : null}
     </article>
   );
 }

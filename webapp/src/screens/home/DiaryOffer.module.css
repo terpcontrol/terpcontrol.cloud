@@ -1,0 +1,35 @@
+/* The diary, offered once and quietly: a grey line under the cards. */
+
+.offer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.line {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--label);
+}
+
+.start,
+.decline {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: inherit;
+  color: inherit;
+}
+
+.start {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: var(--weight-medium);
+}
+
+.start:hover,
+.decline:hover {
+  color: var(--brand);
+}

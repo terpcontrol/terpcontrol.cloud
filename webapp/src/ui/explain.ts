@@ -70,6 +70,7 @@ export const HELP_TOPICS = [
   'passwordChange',
   'memberRole',
   'invite',
+  'diaryLayer',
   'follow',
 ] as const;
 

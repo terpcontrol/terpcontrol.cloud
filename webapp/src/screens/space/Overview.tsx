@@ -14,6 +14,7 @@ import type {
   SpaceOverview,
 } from '@fg2/shared-types/v1';
 import { useLatestStills } from '@/api/cameras';
+import { useDiaryLayer } from '@/api/layers';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { useCorrecting } from '@/log/corrections';
 import { useLog, useMayLog } from '@/log/log-context';
@@ -56,6 +57,7 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
   const mayLog = useMayLogIn(overview.spaceId);
   const hasDevice = overview.deviceIds === null || overview.deviceIds.length > 0;
   const liveness = livenessOf(overview, now);
+  const diary = useDiaryLayer();
   // The last few lines of this tent are the diary a grower reads oftenest, and
   // they were the one diary in the app that could only be read: the five other
   // surfaces open a line somebody wrote in the sheet it was written in, and a
@@ -121,6 +123,8 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
 
         <Section
           label={t('space.growingHere')}
+          // What grows here is the diary's question: to a grower who keeps none, an empty section asking it is only noise.
+          shown={diary || overview.grows.length > 0}
           actions={
             <span className={`mono ${styles.sectionActions}`}>
               {/* Both of these put a grow into this place, which is managing it. */}
@@ -230,13 +234,17 @@ function Section({
   label,
   link,
   actions,
+  shown = true,
   children,
 }: {
   label: string;
   link?: { to: string; label: string };
   actions?: React.ReactNode;
+  shown?: boolean;
   children: React.ReactNode;
 }) {
+  if (!shown) return null;
+
   return (
     <section className={styles.section}>
       <header className={styles.sectionHeader}>

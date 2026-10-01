@@ -155,6 +155,38 @@ describe('the units', () => {
   });
 });
 
+/**
+ * Whether the grow diary is offered is the account's too, so every device
+ * agrees, and the answer can be taken back here once it was given on Start.
+ * "Automatic" is no answer at all: the account's use decides.
+ */
+describe('the grow diary', () => {
+  it('reads "automatic" where nobody has answered, and sends an answer with the rest of the preferences', async () => {
+    draw();
+
+    const diary = await screen.findByRole('combobox', { name: 'Grow diary' });
+    expect(diary).toHaveValue('auto');
+    fireEvent.change(diary, { target: { value: 'off' } });
+
+    await waitFor(() => expect(server.patched).toHaveLength(1));
+    expect(server.patched[0]).toEqual({
+      preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin', diary: 'off' },
+    });
+  });
+
+  it('hands the question back to the account´s use when "automatic" is chosen again', async () => {
+    server.me = { ...me(), preferences: { ...me().preferences, diary: 'off' } };
+    draw();
+
+    const diary = await screen.findByRole('combobox', { name: 'Grow diary' });
+    expect(diary).toHaveValue('off');
+    fireEvent.change(diary, { target: { value: 'auto' } });
+
+    await waitFor(() => expect(server.patched).toHaveLength(1));
+    expect(server.patched[0].preferences?.diary).toBeNull();
+  });
+});
+
 describe('the time zone', () => {
   it('draws the zone the account keeps and offers this device its own', async () => {
     server.me = { ...me(), preferences: { ...me().preferences, timezone: 'UTC' } };

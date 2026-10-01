@@ -324,12 +324,12 @@ function WaterNow({ growId, primary = false }: { growId: string; primary?: boole
   );
 }
 
-/** What a device-only tent offers: a picture, a note, a quarter hour of presence. */
-export function DeviceActions({ card }: { card: HomeSpaceCard }) {
+/** What a device-only tent offers: a picture, a note, a quarter hour of presence - the first two only to somebody who keeps a diary. */
+export function DeviceActions({ card, diary = true }: { card: HomeSpaceCard; diary?: boolean }) {
   return (
     <div className={styles.actions}>
-      <LogAction kind="photo" spaceId={card.spaceId} Icon={Camera} labelKey="home.actions.photo" />
-      <LogAction kind="note" spaceId={card.spaceId} Icon={Pencil} labelKey="home.actions.note" />
+      {diary ? <LogAction kind="photo" spaceId={card.spaceId} Icon={Camera} labelKey="home.actions.photo" /> : null}
+      {diary ? <LogAction kind="note" spaceId={card.spaceId} Icon={Pencil} labelKey="home.actions.note" /> : null}
       <LogAction
         kind="visit"
         spaceId={card.spaceId}

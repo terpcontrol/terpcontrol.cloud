@@ -1589,6 +1589,10 @@
       "logReading": "Messwert eintragen",
       "addDevice": "Gerät hinzufügen"
     },
+    "diary": {
+      "offer": "Grow-Tagebuch führen",
+      "decline": "Nein danke"
+    },
     "strip": {
       "attention": "Braucht Aufmerksamkeit",
       "due": "Fällig",
@@ -1616,6 +1620,14 @@
       "units": "Einheiten",
       "unitsLine": "beim Konto gespeichert · jede Ansicht zeigt noch metrisch",
       "clock": "Uhrzeit",
+    "features": "Funktionen",
+    "diary": "Grow-Tagebuch",
+    "diaryLine": "beim Konto gespeichert · Automatisch: erscheint, sobald du einen Grow startest oder etwas einträgst",
+    "diaryChoice": {
+      "auto": "Automatisch",
+      "on": "An",
+      "off": "Aus"
+    },
       "timezone": "Zeitzone",
       "timezoneLine": "beim Konto gespeichert · Ruhezeiten und jede Uhrzeit, die die App zeigt, werden darin gelesen.",
       "timezoneHere": "Dieses Gerät steht in {{zone}}.",
@@ -4504,6 +4516,10 @@
     "invite": {
       "title": "Einladen",
       "text": "Wer einen Einladungslink hat, kann damit beitreten, so oft er benutzt wird, bis er abläuft oder du ihn zurückziehst – Zurückziehen verhindert neue Beitritte, wer drin ist, bleibt. Ein Benutzername, mit dem du schon einen Bereich teilst, wird sofort mit „darf loggen“ hinzugefügt, ohne gefragt zu werden."
+    },
+    "diaryLayer": {
+      "title": "Grow-Tagebuch",
+      "text": "Im Tagebuch hältst du fest, was du an deinen Pflanzen machst – Gießen, Düngen, Fotos, Notizen – und führst Grows mit Tagen und Phasen. Solange du es nicht nutzt, zeigt die App nur Klima und Gerät. Es schaltet sich ein, sobald du einen Grow startest oder etwas einträgst; unter Ich › Darstellung kannst du es auch von Hand ein- oder ausschalten."
     },
     "follow": {
       "title": "Folgen",
