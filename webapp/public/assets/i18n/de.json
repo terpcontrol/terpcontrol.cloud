@@ -3828,6 +3828,7 @@
   "notify": {
     "title": "Alarme erreichen dich nicht",
     "email": "Per E-Mail benachrichtigen",
+    "emailShort": "Per E-Mail",
     "sending": "Wird eingeschaltet…",
     "to": "an {{email}}",
     "other": "Andere Wege",

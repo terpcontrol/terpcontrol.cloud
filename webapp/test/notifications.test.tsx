@@ -385,7 +385,8 @@ describe('the notice that alarms reach nobody', () => {
     expect(screen.getByText('to login@example.org')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Other ways ›' })).toHaveAttribute('href', '/me/notifications');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Notify me by e-mail' }));
+    // Over the readings the notice is two rows, so the tap reads "By e-mail" with the address beside it.
+    fireEvent.click(screen.getByRole('button', { name: 'By e-mail' }));
 
     expect(await screen.findByText('Critical alarms now come by e-mail to login@example.org.')).toBeInTheDocument();
     expect(server.posted).toEqual([expect.stringMatching(/\/v1\/me\/email-alarms$/)]);

@@ -11,7 +11,18 @@
   background: var(--warning-wash);
 }
 
+/* What is wrong, and "Later" on the same row: beside it rather than at the far
+   edge, which on a wide screen is a page away from what it puts off, and at
+   the row's end on a phone, where the two are a thumb apart anyway. */
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
 .title {
+  flex: 0 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -44,10 +55,15 @@
   height: var(--action-height);
 }
 
-/* Beside the button rather than at the far edge, which on a wide screen is a
-   page away from what it puts off. */
 .later {
+  flex: none;
   font-size: var(--text-sm);
+}
+
+@media (max-width: 599px) {
+  .later {
+    margin-left: auto;
+  }
 }
 
 /* The address the tap writes to, which may be long: it breaks rather than
@@ -89,4 +105,44 @@
   flex: 1 1 200px;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+/*
+ * Over a cockpit's readings: two rows rather than three, and the frame and its
+ * gaps drawn tighter. The tap and the address it writes to share a row - the
+ * address wraps beside the button rather than under it - so the first screen
+ * keeps a tile it would otherwise give up to the notice.
+ */
+.notice[data-compact] {
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+}
+
+.offer[data-compact] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.offer[data-compact] .actions {
+  flex: none;
+}
+
+.offer[data-compact] .button {
+  height: 32px;
+  font-size: var(--text-sm);
+}
+
+.offer[data-compact] .address {
+  flex: 1 1 140px;
+  min-width: 0;
+  line-height: var(--line-tight);
+}
+
+/* The narrowest phones keep the title on one line beside "Later". */
+@media (max-width: 379px) {
+  .notice[data-compact] .title {
+    font-size: var(--text-sm);
+  }
 }

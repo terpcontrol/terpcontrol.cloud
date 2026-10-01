@@ -31,6 +31,11 @@ const SETTINGS = '/me/notifications';
  * browser of the account. Where somebody came to fix exactly this - the
  * notification settings - there is no "Later", nothing put away is honoured,
  * and there is no link to the page they are already on.
+ *
+ * Over the readings it is drawn compact, two rows: what is wrong with "Later"
+ * at its end, then the tap with the address it writes to beside it. The
+ * notice is there for the first screen of a cockpit, and at three rows it took
+ * the room of a whole tile from it.
  */
 export function NotifyNotice({ later = false }: { later?: boolean }) {
   const { t } = useTranslation();
@@ -50,19 +55,20 @@ export function NotifyNotice({ later = false }: { later?: boolean }) {
   const askLater = () => putOff.mutate({ preferences: { ...account.preferences, notifyLaterUntil: instantOf(now.plus({ days: LATER_DAYS })) } });
 
   return (
-    <section className={styles.notice} aria-labelledby={titleId}>
-      <p className={styles.title} id={titleId}>
-        <BellOff size={16} strokeWidth={2} aria-hidden />
-        <span>{t('notify.title')}</span>
-        <Help topic="emailAlarms" />
-      </p>
-      <EmailAlarmsOffer me={account} others={later} onDone={setDone}>
+    <section className={styles.notice} aria-labelledby={titleId} data-compact={later || undefined}>
+      <div className={styles.head}>
+        <p className={styles.title} id={titleId}>
+          <BellOff size={16} strokeWidth={2} aria-hidden />
+          <span>{t('notify.title')}</span>
+          <Help topic="emailAlarms" />
+        </p>
         {later ? (
           <button type="button" className={`${ui.headLink} ${styles.later}`} onClick={askLater}>
             {t('notify.later')}
           </button>
         ) : null}
-      </EmailAlarmsOffer>
+      </div>
+      <EmailAlarmsOffer me={account} others={later} compact={later} onDone={setDone} />
       <Refused error={putOff.error} />
     </section>
   );
@@ -103,6 +109,7 @@ export function EmailAlarmsOffer({
   me,
   others = true,
   primary = false,
+  compact = false,
   onDone,
   children,
 }: {
@@ -111,6 +118,12 @@ export function EmailAlarmsOffer({
   others?: boolean;
   /** Whether the tap is the one green action where it stands; inside a sheet or a flow that already has one, it is not. */
   primary?: boolean;
+  /**
+   * One row rather than two: "Per E-Mail" with the address it goes to beside
+   * it, which reads as the one sentence it is - "Per E-Mail an …" - in the
+   * room the notice has over a cockpit's readings.
+   */
+  compact?: boolean;
   onDone?: (address: string) => void;
   /** What stands beside the button, such as "Later". */
   children?: ReactNode;
@@ -120,7 +133,7 @@ export function EmailAlarmsOffer({
   const address = mailAddressOf(me);
 
   return (
-    <div className={styles.offer}>
+    <div className={styles.offer} data-compact={compact || undefined}>
       <div className={styles.actions}>
         <button
           type="button"
@@ -129,7 +142,7 @@ export function EmailAlarmsOffer({
           onClick={() => mail.mutate(undefined, { onSuccess: () => onDone?.(address) })}
         >
           <Mail size={16} strokeWidth={1.75} aria-hidden />
-          {t(mail.isPending ? 'notify.sending' : 'notify.email')}
+          {t(mail.isPending ? 'notify.sending' : compact ? 'notify.emailShort' : 'notify.email')}
         </button>
         {children}
       </div>

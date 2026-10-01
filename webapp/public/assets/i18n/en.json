@@ -3824,6 +3824,7 @@
   "notify": {
     "title": "Alarms do not reach you",
     "email": "Notify me by e-mail",
+    "emailShort": "By e-mail",
     "sending": "Switching on…",
     "to": "to {{email}}",
     "other": "Other ways",
