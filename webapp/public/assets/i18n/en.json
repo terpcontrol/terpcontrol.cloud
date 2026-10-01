@@ -3039,7 +3039,7 @@
       "heater": "Heater",
       "dehumidifier": "Dehumidifier",
       "compressor": "Compressor",
-      "co2": "CO₂",
+      "co2": "CO₂ valve",
       "light": "Light",
       "fan": "Fan",
       "relais": "Relay",
@@ -3485,14 +3485,15 @@
       "fan": "Fan",
       "relais": "Relay",
       "fanInternal": "Internal fan",
-      "fanExternal": "External fan",
-      "fanBackwall": "Back-wall fan"
+      "fanExternal": "Exhaust",
+      "fanBackwall": "Back-wall fan",
+      "compressor": "Compressor"
     },
     "sheet": {
       "newTitle": "New alarm",
       "title": "Edit the alarm",
       "name": "Name",
-      "nameHint": "Too hot",
+      "nameHint": "Too warm",
       "presetNote": "The stage wrote this rule. The next stage writes its thresholds again, so what is changed here holds until then.",
       "watch": "Watch",
       "how": "What about it",
@@ -3570,7 +3571,12 @@
       }
     },
     "channelOff": "{{channel}} (off)",
-    "addDevice": "Add a device"
+    "addDevice": "Add a device",
+    "bound": {
+      "above": "above {{value}}",
+      "below": "below {{value}}",
+      "longer": "longer than {{duration}}"
+    }
   },
   "tasks": {
     "title": "Tasks",
@@ -3867,13 +3873,14 @@
     "output": {
       "heater": "heater",
       "dehumidifier": "dehumidifier",
-      "co2": "CO₂",
+      "co2": "CO₂ valve",
       "light": "light",
       "fan": "fan",
       "relais": "relay",
       "fanInternal": "fan in",
       "fanExternal": "exhaust",
-      "fanBackwall": "back fan"
+      "fanBackwall": "back fan",
+      "compressor": "compressor"
     },
     "metric": {
       "leafTemperature": "Leaf",

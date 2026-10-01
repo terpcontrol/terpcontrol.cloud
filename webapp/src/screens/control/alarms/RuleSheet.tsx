@@ -16,10 +16,12 @@ import {
   emptyDraft,
   firstWatch,
   hasBound,
+  outputName,
   outputsOf,
   readingsOf,
   routedChannels,
   type RuleDraft,
+  ruleTitle,
   scaleNote,
   type Translate,
   unitOf,
@@ -59,7 +61,11 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
   const update = useUpdateAlarmRule(device.id);
   const remove = useRemoveAlarmRule(device.id);
   const readings = readingsOf(device);
-  const [draft, setDraft] = useState<RuleDraft>(() => (rule ? draftOf(rule) : emptyDraft(firstWatch(device) ?? DEFAULT_WATCH)));
+  // A rule a stage wrote carries the server's English name; the field opens on
+  // the name the list shows it by, so "Zu warm" is not edited as "Too hot".
+  const [draft, setDraft] = useState<RuleDraft>(() =>
+    rule ? { ...draftOf(rule), name: rule.origin === 'preset' ? ruleTitle(t, rule) : rule.name } : emptyDraft(firstWatch(device) ?? DEFAULT_WATCH),
+  );
   const [askingDelete, setAskingDelete] = useState(false);
   const [refusedBound, setRefusedBound] = useState(false);
 
@@ -175,7 +181,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
                     chosen={draft.watch.kind !== 'reading' && draft.watch.output === output}
                     onChoose={() => change({ watch: { kind: draft.watch.kind === 'reading' ? 'output_level' : draft.watch.kind, output } })}
                   >
-                    {t(`alarms.output.${output}`)}
+                    {outputName(t, output, device.type)}
                   </Choice>
                 ))}
               </Choices>

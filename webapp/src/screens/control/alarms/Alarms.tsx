@@ -1,4 +1,4 @@
-import { CloudRain, Snowflake, Sun, Thermometer, type LucideIcon } from 'lucide-react';
+import { Droplets, DropletOff, ThermometerSnowflake, ThermometerSun, type LucideIcon } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -35,6 +35,7 @@ import {
   watchable,
   watchLabel,
 } from './rules';
+import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import styles from './Alarms.module.css';
 import { deviceName } from '@/screens/devices/naming';
 import { serverNow } from '@/api/clock';
@@ -96,6 +97,11 @@ export function Alarms({
   const holding = new Set([...held.rules.values()].map(rule => rule.deviceId));
   const watched = devices.filter(device => watchable(device) || holding.has(device.id));
   const grow = overview.data?.grows[0] ?? null;
+  // An account no alarm reaches at all is told so once, over the list, with
+  // the one-tap fix - rather than "erreicht dich nicht" under every card.
+  const reachesNoOne =
+    me.data !== undefined &&
+    !(['critical', 'warning'] as const).some(severity => routedChannels(me.data!, severity).some(routed => routed.configured));
 
   return (
     <div className={styles.page}>
@@ -108,6 +114,8 @@ export function Alarms({
           </Link>
         ) : null}
       </header>
+
+      {reachesNoOne && watched.length > 0 ? <NotifyNotice /> : null}
 
       {watched.length === 0 && held.isPending ? (
         <Waiting lines={3} />
@@ -125,6 +133,7 @@ export function Alarms({
             device={device}
             grow={grow}
             me={me.data}
+            toldAbove={reachesNoOne}
             mayManage={mayManage}
             highlighted={params.get('rule')}
             named={watched.length > 1}
@@ -152,6 +161,8 @@ interface DeviceRulesProps {
   grow: OverviewGrow | null;
   /** The account, once it has answered; until then nothing is said about where a routed rule goes. */
   me: Me | undefined;
+  /** Whether the page already says, over the list, that no alarm reaches anybody. */
+  toldAbove: boolean;
   mayManage: boolean;
   /** The rule an alert linked to, which is scrolled to and marked. */
   highlighted: string | null;
@@ -161,7 +172,7 @@ interface DeviceRulesProps {
 }
 
 /** One device's rules, in their groups, with the row that writes a new one under them. */
-function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: DeviceRulesProps) {
+function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, named, now }: DeviceRulesProps) {
   const { t } = useTranslation();
   const rules = useDeviceAlarmRules(device.id);
   const update = useUpdateAlarmRule(device.id);
@@ -239,6 +250,7 @@ function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: D
                 rule={rule}
                 device={device}
                 me={me}
+                toldAbove={toldAbove}
                 mayManage={mayManage}
                 highlighted={rule.id === highlighted || rule.id === made}
                 busy={update.isPending || unsilence.isPending}
@@ -267,7 +279,7 @@ function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: D
   );
 }
 
-const TEMPLATE_ICON: Record<TemplateKey, LucideIcon> = { warm: Thermometer, cold: Snowflake, humid: CloudRain, dry: Sun };
+const TEMPLATE_ICON: Record<TemplateKey, LucideIcon> = { warm: ThermometerSun, cold: ThermometerSnowflake, humid: Droplets, dry: DropletOff };
 
 /**
  * Too warm, too cold, too humid, too dry: each one tap from a rule. A template
@@ -382,6 +394,8 @@ interface RuleCardProps {
   rule: AlarmRule;
   device: Device;
   me: Me | undefined;
+  /** Whether the page already says, over the list, that no alarm reaches anybody. */
+  toldAbove: boolean;
   mayManage: boolean;
   highlighted: boolean;
   busy: boolean;
@@ -401,7 +415,7 @@ interface RuleCardProps {
  * sensor - because switching it on would be a promise nothing can keep, and
  * the reason stands under it rather than the control quietly doing nothing.
  */
-function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen, onToggle, onUnsilence }: RuleCardProps) {
+function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, now, onOpen, onToggle, onUnsilence }: RuleCardProps) {
   const { t } = useTranslation();
   const card = useRef<HTMLLIElement>(null);
 
@@ -414,8 +428,13 @@ function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen,
   // An output watched for running at all crosses no line, so what it watches is
   // said in words and only the duration it has to run for is a figure; a rule
   // that trips on the first sample has not even that.
-  const bound = rule.watch.kind === 'output_running' ? (rule.forSeconds > 0 ? `› ${durationLabel(rule.forSeconds)}` : '') : boundLabel(rule.watch);
-  const watching = watchLabel(t, rule.watch);
+  const bound =
+    rule.watch.kind === 'output_running'
+      ? rule.forSeconds > 0
+        ? t('alarms.bound.longer', { duration: durationLabel(rule.forSeconds) })
+        : ''
+      : boundLabel(t, rule.watch);
+  const watching = watchLabel(t, rule.watch, device.type);
   const title = ruleTitle(t, rule);
 
   const summary = (
@@ -469,7 +488,7 @@ function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen,
         ) : null}
       </span>
       {/* Outside the card's button, which a link cannot stand in, and on a line of its own across it. */}
-      {reachesNobody(rule, me, now) ? (
+      {!toldAbove && reachesNobody(rule, me, now) ? (
         <Link to="/me/notifications" className={`mono ${styles.fix}`}>
           {t('alarms.meta.reachesNobody')}
         </Link>

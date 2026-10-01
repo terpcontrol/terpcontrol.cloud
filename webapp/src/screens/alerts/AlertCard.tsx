@@ -263,7 +263,7 @@ const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): Wh
       // A rule that trips the moment its output starts has no span to name, and
       // neither has an episode whose rule is gone: the duration the rule asked
       // for was the rule's and is not part of what happened.
-      figure: forSeconds !== null && forSeconds > 0 ? tight(`› ${spanLabel(forSeconds)}`) : null,
+      figure: forSeconds !== null && forSeconds > 0 ? tight(t('alarms.bound.longer', { duration: spanLabel(forSeconds) })) : null,
     };
   }
 
@@ -280,12 +280,14 @@ const watched = (t: Translate, alert: Alert, { watch, forSeconds }: Watched): Wh
 
   const figures = [
     value === null ? null : [asFigure(value), unit].filter(Boolean).join(' '),
-    crossed ? [crossed.over ? '›' : '‹', asEdge(crossed.bound), unit].filter(Boolean).join(' ') : null,
+    crossed
+      ? t(crossed.over ? 'alarms.bound.above' : 'alarms.bound.below', { value: [asEdge(crossed.bound), unit].filter(Boolean).join(' ') })
+      : null,
   ].filter((part): part is string => part !== null);
 
   return {
     label: watch.kind === 'reading' ? metricName(t, watch.metric) : outputName(t, watch.output),
-    figure: figures.length ? figures.map(tight).join(' ') : null,
+    figure: figures.length ? figures.map(tight).join(' · ') : null,
   };
 };
 

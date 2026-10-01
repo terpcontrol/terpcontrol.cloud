@@ -232,7 +232,7 @@ describe('the alarm rules page', () => {
 
     const running = await card('Dehumidifier running non-stop');
     expect(within(running).getByText('Dehumidifier running')).toBeInTheDocument();
-    expect(within(running).getByText('› 2 h')).toBeInTheDocument();
+    expect(within(running).getByText('longer than 2 h')).toBeInTheDocument();
 
     // A reading rule is titled from its metric already, so it is not said twice.
     const hot = await card('Too hot');
@@ -257,19 +257,19 @@ describe('the alarm rules page', () => {
     draw();
 
     const hot = await card('Too hot');
-    expect(within(hot).getByText('› 30 °C')).toBeInTheDocument();
+    expect(within(hot).getByText('above 30 °C')).toBeInTheDocument();
     expect(within(hot).getByText('preset · for 10 min · critical · goes to you by push + Telegram · announced once')).toBeInTheDocument();
 
     const offline = await card('Device offline');
     expect(within(offline).getByText('always · for 10 min · critical · goes to you by push + Telegram · repeats every 30 min')).toBeInTheDocument();
 
     const running = await card('Dehumidifier running non-stop');
-    expect(within(running).getByText('› 2 h')).toBeInTheDocument();
+    expect(within(running).getByText('longer than 2 h')).toBeInTheDocument();
     expect(within(running).getByText('device · warning · goes to you by push · announced once')).toBeInTheDocument();
     expect(within(running).getByRole('img', { name: 'triggered right now' })).toBeInTheDocument();
 
     const hook = await card('Pump watchdog');
-    expect(within(hook).getByText('› 0.5')).toBeInTheDocument();
+    expect(within(hook).getByText('above 0.5')).toBeInTheDocument();
     expect(within(hook).getByText('custom · for 5 min · warning · webhook · announced once')).toBeInTheDocument();
   });
 
@@ -341,18 +341,27 @@ describe('the alarm rules page', () => {
    * own settings that decide it, so it is said as the way there - outside the
    * card's button, which a link cannot stand inside.
    */
-  it('says a rule nobody hears as the way to change that', async () => {
+  it('says once, over the list, that no alarm reaches an account with no way set up, and leaves the cards quiet about it', async () => {
     const unreached = { ...me, pushSubscribed: false, notifications: { ...me.notifications, routing: { alerts: [], warnings: ['push'] } } };
     vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/me' ? unreached : answers(path)) as never);
     draw();
 
+    expect(await screen.findByText('Alarms do not reach you')).toBeInTheDocument();
     const offline = await card('Device offline');
     expect(within(offline).getByText('always · for 10 min · critical')).toBeInTheDocument();
-    const fix = within(offline).getByRole('link', { name: 'does not reach you · set up ›' });
-    expect(fix).toHaveAttribute('href', '/me/notifications');
-    expect(fix.closest('button')).toBeNull();
+    expect(within(offline).queryByRole('link', { name: 'does not reach you · set up ›' })).not.toBeInTheDocument();
+  });
 
-    // Named on the row but set up nowhere is the same dead end, and gets the same way out.
+  it('says a rule nobody hears as the way to change that, where other alarms do arrive', async () => {
+    const warningsLost = {
+      ...me,
+      pushSubscribed: false,
+      notifications: { ...me.notifications, routing: { alerts: ['telegram'], warnings: ['push'] } },
+    };
+    vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/me' ? warningsLost : answers(path)) as never);
+    draw();
+
+    // Named on the row but set up nowhere is a dead end, and gets the way out on the card.
     const running = await card('Dehumidifier running non-stop');
     expect(within(running).getByText('device · warning · goes to you by push (off) · announced once')).toBeInTheDocument();
     expect(within(running).getByRole('link', { name: 'does not reach you · set up ›' })).toBeInTheDocument();
@@ -392,7 +401,7 @@ describe('the alarm rules page', () => {
     draw([device({}, { co2: 'off' })]);
 
     const co2 = await card('CO₂ too high');
-    expect(within(co2).getByText('› 1500 ppm')).toBeInTheDocument();
+    expect(within(co2).getByText('above 1500 ppm')).toBeInTheDocument();
     expect(within(co2).getByRole('switch')).toBeDisabled();
     expect(within(co2).getByText('needs a CO₂ sensor')).toBeInTheDocument();
     expect(within(await card('Too hot')).getByRole('switch')).toBeEnabled();
@@ -677,6 +686,22 @@ describe('the rule sheet', () => {
    * contradict. Its CO2 stays an answer about this plug rather than about
    * plugs, because whether that sensor is fitted is the device's to say.
    */
+  it('calls a fridge´s outputs what the cockpit calls them, and offers the CO2 its tile shows', async () => {
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/fridge-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+    );
+    draw([device({ id: 'fridge-1', type: 'fridge', name: 'Fridge module' })]);
+
+    fireEvent.click(await screen.findByRole('button', { name: '+ Custom alarm' }));
+    const watch = within(screen.getByRole('dialog', { name: 'New alarm' })).getByRole('group', { name: 'Watch' });
+
+    expect(within(watch).getByRole('button', { name: 'Compressor' })).toBeInTheDocument();
+    expect(within(watch).queryByRole('button', { name: 'Dehumidifier' })).not.toBeInTheDocument();
+    expect(within(watch).getByRole('button', { name: 'Exhaust' })).toBeInTheDocument();
+    expect(within(watch).getByRole('button', { name: 'CO₂' })).toBeInTheDocument();
+    expect(within(watch).getByRole('button', { name: 'CO₂ valve' })).toBeInTheDocument();
+  });
+
   it('offers a plug both the output it drives and the climate it measures', async () => {
     vi.mocked(api.get).mockImplementation(
       (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
@@ -935,6 +960,31 @@ describe('the rule sheet', () => {
     );
   });
 
+  it('opens a rule a stage wrote under the name the list shows, not the server´s English one', async () => {
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(
+          path === '/devices/device-1/alarm-rules'
+            ? {
+                items: [
+                  rule({
+                    id: 'rule-wet',
+                    name: 'Server name',
+                    origin: 'preset',
+                    watch: { kind: 'reading', metric: 'humidity', upper: 70, lower: null },
+                  }),
+                ],
+                nextCursor: null,
+              }
+            : answers(path),
+        ) as never,
+    );
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: /Too humid/ }));
+
+    expect(within(screen.getByRole('dialog', { name: 'Edit the alarm' })).getByRole('textbox', { name: 'Name' })).toHaveValue('Too humid');
+  });
+
   it('opens a rule filled in, says what the stage will do to it, and patches the whole of what it asks', async () => {
     draw();
     fireEvent.click(await screen.findByRole('button', { name: /Too hot/ }));
@@ -1074,19 +1124,20 @@ describe('what a rule is called', () => {
    * the inbox printed the same figure as a percent. What each one carries is
    * what each one is written in.
    */
-  it('writes a bound in the unit the series carries, output by output', () => {
-    expect(boundLabel({ kind: 'reading', metric: 'temperature', upper: 30, lower: 16 })).toBe('› 30 °C ‹ 16 °C');
-    expect(boundLabel({ kind: 'reading', metric: 'vpd', upper: null, lower: 0.8 })).toBe('‹ 0.80 kPa');
-    expect(boundLabel({ kind: 'output_level', output: 'light', upper: 80, lower: null })).toBe('› 80 %');
-    expect(boundLabel({ kind: 'output_level', output: 'fan', upper: null, lower: 60 })).toBe('‹ 60 %');
+  it('writes a bound in the unit the series carries, output by output, in words', () => {
+    const t = i18next.t.bind(i18next) as Translate;
+    expect(boundLabel(t, { kind: 'reading', metric: 'temperature', upper: 30, lower: 16 })).toBe('above 30 °C · below 16 °C');
+    expect(boundLabel(t, { kind: 'reading', metric: 'vpd', upper: null, lower: 0.8 })).toBe('below 0.80 kPa');
+    expect(boundLabel(t, { kind: 'output_level', output: 'light', upper: 80, lower: null })).toBe('above 80 %');
+    expect(boundLabel(t, { kind: 'output_level', output: 'fan', upper: null, lower: 60 })).toBe('below 60 %');
     // A PID output is a fraction of the time it runs, so it has no sign - and
     // it keeps its decimals rather than being rounded to the 0 or 1 the
     // inbox used to print it as.
-    expect(boundLabel({ kind: 'output_level', output: 'heater', upper: 0.5, lower: null })).toBe('› 0.5');
-    expect(boundLabel({ kind: 'output_level', output: 'dehumidifier', upper: null, lower: 1 })).toBe('‹ 1');
+    expect(boundLabel(t, { kind: 'output_level', output: 'heater', upper: 0.5, lower: null })).toBe('above 0.5');
+    expect(boundLabel(t, { kind: 'output_level', output: 'dehumidifier', upper: null, lower: 1 })).toBe('below 1');
     // The CO2 output is a count of valve openings, not a level at all.
-    expect(boundLabel({ kind: 'output_level', output: 'co2', upper: 30, lower: null })).toBe('› 30');
-    expect(boundLabel({ kind: 'output_running', output: 'co2' })).toBe('');
+    expect(boundLabel(t, { kind: 'output_level', output: 'co2', upper: 30, lower: null })).toBe('above 30');
+    expect(boundLabel(t, { kind: 'output_running', output: 'co2' })).toBe('');
   });
 
   it('says what a level means where its own figure does not, and nothing where the percent sign says it', () => {

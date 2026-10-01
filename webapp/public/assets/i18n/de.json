@@ -3043,7 +3043,7 @@
       "heater": "Heizung",
       "dehumidifier": "Entfeuchter",
       "compressor": "Kompressor",
-      "co2": "CO₂",
+      "co2": "CO₂-Ventil",
       "light": "Licht",
       "fan": "Lüfter",
       "relais": "Relais",
@@ -3488,15 +3488,16 @@
       "light": "Licht",
       "fan": "Lüfter",
       "relais": "Relais",
-      "fanInternal": "Innenlüfter",
-      "fanExternal": "Außenlüfter",
-      "fanBackwall": "Rückwandlüfter"
+      "fanInternal": "Lüfter innen",
+      "fanExternal": "Abluft",
+      "fanBackwall": "Rückwandlüfter",
+      "compressor": "Kompressor"
     },
     "sheet": {
       "newTitle": "Neuer Alarm",
       "title": "Alarm bearbeiten",
       "name": "Name",
-      "nameHint": "Zu heiß",
+      "nameHint": "Zu warm",
       "presetNote": "Diese Regel hat das Stadium geschrieben. Das nächste Stadium schreibt ihre Schwellen neu, was du hier änderst, gilt also bis dahin.",
       "watch": "Beobachten",
       "how": "Was daran",
@@ -3574,7 +3575,12 @@
       }
     },
     "channelOff": "{{channel}} (aus)",
-    "addDevice": "Gerät hinzufügen"
+    "addDevice": "Gerät hinzufügen",
+    "bound": {
+      "above": "über {{value}}",
+      "below": "unter {{value}}",
+      "longer": "länger als {{duration}}"
+    }
   },
   "tasks": {
     "title": "Aufgaben",
@@ -3871,13 +3877,14 @@
     "output": {
       "heater": "Heizung",
       "dehumidifier": "Entfeuchter",
-      "co2": "CO₂",
+      "co2": "CO₂-Ventil",
       "light": "Licht",
       "fan": "Lüfter",
       "relais": "Relais",
       "fanInternal": "Lüfter innen",
       "fanExternal": "Abluft",
-      "fanBackwall": "Rückwandlüfter"
+      "fanBackwall": "Rückwandlüfter",
+      "compressor": "Kompressor"
     },
     "metric": {
       "leafTemperature": "Blatt",

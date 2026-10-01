@@ -115,6 +115,16 @@ const OUTPUTS_OF: Record<string, OutputMetric[]> = {
 export const outputsOf = (device: Device): OutputMetric[] => OUTPUTS_OF[device.type] ?? [];
 
 /**
+ * What an output is called, on this kind of hardware: one name per machine
+ * wherever it is met. A fridge module's dehumidifier output is its compressor,
+ * which cools and dries at once - "Kompressor" on the cockpit, in the Timeline
+ * and in the maintenance sheet - so a rule about it says so too, and "Kompressor
+ * läuft dauerhaft" is found where it is looked for.
+ */
+export const outputName = (t: Translate, output: OutputMetric, deviceType: string | null): string =>
+  t(`alarms.output.${deviceType === 'fridge' && output === 'dehumidifier' ? 'compressor' : output}`, { defaultValue: output });
+
+/**
  * The readings a device reports: what its kind of hardware measures, narrowed
  * by what this one says it has. Temperature, humidity and VPD come with every
  * type that measures anything; the rest are sensors that are fitted or not, and
@@ -127,7 +137,21 @@ const SENSOR_OF: Partial<Record<Metric, Sensor>> = { co2: 'co2', leafTemperature
 
 const HARDWARE_KEY: Record<Sensor, string> = { co2: 'co2', leaf: 'leaf_temp', light: 'ppfd' };
 
-const isFitted = (device: Device, sensor: Sensor): boolean => device.state.hardware[HARDWARE_KEY[sensor]] === 'on';
+/**
+ * Whether the device has the sensor. On a controller or a fridge CO2 is fitted
+ * unless the device says it is not - the rule the cockpit's CO2 tile and the
+ * targets' CO2 slider go by, so a fridge whose report says nothing about the
+ * sensor but whose readings are on Start is offered "CO₂" here as well. The
+ * leaf and light sensors, and a plug's CO2, are extras that are only there
+ * where the device says so.
+ */
+const isFitted = (device: Device, sensor: Sensor): boolean =>
+  sensor === 'co2' && CLIMATE_HOLDERS.includes(device.type)
+    ? device.state.hardware.co2 !== 'off'
+    : device.state.hardware[HARDWARE_KEY[sensor]] === 'on';
+
+/** The hardware whose CO2 the cockpit and the targets assume until it says otherwise; a plug's sensor is an extra. */
+const CLIMATE_HOLDERS: readonly string[] = ['controller', 'fridge'];
 
 /** The sensor a rule needs and the device does not have, or null where it reports what the rule watches. */
 export const missingSensor = (watch: AlarmWatch, device: Device): Sensor | null => {
@@ -242,11 +266,18 @@ export const boundsOf = (watch: AlarmWatch): { upper: string | null; lower: stri
   return { upper: one(watch.upper), lower: one(watch.lower) };
 };
 
-/** "› 30 °C", "‹ 16 °C", both with a space between; an output watched for running has no bound and answers nothing. */
-export const boundLabel = (watch: AlarmWatch): string => {
+/**
+ * "über 30 °C", "unter 16 °C", both with a dot between; an output watched for
+ * running has no bound and answers nothing. In words rather than as "› 30" -
+ * the same angle is the arrow every link on the page ends in, and the
+ * templates and the cockpit already said "über".
+ */
+export const boundLabel = (t: Translate, watch: AlarmWatch): string => {
   const { upper, lower } = boundsOf(watch);
 
-  return [upper !== null ? `› ${upper}` : null, lower !== null ? `‹ ${lower}` : null].filter(Boolean).join(' ');
+  return [upper !== null ? t('alarms.bound.above', { value: upper }) : null, lower !== null ? t('alarms.bound.below', { value: lower }) : null]
+    .filter(Boolean)
+    .join(' · ');
 };
 
 /** The order the channels are named in, whatever order the grid holds them in. */
@@ -331,8 +362,8 @@ export type Translate = (key: string, options?: Record<string, unknown>) => stri
  * wrote - so without this the card states no condition and the duration beside
  * it hangs off nothing. The inbox names the same watch the same way.
  */
-export const watchLabel = (t: Translate, watch: AlarmWatch): string | null =>
-  watch.kind === 'output_running' ? t('alarms.watchRunning', { output: t(`alarms.output.${watch.output}`, { defaultValue: watch.output }) }) : null;
+export const watchLabel = (t: Translate, watch: AlarmWatch, deviceType: string | null = null): string | null =>
+  watch.kind === 'output_running' ? t('alarms.watchRunning', { output: outputName(t, watch.output, deviceType) }) : null;
 
 /** "push + e-mail", with a channel the account has not set up marked as the dead end it is. */
 export const channelsLabel = (t: Translate, channels: RoutedChannel[]): string =>
