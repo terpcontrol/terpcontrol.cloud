@@ -1,7 +1,11 @@
 services:
   mongodb:
-    image: ${DOCKER_MONGODB_IMAGE:-mongo:8.2}
+    # Pinned to a release: an image newer than the data's featureCompatibilityVersion does not start on it.
+    # Raising this means teaching upgrade-mongodb.sh the way there; up.sh stops and points at it.
+    image: ${DOCKER_MONGODB_IMAGE:-mongo:9.0}
     restart: always
+    # The default 10s ends in a SIGKILL when a busy mongod takes longer to checkpoint on its way down.
+    stop_grace_period: 60s
     networks:
       - main
     volumes:
