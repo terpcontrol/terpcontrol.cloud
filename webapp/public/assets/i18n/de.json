@@ -3009,6 +3009,7 @@
       "phase": "Phase",
       "visit": "Wartung · {{minutes}} Min",
       "photoCaption": "Cam-Bild oder Kamera",
+      "photoCaptionPhone": "mit dem Handy",
       "visitCaption": "Regelung und Alarme pausieren"
     },
     "visit": {

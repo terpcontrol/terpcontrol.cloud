@@ -10,6 +10,7 @@ import { useOwnSchemes, useSchemes } from '@/api/schemes';
 import { session, useSession } from '@/api/session';
 import { useFollows, useShareLinks } from '@/api/sharing';
 import { initials } from '@/app/shell/tabs';
+import { ownsCamera } from '@/screens/devices/cameras';
 import { useTheme } from '@/theme/theme-context';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -119,7 +120,12 @@ function AccountDoors({ handle }: { handle: string }) {
         />
         <Door to="/me/following" title={t('me.following.title')} line={line([follows], () => followingLine(t, follows.data!.items.length))} />
         <Door to="/me/share-links" title={t('me.shareLinks.title')} line={line([links], () => shareLinksLine(t, links.data!.items, now))} />
-        <Door to="/me/premium" title={t('me.premium.title')} line={line([cameras, me], () => premium!.text)} aside={premium?.aside ?? null} />
+        {/* Premium is what a camera can do beyond its free tier, so it is a
+            door only for an account that has one; without, the page behind it
+            is a table about hardware this grower does not own. */}
+        {cameras.data && ownsCamera(cameras.data.items) ? (
+          <Door to="/me/premium" title={t('me.premium.title')} line={line([cameras, me], () => premium!.text)} aside={premium?.aside ?? null} />
+        ) : null}
         <Door to="/me/notifications" title={t('notifications.title')} line={line([me], () => notificationsLine(t, me.data!, now))} />
         <Door to="/me/privacy" title={t('me.privacy.title')} line={line([me], () => privacyLine(t, me.data!))} />
         <Door

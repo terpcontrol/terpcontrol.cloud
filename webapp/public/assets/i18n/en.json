@@ -3005,6 +3005,7 @@
       "phase": "Phase",
       "visit": "Maintenance · {{minutes}} min",
       "photoCaption": "cam still or camera",
+      "photoCaptionPhone": "with your phone",
       "visitCaption": "pause control and alarms"
     },
     "visit": {

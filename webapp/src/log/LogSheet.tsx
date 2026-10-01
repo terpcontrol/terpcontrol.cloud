@@ -172,7 +172,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
       case 'feed':
         return feedCaption(t, grow, now) || lastAgo(t, lastFeed, now);
       case 'photo':
-        return t('log.tile.photoCaption');
+        return t(card?.latestStill ? 'log.tile.photoCaption' : 'log.tile.photoCaptionPhone');
       case 'measurement':
         return measureCaption(grow);
       case 'phase': {

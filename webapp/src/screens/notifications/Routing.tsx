@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { Me, NotificationChannel } from '@fg2/shared-types/v1';
+import { useCameras } from '@/api/cameras';
+import { ownsCamera } from '@/screens/devices/cameras';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { usePushSubscription } from './push';
@@ -17,12 +19,19 @@ import styles from './Notifications.module.css';
  * though - it is what the channel will carry as soon as it has an address -
  * and the line under the grid says so, so that a column of grey switches is
  * not read as work the person has to do again.
+ *
+ * The weekly film is made from a camera's stills, so its row is there only for
+ * an account that has a camera; without one it was a switch for something that
+ * could never arrive.
  */
 export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
   const { t } = useTranslation();
   const { write, error } = useWriteNotifications(me);
   const subscription = usePushSubscription();
   const { channels, routing } = me.notifications;
+  const cameras = useCameras();
+  const filmed = cameras.data !== undefined && ownsCamera(cameras.data.items);
+  const categories = CATEGORIES.filter(category => category !== 'weekly_timelapse' || filmed);
 
   const configured: Record<NotificationChannel, boolean> = {
     // Push goes somewhere as soon as any browser of the account is subscribed, not only this one.
@@ -32,7 +41,7 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
     webhook: channels.webhook !== null,
   };
 
-  const keptSomewhere = CHANNELS.some(channel => !configured[channel] && CATEGORIES.some(category => routes(routing, category, channel)));
+  const keptSomewhere = CHANNELS.some(channel => !configured[channel] && categories.some(category => routes(routing, category, channel)));
 
   return (
     <div className={styles.gridBlock}>
@@ -48,7 +57,7 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
           </tr>
         </thead>
         <tbody>
-          {CATEGORIES.map(category => (
+          {categories.map(category => (
             <tr key={category}>
               <th scope="row" className={styles.gridRow}>
                 {t(`notifications.category.${category}`)}

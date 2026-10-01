@@ -69,7 +69,15 @@ const me = (notifications: Partial<NotificationSettings> = {}, over: Partial<Me>
 });
 
 /** The account the server answers, and what it says to a change. `hold` keeps a write on the wire until a test lets it land. */
-const server = { me: me(), refuse: null as Problem | null, patched: [] as MeUpdate[], posted: [] as string[], hold: null as Promise<void> | null };
+const server = {
+  me: me(),
+  refuse: null as Problem | null,
+  patched: [] as MeUpdate[],
+  posted: [] as string[],
+  hold: null as Promise<void> | null,
+  /** The account's cameras, which decide whether the weekly film has a row at all. */
+  cameras: [] as { id: string; removedAt: string | null; isDemo: boolean }[],
+};
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -98,6 +106,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     });
     return json(server.me);
   }
+  if (url.endsWith('/v1/cameras') && method === 'GET') return json({ items: server.cameras, nextCursor: null });
   if (url.endsWith('/v1/me/telegram-link') && method === 'POST') {
     server.posted.push(url);
     return json({ url: 'https://t.me/terpbot?start=abc', validUntil: DateTime.now().plus({ minutes: 15 }).toISO() }, 201);
@@ -139,11 +148,29 @@ beforeEach(() => {
   server.patched = [];
   server.posted = [];
   server.hold = null;
+  server.cameras = [];
 });
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('an account with nothing configured', () => {
+  /**
+   * The weekly film is made from a camera's stills. An account without a
+   * camera was offered a row of switches for something that could never be
+   * sent, as the last line of the grid.
+   */
+  it('routes the weekly film only for an account that has a camera', async () => {
+    const first = draw();
+    await screen.findByRole('switch', { name: 'Push' });
+    expect(await screen.findByRole('rowheader', { name: 'Critical alarms' })).toBeInTheDocument();
+    await expect(screen.findByRole('rowheader', { name: 'Weekly recap video' }, { timeout: 400 })).rejects.toThrow();
+    first.unmount();
+
+    server.cameras = [{ id: 'camera-1', removedAt: null, isDemo: false }];
+    await drawLoaded();
+    expect(await screen.findByRole('rowheader', { name: 'Weekly recap video' })).toBeInTheDocument();
+  });
+
   it('says every channel is off and offers no routing to any of them', async () => {
     await drawLoaded();
 

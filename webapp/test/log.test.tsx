@@ -422,9 +422,10 @@ describe('the log sheet', () => {
   /**
    * Maintenance reaches the hardware, so a tent whose device has gone quiet is
    * not offered it: the command would be heard by nobody, and the tile read as
-   * if the tent were being looked after.
+   * if the tent were being looked after. A place without a camera is not told
+   * about a cam still either.
    */
-  it('offers no maintenance where the place is offline', async () => {
+  it('offers no maintenance where the place is offline, and no cam still where there is no camera', async () => {
     const quiet = { ...home.spaces[0], values: [{ ...home.spaces[0].values[0], measuredAt: daysAgo(1), state: 'offline' as const }] };
     vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/home' ? { ...home, spaces: [quiet] } : answers(path)));
     await openSheet();
@@ -432,6 +433,35 @@ describe('the log sheet', () => {
 
     expect(within(sheet).getByRole('button', { name: /^Water/ })).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: /^Maintenance/ })).not.toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: /^Photo/ })).toHaveTextContent('with your phone');
+    expect(within(sheet).queryByText(/cam still/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * The photo entry offered a cam still beside the phone's camera everywhere,
+   * greyed out where there is no camera - a placeholder for hardware this grower
+   * does not have. Without a camera the phone is the only way, and is all it says.
+   */
+  it('offers the cam still only where a camera has delivered one', async () => {
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Photo/ }));
+
+    const entry = await screen.findByRole('dialog', { name: 'Photo entry' });
+    expect(within(entry).queryByRole('button', { name: 'Cam still' })).not.toBeInTheDocument();
+    expect(within(entry).getByRole('button', { name: 'Take or choose a picture' })).toBeInTheDocument();
+  });
+
+  it('opens on the cam still where there is one, with the phone beside it', async () => {
+    const filmed = { ...home.spaces[0], latestStill: { mediaId: 'media-1', cameraId: 'camera-1', capturedAt: daysAgo(0) } };
+    vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/home' ? { ...home, spaces: [filmed] } : answers(path)));
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Photo/ }));
+
+    const entry = await screen.findByRole('dialog', { name: 'Photo entry' });
+    expect(within(entry).getByRole('button', { name: 'Cam still' })).toHaveAttribute('data-chosen', 'true');
+    expect(within(entry).getByRole('button', { name: 'Take photo' })).toBeInTheDocument();
   });
 
   /**

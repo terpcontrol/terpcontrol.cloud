@@ -88,14 +88,19 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
     <Sheet
       title={t('log.photoTitle')}
       aside={
-        <span className={ui.segments}>
-          <button type="button" className={ui.segment} data-chosen={fromCam} disabled={!still} onClick={() => setChosen(true)}>
-            {t('log.camStill')}
-          </button>
-          <button type="button" className={ui.segment} data-chosen={!fromCam} onClick={() => setChosen(false)}>
-            {t('log.takePhoto')}
-          </button>
-        </span>
+        // The choice is only a choice where there is a camera: without one,
+        // a greyed-out cam side was a placeholder for hardware this grower
+        // does not have, and the phone is the only way a picture comes.
+        still ? (
+          <span className={ui.segments}>
+            <button type="button" className={ui.segment} data-chosen={fromCam} onClick={() => setChosen(true)}>
+              {t('log.camStill')}
+            </button>
+            <button type="button" className={ui.segment} data-chosen={!fromCam} onClick={() => setChosen(false)}>
+              {t('log.takePhoto')}
+            </button>
+          </span>
+        ) : undefined
       }
       onClose={onClose}
     >

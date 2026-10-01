@@ -21,3 +21,10 @@ export const cameraFreshness = (camera: Camera, now: DateTime): ValueState => {
 
   return missed <= OFFLINE_AFTER_STILLS ? 'stale' : 'offline';
 };
+
+/**
+ * Whether the account has a camera of its own: one that is not a tombstone and
+ * not the demo's. What exists only for a camera - Premium, the weekly film - is
+ * offered on this and left out without it.
+ */
+export const ownsCamera = (cameras: Camera[]): boolean => cameras.some(camera => camera.removedAt === null && !camera.isDemo);

@@ -207,7 +207,7 @@ const draw = () =>
 
 /** The line under a door, once it says something other than that it is loading. */
 const lineUnder = async (title: string): Promise<string> => {
-  const door = screen.getByRole('link', { name: new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) });
+  const door = await screen.findByRole('link', { name: new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) });
   await waitFor(() => expect(door).not.toHaveTextContent('loading'));
 
   return door.textContent!.slice(title.length);
@@ -329,11 +329,12 @@ describe('what each door says', () => {
  * checked with each half failing on its own.
  */
 describe('one read that fails', () => {
+  // Premium is a door only once the cameras have said there is one, so it is
+  // not among the doors that stand from the first paint.
   const DOORS = [
     'Public grows and profile',
     'Following',
     'Share links',
-    'Premium',
     'Notifications',
     'Privacy',
     'Feeding schemes',
@@ -347,7 +348,7 @@ describe('one read that fails', () => {
     ['/v1/grows', ['Public grows and profile', 'Feeding schemes']],
     ['/v1/follows', ['Following']],
     ['/v1/share-links', ['Share links']],
-    ['/v1/cameras', ['Premium']],
+    ['/v1/cameras', []],
     ['/v1/schemes', ['Feeding schemes']],
   ])('keeps every door when %s fails, and says so under the ones that needed it', async (path, affected) => {
     server.failing = [path];
@@ -391,10 +392,35 @@ describe('what is empty', () => {
     expect(await lineUnder('Public grows and profile')).toBe('no grows yet · localhost:3000/@chrisgrows');
     expect(await lineUnder('Following')).toBe('nobody yet');
     expect(await lineUnder('Share links')).toBe('no links yet');
-    expect(await lineUnder('Premium')).toBe('no cameras');
     expect(await lineUnder('Notifications')).toBe('no channel on');
     expect(await lineUnder('Privacy')).toBe('nothing hidden in shared views · retention keep everything');
     expect(await lineUnder('Feeding schemes')).toBe('none in use · no own yet');
+  });
+
+  /**
+   * Premium is what a camera can do beyond its free tier. An account with no
+   * camera was handed a door to a table about hardware it does not own, fourth
+   * of eight, above its notifications.
+   */
+  it('has no Premium door without a camera, nor one while it cannot tell', async () => {
+    // Waited out rather than read once, so a door that would arrive with the cameras is not missed for being late.
+    const neverPremium = () => expect(screen.findByRole('link', { name: /^Premium/ }, { timeout: 400 })).rejects.toThrow();
+
+    server.cameras = [];
+    const empty = draw();
+    await neverPremium();
+    empty.unmount();
+
+    server.cameras = [camera({ removedAt: '2026-01-01T00:00:00.000Z' })];
+    const removed = draw();
+    await neverPremium();
+    removed.unmount();
+
+    server.cameras = [camera({})];
+    server.failing = ['/v1/cameras'];
+    draw();
+    await neverPremium();
+    expect(server.asked).toContain('/v1/cameras');
   });
 });
 
