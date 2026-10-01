@@ -334,9 +334,14 @@ const makeRandom = seed => {
 
 const configValue = (config, path, fallback) => path.split('.').reduce((node, key) => node?.[key], config) ?? fallback;
 
-// Light level in percent for a point in time, following the configured day
-// window with a linear sunrise/sunset ramp.
-const lightPercent = (config, secondsOfDay) => {
+// Light level in percent at an instant, following the configured day window
+// with a linear sunrise/sunset ramp.
+//
+// The window is seconds after midnight UTC, as the firmware reads it: the cloud
+// stores the owner's wall-clock times converted to UTC, so reading them on the
+// host's own clock would light a 08-20 Berlin window two hours early in summer.
+const lightPercent = (config, at) => {
+  const secondsOfDay = at.getUTCHours() * 3600 + at.getUTCMinutes() * 60 + at.getUTCSeconds();
   const dayStart = configValue(config, 'daynight.day', DEFAULT_CONFIG.daynight.day);
   const nightStart = configValue(config, 'daynight.night', DEFAULT_CONFIG.daynight.night);
   const limit = configValue(config, 'lights.limit', 100);
@@ -358,8 +363,7 @@ const lightPercent = (config, secondsOfDay) => {
 // One climate step. `state` is carried between steps so temperature, humidity
 // and CO2 drift instead of jumping, both live and while backfilling history.
 const step = (state, config, at, stepSeconds, random) => {
-  const secondsOfDay = at.getHours() * 3600 + at.getMinutes() * 60 + at.getSeconds();
-  const light = lightPercent(config, secondsOfDay);
+  const light = lightPercent(config, at);
   const isDay = light > 0.5;
 
   const targetTemperature = configValue(config, isDay ? 'day.temperature' : 'night.temperature', isDay ? 25 : 21);
@@ -422,8 +426,7 @@ const step = (state, config, at, stepSeconds, random) => {
  */
 const socketFollows = (role, sample, config, at) => {
   const running = configValue(config, 'workmode', DEFAULT_CONFIG.workmode) !== 'off';
-  const secondsOfDay = at.getHours() * 3600 + at.getMinutes() * 60 + at.getSeconds();
-  const isDay = lightPercent(config, secondsOfDay) > 0.5;
+  const isDay = lightPercent(config, at) > 0.5;
   const targetHumidity = configValue(config, isDay ? 'day.humidity' : 'night.humidity', isDay ? 60 : 55);
   const targetTemperature = configValue(config, isDay ? 'day.temperature' : 'night.temperature', isDay ? 25 : 21);
   const band = configValue(config, 'daynight.targetHumidityDiff', 5);
@@ -822,8 +825,7 @@ class SimulatedDevice {
    * reassembly is exercised rather than bypassed.
    */
   #capture() {
-    const secondsOfDay = new Date().getHours() * 3600 + new Date().getMinutes() * 60;
-    const light = lightPercent(this.config, secondsOfDay);
+    const light = lightPercent(this.config, new Date());
     const age = (Date.now() - this.memory.plantedAt) / 86400000;
     const jpeg = encodeJpeg(CAMERA_BLOCKS_X, CAMERA_BLOCKS_Y, growScene(light, clamp(0.45 + age / 40, 0.45, 1), Date.now() / 60000));
 
