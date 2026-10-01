@@ -4,6 +4,7 @@ import type { CardSetpoint, CardValue, HomeSpaceCard, Metric } from '@fg2/shared
 import { ageAttribute, valueAge } from '@/ui/age';
 import { Term } from '@/ui/Help';
 import { livenessOf } from './attention';
+import { LastValue } from './OfflineHelp';
 import { Sparkline } from './Sparkline';
 import styles from './SpaceCard.module.css';
 import { figure, UNIT } from './units';
@@ -67,12 +68,13 @@ function Figure({
   explainVpd?: boolean;
 }) {
   const { t } = useTranslation();
+  const age = valueAge(value, now);
   // The band is the server's, the same width the verdict judges by.
   const band = setpoint?.band ?? null;
   const delta = value.value !== null && setpoint?.value != null ? value.value - setpoint.value : null;
 
   return (
-    <div className={styles.value} {...ageAttribute(valueAge(value, now))}>
+    <div className={styles.value} {...ageAttribute(age)}>
       <div className={styles.figureLine}>
         <span className={`figure ${styles.figure}`}>{value.value === null ? t('home.card.noReading') : figure(value.value, value.metric)}</span>
         <span className={`mono ${styles.unit}`}>{UNIT[value.metric] ?? value.metric}</span>
@@ -81,7 +83,9 @@ function Figure({
         {setpoint && setpoint.value !== null ? (
           <>
             <span>→ {target(setpoint.value, value.metric)}</span>
-            {delta !== null && band !== null ? (
+            {age !== 'live' ? (
+              <LastValue measuredAt={value.measuredAt} now={now} />
+            ) : delta !== null && band !== null ? (
               Math.abs(delta) <= band ? (
                 <span className={styles.inBand}>{explainBand ? <Term topic="band">{t('home.card.inBand')}</Term> : t('home.card.inBand')}</span>
               ) : explainBand ? (

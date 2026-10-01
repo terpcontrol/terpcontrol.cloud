@@ -1,6 +1,6 @@
 import type { Metric, OpenAlert } from '@fg2/shared-types/v1';
 import type { DateTime } from 'luxon';
-import { ageLabel, silentSince } from '@/ui/age';
+import { offlineLabel, silentSince } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 
 /** How a card writes a figure: the unit beside it, and as many decimals as the sensor is good for. */
@@ -46,22 +46,12 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * health loop's rule can be an ordinary reading rule, and the reading it carries
  * is a number of seconds. Printed as a figure it read "337256 offline", which is
  * the least useful true thing a card could say about a tent nobody has heard
- * from - so it is said as a span, in the same words every other age on the
- * screen uses.
- *
- * Those seconds are counted from when the device was last *heard*, which is not
- * the same instant as its last sample and on a migrated device can be half a
- * day earlier. So the span is worded as the pill beside it is worded, "last
- * heard", and never as a silence of readings: calling it that put "quiet for
- * 4 d" on a card whose own figures were dated three days ago.
+ * from - so it is said the one way the app says a silence, "Offline seit
+ * 10:19", dated from when the device was last heard. An alert that carries no
+ * seconds cannot say since when and says "Offline" alone.
  */
-export const alertLabel = (t: Translate, alert: OpenAlert, now: DateTime): string => {
-  if (isSilence(alert)) {
-    // Counted on from when the silence began, not frozen at the raise, so this
-    // agrees with the Alerts card and the Devices row on every later day too.
-    const quiet = alert.value === null ? null : t('home.alert.quietFor', { age: ageLabel(silentSince(alert), now) });
-    return [t(`home.alert.${alert.kind}`), quiet].filter(Boolean).join(' · ');
-  }
+export const alertLabel = (t: Translate, alert: OpenAlert, now: DateTime, zone: string | null = null): string => {
+  if (isSilence(alert)) return offlineLabel(alert.value === null ? null : silentSince(alert), now, zone, true);
 
   const reading =
     alert.value !== null && alert.metric

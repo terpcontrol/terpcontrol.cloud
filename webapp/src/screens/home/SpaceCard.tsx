@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { HomeSpaceCard, Person, SpaceKind } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
-import { ageLabel } from '@/ui/age';
+import { ageLabel, offlineLabel } from '@/ui/age';
 import { Term } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
@@ -13,6 +13,7 @@ import { clockLabel } from '@/screens/notifications/settings';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from './attention';
 import { ClimateHalf } from './ClimateHalf';
 import { DayCounter, DeviceActions, GrowHalf, NewestEntry, NoGrow, NoSensor, PhaseLine } from './GrowHalf';
+import { OfflineHelp } from './OfflineHelp';
 import styles from './SpaceCard.module.css';
 import { alertLabel, isSilence } from './units';
 
@@ -62,10 +63,14 @@ const dismiss = (key: string) => {
  */
 export function SpaceCard({ card, people, now, compact, explain }: SpaceCardProps) {
   const { t } = useTranslation();
+  const zone = useZone();
   const [hidden, setHidden] = useState(() => dismissed().includes(keyOf(card)));
   const liveness = livenessOf(card, now);
   const alert = worstAlertOf(card);
   const growHeads = liveness === 'none' && card.grow !== null;
+  // Gone quiet, the card says so in a box with what to try, and the silence's
+  // own alert line above it would only say the same words a second time.
+  const offline = liveness === 'offline';
   const Icon = card.kind === null ? Leaf : KIND_ICON[card.kind];
   const placeName = card.spaceId === null ? t('grow.noFixedPlace') : card.name;
 
@@ -108,14 +113,16 @@ export function SpaceCard({ card, people, now, compact, explain }: SpaceCardProp
         )}
       </header>
 
-      {alert ? (
+      {alert && !(offline && isSilence(alert)) ? (
         <p className={`mono ${styles.alert}`} data-severity={alert.severity}>
-          {alertLabel(t, alert, now)}
+          {alertLabel(t, alert, now, zone)}
           {isSilence(alert) ? null : ` · ${t('home.card.ago', { age: ageLabel(alert.startedAt, now) })}`}
         </p>
       ) : null}
 
       {liveness === 'none' ? growHeads ? null : <NoSensor /> : <ClimateHalf card={card} now={now} explain={explain} />}
+
+      {offline && card.spaceId !== null ? <OfflineHelp since={measuredAtOf(card.values)} now={now} /> : null}
 
       {card.latestStill && !compact ? <Still card={card} now={now} /> : null}
 
@@ -123,9 +130,13 @@ export function SpaceCard({ card, people, now, compact, explain }: SpaceCardProp
         <GrowHalf card={card} people={people} now={now} headed={growHeads} compact={compact} />
       ) : (
         <>
-          {/* Nothing grows here, so the newest line is the place's own: what its device or an alarm wrote. */}
-          {card.entries.length > 0 ? <NewestEntry entry={card.entries[0]} people={people} now={now} /> : null}
-          {hidden ? null : <NoGrow card={card} onNotNow={notNow} />}
+          {/* Nothing grows here, so the newest line is the place's own: what its
+              device or an alarm wrote - unless it is the alarm the offline box
+              already speaks for, in words of its own. */}
+          {card.entries.length > 0 && !(offline && card.entries[0].kind === 'alarm') ? (
+            <NewestEntry entry={card.entries[0]} people={people} now={now} />
+          ) : null}
+          {hidden || offline ? null : <NoGrow card={card} onNotNow={notNow} />}
         </>
       )}
 
@@ -136,17 +147,12 @@ export function SpaceCard({ card, people, now, compact, explain }: SpaceCardProp
 
 /**
  * "● live · 20 s" - the dot is the state, the age is the newest reading on the
- * card.
- *
- * It says "no reading" and never "offline", because it is about the reading and
- * not about the hardware. A place is not one device: a shared or public reader
- * is told the tent and never what stands in it, and a tent may hold three
- * devices with three different silences, so the only thing this pill can
- * honestly age is the newest figure the place produced. "Offline · 4 d" is the
- * device's own word, said on the device row, by the offline alert and by the
- * note on a socket nobody is listening for - and it is counted from when the
- * device was last heard, which is a different instant from its last sample.
- * Saying both with the same word put two ages for one silence on one screen.
+ * card - and once nothing has come for longer than a place is called live or
+ * stale, "● offline seit 10:19". That is the one term the banner, the card and
+ * the alert use for a silence as well, and it is dated rather than aged, from
+ * the newest figure the place produced: a place is not one device, and a shared
+ * or public reader is told the tent and never what stands in it, so the newest
+ * figure is the one instant this pill can honestly date.
  *
  * `explain` makes the word the term that says what live and stale mean, on
  * the one pill of a page that does.
@@ -163,14 +169,16 @@ export function LivenessPill({
   explain?: boolean;
 }) {
   const { t } = useTranslation();
+  const zone = useZone();
   if (liveness === 'none') return null;
-  const word = t(`home.reading.${liveness}`);
+  const offline = liveness === 'offline';
+  const word = offline ? offlineLabel(measuredAt, now, zone) : t(`home.reading.${liveness}`);
 
   return (
     <span className={ui.live} data-liveness={liveness}>
       <span className={ui.liveDot} aria-hidden />
       {explain ? <Term topic="liveness">{word}</Term> : word}
-      {measuredAt ? ` · ${ageLabel(measuredAt, now)}` : ''}
+      {measuredAt && !offline ? ` · ${ageLabel(measuredAt, now)}` : ''}
     </span>
   );
 }

@@ -22,6 +22,7 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 export function AttentionStrip({ cards, now }: { cards: HomeSpaceCard[]; now: DateTime }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const open = cards.flatMap(card => card.openAlerts.map(alert => ({ card, alert })));
   if (open.length === 0) return null;
 
@@ -31,7 +32,7 @@ export function AttentionStrip({ cards, now }: { cards: HomeSpaceCard[]; now: Da
         <li key={alert.alertId}>
           <Link to="/alerts" className={`${styles.chip} ${styles.alert}`} data-severity={alert.severity}>
             <span className={styles.chipText}>
-              <strong>{alertLabel(t, alert, now)}</strong> · {card.name}
+              <strong>{alertLabel(t, alert, now, zone)}</strong> · {card.name}
             </span>
             {isSilence(alert) ? null : (
               <span className={`mono ${styles.chipMeta}`}>{t('home.card.ago', { age: ageLabel(alert.startedAt, now) })}</span>

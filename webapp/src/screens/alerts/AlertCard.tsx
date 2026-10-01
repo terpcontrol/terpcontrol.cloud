@@ -8,11 +8,12 @@ import { useDeviceCommand } from '@/api/commands';
 import { clockLabel } from '@/screens/notifications/settings';
 import { maintenanceQuiet, parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES } from '@/ui/maintenance';
 import { levelFigure, repeatsEvery, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
-import { ageAttribute, ageLabel, isAhead, silentSince, spanLabel } from '@/ui/age';
+import { ageAttribute, isAhead, offlineLabel, silentSince, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
+import { OfflineSteps } from '../home/OfflineHelp';
 import { figure, targetFigure } from '../home/units';
 import { beganAt, crossedBound, deliveryOf, lastedLabel } from './inbox';
 import type { AlertNames } from './names';
@@ -91,6 +92,8 @@ export function AlertCard({ alert, rule, names, me, mayManage, now, explainSilen
           ) : null}
         </p>
         <p className={`mono ${styles.meta}`}>{metaOf(t, alert, rule, device, me, now, severity)}</p>
+        {/* A device gone quiet cannot be told anything from here, so what is offered is what to try in front of it. */}
+        {open && alert.kind === 'offline' ? <OfflineSteps devicesLink={null} /> : null}
       </div>
 
       {open && mayManage ? (
@@ -188,7 +191,7 @@ const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Devi
     case 'offline': {
       if (alert.resolvedAt) return { label: t('alerts.what.wasOffline'), figure: null };
       const quietSince = alert.value !== null ? silentSince(alert) : device?.state.lastSeenAt || alert.startedAt;
-      return { label: t('alerts.what.offline', { age: ageLabel(quietSince, now) }), figure: null };
+      return { label: offlineLabel(quietSince, now, zone), figure: null };
     }
     case 'camera_stale': {
       // The alert carries how long the camera had been dark when it was

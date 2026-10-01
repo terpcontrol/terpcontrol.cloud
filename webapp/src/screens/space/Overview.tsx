@@ -27,7 +27,8 @@ import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
 import { durationLabel } from '../devices/sockets';
 import { daysUntil } from '../tasks/tasks';
-import { livenessOf } from '../home/attention';
+import { livenessOf, measuredAtOf } from '../home/attention';
+import { LastValue, OfflineHelp } from '../home/OfflineHelp';
 import { figure, targetFigure, UNIT } from '../home/units';
 import { MoveHereSheet } from './MoveHereSheet';
 import { PresetSheet } from './PresetSheet';
@@ -77,6 +78,13 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
           the day's climate - and beside it on a wide screen, what was
           written: two columns of one page rather than one long one. */}
       <div className={styles.now}>
+        {liveness === 'offline' ? (
+          <OfflineHelp
+            since={measuredAtOf(overview.values)}
+            now={now}
+            devicesLink={overview.deviceIds === null ? null : `/spaces/${overview.spaceId}/devices`}
+          />
+        ) : null}
         {hasDevice ? <Values overview={overview} now={now} /> : <p className={`${ui.cardDashed} ${ui.note}`}>{t('home.invite.noSensor')}</p>}
         {/* What the tent is aiming at and the one way to change it, on one line:
           the preset is the answer to the figures beside it. */}
@@ -269,12 +277,13 @@ function Values({ overview, now }: { overview: SpaceOverview; now: DateTime }) {
 
 function Tile({ value, setpoint, now, explainBand }: { value: CardValue; setpoint: CardSetpoint | null; now: DateTime; explainBand: boolean }) {
   const { t } = useTranslation();
+  const age = valueAge(value, now);
   // The band is the server's, the same width the verdict below judges by.
   const band = setpoint?.band ?? null;
   const delta = value.value !== null && setpoint?.value != null ? value.value - setpoint.value : null;
 
   return (
-    <div className={`${ui.card} ${styles.tile}`} {...ageAttribute(valueAge(value, now))}>
+    <div className={`${ui.card} ${styles.tile}`} {...ageAttribute(age)}>
       <div className={styles.tileFigure}>
         <span className="figure">{value.value === null ? t('home.card.noReading') : figure(value.value, value.metric)}</span>
         <span className={`mono ${styles.tileUnit}`}>{UNIT[value.metric] ?? value.metric}</span>
@@ -283,7 +292,9 @@ function Tile({ value, setpoint, now, explainBand }: { value: CardValue; setpoin
         {setpoint && setpoint.value !== null ? (
           <>
             <span>→ {targetFigure(setpoint.value, value.metric)}</span>
-            {delta !== null && band !== null ? (
+            {age !== 'live' ? (
+              <LastValue measuredAt={value.measuredAt} now={now} />
+            ) : delta !== null && band !== null ? (
               Math.abs(delta) <= band ? (
                 <span className={styles.inBand}>{explainBand ? <Term topic="band">{t('home.card.inBand')}</Term> : t('home.card.inBand')}</span>
               ) : (

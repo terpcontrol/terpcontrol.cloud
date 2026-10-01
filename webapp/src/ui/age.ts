@@ -3,6 +3,7 @@ import { DateTime, Duration } from 'luxon';
 import type { MetricValue, ValueState } from '@fg2/shared-types/v1';
 import { VALUE_AGE } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { serverNow } from '@/api/clock';
+import { CLOCK, DATED_CLOCK, nowThere, zoned } from './zone';
 
 /**
  * Every value on a screen carries its age: this puts that age into words, says
@@ -193,6 +194,28 @@ export const deviceLiveness = (lastSeenAt: string | null, now: DateTime): ValueS
   const seconds = (now.toMillis() - DateTime.fromISO(lastSeenAt).toMillis()) / 1000;
   if (seconds <= VALUE_AGE.liveSeconds) return 'live';
   return seconds <= VALUE_AGE.staleSeconds ? 'stale' : 'offline';
+};
+
+/**
+ * The hour something was last heard, where the account is: "10:19" today, and
+ * with its day before that, because a bare hour from yesterday reads as one
+ * still to come.
+ */
+export const sinceLabel = (instant: string, now: DateTime, zone: string | null): string => {
+  const at = zoned(instant, zone);
+  return at.hasSame(nowThere(now, zone), 'day') ? at.toFormat(CLOCK) : at.toFormat(DATED_CLOCK);
+};
+
+/**
+ * "offline seit 10:19" - the one way a place or a device gone quiet is said,
+ * on the pill, the banner, the card and the alert alike. It is dated rather
+ * than aged, so the words do not change while somebody reads them and agree
+ * with the hour the last value carries. `start` is the same words opening a
+ * sentence.
+ */
+export const offlineLabel = (since: string | null, now: DateTime, zone: string | null, start = false): string => {
+  const words = since ? i18next.t('offline.since', { time: sinceLabel(since, now, zone) }) : i18next.t('offline.never');
+  return start ? words.charAt(0).toLocaleUpperCase() + words.slice(1) : words;
 };
 
 /** How much of a hold is left, which is a countdown and is rounded as one. */

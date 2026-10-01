@@ -115,7 +115,7 @@ const draw = () =>
 
 /** The one card, once the reads behind it have landed: the whole of what a reader is told about the quiet tent. */
 const inbox = async (): Promise<string> => {
-  const card = await screen.findByText((_, node) => node?.tagName === 'LI' && /last heard/.test(node.textContent ?? ''));
+  const card = await screen.findByText((_, node) => node?.tagName === 'LI' && /offline since/.test(node.textContent ?? ''));
   return card.textContent!.replace(/\u00a0/g, ' ');
 };
 
@@ -204,7 +204,7 @@ describe('the inbox on a browser whose clock is out', () => {
   it('draws the same ages as one whose clock is right', async () => {
     const onTime = draw();
     const right = await inbox();
-    expect(right).toContain('last heard 3 d ago');
+    expect(right).toContain(`offline since ${DateTime.fromISO(device.state.lastSeenAt).toFormat('d LLL HH:mm')}`);
     expect(right).toContain('for 27 min');
     onTime.unmount();
 

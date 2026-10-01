@@ -573,9 +573,14 @@ describe('the inbox', () => {
     server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 25 })) } })];
     draw();
 
-    // Heard, not sampled: the two are different beats and the app draws both,
-    // so the word has to name the one this figure is counted from.
-    expect(await screen.findByText('Flower room B · offline · last heard 25 min ago')).toBeInTheDocument();
+    // Heard, not sampled: the silence is dated from the last time the device
+    // said anything, in the one wording the app has for it, and the card says
+    // what to try, because nothing can be sent to a device nobody hears.
+    const heard = NOW.minus({ minutes: 25 }).setZone(ACCOUNT_ZONE);
+    const time = heard.hasSame(NOW.setZone(ACCOUNT_ZONE), 'day') ? heard.toFormat('HH:mm') : heard.toFormat('d LLL HH:mm');
+    expect(await screen.findByText(`Flower room B · offline since ${time}`)).toBeInTheDocument();
+    expect(screen.getByText(/^Power: is the adapter plugged in/)).toBeInTheDocument();
+    expect(screen.getByText(/^Unplug the device, wait 10 seconds/)).toBeInTheDocument();
   });
 
   /**
@@ -1039,13 +1044,17 @@ describe('the arithmetic behind the cards', () => {
     // `offline` is a metric so the health loop's rule can be an ordinary
     // reading rule, and the reading is a number of seconds. Drawn as a figure
     // it said "337256 offline" on a real tent nobody had heard from in days.
-    // Counted from when the device was last heard, which is not the instant of
-    // its last sample and is worded so rather than as a silence of readings.
-    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 337_255.9 }), NOW)).toBe('Offline · last heard 3 d ago');
-    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 900 }), NOW)).toBe('Offline · last heard 15 min ago');
-    // Counted on from the start of the silence rather than frozen at the raise.
+    // It is dated from when the device was last heard - the hour today, the
+    // day and the hour before that - in the words every silence is said in.
+    const heard = (seconds: number) => {
+      const at = NOW.minus({ seconds });
+      return at.hasSame(NOW, 'day') ? at.toFormat('HH:mm') : at.toFormat('d LLL HH:mm');
+    };
+    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 337_255.9 }), NOW)).toBe(`Offline since ${heard(337_255.9)}`);
+    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 900 }), NOW)).toBe(`Offline since ${heard(900)}`);
+    // Dated from the start of the silence rather than from the raise, so the words stand still while it goes on.
     expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 337_255.9 }), NOW.plus({ days: 1 }))).toBe(
-      'Offline · last heard 4 d ago',
+      `Offline since ${heard(337_255.9)}`,
     );
   });
 

@@ -51,6 +51,12 @@ beforeEach(() => {
 const NOW = DateTime.fromISO('2026-06-10T12:00:00.000Z');
 const at = (secondsAgo: number) => NOW.minus({ seconds: secondsAgo }).toISO()!;
 
+/** How a silence is dated: the hour if it was today, the day and the hour before that, in the zone of an account that names none. */
+const since = (instant: string, now = NOW) => {
+  const heard = DateTime.fromISO(instant);
+  return heard.hasSame(now, 'day') ? heard.toFormat('HH:mm') : heard.toFormat('d LLL HH:mm');
+};
+
 const card = (over: Partial<HomeSpaceCard>): HomeSpaceCard => ({
   spaceId: 'space-1',
   name: 'Tent 1',
@@ -148,14 +154,18 @@ describe('the climate half', () => {
     expect(humidity).toHaveTextContent('+7 high');
   });
 
-  it('dims an old value by its age and never hides it', () => {
+  it('dims an old value by its age, never hides it, and calls it the last value rather than judging it', () => {
     const stale = card({
       values: [{ metric: 'temperature', value: 24.2, measuredAt: at(3 * 3600), state: 'offline' }],
     });
     draw(<SpaceCard card={stale} people={people} now={NOW} compact={false} />);
 
-    expect(screen.getByText('24.2').closest('[data-age]')).toHaveAttribute('data-age', 'offline');
-    expect(screen.getByText(/no reading · 3 h/)).toBeInTheDocument();
+    const value = screen.getByText('24.2').closest('[data-age]')!;
+    expect(value).toHaveAttribute('data-age', 'offline');
+    // 24.2 is inside the band around 25, and three hours ago it was; nobody knows what it is now.
+    expect(value).toHaveTextContent(`→ 25last value${since(at(3 * 3600))}`);
+    expect(value).not.toHaveTextContent('in band');
+    expect(screen.getByText(`offline since ${since(at(3 * 3600))}`)).toBeInTheDocument();
   });
 
   // The card the home failed to refresh is the card it already had: every
@@ -172,20 +182,44 @@ describe('the climate half', () => {
     draw(<SpaceCard card={answered} people={people} now={NOW.plus({ minutes: 12 })} compact={false} />);
     const frozen = screen.getAllByText('23.8').at(-1)!.closest('[data-age]')!;
     expect(frozen).toHaveAttribute('data-age', 'offline');
-    expect(screen.getByText(/^no reading · 12 min$/)).toBeInTheDocument();
+    expect(screen.getByText(`offline since ${since(at(20))}`)).toBeInTheDocument();
     expect(screen.queryByText(/^live · 12 min$/)).not.toBeInTheDocument();
   });
 
-  it('ages the newest reading and leaves the word "offline" to the device itself', () => {
-    // The two are different instants - a device is heard on every status, and
-    // its newest stored sample is something else again - so the same word for
-    // both put two ages for one silence on one screen. The pill is about the
-    // place's readings, which is all a shared or public reader is told about.
-    const quiet = card({ values: [{ metric: 'temperature', value: 24.2, measuredAt: at(4 * 86_400), state: 'offline' }] });
+  /**
+   * A silence is said one way wherever it is met - the pill, the banner, the
+   * card and the alert - and dated rather than aged: "no reading · 4 d" on the
+   * pill, "Offline · last heard 4 d ago" on the banner and "Alarm triggered" on
+   * the card were three words for one tent nobody could hear. And the card says
+   * what to try, in the order somebody in front of the device would try it.
+   */
+  it('says a place gone quiet is offline since its newest reading, once, and what to try', () => {
+    const quiet = card({
+      grow: null,
+      entries: [],
+      values: [{ metric: 'temperature', value: 24.2, measuredAt: at(4 * 86_400), state: 'offline' }],
+      openAlerts: [
+        { alertId: 'alert-off', kind: 'offline', severity: 'critical', startedAt: at(3 * 86_400), value: 86_400, metric: null, name: null },
+      ],
+    });
     draw(<SpaceCard card={quiet} people={people} now={NOW} compact={false} />);
 
-    expect(screen.getByText(/no reading · 4 d/)).toBeInTheDocument();
-    expect(screen.queryByText(/offline · 4 d/)).not.toBeInTheDocument();
+    expect(screen.getByText(`offline since ${since(at(4 * 86_400))}`)).toBeInTheDocument();
+    const help = screen.getByRole('status');
+    expect(help).toHaveTextContent(`Offline since ${since(at(4 * 86_400))}`);
+    expect(
+      within(help)
+        .getAllByRole('listitem')
+        .map(step => step.textContent),
+    ).toEqual([
+      'Power: is the adapter plugged in, is the socket live?',
+      'Wi-Fi and router: is the router on, does the signal reach the device?',
+      'Unplug the device, wait 10 seconds, plug it back in.',
+    ]);
+    // The box says it, so the alert's own line under the name does not say it again.
+    expect(screen.queryByText(/^Offline since/, { selector: 'p.mono' })).not.toBeInTheDocument();
+    // Nothing to invite a grow into while nobody can hear the place.
+    expect(screen.queryByText(/Nothing growing here yet/)).not.toBeInTheDocument();
   });
 
   it('draws the day of temperature the card came with, and asks for nothing more', () => {

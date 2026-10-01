@@ -1486,7 +1486,7 @@
     "reading": {
       "live": "live",
       "stale": "veraltet",
-      "offline": "keine Messung"
+      "offline": "offline"
     },
     "card": {
       "sparkline": "Temperatur in {{name}} über die letzten 24 Stunden",
@@ -1570,8 +1570,7 @@
     "alert": {
       "threshold": "Alarm",
       "offline": "Offline",
-      "camera_stale": "Cam liefert nicht",
-      "quietFor": "zuletzt gemeldet vor {{age}}"
+      "camera_stale": "Cam liefert nicht"
     },
     "actions": {
       "water": "Gießen",
@@ -3785,7 +3784,6 @@
     "what": {
       "running": "{{output}} läuft ohne Pause",
       "threshold": "Alarm",
-      "offline": "offline · zuletzt gemeldet vor {{age}}",
       "wasOffline": "war offline",
       "cameraSince": "kein Bild seit {{time}}"
     },
@@ -4234,6 +4232,17 @@
   },
   "deviceLine": {
     "unknownBuild": "ein unbekannter Build"
+  },
+  "offline": {
+    "since": "offline seit {{time}}",
+    "never": "offline",
+    "lastValue": "letzter Wert",
+    "check": "Das kannst du prüfen:",
+    "power": "Strom: Steckt das Netzteil, hat die Steckdose Strom?",
+    "wifi": "WLAN und Router: Läuft der Router, reicht das Signal bis zum Gerät?",
+    "replug": "Gerät ausstecken, 10 Sekunden warten, wieder einstecken.",
+    "keeps": "Die letzten Werte bleiben stehen, bis wieder etwas ankommt.",
+    "device": "Gerät ansehen"
   },
   "help": {
     "about": "Hilfe zu {{title}}",
