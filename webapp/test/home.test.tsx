@@ -148,8 +148,10 @@ describe('a place among several', () => {
     draw(<PlaceCard card={place({})} devices={[]} now={NOW} diary={false} />);
 
     expect(screen.getByRole('link', { name: 'Tent 1' })).toHaveAttribute('href', '/spaces/space-1');
-    // 57 % against a target of 50 ± 5 is off, and the card says so the way the cockpit does.
-    expect(screen.getByText('Humidity 7 % too high just now')).toBeInTheDocument();
+    // 57 % against a target of 50 ± 5 is off, and the card says so the way the cockpit does - but not
+    // "just now", which the cockpit, holding the day's verdict, may contradict with "since 18:02".
+    expect(screen.getByText('Humidity 7 % too high')).toBeInTheDocument();
+    expect(screen.queryByText(/just now|since/)).not.toBeInTheDocument();
     expect(screen.getByText('57').closest('[data-verdict]')).toHaveAttribute('data-verdict', 'high');
     expect(screen.getByText('25.1').closest('[data-verdict]')).toHaveAttribute('data-verdict', 'in');
   });

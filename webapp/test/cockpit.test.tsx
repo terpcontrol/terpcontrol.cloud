@@ -677,7 +677,10 @@ describe('what the cockpit decides', () => {
     expect(statusOf({ ...place, values: values(30), openAlerts: [alert], quiet }, now).kind).toBe('offline');
     expect(statusOf({ ...place, openAlerts: [alert], quiet }, now).kind).toBe('maintenance');
     expect(statusOf({ ...place, values: hot, openAlerts: [alert] }, now).kind).toBe('alert');
-    expect(statusOf({ ...place, values: hot }, now)).toMatchObject({ kind: 'off', metric: 'temperature', high: true, since: null });
+    // With no verdict at hand - a card of Start - it cannot say since when, nor that it has only just begun.
+    expect(statusOf({ ...place, values: hot }, now)).toEqual({ kind: 'off', metric: 'temperature', high: true, delta: 3 });
+    // With the day's verdict and no open run in it, the reading has only just left the band.
+    expect(statusOf({ ...place, values: hot, verdict: { metrics: [] } as never }, now)).toMatchObject({ kind: 'off', since: null });
     expect(statusOf(place, now).kind).toBe('good');
     expect(statusOf({ ...place, setpoints: [] }, now).kind).toBe('noTargets');
     expect(statusOf({ ...place, deviceIds: [] }, now).kind).toBe('none');

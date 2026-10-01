@@ -218,7 +218,10 @@ export const nightsOf = (points: SeriesPoint[] | undefined, endsAt: string): Tim
  * A reading off target says since when only where the day's verdict has an
  * open run outside the band, which the server names once it has lasted ten
  * minutes; before that the sentence says "just now", because a door opened
- * for a minute is not an excursion and should not read like one.
+ * for a minute is not an excursion and should not read like one. A card of
+ * Start is not sent the verdict, so it can tell neither: it says how far off
+ * the reading is and nothing about how long, rather than "just now" beside a
+ * cockpit that says "since 18:02" about the same tent.
  */
 export type Status =
   | { kind: 'offline'; since: string | null }
@@ -226,7 +229,8 @@ export type Status =
   | { kind: 'waiting' }
   | { kind: 'maintenance'; quiet: Quiet }
   | { kind: 'alert'; alert: OpenAlert }
-  | { kind: 'off'; metric: Steered; high: boolean; delta: number; since: string | null }
+  /** `since` is null for a run too short to count yet, and undefined where no verdict was at hand to say. */
+  | { kind: 'off'; metric: Steered; high: boolean; delta: number; since?: string | null }
   | { kind: 'stale'; at: string | null }
   | { kind: 'noTargets' }
   | { kind: 'good' };
@@ -236,6 +240,7 @@ export interface StatusInput {
   setpoints: CardSetpoint[];
   deviceIds: string[] | null;
   openAlerts: OpenAlert[];
+  /** The day's verdict, which the cockpit reads and a card of Start is not sent. */
   verdict?: ClimateVerdict | null;
   quiet: Quiet | null;
 }
@@ -259,10 +264,12 @@ export const statusOf = (place: StatusInput, now: DateTime): Status => {
   }).sort((one, other) => other.weight - one.weight)[0];
 
   if (off) {
-    const run = place.verdict?.metrics
+    const status = { kind: 'off' as const, metric: off.metric, high: off.high, delta: off.delta };
+    if (!place.verdict) return status;
+    const run = place.verdict.metrics
       .find(row => row.metric === off.metric)
       ?.excursions.find(excursion => excursion.endedAt === null && excursion.above === off.high);
-    return { kind: 'off', metric: off.metric, high: off.high, delta: off.delta, since: run?.startedAt ?? null };
+    return { ...status, since: run?.startedAt ?? null };
   }
 
   if (liveness === 'stale') return { kind: 'stale', at: measuredAtOf(place.values) };
@@ -299,7 +306,7 @@ export const statusText = (t: Translate, status: Status, now: DateTime, zone: st
     case 'none':
       return t('home.invite.noSensor');
     case 'off': {
-      const words = t(`cockpit.status.${status.high ? 'high' : 'low'}${status.since ? '' : 'Now'}`, {
+      const words = t(`cockpit.status.${status.high ? 'high' : 'low'}${status.since === null ? 'Now' : ''}`, {
         metric: t(`cockpit.metric.${status.metric}`),
         delta: `${figure(status.delta, status.metric)} ${UNIT[status.metric] ?? ''}`.trim(),
       });
