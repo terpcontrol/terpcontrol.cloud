@@ -2,7 +2,7 @@ import { DateTime } from 'luxon';
 import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { controlPath, timelinePath } from '@/app/places';
+import { controlPath, devicesPath, timelinePath } from '@/app/places';
 import type { Alert, AlarmRule, AlarmWatch, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
@@ -93,8 +93,11 @@ export function AlertCard({ alert, rule, names, me, mayManage, now, explainSilen
           ) : null}
         </p>
         <p className={`mono ${styles.meta}`}>{metaOf(t, alert, rule, device, me, now, severity)}</p>
-        {/* A device gone quiet cannot be told anything from here, so what is offered is what to try in front of it. */}
-        {open && alert.kind === 'offline' ? <OfflineSteps devicesLink={null} /> : null}
+        {/* A device gone quiet cannot be told anything from here, so what is
+            offered is what to try in front of it - and, as on the place's own
+            page, the way to the device itself, opened, with since when it has
+            been quiet. */}
+        {open && alert.kind === 'offline' ? <OfflineSteps devicesLink={alert.spaceId ? devicesPath(alert.spaceId) : null} /> : null}
       </div>
 
       {open && mayManage ? (

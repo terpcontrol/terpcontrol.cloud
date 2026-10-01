@@ -600,6 +600,8 @@ describe('the inbox', () => {
     expect(await screen.findByText(`Flower room B · offline since ${time}`)).toBeInTheDocument();
     expect(screen.getByText(/^Power: is the adapter plugged in/)).toBeInTheDocument();
     expect(screen.getByText(/^Unplug the device, wait 10 seconds/)).toBeInTheDocument();
+    // The cockpit's offline box leads on to the device the same way.
+    expect(screen.getByRole('link', { name: 'See the device ›' })).toHaveAttribute('href', '/devices?space=space-1');
   });
 
   /**
