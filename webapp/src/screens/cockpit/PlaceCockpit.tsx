@@ -90,7 +90,7 @@ export function PlaceCockpit({
   return (
     <section className={styles.cockpit} aria-label={headed ? undefined : overview.name} aria-labelledby={headed ? `${spaceId}-name` : undefined}>
       {headed ? (
-        <header className={styles.head}>
+        <header className={styles.head} data-back={back || undefined}>
           {back ? (
             <Link to="/" className={ui.back} aria-label={t('shell.tabs.home')}>
               <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
@@ -100,8 +100,11 @@ export function PlaceCockpit({
             <Icon size={20} strokeWidth={1.75} aria-hidden />
             <span>{overview.name}</span>
           </h1>
-          <LivenessPill liveness={liveness} measuredAt={measuredAtOf(overview.values)} now={now} explain />
-          <PlaceMenu overview={overview} />
+          {/* The pill and the ⋯ go together: where the name leaves them no room, both move to the row under it. */}
+          <div className={styles.headEnd}>
+            <LivenessPill liveness={liveness} measuredAt={measuredAtOf(overview.values)} now={now} explain />
+            <PlaceMenu overview={overview} />
+          </div>
         </header>
       ) : null}
       {headed ? <RefreshFailed failedAt={failedAt} now={now} /> : null}

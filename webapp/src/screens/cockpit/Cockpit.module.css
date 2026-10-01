@@ -13,10 +13,24 @@
 
 /* ------------------------------------------------------------- the head */
 
+/*
+ * Name, pill and ⋯ on one row while the name leaves room for them; a name that
+ * does not wraps in full on its own row beside the way back, and the pill and
+ * the ⋯ go together to the row under it. The name may be as wide as the row
+ * less the arrow, which is what lets a flex line put the arrow and the name
+ * together and break before the pill.
+ */
 .head {
+  --head-lead: 0px;
+
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1) var(--space-2);
+}
+
+.head[data-back] {
+  --head-lead: calc(32px + var(--space-2));
 }
 
 .name {
@@ -25,6 +39,7 @@
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
+  max-width: calc(100% - var(--head-lead));
   font-size: var(--text-xl);
   font-weight: var(--weight-title);
   line-height: var(--line-tight);
@@ -33,22 +48,26 @@
 /*
  * The name wraps rather than trailing off: beside the pill and the ⋯ a phone
  * left "Growsch…" of "Growschrank im Keller", the one word on the page that
- * says which place this is. Two lines, hyphenated in the reader's language
- * where a word is longer than the room, then the rest is cut.
+ * says which place this is. Every line of it is kept, hyphenated in the
+ * reader's language where a word is longer than the row.
  */
 .name > span {
-  display: -webkit-box;
-  overflow: hidden;
+  min-width: 0;
   overflow-wrap: break-word;
   hyphens: auto;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
 }
 
 .name svg {
   flex: none;
   color: var(--label);
+}
+
+.headEnd {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
 }
 
 .menu {
