@@ -6,6 +6,7 @@ import { DataService } from '@modules/data/data.service';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
 import { DeviceProtocolModule } from '@modules/device-protocol/device-protocol.module';
 import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
+import { SCHEDULE_FOLLOWER } from '@modules/device-protocol/schedule-clock';
 import {
   DEVICE_IMAGE_SINK,
   DEVICE_METRIC_SINK,
@@ -37,6 +38,8 @@ import { PhaseModule } from '@modules/v1/phase/phase.module';
 import { STAGE_ALARMS } from '@modules/v1/phase/stage-alarms.port';
 import { DEVICE_CONFIGURATION_WRITER } from '@modules/v1/plan/device-configuration.port';
 import { PLAN_ANNOUNCER } from '@modules/v1/plan/plan-announcer.port';
+import { PlanModule } from '@modules/v1/plan/plan.module';
+import { PlanService } from '@modules/v1/plan/plan.service';
 import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/climate-presets.service';
 
 /**
@@ -66,6 +69,7 @@ import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/c
     GrowModule,
     NotificationModule,
     PhaseModule,
+    PlanModule,
     TunnelModule,
   ],
   providers: [
@@ -87,6 +91,9 @@ import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/c
     // The plan puts a device on the settings its step carries, and the protocol
     // module is what knows how to say so.
     { provide: DEVICE_CONFIGURATION_WRITER, useExisting: DeviceConfigurationService },
+    // And when the protocol module moves a device's times of day onto its
+    // owner's clock, the plan's steps hold times written on the same clock.
+    { provide: SCHEDULE_FOLLOWER, useExisting: PlanService },
     // A quarter of an hour in the tent keeps its devices quiet, and the same
     // module is what knows how to tell them.
     { provide: MAINTENANCE_STARTER, useExisting: DevicePublisherService },
@@ -121,6 +128,7 @@ import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/c
     LIGHT_STATE_READER,
     SERIES_READER,
     DEVICE_CONFIGURATION_WRITER,
+    SCHEDULE_FOLLOWER,
     MAINTENANCE_STARTER,
     CLIMATE_PRESETS,
     STAGE_ALARMS,

@@ -17,6 +17,12 @@ export interface StoredDeviceMqtt {
   passwordHash: string;
 }
 
+/** A zone and its offset from UTC in minutes: the clock a device's times of day were meant on. */
+export interface ScheduleClock {
+  zone: string;
+  offset: number;
+}
+
 export interface StoredDeviceState extends Omit<
   DeviceState,
   | 'lastSeenAt'
@@ -47,6 +53,14 @@ export interface StoredDevice extends Omit<Device, 'createdAt' | 'state'> {
    * business reading one.
    */
   climateSweptAt: Date | null;
+  /**
+   * The owner's zone and UTC offset the times of day in `configuration` were
+   * meant on, so that they can be moved when that offset moves. Null where
+   * nothing has been anchored - no schedule, no owner, or a zone never picked.
+   * Stored rather than served: the app reads the times on the account's clock
+   * and has no use for the bookkeeping that keeps them there.
+   */
+  scheduleClock: ScheduleClock | null;
   state: StoredDeviceState;
 }
 
@@ -54,6 +68,14 @@ const mqttSchema = new Schema<StoredDeviceMqtt>(
   {
     username: { type: String, required: true },
     passwordHash: { type: String, required: true },
+  },
+  { _id: false, versionKey: false },
+);
+
+const scheduleClockSchema = new Schema<ScheduleClock>(
+  {
+    zone: { type: String, required: true },
+    offset: { type: Number, required: true },
   },
   { _id: false, versionKey: false },
 );
@@ -123,6 +145,7 @@ export const devicesSchema = new Schema<StoredDevice>(
     // Never served either: the retention sweep orders its pass by this, and a
     // device that has never been swept sorts to the front because null does.
     climateSweptAt: { type: Date, default: null },
+    scheduleClock: { type: scheduleClockSchema, default: null },
     firmware: { type: firmwareTargetSchema, required: true, default: () => ({}) },
     // The device's own configuration document, null until it reports one. Its
     // schema belongs to the firmware of that type and is not restated here.

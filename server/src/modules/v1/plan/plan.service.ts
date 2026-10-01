@@ -7,6 +7,7 @@ import { badRequest, conflict, notFound, unprocessable } from '@common/v1/proble
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StoredPlan } from '@database/schemas/v1/plans.schema';
+import { ScheduleFollower, withClockTimesMoved } from '@modules/device-protocol/schedule-clock';
 import { targetsOf } from '../phase/phase-targets';
 import { PlanProgressService } from './plan-progress.service';
 import { activeStep, durationMs, elapsedMs, isOver, positionIn, stepsOf, stopped } from './plan-steps';
@@ -29,7 +30,7 @@ import { activeStep, durationMs, elapsedMs, isOver, positionIn, stepsOf, stopped
  * refused rather than carried around until the engine publishes it.
  */
 @Injectable()
-export class PlanService {
+export class PlanService implements ScheduleFollower {
   constructor(
     @InjectModel(MODEL_V1.plan) private readonly plans: Model<StoredPlan>,
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
@@ -38,6 +39,21 @@ export class PlanService {
 
   public async forDevice(deviceId: string): Promise<StoredPlan | null> {
     return this.plans.findOne({ deviceId }).lean<StoredPlan>().exec();
+  }
+
+  /**
+   * The device's times of day were moved onto its owner's clock, and a step
+   * that states times was written on that same clock: a plan carried over from
+   * the old cloud states the whole document, the light schedule included. The
+   * step's times move with the device's, or the next hourly pass would put the
+   * old hour back.
+   */
+  public async onScheduleMoved(deviceId: string, seconds: number): Promise<void> {
+    const plan = await this.forDevice(deviceId);
+    if (!plan) return;
+
+    const steps = plan.steps.map(step => ({ ...step, settings: withClockTimesMoved(step.settings, seconds) }));
+    if (JSON.stringify(steps) !== JSON.stringify(plan.steps)) await this.plans.updateOne({ deviceId }, { $set: { steps } }).exec();
   }
 
   /** The plan of a device that has one. A device that has none is not running anything, which is not the same as not existing. */

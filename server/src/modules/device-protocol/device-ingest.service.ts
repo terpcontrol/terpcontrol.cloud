@@ -28,6 +28,7 @@ import {
 } from './device-sinks';
 import { DevicePublisherService } from './device-publisher.service';
 import { HardwareReportService } from './hardware-report.service';
+import { sameClockTimes } from './schedule-clock';
 import { DEVICE_TOPIC_FILTER, DeviceTopic, parseDeviceTopic } from './topics';
 
 /**
@@ -320,12 +321,18 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
    * The device's own configuration, as it has it. It publishes the whole
    * document when a setting is changed on the device itself; the server
    * overwrites its copy and echoes nothing.
+   *
+   * Times of day set on the device were set by today's clock, so the clock the
+   * old ones were kept on is let go and the schedule loop anchors the new ones
+   * on whatever the owner's clock is when it next passes. The server's own
+   * sends arrive here too, and leave the times as they were.
    */
   private async configuration(device: StoredDevice, payload: string): Promise<void> {
     const configuration = asRecord(parsed(payload));
     if (!configuration) return;
 
-    await this.devices.updateOne({ id: device.id }, { $set: { configuration } });
+    const retimed = !sameClockTimes(device.configuration, configuration);
+    await this.devices.updateOne({ id: device.id }, { $set: { configuration, ...(retimed ? { scheduleClock: null } : {}) } });
   }
 }
 

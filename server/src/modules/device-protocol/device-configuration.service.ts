@@ -1,14 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { DeviceConfiguration } from '@fg2/shared-types/v1';
 import { HttpException } from '@common/http-exception';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { MODEL_V1 } from '@database/models';
-import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { ScheduleClock, StoredDevice } from '@database/schemas/v1/devices.schema';
+import { StoredUser } from '@database/schemas/v1/users.schema';
 // The plan hands over what its step stored; the port it asks through is the plan's.
 import { DeviceConfigurationWriter } from '../v1/plan/device-configuration.port';
 import { DevicePublisherService } from './device-publisher.service';
+import { driftBetween, keepsTime, SCHEDULE_FOLLOWER, ScheduleFollower, sameClockTimes, scheduleClockOf, withClockTimesMoved } from './schedule-clock';
 
 /**
  * The configuration document, which is the device's own.
@@ -22,13 +24,20 @@ import { DevicePublisherService } from './device-publisher.service';
  * The device sends no acknowledgement and no echo, so a save is what was stored
  * and sent, never what the device is now running: it reports that itself, when a
  * setting is changed on the device.
+ *
+ * The one thing the server does read is the times of day, because they are
+ * kept on the owner's wall clock (see `schedule-clock.ts`): every write
+ * remembers the clock it was made on, and a write that leaves the times alone
+ * while that clock has moved puts them where the wall clock says first.
  */
 @Injectable()
 export class DeviceConfigurationService implements DeviceConfigurationWriter {
   constructor(
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
+    @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
     private readonly publisher: DevicePublisherService,
     private readonly entries: EntryWriterService,
+    @Optional() @Inject(SCHEDULE_FOLLOWER) private readonly followers: ScheduleFollower | null = null,
   ) {}
 
   /**
@@ -83,7 +92,20 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     );
   }
 
-  private async store(deviceId: string, next: (current: DeviceConfiguration | null) => DeviceConfiguration | null): Promise<boolean> {
+  /**
+   * The document again, its times of day moved to where the owner's wall clock
+   * now puts them - after summer time began or ended, or the owner named
+   * another zone. What the schedule loop calls when it finds a clock has moved.
+   */
+  public keepOnClock(deviceId: string, at: Date = new Date()): Promise<boolean> {
+    return this.store(deviceId, current => current, at);
+  }
+
+  private async store(
+    deviceId: string,
+    next: (current: DeviceConfiguration | null) => DeviceConfiguration | null,
+    at: Date = new Date(),
+  ): Promise<boolean> {
     // Asked before anything is written: a caller that cannot be served should
     // find nothing changed, rather than a stored configuration it was told had
     // failed and a device that goes on running the old one.
@@ -91,21 +113,43 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       throw new HttpException(503, 'Not connected to the message broker');
     }
 
-    const device = await this.devices.findOne({ id: deviceId }, { configuration: 1 }).lean<Pick<StoredDevice, 'configuration'> | null>();
+    const device = await this.devices
+      .findOne({ id: deviceId }, { configuration: 1, ownerId: 1, scheduleClock: 1 })
+      .lean<Pick<StoredDevice, 'configuration' | 'ownerId' | 'scheduleClock'> | null>();
     if (!device) {
       throw new HttpException(404, 'Device not found');
     }
 
-    const configuration = next(device.configuration ?? null);
-    if (configuration === null) return false;
-    await this.devices.updateOne({ id: deviceId }, { $set: { configuration } });
+    const before = device.configuration ?? null;
+    const wanted = next(before);
+    if (wanted === null) return false;
+
+    // Times a write sets are meant on the clock it is made on. Times it leaves
+    // as they were are meant on the clock they were kept on, which may have
+    // moved since - a plan step re-sent in the minute after the clocks went
+    // back, a temperature saved from a page drawn before - so they are moved
+    // along rather than taken as new.
+    const clock = await this.ownersClock(device.ownerId, at);
+    const drift = driftBetween(device.scheduleClock ?? null, clock);
+    const configuration = drift !== 0 && sameClockTimes(before, wanted) ? withClockTimesMoved(wanted, drift) : wanted;
+
+    await this.devices.updateOne({ id: deviceId }, { $set: { configuration, scheduleClock: keepsTime(configuration) ? clock : null } });
 
     // Not required after the write: the device asks for its configuration when
     // it connects and is answered from what is stored, so a send that fails
     // between the check above and here costs a delay, not the setting.
     this.publisher.configuration(deviceId, configuration);
 
-    return JSON.stringify(device.configuration) !== JSON.stringify(configuration);
+    if (drift !== 0) await this.followers?.onScheduleMoved(deviceId, drift);
+
+    return JSON.stringify(before) !== JSON.stringify(configuration);
+  }
+
+  private async ownersClock(ownerId: string | null, at: Date): Promise<ScheduleClock | null> {
+    if (!ownerId) return null;
+
+    const owner = await this.users.findOne({ id: ownerId }, { preferences: 1 }).lean<Pick<StoredUser, 'preferences'> | null>();
+    return scheduleClockOf(owner?.preferences, at);
   }
 }
 

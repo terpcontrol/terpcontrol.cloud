@@ -206,12 +206,12 @@ export class DevicesService {
    * Giving a device up. It is not a deletion: the hardware is still out there
    * and claimable, and the readings it took stay where they are. What goes is
    * what the previous owner decided about it - their plan, their alarm rules,
-   * the camera their controller answered for - because the next person to claim
-   * it must not inherit any of it.
+   * the camera their controller answered for, the clock its light schedule was
+   * kept on - because the next person to claim it must not inherit any of it.
    */
   public async releaseClaim(id: string): Promise<void> {
     const released = await this.devices
-      .findOneAndUpdate({ id }, { $set: { ownerId: null, spaceId: null, name: null, isDemo: false, 'state.claimedAt': null } })
+      .findOneAndUpdate({ id }, { $set: { ownerId: null, spaceId: null, name: null, isDemo: false, scheduleClock: null, 'state.claimedAt': null } })
       .lean<StoredDevice>();
     if (!released) throw notFound('device_not_found', 'There is no device with that id.');
 

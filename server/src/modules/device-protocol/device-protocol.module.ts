@@ -9,6 +9,7 @@ import { DeviceProtocolController, LegacyDeviceProtocolController } from './devi
 import { DeviceRegistrationService } from './device-registration.service';
 import { FirmwareImageService } from './firmware-image.service';
 import { HardwareReportService } from './hardware-report.service';
+import { ScheduleClockService } from './schedule-clock.service';
 
 /**
  * The boundary between the cloud and the hardware.
@@ -38,6 +39,7 @@ import { HardwareReportService } from './hardware-report.service';
     DevicePublisherService,
     DeviceConfigurationService,
     DeviceIngestService,
+    ScheduleClockService,
   ],
   exports: [DevicePublisherService, DeviceConfigurationService, HardwareReportService],
 })
