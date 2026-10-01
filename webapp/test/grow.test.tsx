@@ -449,6 +449,34 @@ describe('a grow that has ended', () => {
     expect(screen.getByRole('link', { name: 'Charts' })).toHaveAttribute('href', '/charts?grow=grow-1');
   });
 
+  it('leads back to the cockpit of the place it stands in, where Start is a card per place', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    client.setQueryData(['home'], {
+      spaces: [
+        { spaceId: 'space-1', name: 'Tent 1' },
+        { spaceId: 'space-2', name: 'Tent 2' },
+      ],
+      followedGrows: [],
+      people: [],
+      layers: { diary: true },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <GrowHeader grow={grow} plants={[]} spaces={[{ id: 'space-1', name: 'Tent 1' } as never]} now={NOW} onShare={null} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole('link', { name: 'Back to Tent 1' })).toHaveAttribute('href', '/spaces/space-1');
+  });
+
+  it('leads back to Start where the one place there is is Start', () => {
+    draw(<GrowHeader grow={grow} plants={[]} spaces={[{ id: 'space-1', name: 'Tent 1' } as never]} now={NOW} onShare={null} />);
+
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+  });
+
   it('is drawn as standing in no stage, so the bar claims no present it does not have', () => {
     const { container } = draw(<PhaseBar grow={finished} now={NOW} />);
 

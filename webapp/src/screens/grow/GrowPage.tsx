@@ -2,7 +2,7 @@ import { ChevronLeft, CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucid
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
-import { placePath } from '@/app/places';
+import { placePath, useBackToPlace } from '@/app/places';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
 import { fetchedAt } from '@/api/clock';
 import { useGrow, useGrowPlants } from '@/api/grows';
@@ -159,6 +159,8 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
     ) : (
       label
     );
+  // Back to the cockpit whose grow block this was opened from: the place the grow stands in, else the one it last stood in.
+  const back = useBackToPlace(places.find(place => place.spaceId !== null)?.spaceId ?? stood?.spaceId ?? null);
   const said: ReactNode[] = [
     ...(plants.length > 0 ? [strainsOf(plants)] : []),
     ...places.map(place => placeLink(place.spaceId, place.name)),
@@ -168,7 +170,11 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
   return (
     <header className={styles.header}>
       <div className={styles.titleRow}>
-        <Link to="/" className={`${ui.back} ${styles.back}`} aria-label={t('shell.tabs.home')}>
+        <Link
+          to={back.to}
+          className={`${ui.back} ${styles.back}`}
+          aria-label={back.name ? t('place.backTo', { name: back.name }) : t('shell.tabs.home')}
+        >
           <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
         </Link>
         <div className={styles.titles}>

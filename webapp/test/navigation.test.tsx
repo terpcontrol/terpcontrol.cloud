@@ -265,6 +265,38 @@ describe('the bar', () => {
     await waitFor(() => expect(within(bar()).getByRole('link', { name: 'Control' })).toHaveAttribute('aria-current', 'page'));
   });
 
+  it('keeps Start marked on the task list and on a grow, which a cockpit´s grow block opens', async () => {
+    server.diary = true;
+    server.me = meOf(true, { diary: true, places: false });
+    const router = open('/tasks');
+
+    await waitFor(() => expect(within(bar()).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page'));
+    await router.navigate('/grows/grow-1');
+    await waitFor(() => expect(within(bar()).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page'));
+  });
+
+  it('leads back from the task list to the place it was opened from, which is Start with one place', async () => {
+    server.diary = true;
+    server.me = meOf(true, { diary: true, places: false });
+    open('/tasks');
+
+    const title = await screen.findByRole('heading', { level: 1, name: 'Tasks' });
+    expect(within(title.closest('header')!).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+  });
+
+  it('leads back from the task list to the place last looked at, where there are several', async () => {
+    server.places = [
+      ['space-1', 'Fridge 1'],
+      ['space-2', 'Tent 2'],
+    ];
+    server.diary = true;
+    server.me = meOf(true, { diary: true, places: true });
+    localStorage.setItem('terp.place', 'space-2');
+    open('/tasks');
+
+    expect(await screen.findByRole('link', { name: 'Back to Tent 2' })).toHaveAttribute('href', '/spaces/space-2');
+  });
+
   it('draws the shape this account had last time before its answers are in, rather than jumping by a tab', async () => {
     localStorage.setItem('terp.shape.user-1', JSON.stringify({ diary: true, places: 1, devices: 3 }));
     server.diary = true;

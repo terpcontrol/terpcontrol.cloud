@@ -69,6 +69,22 @@ export const useRememberPlace = (spaceId: string) => {
 };
 
 /**
+ * Where the way back from a page below a place leads: that place's cockpit,
+ * which for an account with one place is Start itself. A grow and the task
+ * list are opened from a cockpit's grow block, so that is where back returns
+ * to; with several places it is the named one - or, where none is named, the
+ * one last looked at - and Start only where neither is one of the account's.
+ */
+export const useBackToPlace = (spaceId: string | null = null): { to: string; name: string | null } => {
+  const home = useHome();
+  const places = (home.data?.spaces ?? []).filter(isPlace);
+  const wanted = spaceId ?? lastPlace();
+  const place = places.length > 1 ? (places.find(one => one.spaceId === wanted) ?? null) : null;
+
+  return place ? { to: placePath(place.spaceId), name: place.name } : { to: '/', name: null };
+};
+
+/**
  * The place a tab about one place is showing: the one its address names, else
  * the one last looked at, else the first the home lists - which is the only one
  * for most accounts. A place the address names is remembered, so a link from an

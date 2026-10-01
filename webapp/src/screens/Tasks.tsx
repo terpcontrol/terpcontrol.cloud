@@ -1,7 +1,10 @@
+import { ChevronLeft } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { Reminder, Task } from '@fg2/shared-types/v1';
+import { useBackToPlace } from '@/app/places';
 import { fetchedAt } from '@/api/clock';
 import { useDevices } from '@/api/devices';
 import { useGrows } from '@/api/grows';
@@ -78,12 +81,23 @@ export function Tasks() {
   return <List tasks={waiting.data.items} failedAt={waiting.isError ? waiting.dataUpdatedAt : null} now={now} />;
 }
 
+/**
+ * The title, with the way back to the cockpit the list was opened from - its
+ * grow block's "Alle Aufgaben" or the bell - since no tab of the bar is this
+ * page's own.
+ */
 function Head({ scope, onScope }: { scope?: Scope; onScope?: (scope: Scope) => void }) {
   const { t } = useTranslation();
+  const back = useBackToPlace();
 
   return (
     <header className={styles.head}>
-      <h1 className={styles.title}>{t('tasks.title')}</h1>
+      <div className={styles.titleRow}>
+        <Link to={back.to} className={ui.back} aria-label={back.name ? t('place.backTo', { name: back.name }) : t('shell.tabs.home')}>
+          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
+        </Link>
+        <h1 className={styles.title}>{t('tasks.title')}</h1>
+      </div>
       {scope && onScope ? (
         <div className={ui.segments} role="radiogroup" aria-label={t('tasks.scopeLabel')}>
           {SCOPES.map(one => (
