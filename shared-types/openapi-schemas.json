@@ -495,6 +495,23 @@
       "hideCounts"
     ]
   },
+  "LayoutSeen": {
+    "type": "object",
+    "properties": {
+      "diary": {
+        "type": "boolean",
+        "description": "Whether the diary was there: the Log button in the navigation and the grow block on a place."
+      },
+      "places": {
+        "type": "boolean",
+        "description": "Whether Start listed several places rather than being the cockpit of the only one."
+      }
+    },
+    "required": [
+      "diary",
+      "places"
+    ]
+  },
   "UserPreferences": {
     "type": "object",
     "properties": {
@@ -529,6 +546,17 @@
             "type": "string",
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "layoutSeen": {
+        "description": "The shape of the app this person was last shown, as the app recorded it; it says once what changed when the diary comes in or a second place appears. Null until the app first records one. A body that leaves it out keeps what is stored.",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/LayoutSeen"
           },
           {
             "type": "null"

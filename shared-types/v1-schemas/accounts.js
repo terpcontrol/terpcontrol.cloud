@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.pushPayload = exports.adminUserUpdate = exports.adminUserCreate = exports.adminUserPage = exports.userExport = exports.exportStatus = exports.notificationLogEntry = exports.notificationSubjectType = exports.telegramLink = exports.pushSubscriptionCreate = exports.pushSubscription = exports.pushSubscriptionKeys = exports.passwordResetRedemption = exports.passwordResetCreate = exports.automationSession = exports.automationSessionCreate = exports.sessionRefresh = exports.demoSessionCreate = exports.sessionResult = exports.sessionUser = exports.sessionCreate = exports.sessionPage = exports.session = exports.sessionTokens = exports.authToken = exports.userActivation = exports.signupUser = exports.userCreate = exports.passwordChange = exports.meUpdate = exports.me = exports.meClimateRetention = exports.premium = exports.premiumFree = exports.user = exports.notificationSettings = exports.quietHours = exports.notificationRouting = exports.notificationChannels = exports.telegramChannel = exports.webhookChannel = exports.notificationCategory = exports.userRetention = exports.userPreferences = exports.userPrivacy = void 0;
+exports.pushPayload = exports.adminUserUpdate = exports.adminUserCreate = exports.adminUserPage = exports.userExport = exports.exportStatus = exports.notificationLogEntry = exports.notificationSubjectType = exports.telegramLink = exports.pushSubscriptionCreate = exports.pushSubscription = exports.pushSubscriptionKeys = exports.passwordResetRedemption = exports.passwordResetCreate = exports.automationSession = exports.automationSessionCreate = exports.sessionRefresh = exports.demoSessionCreate = exports.sessionResult = exports.sessionUser = exports.sessionCreate = exports.sessionPage = exports.session = exports.sessionTokens = exports.authToken = exports.userActivation = exports.signupUser = exports.userCreate = exports.passwordChange = exports.meUpdate = exports.me = exports.meClimateRetention = exports.premium = exports.premiumFree = exports.user = exports.notificationSettings = exports.quietHours = exports.notificationRouting = exports.notificationChannels = exports.telegramChannel = exports.webhookChannel = exports.notificationCategory = exports.userRetention = exports.userPreferences = exports.layoutSeen = exports.userPrivacy = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -17,6 +17,17 @@ const common_js_1 = require("./common.js");
 exports.userPrivacy = (0, common_js_1.named)('UserPrivacy', zod_1.z.object({
     hideWeights: zod_1.z.boolean(),
     hideCounts: zod_1.z.boolean(),
+}));
+/**
+ * The shape of the app as somebody was last shown it: whether the grow diary
+ * was laid over the climate, and whether Start listed several places rather than
+ * being the one place itself. Both move the navigation under a person's thumb,
+ * so the app records the shape it drew and says once what changed rather than
+ * flipping it silently.
+ */
+exports.layoutSeen = (0, common_js_1.named)('LayoutSeen', zod_1.z.object({
+    diary: zod_1.z.boolean().describe('Whether the diary was there: the Log button in the navigation and the grow block on a place.'),
+    places: zod_1.z.boolean().describe('Whether Start listed several places rather than being the cockpit of the only one.'),
 }));
 /**
  * Display and scheduling. `units` is presentation only; `timezone` is an IANA
@@ -39,6 +50,10 @@ exports.userPreferences = (0, common_js_1.named)('UserPreferences', zod_1.z.obje
         .nullable()
         .optional()
         .describe('Until when "Later" put away the notice that no channel carries this account\'s critical alarms; null until somebody taps it. A body that leaves it out keeps what is stored.'),
+    layoutSeen: exports.layoutSeen
+        .nullable()
+        .optional()
+        .describe('The shape of the app this person was last shown, as the app recorded it; it says once what changed when the diary comes in or a second place appears. Null until the app first records one. A body that leaves it out keeps what is stored.'),
 }));
 /** How long raw climate points are kept; `null` keeps them for as long as the install does. */
 exports.userRetention = (0, common_js_1.named)('UserRetention', zod_1.z.object({

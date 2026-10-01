@@ -15,6 +15,17 @@ export declare const userPrivacy: z.ZodObject<{
     hideCounts: z.ZodBoolean;
 }, z.core.$strip>;
 /**
+ * The shape of the app as somebody was last shown it: whether the grow diary
+ * was laid over the climate, and whether Start listed several places rather than
+ * being the one place itself. Both move the navigation under a person's thumb,
+ * so the app records the shape it drew and says once what changed rather than
+ * flipping it silently.
+ */
+export declare const layoutSeen: z.ZodObject<{
+    diary: z.ZodBoolean;
+    places: z.ZodBoolean;
+}, z.core.$strip>;
+/**
  * Display and scheduling. `units` is presentation only; `timezone` is an IANA
  * name and is also what quiet hours are read in, so it is a fact the server
  * needs rather than a client-side preference.
@@ -42,6 +53,10 @@ export declare const userPreferences: z.ZodObject<{
         on: "on";
     }>>>;
     notifyLaterUntil: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
+    layoutSeen: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        diary: z.ZodBoolean;
+        places: z.ZodBoolean;
+    }, z.core.$strip>>>;
 }, z.core.$strip>;
 /** How long raw climate points are kept; `null` keeps them for as long as the install does. */
 export declare const userRetention: z.ZodObject<{
@@ -217,6 +232,10 @@ export declare const user: z.ZodObject<{
             on: "on";
         }>>>;
         notifyLaterUntil: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
+        layoutSeen: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            diary: z.ZodBoolean;
+            places: z.ZodBoolean;
+        }, z.core.$strip>>>;
     }, z.core.$strip>;
     retention: z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
@@ -384,6 +403,10 @@ export declare const me: z.ZodObject<{
             on: "on";
         }>>>;
         notifyLaterUntil: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
+        layoutSeen: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            diary: z.ZodBoolean;
+            places: z.ZodBoolean;
+        }, z.core.$strip>>>;
     }, z.core.$strip>;
     retention: z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
@@ -485,6 +508,10 @@ export declare const meUpdate: z.ZodObject<{
             on: "on";
         }>>>;
         notifyLaterUntil: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
+        layoutSeen: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            diary: z.ZodBoolean;
+            places: z.ZodBoolean;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
     retention: z.ZodOptional<z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
@@ -818,6 +845,10 @@ export declare const adminUserPage: z.ZodObject<{
                 on: "on";
             }>>>;
             notifyLaterUntil: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
+            layoutSeen: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                diary: z.ZodBoolean;
+                places: z.ZodBoolean;
+            }, z.core.$strip>>>;
         }, z.core.$strip>;
         retention: z.ZodObject<{
             climateDays: z.ZodNullable<z.ZodNumber>;

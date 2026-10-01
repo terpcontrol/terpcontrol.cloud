@@ -339,6 +339,33 @@ describe('changing an account', () => {
     expect((await accounts.serialiseMe(cleared)).preferences.notifyLaterUntil).toBeNull();
   });
 
+  /**
+   * The shape of the app the person was last told about. Like the diary answer
+   * it is the app's to set and every other screen's to leave alone: a units
+   * change sends the preferences back without it, and must not make the app
+   * explain the same change a second time.
+   */
+  it('keeps the shape of the app last shown, through writes that leave it out', async () => {
+    const user = await signUp('layout');
+    const units = { temperature: 'celsius' as const, weight: 'grams' as const, volume: 'liters' as const };
+    expect((await accounts.serialiseMe(user)).preferences.layoutSeen).toBeNull();
+
+    const seen = await accounts.updateOwn(user.id, {
+      preferences: { units, locale: 'en', timezone: 'UTC', layoutSeen: { diary: false, places: true } },
+    });
+    expect((await accounts.serialiseMe(seen)).preferences.layoutSeen).toEqual({ diary: false, places: true });
+
+    const unitsOnly = await accounts.updateOwn(user.id, {
+      preferences: { units: { ...units, temperature: 'fahrenheit' }, locale: 'en', timezone: 'UTC' },
+    });
+    expect((await accounts.serialiseMe(unitsOnly)).preferences.layoutSeen).toEqual({ diary: false, places: true });
+
+    const grown = await accounts.updateOwn(user.id, {
+      preferences: { units, locale: 'en', timezone: 'UTC', layoutSeen: { diary: true, places: true } },
+    });
+    expect((await accounts.serialiseMe(grown)).preferences.layoutSeen).toEqual({ diary: true, places: true });
+  });
+
   it('answers the account as it stands when the body names no field', async () => {
     const user = await signUp('unchanged');
 

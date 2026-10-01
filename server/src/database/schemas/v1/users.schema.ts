@@ -1,5 +1,5 @@
 import { HydratedDocument, Schema } from 'mongoose';
-import type { NotificationChannels, NotificationSettings, TelegramChannel, User, UserPreferences } from '@fg2/shared-types/v1';
+import type { LayoutSeen, NotificationChannels, NotificationSettings, TelegramChannel, User, UserPreferences } from '@fg2/shared-types/v1';
 import {
   diaryChoice,
   notificationCategory,
@@ -45,6 +45,14 @@ const telegramChannelSchema = new Schema<StoredTelegramChannel>(
   {
     chatId: { type: String, required: true },
     linkedAt: { type: Date, required: true },
+  },
+  { _id: false },
+);
+
+const layoutSeenSchema = new Schema<LayoutSeen>(
+  {
+    diary: { type: Boolean, required: true },
+    places: { type: Boolean, required: true },
   },
   { _id: false },
 );
@@ -118,6 +126,8 @@ export const usersSchema = new Schema<StoredUser>(
       diary: { type: String, enum: [...diaryChoice.options, null], default: null },
       // "Later" on the notice that no channel carries the critical alarms.
       notifyLaterUntil: { type: Date, default: null },
+      // The shape of the app this person was last told about, so a change to it is said once.
+      layoutSeen: { type: layoutSeenSchema, default: null },
     },
     retention: {
       climateDays: { type: Number, default: null },

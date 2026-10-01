@@ -324,6 +324,17 @@ export interface UserPrivacy {
   hideCounts: boolean;
 }
 
+export interface LayoutSeen {
+  /**
+   * Whether the diary was there: the Log button in the navigation and the grow block on a place.
+   */
+  diary: boolean;
+  /**
+   * Whether Start listed several places rather than being the cockpit of the only one.
+   */
+  places: boolean;
+}
+
 export interface UserPreferences {
   units: UnitPreference;
   locale: string;
@@ -340,6 +351,10 @@ export interface UserPreferences {
    * Until when "Later" put away the notice that no channel carries this account's critical alarms; null until somebody taps it. A body that leaves it out keeps what is stored.
    */
   notifyLaterUntil?: string | null;
+  /**
+   * The shape of the app this person was last shown, as the app recorded it; it says once what changed when the diary comes in or a second place appears. Null until the app first records one. A body that leaves it out keeps what is stored.
+   */
+  layoutSeen?: LayoutSeen | null;
 }
 
 export interface UserRetention {

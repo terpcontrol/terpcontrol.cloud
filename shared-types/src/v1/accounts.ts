@@ -22,6 +22,21 @@ export const userPrivacy = named(
 );
 
 /**
+ * The shape of the app as somebody was last shown it: whether the grow diary
+ * was laid over the climate, and whether Start listed several places rather than
+ * being the one place itself. Both move the navigation under a person's thumb,
+ * so the app records the shape it drew and says once what changed rather than
+ * flipping it silently.
+ */
+export const layoutSeen = named(
+  'LayoutSeen',
+  z.object({
+    diary: z.boolean().describe('Whether the diary was there: the Log button in the navigation and the grow block on a place.'),
+    places: z.boolean().describe('Whether Start listed several places rather than being the cockpit of the only one.'),
+  }),
+);
+
+/**
  * Display and scheduling. `units` is presentation only; `timezone` is an IANA
  * name and is also what quiet hours are read in, so it is a fact the server
  * needs rather than a client-side preference.
@@ -49,6 +64,12 @@ export const userPreferences = named(
       .optional()
       .describe(
         'Until when "Later" put away the notice that no channel carries this account\'s critical alarms; null until somebody taps it. A body that leaves it out keeps what is stored.',
+      ),
+    layoutSeen: layoutSeen
+      .nullable()
+      .optional()
+      .describe(
+        'The shape of the app this person was last shown, as the app recorded it; it says once what changed when the diary comes in or a second place appears. Null until the app first records one. A body that leaves it out keeps what is stored.',
       ),
   }),
 );

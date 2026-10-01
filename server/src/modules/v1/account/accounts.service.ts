@@ -168,10 +168,11 @@ export class AccountsService implements OnModuleInit {
   }
 
   /**
-   * The preferences a body replaces, with the two things it may leave out kept
-   * as they are: a body that only means to change the units sends the object
-   * back as some screen read it, and must neither un-choose the zone nor take
-   * back an answer about the diary given on another device.
+   * The preferences a body replaces, with the things it may leave out kept as
+   * they are: a body that only means to change the units sends the object back
+   * as some screen read it, and must neither un-choose the zone nor take back an
+   * answer about the diary given on another device, nor forget what the app has
+   * already told this person about its shape.
    */
   private async preferencesFrom(id: string, wanted: NonNullable<MeUpdate['preferences']>): Promise<StoredUser['preferences']> {
     const current = (await this.require(id)).preferences;
@@ -181,6 +182,7 @@ export class AccountsService implements OnModuleInit {
       ...wanted,
       timezoneChosen: zoneChosen(current, wanted),
       diary: wanted.diary === undefined ? (current.diary ?? null) : wanted.diary,
+      layoutSeen: wanted.layoutSeen === undefined ? (current.layoutSeen ?? null) : wanted.layoutSeen,
       // Nor is it somebody asking to be reminded of the notice today.
       notifyLaterUntil:
         notifyLaterUntil === undefined ? (current.notifyLaterUntil ?? null) : notifyLaterUntil === null ? null : new Date(notifyLaterUntil),
@@ -307,6 +309,7 @@ export class AccountsService implements OnModuleInit {
         timezoneChosen: user.preferences.timezoneChosen === true,
         diary: user.preferences.diary ?? null,
         notifyLaterUntil: user.preferences.notifyLaterUntil?.toISOString() ?? null,
+        layoutSeen: user.preferences.layoutSeen ? { diary: user.preferences.layoutSeen.diary, places: user.preferences.layoutSeen.places } : null,
       },
       retention: { climateDays: user.retention.climateDays },
       notifications: {
