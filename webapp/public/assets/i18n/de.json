@@ -3456,6 +3456,7 @@
     "meta": {
       "for": "für {{length}}",
       "notAnnounced": "erreicht dich nicht",
+      "reachesNobody": "erreicht dich nicht · einrichten ›",
       "ownTarget": "eigenes Ziel",
       "repeatsEvery": "wiederholt sich alle {{length}}",
       "silencedUntil": "stumm bis {{time}}",
@@ -3527,7 +3528,8 @@
         "webhook": "Webhook"
       },
       "routingNote": "Geht raus per {{channels}}.",
-      "routingNone": "Nicht gemeldet: In deinen Benachrichtigungseinstellungen ist für {{severity}} nichts eingestellt.",
+      "routingNone": "Nicht gemeldet: Für {{severity}} ist noch kein Weg zu dir eingerichtet.",
+      "setUp": "Benachrichtigung einrichten",
       "infoNote": "Ein Info-Alarm wird ins Tagebuch geschrieben und nie gemeldet.",
       "address": "Adresse",
       "url": "URL",
@@ -3783,6 +3785,17 @@
     "demo": "Die Demo hat keine Kontoeinstellungen.",
     "edit": "Bearbeiten"
   },
+  "notify": {
+    "title": "Alarme erreichen dich nicht",
+    "email": "Per E-Mail benachrichtigen",
+    "sending": "Wird eingeschaltet…",
+    "to": "an {{email}}",
+    "other": "Andere Wege",
+    "later": "Später",
+    "done": "Kritische Alarme kommen jetzt per E-Mail an {{email}}.",
+    "reaches": "Kritische Alarme erreichen dich per {{channels}}.",
+    "change": "Ändern"
+  },
   "alerts": {
     "bell_one": "Meldungen · {{count}} offen",
     "bell_other": "Meldungen · {{count}} offen",
@@ -3811,7 +3824,7 @@
       "settling": "Wartung beendet, bis {{time}} wird nichts ausgelöst, solange das Klima zurückkommt",
       "resolved": "behoben {{time}} · dauerte {{age}}",
       "notAnnounced": "nicht gemeldet",
-      "unheard": "niemand hat zugehört",
+      "unheard": "niemand hat zugehört · einrichten ›",
       "ruleNow": "die Regel sagt inzwischen {{severity}}"
     },
     "action": {
@@ -3833,7 +3846,6 @@
       "cancel": "Abbrechen"
     },
     "nothing": "Nichts ist schiefgegangen.",
-    "note": "Eine Zeile pro Ereignis, nach Schwere gestuft, nie eine Push-Nachricht pro Sensor. Kritisches meldet sich, bis es behoben ist; Warnungen einmal; Infos bleiben nur in dieser Liste.",
     "output": {
       "heater": "Heizung",
       "dehumidifier": "Entfeuchter",
@@ -3872,7 +3884,7 @@
     "skip": "überspringen",
     "next": "Weiter · {{what}}",
     "finish": "Fertig · Bereich öffnen",
-    "later": "Die Vorgabe lässt sich später unter Steuerung ändern, Steckdosen und Cam unter Geräte.",
+    "later": "Die Vorgabe lässt sich später unter Steuerung ändern, Steckdosen und Cam unter Geräte, Benachrichtigungen unter Ich.",
     "addDevice": "Gerät hinzufügen",
     "demo": "Die Demo darf alles ansehen und nichts ändern, also kann sie keine Hardware übernehmen. Melde dich mit deinem eigenen Konto an, um ein Gerät hinzuzufügen.",
     "backToDevices": "Zurück zu Geräte",
@@ -3962,6 +3974,13 @@
       "socketsAtTheDevice": "Eine Steckdose wird am Controller selbst gekoppelt - er sucht sie im Netzwerk - und taucht in dieser Liste auf, sobald er sie meldet. Die App kann sie danach schalten; hinzufügen oder ihr eine Aufgabe geben kann sie nicht.",
       "pairTheCam": "Terp Cam koppeln",
       "bothCanWait": "Beides hat Zeit: ein Controller misst den Ort, an dem er steht, auch wenn nichts eingesteckt ist."
+    },
+    "notify": {
+      "next": "Benachrichtigung",
+      "title": "Wie erfährst du von Problemen?",
+      "text": "Geht das Gerät offline oder wird es zu warm, löst ein Alarm aus. Ohne eingerichteten Weg erreicht er dich nicht.",
+      "reaches": "Kritische Alarme per {{channels}}",
+      "none": "noch kein Weg eingerichtet"
     }
   },
   "admin": {
@@ -4396,6 +4415,10 @@
     "routingGrid": {
       "title": "Was wohin geht",
       "text": "Jede Zeile ist eine Art Nachricht, jede Spalte ein Weg zu dir; gesendet wird erst, wenn du ein Feld einschaltest. Das Raster gilt nur für dich – alle in deinen Bereichen stellen ihr eigenes ein –, und eine Alarmregel mit eigener E-Mail oder eigenem Webhook läuft nicht darüber."
+    },
+    "emailAlarms": {
+      "title": "Alarme per E-Mail",
+      "text": "Solange kein Weg eingerichtet ist, meldet sich kein Alarm bei dir, auch „Gerät offline“ nicht. Ein Tipp schickt kritische Alarme per E-Mail an die Adresse, mit der du dich anmeldest. Warnungen und alles andere bleiben, wie sie sind. Ändern oder abschalten kannst du das unter Ich › Benachrichtigungen. „Später“ blendet diesen Hinweis für eine Woche aus."
     },
     "quietHours": {
       "title": "Ruhezeiten",

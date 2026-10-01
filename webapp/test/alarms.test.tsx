@@ -330,6 +330,31 @@ describe('the alarm rules page', () => {
     ).toBeInTheDocument();
   });
 
+  /**
+   * "Does not reach you" used to be the end of the line. It is the account's
+   * own settings that decide it, so it is said as the way there - outside the
+   * card's button, which a link cannot stand inside.
+   */
+  it('says a rule nobody hears as the way to change that', async () => {
+    const unreached = { ...me, pushSubscribed: false, notifications: { ...me.notifications, routing: { alerts: [], warnings: ['push'] } } };
+    vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/me' ? unreached : answers(path)) as never);
+    draw();
+
+    const offline = await card('Blue Dream tent offline');
+    expect(within(offline).getByText('always · for 10 min · critical')).toBeInTheDocument();
+    const fix = within(offline).getByRole('link', { name: 'does not reach you · set up ›' });
+    expect(fix).toHaveAttribute('href', '/me/notifications');
+    expect(fix.closest('button')).toBeNull();
+
+    // Named on the row but set up nowhere is the same dead end, and gets the same way out.
+    const running = await card('Dehumidifier running non-stop');
+    expect(within(running).getByText('device · warning · goes to you by push (off) · announced once')).toBeInTheDocument();
+    expect(within(running).getByRole('link', { name: 'does not reach you · set up ›' })).toBeInTheDocument();
+
+    // A rule with a target of its own goes out whatever the account set.
+    expect(within(await card('Pump watchdog')).queryByRole('link')).not.toBeInTheDocument();
+  });
+
   it('says nothing about where a rule goes until the account has answered', async () => {
     vi.mocked(api.get).mockImplementation((path: string) => (path === '/me' ? new Promise(() => {}) : Promise.resolve(answers(path))) as never);
     draw();
@@ -559,6 +584,49 @@ describe('the rule sheet', () => {
 
     return screen.getByRole('dialog', { name: 'New alarm' });
   };
+
+  /**
+   * A rule written for an account nothing reaches is announced to nobody. For
+   * a critical one the fix is offered in the sheet - the same tap the notice on
+   * Start offers, which leaves the sheet and its draft where they are; for a
+   * warning it is the way to the settings that route one.
+   */
+  it('offers the fix where a rule would reach nobody, in place for a critical one', async () => {
+    const unreached = {
+      ...me,
+      email: 'login@example.invalid',
+      notifications: { ...me.notifications, channels: { email: null, telegram: null, webhook: null }, routing: { alerts: [], warnings: [] } },
+    };
+    const reached = {
+      ...unreached,
+      notifications: {
+        ...unreached.notifications,
+        channels: { ...unreached.notifications.channels, email: 'login@example.invalid' },
+        routing: { alerts: ['email'], warnings: [] },
+      },
+    };
+    vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/me' ? unreached : answers(path)) as never);
+    vi.mocked(api.post).mockImplementation(
+      (path: string, body: unknown) => Promise.resolve(path === '/me/email-alarms' ? reached : { ...RULES[0], ...(body as object) }) as never,
+    );
+    const sheet = await openNew();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'critical' }));
+
+    expect(within(sheet).getByText(/^Not announced: no way to reach you is set up for critical yet\.$/)).toBeInTheDocument();
+    expect(within(sheet).getByText('to login@example.invalid')).toBeInTheDocument();
+    expect(within(sheet).queryByRole('link', { name: /Other ways/ })).not.toBeInTheDocument();
+    // The sheet's own Save stays the one green action in it.
+    expect(within(sheet).getByRole('button', { name: 'Notify me by e-mail' }).className).not.toMatch(/primary/);
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Notify me by e-mail' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/me/email-alarms'));
+    expect(await within(sheet).findByText('Goes out by e-mail.')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'New alarm' })).toBeInTheDocument();
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'warning' }));
+    expect(within(sheet).getByRole('link', { name: 'Set up notifications ›' })).toHaveAttribute('href', '/me/notifications');
+  });
 
   /**
    * A fan runs at 0 to 100 like the light does. The sheet used to show the

@@ -236,23 +236,37 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/**
+ * A card's second line read whole, although the part of it that is a link is
+ * an element of its own - with its spaces read as the default matcher reads
+ * them, the unbreakable ones inside a phrase included.
+ */
+const wholeLine =
+  (pattern: RegExp) =>
+  (_: string, element: Element | null): boolean =>
+    element?.tagName === 'P' && pattern.test((element.textContent ?? '').replace(/\s+/g, ' '));
+
 describe('the inbox', () => {
-  it('says nothing has gone wrong when nothing has, and still explains itself', async () => {
+  /**
+   * The inbox used to close on a paragraph about how it works - one line per
+   * event, graded, repeats - which read as its specification rather than as
+   * anything a grower needed to be told.
+   */
+  it('says nothing has gone wrong when nothing has, and nothing about how the inbox works', async () => {
     draw();
 
     expect(await screen.findByText('Nothing has gone wrong.')).toBeInTheDocument();
-    expect(screen.getByText(/One line per event, graded by severity/)).toBeInTheDocument();
+    expect(screen.queryByText(/One line per event/)).not.toBeInTheDocument();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
 
-  it('says instead that nothing is watching, and drops the note about pushes, where no hardware can raise anything', async () => {
+  it('says instead that nothing is watching, where no hardware can raise anything', async () => {
     server.devices = [];
     server.cameras = [];
     draw();
 
     expect(await screen.findByText("Nothing is watching yet. Alerts come from a controller's alarm rules and from a cam.")).toBeInTheDocument();
     expect(screen.queryByText('Nothing has gone wrong.')).not.toBeInTheDocument();
-    expect(screen.queryByText(/One line per event, graded by severity/)).not.toBeInTheDocument();
   });
 
   it('files every open alert under NOW and the resolved ones under the day they began', async () => {
@@ -403,7 +417,9 @@ describe('the inbox', () => {
     expect(await screen.findByText(/^Leaf cool · info · .* · not announced$/)).toBeInTheDocument();
     // A row of the grid that names only a channel this account cannot be
     // reached on is a rule nobody would hear.
-    expect(screen.getByText(/^Humidity high · warning · .* · nobody was listening$/)).toBeInTheDocument();
+    expect(screen.getByText(wholeLine(/^Humidity high · warning · .* · nobody was listening · set up ›$/))).toBeInTheDocument();
+    // Said as the way to change it, since it is the account's own settings that decide it.
+    expect(screen.getByRole('link', { name: 'nobody was listening · set up ›' })).toHaveAttribute('href', '/me/notifications');
     expect(screen.queryByText(/announced once/)).not.toBeInTheDocument();
   });
 
@@ -436,7 +452,7 @@ describe('the inbox', () => {
     server.rules = [rule({ name: 'Device offline' })];
     draw();
 
-    expect(await screen.findByText(/^warning · since .* · nobody was listening$/)).toBeInTheDocument();
+    expect(await screen.findByText(wholeLine(/^warning · since .* · nobody was listening · set up ›$/))).toBeInTheDocument();
     // The account can be reached for a critical alarm, so the card beside it
     // says what it will go on doing rather than that it reached nobody.
     expect(screen.getByText(/^Device offline · critical · .* · repeats every 30 min until resolved$/)).toBeInTheDocument();

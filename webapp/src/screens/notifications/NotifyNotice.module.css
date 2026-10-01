@@ -1,0 +1,92 @@
+/* Nothing reaches this account when something goes wrong: the amber the app
+   keeps for a state somebody has to act on, kept to three short lines so it
+   sits over the readings rather than in their place. */
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--rule-width) solid var(--warning-edge);
+  border-radius: var(--radius);
+  background: var(--warning-wash);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  color: var(--ink);
+}
+
+.title svg {
+  flex-shrink: 0;
+  color: var(--warning);
+}
+
+.offer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.button {
+  height: var(--action-height);
+}
+
+/* Beside the button rather than at the far edge, which on a wide screen is a
+   page away from what it puts off. */
+.later {
+  font-size: var(--text-sm);
+}
+
+/* The address the tap writes to, which may be long: it breaks rather than
+   pushing the page sideways. */
+.address {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.to {
+  font-size: var(--text-xs);
+}
+
+.done,
+.reached {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.done {
+  padding: var(--space-3) var(--space-4);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--green-wash);
+  color: var(--green-ink);
+}
+
+.done svg,
+.reached svg {
+  flex-shrink: 0;
+  color: var(--green-ink);
+}
+
+.doneText {
+  flex: 1 1 200px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

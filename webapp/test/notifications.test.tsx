@@ -10,9 +10,11 @@ import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, MeUpdate, NotificationChannels, NotificationRouting, NotificationSettings, Problem } from '@fg2/shared-types/v1';
+import { useMe } from '@/api/account';
 import { LogProvider } from '@/log/LogProvider';
 import { Me as MeScreen } from '@/screens/Me';
 import { Notifications } from '@/screens/notifications/Notifications';
+import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { pathOf, payloadOf } from '@/screens/notifications/push-route';
 import { minuteOf, routingWith, timeOf } from '@/screens/notifications/settings';
 import { ThemeProvider } from '@/theme/ThemeProvider';
@@ -82,6 +84,18 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     if (server.hold) await server.hold;
     if (server.refuse) return json(server.refuse, server.refuse.status);
     server.me = { ...server.me, ...body } as Me;
+    return json(server.me);
+  }
+  if (url.endsWith('/v1/me/email-alarms') && method === 'POST') {
+    server.posted.push(url);
+    if (server.refuse) return json(server.refuse, server.refuse.status);
+    const { channels, routing } = server.me.notifications;
+    const alerts = routing.alerts ?? [];
+    server.me = me({
+      ...server.me.notifications,
+      channels: { ...channels, email: channels.email ?? server.me.email },
+      routing: { ...routing, alerts: alerts.includes('email') ? alerts : [...alerts, 'email'] },
+    });
     return json(server.me);
   }
   if (url.endsWith('/v1/me/telegram-link') && method === 'POST') {
@@ -272,6 +286,133 @@ describe('an account with an address', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('That address cannot be delivered to.');
     expect(screen.getByRole('switch', { name: 'E-mail' })).toHaveAttribute('aria-checked', 'true');
+  });
+});
+
+describe('the address field', () => {
+  it('starts on the address the account signs in with, and saving that first address carries critical alarms with it', async () => {
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('switch', { name: 'E-mail' }));
+    expect(screen.getByLabelText('Address')).toHaveValue('login@example.org');
+    expect(server.patched).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(server.patched).toHaveLength(1));
+    expect(lastPatch().channels.email).toBe('login@example.org');
+    expect(lastPatch().routing).toEqual({ ...NOTHING.routing, alerts: ['email'] });
+  });
+
+  it('routes nothing more where critical alarms already reach the account another way', async () => {
+    const linked = { chatId: '42', linkedAt: '2026-01-02T00:00:00.000Z' };
+    server.me = me({ channels: { ...NOTHING.channels, telegram: linked }, routing: { ...NOTHING.routing, alerts: ['telegram'] } });
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('switch', { name: 'E-mail' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(server.patched).toHaveLength(1));
+    expect(lastPatch().routing.alerts).toEqual(['telegram']);
+  });
+});
+
+/**
+ * Every account starts reached by nothing, the device-offline rule included,
+ * and the notice says so where it will be read - with the one tap that mails
+ * critical alarms to the login address. The tap carries no address: the server
+ * names it, so what is checked on the wire is that nothing else was sent.
+ */
+describe('the notice that alarms reach nobody', () => {
+  /** Says when the account has been read, so that a notice that is not drawn is not merely still waiting for it. */
+  function Read() {
+    return useMe().data ? <span>read</span> : null;
+  }
+
+  const later = () =>
+    wrapped(
+      <>
+        <NotifyNotice later />
+        <Read />
+      </>,
+    );
+
+  it('names the address the tap writes to, mails critical alarms there in one tap, and says so', async () => {
+    later();
+
+    expect(await screen.findByText('Alarms do not reach you')).toBeInTheDocument();
+    expect(screen.getByText('to login@example.org')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Other ways ›' })).toHaveAttribute('href', '/me/notifications');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Notify me by e-mail' }));
+
+    expect(await screen.findByText('Critical alarms now come by e-mail to login@example.org.')).toBeInTheDocument();
+    expect(server.posted).toEqual([expect.stringMatching(/\/v1\/me\/email-alarms$/)]);
+    expect(server.patched).toHaveLength(0);
+  });
+
+  it('offers an address the account already set rather than the login one', async () => {
+    server.me = me({ channels: { ...NOTHING.channels, email: 'alarms@example.org' } });
+    later();
+
+    expect(await screen.findByText('to alarms@example.org')).toBeInTheDocument();
+  });
+
+  it('puts itself away for a week with Later, on the account rather than in this browser', async () => {
+    later();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Later' }));
+
+    await waitFor(() => expect(server.patched).toHaveLength(1));
+    const preferences = server.patched[0].preferences!;
+    expect(preferences.timezone).toBe('Europe/Berlin');
+    const days = DateTime.fromISO(preferences.notifyLaterUntil!).diff(DateTime.now(), 'days').days;
+    expect(days).toBeGreaterThan(6.9);
+    expect(days).toBeLessThan(7.1);
+    expect(screen.queryByText('Alarms do not reach you')).not.toBeInTheDocument();
+  });
+
+  it('stays away while Later holds, and comes back once it has run out', async () => {
+    server.me = me({}, { preferences: { ...me().preferences, notifyLaterUntil: DateTime.now().plus({ days: 2 }).toISO() } });
+    const { unmount } = later();
+    await screen.findByText('read');
+    expect(screen.queryByText('Alarms do not reach you')).not.toBeInTheDocument();
+    unmount();
+
+    server.me = me({}, { preferences: { ...me().preferences, notifyLaterUntil: DateTime.now().minus({ minutes: 1 }).toISO() } });
+    later();
+    expect(await screen.findByText('Alarms do not reach you')).toBeInTheDocument();
+  });
+
+  it('says nothing where a critical alarm reaches the account, and speaks up where its only channel cannot deliver', async () => {
+    server.me = me({ channels: { ...NOTHING.channels, email: 'you@example.org' }, routing: { ...NOTHING.routing, alerts: ['email'] } });
+    const { unmount } = later();
+    await screen.findByText('read');
+    expect(screen.queryByText('Alarms do not reach you')).not.toBeInTheDocument();
+    unmount();
+
+    // Push named on the row, but no browser of the account has subscribed.
+    server.me = me({ routing: { ...NOTHING.routing, alerts: ['push'] } });
+    later();
+    expect(await screen.findByText('Alarms do not reach you')).toBeInTheDocument();
+  });
+
+  it('stands first on the settings page, where Later is not offered and nothing put away is honoured', async () => {
+    server.me = me({}, { preferences: { ...me().preferences, notifyLaterUntil: DateTime.now().plus({ days: 2 }).toISO() } });
+    await drawLoaded();
+
+    expect(screen.getByText('Alarms do not reach you')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Later' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Other ways ›' })).not.toBeInTheDocument();
+  });
+
+  it('is not drawn for the demo, which has no account to change', async () => {
+    session.demo = true;
+    wrapped(<NotifyNotice later />);
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(screen.queryByText('Alarms do not reach you')).not.toBeInTheDocument();
+    expect(fetchStub.mock.calls.filter(([input]) => String(input).endsWith('/v1/me'))).toHaveLength(0);
   });
 });
 

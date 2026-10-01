@@ -66,6 +66,22 @@ export const useUpdateMe = () => {
   });
 };
 
+/**
+ * Critical alarms by mail to the address the account signs in with, in the one
+ * tap that asks for exactly that. Nothing is sent but the tap: the server names
+ * the address itself, keeps one the person already typed, and writes only the
+ * address and the alarm row, so a change made elsewhere a moment ago stands.
+ */
+export const useMailAlarms = () => {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationKey: meKey,
+    mutationFn: () => api.post<Me>('/me/email-alarms'),
+    onSuccess: me => client.setQueryData(meKey, me),
+  });
+};
+
 /** Whether any change to the account is on its way, so that a screen full of switches holds still while one lands. */
 export const useUpdatingMe = (): boolean => useIsMutating({ mutationKey: meKey }) > 0;
 

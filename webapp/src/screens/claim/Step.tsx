@@ -3,9 +3,9 @@ import type { ReactNode, RefObject } from 'react';
 import styles from './Claim.module.css';
 
 /**
- * One of the four numbered steps of the claim flow.
+ * One of the five numbered steps of the claim flow.
  *
- * Only one is ever open, and the other three still say what they are for: a
+ * Only one is ever open, and the others still say what they are for: a
  * step that has been done reads as what it settled - "Claimed · Terp Controller
  * · 7F3A" - and one still ahead reads as the question it will ask. That is the
  * whole point of drawing them all at once rather than one screen at a time.

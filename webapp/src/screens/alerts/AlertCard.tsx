@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { Fragment, useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Alert, AlarmRule, AlarmWatch, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
@@ -330,9 +330,9 @@ const metaOf = (
   me: Me | undefined,
   now: DateTime,
   severity: string,
-): string => {
+): ReactNode => {
   const zone = zoneOf(me);
-  const parts = [
+  const parts: ReactNode[] = [
     ruleName(t, alert, rule, device),
     severity,
     whole(
@@ -347,7 +347,14 @@ const metaOf = (
 
     const delivery = deliveryOf(alert, rule, me);
     if (delivery === 'repeats' && rule) parts.push(t('alerts.meta.repeats', { every: spanLabel(repeatsEvery(rule)) }));
-    else if (delivery !== null && delivery !== 'repeats') parts.push(t(`alerts.meta.${delivery}`));
+    // Nobody was told for a reason the account can change, so it is said as the way there.
+    else if (delivery === 'unheard') {
+      parts.push(
+        <Link key="unheard" to="/me/notifications" className={styles.fix}>
+          {t('alerts.meta.unheard')}
+        </Link>,
+      );
+    } else if (delivery !== null && delivery !== 'repeats') parts.push(t(`alerts.meta.${delivery}`));
 
     if (rule && isAhead(rule.silencedUntil, now)) parts.push(t('alerts.meta.silenced', { time: clock(rule.silencedUntil!, zone) }));
 
@@ -368,7 +375,12 @@ const metaOf = (
     if (quiet) parts.push(t(quiet.parked ? 'alerts.meta.inMaintenance' : 'alerts.meta.settling', { time: clock(quiet.alarmsUntil, zone) }));
   }
 
-  return parts.join(' · ');
+  return parts.map((part, index) => (
+    <Fragment key={index}>
+      {index > 0 ? ' · ' : null}
+      {part}
+    </Fragment>
+  ));
 };
 
 /**

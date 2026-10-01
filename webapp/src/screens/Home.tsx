@@ -11,6 +11,7 @@ import { useReportFreshness } from '@/ui/freshness';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { EmptyHome } from './EmptyHome';
+import { NotifyNotice } from './notifications/NotifyNotice';
 import { ArchiveLink } from './grow/Archive';
 import { NewGrowRow } from './grow/new/NewGrowRow';
 import { NewGrowSheet } from './grow/new/NewGrowSheet';
@@ -117,6 +118,8 @@ function Cards({ answer, failedAt, onStartGrow }: { answer: HomeAnswer; failedAt
 
       <AttentionStrip cards={cards} now={now} />
       <DueStrip cards={cards} now={now} />
+      {/* Only where something could raise an alarm: a place with no device has nobody to warn about. */}
+      {cards.some(card => (card.deviceIds?.length ?? 0) > 0) ? <NotifyNotice later /> : null}
 
       <div className={styles.cards}>
         {cards.map(card => (

@@ -10,6 +10,7 @@ import { useNow } from '@/ui/useNow';
 import { zoneOf } from '@/ui/zone';
 import { MePage } from '@/screens/me/parts';
 import { EmailCard, PushCard, TelegramCard, WebhookCard } from './Channels';
+import { NotifyNotice } from './NotifyNotice';
 import { useWriteNotifications } from './write';
 import { QuietHoursCard } from './QuietHours';
 import { RoutingGrid } from './Routing';
@@ -20,7 +21,8 @@ import styles from './Notifications.module.css';
  * Me › Notifications: the channels, the what-goes-where grid and quiet hours.
  *
  * Every channel is off until it is configured, and the screen says so rather
- * than quietly mailing the login address. Each write is the whole settings
+ * than quietly mailing the login address - it offers to, in one tap that names
+ * it, while critical alarms reach nobody. Each write is the whole settings
  * object, so while one is on its way every switch on the screen holds still -
  * two changes crossing would each carry the other's old state back. The demo
  * has no account of its own to settle, so it is told that instead of being
@@ -68,6 +70,9 @@ export function Notifications() {
       <RefreshFailed failedAt={me.isError ? me.dataUpdatedAt : null} now={now} />
 
       {isMuted(me.data.notifications.mutedUntil, now) ? <MutedLine me={me.data} held={held} until={me.data.notifications.mutedUntil!} /> : null}
+
+      {/* Every "does not reach you" in the app links here, so the fix stands first. */}
+      <NotifyNotice />
 
       <span className="label">{t('notifications.channels')}</span>
       <PushCard me={me.data} held={held} />

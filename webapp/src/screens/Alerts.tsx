@@ -177,8 +177,6 @@ export function Alerts() {
           {open.isFetchingNextPage || resolved.isFetchingNextPage ? t('home.waiting') : t('alerts.earlier')}
         </button>
       ) : null}
-
-      {watching ? <p className={ui.note}>{t('alerts.note')}</p> : null}
     </section>
   );
 }

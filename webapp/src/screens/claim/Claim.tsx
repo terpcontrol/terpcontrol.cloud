@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import type { Device } from '@fg2/shared-types/v1';
+import { useMe } from '@/api/account';
 import { useClaimedDevice, useNameNewPlace } from '@/api/claims';
 import { useSocketTables } from '@/api/devices';
 import { useSpaceGrows } from '@/api/grows';
@@ -15,16 +16,17 @@ import { useNow } from '@/ui/useNow';
 import { ClaimedFacts, ClaimedTitle, CodeStep } from './CodeStep';
 import { DoingStep } from './DoingStep';
 import { HardwareStep } from './HardwareStep';
+import { NotifyStep } from '@/screens/notifications/NotifyNotice';
 import { PlaceStep } from './PlaceStep';
 import { Step } from './Step';
-import { doingSummary, hardwareSummary, MEASURE, newPlaceName, NOTHING_DOING, placeSummary, type Doing } from './steps';
+import { doingSummary, hardwareSummary, MEASURE, newPlaceName, NOTHING_DOING, notifySummary, placeSummary, type Doing } from './steps';
 import styles from './Claim.module.css';
 
-/** The four steps, in order, so the bottom button can carry the next one's name. */
-const STEPS = ['code', 'place', 'doing', 'hardware'] as const;
+/** The steps, in order, so the bottom button can carry the next one's name. */
+const STEPS = ['code', 'place', 'doing', 'hardware', 'notify'] as const;
 
 /**
- * Which step the address says was open, kept inside the four. Without a device
+ * Which step the address says was open, kept inside the five. Without a device
  * there is nothing to resume and the first question is the only one that can be
  * asked.
  */
@@ -37,16 +39,17 @@ const stepIn = (params: URLSearchParams): number => {
 };
 
 /**
- * Adding a device: the four things that have to be true before a controller is
- * of any use, asked in the order they can be answered.
+ * Adding a device: the five things that have to be true before a controller is
+ * of any use, asked in the order they can be answered - the last of them being
+ * that somebody hears when it goes wrong.
  *
  * It is a screen of its own rather than a sheet because it is the one stretch
  * of the app where somebody is standing in a room with hardware in their hands,
- * and because every one of its four answers is written the moment it is given -
+ * and because every one of its five answers is written the moment it is given -
  * there is no Save at the end and nothing is lost by leaving. That is what the
  * skip in the corner and the note under the button both say: the claim is the
- * only step that has to happen here, and the other three are the ordinary
- * screens, reached from Devices and from the tent's Control tab.
+ * only step that has to happen here, and the other four are the ordinary
+ * screens, reached from Devices, from the tent's Control tab and from Me.
  *
  * Which device was claimed, and which question was open, live in the address
  * rather than in this component, because the phone in that room locks, drops
@@ -81,6 +84,7 @@ export function Claim() {
   const tables = useSocketTables(deviceId ? [deviceId] : []);
   const sockets = deviceId ? tables.tables.get(deviceId) : undefined;
   const namePlace = useNameNewPlace();
+  const me = useMe(false, mayManage);
 
   const claimed = device.data ?? null;
   const spaceId = claimed?.spaceId ?? null;
@@ -110,9 +114,10 @@ export function Claim() {
   const placeHeading = useRef<HTMLHeadingElement>(null);
   const doingHeading = useRef<HTMLHeadingElement>(null);
   const hardwareHeading = useRef<HTMLHeadingElement>(null);
+  const notifyHeading = useRef<HTMLHeadingElement>(null);
   const moved = useRef(false);
   useEffect(() => {
-    if (moved.current) [codeHeading, placeHeading, doingHeading, hardwareHeading][at]?.current?.focus();
+    if (moved.current) [codeHeading, placeHeading, doingHeading, hardwareHeading, notifyHeading][at]?.current?.focus();
     moved.current = true;
   }, [at]);
 
@@ -245,6 +250,20 @@ export function Claim() {
         text={said(3, hardwareSummary(claimed, sockets, t), t('claim.hardware.text'))}
       >
         <HardwareStep device={claimed} sockets={sockets} />
+      </Step>
+
+      {/* Last, because it is about every device rather than this one, and
+          because an alarm nobody hears is the one thing a new device cannot
+          be left with: the device-offline rule is armed from the claim on. */}
+      <Step
+        number={5}
+        state={stateOf(4)}
+        onOpen={() => go(4)}
+        headingRef={notifyHeading}
+        title={t('claim.notify.title')}
+        text={said(4, notifySummary(me.data, t) ?? t('claim.notify.text'), t('claim.notify.text'))}
+      >
+        <NotifyStep me={me.data} />
       </Step>
 
       <footer className={styles.foot}>

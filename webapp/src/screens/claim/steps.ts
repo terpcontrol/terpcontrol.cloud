@@ -1,4 +1,6 @@
-import type { Device, GrowthStage, PresetApplication, SocketPage, Space } from '@fg2/shared-types/v1';
+import type { Device, GrowthStage, Me, PresetApplication, SocketPage, Space } from '@fg2/shared-types/v1';
+import { channelsLabel } from '@/screens/control/alarms/rules';
+import { alarmsReach, reachedBy } from '@/screens/notifications/reach';
 
 /**
  * What each step of the claim flow has settled, and the one line it says once
@@ -7,7 +9,7 @@ import type { Device, GrowthStage, PresetApplication, SocketPage, Space } from '
  * A step is only rendered while it is open, so what it decided cannot live in
  * it: the screen holds the answers and these put them into the sentence the
  * ticked step carries. They are here rather than beside the steps because that
- * is the one thing the four have in common.
+ * is the one thing the five have in common.
  */
 
 /** Monitoring only: the place is watched and charted, and nothing is written to the controller. */
@@ -71,6 +73,13 @@ export const doingSummary = ({ chosen, applied }: Doing, onServer: GrowthStage |
 /** What the device reported, rather than anything that was set up in the step. */
 export const hardwareSummary = (device: Device | null, sockets: SocketPage | undefined, t: Translate): string =>
   `${t('claim.code.sockets', { count: sockets?.items.length ?? 0 })} · ${t('claim.code.camera', { name: cameraName(device, t) })}`;
+
+/** How a critical alarm reaches the account, or that nothing does; nothing at all while the account has yet to answer. */
+export const notifySummary = (me: Me | undefined, t: Translate): string | null => {
+  if (!me) return null;
+
+  return alarmsReach(me) ? t('claim.notify.reaches', { channels: channelsLabel(t, reachedBy(me)) }) : t('claim.notify.none');
+};
 
 /**
  * What to call the device. A claim names it after its type where nobody has

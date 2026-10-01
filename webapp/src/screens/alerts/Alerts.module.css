@@ -169,6 +169,19 @@
   color: var(--muted);
 }
 
+/* "Nobody was listening": the one part of the line that can be fixed, so the
+   way to fix it, in the warning's colour. */
+.fix {
+  font-weight: var(--weight-semibold);
+  color: var(--warning);
+  text-decoration: none;
+}
+
+.fix:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* The id something is known by, where the list that holds its name could not be
    read. It is not a name, so it is not set like one - and an id is long enough
    to need a break anywhere rather than a line of its own. */

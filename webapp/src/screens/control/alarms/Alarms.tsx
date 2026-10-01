@@ -382,6 +382,12 @@ function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen,
           </button>
         ) : null}
       </span>
+      {/* Outside the card's button, which a link cannot stand in, and on a line of its own across it. */}
+      {reachesNobody(rule, me, now) ? (
+        <Link to="/me/notifications" className={`mono ${styles.fix}`}>
+          {t('alarms.meta.reachesNobody')}
+        </Link>
+      ) : null}
     </li>
   );
 }
@@ -435,7 +441,9 @@ const metaLine = (t: Translate, rule: AlarmRule, me: Me | undefined, now: DateTi
   if (routed === null) parts.push(rule.delivery.custom ? t(`alarms.channel.${rule.delivery.custom.channel}`) : t('alarms.meta.ownTarget'));
   else if (me && rule.enabled && held === 'muted') parts.push(t('alarms.meta.mutedUntil', { time: clock(me.notifications.mutedUntil!, zoneOf(me)) }));
   else if (me && rule.enabled && held === 'quiet') parts.push(t('alarms.meta.quietUntil', { time: timeOf(me.notifications.quietHours!.toMinute) }));
-  else if (me && rule.enabled) parts.push(announced ? t('alarms.meta.toYou', { channels: channelsLabel(t, routed) }) : t('alarms.meta.notAnnounced'));
+  else if (me && rule.enabled && announced) parts.push(t('alarms.meta.toYou', { channels: channelsLabel(t, routed) }));
+  // A rule nobody hears is said under the card, as the way to change that.
+  else if (me && rule.enabled && !reachesNobody(rule, me, now)) parts.push(t('alarms.meta.notAnnounced'));
 
   if (!rule.enabled) parts.push(t('alarms.meta.switchedOff'));
   else if (announced && held === null) {
@@ -446,3 +454,17 @@ const metaLine = (t: Translate, rule: AlarmRule, me: Me | undefined, now: DateTi
 
   return parts.join(' · ');
 };
+
+/**
+ * Whether a rule that is on would tell nobody, for a reason the account can
+ * fix: it goes by the account's grid, the account is not keeping itself quiet,
+ * and no channel its row names is set up. An info rule is announced nowhere by
+ * design and is left out; so is one with a target of its own.
+ */
+const reachesNobody = (rule: AlarmRule, me: Me | undefined, now: DateTime): boolean =>
+  me !== undefined &&
+  rule.enabled &&
+  rule.delivery.mode === 'routing' &&
+  rule.severity !== 'info' &&
+  heldBackBy(me, rule.severity, now) === null &&
+  !routedChannels(me, rule.severity).some(routed => routed.configured);

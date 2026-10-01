@@ -121,6 +121,26 @@
   color: var(--muted);
 }
 
+/* A rule that reaches nobody, with the way to change that: a line of its own
+   across the card, under the rule it is about, in the warning's colour. */
+.card:has(> .fix) {
+  flex-wrap: wrap;
+}
+
+.fix {
+  flex-basis: 100%;
+  margin-top: calc(-1 * var(--space-2));
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--warning);
+  text-decoration: none;
+}
+
+.fix:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* Why the switch is not offered: the sensor the rule needs and the device
    does not have. Said in the warning's colour, because it is one. */
 .reason {

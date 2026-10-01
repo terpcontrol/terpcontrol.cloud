@@ -40,6 +40,7 @@ export const HELP_TOPICS = [
   'severity',
   'tellBy',
   'routingGrid',
+  'emailAlarms',
   'quietHours',
   'rhythms',
   'rhythmEvery',

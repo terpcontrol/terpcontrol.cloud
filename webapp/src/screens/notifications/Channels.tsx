@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Me, NotificationCategory, NotificationChannel, TelegramLink, WebhookMethod } from '@fg2/shared-types/v1';
+import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { useMe, useSubscribePush, useTelegramLink, useUnsubscribePush } from '@/api/account';
 import { ApiError } from '@/api/problem';
 import { Refused } from '@/ui/PageState';
@@ -14,14 +15,16 @@ import { forgetId, pushKey, pushSupported, rememberedId, rememberId, subscribe, 
 import { ChannelCard } from './parts';
 import { useWriteNotifications } from './write';
 import { headersOf, headersText } from '@/ui/headers';
-import { categoriesOn, hostOf, listed } from './settings';
+import { categoriesOn, hostOf, listed, routingWith } from './settings';
+import { alarmsReach } from './reach';
 import styles from './Notifications.module.css';
 
 /**
  * The four channels, each a card with its switch.
  *
  * A channel that is null is off, and there is no fallback: the login address
- * is never mailed to unless it is entered here. Two of the four need the
+ * is never mailed to unless it is entered here or asked for in the one tap the
+ * notice above offers. Two of the four need the
  * install's half as well as the person's - a push key, a bot - and a card
  * whose install has none says so in place of offering a switch that could
  * never send.
@@ -277,20 +280,33 @@ export function TelegramCard({ me, held }: CardProps) {
  * switch; the field is opened by the chip, and switching on with no address
  * yet opens it too: the switch reads as on, and the line under it says what is
  * still missing before anything is sent.
+ *
+ * The field starts on the address the account signs in with, which is the one
+ * nearly everybody types, and nothing is written until Save confirms it. A
+ * first address saved while critical alarms reach nobody carries them too:
+ * an address that is sent nothing was the second step few found in the grid.
  */
 export function EmailCard({ me, held }: CardProps) {
   const { t } = useTranslation();
   const { write, error, pending } = useWriteNotifications(me);
   const address = me.notifications.channels.email;
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(address ?? '');
+  const [draft, setDraft] = useState(address ?? me.email);
 
   const on = address !== null || editing;
   const changed = draft.trim() !== (address ?? '');
 
   const open = () => {
-    setDraft(address ?? '');
+    setDraft(address ?? me.email);
     setEditing(true);
+  };
+
+  const save = (typed: string) => {
+    const first = address === null && !alarmsReach(me);
+    write({
+      channels: { ...me.notifications.channels, email: typed },
+      ...(first ? { routing: routingWith(me.notifications.routing, alertCategory('critical')!, 'email', true) } : {}),
+    });
   };
 
   const toggle = () => {
@@ -332,7 +348,7 @@ export function EmailCard({ me, held }: CardProps) {
             event.preventDefault();
             if (!draft.trim()) return;
             setEditing(false);
-            write({ channels: { ...me.notifications.channels, email: draft.trim() } });
+            save(draft.trim());
           }}
         >
           <label className={styles.field}>

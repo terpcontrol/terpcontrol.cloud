@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { AlarmRule, Device, Me, Metric, OutputMetric, Severity, WebhookMethod } from '@fg2/shared-types/v1';
 import { useCreateAlarmRule, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { Sheet } from '@/log/Sheet';
+import { EmailAlarmsOffer } from '@/screens/notifications/NotifyNotice';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -66,6 +68,12 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
   const unit = unitOf(watchOf(draft));
   const offline = watchesOffline(draft.watch);
   const deliveryNote = draft.tellBy === 'routing' ? routingNote(t, draft, me) : null;
+  // A rule the account's grid sends nowhere it can be reached gets the fix
+  // beside the sentence that says so: for a critical one the same tap the
+  // notice on Start offers, which leaves this sheet and its draft where they
+  // are; for a warning, the way to the settings that route it.
+  const reachedBy = me && draft.tellBy === 'routing' && draft.severity !== 'info' ? routedChannels(me, draft.severity) : null;
+  const unreached = reachedBy !== null && !reachedBy.some(routed => routed.configured);
 
   // A reading or an output the device does not report is still drawn where the
   // rule already watches it - a CO2 rule on a controller with no sensor, a
@@ -222,6 +230,15 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
           </Choices>
 
           {deliveryNote ? <p className={ui.note}>{deliveryNote}</p> : null}
+          {unreached && me ? (
+            draft.severity === 'critical' ? (
+              <EmailAlarmsOffer me={me} others={false} />
+            ) : (
+              <Link to="/me/notifications" className={`mono ${ui.headLink}`}>
+                {t('alarms.sheet.setUp')} ›
+              </Link>
+            )
+          ) : null}
 
           {draft.tellBy === 'email' ? (
             <input

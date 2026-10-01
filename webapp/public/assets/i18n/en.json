@@ -3452,6 +3452,7 @@
     "meta": {
       "for": "for {{length}}",
       "notAnnounced": "does not reach you",
+      "reachesNobody": "does not reach you · set up ›",
       "ownTarget": "its own target",
       "repeatsEvery": "repeats every {{length}}",
       "silencedUntil": "silenced until {{time}}",
@@ -3523,7 +3524,8 @@
         "webhook": "a webhook"
       },
       "routingNote": "Goes out by {{channels}}.",
-      "routingNone": "Not announced: nothing is routed for {{severity}} in your notification settings.",
+      "routingNone": "Not announced: no way to reach you is set up for {{severity}} yet.",
+      "setUp": "Set up notifications",
       "infoNote": "An info alarm is written to the diary and never announced.",
       "address": "Address",
       "url": "URL",
@@ -3779,6 +3781,17 @@
     "demo": "The demo has no account settings.",
     "edit": "Edit"
   },
+  "notify": {
+    "title": "Alarms do not reach you",
+    "email": "Notify me by e-mail",
+    "sending": "Switching on…",
+    "to": "to {{email}}",
+    "other": "Other ways",
+    "later": "Later",
+    "done": "Critical alarms now come by e-mail to {{email}}.",
+    "reaches": "Critical alarms reach you by {{channels}}.",
+    "change": "Change"
+  },
   "alerts": {
     "bell_one": "Alerts · {{count}} open",
     "bell_other": "Alerts · {{count}} open",
@@ -3807,7 +3820,7 @@
       "settling": "device out of maintenance, nothing raised until {{time}} while the climate comes back",
       "resolved": "resolved {{time}} · lasted {{age}}",
       "notAnnounced": "not announced",
-      "unheard": "nobody was listening",
+      "unheard": "nobody was listening · set up ›",
       "ruleNow": "the rule now says {{severity}}"
     },
     "action": {
@@ -3829,7 +3842,6 @@
       "cancel": "Cancel"
     },
     "nothing": "Nothing has gone wrong.",
-    "note": "One line per event, graded by severity, never one push per sensor. Critical repeats until resolved; warnings once; info stays in this list only.",
     "output": {
       "heater": "heater",
       "dehumidifier": "dehumidifier",
@@ -3868,7 +3880,7 @@
     "skip": "skip",
     "next": "Next · {{what}}",
     "finish": "Done · open the place",
-    "later": "The preset can be changed later from Control, the sockets and the cam from Devices.",
+    "later": "The preset can be changed later from Control, the sockets and the cam from Devices, notifications from Me.",
     "addDevice": "Add a device",
     "demo": "The demo may look at everything and change nothing, so it cannot claim hardware. Sign in with your own account to add a device.",
     "backToDevices": "Back to Devices",
@@ -3958,6 +3970,13 @@
       "socketsAtTheDevice": "A socket is paired on the controller itself, which searches the network for it; it turns up in this list once the controller reports it. The app can then switch it - it cannot add one or say what it is for.",
       "pairTheCam": "Pair a Terp Cam",
       "bothCanWait": "Both can wait: a controller with nothing plugged into it still measures the place it stands in."
+    },
+    "notify": {
+      "next": "notifications",
+      "title": "How will you hear about problems?",
+      "text": "When the device goes offline or it gets too warm, an alarm goes off. Without a way set up, it does not reach you.",
+      "reaches": "Critical alarms by {{channels}}",
+      "none": "no way set up yet"
     }
   },
   "admin": {
@@ -4392,6 +4411,10 @@
     "routingGrid": {
       "title": "What goes where",
       "text": "Each row is a kind of message, each column a way to reach you; nothing is sent until you switch a cell on. The grid is yours alone – everyone in your spaces sets their own – and an alarm rule with its own e-mail or webhook does not go through it."
+    },
+    "emailAlarms": {
+      "title": "Alarms by e-mail",
+      "text": "Until a way is set up, no alarm reaches you, not even “device offline”. One tap sends critical alarms by e-mail to the address you sign in with. Warnings and everything else stay as they are. Change or switch it off under Me › Notifications. “Later” hides this notice for a week."
     },
     "quietHours": {
       "title": "Quiet hours",
