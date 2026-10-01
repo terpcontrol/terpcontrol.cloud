@@ -39,7 +39,7 @@ import { CameraPollerService } from './camera-poller.service';
 import { CaptureService } from './capture.service';
 import { EntitlementService } from './entitlement.service';
 import { MediaService } from './media.service';
-import { TimelapseService } from './timelapse.service';
+import { coveredBy, TimelapseService } from './timelapse.service';
 import { OptionalSessionGuard } from './optional-session.guard';
 import { isRolling, periodAround, periodBefore } from './film-periods';
 import { DEFAULT_ASPECT, DEFAULT_OVERLAYS } from './timelapse-overlays';
@@ -356,7 +356,13 @@ export class CamerasController {
       range: { startsAt: span.startsAt, endsAt: span.startsAt },
     });
 
-    if (existing && (!composed || sameFilm(existing, render, quality, span.endsAt))) {
+    // A span that is still going - today, this week - is filmed up to its last
+    // picture, so the film of it is the one asked for while it still reaches
+    // the newest picture; once the camera has gone on, a tap films the rest.
+    const open = span.endsAt.getTime() > Date.now();
+    const current = existing !== null && (!open || (await this.reachesTheNewest(existing, id, span)));
+
+    if (existing && current && (!composed || sameFilm(existing, render, quality, open ? null : span.endsAt))) {
       void reply.status(HttpStatus.OK);
       return { media: this.media.serialise(existing), queued: false };
     }
@@ -396,6 +402,19 @@ export class CamerasController {
 
     void reply.status(HttpStatus.ACCEPTED);
     return { media: this.media.serialise(queued), queued: true };
+  }
+
+  /**
+   * Whether a film of a span still going covers it up to its newest picture, or
+   * nearly - a film being made is the one asked for, and a ready one stays it
+   * for a few minutes of pictures, so a second tap does not render again.
+   */
+  private async reachesTheNewest(film: MediaDocument, cameraId: string, span: { startsAt: Date; endsAt: Date }): Promise<boolean> {
+    if (film.render?.status === 'queued' || film.render?.status === 'rendering') return true;
+
+    const [newest] = await this.media.latestPositions({ cameraId, kind: 'still', from: span.startsAt, before: span.endsAt }, 1);
+    const covered = coveredBy(film);
+    return !newest || (covered !== null && newest.capturedAt.getTime() - covered.getTime() < STILL_FRESH_FILM_MS);
   }
 
   /**
@@ -494,15 +513,18 @@ const isComposed = (render: NonNullable<MediaDocument['render']>, quality: Media
   render.framesPerSecond !== DEFAULT_RENDER_FRAME_RATE ||
   quality !== 'sd';
 
-/** Whether the film that is already there is the one being asked for. */
-const sameFilm = (existing: MediaDocument, render: NonNullable<MediaDocument['render']>, quality: MediaQuality, endsAt: Date): boolean => {
+/** How many minutes of new pictures a film of today may lag behind before a tap renders it again. */
+const STILL_FRESH_FILM_MS = 10 * 60 * 1000;
+
+/** Whether the film that is already there is the one being asked for; a span still going is compared without its end. */
+const sameFilm = (existing: MediaDocument, render: NonNullable<MediaDocument['render']>, quality: MediaQuality, endsAt: Date | null): boolean => {
   const was = existing.render;
 
   return (
     was !== null &&
     was.status !== 'failed' &&
     (existing.quality ?? 'sd') === quality &&
-    existing.endsAt?.getTime() === endsAt.getTime() &&
+    (endsAt === null || existing.endsAt?.getTime() === endsAt.getTime()) &&
     was.framesPerSecond === render.framesPerSecond &&
     was.aspect === render.aspect &&
     was.includeLightsOff === render.includeLightsOff &&

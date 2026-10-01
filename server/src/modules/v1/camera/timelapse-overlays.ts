@@ -118,6 +118,9 @@ export const overlayLayer = (frame: OverlayFrame, overlays: MediaOverlays, conte
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${frame.width}" height="${frame.height}">${parts.join('')}</svg>`;
 };
 
+/** The word in front of the day number, in the language the account was last used in. */
+const DAY_WORD: Record<string, string> = { de: 'Tag', en: 'Day' };
+
 /** "Day 34", which is how a grower says where a grow is. */
 const dayBadge = (frame: OverlayFrame, context: TimelapseContext): string | null => {
   if (context.growStartedAt === null) return null;
@@ -133,7 +136,7 @@ const dayBadge = (frame: OverlayFrame, context: TimelapseContext): string | null
   return `<g>
     <rect x="${pad}" y="${pad}" width="${width}" height="${height}" rx="${Math.round(size / 3)}" fill="${PANEL}" fill-opacity="0.58"/>
     <text x="${pad + width / 2}" y="${pad + height / 2}" text-anchor="middle" dominant-baseline="central"
-          font-family="${TEXT_FAMILY}" font-size="${size}" font-weight="700" fill="${INK}">Day ${day}</text>
+          font-family="${TEXT_FAMILY}" font-size="${size}" font-weight="700" fill="${INK}">${DAY_WORD[context.language ?? 'en'] ?? DAY_WORD.en} ${day}</text>
   </g>`;
 };
 

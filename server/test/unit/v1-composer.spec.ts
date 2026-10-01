@@ -241,6 +241,50 @@ describe('asking twice', () => {
     expect(await db.media.countDocuments()).toBe(1);
   });
 
+  /**
+   * "Film von heute" was asked for at one in the morning and kept the end of
+   * the day as its end, so it read as covering the whole day: the hourly pass
+   * never rebuilt it and every later tap answered the same one-second film. A
+   * film of a span still going covers it up to its last picture, and a tap once
+   * the camera has gone on films the rest.
+   */
+  it('films today again once the camera has gone on, and not while it is current', async () => {
+    const now = Date.now();
+    const still = (minutesAgo: number) => ({
+      id: `still-${minutesAgo}`,
+      kind: 'still',
+      mime: 'image/jpeg',
+      bytes: 1,
+      cameraId: CAMERA,
+      capturedAt: new Date(now - minutesAgo * 60_000),
+    });
+    await db.media.create([still(1)]);
+
+    const asked = await compose({ window: 'day', startsAt: new Date(now).toISOString() });
+    expect(asked.queued).toBe(true);
+    const dayEnd = new Date(asked.media.endsAt!);
+    expect(dayEnd.getTime()).toBeGreaterThan(now);
+
+    // Rendered at the start of the hour, the way the builder fills it in, with
+    // the end of the day still on the row as a render before this fix left it.
+    await db.media.updateOne(
+      { id: asked.media.id },
+      { $set: { bytes: 10, lengthSeconds: 1, 'render.status': 'ready', 'render.endedAt': new Date(now - 40 * 60_000) } },
+    );
+    const stuck = await compose({ window: 'day', startsAt: new Date(now).toISOString() });
+    expect(stuck.queued).toBe(true);
+    expect(stuck.media.id).not.toBe(asked.media.id);
+
+    // Ready and reaching the newest picture: a second tap answers it.
+    await db.media.updateOne(
+      { id: stuck.media.id },
+      { $set: { bytes: 10, lengthSeconds: 1, endsAt: new Date(now - 2 * 60_000), 'render.status': 'ready', 'render.endedAt': new Date(now) } },
+    );
+    const again = await compose({ window: 'day', startsAt: new Date(now).toISOString() });
+    expect(again.queued).toBe(false);
+    expect(again.media.id).toBe(stuck.media.id);
+  });
+
   it('never replaces the rolling film the builder keeps by itself', async () => {
     const today = new Date(Math.floor(Date.now() / (24 * 60 * 60 * 1000)) * (24 * 60 * 60 * 1000) - 24 * 60 * 60 * 1000);
     await media.queue({ kind: 'timelapse', mime: 'video/mp4', cameraId: CAMERA, capturedAt: today, window: 'day' });
@@ -349,6 +393,15 @@ describe('what the builder makes of it', () => {
 
     expect(paths).toHaveLength(2);
     for (const path of paths) expect(path.startsWith('M')).toBe(true);
+  });
+
+  it('counts the days in the language the owner uses the app in', () => {
+    const context = { growStartedAt: new Date('2026-08-01T00:00:00.000Z'), temperature: [], humidity: [], light: [], captions: [] };
+    const frame = { at: new Date('2026-08-04T12:00:00.000Z'), width: 1280, height: 720 };
+    const only = { dayCounter: true, climate: false, entries: false };
+
+    expect(overlayLayer(frame, only, { ...context, language: 'de' })).toContain('>Tag 4</text>');
+    expect(overlayLayer(frame, only, context)).toContain('>Day 4</text>');
   });
 
   it('draws nothing where every overlay that was asked for has nothing to say', () => {

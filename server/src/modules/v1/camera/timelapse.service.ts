@@ -184,8 +184,10 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
       if (!newest) return;
 
       // A film stored without the instant of its last frame is left alone:
-      // there is nothing to compare against.
-      const coveredUntil = existing?.endsAt ?? null;
+      // there is nothing to compare against. One whose end still lies ahead was
+      // asked for before the span was over and covers what was there when it
+      // was rendered.
+      const coveredUntil = existing ? coveredBy(existing) : null;
       const isOpen = period === open;
       const stale =
         !existing ||
@@ -259,20 +261,24 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
 
     const endsAt = job.endsAt ?? new Date();
     const span = { startsAt: job.capturedAt, endsAt };
+    const open = endsAt.getTime() > Date.now();
     // Enough frames for a film of a sensible length, however long the span is.
     const frameInterval = Math.max(Math.round((endsAt.getTime() - job.capturedAt.getTime()) / (render.framesPerSecond * 60)), 1000);
 
     try {
       const quality = job.quality ?? 'sd';
       const overlays = render.overlays;
-      const context = await this.context.contextFor(camera, span, {
-        dayCounter: overlays.dayCounter,
-        climate: overlays.climate,
-        captions: overlays.entries,
-        // Leaving the dark frames out is what reads the light output; a film
-        // that keeps them asks for nothing.
-        light: !render.includeLightsOff,
-      });
+      const context = {
+        ...(await this.context.contextFor(camera, span, {
+          dayCounter: overlays.dayCounter,
+          climate: overlays.climate,
+          captions: overlays.entries,
+          // Leaving the dark frames out is what reads the light output; a film
+          // that keeps them asks for nothing.
+          light: !render.includeLightsOff,
+        })),
+        language: overlays.dayCounter ? await this.cameras.languageOf(camera) : undefined,
+      };
 
       const all = await this.framesOf(camera.id, span.startsAt, endsAt, frameInterval);
       const frames = render.includeLightsOff ? all : all.filter(frame => !wasDark(frame.capturedAt, context.light));
@@ -297,7 +303,15 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
                 }
               : null,
         },
-        path => this.media.fill(job.id, path, { lengthSeconds: Math.round(frames.length / render.framesPerSecond) }),
+        path =>
+          this.media.fill(job.id, path, {
+            lengthSeconds: Math.round(frames.length / render.framesPerSecond),
+            // A film of a span still going ends at its last frame, as the
+            // rolling ones do: that is what lets the hourly pass carry a day
+            // film asked for this morning on into the evening, and a later tap
+            // ask for the rest, instead of both reading the day as done.
+            ...(open && frames.length > 0 ? { endsAt: frames[frames.length - 1].capturedAt } : {}),
+          }),
       );
 
       await this.media.setRender(job.id, {
@@ -558,6 +572,16 @@ const filterArguments = (options: FfmpegOptions): string[] => {
   if (!options.watermark) return scale ? ['-vf', scale] : [];
 
   return ['-filter_complex', scale ? `[0:v]${scale}[base];[base][1:v]${overlay}` : `[0:v][1:v]${overlay}`];
+};
+
+/**
+ * Up to when a film covers its span. A film asked for before its span was over
+ * and rendered before that fix carried the end of the span as its end, and
+ * covers what there was when it was rendered.
+ */
+export const coveredBy = (film: Pick<MediaDocument, 'endsAt' | 'render'>, now = new Date()): Date | null => {
+  if (film.endsAt === null || film.endsAt <= now) return film.endsAt;
+  return film.render?.status === 'ready' ? (film.render.endedAt ?? null) : null;
 };
 
 /**

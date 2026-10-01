@@ -36,6 +36,8 @@ export interface TimelapseContext {
   /** The light output over the span, which is what says a frame was taken in the dark. */
   light: SeriesPoint[];
   captions: TimelapseCaption[];
+  /** The language the camera's owner last used the app in; English where none is known. */
+  language?: string;
 }
 
 /** Enough points for a curve a thumb-sized chart can draw, whatever the span. */

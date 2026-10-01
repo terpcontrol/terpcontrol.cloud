@@ -57,6 +57,12 @@ export class CamerasService {
     return owner?.preferences?.timezone || null;
   }
 
+  /** The language the owner last used the app in, which is what a film's day counter is written in. */
+  public async languageOf(camera: Pick<CameraDocument, 'ownerId'>): Promise<string> {
+    const owner = await this.users.findOne({ id: camera.ownerId }, { 'preferences.locale': 1 }).lean<Pick<StoredUser, 'preferences'>>();
+    return owner?.preferences?.locale || 'en';
+  }
+
   public byId(id: string): Promise<CameraDocument | null> {
     return this.cameras.findOne({ id }).lean<CameraDocument>();
   }

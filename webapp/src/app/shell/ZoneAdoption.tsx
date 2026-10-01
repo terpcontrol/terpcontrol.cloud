@@ -28,11 +28,12 @@ import { browserZone } from '@/ui/zone';
  * how to go back, so the change is never silent.
  */
 export function ZoneAdoption() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const me = useMe();
   const mayManage = useMayManage();
   const update = useUpdateMe();
   const asked = useRef(false);
+  const told = useRef<string | null>(null);
   const [adopted, setAdopted] = useState<{ from: string; zone: string } | null>(null);
 
   const account = me.data ?? null;
@@ -50,6 +51,17 @@ export function ZoneAdoption() {
       { onSuccess: () => setAdopted({ from: kept.timezone, zone: here }) },
     );
   }, [account, mayManage, here, update]);
+
+  // The language is the browser's to choose, but what the server writes itself -
+  // the day counter burnt into a film - is read in the one the account was last
+  // used in, so the account is told it without a word.
+  const language = i18n.resolvedLanguage ?? null;
+  const { mutate } = update;
+  useEffect(() => {
+    if (!account?.preferences || !mayManage || !language || account.preferences.locale === language || told.current === language) return;
+    told.current = language;
+    mutate({ preferences: { locale: language } });
+  }, [account, mayManage, language, mutate]);
 
   if (!adopted) return null;
 
