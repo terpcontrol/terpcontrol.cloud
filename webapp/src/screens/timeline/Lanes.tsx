@@ -30,6 +30,8 @@ interface LanesProps {
   scrub: React.HTMLAttributes<HTMLDivElement>;
   /** Whether the rail of lines is drawn: a window nobody and nothing wrote in is not shown an empty one. */
   events?: boolean;
+  /** The output the Timeline was opened on, whose lane is marked. */
+  focus?: string | null;
 }
 
 /**
@@ -38,7 +40,7 @@ interface LanesProps {
  * that a line exists there, and tapping it puts the line under the rail and the
  * cursor on its moment - which is the whole reason the two are drawn together.
  */
-export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onScrub, scrub, events = true }: LanesProps) {
+export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onScrub, scrub, events = true, focus = null }: LanesProps) {
   const { t } = useTranslation();
   // A mark tapped open is the one place the rail draws what somebody wrote, so
   // it is also where they can put right what they wrote. The place that decides
@@ -69,7 +71,7 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
   return (
     <section className={styles.lanes}>
       {timeline.outputs.map((lane, index) => (
-        <div key={`${lane.deviceId ?? index}-${lane.output}`} className={styles.lane}>
+        <div key={`${lane.deviceId ?? index}-${lane.output}`} className={styles.lane} data-focus={lane.output === focus || undefined}>
           <span className={`caption ${styles.laneName}`}>{t(`timeline.output.${lane.output}`, { defaultValue: lane.output })}</span>
           <div className={styles.track} {...scrub}>
             {lane.spans.map(span => (

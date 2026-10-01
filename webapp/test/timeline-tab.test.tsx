@@ -20,9 +20,11 @@ vi.mock('@/api/session', async importOriginal => {
   return { ...(await importOriginal<object>()), useSession: () => of[who.is] };
 });
 
-// A home with no place on it at all, which is the only state this tab can draw
-// without a timeline behind it.
-vi.mock('@/api/home', () => ({ useHome: () => ({ isPending: false, data: { spaces: [] }, refetch: () => {} }) }));
+// A home with no place on it at all unless a test puts some there: the empty
+// state is what this tab can draw without a timeline behind it.
+const home = vi.hoisted(() => ({ spaces: [] as unknown[] }));
+
+vi.mock('@/api/home', () => ({ useHome: () => ({ isPending: false, data: { spaces: home.spaces }, refetch: () => {} }) }));
 
 /**
  * The Timeline tab when the home draws nothing. The screen itself is covered by
@@ -38,6 +40,7 @@ describe('the timeline tab with nothing to draw', () => {
 
   beforeEach(() => {
     who.is = 'you';
+    home.spaces = [];
   });
 
   const draw = () =>
@@ -68,5 +71,32 @@ describe('the timeline tab with nothing to draw', () => {
     expect(screen.getByText('The demo has nothing to draw; nothing has been left in this one to look at.')).toBeInTheDocument();
     expect(screen.queryByText(/Add a device or start a grow/)).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Home' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * A cockpit's tile names its place in the link it opens, so an account with
+ * several places lands on the one the tile was on - not on whichever place the
+ * tab last showed.
+ */
+describe('the timeline tab opened from a place', () => {
+  beforeEach(() => {
+    who.is = 'you';
+    home.spaces = [
+      { spaceId: 'space-1', name: 'Tent 1', values: [], deviceIds: ['device-1'] },
+      { spaceId: 'space-2', name: 'Fridge 2', values: [], deviceIds: ['device-2'] },
+    ];
+  });
+
+  it('opens on the place the link names', () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={['/timeline?space=space-2&focus=humidity']}>
+          <Timeline />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole('combobox', { name: 'Which place' })).toHaveValue('space-2');
   });
 });

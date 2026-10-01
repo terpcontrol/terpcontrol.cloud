@@ -22,6 +22,8 @@ interface PanelProps {
   scrub: React.HTMLAttributes<HTMLDivElement>;
   /** The first panel, whose band says what a band is. */
   explain?: boolean;
+  /** The reading the Timeline was opened on, marked so the eye lands on it. */
+  focused?: boolean;
 }
 
 /**
@@ -30,7 +32,7 @@ interface PanelProps {
  * drawn once per answer and the cursor is an overlay over it, so scrubbing
  * costs no redraw.
  */
-export function Panel({ panel, nights, alarms, from, to, cursor, scrub, explain }: PanelProps) {
+export function Panel({ panel, nights, alarms, from, to, cursor, scrub, explain, focused = false }: PanelProps) {
   const { t } = useTranslation();
   const stretches = useMemo(() => stretchesOf(panel, nights, from, to), [panel, nights, from, to]);
   const scale = useMemo(() => scaleOf(panel, stretches), [panel, stretches]);
@@ -49,7 +51,7 @@ export function Panel({ panel, nights, alarms, from, to, cursor, scrub, explain 
     : null;
 
   return (
-    <section className={styles.panel}>
+    <section className={styles.panel} data-focus={focused || undefined}>
       <header className={styles.panelHead}>
         <span className={styles.metric} data-metric={panel.metric}>
           {t(`timeline.metric.${panel.metric}`, { defaultValue: panel.metric })}

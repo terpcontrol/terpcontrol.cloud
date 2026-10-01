@@ -1,7 +1,7 @@
 import { ChevronDown, LineChart } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import type { SpaceTimeline, TimelineRange } from '@fg2/shared-types/v1';
 import { fetchedAt } from '@/api/clock';
 import { useGrow } from '@/api/grows';
@@ -37,6 +37,10 @@ interface TimelineProps {
  *
  * The state is keyed by the space, so picking another place starts it clean
  * rather than asking the new one about the old one's grow.
+ *
+ * `?focus=` names the reading a tile was tapped on - a metric, or `light` for
+ * the lamp's lane - and the screen opens scrolled to it with it marked, so the
+ * tap lands on the curve it was about rather than at the top of the stack.
  */
 export function Timeline({ spaceId, heading, reportsAge }: TimelineProps) {
   return <TimelineFor key={spaceId} spaceId={spaceId} heading={heading} reportsAge={reportsAge} />;
@@ -52,9 +56,21 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
   /** Null is "the end of the window", so a refresh carries the cursor along with it rather than pinning it to an instant that has scrolled out. */
   const [cursor, setCursor] = useState<number | null>(null);
   const [opened, setOpened] = useState<string | null>(null);
+  const focus = useSearchParams()[0].get('focus');
+  const screen = useRef<HTMLDivElement>(null);
+  const focused = useRef<string | null>(null);
 
   const timeline = useTimeline(spaceId, range, pinned);
   const data = timeline.data;
+
+  // Once per focus, when what it names has been drawn: scrolling again on every refresh would take the page from under a thumb.
+  useEffect(() => {
+    if (!focus || !data || focused.current === focus) return;
+    const target = screen.current?.querySelector<HTMLElement>('[data-focus]');
+    if (!target) return;
+    focused.current = focus;
+    target.scrollIntoView?.({ block: 'center' });
+  }, [focus, data]);
   const growId = pinned ?? data?.growId ?? null;
   const grow = useGrow(growId);
 
@@ -162,7 +178,7 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
   return (
     // Busy while a chip's window is still on its way: what is drawn is the
     // window before it, which is worth saying without taking it off the screen.
-    <div className={styles.screen} aria-busy={timeline.isPlaceholderData}>
+    <div className={styles.screen} aria-busy={timeline.isPlaceholderData} ref={screen}>
       {heading}
       {grow.data ? (
         <Link to={`/grows/${grow.data.id}`} className={`mono ${styles.subject}`}>
@@ -217,6 +233,7 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
           cursor={here}
           scrub={scrub}
           explain={index === 0}
+          focused={panel.metric === focus}
         />
       ))}
 
@@ -231,6 +248,7 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
         onScrub={setCursor}
         scrub={scrub}
         events={data.events.length > 0}
+        focus={focus}
       />
     </div>
   );

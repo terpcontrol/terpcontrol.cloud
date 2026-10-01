@@ -453,6 +453,45 @@ describe('the timeline', () => {
  * the stylesheet itself: a mark hangs half of itself off the left edge of the
  * rail, and its count badge is opaque and sits over a 12px glyph.
  */
+/**
+ * A tile of a place's cockpit opens the Timeline on the reading it is about.
+ * The screen lands on that panel - or, for the lamp, on its lane - and marks
+ * it, so the tap ends on the curve it was for rather than at the top of a
+ * stack the grower then has to search.
+ */
+describe('a timeline opened on one reading', () => {
+  const drawAt = (url: string) =>
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={[url]}>
+          <LogProvider>
+            <Timeline spaceId="space-1" />
+          </LogProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+  it('scrolls to the panel of that reading and marks it, and no other', () => {
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    drawAt('/timeline?focus=humidity');
+
+    const humidity = screen.getByText('Humidity').closest('section')!;
+    expect(humidity).toHaveAttribute('data-focus', 'true');
+    expect(screen.getByText('Temperature').closest('section')).not.toHaveAttribute('data-focus');
+    expect(scrolled).toHaveBeenCalledTimes(1);
+    expect(scrolled.mock.contexts[0]).toBe(humidity);
+  });
+
+  it('marks the lamp´s lane for the light', () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    drawAt('/timeline?focus=light');
+
+    expect(screen.getByText('Light').closest('div')).toHaveAttribute('data-focus', 'true');
+    expect(screen.getByText('Heater').closest('div')).not.toHaveAttribute('data-focus');
+  });
+});
+
 describe('the geometry of a mark on the rail', () => {
   let css: string;
   const pixels = (rule: string, property: string) => Number(new RegExp(`\\.${rule}\\s*\\{[^}]*?${property}:\\s*(-?[\\d.]+)px`, 's').exec(css)?.[1]);

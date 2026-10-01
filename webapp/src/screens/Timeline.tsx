@@ -1,7 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import type { HomeSpaceCard } from '@fg2/shared-types/v1';
 import { useHome } from '@/api/home';
 import { useSession } from '@/api/session';
@@ -15,16 +15,20 @@ import { Timeline as TimelineScreen } from './timeline/Timeline';
 import styles from './timeline/Timeline.module.css';
 
 /**
- * The Timeline tab of the bottom bar. It opens on the place last looked at -
- * from a tent page or from this picker - and falls back to the first place the
- * home lists, which is the one that most wants attention. The tent page's own
- * Timeline tab draws the same screen for the tent it belongs to.
+ * The Timeline tab of the bottom bar. It opens on the place a link names
+ * (`?space=`, which is how a tile of a place's cockpit opens it), else on the
+ * place last looked at - from a cockpit or from this picker - and falls back to
+ * the first place the home lists, which is the one that most wants attention.
+ * The tent page's own Timeline tab draws the same screen for the tent it
+ * belongs to.
  */
 export function Timeline() {
   const { t } = useTranslation();
   const now = useNow();
   const home = useHome();
   const { user } = useSession();
+  const [params, setParams] = useSearchParams();
+  const asked = params.get('space');
   const [picked, setPicked] = useState<string | null>(() => lastSpace());
 
   if (home.isPending) return <Waiting lines={3} />;
@@ -54,10 +58,12 @@ export function Timeline() {
     );
   }
 
-  const here = places.find(space => space.spaceId === picked) ?? places[0];
+  const here = places.find(space => space.spaceId === asked) ?? places.find(space => space.spaceId === picked) ?? places[0];
   const choose = (spaceId: string) => {
     setPicked(spaceId);
     rememberSpace(spaceId);
+    // What a link asked for, and the reading it was opened on, are about the place being left.
+    if (asked) setParams({}, { replace: true });
   };
 
   return (
