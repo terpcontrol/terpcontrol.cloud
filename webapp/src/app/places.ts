@@ -29,8 +29,12 @@ export const membersPath = (spaceId: string): string => `/spaces/${spaceId}/memb
 export const CONTROL_PAGES = ['targets', 'alarms', 'plan'] as const;
 export type ControlPage = (typeof CONTROL_PAGES)[number];
 
-export const controlPath = (spaceId: string, page: ControlPage | null = null, query: Record<string, string> = {}): string =>
-  withQuery(page ? `/control/${page}` : '/control', { space: spaceId, ...query });
+export const controlPath = (
+  spaceId: string,
+  page: ControlPage | null = null,
+  query: Record<string, string> = {},
+  hash: string | null = null,
+): string => withQuery(page ? `/control/${page}` : '/control', { space: spaceId, ...query }) + (hash ? `#${hash}` : '');
 
 /** The Timeline of a place, opened on one reading where `focus` names it. */
 export const timelinePath = (spaceId: string, focus: string | null = null): string =>

@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { Device, GrowListItem, Plant, SpaceOverview } from '@fg2/shared-types/v1';
+import type { Device, GrowListItem, Plant } from '@fg2/shared-types/v1';
 import { HarvestSheet } from '@/screens/grow/HarvestSheet';
 import { GrowLifecycle } from '@/screens/grow/Lifecycle';
 import { MoveSheet } from '@/screens/grow/MoveSheet';
@@ -16,7 +16,6 @@ import { RenameSheet } from '@/screens/grow/RenameSheet';
 import { SplitSheet } from '@/screens/grow/SplitSheet';
 import { PhaseSheet } from '@/screens/grow/PhaseSheet';
 import { correctionEffect, withdrawalEffect } from '@/screens/grow/phase-effect';
-import { PresetSheet } from '@/screens/space/PresetSheet';
 import { spaceWhere } from './session';
 
 vi.mock('@/api/session', async importOriginal => {
@@ -31,18 +30,6 @@ const hardware = vi.hoisted(() => ({ devices: [] as unknown[] }));
 vi.mock('@/api/devices', async importOriginal => ({
   ...(await importOriginal<object>()),
   useDevices: () => ({ data: { items: hardware.devices, nextCursor: null }, isPending: false, refetch: () => {} }),
-}));
-
-/** What the server answered a preset with, which is the block the sheet draws afterwards and never reads again. */
-const applied = vi.hoisted(() => ({ result: null as unknown }));
-
-vi.mock('@/api/lifecycle', async importOriginal => ({
-  ...(await importOriginal<object>()),
-  useApplyPreset: () => ({
-    mutate: (_body: unknown, options?: { onSuccess?: (result: unknown) => void }) => options?.onSuccess?.(applied.result),
-    error: null,
-    isPending: false,
-  }),
 }));
 
 /**
@@ -114,56 +101,6 @@ const plant = (id: string, label: string, over: Partial<Plant> = {}): Plant => (
 });
 
 const plants = [plant('plant-1', 'Amnesia 1'), plant('plant-2', 'Amnesia 2'), plant('plant-3', 'Gelato 1', { strain: 'Gelato' })];
-
-const overview: SpaceOverview = {
-  spaceId: 'space-1',
-  name: 'Blue Dream tent',
-  kind: 'tent',
-  roomId: null,
-  deviceIds: ['device-1'],
-  values: [],
-  setpoints: [],
-  targets: null,
-  verdict: {
-    deviceId: 'device-1',
-    startsAt: at(1),
-    endsAt: at(0),
-    forSeconds: 86_400,
-    stepSeconds: 120,
-    rating: null,
-    inBandFraction: null,
-    metrics: [],
-    actuators: [],
-    trend: null,
-  },
-  grows: [
-    {
-      growId: 'grow-1',
-      name: 'Spring run',
-      type: 'photoperiod',
-      dayNumber: 35,
-      phaseDay: 11,
-      stageWeek: 2,
-      weekNumber: 5,
-      stage: 'flowering',
-      stagesReached: ['vegetative', 'flowering'],
-      preset: null,
-      isAuto: false,
-      plantCount: 3,
-      strains: ['Amnesia', 'Gelato'],
-      coverMediaId: null,
-      stageGroups: [],
-      placedAt: at(34),
-      placedOnDay: 1,
-    },
-  ],
-  cameras: [],
-  entries: [],
-  readingNames: [],
-  dueTasks: [],
-  openAlerts: [],
-  people: [],
-};
 
 const draw = (node: React.ReactNode) =>
   render(
@@ -515,144 +452,69 @@ const standing = (over: Partial<Device> = {}): Device => ({
   ...over,
 });
 
-const withoutCo2 = (over: Partial<Device> = {}): Device => {
-  const one = standing(over);
-  return { ...one, state: { ...one.state, hardware: { ...one.state.hardware, co2: 'off' } } };
-};
+/**
+ * Moving into a stage asks whether the tent's climate moves with it. Moving
+ * into flower is when the light is expected to go to twelve hours, and the
+ * phase picker used to move the stage alone without a word about the light.
+ */
+describe('the climate beside a phase', () => {
+  const tent = (over: Partial<Device> = {}): Device => ({
+    ...standing(over),
+    configuration: {
+      day: { temperature: 26, humidity: 62 },
+      night: { temperature: 22, humidity: 58 },
+      lights: { limit: 80 },
+      daynight: { day: 21600, night: 0 },
+    },
+  });
+  const veg: GrowListItem = { ...grow, phases: [phase('p1', 'vegetative', 20)], summary: { ...grow.summary, stage: 'vegetative' } };
 
-describe('the climate preset sheet', () => {
-  it('says a preset writes the target climate and nothing else, and which grow follows it', () => {
-    hardware.devices = [standing()];
-    draw(<PresetSheet overview={overview} onClose={() => {}} />);
+  it('leaves the targets as they are unless a climate is chosen, and says what they stay at', () => {
+    hardware.devices = [tent()];
+    draw(<PhaseSheet grow={veg} onClose={() => {}} />);
 
-    expect(screen.getByText(/A preset writes the target climate and nothing else/)).toHaveTextContent('stay as they are');
-    expect(screen.getByText('Spring run enters the stage with it.')).toBeInTheDocument();
+    const choices = screen.getByRole('group', { name: 'Targets' });
+    expect(within(choices).getByRole('button', { name: 'Leave as they are' })).toHaveAttribute('aria-pressed', 'true');
+    // The climates of the stage, by the names the chips under Control carry.
+    expect(within(choices).getByRole('button', { name: 'Flower' })).toBeInTheDocument();
+    expect(within(choices).getByRole('button', { name: 'Late flower' })).toBeInTheDocument();
+    expect(within(choices).getByRole('button', { name: 'Auto · Flower' })).toBeInTheDocument();
+    expect(screen.getByText(/Stay: light 18 h · day 26 °C · night 22 °C · 62 %/)).toBeInTheDocument();
   });
 
-  /**
-   * The firmware of a controller without the sensor forces its CO2 target to
-   * zero as it reads the document, so the preset does not write one - and a
-   * sheet that went on naming the CO2 target would be promising the one figure
-   * of the six that could not land.
-   */
-  it('leaves the CO2 target out of what it promises where nothing standing here reports a sensor', () => {
-    hardware.devices = [withoutCo2()];
-    draw(<PresetSheet overview={overview} onClose={() => {}} />);
+  it('puts the tent on the stage´s own climate with the phase when that is chosen, and says what it sets', async () => {
+    const asked: { method: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        asked.push({ method: init?.method ?? 'GET', body: init?.body === undefined ? null : JSON.parse(String(init.body)) });
+        return new Response(JSON.stringify(phase('p3', 'flowering', 0)), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }),
+    );
+    hardware.devices = [tent()];
+    draw(<PhaseSheet grow={veg} onClose={() => {}} />);
 
-    const said = screen.getByText(/A preset writes the target climate and nothing else/);
-    expect(said).toHaveTextContent('Nothing standing here reports a CO₂ sensor, so no CO₂ target is written');
-    expect(said).toHaveTextContent('stay as they are');
+    fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Flower' }));
+    expect(screen.getByText(/New: light 12 h · day 25 °C · night 20 °C · 50 %/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Enter Flower' }));
+
+    await waitFor(() => expect(asked.filter(call => call.method === 'POST')).toHaveLength(1));
+    expect(asked.find(call => call.method === 'POST')?.body).toMatchObject({ stage: 'flowering', preset: null, climate: true });
   });
 
-  it('says curing writes nothing at all rather than offering a climate it has not got', () => {
-    hardware.devices = [standing()];
-    draw(<PresetSheet overview={overview} onClose={() => {}} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Curing' }));
-
-    expect(screen.getByText(/Curing has no climate of its own/)).toHaveTextContent('writes nothing to anything standing here');
-    expect(screen.queryByRole('button', { name: 'Late flower' })).not.toBeInTheDocument();
-  });
-
-  // A tent is not its device count: a plug is a device and holds no climate,
-  // which is what the Manual targets tab of the same tent has always said.
-  it('says there is nothing to write to when the only thing standing here states no climate', () => {
-    hardware.devices = [standing({ type: 'plug', configuration: null })];
-    draw(<PresetSheet overview={overview} onClose={() => {}} />);
-
-    expect(screen.getByText('Nothing standing here states a climate, so there is nothing to write one to.')).toBeInTheDocument();
-  });
-
-  /**
-   * A controller whose document has never arrived is skipped by the preset -
-   * the server writes only where targets already stand - and the firmware sends
-   * that document from its own settings menu and from nowhere else. So the
-   * sheet says the preset passes this device by and names the one thing that
-   * would change that, rather than promising the next connection will.
-   */
-  it('says the preset passes a controller whose settings have not arrived, and what would bring them', () => {
-    hardware.devices = [standing({ configuration: null })];
-    draw(<PresetSheet overview={overview} onClose={() => {}} />);
-
-    const said = screen.getByText(/has sent its settings yet/);
-    expect(said).toHaveTextContent('this preset passes it by');
-    expect(said).toHaveTextContent('Changing any setting on the device itself sends them; connecting alone does not.');
-  });
-
-  /** With no grow standing here there is no grow to ask about, and curing writes no climate for "only the climate" to mean. */
-  it('says only that no phase is written where no grow stands, and asks about no grow', () => {
-    hardware.devices = [standing()];
-    draw(<PresetSheet overview={{ ...overview, grows: [] }} onClose={() => {}} />);
-
-    expect(screen.getByText('No grow stands here, so no phase is written – only the climate is.')).toBeInTheDocument();
-    expect(screen.queryByText(/what should happen to the grow/)).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Curing' }));
-    expect(screen.getByText('No grow stands here, so no phase is written either.')).toBeInTheDocument();
-  });
-
-  it('keeps quiet about the hardware for a reader who was never told what stands here', () => {
+  it('is not asked where nothing standing there states a climate', () => {
     hardware.devices = [];
-    draw(<PresetSheet overview={{ ...overview, deviceIds: null }} onClose={() => {}} />);
+    draw(<PhaseSheet grow={veg} onClose={() => {}} />);
 
-    expect(screen.queryByText(/nothing to write/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Targets' })).not.toBeInTheDocument();
   });
 
-  /**
-   * Whether a climate landed and whether the tent has a grow to ask about are
-   * two facts the server works out independently, so the block that reports the
-   * first must not be followed by a question that assumes it. It was: "The
-   * climate is written either way" stood directly under "Nothing here took the
-   * climate", the line above having got it right.
-   */
-  it('does not say the climate was written either way under a line saying nothing took it', () => {
-    hardware.devices = [standing({ configuration: null })];
-    applied.result = {
-      spaceId: 'space-1',
-      stage: 'vegetative',
-      preset: null,
-      deviceIds: [],
-      growId: null,
-      phaseId: null,
-      planEffect: 'none',
-      growDecisionNeeded: true,
-      decisions: ['start_grow', 'move_grow', 'climate_only'],
-    };
-    draw(<PresetSheet overview={{ ...overview, grows: [] }} onClose={() => {}} />);
+  it('says curing has no climate rather than offering one', () => {
+    hardware.devices = [tent()];
+    draw(<PhaseSheet grow={veg} onClose={() => {}} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Put the place on Veg' }));
-
-    // The reason is the one this tent actually has, rather than the other one.
-    expect(screen.getByText(/has not sent its settings yet, so there is nothing to write one into/)).toBeInTheDocument();
-    expect(screen.queryByText(/The climate is written either way/)).not.toBeInTheDocument();
-    expect(screen.getByText('Nothing here took the climate, but the question stands. What about the grow?')).toBeInTheDocument();
-  });
-
-  it('keeps the question´s promise where a controller did take the climate', () => {
-    hardware.devices = [standing()];
-    applied.result = {
-      spaceId: 'space-1',
-      stage: 'vegetative',
-      preset: null,
-      deviceIds: ['device-1'],
-      growId: null,
-      phaseId: null,
-      planEffect: 'none',
-      growDecisionNeeded: true,
-      decisions: ['start_grow', 'climate_only'],
-    };
-    draw(<PresetSheet overview={{ ...overview, grows: [] }} onClose={() => {}} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Put the place on Veg' }));
-
-    expect(screen.getByText('The climate is written either way. What about the grow?')).toBeInTheDocument();
-  });
-
-  it('drops the promise that the climate is written anyway when there is nowhere for it to go', () => {
-    hardware.devices = [standing({ type: 'plug', configuration: null })];
-    draw(<PresetSheet overview={{ ...overview, grows: [] }} onClose={() => {}} />);
-
-    expect(screen.getByText('No grow stands here, so no phase is written either.')).toBeInTheDocument();
-    expect(screen.queryByText(/only the climate/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Curing' }));
+    expect(screen.queryByRole('group', { name: 'Targets' })).not.toBeInTheDocument();
+    expect(screen.getByText(/Curing has no climate of its own/)).toBeInTheDocument();
   });
 });

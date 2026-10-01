@@ -2163,10 +2163,8 @@
         "stageLabel": "Stage",
         "presetLabel": "Climate preset",
         "noPreset": "Stage only",
-        "note": "A phase is the grow's own record: the day counter, the week the feeding grid is read at, and the band the charts draw.",
+        "note": "The phase counts the grow's days and weeks – the feeding plan and the charts go by it.",
         "recordNote": "This grow is over. A phase added here repairs what it says it went through - a stage that was never entered, or one rebuilt after a withdrawal - and moves nothing on.",
-        "presetAlsoWrites": "The preset also puts the controllers where these plants stand on that climate, and the phase keeps what they were running.",
-        "noClimateStage": "Curing is not steered, so no climate goes with it whatever is picked here.",
         "alreadyThere": "The grow already stands in this phase. Entering it again writes nothing and leaves no second line in the diary.",
         "alreadyThereEnded": "The grow finished in this phase. Recording it again writes nothing and leaves no second line in the diary.",
         "submit": "Enter {{stage}}",
@@ -2732,42 +2730,10 @@
     "latest": "Latest",
     "moveHereTitle": "Move a grow into {{name}}",
     "presets": {
-      "title": "Climate preset · {{name}}",
-      "stage": "Stage",
-      "preset": "Preset",
-      "growHere": "{{name}} grows here · {{stage}}",
-      "noGrowHere": "No grow stands here.",
-      "writesClimateOnly": "A preset writes the target climate and nothing else: temperature and humidity for day and night, the CO₂ target, how long the light stays on and how bright it may get – the drying preset turns the lamp off. The work mode, the heating and dehumidifying behaviour, the fans and the dimming ramps are what this place is tuned to and stay as they are.",
-      "writesClimateOnlyNoCo2": "A preset writes the target climate and nothing else: temperature and humidity for day and night, how long the light stays on and how bright it may get – the drying preset turns the lamp off. Nothing standing here reports a CO₂ sensor, so no CO₂ target is written — a controller without one holds its target at zero whatever it is told. The work mode, the heating and dehumidifying behaviour, the fans and the dimming ramps are what this place is tuned to and stay as they are.",
-      "noClimateRow": "Curing has no climate of its own — jars are not steered — so applying it writes nothing to anything standing here.",
-      "nothingToWriteTo": "Nothing standing here states a climate, so there is nothing to write one to.",
-      "waitingToWriteTo": "Nothing standing here has sent its settings yet, so there is nothing to write a climate into, and this preset passes it by. Changing any setting on the device itself sends them; connecting alone does not.",
-      "phaseFollows": "{{name}} enters the stage with it.",
-      "noPhaseFollows": "No grow stands here, so no phase is written – only the climate is.",
-      "noPhaseFollowsNoClimate": "No grow stands here, so no phase is written either.",
-      "submit": "Put the place on {{stage}}",
-      "whatHappened": "What happened",
-      "wroteTo_one": "Written to {{count}} controller.",
-      "wroteTo_other": "Written to {{count}} controllers.",
-      "wroteNothing": "Nothing here took the climate: no controller standing here states one.",
-      "wroteNothingWaiting": "Nothing here took the climate: the controller standing here has not sent its settings yet, so there is nothing to write one into.",
-      "wroteNothingCuring": "Nothing was written to any controller: curing has no climate to write.",
-      "phaseWritten": "The grow here entered {{stage}}.",
-      "noPhaseWritten": "No phase was written.",
-      "plan": {
-        "skipped": "The plan running here was moved on to its next step, which carries the same stage.",
-        "paused": "The plan running here was paused, so that it does not undo the preset within the hour."
-      },
       "whichGrow": "Which grow",
       "growAt": "{{name}} · {{place}}",
       "growStandsNowhere": "no fixed place",
       "noGrowToMove": "There is no other running grow to move here.",
-      "moveGrowHere": "Move a grow here",
-      "moveThisOne": "Move {{name}} here",
-      "climateOnly": "Only the climate",
-      "climateOnlyNever": "Only the climate · never ask again",
-      "question": "The climate is written either way. What about the grow?",
-      "questionNoClimate": "Nothing here took the climate, but the question stands. What about the grow?",
       "startGrowHere": "Start a grow here"
     },
     "members": {
@@ -3744,7 +3710,8 @@
       "save": "Save and go on",
       "discard": "Discard",
       "stay": "Keep editing"
-    }
+    },
+    "growStays": "This changes the targets only: {{name}} stays in the {{stage}} phase. To move the phase and the climate together, use Phase in the grow."
   },
   "notifications": {
     "title": "Notifications",
@@ -4351,10 +4318,6 @@
       "title": "Climate preset",
       "text": "A ready climate for a stage: day and night temperature and humidity, the light hours, the light limit and CO₂. Auto is for autoflowers, which keep 18–20 hours of light instead of going to 12/12."
     },
-    "presetApply": {
-      "title": "Applying a preset",
-      "text": "A plan running here is paused first – or moved on, if its next step is this same stage – so it does not put its own targets back within the hour. A grow entering the stage also sets the stage's alarm rules on the devices here."
-    },
     "stage": {
       "title": "Stage and phase",
       "text": "The stage is where the plants are, from germination to curing. Entering one writes a phase on the grow: the date it began, a diary line, and the stage's alarm rules on the devices where the plants stand (curing has none)."
@@ -4400,8 +4363,8 @@
       "text": "This phase was set by a grow plan or a climate preset, which wrote the targets here along with it – it was not recorded as a stage alone. It has nothing to do with autoflowers."
     },
     "phasePreset": {
-      "title": "Stage only or a preset",
-      "text": "Stage only records the stage and leaves the targets and light hours where the plants stand as they are. A preset also writes its climate to the controllers there."
+      "title": "Targets with the phase",
+      "text": "Leave as they are records only the phase: light, temperature and humidity stay as they are under Control. Choosing a climate switches the targets of the devices there right away – for Flower, for instance, the light goes to 12 hours. Auto is for autoflowers, which keep long days."
     },
     "phaseCorrection": {
       "title": "Correct or withdraw",
@@ -4661,12 +4624,12 @@
     "change": "Change",
     "menu": {
       "label": "More about {{name}}",
-      "preset": "Apply a climate preset",
+      "preset": "Choose a climate preset",
       "newGrow": "Start a grow",
       "moveGrow": "Move a grow here",
       "members": "Members & sharing",
       "rename": "Rename",
-      "presetLine": "sets every target at once",
+      "presetLine": "under Control · applies once saved",
       "openGrow": "Open the grow",
       "growDay": "{{name}} · day {{day}}",
       "growTurnsOn": "turns the grow diary on",
@@ -4779,5 +4742,15 @@
       "lightOnUntil": "Light on until {{time}}",
       "lightOffUntil": "Light off until {{time}}"
     }
+  },
+  "climatePick": {
+    "label": "Targets",
+    "keep": "Leave as they are",
+    "keeps": "Stay: {{figures}}.",
+    "sets": "New: {{figures}} – replaces the targets under Control.",
+    "figures": "light {{hours}} h · day {{day}} °C · night {{night}} °C · {{humidity}} %",
+    "dark": "light off · {{day}} °C · {{humidity}} %",
+    "alarms": "The alarms Too hot, Too cold and Too humid follow the phase.",
+    "noClimate": "{{stage}} has no climate of its own – the targets stay as they are."
   }
 }

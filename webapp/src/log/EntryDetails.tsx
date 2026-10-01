@@ -21,6 +21,8 @@ import { useHome } from '@/api/home';
 import { deviceTitle } from '@/screens/devices/naming';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
+import { ClimatePick } from '@/screens/grow/ClimatePick';
+import { climateRequest, KEEP_CLIMATE, type PhaseClimate } from '@/screens/grow/phase-climate';
 import { dayOf, momentOn } from '@/ui/days';
 import { readingFigure } from '@/ui/entries';
 import { parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
@@ -100,6 +102,8 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
   const [shown, setShown] = useState<string[]>(() => firstFields(definitions, readingsOf(entry)));
   const [text, setText] = useState(entry?.text ?? '');
   const [stage, setStage] = useState<GrowthStage | null>(nextStage(grow));
+  /** Whether the phase moves the tent's climate too: asked beside the stage, and kept until the stage changes. */
+  const [climate, setClimate] = useState<PhaseClimate>(KEEP_CLIMATE);
   const [saving, setSaving] = useState(false);
   /** Which of the two writes went wrong, so the line under the button says the right thing. */
   const [failed, setFailed] = useState<'save' | 'back' | null>(null);
@@ -151,7 +155,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
     setSaving(true);
     setFailed(null);
     try {
-      await startPhase(target.growId, { stage });
+      await startPhase(target.growId, { stage, ...climateRequest(climate) });
       diaryChanged(client);
       onClose();
     } catch {
@@ -317,7 +321,21 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
       ) : null}
 
       {kind === 'phase' ? (
-        <Stages grow={grow} stage={stage} onPick={setStage} spaceId={target.spaceId ?? target.standsIn} onStartGrow={() => setStartingGrow(true)} />
+        <Stages
+          grow={grow}
+          stage={stage}
+          onPick={next => {
+            setStage(next);
+            setClimate(KEEP_CLIMATE);
+          }}
+          spaceId={target.spaceId ?? target.standsIn}
+          onStartGrow={() => setStartingGrow(true)}
+        />
+      ) : null}
+      {kind === 'phase' && grow && stage ? (
+        <div className={styles.climate}>
+          <ClimatePick stage={stage} spaceId={target.spaceId ?? target.standsIn} value={climate} onChange={setClimate} />
+        </div>
       ) : null}
 
       {kind === 'visit' && !entry ? <WhatItQuietens quietens={quietens} /> : null}

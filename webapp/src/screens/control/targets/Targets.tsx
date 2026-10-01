@@ -1,9 +1,11 @@
 import type { DateTime } from 'luxon';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { controlPath } from '@/app/places';
-import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
+import type { Device, DeviceConfiguration, GrowCard } from '@fg2/shared-types/v1';
+import { useHome } from '@/api/home';
+import { useDiaryLayer } from '@/api/layers';
 import { serverNow } from '@/api/clock';
 import { useDevices, useHeardAt, useSaveConfiguration } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
@@ -92,6 +94,10 @@ export function Targets({
     });
   }, []);
   const [asking, setAsking] = useState(false);
+  // What grows here, for the one line under the chips that says the phase is not theirs to move.
+  const home = useHome();
+  const diary = useDiaryLayer();
+  const grow = diary ? ((home.data?.spaces ?? []).find(card => card.spaceId === spaceId)?.grow ?? null) : null;
 
   if (controllers.length === 0) {
     return (
@@ -128,9 +134,11 @@ export function Targets({
         ) : null}
       </header>
 
-      {controllers.map(({ device, configuration }) => (
+      {controllers.map(({ device, configuration }, index) => (
         <Panel
           key={device.id}
+          anchor={index === 0}
+          grow={grow}
           device={device}
           stored={configuration}
           mayManage={mayManage}
@@ -163,6 +171,8 @@ function Panel({
   titled,
   report,
   asking,
+  anchor,
+  grow,
 }: {
   device: Device;
   stored: DeviceConfiguration;
@@ -171,6 +181,10 @@ function Panel({
   report: (deviceId: string, entry: Unsaved | null) => void;
   /** Whether leaving the page is being asked about, which the bar then stands aside for. */
   asking: boolean;
+  /** The first panel, whose chips a link to "#presets" scrolls to. */
+  anchor: boolean;
+  /** The grow standing here, where the diary is kept. */
+  grow: GrowCard | null;
 }) {
   const { t } = useTranslation();
   const now = useNow();
@@ -221,6 +235,14 @@ function Panel({
   useEffect(() => {
     latest.current = commit;
   });
+  // A link that names the chips - the climate preset of the place menu - lands on them once they are drawn.
+  const { hash } = useLocation();
+  const presets = useRef<HTMLDivElement>(null);
+  const drawn = !plan.isPending && (plan.data !== undefined || isMissing(plan.error));
+  useEffect(() => {
+    if (anchor && drawn && hash === '#presets') presets.current?.scrollIntoView({ block: 'center' });
+  }, [anchor, drawn, hash]);
+
   const unsaved = dirty && mayManage;
   useEffect(() => {
     if (!unsaved) return;
@@ -385,7 +407,7 @@ function Panel({
 
       {/* Under the sliders rather than over them: what the tab is opened for is
           the figures the tent holds now, and a stage is one way of setting them. */}
-      <div className={styles.presets}>
+      <div className={styles.presets} ref={anchor ? presets : undefined} id={anchor ? 'presets' : undefined}>
         <p className={ui.note}>
           {t('targets.prefill')}
           <Help topic="climatePreset" />
@@ -405,6 +427,9 @@ function Panel({
             </Choice>
           ))}
         </Choices>
+        {/* The chips move the targets and nothing else; the grow's phase is
+            moved in the grow, where the climate is offered beside it. */}
+        {grow?.stage ? <p className={ui.note}>{t('targets.growStays', { name: grow.name, stage: t(`home.stage.${grow.stage}`) })}</p> : null}
       </div>
 
       {status === 'running' ? (

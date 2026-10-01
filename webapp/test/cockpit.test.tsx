@@ -588,7 +588,11 @@ describe('the place menu', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'More about Fridge 1' }));
     expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Members & sharing' })).toHaveAttribute('href', '/spaces/space-1/members');
-    expect(screen.getByRole('button', { name: 'Apply a climate preset sets every target at once' })).toBeInTheDocument();
+    // The climate preset is the one list of chips under the targets, which the item opens rather than a second list of its own.
+    expect(screen.getByRole('link', { name: 'Choose a climate preset under Control · applies once saved' })).toHaveAttribute(
+      'href',
+      '/control?space=space-1#presets',
+    );
     // Somebody who keeps no diary is told that a grow brings one, and what it does to the targets.
     expect(await screen.findByRole('link', { name: 'Start a grow turns the grow diary on · puts the targets on the stage' })).toHaveAttribute(
       'href',
@@ -641,7 +645,7 @@ describe('the place menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'More about Fridge 1' }));
     expect(await screen.findByRole('link', { name: 'Members & sharing' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Apply a climate preset/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Choose a climate preset/ })).not.toBeInTheDocument();
     expect(screen.queryAllByRole('link', { name: 'Change' })).toHaveLength(0);
   });
 });

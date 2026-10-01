@@ -11,7 +11,6 @@ export const HELP_TOPICS = [
   'band',
   'verdict',
   'climatePreset',
-  'presetApply',
   'stage',
   'stepPreset',
   'plan',

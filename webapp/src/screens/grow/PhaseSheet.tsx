@@ -7,13 +7,15 @@ import { useAddPhase, useCorrectPhase, useWithdrawPhase } from '@/api/lifecycle'
 import { Sheet } from '@/log/Sheet';
 import { nextStage } from '@/log/defaults';
 import { instantOf } from '@/ui/age';
-import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
-import { presetsOf, writesClimate } from '@/ui/presets';
+import { climateChoiceName, presetsOf } from '@/ui/presets';
+import { standsIn } from '@/ui/session-access';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES, weekOfGrowDay } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
+import { ClimatePick } from './ClimatePick';
+import { climateRequest, KEEP_CLIMATE, type PhaseClimate } from './phase-climate';
 import { correctionEffect, phasesInOrder, withdrawalEffect, type PhaseEffect } from './phase-effect';
 import styles from './Lifecycle.module.css';
 
@@ -46,7 +48,8 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
 
   const ended = grow.endedAt !== null;
   const [stage, setStage] = useState<GrowthStage>(() => nextStage(grow) ?? grow.summary.stage ?? STAGES[0]);
-  const [preset, setPreset] = useState<string | null>(null);
+  const [pick, setPick] = useState<PhaseClimate>(KEEP_CLIMATE);
+  const preset = pick.preset;
   // A grow that is over opens on the day it ended; one still running opens on
   // now as the server reckons it, which is what the field's cap is measured
   // against as well.
@@ -63,10 +66,10 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   const standing = ordered.filter(phase => phase.plantIds === null).at(-1) ?? null;
   const standsThere = standing !== null && standing.stage === stage && standing.preset === preset;
 
+  // The climate belongs to the stage it is the climate of, so a change of stage asks again.
   const pickStage = (next: GrowthStage) => {
     setStage(next);
-    // A preset belongs to the stage it refines, so it does not survive a change of stage.
-    setPreset(current => (presetsOf(next).includes(current ?? '') ? current : null));
+    setPick(KEEP_CLIMATE);
   };
 
   return (
@@ -84,14 +87,11 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
             ))}
           </Choices>
 
-          <PresetRow stage={stage} preset={preset} onPick={setPreset} />
           <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} until={grow.endedAt ? new Date(grow.endedAt) : null} />
+          {/* A grow that is over is a record being repaired, and a record moves no tent. */}
+          {ended ? null : <ClimatePick stage={stage} spaceId={standsIn(grow)} value={pick} onChange={setPick} />}
 
-          <ul className={styles.effect}>
-            <li className={ui.note}>{t(ended ? 'grow.lifecycle.phase.recordNote' : 'grow.lifecycle.phase.note')}</li>
-            {preset === null ? null : <li className={ui.note}>{t('grow.lifecycle.phase.presetAlsoWrites')}</li>}
-            {writesClimate(stage) ? null : <li className={ui.note}>{t('grow.lifecycle.phase.noClimateStage')}</li>}
-          </ul>
+          <p className={ui.note}>{t(ended ? 'grow.lifecycle.phase.recordNote' : 'grow.lifecycle.phase.note')}</p>
           {standsThere ? (
             <p className={ui.note}>{t(ended ? 'grow.lifecycle.phase.alreadyThereEnded' : 'grow.lifecycle.phase.alreadyThere')}</p>
           ) : null}
@@ -101,7 +101,9 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
             type="button"
             className={`${ui.button} ${ui.primary} ${styles.submit}`}
             disabled={add.isPending}
-            onClick={() => add.mutate({ stage, preset, startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })}
+            onClick={() =>
+              add.mutate({ stage, ...climateRequest(pick), startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })
+            }
           >
             {add.isPending
               ? t('grow.lifecycle.saving')
@@ -169,7 +171,13 @@ const nowLine = (t: Translate, grow: GrowListItem, zone: string | null): string 
 const label = (t: Translate, stage: GrowthStage, preset: string | null): string =>
   preset === null ? t(`home.stage.${stage}`) : `${t(`home.stage.${stage}`)} · ${t(`grow.presetName.${preset}`, { defaultValue: preset })}`;
 
-/** The presets that refine a stage. A stage that has none says so rather than offering an empty row. */
+/**
+ * Which climate of the stage a phase is recorded as, when one is being
+ * corrected: the record's label and nothing else, so it writes no climate.
+ * The names are the climate list's own - "Flower", "Late flower", "Auto ·
+ * Flower" - so a corrected phase reads as what the chips under Steuerung call
+ * it. A stage with no refinement has nothing to choose and draws nothing.
+ */
 function PresetRow({ stage, preset, onPick }: { stage: GrowthStage; preset: string | null; onPick: (preset: string | null) => void }) {
   const { t } = useTranslation();
   const offered = presetsOf(stage);
@@ -177,15 +185,11 @@ function PresetRow({ stage, preset, onPick }: { stage: GrowthStage; preset: stri
 
   return (
     <Choices label={t('grow.lifecycle.phase.presetLabel')}>
-      <Choice chosen={preset === null} onChoose={() => onPick(null)}>
-        {t('grow.lifecycle.phase.noPreset')}
-      </Choice>
-      {offered.map(one => (
-        <Choice key={one} chosen={preset === one} onChoose={() => onPick(one)}>
-          {t(`grow.presetName.${one}`, { defaultValue: one })}
+      {[null, ...offered].map(one => (
+        <Choice key={one ?? ''} chosen={preset === one} onChoose={() => onPick(one)}>
+          {climateChoiceName(t, { stage, preset: one })}
         </Choice>
       ))}
-      <Help topic="phasePreset" />
     </Choices>
   );
 }

@@ -2167,10 +2167,8 @@
         "stageLabel": "Stadium",
         "presetLabel": "Klima-Preset",
         "noPreset": "Nur Stadium",
-        "note": "Eine Phase ist die Aufzeichnung des Grows selbst: der Tageszähler, die Woche, in der der Düngeplan gelesen wird, und das Band, das die Graphen zeichnen.",
+        "note": "Die Phase zählt die Tage und Wochen des Grows – danach richten sich Düngeplan und Diagramme.",
         "recordNote": "Dieser Grow ist vorbei. Eine hier nachgetragene Phase repariert, was er durchlaufen hat - ein nie gesetztes Stadium oder eines, das nach einer Rücknahme wieder aufgebaut wird - und bewegt nichts weiter.",
-        "presetAlsoWrites": "Das Preset stellt zusätzlich die Controller am Ort dieser Pflanzen auf dieses Klima, und die Phase merkt sich, was dort lief.",
-        "noClimateStage": "Reifung wird nicht geregelt, also geht kein Klima damit einher, was auch immer hier gewählt wird.",
         "alreadyThere": "Der Grow steht bereits in dieser Phase. Sie erneut zu setzen schreibt nichts und hinterlässt keine zweite Zeile im Tagebuch.",
         "alreadyThereEnded": "Der Grow ist in dieser Phase zu Ende gegangen. Sie erneut nachzutragen schreibt nichts und hinterlässt keine zweite Zeile im Tagebuch.",
         "submit": "{{stage}} setzen",
@@ -2736,42 +2734,10 @@
     "latest": "Zuletzt",
     "moveHereTitle": "Grow nach {{name}} umziehen",
     "presets": {
-      "title": "Klima-Preset · {{name}}",
-      "stage": "Stadium",
-      "preset": "Preset",
-      "growHere": "Hier wächst {{name}} · {{stage}}",
-      "noGrowHere": "Hier steht kein Grow.",
-      "writesClimateOnly": "Ein Preset schreibt das Zielklima und sonst nichts: Temperatur und Luftfeuchte für Tag und Nacht, das CO₂-Ziel, wie lange das Licht anbleibt und wie hell es werden darf – das Trocknungs-Preset schaltet die Lampe aus. Betriebsart, Heiz- und Entfeuchtungsverhalten, Lüfter und Dimmrampen sind die Abstimmung dieses Orts und bleiben, wie sie sind.",
-      "writesClimateOnlyNoCo2": "Ein Preset schreibt das Zielklima und sonst nichts: Temperatur und Luftfeuchte für Tag und Nacht, wie lange das Licht anbleibt und wie hell es werden darf – das Trocknungs-Preset schaltet die Lampe aus. Hier meldet nichts einen CO₂-Sensor, also wird kein CO₂-Ziel geschrieben – ein Controller ohne Sensor hält sein Ziel bei null, was immer man ihm sagt. Betriebsart, Heiz- und Entfeuchtungsverhalten, Lüfter und Dimmrampen sind die Abstimmung dieses Orts und bleiben, wie sie sind.",
-      "noClimateRow": "Reifung hat kein eigenes Klima – Gläser werden nicht geregelt –, also wird hier an nichts etwas geschrieben.",
-      "nothingToWriteTo": "Hier steht nichts, das ein Klima angibt, also gibt es auch nichts zu beschreiben.",
-      "waitingToWriteTo": "Hier hat noch nichts seine Einstellungen geschickt, es gibt also nichts, worin ein Klima stehen könnte, und dieses Preset geht daran vorbei. Wird am Gerät selbst eine beliebige Einstellung geändert, schickt es sie; ein neuer Verbindungsaufbau allein tut das nicht.",
-      "phaseFollows": "{{name}} geht damit in dieses Stadium.",
-      "noPhaseFollows": "Hier steht kein Grow, also wird keine Phase geschrieben – nur das Klima.",
-      "noPhaseFollowsNoClimate": "Hier steht kein Grow, also wird auch keine Phase geschrieben.",
-      "submit": "Ort auf {{stage}} stellen",
-      "whatHappened": "Was passiert ist",
-      "wroteTo_one": "An {{count}} Controller geschrieben.",
-      "wroteTo_other": "An {{count}} Controller geschrieben.",
-      "wroteNothing": "Hier hat nichts das Klima übernommen: Kein Controller hier gibt eines an.",
-      "wroteNothingWaiting": "Hier hat nichts das Klima übernommen: Der Controller, der hier steht, hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin eines stehen könnte.",
-      "wroteNothingCuring": "Es wurde an keinen Controller etwas geschrieben: Reifung hat kein Klima.",
-      "phaseWritten": "Der Grow hier ist in {{stage}} gegangen.",
-      "noPhaseWritten": "Es wurde keine Phase geschrieben.",
-      "plan": {
-        "skipped": "Der hier laufende Plan wurde auf seinen nächsten Schritt gesetzt, der dasselbe Stadium trägt.",
-        "paused": "Der hier laufende Plan wurde pausiert, damit er das Preset nicht innerhalb einer Stunde wieder überschreibt."
-      },
       "whichGrow": "Welcher Grow",
       "growAt": "{{name}} · {{place}}",
       "growStandsNowhere": "ohne festen Ort",
       "noGrowToMove": "Es gibt keinen anderen laufenden Grow, der hierher ziehen könnte.",
-      "moveGrowHere": "Grow hierher ziehen",
-      "moveThisOne": "{{name}} hierher umziehen",
-      "climateOnly": "Nur das Klima",
-      "climateOnlyNever": "Nur das Klima · nicht mehr fragen",
-      "question": "Das Klima ist so oder so geschrieben. Was ist mit dem Grow?",
-      "questionNoClimate": "Hier hat nichts das Klima übernommen, die Frage bleibt aber. Was ist mit dem Grow?",
       "startGrowHere": "Hier einen Grow starten"
     },
     "members": {
@@ -3748,7 +3714,8 @@
       "save": "Speichern und weiter",
       "discard": "Verwerfen",
       "stay": "Weiter bearbeiten"
-    }
+    },
+    "growStays": "Das ändert nur die Zielwerte: {{name}} bleibt in der Phase {{stage}}. Phase und Klima zusammen stellst du im Grow unter Phase um."
   },
   "notifications": {
     "title": "Benachrichtigungen",
@@ -4355,10 +4322,6 @@
       "title": "Klima-Preset",
       "text": "Ein fertiges Klima für ein Stadium: Temperatur und Feuchte für Tag und Nacht, Lichtstunden, Lichtgrenze und CO₂. „Auto“ ist für Autoflowers, die 18–20 Stunden Licht behalten, statt auf 12/12 zu wechseln."
     },
-    "presetApply": {
-      "title": "Ein Preset anwenden",
-      "text": "Ein Plan, der hier läuft, wird zuerst pausiert – oder weitergeschaltet, wenn sein nächster Schritt genau dieses Stadium ist –, damit er nicht binnen einer Stunde seine eigenen Zielwerte zurückschreibt. Betritt ein Grow das Stadium, gelten außerdem dessen Alarmregeln für die Geräte hier."
-    },
     "stage": {
       "title": "Stadium und Phase",
       "text": "Das Stadium sagt, wo die Pflanzen stehen, von der Keimung bis zur Reifung. Wer eines betritt, schreibt eine Phase in den Grow: ihr Startdatum, eine Tagebuchzeile und die Alarmregeln des Stadiums für die Geräte, bei denen die Pflanzen stehen (die Reifung hat keine)."
@@ -4404,8 +4367,8 @@
       "text": "Diese Phase kam von einem Grow-Plan oder einem Klima-Preset, das dabei auch die Zielwerte vor Ort geschrieben hat – sie wurde nicht als bloßes Stadium eingetragen. Mit Autoflowers hat das nichts zu tun."
     },
     "phasePreset": {
-      "title": "Nur Stadium oder ein Preset",
-      "text": "„Nur Stadium“ hält das Stadium fest und lässt Zielwerte und Lichtstunden dort, wo die Pflanzen stehen, wie sie sind. Ein Preset schreibt außerdem sein Klima an die Controller dort."
+      "title": "Zielwerte mit der Phase",
+      "text": "„Lassen, wie sie sind“ trägt nur die Phase ein: Licht, Temperatur und Feuchte bleiben, wie sie unter Steuerung stehen. Wählst du ein Klima, stellt es die Zielwerte der Geräte dort sofort um – bei Blüte zum Beispiel das Licht auf 12 Stunden. „Auto“ ist für Autoflowers, die lange Tage behalten."
     },
     "phaseCorrection": {
       "title": "Korrigieren oder zurückziehen",
@@ -4665,12 +4628,12 @@
     "change": "Ändern",
     "menu": {
       "label": "Mehr zu {{name}}",
-      "preset": "Klima-Preset anwenden",
+      "preset": "Klima-Preset wählen",
       "newGrow": "Grow starten",
       "moveGrow": "Grow hierher holen",
       "members": "Mitglieder & Teilen",
       "rename": "Umbenennen",
-      "presetLine": "setzt alle Zielwerte auf einmal",
+      "presetLine": "unter Steuerung · gilt erst nach Speichern",
       "openGrow": "Grow öffnen",
       "growDay": "{{name}} · Tag {{day}}",
       "growTurnsOn": "schaltet das Tagebuch ein",
@@ -4783,5 +4746,15 @@
       "lightOnUntil": "Licht an bis {{time}}",
       "lightOffUntil": "Licht aus bis {{time}}"
     }
+  },
+  "climatePick": {
+    "label": "Zielwerte",
+    "keep": "Lassen, wie sie sind",
+    "keeps": "Bleiben: {{figures}}.",
+    "sets": "Neu: {{figures}} – ersetzt die Zielwerte unter Steuerung.",
+    "figures": "Licht {{hours}} Std · Tag {{day}} °C · Nacht {{night}} °C · {{humidity}} %",
+    "dark": "Licht aus · {{day}} °C · {{humidity}} %",
+    "alarms": "Die Alarme „Zu warm“, „Zu kalt“ und „Zu feucht“ richten sich nach der Phase.",
+    "noClimate": "{{stage}} hat kein eigenes Klima – die Zielwerte bleiben, wie sie sind."
   }
 }

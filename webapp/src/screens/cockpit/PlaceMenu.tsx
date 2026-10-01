@@ -3,27 +3,28 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { SpaceOverview } from '@fg2/shared-types/v1';
-import { membersPath } from '@/app/places';
+import { controlPath, membersPath } from '@/app/places';
 import { useMe } from '@/api/account';
 import { useDiaryLayer } from '@/api/layers';
 import { useSession } from '@/api/session';
 import { useMayManage } from '@/ui/session-access';
 import { RenameSheet } from '../place/RenameSheet';
 import { MoveHereSheet } from '../space/MoveHereSheet';
-import { PresetSheet } from '../space/PresetSheet';
 import styles from './Cockpit.module.css';
 
-type Sheet = 'rename' | 'preset' | 'move';
+type Sheet = 'rename' | 'move';
 
 /**
  * What is done to a place now and then rather than every day, behind the ⋯
  * beside its name: its name, who else is let in, a climate preset, and its
  * grow. None of it is a reading, so none of it takes room on the cockpit itself.
  *
- * Each item that changes more than its name says so on a line under it - a
- * preset writes every target at once, and starting a grow puts the place on
- * the preset of the stage it starts in, and for somebody who has never kept a
- * diary it brings the diary in as well. Everything that changes the place
+ * Each item that changes more than its name says so on a line under it - and
+ * starting a grow puts the place on the preset of the stage it starts in, and
+ * for somebody who has never kept a diary it brings the diary in as well. The
+ * climate preset is not a sheet of its own: it is the row of chips under the
+ * targets on Steuerung, one list that moves the sliders and holds nothing
+ * until it is saved, and this item opens it there. Everything that changes the place
  * needs the right to manage it; who is let in can be read by every member, who
  * may leave from there.
  */
@@ -88,9 +89,9 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
             {t('cockpit.menu.members')}
           </Link>
           {mayManage && hasDevice ? (
-            <button type="button" onClick={() => choose('preset')}>
+            <Link to={controlPath(overview.spaceId, null, {}, 'presets')} onClick={() => setOpen(false)}>
               {t('cockpit.menu.preset')} <span className={styles.menuLine}>{t('cockpit.menu.presetLine')}</span>
-            </button>
+            </Link>
           ) : null}
           {grow ? (
             <Link to={`/grows/${grow.growId}`} onClick={() => setOpen(false)}>
@@ -119,7 +120,6 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
         </div>
       ) : null}
       {sheet === 'rename' ? <RenameSheet spaceId={overview.spaceId} name={overview.name} onClose={() => setSheet(null)} /> : null}
-      {sheet === 'preset' ? <PresetSheet overview={overview} onClose={() => setSheet(null)} /> : null}
       {sheet === 'move' ? <MoveHereSheet spaceId={overview.spaceId} spaceName={overview.name} onClose={() => setSheet(null)} /> : null}
     </div>
   );
