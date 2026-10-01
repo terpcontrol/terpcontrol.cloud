@@ -3670,6 +3670,8 @@
     "humidity": "Luftfeuchte",
     "light": "Licht",
     "lightHours": "Licht an für",
+    "lightsOn": "Licht an um",
+    "lightsOff": "aus um {{time}}",
     "co2": "CO₂-Ziel",
     "vpd": "VPD {{value}} kPa",
     "needsCo2": "braucht einen CO₂-Sensor",
@@ -4326,11 +4328,15 @@
     },
     "dayNight": {
       "title": "Tag und Nacht",
-      "text": "Tag ist, solange das Licht an ist, keine Uhrzeit: Der Controller schaltet Lampe und Tag- und Nachtzielwerte gemeinsam und gibt CO₂ nur tagsüber zu. „Licht an für“ verschiebt den Beginn der Nacht; wann das Licht angeht, bleibt, wie es ist."
+      "text": "Tag ist, solange das Licht an ist, keine Uhrzeit: Der Controller schaltet Lampe und Tag- und Nachtzielwerte gemeinsam und gibt CO₂ nur tagsüber zu. „Licht an um“ legt fest, wann der Tag beginnt, „Licht an für“, wie lange er dauert."
     },
     "lightLimit": {
       "title": "Lichtgrenze",
       "text": "Das Maximum, das die Lampe geben darf, als Anteil ihrer vollen Leistung: Bei Sonnenaufgang fährt sie darauf hoch, bei Sonnenuntergang wieder herunter. 0 % hält die Lampe dunkel, so wie das Trocknungs-Preset."
+    },
+    "lightsOn": {
+      "title": "Licht an um",
+      "text": "Wann das Licht angeht und der Tag beginnt, nach der Uhr deines Kontos (Ich › Darstellung). Bei der Umstellung auf Sommer- oder Winterzeit bleibt es bei dieser Uhrzeit – die Cloud stellt das Gerät in der Nacht der Umstellung selbst um. Für Nachtstrom oder gegen Sommerhitze den Tag in die Nacht legen, zum Beispiel ab 22:00."
     },
     "resumePlan": {
       "title": "Plan fortsetzen",

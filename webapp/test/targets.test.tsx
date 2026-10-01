@@ -8,10 +8,10 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Device, DeviceConfiguration, Plan } from '@fg2/shared-types/v1';
+import type { Device, DeviceConfiguration, Me, Plan } from '@fg2/shared-types/v1';
 import { Targets } from '@/screens/control/targets/Targets';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
-import { draftOf, lightWindowLabel, vpdOf, withDraft } from '@/screens/control/targets/targets-draft';
+import { draftOf, lightWindowLabel, secondsOf, vpdOf, wallClock, withDraft } from '@/screens/control/targets/targets-draft';
 
 /**
  * What the manual targets page promises: that a chip only moves the sliders,
@@ -94,6 +94,29 @@ const plan = (status: Plan['state']['status']): Plan => ({
   },
 });
 
+/** The account, for the one thing this page reads off it: the zone its clock times are in. */
+const account = (timezone: string): Me => ({
+  id: 'user-1',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  email: 'login@example.org',
+  isAdmin: false,
+  isActive: true,
+  handle: 'you',
+  bio: null,
+  avatarMediaId: null,
+  publicProfile: false,
+  privacy: { hideWeights: false, hideCounts: false },
+  preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone },
+  retention: { climateDays: null },
+  climateRetention: { installDays: null, appliesDays: null },
+  notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
+  deletionStartedAt: null,
+  premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
+  pushPublicKey: null,
+  telegramAvailable: false,
+  pushSubscribed: false,
+});
+
 /* ------------------------------------------------------------- the wire */
 
 interface Call {
@@ -104,6 +127,8 @@ interface Call {
 
 const wire = {
   plan: null as Plan | null,
+  /** The account's zone; none leaves the page on the browser's, which the test keeps on UTC. */
+  zone: null as string | null,
   /** What PUT /configuration answers with instead of the document, when a refusal is wanted. */
   refuseSave: null as { status: number; code: string; detail: string } | null,
   calls: [] as Call[],
@@ -121,6 +146,9 @@ vi.stubGlobal(
     const body = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
     wire.calls.push({ method, path, body });
 
+    if (method === 'GET' && path === '/me') {
+      return wire.zone ? json(account(wire.zone)) : problem(404, 'not_found', 'No account here.');
+    }
     if (method === 'GET' && path === '/devices/device-1/plan') {
       return wire.plan ? json(wire.plan) : problem(404, 'plan_not_found', 'This device is not being run by a plan.');
     }
@@ -156,6 +184,8 @@ const slider = (name: string) => screen.getByRole('slider', { name }) as HTMLInp
 
 const slide = (name: string, to: number) => fireEvent.change(slider(name), { target: { value: String(to) } });
 
+const lightsOn = () => screen.getByLabelText('Light on at', { selector: 'input' }) as HTMLInputElement;
+
 beforeAll(async () => {
   // The light window is said in the reader's own time; the document holds UTC, so the test reads in UTC.
   Settings.defaultZone = 'utc';
@@ -180,6 +210,7 @@ afterAll(() => {
 
 beforeEach(() => {
   wire.plan = null;
+  wire.zone = null;
   wire.refuseSave = null;
   wire.calls = [];
 });
@@ -225,7 +256,7 @@ describe('the manual targets page', () => {
     expect(screen.getByRole('link', { name: 'Add a device' })).toBeInTheDocument();
   });
 
-  it('draws the targets the controller is running, with the VPD and the light window beside them', async () => {
+  it('draws the targets the controller is running, with the VPD and when the light comes on and goes off', async () => {
     await drawn();
 
     expect(screen.getByText('Manual targets')).toBeInTheDocument();
@@ -238,7 +269,10 @@ describe('the manual targets page', () => {
     expect(slider('Light limit').value).toBe('80');
     expect(slider('Light on for').value).toBe('12');
     expect(slider('CO₂ target').value).toBe('800');
-    expect(screen.getByText('06–18 h')).toBeInTheDocument();
+    expect(lightsOn().value).toBe('06:00');
+    expect(screen.getByText('off at 18:00')).toBeInTheDocument();
+    // Said once, beside the time it is set with, rather than a second time beside the brightness.
+    expect(screen.queryByText('06–18 h')).not.toBeInTheDocument();
     // 25 °C at 60 % with the leaf two degrees cooler, worked out as the server
     // works a reading's, and written to the two decimals a deficit is written
     // to wherever else the app prints one.
@@ -277,6 +311,9 @@ describe('the manual targets page', () => {
     expect(slider('Light limit').value).toBe('100');
     expect(slider('Light on for').value).toBe('12');
     expect(slider('CO₂ target').value).toBe('1000');
+    // A preset says how long the light is on, never when it comes on: that is the grower's.
+    expect(lightsOn().value).toBe('06:00');
+    expect(screen.getByText('off at 18:00')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Veg' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
@@ -315,6 +352,49 @@ describe('the manual targets page', () => {
     expect(await screen.findByText(/Sent to the controller \d/)).toBeInTheDocument();
     expect(screen.getByText('The controller acknowledges no setting, so what it is running is not reported back.')).toBeInTheDocument();
     expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
+  });
+
+  /**
+   * The document holds seconds past midnight UTC, the grower thinks in the
+   * clock on their wall, and the page used to offer only how long the light
+   * stays on - "when it comes on stays as it is". Kolkata is half an hour off
+   * the hour and keeps no summer time, so the test reads the same every day of
+   * the year.
+   */
+  it('sets when the light comes on, on the account´s clock, and keeps how long it stays on', async () => {
+    wire.zone = 'Asia/Kolkata';
+    await drawn();
+
+    await waitFor(() => expect(lightsOn().value).toBe('11:30'));
+    expect(screen.getByText('off at 23:30')).toBeInTheDocument();
+
+    fireEvent.change(lightsOn(), { target: { value: '22:00' } });
+
+    expect(lightsOn().value).toBe('22:00');
+    expect(screen.getByText('off at 10:00')).toBeInTheDocument();
+    expect(slider('Light on for').value).toBe('12');
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    expect(sent('PUT')).toEqual([]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+    // 22:00 in Kolkata is 16:30 UTC, and twelve hours on is 04:30.
+    expect((sent('PUT')[0].body as { configuration: DeviceConfiguration }).configuration.daynight).toEqual({
+      day: 16.5 * 3600,
+      night: 4.5 * 3600,
+      maxDehumidifySeconds: 120,
+    });
+  });
+
+  it('keeps a half-typed time out of the draft', async () => {
+    await drawn();
+
+    fireEvent.change(lightsOn(), { target: { value: '' } });
+
+    expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
+    fireEvent.blur(lightsOn());
+    expect(lightsOn().value).toBe('06:00');
   });
 
   it('pauses a running plan before it writes, and says so beforehand', async () => {
@@ -387,6 +467,7 @@ describe('the manual targets page', () => {
     await drawn(undefined, false);
 
     for (const one of screen.getAllByRole('slider')) expect(one).toBeDisabled();
+    expect(lightsOn()).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Flower' })).toBeDisabled();
     expect(screen.getByText('The plan is paused while manual targets are on.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Resume plan' })).not.toBeInTheDocument();
@@ -416,6 +497,19 @@ describe('the document a draft becomes', () => {
   it("reads the light window in the reader's time from seconds past midnight UTC", () => {
     expect(lightWindowLabel(draftOf(CONFIGURATION), NOW)).toBe('06–18 h');
     expect(lightWindowLabel(draftOf({ daynight: { day: 6.5 * 3600, night: 18 * 3600 } }), NOW)).toBe('06:30–18:00 h');
+  });
+
+  it('turns the account´s wall clock into the document´s seconds and back, round midnight where it must', () => {
+    const kolkata = 5.5 * 3600;
+    const berlinInWinter = 3600;
+
+    expect(wallClock(21600, kolkata)).toBe('11:30');
+    expect(secondsOf('11:30', kolkata)).toBe(21600);
+    expect(secondsOf('03:00', kolkata)).toBe(21.5 * 3600);
+    expect(wallClock(21.5 * 3600, kolkata)).toBe('03:00');
+    expect(secondsOf('00:30', berlinInWinter)).toBe(23.5 * 3600);
+    expect(secondsOf('24:00', 0)).toBeNull();
+    expect(secondsOf('', 0)).toBeNull();
   });
 
   it('keeps the hour the light comes on and moves when it goes off, past midnight if it must', () => {

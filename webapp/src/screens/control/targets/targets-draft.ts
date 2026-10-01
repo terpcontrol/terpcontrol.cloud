@@ -5,7 +5,6 @@ import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { serverNow } from '@/api/clock';
 import { oClock } from '@/ui/age';
 import { figureOf, sectionOf } from '@/ui/climate-hardware';
-import { CLOCK } from '@/ui/zone';
 
 /**
  * The targets a controller holds by hand, read out of its configuration
@@ -28,7 +27,7 @@ export interface TargetsDraft {
   nightHumidity: number;
   /** Per cent of the lamp's own maximum. */
   lightLimit: number;
-  /** When the light comes on, in seconds past midnight UTC. Kept where it is: what is set here is how long it stays on. */
+  /** When the light comes on, in seconds past midnight UTC: the firmware's own clock, which knows no zone. */
   lightsOn: number;
   /** How long the light is on, in hours. Fractional where the document was written by hand to a half hour. */
   lightHours: number;
@@ -50,11 +49,17 @@ const DEFAULTS: TargetsDraft = {
   co2: 400,
 };
 
+/** Seconds round the clock: 25:00 is 01:00, and an hour before 00:30 is 23:30. */
+const roundTheClock = (seconds: number): number => ((seconds % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
+
 /** How long the light is on from when it comes on and goes off. Off at the same second it comes on is a day-long light. */
 const hoursBetween = (on: number, off: number): number => {
-  const seconds = (((off - on) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
+  const seconds = roundTheClock(off - on);
   return (seconds === 0 ? DAY_SECONDS : seconds) / HOUR_SECONDS;
 };
+
+/** When the light goes off, in the document's seconds past midnight UTC. */
+export const lightsOffOf = (draft: TargetsDraft): number => roundTheClock(draft.lightsOn + Math.round(draft.lightHours * HOUR_SECONDS));
 
 export const draftOf = (configuration: DeviceConfiguration): TargetsDraft => {
   const lightsOn = figureOf(configuration, 'daynight', 'day') ?? DEFAULTS.lightsOn;
@@ -96,11 +101,7 @@ export const withDraft = (configuration: DeviceConfiguration, draft: TargetsDraf
   next.night = { ...sectionOf(configuration, 'night'), temperature: draft.nightTemperature, humidity: draft.nightHumidity };
   next.co2 = { ...sectionOf(configuration, 'co2'), target: draft.co2 };
   next.lights = { ...sectionOf(configuration, 'lights'), limit: draft.lightLimit };
-  next.daynight = {
-    ...sectionOf(configuration, 'daynight'),
-    day: draft.lightsOn,
-    night: (draft.lightsOn + Math.round(draft.lightHours * HOUR_SECONDS)) % DAY_SECONDS,
-  };
+  next.daynight = { ...sectionOf(configuration, 'daynight'), day: draft.lightsOn, night: lightsOffOf(draft) };
 
   return next;
 };
@@ -179,21 +180,51 @@ export const vpdOf = (temperature: number, humidity: number, leafOffset: number)
 export const leafOffset = (settings: DeviceSettings, when: 'day' | 'night'): number =>
   when === 'day' ? settings.vpdLeafOffsetDay : settings.vpdLeafOffsetNight;
 
+/* ---------------------------------------------------------------- the clock */
+
 /**
- * "06-18 h": when the light comes on and goes off, on the clock beside the
- * tent. The document holds seconds past midnight UTC, so a tent in Berlin that
- * lights at six is stored as four; the label says what the clock on the wall
- * will say - that wall being where the account is kept, which is the zone the
- * server reads the same account's quiet hours in, and not where the phone
- * reading this happens to be. Minutes are shown only where a window does not
- * fall on the hour.
+ * How far the account's wall clock is ahead of UTC right now, in seconds.
+ *
+ * The document holds seconds past midnight UTC, so a tent in Berlin that
+ * lights at eight is stored as six in summer. The times on this page are the
+ * clock on the wall where the account is kept - the zone the server reads the
+ * same account's quiet hours in, not wherever the phone reading this happens to
+ * be - and they are turned into the document's seconds at today's offset. The
+ * server remembers that offset and moves the seconds when it changes, so eight
+ * stays eight when the clocks go back; read the same way, the page goes on
+ * saying eight.
+ */
+export const offsetOf = (now: DateTime, zone: string | null): number => (zone ? now.setZone(zone) : now.toLocal()).offset * 60;
+
+const twoDigits = (value: number): string => String(value).padStart(2, '0');
+
+/** "08:00": seconds past midnight UTC on the account's wall clock. */
+export const wallClock = (seconds: number, offset: number): string => {
+  const there = roundTheClock(Math.round(seconds) + offset);
+  return `${twoDigits(Math.floor(there / HOUR_SECONDS))}:${twoDigits(Math.floor((there % HOUR_SECONDS) / 60))}`;
+};
+
+/** "08:00" on the account's wall clock as the document's seconds past midnight UTC, or null for what is not a time of day. */
+export const secondsOf = (time: string, offset: number): number | null => {
+  const match = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(time.trim());
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return null;
+
+  return roundTheClock(hours * HOUR_SECONDS + minutes * 60 - offset);
+};
+
+/**
+ * "06-18 h": when the light comes on and goes off, on the account's wall clock.
+ * Minutes are shown only where a window does not fall on the hour.
  */
 export const lightWindowLabel = (draft: TargetsDraft, now: DateTime = serverNow(), zone: string | null = null): string => {
-  const midnight = now.toUTC().startOf('day');
-  const there = (at: DateTime) => (zone ? at.setZone(zone) : at.toLocal());
-  const on = there(midnight.plus({ seconds: draft.lightsOn }));
-  const off = there(midnight.plus({ seconds: draft.lightsOn + Math.round(draft.lightHours * HOUR_SECONDS) }));
-  const format = on.minute === 0 && off.minute === 0 ? 'HH' : CLOCK;
+  const offset = offsetOf(now, zone);
+  const on = wallClock(draft.lightsOn, offset);
+  const off = wallClock(lightsOffOf(draft), offset);
+  const onTheHour = on.endsWith(':00') && off.endsWith(':00');
 
-  return `${on.toFormat(format)}–${off.toFormat(format)} ${oClock()}`;
+  return `${onTheHour ? on.slice(0, 2) : on}–${onTheHour ? off.slice(0, 2) : off} ${oClock()}`;
 };

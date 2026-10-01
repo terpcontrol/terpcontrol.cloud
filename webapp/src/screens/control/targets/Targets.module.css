@@ -125,6 +125,46 @@
   text-align: right;
 }
 
+/* "Light on at": a time rather than a slider, so the name takes the slider's
+   room and the time stands where the figures stand, with when the light goes
+   off under it as the VPD stands under the humidity. */
+.clockRow {
+  grid-template-areas: 'label label value';
+}
+
+.clockValue {
+  grid-area: value;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.clock {
+  width: 7rem;
+  padding-inline: var(--space-2);
+  font-size: var(--text-md);
+  text-align: right;
+}
+
+.clock:disabled {
+  opacity: 0.6;
+}
+
+/* A finger's height on a phone; beside a mouse the field is a chip's, so the
+   row is no taller than the humidity's with its VPD under the figure. */
+@media (max-width: 599px) {
+  .clockRow {
+    grid-template-areas: 'label value';
+  }
+}
+
+@media (min-width: 600px) {
+  .clock {
+    height: var(--chip-height);
+  }
+}
+
 .needs {
   grid-column: 2 / -1;
   justify-self: end;

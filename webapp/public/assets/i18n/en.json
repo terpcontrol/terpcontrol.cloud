@@ -3666,6 +3666,8 @@
     "humidity": "Humidity",
     "light": "Light",
     "lightHours": "Light on for",
+    "lightsOn": "Light on at",
+    "lightsOff": "off at {{time}}",
     "co2": "CO₂ target",
     "vpd": "VPD {{value}} kPa",
     "needsCo2": "needs a CO₂ sensor",
@@ -4322,11 +4324,15 @@
     },
     "dayNight": {
       "title": "Day and night",
-      "text": "Day is while the light is on, not a time of day: the controller switches the lamp and the day and night targets together, and adds CO₂ only by day. Light on for moves the start of the night; the time the light comes on stays as it is."
+      "text": "Day is while the light is on, not a time of day: the controller switches the lamp and the day and night targets together, and adds CO₂ only by day. Light on at sets when the day begins, Light on for how long it lasts."
     },
     "lightLimit": {
       "title": "Light limit",
       "text": "The most the lamp may give, as a share of its full output: it ramps up to it at sunrise and down again at sunset. 0 % keeps the lamp dark, as the drying preset does."
+    },
+    "lightsOn": {
+      "title": "Light on at",
+      "text": "When the light comes on and the day begins, on your account's clock (Me › Appearance). When the clocks change for summer or winter time it stays at this time - the cloud resets the device itself on the night of the change. For cheaper night power or a cooler summer tent, move the day into the night, from 22:00 for example."
     },
     "resumePlan": {
       "title": "Resume the plan",

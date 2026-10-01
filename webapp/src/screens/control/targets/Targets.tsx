@@ -16,12 +16,14 @@ import { useNow } from '@/ui/useNow';
 import { nowThere, CLOCK, useZone } from '@/ui/zone';
 import { deviceTitle } from '../../devices/naming';
 import { figure } from '../../home/units';
+import { LightsOnRow } from './LightsOnRow';
 import { TargetRow } from './TargetRow';
 import {
   draftOf,
   equalsPreset,
   leafOffset,
-  lightWindowLabel,
+  lightsOffOf,
+  offsetOf,
   prefilled,
   PRESET_CHIPS,
   presetOf,
@@ -277,10 +279,17 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
           max={100}
           step={5}
           unit={t('targets.unit.percent')}
-          aside={lightWindowLabel(draft, now, zone)}
           help="lightLimit"
           disabled={readOnly}
           onChange={lightLimit => set({ ...draft, lightLimit })}
+        />
+        <LightsOnRow
+          id={`targets-${device.id}-lights-on`}
+          lightsOn={draft.lightsOn}
+          lightsOff={lightsOffOf(draft)}
+          offset={offsetOf(now, zone)}
+          disabled={readOnly}
+          onChange={lightsOn => set({ ...draft, lightsOn })}
         />
         <TargetRow
           id={`targets-${device.id}-light-hours`}
