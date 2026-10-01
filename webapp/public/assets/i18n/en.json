@@ -975,7 +975,8 @@
       "saving": "Saving…",
       "place": "Stands in",
       "placeNote": "From now on this device's readings and camera count for the new place. What it measured so far stays with the old one.",
-      "noPlaces": "There is no other place you steer to move it to."
+      "noPlaces": "There is no other place you steer to move it to.",
+      "openRename": "Rename"
     },
     "unnamed": "{{type}} · {{tag}}",
     "youMayLog": "What the devices here are doing is shown. A socket or the lamp is switched by whoever steers this place."
@@ -1615,7 +1616,7 @@
       "addDevice": "Add a device"
     },
     "diary": {
-      "offer": "Keep a grow diary",
+      "offer": "Turn on the grow diary",
       "decline": "No thanks"
     },
     "strip": {
@@ -1643,7 +1644,6 @@
         "de": "Deutsch"
       },
       "units": "Units",
-      "unitsLine": "kept with your account · every screen still draws metric",
       "clock": "Clock",
       "features": "Features",
       "diary": "Grow diary",
@@ -1666,7 +1666,8 @@
         "ounces": "oz",
         "liters": "l",
         "gallons": "gal"
-      }
+      },
+      "unitsNote": "Kept with your account. The screens still show °C, grams and litres for now."
     },
     "theme": {
       "label": "Theme",

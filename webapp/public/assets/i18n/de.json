@@ -971,7 +971,8 @@
       "saving": "wird gespeichert…",
       "place": "Steht in",
       "placeNote": "Ab jetzt zählen die Messwerte und die Kamera dieses Geräts zum neuen Ort. Was es bisher gemessen hat, bleibt beim alten.",
-      "noPlaces": "Es gibt keinen anderen Ort, den du steuerst und an den es umziehen könnte."
+      "noPlaces": "Es gibt keinen anderen Ort, den du steuerst und an den es umziehen könnte.",
+      "openRename": "Umbenennen"
     },
     "unnamed": "{{type}} · {{tag}}",
     "youMayLog": "Was die Geräte hier tun, steht hier. Eine Steckdose oder die Lampe schaltet nur, wer diesen Ort steuert."
@@ -1619,7 +1620,7 @@
       "addDevice": "Gerät hinzufügen"
     },
     "diary": {
-      "offer": "Grow-Tagebuch führen",
+      "offer": "Grow-Tagebuch einschalten",
       "decline": "Nein danke"
     },
     "strip": {
@@ -1647,7 +1648,6 @@
         "de": "Deutsch"
       },
       "units": "Einheiten",
-      "unitsLine": "beim Konto gespeichert · jede Ansicht zeigt noch metrisch",
       "clock": "Uhrzeit",
       "features": "Funktionen",
       "diary": "Grow-Tagebuch",
@@ -1670,7 +1670,8 @@
         "ounces": "oz",
         "liters": "l",
         "gallons": "gal"
-      }
+      },
+      "unitsNote": "Beim Konto gespeichert. Die Ansichten zeigen vorerst noch °C, Gramm und Liter."
     },
     "theme": {
       "label": "Design",

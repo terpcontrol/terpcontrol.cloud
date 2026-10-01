@@ -103,7 +103,7 @@ describe('the diary, offered on Start', () => {
   it('is one line with two answers and what the diary is', () => {
     draw();
 
-    expect(screen.getByRole('button', { name: 'Keep a grow diary' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Turn on the grow diary' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'No thanks' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: i18next.t('help.about', { title: 'Grow diary' }) })).toBeInTheDocument();
   });
@@ -121,7 +121,7 @@ describe('the diary, offered on Start', () => {
   it('switches the diary on for the account', async () => {
     draw();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Keep a grow diary' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Turn on the grow diary' }));
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(server.patched[0].preferences?.diary).toBe('on');

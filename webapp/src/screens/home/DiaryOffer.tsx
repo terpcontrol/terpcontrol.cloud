@@ -1,4 +1,3 @@
-import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useChooseDiary } from '@/api/layers';
 import { Help } from '@/ui/Help';
@@ -8,8 +7,10 @@ import styles from './DiaryOffer.module.css';
 
 /**
  * Where the diary is not in use, it is offered once, in one grey line under
- * everything, rather than a third of every card: "keep a grow diary" turns it
- * on and the card grows its invitations right where it stands, and "no thanks"
+ * everything, rather than a third of every card: "Grow-Tagebuch einschalten"
+ * turns it on - named as the switch it is, with no chevron that would promise
+ * a page to read first - and the card grows its invitations right where it
+ * stands, and "no thanks"
  * is kept with the account, so the line does not come back on the next phone.
  * Either answer can be changed again under Me › Appearance.
  */
@@ -22,7 +23,6 @@ export function DiaryOffer() {
       <p className={`${styles.line} ${ui.dots}`}>
         <button type="button" className={styles.start} disabled={choose.isPending} onClick={() => choose.mutate('on')}>
           {t('home.diary.offer')}
-          <ChevronRight size={14} strokeWidth={2} aria-hidden />
         </button>
         <span className={ui.dot}>
           {' · '}

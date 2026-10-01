@@ -116,6 +116,17 @@ function AccountDoors({ handle }: { handle: string }) {
       </Identity>
 
       <div className={ui.group}>
+        {/* What reaches the grower when something goes wrong comes first: for
+            somebody with one tent it is the door that matters, and the doors
+            about grows and sharing follow it. */}
+        <Door to="/me/notifications" title={t('notifications.title')} line={line([me], () => notificationsLine(t, me.data!, now))} />
+        {/* Premium is what a camera can do beyond its free tier, so it is a
+            door only for an account that has one; without, the page behind it
+            is a table about hardware this grower does not own. */}
+        {cameras.data && ownsCamera(cameras.data.items) ? (
+          <Door to="/me/premium" title={t('me.premium.title')} line={line([cameras, me], () => premium!.text)} aside={premium?.aside ?? null} />
+        ) : null}
+        <Door to="/me/privacy" title={t('me.privacy.title')} line={line([me], () => privacyLine(t, me.data!))} />
         <Door
           to="/me/public"
           title={t('me.public.title')}
@@ -123,14 +134,6 @@ function AccountDoors({ handle }: { handle: string }) {
         />
         <Door to="/me/following" title={t('me.following.title')} line={line([follows], () => followingLine(t, follows.data!.items.length))} />
         <Door to="/me/share-links" title={t('me.shareLinks.title')} line={line([links], () => shareLinksLine(t, links.data!.items, now))} />
-        {/* Premium is what a camera can do beyond its free tier, so it is a
-            door only for an account that has one; without, the page behind it
-            is a table about hardware this grower does not own. */}
-        {cameras.data && ownsCamera(cameras.data.items) ? (
-          <Door to="/me/premium" title={t('me.premium.title')} line={line([cameras, me], () => premium!.text)} aside={premium?.aside ?? null} />
-        ) : null}
-        <Door to="/me/notifications" title={t('notifications.title')} line={line([me], () => notificationsLine(t, me.data!, now))} />
-        <Door to="/me/privacy" title={t('me.privacy.title')} line={line([me], () => privacyLine(t, me.data!))} />
         {feeds ? (
           <Door
             to="/me/schemes"

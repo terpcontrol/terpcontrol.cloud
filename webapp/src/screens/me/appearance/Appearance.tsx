@@ -79,8 +79,14 @@ export function Appearance() {
         </Menu>
       </Row>
 
-      <span className="label">{t('me.appearance.units')}</span>
-      {isDemo ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.demo')}</p> : <FromTheAccount />}
+      {isDemo ? (
+        <>
+          <span className="label">{t('me.appearance.units')}</span>
+          <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.demo')}</p>
+        </>
+      ) : (
+        <FromTheAccount />
+      )}
     </MePage>
   );
 }
@@ -105,23 +111,6 @@ function FromTheAccount() {
   return (
     <>
       <RefreshFailed failedAt={me.isError ? me.dataUpdatedAt : null} now={now} />
-      {UNITS.map(({ kind, choices }) => (
-        <Row key={kind} title={t(`me.appearance.${kind}`)} line={t('me.appearance.unitsLine')}>
-          <Menu
-            name={t(`me.appearance.${kind}`)}
-            value={units[kind]}
-            disabled={held}
-            onChange={value => update.mutate({ preferences: { ...account.preferences, units: { ...units, [kind]: value } } })}
-          >
-            {choices.map(unit => (
-              <option key={unit} value={unit}>
-                {t(`me.appearance.unit.${unit}`)}
-              </option>
-            ))}
-          </Menu>
-        </Row>
-      ))}
-
       <span className="label">{t('me.appearance.features')}</span>
       <Row title={t('me.appearance.diary')} line={t('me.appearance.diaryLine')} help="diaryLayer">
         <Menu
@@ -143,6 +132,28 @@ function FromTheAccount() {
           ))}
         </Menu>
       </Row>
+
+      {/* Whether the diary is kept changes the whole app, so it comes before
+          the units - which are kept with the account but not yet drawn by any
+          screen, as the one note under their label says once. */}
+      <span className="label">{t('me.appearance.units')}</span>
+      <p className={ui.note}>{t('me.appearance.unitsNote')}</p>
+      {UNITS.map(({ kind, choices }) => (
+        <Row key={kind} title={t(`me.appearance.${kind}`)} line={null}>
+          <Menu
+            name={t(`me.appearance.${kind}`)}
+            value={units[kind]}
+            disabled={held}
+            onChange={value => update.mutate({ preferences: { ...account.preferences, units: { ...units, [kind]: value } } })}
+          >
+            {choices.map(unit => (
+              <option key={unit} value={unit}>
+                {t(`me.appearance.unit.${unit}`)}
+              </option>
+            ))}
+          </Menu>
+        </Row>
+      ))}
 
       <span className="label">{t('me.appearance.clock')}</span>
       <Row title={t('me.appearance.timezone')} line={zoneLine(t, account.preferences.timezone)}>

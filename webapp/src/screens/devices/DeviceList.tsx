@@ -23,6 +23,7 @@ import { calendarDay, clock, useZone } from '@/ui/zone';
 import { clockLabel } from '@/screens/notifications/settings';
 import { cameraFreshness } from './cameras';
 import { DeviceSettingsSheet } from './DeviceSettingsSheet';
+import { movesAnywhere } from './moving';
 import { Fact, Facts } from './Facts';
 import { isLightRole, lightOutputOf } from './lights';
 import { LightOutputRow } from './LightOutputRow';
@@ -345,6 +346,8 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
   // draws rows from every place at once, and the same reader owns one tent and
   // only reads the next.
   const mayCorrect = enough(useMayWith()(device), 'manage');
+  // Moving is offered only where there is somewhere to move to.
+  const movable = movesAnywhere(useSpaces().data?.items ?? [], device);
 
   const build = firmwares.data?.items.find(one => one.id === device.state.firmwareId);
   // A build the device has been pinned to and is not running yet. The diary
@@ -486,7 +489,7 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
           {mayCorrect ? (
             <button type="button" className={`${ui.chip} ${settings.open}`} onClick={() => setNaming(true)}>
               <Pencil size={13} strokeWidth={1.75} aria-hidden />
-              {t('devices.settings.open')}
+              {t(movable ? 'devices.settings.open' : 'devices.settings.openRename')}
             </button>
           ) : null}
 

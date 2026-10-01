@@ -576,7 +576,7 @@ describe('the diary on a place', () => {
     server.me = me(false);
     draw(<PlaceCockpit overview={growing} />);
 
-    expect(await screen.findByRole('button', { name: /Keep a grow diary/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Turn on the grow diary/ })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Grow' })).not.toBeInTheDocument();
   });
 });

@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import type { Device, Space } from '@fg2/shared-types/v1';
 import { useDevices, useUpdateDevice } from '@/api/devices';
 import { useSpaces } from '@/api/spaces';
+import { movesAnywhere, placesFor } from './moving';
 import { Sheet } from '@/log/Sheet';
 import { Refused } from '@/ui/PageState';
-import { enough } from '@/ui/session-access';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { deviceTitle } from './naming';
@@ -46,17 +46,20 @@ export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClo
   // The stored name until somebody types, and the stored name again once a save
   // has gone through: what is being corrected is the server's answer, and it
   // arrives a moment after the sheet opens.
-  const name = typed ?? device.name ?? '';
+  // A claim leaves the type's key as the name - "fridge" - which no screen
+  // shows: the field starts empty with the name every screen does show as its
+  // placeholder, rather than offering the key to be edited.
+  const stored = device.name && device.name !== device.type ? device.name : null;
+  const name = typed ?? stored ?? '';
   const trimmed = name.trim();
   // An empty field is a device with no name of its own, which is what every
   // unclaimed one starts as: the row then carries its type and the characters
   // printed on the hardware again, rather than an empty title.
   const wanted = trimmed === '' ? null : trimmed;
-  const changed = wanted !== (device.name ?? null);
-  // A device is moved into a place, which is managing that place - the server
-  // asks for `manage` on the destination as well as on the device - and a room
-  // groups other places rather than holding hardware, so nothing stands in one.
-  const elsewhere = (spaces.data?.items ?? []).filter(space => space.kind !== 'room' && enough(space.youMay, 'manage'));
+  const changed = wanted !== stored;
+  const elsewhere = placesFor(spaces.data?.items ?? []);
+  // With nowhere else to go, the place is not asked about at all.
+  const movable = movesAnywhere(spaces.data?.items ?? [], device);
 
   const move = (space: Space) => write.mutate({ spaceId: space.id });
 
@@ -86,20 +89,22 @@ export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClo
           <p className={ui.note}>{t('devices.settings.nameNote')}</p>
         </Block>
 
-        <Block label={t('devices.settings.place')}>
-          {elsewhere.length > 0 ? (
-            <Choices label={t('devices.settings.place')}>
-              {elsewhere.map(space => (
-                <Choice key={space.id} chosen={space.id === device.spaceId} disabled={write.isPending} onChoose={() => move(space)}>
-                  {space.name}
-                </Choice>
-              ))}
-            </Choices>
-          ) : (
-            <p className={ui.note}>{t('devices.settings.noPlaces')}</p>
-          )}
-          <p className={ui.note}>{t('devices.settings.placeNote')}</p>
-        </Block>
+        {movable ? (
+          <Block label={t('devices.settings.place')}>
+            {elsewhere.length > 0 ? (
+              <Choices label={t('devices.settings.place')}>
+                {elsewhere.map(space => (
+                  <Choice key={space.id} chosen={space.id === device.spaceId} disabled={write.isPending} onChoose={() => move(space)}>
+                    {space.name}
+                  </Choice>
+                ))}
+              </Choices>
+            ) : (
+              <p className={ui.note}>{t('devices.settings.noPlaces')}</p>
+            )}
+            <p className={ui.note}>{t('devices.settings.placeNote')}</p>
+          </Block>
+        ) : null}
 
         <Refused error={write.error} />
       </div>

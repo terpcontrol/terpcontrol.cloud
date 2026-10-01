@@ -81,7 +81,7 @@ export function Row({
             {title}
             {help ? <Help topic={help} /> : null}
           </span>
-          <span className={`${ui.note} ${styles.rowLine}`}>{line}</span>
+          {line ? <span className={`${ui.note} ${styles.rowLine}`}>{line}</span> : null}
         </div>
         {children ? <div className={styles.rowControl}>{children}</div> : null}
       </div>
