@@ -116,6 +116,7 @@ const account = (timezone: string): Me => ({
   pushPublicKey: null,
   telegramAvailable: false,
   pushSubscribed: false,
+  layers: { diary: true },
 });
 
 /* ------------------------------------------------------------- the wire */
