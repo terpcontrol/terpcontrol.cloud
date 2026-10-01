@@ -4642,7 +4642,7 @@
     "change": "Ändern",
     "menu": {
       "label": "Mehr zu {{name}}",
-      "preset": "Klima-Vorlage anwenden",
+      "preset": "Klima-Preset anwenden",
       "newGrow": "Grow starten",
       "moveGrow": "Grow hierher holen",
       "members": "Mitglieder & Teilen",
