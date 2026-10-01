@@ -803,7 +803,7 @@
     "lightOutput": {
       "title": "Lichtausgang",
       "is": "eigener Ausgang des Geräts · dimmbar",
-      "brightness": "Helligkeit",
+      "brightness": "Lichtgrenze",
       "force": "Lichtausgang halten",
       "forceFor": "Lichtausgang {{duration}} lang halten",
       "holds": "hält {{duration}}",
@@ -812,20 +812,27 @@
       "noLimit": "nicht angegeben",
       "setTo": "Eingestellt auf",
       "running": "Läuft mit",
-      "saving": "Helligkeit wird gespeichert…",
+      "saving": "Lichtgrenze wird gespeichert…",
       "saved": "Gespeichert und gesendet. Das Gerät bestätigt keine Einstellung; was es wirklich fährt, steht oben als Wert.",
-      "planRunning": "Speichern pausiert den laufenden Plan, der sonst innerhalb einer Stunde seine eigene Helligkeit zurücksetzen würde.",
-      "planPaused": "Der Plan ist pausiert, solange diese Helligkeit von Hand gesetzt ist.",
-      "pauseReason": "Helligkeit von Hand",
+      "planRunning": "Speichern pausiert den laufenden Plan, der sonst innerhalb einer Stunde seine eigene Lichtgrenze zurücksetzen würde.",
+      "planPaused": "Der Plan ist pausiert, solange diese Lichtgrenze von Hand gesetzt ist.",
+      "pauseReason": "Lichtgrenze von Hand",
       "resume": "Plan fortsetzen",
-      "saveFailed": "Diese Helligkeit wurde nicht gespeichert.",
+      "saveFailed": "Diese Lichtgrenze wurde nicht gespeichert.",
       "noSettings": "Dieses Gerät hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin eine Helligkeit stehen könnte. Wird am Gerät selbst eine beliebige Einstellung geändert, schickt es sie; ein neuer Verbindungsaufbau allein tut das nicht.",
       "needsFirmware": "Diesem Build lässt sich der Lichtausgang nicht von Hand halten. Die Helligkeit erreicht ihn trotzdem — sie ist eine Einstellung und kein Befehl.",
       "needsFirmwareAlone": "Diesem Build lässt sich der Lichtausgang nicht von Hand halten.",
       "neverHolds": "Diesem Gerätetyp lässt sich der Lichtausgang in keinem Build von Hand halten. Die Helligkeit erreicht ihn trotzdem — sie ist eine Einstellung und kein Befehl.",
       "neverHoldsAlone": "Diesem Gerätetyp lässt sich der Lichtausgang in keinem Build von Hand halten.",
       "keptForLater": "Niemand hört zu, die Tasten erreichen also nichts — eine Helligkeit wird trotzdem gespeichert, und das Gerät bekommt sie, sobald es sich wieder verbindet.",
-      "explained": "Das Gerät dimmt diesen Ausgang selbst und fährt ihn über Sonnenauf- und -untergang hoch und runter; die Helligkeit ist das Maximum, das es gibt. Eine smarte Steckdose mit Licht-Rolle hat keine eigene Stufe — sie folgt diesem Ausgang an oder aus, solange sie nicht von Hand gehalten wird. Lichtstunden zählen jede Stunde, in der die Lampe über null liegt: Dimmen ändert, wie hell der Tag ist, nicht wie lang."
+      "explained": "Das Gerät dimmt diesen Ausgang selbst und fährt ihn über Sonnenauf- und -untergang hoch und runter; die Helligkeit ist das Maximum, das es gibt. Eine smarte Steckdose mit Licht-Rolle hat keine eigene Stufe — sie folgt diesem Ausgang an oder aus, solange sie nicht von Hand gehalten wird. Lichtstunden zählen jede Stunde, in der die Lampe über null liegt: Dimmen ändert, wie hell der Tag ist, nicht wie lang.",
+      "now": "jetzt {{percent}} · vor {{age}}",
+      "changeOnTargets": "unter Steuerung ändern ›",
+      "holding": {
+        "on": "an bis {{until}}",
+        "off": "aus bis {{until}}"
+      },
+      "holdWaits": "Offline: Licht an oder aus halten geht erst wieder, wenn das Gerät verbunden ist."
     },
     "noDevices": "Hier steht noch kein Gerät. Ein Controller kommt mit dem Code auf seinem Display dazu.",
     "readingSockets": "Steckdosen werden gelesen…",
@@ -3673,7 +3680,7 @@
     "toNight": "Nacht ›",
     "temperature": "Temperatur",
     "humidity": "Luftfeuchte",
-    "light": "Licht",
+    "light": "Lichtgrenze",
     "lightHours": "Licht an für",
     "lightsOn": "Licht an um",
     "lightsOff": "aus um {{time}}",
@@ -4484,7 +4491,7 @@
     },
     "lightHold": {
       "title": "Auto, an, aus",
-      "text": "An lässt die Lampe mit ihrer Lichtgrenze leuchten, auch nachts; Aus hält sie dunkel – für die angezeigte Zeit oder bis das Gerät neu startet. Das Gerät meldet das Halten nicht zurück, deshalb kann diese Zeile es nicht zeigen; Auto beendet es."
+      "text": "An lässt die Lampe mit ihrer Lichtgrenze leuchten, auch nachts; Aus hält sie dunkel – für die angezeigte Zeit oder bis das Gerät neu startet. Das Gerät meldet das Halten nicht zurück: Markiert ist, was von hier zuletzt gesendet wurde, bis seine Zeit um ist. Auto beendet es."
     },
     "firmwareChannel": {
       "title": "Updates",

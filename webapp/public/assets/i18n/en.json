@@ -807,7 +807,7 @@
     "lightOutput": {
       "title": "Light output",
       "is": "the device's own output · dimmable",
-      "brightness": "Brightness",
+      "brightness": "Light limit",
       "force": "Hold the light output",
       "forceFor": "Hold the light output for {{duration}}",
       "holds": "holds {{duration}}",
@@ -816,20 +816,27 @@
       "noLimit": "not stated",
       "setTo": "Set to",
       "running": "Running at",
-      "saving": "Saving the brightness…",
+      "saving": "Saving the light limit…",
       "saved": "Stored and sent. The device acknowledges no setting, so what it is running is the level above.",
-      "planRunning": "Saving pauses the running plan, which would otherwise put its own brightness back within the hour.",
-      "planPaused": "The plan is paused while this brightness is set by hand.",
-      "pauseReason": "Brightness set by hand",
+      "planRunning": "Saving pauses the running plan, which would otherwise put its own light limit back within the hour.",
+      "planPaused": "The plan is paused while this light limit is set by hand.",
+      "pauseReason": "Light limit by hand",
       "resume": "Resume plan",
-      "saveFailed": "That brightness was not saved.",
+      "saveFailed": "This light limit was not saved.",
       "noSettings": "This device has not sent its settings yet, so there is nothing to write a brightness into. Changing any setting on the device itself sends them; connecting alone does not.",
       "needsFirmware": "This build cannot be told to hold its light output. The brightness still reaches it — that is a setting and not a command.",
       "needsFirmwareAlone": "This build cannot be told to hold its light output.",
       "neverHolds": "This kind of device cannot be told to hold its light output, in any build. The brightness still reaches it — that is a setting and not a command.",
       "neverHoldsAlone": "This kind of device cannot be told to hold its light output, in any build.",
       "keptForLater": "Nothing is listening, so the buttons reach nobody — a brightness is stored all the same, and the device is handed it when it connects again.",
-      "explained": "The device dims this output itself and ramps it through sunrise and sunset; the brightness is the most it gives. A smart socket with a light role has no level of its own — it follows this output on or off, unless it is being held. Hours of light count every hour the lamp is above zero, so dimming changes how bright the day is and not how long it is."
+      "explained": "The device dims this output itself and ramps it through sunrise and sunset; the brightness is the most it gives. A smart socket with a light role has no level of its own — it follows this output on or off, unless it is being held. Hours of light count every hour the lamp is above zero, so dimming changes how bright the day is and not how long it is.",
+      "now": "now {{percent}} · {{age}} ago",
+      "changeOnTargets": "change under Control ›",
+      "holding": {
+        "on": "on until {{until}}",
+        "off": "off until {{until}}"
+      },
+      "holdWaits": "Offline: holding the light on or off works again once the device is connected."
     },
     "noDevices": "No device here yet. A controller joins with the claim code on its display.",
     "readingSockets": "Reading the socket tables…",
@@ -3669,7 +3676,7 @@
     "toNight": "night ›",
     "temperature": "Temperature",
     "humidity": "Humidity",
-    "light": "Light",
+    "light": "Light limit",
     "lightHours": "Light on for",
     "lightsOn": "Light on at",
     "lightsOff": "off at {{time}}",
@@ -4480,7 +4487,7 @@
     },
     "lightHold": {
       "title": "Auto, on, off",
-      "text": "On runs the lamp at its light limit, even at night; Off keeps it dark – for the time shown, or until the device restarts. The device does not report a hold back, so this row cannot show one running; Auto ends it."
+      "text": "On keeps the lamp lit at its light limit, at night too; Off keeps it dark – for the time shown or until the device restarts. The device does not report a hold back: what was last sent from here is marked until its time is up. Auto ends it."
     },
     "firmwareChannel": {
       "title": "Updates",

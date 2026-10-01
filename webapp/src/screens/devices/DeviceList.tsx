@@ -250,6 +250,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
                       <LightOutputRow
                         explain={explainLight}
                         output={light}
+                        spaceId={device.spaceId}
                         unheard={unheard}
                         mayManage={mayManage}
                         runs={runsOf(verdicts.get(device.spaceId ?? ''), 'light')}

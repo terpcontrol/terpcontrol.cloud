@@ -1,12 +1,16 @@
 import { ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
-import type { DateTime } from 'luxon';
+import { DateTime } from 'luxon';
 import { useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
+import { controlPath } from '@/app/places';
 import type { ActuatorRuns, SocketOverrideState } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useSaveConfiguration, useSetOverride } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { ageLabel } from '@/ui/age';
+import { statesTargets } from '@/ui/climate-hardware';
+import { clock, useZone } from '@/ui/zone';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { Fact, Facts } from './Facts';
@@ -17,6 +21,8 @@ import { refusalText } from '@/ui/refusal';
 
 interface LightOutputRowProps {
   output: LightOutput;
+  /** Where the device stands, whose Steuerung holds the light limit of a device that states targets. */
+  spaceId?: string | null;
   /** Why the device would hear no command, or null. A level is not a command, so it is saved all the same. */
   unheard: string | null;
   mayManage: boolean;
@@ -52,8 +58,9 @@ interface LightOutputRowProps {
  * sentence in the same amber, and pauses the same way. A row that did less would
  * be the shortcut that costs the grower their setting.
  */
-export function LightOutputRow({ output, unheard, mayManage, runs, now, explain }: LightOutputRowProps) {
+export function LightOutputRow({ output, spaceId = null, unheard, mayManage, runs, now, explain }: LightOutputRowProps) {
   const { t } = useTranslation();
+  const zone = useZone();
   const [open, setOpen] = useState(false);
   const override = useSetOverride();
   const save = useSaveConfiguration();
@@ -85,6 +92,12 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now, explain 
   const stated = dragged || stored !== null ? percentLabel(level) : t('devices.lightOutput.noLimit');
 
   const cannotSetLevel = output.configuration === null ? t('devices.lightOutput.noSettings') : null;
+  // A controller or a fridge states its targets, and the light limit is one of
+  // them: it is set on Steuerung, beside the hours the light is on, and saved
+  // with them. A second slider here wrote the same figure at once on release
+  // under another name, so the row says what it is and where it is changed. A
+  // plain lamp has no targets page and keeps its slider.
+  const limitOnTargets = spaceId !== null && !!output.configuration && statesTargets(output.configuration);
   // Why the buttons are out of reach. The old build's refusal ends by pointing
   // at the brightness as the half that gets through anyway, which is the whole
   // of its comfort - and on a device that has sent no settings there is no
@@ -104,11 +117,16 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now, explain 
   // The buttons are drawn only where a hold could be asked for at all: beside a
   // build or a device that can never take one they were three words that looked
   // as pressable as any other choice, and the note under them already says why.
-  const offersHold = !neverHolds && output.takesOverride;
+  // Nor beside a device nobody is listening on: the note under them says so, and three buttons that reach nothing looked live.
+  const offersHold = !neverHolds && output.takesOverride && unheard === null;
   // "Nothing is listening" is true of the buttons and not of the slider, so a
   // device nobody can reach says the whole of it in one line rather than a
   // refusal beside a control that works.
-  const why = cannotForce && unheard && !cannotSetLevel ? t('devices.lightOutput.keptForLater') : cannotForce;
+  // Where the limit is Steuerung's, nothing here is kept for later: only the hold waits for the device.
+  const why =
+    cannotForce && unheard && !cannotSetLevel
+      ? t(limitOnTargets ? 'devices.lightOutput.holdWaits' : 'devices.lightOutput.keptForLater')
+      : cannotForce;
 
   // Whether a plan is standing over this document is not something to guess at:
   // until the read lands the slider is left where it is, and a device that is
@@ -145,11 +163,25 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now, explain 
   // be put. The direction is the three buttons' to say.
   const [hold, setHold] = useState(defaultHold());
   const [asked, setAsked] = useState<number | null>(null);
+  // The device reports no hold of its own light, so the last one sent from
+  // here is remembered until it runs out: the button pressed stays marked and
+  // says until when, instead of three buttons none of which is in force.
+  const [sentHold, setSentHold] = useState<SentHold | null>(() => readHold(output.deviceId));
+  const holding = sentHold !== null && sentHold.until > now.toMillis() ? sentHold : null;
 
   const force = (state: SocketOverrideState) => {
     const forSeconds = state === 'auto' ? 0 : hold;
     setAsked(state === 'auto' ? null : forSeconds);
-    override.mutate({ deviceId: output.deviceId, target: { kind: 'output', output: 'light' }, state, forSeconds });
+    override.mutate(
+      { deviceId: output.deviceId, target: { kind: 'output', output: 'light' }, state, forSeconds },
+      {
+        onSuccess: result => {
+          const next = state === 'auto' || !result.deviceOnline ? null : { state, until: now.toMillis() + forSeconds * 1000 };
+          setSentHold(next);
+          writeHold(output.deviceId, next);
+        },
+      },
+    );
   };
 
   return (
@@ -162,7 +194,7 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now, explain 
         </div>
         <span className={`mono ${styles.socketState}`} data-age={freshness}>
           {measured
-            ? `${percentLabel(measured.percent)} · ${t('devices.ago', { age: ageLabel(measured.measuredAt, now) })}`
+            ? t('devices.lightOutput.now', { percent: percentLabel(measured.percent), age: ageLabel(measured.measuredAt, now) })
             : t('devices.lightOutput.noLevel')}
         </span>
         <button
@@ -178,13 +210,21 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now, explain 
 
       {mayManage ? (
         <div className={styles.dimmer}>
-          <label className="label" htmlFor={`level-${output.deviceId}`}>
+          <label className="label" htmlFor={limitOnTargets ? undefined : `level-${output.deviceId}`}>
             {t('devices.lightOutput.brightness')}
           </label>
           {explain ? <Help topic="lightLimit" /> : null}
+          {limitOnTargets && spaceId ? (
+            <span className={styles.limitLine}>
+              <span className="mono">{stated}</span>
+              <Link to={controlPath(spaceId)} className={styles.limitLink}>
+                {t('devices.lightOutput.changeOnTargets')}
+              </Link>
+            </span>
+          ) : null}
           {/* Nothing to write into is nothing to drag: a disabled slider still
               stood at the top of its scale, a level nobody had stated. */}
-          {cannotSetLevel === null ? (
+          {cannotSetLevel === null && !limitOnTargets ? (
             <input
               id={`level-${output.deviceId}`}
               className={`${ui.range} ${styles.slider}`}
@@ -201,7 +241,7 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now, explain 
               onBlur={() => void commit()}
             />
           ) : null}
-          <span className={`mono ${styles.level}`}>{stated}</span>
+          {limitOnTargets ? null : <span className={`mono ${styles.level}`}>{stated}</span>}
           {/* The group carries the duration rather than each button, so the
               three keep the one-word names they are drawn with and a reader
               hears how long a hold lasts once, where the choice belongs. */}
@@ -212,6 +252,7 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now, explain 
                   key={state}
                   type="button"
                   className={`${ui.segment} ${styles.forceOption}`}
+                  aria-pressed={holding ? holding.state === state : state === 'auto'}
                   disabled={cannotForce !== null}
                   onClick={() => force(state)}
                 >
@@ -223,7 +264,11 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now, explain 
           {/* Only beside buttons that can be pressed: next to three greyed
               words it would be the length of a hold nobody can ask for. */}
           {cannotForce === null ? (
-            <span className={`mono ${styles.holdLength}`}>{t('devices.lightOutput.holds', { duration: durationLabel(hold) })}</span>
+            <span className={`mono ${styles.holdLength}`}>
+              {holding
+                ? t(`devices.lightOutput.holding.${holding.state}`, { until: clock(DateTime.fromMillis(holding.until).toISO() ?? '', zone) })
+                : t('devices.lightOutput.holds', { duration: durationLabel(hold) })}
+            </span>
           ) : null}
           {offersHold ? <Help topic="lightHold" /> : null}
         </div>
@@ -374,3 +419,30 @@ function Asked({ ask, heldFor }: { ask: Mutation & { data?: { deviceOnline: bool
     </p>
   );
 }
+
+/** A hold of the light output sent from this browser, and when it runs out. */
+interface SentHold {
+  state: 'on' | 'off';
+  until: number;
+}
+
+const HOLD_KEY = (deviceId: string) => `terp.lightHold.${deviceId}`;
+
+/** What this browser last sent, if anything: a preference of this screen and never a fact the device confirmed. */
+const readHold = (deviceId: string): SentHold | null => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(HOLD_KEY(deviceId)) ?? 'null') as SentHold | null;
+    return stored && (stored.state === 'on' || stored.state === 'off') && typeof stored.until === 'number' ? stored : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeHold = (deviceId: string, hold: SentHold | null) => {
+  try {
+    if (hold) localStorage.setItem(HOLD_KEY(deviceId), JSON.stringify(hold));
+    else localStorage.removeItem(HOLD_KEY(deviceId));
+  } catch {
+    // Private mode: the buttons then mark Auto, which is where a hold ends anyway.
+  }
+};

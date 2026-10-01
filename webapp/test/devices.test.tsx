@@ -47,7 +47,10 @@ const state = vi.hoisted(() => ({ answer: { deviceOnline: true } as { deviceOnli
 vi.mock('@/api/devices', async importOriginal => ({
   ...(await importOriginal<object>()),
   useSetOverride: () => ({
-    mutate: (request: OverrideRequest) => sent.push(request),
+    mutate: (request: OverrideRequest, options?: { onSuccess?: (answer: { deviceOnline: boolean }) => void }) => {
+      sent.push(request);
+      if (state.answer) options?.onSuccess?.(state.answer);
+    },
     data: state.answer,
     error: null,
     isPending: false,
@@ -162,6 +165,7 @@ beforeEach(() => {
   moves.length = 0;
   planState.status = null;
   state.answer = { deviceOnline: true };
+  localStorage.clear();
 });
 
 describe('the switch on a socket row', () => {
@@ -305,7 +309,7 @@ describe("the controller's own light output", () => {
 
     expect(screen.getByText(/80 % · 20 s ago/)).toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
-    expect(screen.getByRole('slider', { name: 'Brightness' })).toHaveValue('80');
+    expect(screen.getByRole('slider', { name: 'Light limit' })).toHaveValue('80');
   });
 
   it('still says what a lamp that fell silent four days ago was running at, dimmed and dated', () => {
@@ -322,7 +326,7 @@ describe("the controller's own light output", () => {
   it('dims the lamp by writing the whole document back, keeping the ramps it was tuned with', () => {
     drawOutput();
 
-    const slider = screen.getByRole('slider', { name: 'Brightness' });
+    const slider = screen.getByRole('slider', { name: 'Light limit' });
     fireEvent.change(slider, { target: { value: '40' } });
     fireEvent.blur(slider);
 
@@ -343,12 +347,12 @@ describe("the controller's own light output", () => {
 
     expect(screen.getByText(/Saving pauses the running plan/)).toBeInTheDocument();
 
-    const slider = screen.getByRole('slider', { name: 'Brightness' });
+    const slider = screen.getByRole('slider', { name: 'Light limit' });
     fireEvent.change(slider, { target: { value: '55' } });
     fireEvent.blur(slider);
     await screen.findByText(/Saving pauses the running plan/);
 
-    expect(moves).toEqual([{ kind: 'pause', reason: 'Brightness set by hand' }]);
+    expect(moves).toEqual([{ kind: 'pause', reason: 'Light limit by hand' }]);
     expect(saved).toEqual([{ deviceId: 'device-1', configuration: { lights: { sunrise: 15, sunset: 15, limit: 55 } } }]);
   });
 
@@ -356,7 +360,7 @@ describe("the controller's own light output", () => {
     planState.status = 'paused';
     drawOutput();
 
-    expect(screen.getByText(/The plan is paused while this brightness is set by hand/)).toBeInTheDocument();
+    expect(screen.getByText(/The plan is paused while this light limit is set by hand/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Resume plan' }));
 
     expect(moves).toEqual([{ kind: 'resume' }]);
@@ -366,7 +370,7 @@ describe("the controller's own light output", () => {
     drawOutput();
 
     expect(screen.queryByText(/Saving pauses the running plan/)).not.toBeInTheDocument();
-    const slider = screen.getByRole('slider', { name: 'Brightness' });
+    const slider = screen.getByRole('slider', { name: 'Light limit' });
     fireEvent.change(slider, { target: { value: '45' } });
     fireEvent.blur(slider);
 
@@ -384,6 +388,30 @@ describe("the controller's own light output", () => {
       { deviceId: 'device-1', target: { kind: 'output', output: 'light' }, state: 'on', forSeconds: 3600 },
       { deviceId: 'device-1', target: { kind: 'output', output: 'light' }, state: 'auto', forSeconds: 0 },
     ]);
+  });
+
+  it('marks the hold it sent, and until when, since the device reports none back', () => {
+    drawOutput();
+
+    expect(screen.getByRole('button', { name: 'auto' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'on' }));
+
+    expect(screen.getByRole('button', { name: 'on' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'auto' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText(/^on until \d\d:\d\d$/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'auto' }));
+    expect(screen.getByRole('button', { name: 'auto' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('holds 1 h')).toBeInTheDocument();
+  });
+
+  it('leaves the light limit of a device that states targets to Steuerung, where it is saved with them', () => {
+    const output = lightOutputOf(device({ day: { temperature: 25, humidity: 60 }, lights: LIGHTS }), CAPABILITIES, null)!;
+    wrap(<LightOutputRow output={output} spaceId="space-1" unheard={null} mayManage runs={null} now={NOW} />);
+
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    expect(screen.getByText('80 %')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'change under Control ›' })).toHaveAttribute('href', '/control?space=space-1');
   });
 
   /**
@@ -447,7 +475,7 @@ describe("the controller's own light output", () => {
     expect(screen.queryByRole('button', { name: 'on' })).not.toBeInTheDocument();
     expect(screen.getByText(/cannot be told to hold its light output/)).toBeInTheDocument();
 
-    const slider = screen.getByRole('slider', { name: 'Brightness' });
+    const slider = screen.getByRole('slider', { name: 'Light limit' });
     expect(slider).toBeEnabled();
     fireEvent.change(slider, { target: { value: '55' } });
     fireEvent.blur(slider);
@@ -458,9 +486,10 @@ describe("the controller's own light output", () => {
   it('stores a brightness for a device nobody is listening on, because a setting is not a command', () => {
     drawOutput({ lights: LIGHTS }, CAPABILITIES, null, 'Offline · nothing is listening, so nothing is sent.');
 
-    expect(screen.getByRole('button', { name: 'off' })).toBeDisabled();
-    fireEvent.change(screen.getByRole('slider', { name: 'Brightness' }), { target: { value: '25' } });
-    fireEvent.blur(screen.getByRole('slider', { name: 'Brightness' }));
+    // A hold reaches nothing, so none is offered; the note says why.
+    expect(screen.queryByRole('button', { name: 'off' })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('slider', { name: 'Light limit' }), { target: { value: '25' } });
+    fireEvent.blur(screen.getByRole('slider', { name: 'Light limit' }));
 
     expect(saved).toHaveLength(1);
     expect(screen.getByText('nothing reported')).toBeInTheDocument();
@@ -508,14 +537,14 @@ describe("the controller's own light output", () => {
     // control that works.
     drawOutput({ lights: { sunrise: 15, sunset: 15 } });
 
-    const slider = screen.getByRole('slider', { name: 'Brightness' });
+    const slider = screen.getByRole('slider', { name: 'Light limit' });
     expect(slider).toBeEnabled();
     expect(slider).toHaveAttribute('aria-valuetext', 'not stated');
 
     // Until somebody drags it, and then it says what they asked for.
     fireEvent.change(slider, { target: { value: '45' } });
 
-    expect(screen.getByRole('slider', { name: 'Brightness' })).toHaveAttribute('aria-valuetext', '45 %');
+    expect(screen.getByRole('slider', { name: 'Light limit' })).toHaveAttribute('aria-valuetext', '45 %');
   });
 
   it('is there for a build that announced the override, for one that states a brightness, and for a lamp that reported one', () => {
@@ -552,7 +581,7 @@ describe("the controller's own light output", () => {
     expect(screen.queryByRole('button', { name: 'on' })).not.toBeInTheDocument();
     expect(screen.getByText(/This kind of device cannot be told to hold its light output, in any build/)).toBeInTheDocument();
     expect(screen.queryByText(/This build/)).not.toBeInTheDocument();
-    const slider = screen.getByRole('slider', { name: 'Brightness' });
+    const slider = screen.getByRole('slider', { name: 'Light limit' });
     expect(slider).toHaveValue('0');
     expect(slider).toHaveAttribute('aria-valuetext', '0 %');
 
@@ -599,7 +628,8 @@ describe('what the sockets offer, by who is reading', () => {
     spaceId: 'space-1',
     configuration: { lights: LIGHTS },
     firmware: { channel: 'stable' },
-    state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: null },
+    // Heard from a moment ago by the clock the list reads, so its switches are live ones.
+    state: { lastSeenAt: DateTime.now().minus({ seconds: 20 }).toISO()!, firmwareId: null },
   } as unknown as Device;
 
   const drawTab = async (youMay: AccessNeed) => {
@@ -620,7 +650,7 @@ describe('what the sockets offer, by who is reading', () => {
   it('gives the owner the lamp’s brightness and the three states of the plug', async () => {
     await drawTab('own');
 
-    expect(await screen.findByRole('slider', { name: 'Brightness' })).toBeInTheDocument();
+    expect(await screen.findByRole('slider', { name: 'Light limit' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'auto' }).length).toBeGreaterThan(0);
     expect(screen.queryByText(/A socket or the lamp is switched by whoever steers this place\./)).not.toBeInTheDocument();
   });
@@ -663,7 +693,7 @@ describe('what the sockets offer, by who is reading', () => {
     await drawTab('log');
 
     expect(await screen.findByText(/A socket or the lamp is switched by whoever steers this place\./)).toBeInTheDocument();
-    expect(screen.queryByRole('slider', { name: 'Brightness' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('slider', { name: 'Light limit' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'auto' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'on' })).not.toBeInTheDocument();
   });

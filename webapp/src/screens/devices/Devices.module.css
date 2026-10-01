@@ -333,6 +333,21 @@
   border-top: var(--rule-solid);
 }
 
+/* The light limit of a device that states targets: the figure, and the way to Steuerung where it is set and saved. */
+.limitLine {
+  display: inline-flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.limitLink {
+  white-space: nowrap;
+}
+
 .slider {
   flex: 1 1 140px;
   min-width: 120px;
