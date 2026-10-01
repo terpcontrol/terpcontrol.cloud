@@ -299,11 +299,14 @@
   font-weight: var(--weight-medium);
 }
 
+/* Written out, five outputs running at once are wider than a phone: the line
+   breaks between them rather than pushing the page sideways. */
 .scrubOutputs {
   margin-left: auto;
   padding-left: var(--space-2);
   font-size: var(--text-xs);
-  white-space: nowrap;
+  text-align: right;
+  text-wrap: balance;
   color: var(--muted);
 }
 
