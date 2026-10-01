@@ -1,6 +1,6 @@
 services:
   mongodb:
-    image: ${DOCKER_MONGODB_IMAGE:-mongo}
+    image: ${DOCKER_MONGODB_IMAGE:-mongo:8.2}
     restart: always
     networks:
       - main
