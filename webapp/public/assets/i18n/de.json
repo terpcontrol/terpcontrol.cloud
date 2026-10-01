@@ -3574,7 +3574,7 @@
       "offlineWatch": "Diese Regel beobachtet, ob das Gerät überhaupt meldet; darauf lässt sich nichts anderes richten.",
       "forOfflineNote": "Zusätzlich zu den zehn Minuten, nach denen ein Gerät als offline gilt."
     },
-    "offlineRule": "{{device}} offline",
+    "offlineRule": "Gerät offline",
     "watchRunning": "{{output}} läuft",
     "presetRule": {
       "tooHot": "Zu warm",
@@ -4758,7 +4758,6 @@
     "alarms": {
       "title": "Alarme",
       "none": "Noch kein Alarm eingeschaltet.",
-      "offline": "Gerät offline",
       "above": "über {{value}}",
       "below": "unter {{value}}",
       "outside": "unter {{lower}} oder über {{upper}}",

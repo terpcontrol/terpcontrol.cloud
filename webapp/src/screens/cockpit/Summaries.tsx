@@ -122,7 +122,7 @@ export function AlarmsSummary({ spaceId, devices, me, mayChange }: { spaceId: st
   const rules = useAlarmRulesOf(devices.map(device => device.id));
   const watching = [...rules.rules.values()].filter(rule => rule.enabled);
   // Each device keeps its own offline rule, and two of them are one promise to the grower.
-  const lines = [...new Set(watching.map(rule => lineOf(t, rule, devices)))];
+  const lines = [...new Set(watching.map(rule => lineOf(t, rule)))];
 
   return (
     <Summary title={t('cockpit.alarms.title')} change={mayChange ? controlPath(spaceId, 'alarms') : null}>
@@ -154,10 +154,9 @@ export function AlarmsSummary({ spaceId, devices, me, mayChange }: { spaceId: st
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
-const lineOf = (t: Translate, rule: AlarmRule, devices: Device[]): string => {
-  if (rule.origin === 'always') return t('cockpit.alarms.offline');
-  const device = devices.find(one => one.id === rule.deviceId);
-  const title = device ? ruleTitle(t, rule, device) : rule.name;
+const lineOf = (t: Translate, rule: AlarmRule): string => {
+  const title = ruleTitle(t, rule);
+  if (rule.origin === 'always') return title;
   const { upper, lower } = boundsOf(rule.watch);
   const bound =
     upper !== null && lower !== null

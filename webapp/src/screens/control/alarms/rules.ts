@@ -20,7 +20,6 @@ import { UNIT, targetFigure } from '@/screens/home/units';
 import { looseFigure } from '@/ui/figures';
 import { isAhead } from '@/ui/age';
 import { zoneOf } from '@/ui/zone';
-import { deviceName } from '@/screens/devices/naming';
 
 /**
  * What the alarm screen knows about a rule that the contract does not say in so
@@ -84,10 +83,13 @@ const presetTitle = (watch: AlarmWatch): string | null => {
  *
  * Because the cloud's own rule is never titled from its name, the sheet does
  * not offer a field for one: a rule whose name no screen reads should not ask
- * anybody to type it.
+ * anybody to type it. It is "Gerät offline" wherever it is shown - the
+ * cockpit, Steuerung › Alarme and an alert - rather than the device's own name
+ * here and the generic word there: a list of several devices' rules is headed
+ * by each device's name already, and an alert names its device beside it.
  */
-export const ruleTitle = (t: Translate, rule: AlarmRule, device: Device): string => {
-  if (rule.origin === 'always') return t('alarms.offlineRule', { device: deviceName(device, t) });
+export const ruleTitle = (t: Translate, rule: AlarmRule): string => {
+  if (rule.origin === 'always') return t('alarms.offlineRule');
   if (rule.origin === 'preset') {
     const title = presetTitle(rule.watch);
     if (title) return t(`alarms.presetRule.${title}`);

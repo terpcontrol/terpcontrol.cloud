@@ -416,7 +416,7 @@ function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen,
   // that trips on the first sample has not even that.
   const bound = rule.watch.kind === 'output_running' ? (rule.forSeconds > 0 ? `› ${durationLabel(rule.forSeconds)}` : '') : boundLabel(rule.watch);
   const watching = watchLabel(t, rule.watch);
-  const title = ruleTitle(t, rule, device);
+  const title = ruleTitle(t, rule);
 
   const summary = (
     <>

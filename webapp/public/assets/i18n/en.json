@@ -3570,7 +3570,7 @@
       "offlineWatch": "This one watches whether the device reports at all, which is not something that can be pointed elsewhere.",
       "forOfflineNote": "On top of the ten minutes after which a device counts as offline."
     },
-    "offlineRule": "{{device}} offline",
+    "offlineRule": "Device offline",
     "watchRunning": "{{output}} running",
     "presetRule": {
       "tooHot": "Too hot",
@@ -4754,7 +4754,6 @@
     "alarms": {
       "title": "Alarms",
       "none": "No alarm switched on yet.",
-      "offline": "Device offline",
       "above": "above {{value}}",
       "below": "below {{value}}",
       "outside": "below {{lower}} or above {{upper}}",

@@ -337,7 +337,7 @@ const metaOf = (
 ): ReactNode => {
   const zone = zoneOf(me);
   const parts: ReactNode[] = [
-    ruleName(t, alert, rule, device),
+    ruleName(t, alert, rule),
     severity,
     whole(
       alert.resolvedAt
@@ -389,16 +389,16 @@ const metaOf = (
 
 /**
  * What the rule is called, in the words the alarm rules page calls it by; a
- * device not in hand leaves the name the rule carries, and a rule no longer in
- * hand at all leaves the name the episode wrote down when it opened. The last
+ * rule no longer in hand at all leaves the name the episode wrote down when it
+ * opened. The last
  * of those is the plain stored name rather than a title, because a title is
  * made from what the rule is today and there is no today for a rule that is
  * gone.
  */
-const ruleName = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Device | null): string | null => {
+const ruleName = (t: Translate, alert: Alert, rule: AlarmRule | null): string | null => {
   if (!rule) return alert.watched?.name ?? null;
 
-  return device ? ruleTitle(t, rule, device) : rule.name;
+  return ruleTitle(t, rule);
 };
 
 function TimelineChip({ spaceId }: { spaceId: string }) {

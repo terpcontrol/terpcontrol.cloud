@@ -179,7 +179,7 @@ describe('the alarm rules page', () => {
     const offline = rule({
       id: 'rule-plug',
       deviceId: 'plug-1',
-      name: 'Device offline',
+      name: 'Plug offline',
       origin: 'always',
       watch: { kind: 'reading', metric: 'offline', upper: null, lower: null },
       repeatSeconds: 1800,
@@ -189,9 +189,9 @@ describe('the alarm rules page', () => {
     );
     draw([device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })]);
 
-    expect(await screen.findByText('Pump socket offline')).toBeInTheDocument();
+    expect(await screen.findByText('Device offline')).toBeInTheDocument();
     expect(screen.queryByText(/Nothing stands here that has alarm rules/)).not.toBeInTheDocument();
-    expect(screen.getByRole('switch', { name: 'Pump socket offline on or off' })).toBeEnabled();
+    expect(screen.getByRole('switch', { name: 'Device offline on or off' })).toBeEnabled();
   });
 
   it('lists a device this build knows nothing about as long as it holds a rule, and offers it no new one', async () => {
@@ -260,7 +260,7 @@ describe('the alarm rules page', () => {
     expect(within(hot).getByText('› 30 °C')).toBeInTheDocument();
     expect(within(hot).getByText('preset · for 10 min · critical · goes to you by push + Telegram · announced once')).toBeInTheDocument();
 
-    const offline = await card('Blue Dream tent offline');
+    const offline = await card('Device offline');
     expect(within(offline).getByText('always · for 10 min · critical · goes to you by push + Telegram · repeats every 30 min')).toBeInTheDocument();
 
     const running = await card('Dehumidifier running non-stop');
@@ -289,7 +289,7 @@ describe('the alarm rules page', () => {
     draw();
 
     const until = mutedUntil.setZone('Europe/Berlin').toFormat('HH:mm');
-    const offline = await card('Blue Dream tent offline');
+    const offline = await card('Device offline');
     expect(within(offline).getByText(`always · for 10 min · critical · your channels muted until ${until}`)).toBeInTheDocument();
     expect(offline.textContent).not.toMatch(/goes to you|repeats every/);
 
@@ -316,8 +316,10 @@ describe('the alarm rules page', () => {
   it('names the two rules nobody here wrote by what they watch, so they read in the language of the page', async () => {
     draw();
 
-    // The name the grower gave, as the Devices list and the page head say it.
-    expect(await screen.findByText('Blue Dream tent offline')).toBeInTheDocument();
+    // The cloud's own rule is "Device offline" here as on the cockpit, whatever the server stored and the device is called.
+    expect(await screen.findByText('Device offline')).toBeInTheDocument();
+    expect(screen.queryByText('Controller offline')).not.toBeInTheDocument();
+    expect(screen.queryByText('Blue Dream tent offline')).not.toBeInTheDocument();
     expect(await screen.findByText('CO₂ too high')).toBeInTheDocument();
     expect(screen.queryByText('CO2')).not.toBeInTheDocument();
     expect(screen.getByText('Pump watchdog')).toBeInTheDocument();
@@ -344,7 +346,7 @@ describe('the alarm rules page', () => {
     vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/me' ? unreached : answers(path)) as never);
     draw();
 
-    const offline = await card('Blue Dream tent offline');
+    const offline = await card('Device offline');
     expect(within(offline).getByText('always · for 10 min · critical')).toBeInTheDocument();
     const fix = within(offline).getByRole('link', { name: 'does not reach you · set up ›' });
     expect(fix).toHaveAttribute('href', '/me/notifications');
@@ -524,7 +526,7 @@ describe('the alarm rules page', () => {
   it('marks the rule an alert linked to, and opens it for whoever may change it', async () => {
     draw([device()], true, '/control/alarms?space=space-1&rule=rule-offline');
 
-    expect(await card('Blue Dream tent offline')).toHaveAttribute('data-highlight');
+    expect(await card('Device offline')).toHaveAttribute('data-highlight');
     expect(await card('Too hot')).not.toHaveAttribute('data-highlight');
     expect(await screen.findByRole('dialog', { name: 'Edit the alarm' })).toBeInTheDocument();
   });
@@ -532,7 +534,7 @@ describe('the alarm rules page', () => {
   it('only marks the linked rule for a reader who may not change it', async () => {
     draw([device()], false, '/control/alarms?space=space-1&rule=rule-offline');
 
-    expect(await card('Blue Dream tent offline')).toHaveAttribute('data-highlight');
+    expect(await card('Device offline')).toHaveAttribute('data-highlight');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -833,7 +835,7 @@ describe('the rule sheet', () => {
   it('asks the offline rule none of the questions it has no answer to, and saves it', async () => {
     draw();
 
-    fireEvent.click(await screen.findByRole('button', { name: /Blue Dream tent offline/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Device offline/ }));
     const sheet = screen.getByRole('dialog', { name: 'Edit the alarm' });
 
     expect(within(sheet).queryByRole('group', { name: 'Watch' })).not.toBeInTheDocument();
@@ -962,7 +964,7 @@ describe('the rule sheet', () => {
     vi.mocked(api.delete).mockResolvedValue(undefined as never);
     draw();
 
-    fireEvent.click(await screen.findByRole('button', { name: /Blue Dream tent offline/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Device offline/ }));
     expect(within(screen.getByRole('dialog')).queryByRole('button', { name: 'Delete the alarm' })).not.toBeInTheDocument();
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
 
