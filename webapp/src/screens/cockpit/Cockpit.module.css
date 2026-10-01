@@ -99,6 +99,14 @@
   background: var(--tint);
 }
 
+/* What an item changes besides its name, under it, so a tap is never a surprise. */
+.menuLine {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
 /* -------------------------------------------------------------- columns */
 
 .columns {

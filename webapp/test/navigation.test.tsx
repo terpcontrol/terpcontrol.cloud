@@ -368,3 +368,31 @@ describe('Verlauf and Steuerung', () => {
     expect(openingOf('/', '', {})).toEqual({});
   });
 });
+
+describe('the place menu', () => {
+  it('renames the place under the name every screen calls it by', async () => {
+    open('/');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'More about Fridge 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
+    const field = screen.getByRole('textbox', { name: 'Name' });
+    fireEvent.change(field, { target: { value: 'Blue Dream' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save the name' }));
+
+    await waitFor(() =>
+      expect(server.sent.find(one => one.method === 'PATCH' && one.path === '/spaces/space-1')?.body).toEqual({ name: 'Blue Dream' }),
+    );
+  });
+
+  it('offers a member who may only log who else is here, and nothing that would change the place', async () => {
+    server.youMay = 'log';
+    open('/');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'More about Fridge 1' }));
+    expect(await screen.findByRole('link', { name: 'Members & sharing' })).toHaveAttribute('href', '/spaces/space-1/members');
+    expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Apply a climate preset/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Start a grow/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Maintenance/ })).not.toBeInTheDocument();
+  });
+});

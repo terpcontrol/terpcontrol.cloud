@@ -4612,6 +4612,14 @@
     "control": {
       "nothing": "Hier gibt es noch nichts zu steuern: Zielwerte und Alarme kommen mit dem ersten Gerät.",
       "demoNothing": "Die Demo steuert nichts; öffne einen Ort auf Start, um seine Zielwerte zu sehen."
+    },
+    "rename": {
+      "title": "{{name}} umbenennen",
+      "label": "Name",
+      "save": "Namen speichern",
+      "saving": "wird gespeichert…",
+      "taken": "Ein anderer Ort heißt schon so.",
+      "note": "So heißt der Ort auf Start, in Verlauf und Steuerung und in jeder Meldung."
     }
   },
   "cockpit": {
@@ -4623,7 +4631,13 @@
       "preset": "Klima-Vorlage anwenden",
       "newGrow": "Grow starten",
       "moveGrow": "Grow hierher holen",
-      "members": "Mitglieder"
+      "members": "Mitglieder & Teilen",
+      "rename": "Umbenennen",
+      "presetLine": "setzt alle Zielwerte auf einmal",
+      "openGrow": "Grow öffnen",
+      "growDay": "{{name}} · Tag {{day}}",
+      "growTurnsOn": "schaltet das Tagebuch ein",
+      "growWrites": "setzt die Zielwerte der Phase"
     },
     "status": {
       "good": "Alles im Ziel",

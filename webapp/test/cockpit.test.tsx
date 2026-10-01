@@ -547,14 +547,56 @@ describe('the diary on a place', () => {
 });
 
 describe('the place menu', () => {
-  it('offers the owner the climate preset and the members', async () => {
+  it('offers the owner the name, who else is here, a climate preset and a grow, each saying what it changes', async () => {
     draw(<PlaceCockpit overview={overviewOf()} headed />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'More about Fridge 1' }));
-    expect(await screen.findByRole('button', { name: 'Apply a climate preset' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Members' })).toHaveAttribute('href', '/spaces/space-1/members');
-    // The grow items are the diary's.
-    expect(screen.queryByRole('link', { name: 'Start a grow' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Members & sharing' })).toHaveAttribute('href', '/spaces/space-1/members');
+    expect(screen.getByRole('button', { name: 'Apply a climate preset sets every target at once' })).toBeInTheDocument();
+    // Somebody who keeps no diary is told that a grow brings one, and what it does to the targets.
+    expect(await screen.findByRole('link', { name: 'Start a grow turns the grow diary on · puts the targets on the stage' })).toHaveAttribute(
+      'href',
+      '/grows/new?space=space-1',
+    );
+    expect(screen.queryByRole('button', { name: 'Move a grow here' })).not.toBeInTheDocument();
+  });
+
+  it('offers no grow to somebody who said no to the diary', async () => {
+    server.me = { ...me(false), preferences: { ...me(false).preferences, diary: 'off' } } as Me;
+    draw(<PlaceCockpit overview={overviewOf()} headed />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'More about Fridge 1' }));
+    await waitFor(() => expect(fetchStub).toHaveBeenCalledWith(expect.stringContaining('/me'), expect.anything()));
+    expect(screen.queryByRole('link', { name: /Start a grow/ })).not.toBeInTheDocument();
+  });
+
+  it('opens the grow standing here for whoever keeps a diary', async () => {
+    server.me = me(true);
+    const grow = {
+      growId: 'grow-1',
+      name: 'Spring run',
+      type: 'photoperiod',
+      dayNumber: 34,
+      phaseDay: 12,
+      stageWeek: 2,
+      weekNumber: 5,
+      stage: 'flowering',
+      stagesReached: ['vegetative', 'flowering'],
+      preset: null,
+      isAuto: false,
+      plantCount: 3,
+      strains: ['Amnesia'],
+      coverMediaId: null,
+      stageGroups: [],
+      placedAt: ago(12 * 24 * 60),
+      placedOnDay: 22,
+    } as SpaceOverview['grows'][number];
+    draw(<PlaceCockpit overview={overviewOf({ grows: [grow] })} headed />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'More about Fridge 1' }));
+    expect(await screen.findByRole('link', { name: 'Open the grow Spring run · day 34' })).toHaveAttribute('href', '/grows/grow-1');
+    expect(screen.queryByRole('link', { name: /Start a grow/ })).not.toBeInTheDocument();
   });
 
   it('offers somebody who may only log nothing that would change the place', async () => {
@@ -562,8 +604,9 @@ describe('the place menu', () => {
     draw(<PlaceCockpit overview={overviewOf()} headed />);
 
     fireEvent.click(screen.getByRole('button', { name: 'More about Fridge 1' }));
-    expect(await screen.findByRole('link', { name: 'Members' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Apply a climate preset' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Members & sharing' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Apply a climate preset/ })).not.toBeInTheDocument();
     expect(screen.queryAllByRole('link', { name: 'Change' })).toHaveLength(0);
   });
 });

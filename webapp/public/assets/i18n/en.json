@@ -4608,6 +4608,14 @@
     "control": {
       "nothing": "Nothing to control yet: targets and alarms come with the first device.",
       "demoNothing": "The demo controls nothing; open a place on Home to see its targets."
+    },
+    "rename": {
+      "title": "Rename {{name}}",
+      "label": "Name",
+      "save": "Save the name",
+      "saving": "saving…",
+      "taken": "Another place already has this name.",
+      "note": "This is what Home, the Timeline, Control and every alert call the place."
     }
   },
   "cockpit": {
@@ -4619,7 +4627,13 @@
       "preset": "Apply a climate preset",
       "newGrow": "Start a grow",
       "moveGrow": "Move a grow here",
-      "members": "Members"
+      "members": "Members & sharing",
+      "rename": "Rename",
+      "presetLine": "sets every target at once",
+      "openGrow": "Open the grow",
+      "growDay": "{{name}} · day {{day}}",
+      "growTurnsOn": "turns the grow diary on",
+      "growWrites": "puts the targets on the stage"
     },
     "status": {
       "good": "All on target",

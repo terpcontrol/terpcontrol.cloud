@@ -3,31 +3,46 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { SpaceOverview } from '@fg2/shared-types/v1';
+import { membersPath } from '@/app/places';
+import { useMe } from '@/api/account';
 import { useDiaryLayer } from '@/api/layers';
+import { useSession } from '@/api/session';
 import { useMayManage } from '@/ui/session-access';
+import { RenameSheet } from '../place/RenameSheet';
 import { MoveHereSheet } from '../space/MoveHereSheet';
 import { PresetSheet } from '../space/PresetSheet';
 import styles from './Cockpit.module.css';
 
+type Sheet = 'rename' | 'preset' | 'move';
+
 /**
  * What is done to a place now and then rather than every day, behind the ⋯
- * beside its name: putting it on a climate preset, starting or moving in a
- * grow, and who else is let in. None of it is a reading, so none of it takes
- * room on the cockpit itself.
+ * beside its name: its name, who else is let in, a climate preset, and its
+ * grow. None of it is a reading, so none of it takes room on the cockpit itself.
  *
- * The grow items are the diary's, and appear only for an account that keeps
- * one; everything that changes the place needs the right to manage it.
+ * Each item that changes more than its name says so on a line under it - a
+ * preset writes every target at once, and starting a grow puts the place on
+ * the preset of the stage it starts in, and for somebody who has never kept a
+ * diary it brings the diary in as well. Everything that changes the place
+ * needs the right to manage it; who is let in can be read by every member, who
+ * may leave from there.
  */
 export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
   const { t } = useTranslation();
+  const { user } = useSession();
   const mayManage = useMayManage(overview.spaceId);
   const diary = useDiaryLayer();
+  const me = useMe(false, user !== null && user.isDemo !== true);
   const [open, setOpen] = useState(false);
-  const [sheet, setSheet] = useState<'preset' | 'move' | null>(null);
+  const [sheet, setSheet] = useState<Sheet | null>(null);
   const frame = useRef<HTMLDivElement>(null);
   const listId = useId();
   // A place with nothing standing in it has no document a preset could be written into.
   const hasDevice = (overview.deviceIds?.length ?? 0) > 0;
+  const grow = diary ? (overview.grows[0] ?? null) : null;
+  // Somebody who said no to the diary is not offered a grow through the back door; the answer can be changed under Me.
+  const mayStartGrow = mayManage && grow === null && (diary || (me.data !== undefined && me.data.preferences.diary !== 'off'));
+  const growLine = [diary ? null : t('cockpit.menu.growTurnsOn'), hasDevice ? t('cockpit.menu.growWrites') : null].filter(Boolean).join(' · ');
 
   useEffect(() => {
     if (!open) return;
@@ -45,7 +60,7 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
     };
   }, [open]);
 
-  const choose = (next: 'preset' | 'move') => {
+  const choose = (next: Sheet) => {
     setOpen(false);
     setSheet(next);
   };
@@ -64,26 +79,46 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
       </button>
       {open ? (
         <div className={styles.menuList} id={listId}>
-          {mayManage && hasDevice ? (
-            <button type="button" onClick={() => choose('preset')}>
-              {t('cockpit.menu.preset')}
+          {mayManage ? (
+            <button type="button" onClick={() => choose('rename')}>
+              {t('cockpit.menu.rename')}
             </button>
           ) : null}
-          {mayManage && diary ? (
-            <>
-              <Link to={`/grows/new?space=${overview.spaceId}`} onClick={() => setOpen(false)}>
-                {t('cockpit.menu.newGrow')}
-              </Link>
-              <button type="button" onClick={() => choose('move')}>
-                {t('cockpit.menu.moveGrow')}
-              </button>
-            </>
-          ) : null}
-          <Link to={`/spaces/${overview.spaceId}/members`} onClick={() => setOpen(false)}>
+          <Link to={membersPath(overview.spaceId)} onClick={() => setOpen(false)}>
             {t('cockpit.menu.members')}
           </Link>
+          {mayManage && hasDevice ? (
+            <button type="button" onClick={() => choose('preset')}>
+              {t('cockpit.menu.preset')} <span className={styles.menuLine}>{t('cockpit.menu.presetLine')}</span>
+            </button>
+          ) : null}
+          {grow ? (
+            <Link to={`/grows/${grow.growId}`} onClick={() => setOpen(false)}>
+              {t('cockpit.menu.openGrow')}{' '}
+              <span className={styles.menuLine}>
+                {grow.dayNumber !== null ? t('cockpit.menu.growDay', { name: grow.name, day: grow.dayNumber }) : grow.name}
+              </span>
+            </Link>
+          ) : null}
+          {mayStartGrow ? (
+            <Link to={`/grows/new?space=${overview.spaceId}`} onClick={() => setOpen(false)}>
+              {t('cockpit.menu.newGrow')}
+              {growLine ? (
+                <>
+                  {' '}
+                  <span className={styles.menuLine}>{growLine}</span>
+                </>
+              ) : null}
+            </Link>
+          ) : null}
+          {mayManage && diary && grow === null ? (
+            <button type="button" onClick={() => choose('move')}>
+              {t('cockpit.menu.moveGrow')}
+            </button>
+          ) : null}
         </div>
       ) : null}
+      {sheet === 'rename' ? <RenameSheet spaceId={overview.spaceId} name={overview.name} onClose={() => setSheet(null)} /> : null}
       {sheet === 'preset' ? <PresetSheet overview={overview} onClose={() => setSheet(null)} /> : null}
       {sheet === 'move' ? <MoveHereSheet spaceId={overview.spaceId} spaceName={overview.name} onClose={() => setSheet(null)} /> : null}
     </div>
