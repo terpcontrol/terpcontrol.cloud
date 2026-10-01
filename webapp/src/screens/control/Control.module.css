@@ -1,5 +1,5 @@
-/* The Control tab and the two sheets it opens: where a plan stands, its steps,
-   and the fields that write them. The card, the chips, the buttons and the
+/* The Control tab and the sheets it opens: the rows under the targets, where a
+   plan stands, its steps, and the fields that write them. The card, the chips, the buttons and the
    switch are the app's own, so nothing here restates a surface or a colour. */
 
 /* The tab's sections - each device's plan, the ways below it - a section's
@@ -431,21 +431,48 @@
   }
 }
 
-/* The two pages below the plan, side by side, with what Advanced holds spelt out under them. */
-.below {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
+/* The rows under the targets that lead to the other pages of the tab: one
+   group, a row per page, each saying under its name what is behind it. */
+.door {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+  color: var(--ink);
+  text-decoration: none;
+  transition: background-color 120ms ease-out;
 }
 
-.belowButton {
-  width: 100%;
+.door:hover {
+  background: var(--card-2);
 }
 
-.advancedNote {
-  grid-column: 1 / -1;
+.doorIcon {
+  flex: none;
+  color: var(--brand);
+}
+
+.doorText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.doorTitle {
+  font-weight: var(--weight-semibold);
+}
+
+.doorLine {
   font-size: var(--text-xs);
   color: var(--muted);
+}
+
+.doorChevron {
+  flex: none;
+  color: var(--label);
 }
 
 /* What somebody who may only write lines is told instead of the moves: a

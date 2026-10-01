@@ -1,5 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRead } from './read';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { isFirstLoad, useRead } from './read';
 import type { Plan, PlanReplace, PlanTemplate, PlanTemplateCreate, PlanTemplatePage, PlanTransition } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { growChanged } from './lifecycle';
@@ -30,6 +30,24 @@ export const useDevicePlan = (deviceId: string) =>
     queryKey: planKey(deviceId),
     queryFn: ({ signal }) => api.get<Plan>(`/devices/${deviceId}/plan`, undefined, signal),
     refetchInterval: PLAN_REFRESH_MS,
+  });
+
+/**
+ * The plans of everything standing in a place, read under the same keys the
+ * panels read them under, for a screen that asks only whether any of them is
+ * running. A device that runs none answers 404, which counts as answered.
+ */
+export const useDevicePlans = (deviceIds: string[]) =>
+  useQueries({
+    queries: deviceIds.map(deviceId => ({
+      queryKey: planKey(deviceId),
+      queryFn: ({ signal }: { signal?: AbortSignal }) => api.get<Plan>(`/devices/${deviceId}/plan`, undefined, signal),
+      refetchInterval: PLAN_REFRESH_MS,
+    })),
+    combine: results => ({
+      plans: results.flatMap(result => (result.data ? [result.data] : [])),
+      isPending: results.some(isFirstLoad),
+    }),
   });
 
 /** A device that runs no plan, which is what the screen offers to write one for. */

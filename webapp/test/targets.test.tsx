@@ -12,9 +12,10 @@ import type { Device, DeviceConfiguration, Me, Plan } from '@fg2/shared-types/v1
 import { Targets } from '@/screens/control/targets/Targets';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { draftOf, lightWindowLabel, secondsOf, vpdOf, wallClock, withDraft } from '@/screens/control/targets/targets-draft';
+import { CLIMATE_CHOICES, presetsOf, STAGES_WITH_CLIMATE } from '@/ui/presets';
 
 /**
- * What the manual targets page promises: that a chip only moves the sliders,
+ * What the targets page promises: that a chip only moves the sliders,
  * that one Save sends the device's whole document with nothing but the targets
  * changed, that a plan which would write them back is paused first, and that a
  * session which may only look is offered nothing that writes.
@@ -165,11 +166,11 @@ vi.stubGlobal(
 
 const sent = (method: string) => wire.calls.filter(call => call.method === method);
 
-const draw = (devices: Device[] = [device()], mayManage = true) =>
+const draw = (devices: Device[] = [device()], mayManage = true, crumb = false) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
       <MemoryRouter>
-        <Targets spaceId="space-1" devices={devices} mayManage={mayManage} />
+        <Targets spaceId="space-1" devices={devices} mayManage={mayManage} crumb={crumb} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -215,17 +216,14 @@ beforeEach(() => {
   wire.calls = [];
 });
 
-describe('the manual targets page', () => {
+describe('the targets page', () => {
   it('says so when nothing standing here states a climate, and offers the one thing that helps', () => {
     draw([device({ id: 'plug-1', type: 'plug', configuration: { workmode: 'heater', 'heater.day.on': 24 } })]);
 
     expect(screen.getByText(/Nothing standing here states a climate/)).toBeInTheDocument();
     expect(screen.queryByRole('slider')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/spaces/space-1/devices');
-    // Neither the plan nor the pages under Advanced hold anything here, so neither is offered.
     expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'alarms' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'sockets' })).not.toBeInTheDocument();
   });
 
   /**
@@ -259,9 +257,9 @@ describe('the manual targets page', () => {
   it('draws the targets the controller is running, with the VPD and when the light comes on and goes off', async () => {
     await drawn();
 
-    expect(screen.getByText('Manual targets')).toBeInTheDocument();
-    expect(screen.getByText('Targets · Day')).toBeInTheDocument();
-    expect(screen.getByText('Targets · Night')).toBeInTheDocument();
+    expect(screen.getByText('Targets')).toBeInTheDocument();
+    expect(screen.getByText('Day')).toBeInTheDocument();
+    expect(screen.getByText('Night')).toBeInTheDocument();
     expect(slider('Day temperature').value).toBe('25');
     expect(slider('Day humidity').value).toBe('60');
     expect(slider('Night temperature').value).toBe('20');
@@ -280,8 +278,27 @@ describe('the manual targets page', () => {
     // every other VPD in the app is a kPa.
     expect(screen.getByText('VPD 0.91 kPa')).toBeInTheDocument();
     expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'alarms' })).toHaveAttribute('href', '/spaces/space-1/control/alarms');
-    expect(screen.getByRole('link', { name: 'sockets' })).toHaveAttribute('href', '/spaces/space-1/devices');
+    // The page is what the tab opens on, so there is no way back to anywhere.
+    expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
+  });
+
+  /**
+   * The chips used to stand over the sliders, so the first thing on the tab a
+   * grower opens to change a temperature was seven stages to choose from. The
+   * figures come first now and the stages are one way of setting them, under.
+   */
+  it('draws the sliders first and the presets under them', async () => {
+    await drawn();
+
+    const night = slider('Night humidity');
+    const chip = screen.getByRole('button', { name: 'Flower' });
+    expect(night.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('offers the way back to a plan only where the tab opens on one', async () => {
+    draw([device()], true, true);
+
+    expect(await screen.findByRole('link', { name: '‹ back to the plan' })).toHaveAttribute('href', '/spaces/space-1/control');
   });
 
   /**
@@ -407,14 +424,14 @@ describe('the manual targets page', () => {
 
     await waitFor(() => expect(sent('PUT')).toHaveLength(1));
     expect(wire.calls.filter(call => call.method !== 'GET').map(call => [call.method, call.path, call.body])).toEqual([
-      ['POST', '/devices/device-1/plan/transitions', { kind: 'pause', reason: 'Manual targets' }],
+      ['POST', '/devices/device-1/plan/transitions', { kind: 'pause', reason: 'Targets set by hand' }],
       [
         'PUT',
         '/devices/device-1/configuration',
         expect.objectContaining({ configuration: expect.objectContaining({ day: { temperature: 25, humidity: 65, heating: 'hard' } }) }),
       ],
     ]);
-    expect(await screen.findByText('The plan is paused while manual targets are on.')).toBeInTheDocument();
+    expect(await screen.findByText('The plan is paused while these targets hold.')).toBeInTheDocument();
   });
 
   it('offers to resume a paused plan', async () => {
@@ -469,7 +486,7 @@ describe('the manual targets page', () => {
     for (const one of screen.getAllByRole('slider')) expect(one).toBeDisabled();
     expect(lightsOn()).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Flower' })).toBeDisabled();
-    expect(screen.getByText('The plan is paused while manual targets are on.')).toBeInTheDocument();
+    expect(screen.getByText('The plan is paused while these targets hold.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Resume plan' })).not.toBeInTheDocument();
     expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
@@ -490,6 +507,23 @@ describe('the manual targets page', () => {
 
     expect(screen.getByRole('heading', { name: 'Blue Dream tent' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Second tent' })).toBeInTheDocument();
+  });
+});
+
+/**
+ * The chips here and the preset sheet on the overview used to read two lists:
+ * one offered "Auto · Flower", the other had never heard of it. Both read the
+ * one list now, and every chip is a stage and a preset the sheet offers too.
+ */
+describe('the one list of presets', () => {
+  it('offers on every screen each preset a chip stands for', () => {
+    for (const chip of CLIMATE_CHOICES) {
+      expect(STAGES_WITH_CLIMATE).toContain(chip.stage);
+      if (chip.preset) expect(presetsOf(chip.stage)).toContain(chip.preset);
+    }
+    expect(presetsOf('vegetative')).toEqual(['autoflower']);
+    expect(presetsOf('flowering')).toEqual(['late_flowering', 'autoflower']);
+    expect(presetsOf('curing')).toEqual([]);
   });
 });
 

@@ -10,6 +10,7 @@ import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import { awaitingClimate, hasCo2Sensor, statesTargets } from '@/ui/climate-hardware';
 import { Help, Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
+import { CLIMATE_CHOICES, climateChoiceName, type ClimateChoice } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -25,36 +26,45 @@ import {
   lightsOffOf,
   offsetOf,
   prefilled,
-  PRESET_CHIPS,
   presetOf,
   sameDraft,
   vpdOf,
   withDraft,
-  type PresetChip,
   type TargetsDraft,
 } from './targets-draft';
 import styles from './Targets.module.css';
 import { deviceName } from '@/screens/devices/naming';
 
 /**
- * The targets a tent is held at, set by hand.
+ * The targets a tent is held at: what the Control tab opens on, unless a plan
+ * is running and setting them itself.
  *
- * This is the page a plan is walked away from: a stage's figures are only a
- * starting point here, so the chips prefill the sliders and write nothing, and
- * one Save sends the whole document. A plan that is running would put its own
- * targets back within the hour - the engine re-applies the step it stands on -
- * so saving over one pauses it first and says so beforehand, in the amber the
- * app keeps for a state somebody chose. Every device standing here that states
+ * A stage's figures are only a starting point here, so the chips under the
+ * sliders prefill them and write nothing, and one Save sends the whole
+ * document. A plan that is running would put its own targets back within the
+ * hour - the engine re-applies the step it stands on - so saving over one
+ * pauses it first and says so beforehand, in the amber the app keeps for a
+ * state somebody chose. Every device standing here that states
  * a climate gets a panel of its own, because the targets are that device's
  * document and a tent with two controllers holds two.
  *
- * A tent with nothing to set is a page with nowhere to go: the crumb back to
- * the plan and the row under Advanced would both lead somewhere as empty as
- * this, so neither is drawn and the note says which of the two reasons this
- * tent has - a place with no climate-holding hardware in it is offered the one
- * thing that helps, which is claiming a device into it.
+ * A tent with nothing to set says which of the two reasons it has - a place
+ * with no climate-holding hardware in it is offered the one thing that helps,
+ * which is claiming a device into it. The ways on to the alarms and the plan
+ * are the tab's, and stand under this page.
  */
-export function Targets({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
+export function Targets({
+  spaceId,
+  devices,
+  mayManage,
+  crumb = false,
+}: {
+  spaceId: string;
+  devices: Device[];
+  mayManage: boolean;
+  /** Whether the tab opens on a running plan, which is then the way back from here. */
+  crumb?: boolean;
+}) {
   const { t } = useTranslation();
   // A device that has never sent its document, or whose document states no
   // climate - a plug, a light - has nothing a target could be written into.
@@ -96,25 +106,16 @@ export function Targets({ spaceId, devices, mayManage }: { spaceId: string; devi
     <div className={styles.page}>
       <header className={ui.subhead}>
         <span className="label">{t('targets.title')}</span>
-        <Link to={`/spaces/${spaceId}/control`} className={`mono ${ui.headLink}`}>
-          {t('targets.backToPlan')}
-        </Link>
+        {crumb ? (
+          <Link to={`/spaces/${spaceId}/control`} className={`mono ${ui.headLink}`}>
+            {t('targets.backToPlan')}
+          </Link>
+        ) : null}
       </header>
 
       {controllers.map(({ device, configuration }) => (
         <Panel key={device.id} device={device} stored={configuration} mayManage={mayManage} titled={controllers.length > 1} />
       ))}
-
-      <p className={`mono ${styles.advanced}`}>
-        <span className="label">{t('space.control.advanced')} ›</span>
-        <Link to={`/spaces/${spaceId}/control/alarms`} className={ui.headLink}>
-          {t('space.control.advancedAlarms')}
-        </Link>
-        {' · '}
-        <Link to={`/spaces/${spaceId}/devices`} className={ui.headLink}>
-          {t('targets.sockets')}
-        </Link>
-      </p>
     </div>
   );
 }
@@ -172,15 +173,9 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
     }
   };
 
-  const chosen = (chip: PresetChip): boolean => {
+  const chosen = (chip: ClimateChoice): boolean => {
     const preset = presetOf(chip);
     return preset !== null && equalsPreset(draft, preset, hasCo2);
-  };
-
-  const chipLabel = (chip: PresetChip): string => {
-    if (chip.preset === null) return t(`home.stage.${chip.stage}`);
-    const preset = t(`grow.presetName.${chip.preset}`, { defaultValue: chip.preset });
-    return chip.preset === 'autoflower' ? `${preset} · ${t(`home.stage.${chip.stage}`)}` : preset;
   };
 
   /**
@@ -223,26 +218,6 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
     <section className={styles.panel} aria-label={name}>
       {titled ? <h2 className={styles.deviceName}>{name}</h2> : null}
       <RefreshFailed failedAt={plan.isError && plan.data ? plan.dataUpdatedAt : null} now={now} />
-
-      <p className={ui.note}>
-        {t('targets.prefill')}
-        <Help topic="climatePreset" />
-      </p>
-      <Choices label={t('targets.presets')}>
-        {PRESET_CHIPS.map(chip => (
-          <Choice
-            key={`${chip.stage}:${chip.preset ?? ''}`}
-            chosen={chosen(chip)}
-            disabled={readOnly}
-            onChoose={() => {
-              const preset = presetOf(chip);
-              if (preset) set(prefilled(draft, preset));
-            }}
-          >
-            {chipLabel(chip)}
-          </Choice>
-        ))}
-      </Choices>
 
       <Block grouped label={t('targets.day')} help="dayNight" aside={<a href={`#${nightId}`}>{t('targets.toNight')}</a>}>
         <TargetRow
@@ -352,6 +327,30 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
           onChange={nightHumidity => set({ ...draft, nightHumidity })}
         />
       </Block>
+
+      {/* Under the sliders rather than over them: what the tab is opened for is
+          the figures the tent holds now, and a stage is one way of setting them. */}
+      <div className={styles.presets}>
+        <p className={ui.note}>
+          {t('targets.prefill')}
+          <Help topic="climatePreset" />
+        </p>
+        <Choices label={t('targets.presets')}>
+          {CLIMATE_CHOICES.map(chip => (
+            <Choice
+              key={`${chip.stage}:${chip.preset ?? ''}`}
+              chosen={chosen(chip)}
+              disabled={readOnly}
+              onChoose={() => {
+                const preset = presetOf(chip);
+                if (preset) set(prefilled(draft, preset));
+              }}
+            >
+              {climateChoiceName(t, chip)}
+            </Choice>
+          ))}
+        </Choices>
+      </div>
 
       {status === 'running' ? (
         <div className={`${ui.card} ${styles.planCard}`} data-status="running" role="status">

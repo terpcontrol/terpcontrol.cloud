@@ -1,5 +1,5 @@
-/* The manual targets page: the chips, the rows of sliders, the card that says
-   what a save does to the plan, and the bar that holds the save. The card, the
+/* The targets page: the rows of sliders, the chips, the card that says what a
+   save does to the plan, and the bar that holds the save. The card, the
    chips and the buttons are the app's own; what is drawn here is the slider,
    which the browser would otherwise draw in its own colours. */
 
@@ -221,37 +221,47 @@
   color: var(--muted);
 }
 
-/* The save, kept in reach above the tab bar while the draft differs from the
-   device's document. Sticky rather than fixed, so it stays inside the column
-   on a wide screen and moves with the panel it belongs to. */
+/* The stage chips under the sliders, with the sentence that says they only
+   prefill. */
+.presets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The save, kept in reach while the draft differs from the device's document.
+   Sticky rather than fixed, so it moves with the panel it belongs to.
+
+   On a phone it takes the tab bar's place instead of floating over the page:
+   the strip the tab bar and its raised button stand in is the one part of the
+   screen that never shows a slider, so the row somebody is moving stays in
+   view, and the two buttons sit side by side under one short line. Leaving the
+   tab with changes unsaved is Save or Discard first. */
 .bar {
   position: sticky;
-  bottom: calc(var(--tabbar-height) + var(--log-button) / 2 + var(--space-3) + env(safe-area-inset-bottom));
-  z-index: 5;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  bottom: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-content: center;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
+  min-height: calc(var(--tabbar-height) + var(--log-button) / 2 + env(safe-area-inset-bottom));
+  margin-inline: calc(var(--space-4) * -1);
+  padding: var(--space-2) var(--space-4) calc(var(--space-2) + env(safe-area-inset-bottom));
+  border-width: var(--rule-width) 0 0;
+  border-radius: 0;
+  box-shadow: var(--shadow-bar);
 }
 
 .barText {
-  flex: 1;
-  font-size: var(--text-sm);
+  grid-column: 1 / -1;
+  font-size: var(--text-xs);
   font-weight: var(--weight-medium);
+  color: var(--muted);
 }
 
 .bar > p {
-  flex-basis: 100%;
-}
-
-.advanced {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2);
-  font-size: var(--text-xs);
-  color: var(--muted);
+  grid-column: 1 / -1;
 }
 
 /* The way out of a tent with nothing to set, inside the dashed note: underlined
@@ -264,9 +274,30 @@
   white-space: nowrap;
 }
 
+/* Beside the rail there is no tab bar to stand in for: the bar is a card
+   floating at the foot of the column, the sentence beside its two buttons. */
 @media (min-width: 900px) {
   .bar {
     bottom: var(--space-5);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: 0;
+    margin-inline: 0;
+    padding: var(--space-3) var(--space-4);
+    border-width: var(--rule-width);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .barText {
+    flex: 1;
+    font-size: var(--text-sm);
+    color: var(--ink);
+  }
+
+  .bar > p {
+    flex-basis: 100%;
   }
 
   .row {

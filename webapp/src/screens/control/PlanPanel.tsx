@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify, StepDuration } from '@fg2/shared-types/v1';
 import { useHeardAt } from '@/api/devices';
-import { isMissing, useDevicePlan, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
+import { isMissing, useDevicePlan, usePlanTemplates, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
@@ -52,8 +52,8 @@ import { deviceName } from '@/screens/devices/naming';
  * A step writes a climate and nothing else, so where that climate would land
  * decides what this panel offers, in the three states `climateLanding` tells
  * apart. A plug or a lamp is told there is nowhere for one to go. A controller
- * whose document has not arrived is told the same thing the Manual targets page
- * one tap below tells it, in the same sentence: nothing here can stand in for
+ * whose document has not arrived is told the same thing the targets page
+ * tells it, in the same sentence: nothing here can stand in for
  * the settings it has never sent, and a step written for it would not be a
  * climate added to its tuning but a document put in place of it, with the work
  * mode, the light schedule, the dehumidifier's timings and the ramps back at
@@ -75,13 +75,18 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   const [editing, setEditing] = useState<PlanDraft | null>(null);
   const [keeping, setKeeping] = useState(false);
   const [picking, setPicking] = useState(false);
+  // Starting from a template is offered only where there is one to start
+  // from: the button used to open a sheet that said there were none.
+  const templates = usePlanTemplates();
+  const anyTemplate = templates.data?.items.length !== 0;
 
   const name = deviceName(device, t);
+  // The page is headed "Grow plan", so the panel is headed by whose plan it is.
   // What a plan is, is said by the sentence under the title while there is
   // none, and by the (i) beside it once there is one to read.
   const title = (explained: boolean) => (
     <span className="label">
-      {t('space.control.title')} · {name}
+      {name}
       {explained ? <Help topic="plan" /> : null}
     </span>
   );
@@ -116,9 +121,11 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
                 <button type="button" className={`${ui.button} ${ui.primary}`} onClick={() => setEditing(emptyDraft(name, DEFAULT_NOTIFY))}>
                   {t('space.control.write')}
                 </button>
-                <button type="button" className={ui.button} onClick={() => setPicking(true)}>
-                  {t('space.control.fromTemplate')}
-                </button>
+                {anyTemplate ? (
+                  <button type="button" className={ui.button} onClick={() => setPicking(true)}>
+                    {t('space.control.fromTemplate')}
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -174,7 +181,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
           {/* Editing stays, because emptying the steps is how a plan that should
               never have been written here is taken off. Starting a fresh one
               from a template would only write the same climate again. */}
-          {landing === 'document' ? (
+          {landing === 'document' && anyTemplate ? (
             <button type="button" className={ui.button} onClick={() => setPicking(true)}>
               {t('space.control.fromTemplate')}
             </button>

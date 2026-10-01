@@ -1,10 +1,11 @@
 import type { DateTime } from 'luxon';
-import type { DeviceConfiguration, DeviceSettings, GrowthStage } from '@fg2/shared-types/v1';
-import { climatePreset, PRESETS_OF_STAGE, STAGES_WITH_CLIMATE, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import type { DeviceConfiguration, DeviceSettings } from '@fg2/shared-types/v1';
+import { climatePreset, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { serverNow } from '@/api/clock';
 import { oClock } from '@/ui/age';
 import { figureOf, sectionOf } from '@/ui/climate-hardware';
+import type { ClimateChoice } from '@/ui/presets';
 
 /**
  * The targets a controller holds by hand, read out of its configuration
@@ -108,30 +109,8 @@ export const withDraft = (configuration: DeviceConfiguration, draft: TargetsDraf
 
 /* ------------------------------------------------------------- the presets */
 
-/** A chip: a stage on its own, or a preset refining one. */
-export interface PresetChip {
-  stage: GrowthStage;
-  preset: string | null;
-}
-
-/**
- * The chips in the order the board draws them: each stage with its own presets
- * beside it, and the autoflower rows at the end - they are the same stages kept
- * under a long day, and read as one group. Germination writes what a seedling
- * does and is left out.
- */
-export const PRESET_CHIPS: PresetChip[] = (() => {
-  const stages = STAGES_WITH_CLIMATE.filter(stage => stage !== 'germination');
-  const chips: PresetChip[] = [];
-  for (const stage of stages) {
-    chips.push({ stage, preset: null });
-    for (const preset of PRESETS_OF_STAGE[stage] ?? []) if (preset !== 'autoflower') chips.push({ stage, preset });
-  }
-  for (const stage of stages) if (PRESETS_OF_STAGE[stage]?.includes('autoflower')) chips.push({ stage, preset: 'autoflower' });
-  return chips;
-})();
-
-export const presetOf = (chip: PresetChip): ClimatePreset | null => climatePreset(chip.stage, chip.preset);
+/** The figures a chip prefills: the shared table's row for its stage and preset. */
+export const presetOf = (chip: ClimateChoice): ClimatePreset | null => climatePreset(chip.stage, chip.preset);
 
 /**
  * The draft with a preset's figures in it. Only the sliders move: nothing is

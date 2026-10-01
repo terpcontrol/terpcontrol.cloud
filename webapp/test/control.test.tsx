@@ -49,6 +49,8 @@ const state = vi.hoisted(() => ({
   sent: [] as PlanTransition[],
   removed: 0,
   devices: [] as unknown[],
+  /** What the template list answers; undefined is a list still on its way. */
+  templates: undefined as { items: unknown[]; nextCursor: null } | undefined,
 }));
 
 vi.mock('@/api/devices', async importOriginal => ({
@@ -74,6 +76,8 @@ vi.mock('@/api/plans', async importOriginal => ({
   useStopPlan: () => ({ mutate: () => {}, error: null, isPending: false }),
   useRemovePlan: () => ({ mutate: () => (state.removed += 1), error: null, isPending: false }),
   useSavePlan: () => ({ mutate: () => {}, error: null, isPending: false }),
+  useDevicePlans: () => ({ plans: state.plan ? [state.plan] : [], isPending: false }),
+  usePlanTemplates: () => ({ data: state.templates, isPending: state.templates === undefined, error: null }),
 }));
 
 vi.mock('@/api/session', async importOriginal => {
@@ -202,6 +206,7 @@ beforeEach(() => {
   state.sent = [];
   state.removed = 0;
   state.devices = [];
+  state.templates = undefined;
 });
 
 describe('the tab of a place with nothing standing in it', () => {
@@ -214,10 +219,10 @@ describe('the tab of a place with nothing standing in it', () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByText(/Nothing stands here for a plan to run on/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing stands here yet/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/spaces/space-1/devices');
-    expect(screen.queryByRole('link', { name: 'Manual targets' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Advanced/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Targets/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Alarms/ })).not.toBeInTheDocument();
   });
 });
 
@@ -281,9 +286,9 @@ describe('the plan panel over hardware that states no climate', () => {
 /**
  * The tab, by who is reading it. Everything on it writes to a controller
  * standing here, which the decision record puts at `manage`: the moves, the
- * manual targets, the alarm rules. A member who was let in to write in the
- * diary sees the plan and none of the buttons, and is told whose they are
- * rather than left in front of a half-drawn tab.
+ * targets, the alarm rules. A member who was let in to write in the diary sees
+ * the plan and none of the buttons, and is told whose they are rather than left
+ * in front of a half-drawn tab.
  */
 describe('what the Control tab offers, by who is reading', () => {
   const drawTab = () =>
@@ -299,11 +304,12 @@ describe('what the Control tab offers, by who is reading', () => {
     state.devices = [device()];
   });
 
-  it('gives the owner the moves and both pages below them', async () => {
+  it('gives the owner of a running plan the moves, and the targets and the alarms one row below', async () => {
     drawTab();
 
     expect(await screen.findByRole('button', { name: 'Pause' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Manual targets' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Targets/ })).toHaveAttribute('href', '/spaces/space-1/control/targets');
+    expect(screen.getByRole('link', { name: /^Alarms/ })).toHaveAttribute('href', '/spaces/space-1/control/alarms');
     expect(screen.queryByText(/You may log in this space, not steer it/)).not.toBeInTheDocument();
   });
 
@@ -314,8 +320,83 @@ describe('what the Control tab offers, by who is reading', () => {
     expect(await screen.findByText(/You may log in this space, not steer it/)).toBeInTheDocument();
     for (const move of ['Pause', 'Extend', 'Skip', 'Stop', 'Confirm the step'])
       expect(screen.queryByRole('button', { name: move })).not.toBeInTheDocument();
-    // The two pages below still open: what the tent is set to is worth reading.
-    expect(screen.getByRole('link', { name: 'Manual targets' })).toBeInTheDocument();
+    // The pages below still open: what the tent is set to is worth reading.
+    expect(screen.getByRole('link', { name: /^Targets/ })).toBeInTheDocument();
+  });
+});
+
+/**
+ * What the tab opens on. Somebody with one tent comes here to change a
+ * temperature, and the tab used to open on "This controller is not being run
+ * by a plan" with the targets two buttons down. It opens on the targets now,
+ * unless a plan is running and setting them itself.
+ */
+describe('what the Control tab opens on', () => {
+  const drawTab = (sub: string | null = null) =>
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <Control spaceId="space-1" sub={sub} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+  const noPlan = () => {
+    state.plan = null;
+    state.planError = new ApiError({ status: 404, code: 'plan_not_found', title: 'Not found', detail: 'No plan.', errors: [] });
+  };
+
+  beforeEach(() => {
+    state.devices = [device()];
+  });
+
+  it('opens on the targets where no plan runs, with the alarms and the plan as rows under them', async () => {
+    noPlan();
+    drawTab();
+
+    expect(await screen.findByRole('slider', { name: 'Day temperature' })).toBeInTheDocument();
+    expect(screen.getByText('Targets')).toBeInTheDocument();
+    expect(screen.queryByText('No plan yet.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Alarms/ })).toHaveAttribute('href', '/spaces/space-1/control/alarms');
+    expect(screen.getByRole('link', { name: /Run on a grow plan automatically/ })).toHaveAttribute('href', '/spaces/space-1/control/plan');
+  });
+
+  it('opens on the targets while a plan is paused, and names the plan and its state in the row', async () => {
+    state.plan = plan({}, { status: 'paused' });
+    drawTab();
+
+    expect(await screen.findByRole('slider', { name: 'Day temperature' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Grow plan “Autoflower, 12 weeks”/ })).toHaveTextContent('Paused');
+  });
+
+  it('draws the plan page behind the row, with the way back to the targets', async () => {
+    noPlan();
+    drawTab('plan');
+
+    expect(await screen.findByText('No plan yet.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Write a plan' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '‹ targets' })).toHaveAttribute('href', '/spaces/space-1/control');
+  });
+
+  it('offers no template to start from while there is none', async () => {
+    noPlan();
+    state.templates = { items: [], nextCursor: null };
+    drawTab('plan');
+
+    expect(await screen.findByRole('button', { name: 'Write a plan' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Start from a template' })).not.toBeInTheDocument();
+  });
+
+  it('leaves the plan row out where nothing here could run one', async () => {
+    noPlan();
+    state.devices = [{ ...device(), id: 'device-2', type: 'light', name: 'Bar light', configuration: { day: 68400, night: 25200, limit: 65 } }];
+    drawTab();
+
+    expect(await screen.findByText(/Nothing standing here states a climate/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Alarms/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /grow plan/i })).not.toBeInTheDocument();
   });
 });
 
