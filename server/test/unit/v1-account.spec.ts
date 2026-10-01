@@ -314,6 +314,31 @@ describe('changing an account', () => {
     expect(onPurpose.preferences.timezoneChosen).toBe(true);
   });
 
+  /**
+   * "Later" on the notice that no channel carries the critical alarms is the
+   * account's, so it holds on every browser - and a write that sends the
+   * preferences back for another reason, as a change of units does, does not
+   * bring the notice back early.
+   */
+  it('keeps the date "Later" put the notice away until, through writes that leave it out, until it is cleared', async () => {
+    const user = await signUp('later');
+    const units = { temperature: 'celsius' as const, weight: 'grams' as const, volume: 'liters' as const };
+    const notifyLaterUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    expect((await accounts.serialiseMe(user)).preferences.notifyLaterUntil).toBeNull();
+
+    const later = await accounts.updateOwn(user.id, { preferences: { units, locale: 'en', timezone: 'UTC', notifyLaterUntil } });
+    expect(later.preferences.notifyLaterUntil).toBeInstanceOf(Date);
+    expect((await accounts.serialiseMe(later)).preferences.notifyLaterUntil).toBe(notifyLaterUntil);
+
+    const unitsOnly = await accounts.updateOwn(user.id, {
+      preferences: { units: { ...units, temperature: 'fahrenheit' }, locale: 'en', timezone: 'UTC' },
+    });
+    expect((await accounts.serialiseMe(unitsOnly)).preferences.notifyLaterUntil).toBe(notifyLaterUntil);
+
+    const cleared = await accounts.updateOwn(user.id, { preferences: { units, locale: 'en', timezone: 'UTC', notifyLaterUntil: null } });
+    expect((await accounts.serialiseMe(cleared)).preferences.notifyLaterUntil).toBeNull();
+  });
+
   it('answers the account as it stands when the body names no field', async () => {
     const user = await signUp('unchanged');
 
@@ -483,6 +508,43 @@ describe('a webhook saved with no headers of its own', () => {
 
     const read = (await accounts.byId(user.id)) as StoredUser;
     expect(accounts.serialise(read).notifications.channels.webhook).toEqual({ ...hook, headers: {} });
+  });
+});
+
+/**
+ * The one tap that mails critical alarms to the login address. It is the only
+ * way that address becomes a notification address untyped, so what it may
+ * touch is narrow: the mail address where there is none, and mail on the
+ * critical row. Everything else the person set stays as they set it.
+ */
+describe('critical alarms by mail, in one tap', () => {
+  it('names the login address and routes critical alarms to it, and nothing else', async () => {
+    const user = await signUp('one-tap');
+
+    const tapped = accounts.serialise(await accounts.mailAlarms(user.id));
+
+    expect(tapped.notifications.channels).toEqual({ email: 'one-tap@test.invalid', telegram: null, webhook: null });
+    expect(tapped.notifications.routing).toMatchObject({ alerts: ['email'], warnings: [], tasks: [], plan: [], weekly_timelapse: [] });
+    expect(mailed).toEqual([]);
+  });
+
+  it('keeps an address and a routing the person already set, and changes nothing when asked twice', async () => {
+    const user = await signUp('one-tap-kept');
+    await accounts.updateOwn(user.id, {
+      notifications: {
+        channels: { email: 'elsewhere@test.invalid', telegram: null, webhook: null },
+        routing: { alerts: ['push'], warnings: ['email'], tasks: [], plan: [], weekly_timelapse: [] },
+        quietHours: { fromMinute: 1320, toMinute: 420 },
+        mutedUntil: null,
+      },
+    });
+
+    await accounts.mailAlarms(user.id);
+    const twice = accounts.serialise(await accounts.mailAlarms(user.id));
+
+    expect(twice.notifications.channels.email).toBe('elsewhere@test.invalid');
+    expect(twice.notifications.routing).toMatchObject({ alerts: ['push', 'email'], warnings: ['email'] });
+    expect(twice.notifications.quietHours).toEqual({ fromMinute: 1320, toMinute: 420 });
   });
 });
 

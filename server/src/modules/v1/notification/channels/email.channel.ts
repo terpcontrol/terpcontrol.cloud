@@ -10,7 +10,8 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
  * filling this in from the account would still be the server deciding to write
  * to somebody who never asked it to - which is what "every channel is off until
  * configured" is there to prevent. An account that has not set one is not
- * mailed.
+ * mailed. The sign-in address gets here only when its owner asks for it in so
+ * many words, with the one tap `POST /me/email-alarms` is.
  *
  * The transport itself is the install's, and an install with no SMTP settings
  * fails here in the same way it already fails on an alarm's own mail: loudly,

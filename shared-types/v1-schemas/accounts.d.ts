@@ -41,6 +41,7 @@ export declare const userPreferences: z.ZodObject<{
         off: "off";
         on: "on";
     }>>>;
+    notifyLaterUntil: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
 }, z.core.$strip>;
 /** How long raw climate points are kept; `null` keeps them for as long as the install does. */
 export declare const userRetention: z.ZodObject<{
@@ -88,7 +89,8 @@ export declare const telegramChannel: z.ZodObject<{
 /**
  * The addresses. `null` is "not configured", which is also "off": the login
  * address is deliberately not used as a fallback, so that no notification goes
- * anywhere the person did not name.
+ * anywhere the person did not name. It becomes the mail address only when the
+ * person asks for exactly that, with `POST /me/email-alarms`.
  */
 export declare const notificationChannels: z.ZodObject<{
     email: z.ZodNullable<z.ZodString>;
@@ -214,6 +216,7 @@ export declare const user: z.ZodObject<{
             off: "off";
             on: "on";
         }>>>;
+        notifyLaterUntil: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
     }, z.core.$strip>;
     retention: z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
@@ -380,6 +383,7 @@ export declare const me: z.ZodObject<{
             off: "off";
             on: "on";
         }>>>;
+        notifyLaterUntil: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
     }, z.core.$strip>;
     retention: z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
@@ -480,6 +484,7 @@ export declare const meUpdate: z.ZodObject<{
             off: "off";
             on: "on";
         }>>>;
+        notifyLaterUntil: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
     }, z.core.$strip>>;
     retention: z.ZodOptional<z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
@@ -812,6 +817,7 @@ export declare const adminUserPage: z.ZodObject<{
                 off: "off";
                 on: "on";
             }>>>;
+            notifyLaterUntil: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
         }, z.core.$strip>;
         retention: z.ZodObject<{
             climateDays: z.ZodNullable<z.ZodNumber>;

@@ -44,6 +44,12 @@ export const userPreferences = named(
       .describe(
         'Whether the grow diary is offered, as the person answered; null where they have not, and `layers.diary` then follows what the account has used. A body that leaves it out keeps what is stored.',
       ),
+    notifyLaterUntil: instant()
+      .nullable()
+      .optional()
+      .describe(
+        'Until when "Later" put away the notice that no channel carries this account\'s critical alarms; null until somebody taps it. A body that leaves it out keeps what is stored.',
+      ),
   }),
 );
 
@@ -96,7 +102,8 @@ export const telegramChannel = named(
 /**
  * The addresses. `null` is "not configured", which is also "off": the login
  * address is deliberately not used as a fallback, so that no notification goes
- * anywhere the person did not name.
+ * anywhere the person did not name. It becomes the mail address only when the
+ * person asks for exactly that, with `POST /me/email-alarms`.
  */
 export const notificationChannels = named(
   'NotificationChannels',

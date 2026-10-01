@@ -108,6 +108,21 @@ export class AccountController {
   }
 
   /**
+   * The one tap that turns somebody who believes they are watched over into
+   * somebody who is: critical alarms - a device gone offline, a tent too warm -
+   * by mail to the address they sign in with. It takes no body, so the address
+   * cannot be anybody else's; asking again changes nothing.
+   */
+  @Post('me/email-alarms')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Mail critical alarms to the login address, unless another address is already set' })
+  @V1Answer(meShape)
+  public async mailAlarms(@CurrentUser() caller: AuthContext): Promise<Me> {
+    return this.accounts.serialiseMe(await this.accounts.mailAlarms(accountOf(caller)));
+  }
+
+  /**
    * The current password is asked for again, and checked, because a stolen
    * session must not be able to keep itself by locking the owner out.
    */

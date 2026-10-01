@@ -544,6 +544,7 @@ describe('what the sessions and account routes answer', () => {
     expectDocumented(await account.client.get('/v1/sessions').expect(200), '/v1/sessions');
     expectDocumented(await account.client.get('/v1/me').expect(200), '/v1/me');
     expectDocumented(await account.client.patch('/v1/me').send({ bio: 'written by the document spec' }).expect(200), '/v1/me', 'patch');
+    expectDocumented(await account.client.post('/v1/me/email-alarms').expect(200), '/v1/me/email-alarms', 'post');
   });
 });
 

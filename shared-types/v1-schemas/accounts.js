@@ -35,6 +35,10 @@ exports.userPreferences = (0, common_js_1.named)('UserPreferences', zod_1.z.obje
         .nullable()
         .optional()
         .describe('Whether the grow diary is offered, as the person answered; null where they have not, and `layers.diary` then follows what the account has used. A body that leaves it out keeps what is stored.'),
+    notifyLaterUntil: (0, common_js_1.instant)()
+        .nullable()
+        .optional()
+        .describe('Until when "Later" put away the notice that no channel carries this account\'s critical alarms; null until somebody taps it. A body that leaves it out keeps what is stored.'),
 }));
 /** How long raw climate points are kept; `null` keeps them for as long as the install does. */
 exports.userRetention = (0, common_js_1.named)('UserRetention', zod_1.z.object({
@@ -72,7 +76,8 @@ exports.telegramChannel = (0, common_js_1.named)('TelegramChannel', zod_1.z.obje
 /**
  * The addresses. `null` is "not configured", which is also "off": the login
  * address is deliberately not used as a fallback, so that no notification goes
- * anywhere the person did not name.
+ * anywhere the person did not name. It becomes the mail address only when the
+ * person asks for exactly that, with `POST /me/email-alarms`.
  */
 exports.notificationChannels = (0, common_js_1.named)('NotificationChannels', zod_1.z.object({
     email: zod_1.z.string().nullable(),

@@ -1,5 +1,5 @@
 import { HydratedDocument, Schema } from 'mongoose';
-import type { NotificationChannels, NotificationSettings, TelegramChannel, User } from '@fg2/shared-types/v1';
+import type { NotificationChannels, NotificationSettings, TelegramChannel, User, UserPreferences } from '@fg2/shared-types/v1';
 import {
   diaryChoice,
   notificationCategory,
@@ -27,9 +27,14 @@ export interface StoredNotificationSettings extends Omit<NotificationSettings, '
   mutedUntil: Date | null;
 }
 
-export interface StoredUser extends Omit<User, 'createdAt' | 'deletionStartedAt' | 'notifications'> {
+export interface StoredUserPreferences extends Omit<UserPreferences, 'notifyLaterUntil'> {
+  notifyLaterUntil?: Date | null;
+}
+
+export interface StoredUser extends Omit<User, 'createdAt' | 'deletionStartedAt' | 'notifications' | 'preferences'> {
   createdAt: Date;
   deletionStartedAt: Date | null;
+  preferences: StoredUserPreferences;
   notifications: StoredNotificationSettings;
   passwordHash: string;
 }
@@ -111,6 +116,8 @@ export const usersSchema = new Schema<StoredUser>(
       // Whether the grow diary is offered, as the person answered; null is "not
       // said", and then what the account has used decides.
       diary: { type: String, enum: [...diaryChoice.options, null], default: null },
+      // "Later" on the notice that no channel carries the critical alarms.
+      notifyLaterUntil: { type: Date, default: null },
     },
     retention: {
       climateDays: { type: Number, default: null },

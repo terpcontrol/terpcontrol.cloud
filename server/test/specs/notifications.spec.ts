@@ -1,4 +1,4 @@
-import { anonymous, createAccount, Session, unique } from '../support/api';
+import { anonymous, createAccount, demoSession, Session, unique } from '../support/api';
 import { capturedMail, resetMail, waitForMail } from '../support/control';
 import { provisionDevice, settle } from '../support/device';
 import { joinSpace } from '../support/fixtures';
@@ -102,6 +102,33 @@ describe('the settings an account writes for itself', () => {
         },
       })
       .expect(400);
+  });
+});
+
+/**
+ * The one tap that mails critical alarms to the login address. It is the one
+ * way that address becomes a notification address without being typed, and it
+ * takes no body: there is nothing in the request that could name somebody
+ * else's.
+ */
+describe('critical alarms by mail to the login address', () => {
+  it('names the login address on the critical row, sends nothing yet, and is the same answer when asked again', async () => {
+    const tapper = await createAccount('notify-tap');
+    await resetMail();
+
+    const tapped = await tapper.client.post('/v1/me/email-alarms').expect(200);
+    expect(tapped.body.notifications.channels.email).toBe(tapper.username);
+    expect(tapped.body.notifications.routing.alerts).toEqual(['email']);
+    expect(tapped.body.notifications.routing.warnings).toEqual([]);
+
+    const again = await tapper.client.post('/v1/me/email-alarms').expect(200);
+    expect(again.body.notifications).toEqual(tapped.body.notifications);
+    expect((await capturedMail()).filter(mail => mail.to.includes(tapper.username))).toEqual([]);
+  });
+
+  it('is an account´s own, and no tour´s', async () => {
+    await anonymous().post('/v1/me/email-alarms').expect(401);
+    await (await demoSession()).client.post('/v1/me/email-alarms').expect(403);
   });
 });
 

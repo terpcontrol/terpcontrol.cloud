@@ -16,6 +16,7 @@ import { StoredSession } from '@database/schemas/v1/sessions.schema';
 import { StoredNotificationSettings, StoredUser } from '@database/schemas/v1/users.schema';
 import { authConfig, notificationsConfig, premiumConfig, retentionConfig } from '@config/configuration';
 import { climateWindowOf } from '@modules/retention/climate-window';
+import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { freeTierOf } from '../camera/entitlement.service';
 import { layersOf } from './diary-layer';
 import { logger } from '@utils/logger';
@@ -158,10 +159,10 @@ export class AccountsService implements OnModuleInit {
   public async updateOwn(id: string, body: MeUpdate): Promise<StoredUser> {
     if (body.handle !== undefined) await this.claimHandle(body.handle, id);
 
-    const { notifications, ...rest } = body;
+    const { notifications, preferences, ...rest } = body;
     const changes: Partial<StoredUser> = { ...rest };
     if (notifications !== undefined) changes.notifications = stored(notifications);
-    if (rest.preferences !== undefined) changes.preferences = await this.preferencesFrom(id, rest.preferences);
+    if (preferences !== undefined) changes.preferences = await this.preferencesFrom(id, preferences);
 
     return this.apply(id, changes);
   }
@@ -174,8 +175,35 @@ export class AccountsService implements OnModuleInit {
    */
   private async preferencesFrom(id: string, wanted: NonNullable<MeUpdate['preferences']>): Promise<StoredUser['preferences']> {
     const current = (await this.require(id)).preferences;
+    const { notifyLaterUntil } = wanted;
 
-    return { ...wanted, timezoneChosen: zoneChosen(current, wanted), diary: wanted.diary === undefined ? (current.diary ?? null) : wanted.diary };
+    return {
+      ...wanted,
+      timezoneChosen: zoneChosen(current, wanted),
+      diary: wanted.diary === undefined ? (current.diary ?? null) : wanted.diary,
+      // Nor is it somebody asking to be reminded of the notice today.
+      notifyLaterUntil:
+        notifyLaterUntil === undefined ? (current.notifyLaterUntil ?? null) : notifyLaterUntil === null ? null : new Date(notifyLaterUntil),
+    };
+  }
+
+  /**
+   * Critical alarms by mail to the address this account signs in with, which is
+   * the one way that address becomes a notification address without being
+   * typed: the person asked for exactly this, by tapping a button that names
+   * it. An address already set is the one the person chose and stays; the
+   * routing gains mail on the critical row and loses nothing. Both are written
+   * field by field rather than as the whole settings object, so a change made a
+   * moment ago in another tab is not carried back over.
+   */
+  public async mailAlarms(id: string): Promise<StoredUser> {
+    const user = await this.require(id);
+    const row = alertCategory('critical')!;
+
+    await this.users.updateOne({ id, 'notifications.channels.email': null }, { $set: { 'notifications.channels.email': user.email } });
+    await this.users.updateOne({ id }, { $addToSet: { [`notifications.routing.${row}`]: 'email' } });
+
+    return this.require(id);
   }
 
   /** The same fields an administrator may create, each only if it changes. */
@@ -278,6 +306,7 @@ export class AccountsService implements OnModuleInit {
         timezone: user.preferences.timezone,
         timezoneChosen: user.preferences.timezoneChosen === true,
         diary: user.preferences.diary ?? null,
+        notifyLaterUntil: user.preferences.notifyLaterUntil?.toISOString() ?? null,
       },
       retention: { climateDays: user.retention.climateDays },
       notifications: {

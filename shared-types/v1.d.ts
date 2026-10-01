@@ -336,6 +336,10 @@ export interface UserPreferences {
    * Whether the grow diary is offered, as the person answered; null where they have not, and `layers.diary` then follows what the account has used. A body that leaves it out keeps what is stored.
    */
   diary?: DiaryChoice | null;
+  /**
+   * Until when "Later" put away the notice that no channel carries this account's critical alarms; null until somebody taps it. A body that leaves it out keeps what is stored.
+   */
+  notifyLaterUntil?: string | null;
 }
 
 export interface UserRetention {
