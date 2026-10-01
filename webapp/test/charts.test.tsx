@@ -274,13 +274,13 @@ describe('the Charts view', () => {
     expect(screen.getAllByText('VPD')).toHaveLength(3);
     // Both halves, because the device holds a different leaf offset for each
     // and the band on this one card is worked out from both of them.
-    expect(screen.getByText('· band moves with the phase · leaf −2 °C by day, 0 °C at night')).toBeInTheDocument();
+    expect(screen.getByText('· target band follows the phase · leaf −2 °C by day, 0 °C at night')).toBeInTheDocument();
     expect(screen.getByText('kPa')).toBeInTheDocument();
 
     for (const label of ['Stacked', 'Overlay', 'Day-of-grow', 'Save view', 'CSV']) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
     }
-    expect(screen.getByText(/The nerd's room/)).toHaveTextContent('Two units on one panel only when they belong together.');
+    expect(screen.getByText(/Put together any curves over any span/)).toHaveTextContent('export them as CSV');
   });
 
   it('says what step the table it offers is written at, rather than promising a rate it cannot give', async () => {
@@ -289,7 +289,7 @@ describe('the Charts view', () => {
     // The CSV is the answer already on the screen, which is a mean per window
     // and not what the devices reported at: a grow-wide window is a few hundred
     // rows over hundreds of thousands of readings.
-    expect(await screen.findByText(/CSV takes every line chosen above/)).toHaveTextContent('one row per 5 min');
+    expect(await screen.findByText(/The CSV file holds every curve chosen above/)).toHaveTextContent('one row per 5 min');
     expect(screen.queryByText(/native rate/)).not.toBeInTheDocument();
   });
 
@@ -300,7 +300,7 @@ describe('the Charts view', () => {
     state.series = { ...series, stepSeconds: 5344 };
     draw();
 
-    expect(await screen.findByText(/CSV takes every line chosen above/)).toHaveTextContent('one row per 1 h 29 min');
+    expect(await screen.findByText(/The CSV file holds every curve chosen above/)).toHaveTextContent('one row per 1 h 29 min');
   });
 
   it('says nothing about rows for a window that has none, and still offers the way on to the whole grow', async () => {
@@ -311,7 +311,7 @@ describe('the Charts view', () => {
     draw();
 
     expect(await screen.findByText(/No measurements in this period/)).toBeInTheDocument();
-    expect(screen.queryByText(/CSV takes every line chosen above/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/The CSV file holds every curve chosen above/)).not.toBeInTheDocument();
     expect(screen.queryByText(/one row per/)).not.toBeInTheDocument();
     expect(screen.getByText(/is under Export on/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Spring run' })).toHaveAttribute('href', '/grows/grow-1');
@@ -441,7 +441,7 @@ describe('the Charts view', () => {
     state.series = { ...series, climate: series.climate.map(panel => (panel.metric === 'vpd' ? { ...panel, targets: [] } : panel)) };
     draw();
 
-    expect(await screen.findByText('· band moves with the phase · leaf −2 °C by day, 0 °C at night')).toBeInTheDocument();
+    expect(await screen.findByText('· target band follows the phase · leaf −2 °C by day, 0 °C at night')).toBeInTheDocument();
   });
 
   it('labels the two ends of a season with dates, and the two ends of a rolling day with weekdays', async () => {
@@ -543,7 +543,7 @@ describe('the Charts view', () => {
   it('offers the account´s grows when the address names neither a grow nor a tent', async () => {
     drawAt('/charts');
 
-    expect(await screen.findByText('A chart is drawn about a grow — pick the one to draw.')).toBeInTheDocument();
+    expect(await screen.findByText('Charts show a grow – pick which one.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Spring run' })).toHaveAttribute('href', '/charts?grow=grow-1');
     expect(screen.getByRole('link', { name: 'Autumn run' })).toHaveAttribute('href', '/charts?grow=grow-2');
     expect(screen.queryByText(/Nothing grows here yet/)).not.toBeInTheDocument();
@@ -553,7 +553,7 @@ describe('the Charts view', () => {
     state.grows = [];
     drawAt('/charts');
 
-    expect(await screen.findByText('Nothing grows here yet, and a chart is drawn about a grow.')).toBeInTheDocument();
+    expect(await screen.findByText('Charts show a grow – nothing grows here yet. This place’s readings are in the Timeline.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Spring run' })).not.toBeInTheDocument();
   });
 

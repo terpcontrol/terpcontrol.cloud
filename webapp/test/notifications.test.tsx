@@ -201,7 +201,7 @@ describe('an account with nothing configured', () => {
     await drawLoaded();
 
     expect(screen.getByRole('switch', { name: 'Push' })).toBeDisabled();
-    expect(screen.getByText('this install has no push key')).toBeInTheDocument();
+    expect(screen.getByText('not available on this server')).toBeInTheDocument();
   });
 
   it('cannot offer Telegram where the install runs no bot', async () => {
@@ -209,7 +209,7 @@ describe('an account with nothing configured', () => {
     await drawLoaded();
 
     expect(screen.getByRole('switch', { name: 'Telegram' })).toBeDisabled();
-    expect(screen.getByText('this install has no Telegram bot')).toBeInTheDocument();
+    expect(screen.getByText('not available on this server')).toBeInTheDocument();
   });
 });
 

@@ -424,9 +424,9 @@ describe('the inbox', () => {
     expect(await screen.findByText(/^Leaf cool · info · .* · not announced$/)).toBeInTheDocument();
     // A row of the grid that names only a channel this account cannot be
     // reached on is a rule nobody would hear.
-    expect(screen.getByText(wholeLine(/^Humidity high · warning · .* · nobody was listening · set up ›$/))).toBeInTheDocument();
+    expect(screen.getByText(wholeLine(/^Humidity high · warning · .* · did not reach you · set up ›$/))).toBeInTheDocument();
     // Said as the way to change it, since it is the account's own settings that decide it.
-    expect(screen.getByRole('link', { name: 'nobody was listening · set up ›' })).toHaveAttribute('href', '/me/notifications');
+    expect(screen.getByRole('link', { name: 'did not reach you · set up ›' })).toHaveAttribute('href', '/me/notifications');
     expect(screen.queryByText(/announced once/)).not.toBeInTheDocument();
   });
 
@@ -459,7 +459,7 @@ describe('the inbox', () => {
     server.rules = [rule({ name: 'Device offline' })];
     draw();
 
-    expect(await screen.findByText(wholeLine(/^warning · since .* · nobody was listening · set up ›$/))).toBeInTheDocument();
+    expect(await screen.findByText(wholeLine(/^warning · since .* · did not reach you · set up ›$/))).toBeInTheDocument();
     // The account can be reached for a critical alarm, so the card beside it
     // says what it will go on doing rather than that it reached nobody.
     expect(screen.getByText(/^Device offline · critical · .* · repeats every 30 min until resolved$/)).toBeInTheDocument();
@@ -491,7 +491,7 @@ describe('the inbox', () => {
     draw();
 
     expect(await screen.findByText(/^critical · since .* · for .*$/)).toBeInTheDocument();
-    expect(screen.queryByText(/announced once|nobody was listening|not announced|repeats every/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/announced once|did not reach you|not announced|repeats every/)).not.toBeInTheDocument();
   });
 
   it('promises nothing about a ruleless alert that has already resolved', async () => {
@@ -512,7 +512,7 @@ describe('the inbox', () => {
     draw();
 
     expect(await screen.findByText(/^warning · resolved .* · lasted .*$/)).toBeInTheDocument();
-    expect(screen.queryByText(/announced once|nobody was listening|not announced/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/announced once|did not reach you|not announced/)).not.toBeInTheDocument();
   });
 
   it('puts the worst first under NOW and lets the clock decide only between equals', async () => {

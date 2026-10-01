@@ -478,7 +478,7 @@ describe('the log sheet', () => {
 
     const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 min' });
     expect(api.post).not.toHaveBeenCalled();
-    expect(await within(asked).findByText(/all 2 devices standing in Tent 1 into maintenance mode for 15 minutes/)).toBeInTheDocument();
+    expect(await within(asked).findByText(/pauses the control of all 2 devices in Tent 1 for 15 minutes/)).toBeInTheDocument();
     // By the name each device's own row carries, and only the ones standing here:
     // the one plug of the account is called a plug, with no tail of its id.
     expect(within(asked).getByText('Big tent controller')).toBeInTheDocument();
@@ -487,8 +487,8 @@ describe('the log sheet', () => {
     // The window is fifteen minutes and the quiet is twenty-five: the engine
     // holds a worked-on device's alarms for ten minutes after it is let go, and
     // the panel that promised the window alone was ten minutes short.
-    expect(within(asked).getByText(/picks up where it left off after 15 minutes/)).toBeInTheDocument();
-    expect(within(asked).getByText(/no alarm is raised on it for 25 minutes in all/)).toBeInTheDocument();
+    expect(within(asked).getByText(/after 15 minutes the devices regulate again/)).toBeInTheDocument();
+    expect(within(asked).getByText(/alarms stay quiet for 25 minutes in all/)).toBeInTheDocument();
     // The day is not asked for: the quiet starts when this is saved, so the line is now.
     expect(within(asked).queryByLabelText('When')).not.toBeInTheDocument();
 

@@ -536,7 +536,7 @@
     "less": "− weniger",
     "savedLabel": "Gespeichert",
     "about": {
-      "band": "Band wandert mit der Phase",
+      "band": "Zielband folgt der Phase",
       "leaf": "Blatt {{offset}} °C",
       "leafHalves": "Blatt tags {{day}} °C, nachts {{night}} °C",
       "pair": "überlagert, zwei Achsen",
@@ -558,12 +558,12 @@
     "saveView": "Sichern",
     "csv": "CSV",
     "csvOutput": "{{output}} (an/aus)",
-    "csvNote": "CSV nimmt jede oben gewählte Kurve, auch die, die eine Darstellung nicht zeichnet: eine Zeile je {{step}}, dazu eine, wo ein Ausgang geschaltet oder ein Messwert notiert wurde.",
+    "csvNote": "Die CSV-Datei enthält jede oben gewählte Kurve: eine Zeile je {{step}} und eine weitere, wann immer ein Ausgang schaltet oder ein Messwert eingetragen wird.",
     "exportOn": "Den ganzen Grow mit Bildern und Tagebuch gibt es unter Export bei",
-    "note": "Die Messwarte: jede Kurve, jeder Zeitraum, gesicherte Ansichten, Export mit dem Aktorzustand in jeder Zeile. Zwei Einheiten in einem Feld nur, wenn sie zusammengehören.",
+    "note": "Stell dir beliebige Kurven über beliebige Zeiträume zusammen, speichere Ansichten und exportiere sie als CSV.",
     "nothingPicked": "Noch nichts gewählt — oben eine Kurve antippen.",
-    "noGrow": "Hier wächst noch nichts, und ein Graph handelt von einem Grow.",
-    "whichGrow": "Ein Graph handelt von einem Grow — wähle den, der gezeichnet werden soll.",
+    "noGrow": "Graphen zeigen einen Grow – hier wächst noch keiner. Die Werte dieses Orts stehen im Verlauf.",
+    "whichGrow": "Graphen zeigen einen Grow – wähle, welchen.",
     "views": {
       "newTitle": "Diese Ansicht sichern",
       "editTitle": "Gesicherte Ansicht",
@@ -887,7 +887,7 @@
         "stable": "automatisch – stabile Versionen",
         "beta": "automatisch – auch Testversionen (Beta)",
         "alpha": "automatisch – frühe Testversionen (Alpha)",
-        "manual": "von Hand – neue Firmware kommt nicht automatisch"
+        "manual": "keine automatischen Updates"
       },
       "offlineNote": "Neu starten und Wartung gehen erst wieder, wenn das Gerät verbunden ist.",
       "technical": "Technische Details"
@@ -970,7 +970,7 @@
       "save": "Namen speichern",
       "saving": "wird gespeichert…",
       "place": "Steht in",
-      "placeNote": "Ein Umzug nimmt ab jetzt mit, was das Gerät misst, und die Kamera, für die es antwortet. Die Zeilen, die es schon geschrieben hat, bleiben dort, wo sie geschrieben wurden.",
+      "placeNote": "Ab jetzt zählen die Messwerte und die Kamera dieses Geräts zum neuen Ort. Was es bisher gemessen hat, bleibt beim alten.",
       "noPlaces": "Es gibt keinen anderen Ort, den du steuerst und an den es umziehen könnte."
     },
     "unnamed": "{{type}} · {{tag}}",
@@ -2325,7 +2325,7 @@
         "noController": "In {{place}} steuert nichts ein Klima, die Phase wird also nur festgehalten und nirgendwohin geschrieben.",
         "hardwareUnknown": "Was in {{place}} steht, ist nicht bekannt, dort wird also kein Klima geschrieben; die Phasen werden trotzdem festgehalten.",
         "nowhere": "Kein Ort, also wird nichts gesteuert; die Phasen werden trotzdem festgehalten.",
-        "auto": "Von hier an schiebt das Preset des Platzes den Grow weiter, und eine so geschriebene Phase trägt die Markierung „auto“.",
+        "auto": "Wird das Klima dieses Orts später auf ein Preset gestellt, geht der Grow in dessen Phase mit; solche Phasen sind mit „auto“ markiert.",
         "autoflower": "Autoflower: Die Presets bleiben bei 18–20 Std Licht, und das Schema läuft mit halber Stärke.",
         "autoflowerAlone": "Autoflower: Die Presets bleiben bei 18–20 Std Licht, statt auf 12/12 umzuschlagen."
       },
@@ -2755,12 +2755,12 @@
       "oneModel": "Teile einen einzelnen Ort oder den Raum, zu dem er gehört. Wer im Raum ist, sieht jeden Ort darin; wer nur zu diesem Ort gehört, sieht nur ihn.",
       "demo": "Die Demo schaut auf einen fremden Ort und besitzt nichts — es gibt also niemanden hereinzulassen und niemanden hinauszuschicken.",
       "invite": "Einladen",
-      "noLink": "Kein Link unterwegs",
+      "noLink": "Noch kein Einladungslink",
       "makeLink": "Link erzeugen",
       "copyLink": "Einladungslink kopieren",
       "revoke": "Zurückziehen",
       "handleLabel": "Ein Name, mit dem du schon gemeinsam growst",
-      "handlePlaceholder": "oder ein Name, mit dem du growst · @",
+      "handlePlaceholder": "oder @Name eines Kontos",
       "add": "Hinzufügen",
       "peopleIn": "Leute in {{name}}",
       "viaTheRoom_one": "{{count}} über den Raum",
@@ -2781,12 +2781,12 @@
       "leaveThis": "Diesen Ort verlassen",
       "role": {
         "owner": "Besitzer:in",
-        "can_log": "darf loggen",
+        "can_log": "darf eintragen",
         "can_manage": "darf steuern"
       },
       "roleShort": {
         "owner": "Besitzer:in",
-        "can_log": "loggen",
+        "can_log": "eintragen",
         "can_manage": "steuern"
       },
       "can": {
@@ -2827,8 +2827,8 @@
         "by": "von @{{handle}}",
         "bySomebody": "von jemandem, der hier growt",
         "asRole": {
-          "can_log": "Du könntest hier Einträge, Fotos und Aufgaben loggen.",
-          "can_manage": "Du könntest hier loggen und außerdem Sollwerte, Plan, Alarme und Steckdosen ändern."
+          "can_log": "Du könntest hier Einträge, Fotos und Aufgaben eintragen.",
+          "can_manage": "Du könntest hier eintragen und außerdem Zielwerte, Plan, Alarme und Steckdosen ändern."
         },
         "sees": "Du siehst: {{name}}, jeden Grow, der je darin stand – auch private und beendete –, und die Kameras.",
         "doesNotSee": "Du siehst nicht: die anderen Orte, Grows, die nie hier standen, und auch nicht, wer sonst noch einen Link hat.",
@@ -2867,7 +2867,7 @@
         "role": "Rolle",
         "roleNote": {
           "can_log": "sieht den Ort und seine Grows, loggt Einträge, hakt Aufgaben ab",
-          "can_manage": "darf loggen, dazu Zielwerte, Plan und Alarme",
+          "can_manage": "darf eintragen, dazu Zielwerte, Plan und Alarme",
           "can_logPlain": "sieht den Ort und seine Werte",
           "can_managePlain": "sieht den Ort und ändert dazu Zielwerte, Plan und Alarme"
         },
@@ -2927,9 +2927,9 @@
   "log": {
     "title": "Eintrag",
     "close": "Schließen",
-    "longPress": "lange drücken für Details",
+    "longPress": "gedrückt halten oder Rechtsklick: Details",
     "targetLabel": "Worum es in dem Eintrag geht",
-    "oneTap": "Ein Tipp schreibt den Eintrag mit sinnvollen Vorgaben, 5 s lang widerrufbar, Details optional. Foto öffnet den Fotoeintrag, und Wartung fragt vorher, weil sie die Regelung pausiert.",
+    "oneTap": "Ein Tipp trägt sofort ein und lässt sich 5 Sekunden lang zurücknehmen. Wartung fragt vorher, weil sie die Regelung pausiert.",
     "nowhere": "Noch nichts da, wofür sich ein Eintrag lohnt · zuerst einen Grow starten oder ein Gerät hinzufügen",
     "notHere": "Der Grow oder Ort aus diesem Link steht nicht auf deiner Startseite · vielleicht ist er zu Ende, vielleicht darfst du dort nicht schreiben · wähle, wohin der Eintrag gehört",
     "litres": "{{litres}} l",
@@ -2950,13 +2950,13 @@
     "visit": {
       "hereFallback": "diesem Ort",
       "reading": "Lese, was in {{name}} steht …",
-      "parks_one": "Speichern setzt das Gerät in {{name}} für {{minutes}} Minuten in den Wartungsmodus. Was es dabei abstellt, steht neben seinem Namen.",
+      "parks_one": "„Wartung starten“ pausiert die Regelung des Geräts in {{name}} für {{minutes}} Minuten. Was dabei aus geht, steht neben seinem Namen.",
       "parksOutputs": "stellt {{outputs}} ab",
       "parksNothing": "stellt nichts ab: Diese Hardware kennt den Wartungsbefehl nicht",
-      "parks_other": "Speichern setzt alle {{count}} Geräte in {{name}} für {{minutes}} Minuten in den Wartungsmodus. Was jedes dabei abstellt, steht neben seinem Namen.",
+      "parks_other": "„Wartung starten“ pausiert die Regelung aller {{count}} Geräte in {{name}} für {{minutes}} Minuten. Was dabei aus geht, steht neben dem Namen.",
       "nothingThere": "In {{name}} steht nichts, das ist also eine Zeile im Tagebuch und sonst nichts.",
       "unreadable": "Was in {{name}} steht, ließ sich nicht lesen, hier lässt sich also nichts benennen. In den Wartungsmodus für {{minutes}} Minuten geht trotzdem jedes Gerät dort.",
-      "notUndone": "Die Zeile lässt sich danach zurücknehmen. Die Ruhe nicht: Nach {{minutes}} Minuten machen die Geräte dort weiter, wo sie aufgehört haben, und Alarm wird auf ihnen insgesamt {{quiet}} Minuten lang keiner ausgelöst — die letzten {{settle}} davon, während das Klima zurückkommt.",
+      "notUndone": "Den Tagebucheintrag kannst du zurücknehmen, die Wartung nicht: Nach {{minutes}} Minuten regeln die Geräte wieder, und Alarme bleiben insgesamt {{quiet}} Minuten still – die letzten {{settle}}, während sich das Klima erholt.",
       "save_one": "Wartung starten · {{count}} Gerät",
       "save_other": "Wartung starten · {{count}} Geräte"
     },
@@ -3527,7 +3527,7 @@
       "tellBy": "Sag mir Bescheid per",
       "by": {
         "routing": "meinen Benachrichtigungseinstellungen",
-        "email": "E-Mail an",
+        "email": "eigene E-Mail-Adresse",
         "webhook": "Webhook"
       },
       "routingNote": "Geht raus per {{channels}}.",
@@ -3643,8 +3643,8 @@
       "yesterday": "gestern"
     },
     "edit": "Ändern",
-    "add": "+ Erinnerung · alle N Tage · einmalig · Routine",
-    "sources": "Quellen: deine Erinnerungen – Gießen, Düngen, Routinen und eigene – sowie Schritte des Grow-Plans, die auf Bestätigung warten. Eine hier erledigte Aufgabe schreibt die Tagebuchzeile mit denselben Vorgaben wie das Eintrag-Sheet.",
+    "add": "+ Erinnerung",
+    "sources": "Hier stehen deine Erinnerungen und die Schritte des Grow-Plans, die auf dich warten. Was du hier abhakst, steht danach auch im Tagebuch.",
     "sheet": {
       "newTitle": "Neue Erinnerung",
       "editTitle": "Erinnerung",
@@ -3761,20 +3761,20 @@
       "alerts": "Kritische Alarme",
       "warnings": "Warnungen",
       "tasks": "Fällige Aufgaben",
-      "plan": "Rückfragen des Plans",
+      "plan": "Fragen des Grow-Plans",
       "weekly_timelapse": "Video der Woche"
     },
     "short": {
-      "alerts": "Kritisches",
+      "alerts": "kritische Alarme",
       "warnings": "Warnungen",
       "tasks": "fällige Aufgaben",
-      "plan": "Rückfragen des Plans",
+      "plan": "Fragen des Grow-Plans",
       "weekly_timelapse": "Wochenrückblick"
     },
     "push": {
       "thisBrowser": "dieser Browser",
       "notSubscribed": "dieser Browser ist nicht angemeldet",
-      "noKey": "diese Installation hat keinen Push-Schlüssel",
+      "noKey": "auf diesem Server nicht verfügbar",
       "unsupported": "dieser Browser kann keine Push-Nachrichten empfangen",
       "denied": "Die Erlaubnis wurde nicht erteilt, also bekommt dieser Browser keine Push-Nachrichten.",
       "asking": "Der Browser wird gefragt…",
@@ -3784,7 +3784,7 @@
       "linked": "verknüpft {{date}}",
       "replies": "eine Antwort auf einen Alarm oder eine Aufgabe kommt ins Tagebuch",
       "notLinked": "nicht verknüpft",
-      "noBot": "diese Installation hat keinen Telegram-Bot",
+      "noBot": "auf diesem Server nicht verfügbar",
       "waiting": "den Link in Telegram öffnen, um die Verknüpfung abzuschließen",
       "open": "Telegram öffnen",
       "validUntil": "gültig bis {{time}}",
@@ -3861,7 +3861,7 @@
       "settling": "Wartung beendet, bis {{time}} wird nichts ausgelöst, solange das Klima zurückkommt",
       "resolved": "behoben {{time}} · dauerte {{age}}",
       "notAnnounced": "nicht gemeldet",
-      "unheard": "niemand hat zugehört · einrichten ›",
+      "unheard": "hat dich nicht erreicht · einrichten ›",
       "ruleNow": "die Regel sagt inzwischen {{severity}}"
     },
     "action": {
@@ -4433,7 +4433,7 @@
     },
     "silence": {
       "title": "1 Std stumm",
-      "text": "Diese eine Regel sagt eine Stunde lang niemandem Bescheid – keinem Mitglied, auf keinem Kanal, auch nicht per eigener E-Mail oder eigenem Webhook. Sie beobachtet weiter: Die Meldung erscheint trotzdem und steht im Tagebuch."
+      "text": "Diese eine Regel sagt eine Stunde lang niemandem Bescheid – keinem Mitglied, auf keinem Kanal, auch nicht per eigener E-Mail oder eigenem Webhook. Sie beobachtet weiter: Die Meldung erscheint trotzdem unter Meldungen."
     },
     "maintenance": {
       "title": "Wartung",
@@ -4461,11 +4461,11 @@
     },
     "alarmQuiet": {
       "title": "Stummschalten und Wartung",
-      "text": "Eine stummgeschaltete Regel beobachtet weiter: Die Meldung erscheint, steht im Tagebuch und markiert den Ort auf Start – sie sagt nur niemandem Bescheid. Der Wartungsmodus hält die Alarme selbst zurück: für seine 15 Minuten und 10 weitere, während das Klima zurückkommt."
+      "text": "Eine stummgeschaltete Regel beobachtet weiter: Die Meldung erscheint unter Meldungen und markiert den Ort auf Start – sie sagt nur niemandem Bescheid. Der Wartungsmodus hält die Alarme selbst zurück: für seine 15 Minuten und 10 weitere, während das Klima zurückkommt."
     },
     "severity": {
       "title": "Stufe",
-      "text": "Kritisch und Warnung gehen über die passenden Zeilen der Benachrichtigungseinstellungen jeder Person hinaus, und nur Kritisches kommt durch Ruhezeiten. Info wird darüber nicht gemeldet: Sie landet in den Meldungen und im Tagebuch."
+      "text": "Kritisch und Warnung gehen über die passenden Zeilen der Benachrichtigungseinstellungen jeder Person hinaus, und nur Kritisches kommt durch Ruhezeiten. Info wird darüber nicht gemeldet: Sie steht nur unter Meldungen."
     },
     "tellBy": {
       "title": "Sag mir Bescheid per",

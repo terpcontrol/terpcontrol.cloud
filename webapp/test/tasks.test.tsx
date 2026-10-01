@@ -534,7 +534,7 @@ describe('ticking one off', () => {
 describe('a reminder', () => {
   it('is posted with a rhythm and nothing else set', async () => {
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: '+ Reminder · every N days · once · chore' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Reminder' }));
     const sheet = screen.getByRole('dialog', { name: 'New reminder' });
 
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'What to do' }), { target: { value: 'Flush' } });
@@ -559,7 +559,7 @@ describe('a reminder', () => {
 
   it('is posted as a one-off, due from the start of the chosen day, with the can it opens on', async () => {
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: '+ Reminder · every N days · once · chore' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Reminder' }));
     const sheet = screen.getByRole('dialog', { name: 'New reminder' });
 
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'What to do' }), { target: { value: 'Water before the trip' } });
@@ -593,7 +593,7 @@ describe('a reminder', () => {
       }),
     );
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: '+ Reminder · every N days · once · chore' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Reminder' }));
     const sheet = screen.getByRole('dialog', { name: 'New reminder' });
 
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'What to do' }), { target: { value: 'Flush' } });
@@ -608,7 +608,7 @@ describe('a reminder', () => {
   // exists, so the screen never picks it: a label alone is not enough to save.
   it('is about nothing until a place is chosen, and says that the choice is final', async () => {
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: '+ Reminder · every N days · once · chore' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Reminder' }));
     const sheet = screen.getByRole('dialog', { name: 'New reminder' });
 
     expect(within(sheet).getByRole('button', { name: 'Spring run' })).toHaveAttribute('aria-pressed', 'false');
@@ -626,7 +626,7 @@ describe('a reminder', () => {
   // chips mixing them gives a reader no way to tell which is which.
   it('asks for a grow and for a place under headings of their own', async () => {
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: '+ Reminder · every N days · once · chore' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Reminder' }));
     const sheet = screen.getByRole('dialog', { name: 'New reminder' });
 
     expect(within(within(sheet).getByRole('group', { name: 'Grows' })).getByRole('button', { name: 'Spring run' })).toBeInTheDocument();
@@ -638,7 +638,7 @@ describe('a reminder', () => {
   it('says the server could not be reached when the request never got there', async () => {
     vi.mocked(api.post).mockRejectedValue(new TypeError('Failed to fetch'));
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: '+ Reminder · every N days · once · chore' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Reminder' }));
     const sheet = screen.getByRole('dialog', { name: 'New reminder' });
 
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'What to do' }), { target: { value: 'Flush' } });
@@ -779,7 +779,7 @@ describe('the sheet', () => {
     try {
       draw();
       await screen.findByRole('radiogroup', { name: 'Whose tasks' });
-      fireEvent.click(await screen.findByRole('button', { name: '+ Reminder · every N days · once · chore' }));
+      fireEvent.click(await screen.findByRole('button', { name: '+ Reminder' }));
 
       const field = within(screen.getByRole('dialog', { name: 'New reminder' })).getByRole('textbox', { name: 'What to do' });
       field.focus();

@@ -536,7 +536,7 @@
     "less": "− less",
     "savedLabel": "Saved",
     "about": {
-      "band": "band moves with the phase",
+      "band": "target band follows the phase",
       "leaf": "leaf {{offset}} °C",
       "leafHalves": "leaf {{day}} °C by day, {{night}} °C at night",
       "pair": "overlaid, two axes",
@@ -558,12 +558,12 @@
     "saveView": "Save view",
     "csv": "CSV",
     "csvOutput": "{{output}} (on/off)",
-    "csvNote": "CSV takes every line chosen above, including the ones a layout leaves off the panel: one row per {{step}}, plus one wherever an output switched or a reading was written down.",
+    "csvNote": "The CSV file holds every curve chosen above: one row per {{step}}, and another whenever an output switches or a reading is written down.",
     "exportOn": "The whole grow, pictures and diary included, is under Export on",
-    "note": "The nerd's room: any series, any range, saved views, export with the actuator state in every row. Two units on one panel only when they belong together.",
+    "note": "Put together any curves over any span, save views and export them as CSV.",
     "nothingPicked": "Nothing picked yet — tap a series above.",
-    "noGrow": "Nothing grows here yet, and a chart is drawn about a grow.",
-    "whichGrow": "A chart is drawn about a grow — pick the one to draw.",
+    "noGrow": "Charts show a grow – nothing grows here yet. This place’s readings are in the Timeline.",
+    "whichGrow": "Charts show a grow – pick which one.",
     "views": {
       "newTitle": "Save this view",
       "editTitle": "Saved view",
@@ -891,7 +891,7 @@
         "stable": "automatic – stable releases",
         "beta": "automatic – test releases too (beta)",
         "alpha": "automatic – early test releases (alpha)",
-        "manual": "by hand – new firmware does not arrive by itself"
+        "manual": "no automatic updates"
       },
       "offlineNote": "Restart and maintenance work again once the device is connected.",
       "technical": "Technical details"
@@ -974,7 +974,7 @@
       "save": "Save the name",
       "saving": "Saving…",
       "place": "Stands in",
-      "placeNote": "Moving it takes what it measures to the other place from now on, and the camera it answers for with it. The lines it has already written stay where they were written.",
+      "placeNote": "From now on this device's readings and camera count for the new place. What it measured so far stays with the old one.",
       "noPlaces": "There is no other place you steer to move it to."
     },
     "unnamed": "{{type}} · {{tag}}",
@@ -2321,7 +2321,7 @@
         "noController": "Nothing in {{place}} steers a climate, so the stage is recorded and nothing is written to anything.",
         "hardwareUnknown": "What stands in {{place}} is not known, so no climate is written there; the stages are recorded all the same.",
         "nowhere": "No place, so nothing is steered; the stages are recorded all the same.",
-        "auto": "From here the place's preset moves the grow on, and a phase written that way carries an “auto” tag.",
+        "auto": "If this place's climate is later put on a preset, the grow moves into its phase with it; such phases are marked “auto”.",
         "autoflower": "Autoflower: the presets keep 18–20 h of light, and the scheme runs at half strength.",
         "autoflowerAlone": "Autoflower: the presets keep 18–20 h of light instead of flipping to 12/12."
       },
@@ -2751,12 +2751,12 @@
       "oneModel": "Share one place, or the room it belongs to. Room members see every place in the room; members of this place see just this one.",
       "demo": "The demo looks at somebody else's place and owns nothing, so there is nobody to let in and nobody to let go.",
       "invite": "Invite",
-      "noLink": "No link out",
+      "noLink": "No invitation link yet",
       "makeLink": "Make a link",
       "copyLink": "Copy the invite link",
       "revoke": "Revoke",
       "handleLabel": "A username you already grow with",
-      "handlePlaceholder": "or a username you already grow with · @",
+      "handlePlaceholder": "or the @name of an account",
       "add": "Add",
       "peopleIn": "People in {{name}}",
       "viaTheRoom_one": "{{count}} via the room",
@@ -2923,9 +2923,9 @@
   "log": {
     "title": "Log",
     "close": "Close",
-    "longPress": "long-press a tile for details",
+    "longPress": "hold or right-click a tile for details",
     "targetLabel": "What the line is about",
-    "oneTap": "One tap logs it now with sensible defaults, Undo for 5 s, details optional. Photo opens the photo entry, and maintenance asks first because it pauses the control.",
+    "oneTap": "One tap logs it right away, with 5 seconds to undo. Maintenance asks first, because it pauses the control.",
     "nowhere": "Nothing to log against yet · start a grow or add a device first",
     "notHere": "The grow or place this link names is not on your home · it may have finished, or it may not be yours to write in · pick where the line should go",
     "litres": "{{litres}} L",
@@ -2946,13 +2946,13 @@
     "visit": {
       "hereFallback": "this place",
       "reading": "Reading what stands in {{name}} …",
-      "parks_one": "Saving this puts the device standing in {{name}} into maintenance mode for {{minutes}} minutes. What it stops driving meanwhile is beside its name.",
+      "parks_one": "“Start maintenance” pauses the control of the device in {{name}} for {{minutes}} minutes. What goes off meanwhile is beside its name.",
       "parksOutputs": "stops {{outputs}}",
       "parksNothing": "stops nothing: this hardware takes no maintenance command",
-      "parks_other": "Saving this puts all {{count}} devices standing in {{name}} into maintenance mode for {{minutes}} minutes. What each one stops driving meanwhile is beside its name.",
+      "parks_other": "“Start maintenance” pauses the control of all {{count}} devices in {{name}} for {{minutes}} minutes. What goes off meanwhile is beside each name.",
       "nothingThere": "Nothing stands in {{name}}, so this is a line in the diary and nothing else.",
       "unreadable": "What stands in {{name}} could not be read, so nothing can be named here. Every device there is put into maintenance mode for {{minutes}} minutes all the same.",
-      "notUndone": "The line can be taken back afterwards. The quiet cannot: the hardware picks up where it left off after {{minutes}} minutes, and no alarm is raised on it for {{quiet}} minutes in all — the last {{settle}} are the climate coming back.",
+      "notUndone": "The diary line can be taken back, the maintenance cannot: after {{minutes}} minutes the devices regulate again, and alarms stay quiet for {{quiet}} minutes in all – the last {{settle}} while the climate recovers.",
       "save_one": "Start maintenance · {{count}} device",
       "save_other": "Start maintenance · {{count}} devices"
     },
@@ -3523,7 +3523,7 @@
       "tellBy": "Tell me by",
       "by": {
         "routing": "my notification settings",
-        "email": "an e-mail to",
+        "email": "an e-mail address of its own",
         "webhook": "a webhook"
       },
       "routingNote": "Goes out by {{channels}}.",
@@ -3639,8 +3639,8 @@
       "yesterday": "yesterday"
     },
     "edit": "Edit",
-    "add": "+ Reminder · every N days · once · chore",
-    "sources": "Sources: your reminders – watering, feeding, chores and your own – and grow-plan steps waiting to be confirmed. A task done here writes the diary entry with the same defaults as the Log sheet.",
+    "add": "+ Reminder",
+    "sources": "Your reminders and the grow-plan steps waiting for you. What you tick off here is written to the diary too.",
     "sheet": {
       "newTitle": "New reminder",
       "editTitle": "Reminder",
@@ -3770,7 +3770,7 @@
     "push": {
       "thisBrowser": "this browser",
       "notSubscribed": "this browser is not subscribed",
-      "noKey": "this install has no push key",
+      "noKey": "not available on this server",
       "unsupported": "this browser cannot receive push",
       "denied": "Permission was not given, so nothing can be pushed to this browser.",
       "asking": "Asking the browser…",
@@ -3780,7 +3780,7 @@
       "linked": "linked {{date}}",
       "replies": "a reply to an alarm or a task goes into the diary",
       "notLinked": "not linked",
-      "noBot": "this install has no Telegram bot",
+      "noBot": "not available on this server",
       "waiting": "open the link in Telegram to finish linking",
       "open": "Open Telegram",
       "validUntil": "valid until {{time}}",
@@ -3857,7 +3857,7 @@
       "settling": "device out of maintenance, nothing raised until {{time}} while the climate comes back",
       "resolved": "resolved {{time}} · lasted {{age}}",
       "notAnnounced": "not announced",
-      "unheard": "nobody was listening · set up ›",
+      "unheard": "did not reach you · set up ›",
       "ruleNow": "the rule now says {{severity}}"
     },
     "action": {
@@ -4429,7 +4429,7 @@
     },
     "silence": {
       "title": "Silence 1 h",
-      "text": "Stops this one rule telling anybody for an hour – every member, every channel, its own e-mail or webhook too. The rule keeps watching: the alert still opens and is written to the diary."
+      "text": "Stops this one rule telling anybody for an hour – every member, every channel, its own e-mail or webhook too. The rule keeps watching: the alert still shows under Alerts."
     },
     "maintenance": {
       "title": "Maintenance",
@@ -4457,11 +4457,11 @@
     },
     "alarmQuiet": {
       "title": "Muting and maintenance",
-      "text": "A muted rule keeps watching: the alert still opens, is written in the diary and marks the place on Home – it only tells nobody. Maintenance mode holds the alarms themselves back: for its 15 minutes and 10 more, while the climate comes back."
+      "text": "A muted rule keeps watching: the alert still shows under Alerts and marks the place on Home – it only tells nobody. Maintenance mode holds the alarms themselves back: for its 15 minutes and 10 more, while the climate comes back."
     },
     "severity": {
       "title": "Severity",
-      "text": "Critical and warning go out on the matching rows of each person's notification settings, and only critical comes through quiet hours. Info is not announced there: it goes to the alerts and the diary."
+      "text": "Critical and warning go out on the matching rows of each person's notification settings, and only critical comes through quiet hours. Info is not announced there: it only shows under Alerts."
     },
     "tellBy": {
       "title": "Tell me by",

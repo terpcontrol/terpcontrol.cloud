@@ -1101,7 +1101,7 @@ describe('the device panel', () => {
 
     expect(screen.getByRole('button', { name: 'What Fridge module is' })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('connected')).toBeInTheDocument();
-    expect(screen.getByText('by hand – new firmware does not arrive by itself')).toBeInTheDocument();
+    expect(screen.getByText('no automatic updates')).toBeInTheDocument();
     expect(await screen.findByText('version not known')).toBeInTheDocument();
   });
 
