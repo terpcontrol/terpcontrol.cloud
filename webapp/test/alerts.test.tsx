@@ -1034,6 +1034,15 @@ describe('the way to the tasks', () => {
     expect(door).toHaveTextContent('1 task due');
   });
 
+  it('counts what is due on the bell, in blue, where no alarm is open', async () => {
+    server.me = { ...me, layers: { diary: true } } as Me;
+    server.tasks = [task('t1', NOW.minus({ hours: 2 })), task('t2', NOW.plus({ days: 3 }))];
+    draw(<TopBar />);
+
+    const link = await screen.findByRole('link', { name: 'Alerts · 1 task due' });
+    expect(within(link).getByText('1')).toHaveAttribute('data-kind', 'tasks');
+  });
+
   it('says nothing is due rather than nothing at all', async () => {
     server.me = { ...me, layers: { diary: true } } as Me;
     draw();

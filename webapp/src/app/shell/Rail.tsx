@@ -2,8 +2,8 @@ import { Bell } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink } from 'react-router';
-import { bellOf, useOpenAlertCount } from '@/api/alerts';
 import { useSession } from '@/api/session';
+import { useBell } from './bell';
 import { useLog } from '@/log/log-context';
 import { useOpeningUnderneath } from '@/log/underneath';
 import { Logo } from '@/ui/Logo';
@@ -30,7 +30,7 @@ export function Rail() {
   const { user } = useSession();
   const { openSheet } = useLog();
   const underneath = useOpeningUnderneath();
-  const bell = bellOf(useOpenAlertCount());
+  const bell = useBell();
   const all = useTabs();
   const isOn = useIsOn();
 
@@ -99,7 +99,11 @@ export function Rail() {
         <NavLink to="/alerts" className={itemClass} aria-label={bell ? t(bell.key, { count: bell.count }) : t('shell.alerts')}>
           <Bell size={18} strokeWidth={1.75} aria-hidden />
           <span>{t('shell.alerts')}</span>
-          {bell ? <span className={`mono ${styles.badge}`}>{bell.text}</span> : null}
+          {bell ? (
+            <span className={`mono ${styles.badge}`} data-kind={bell.kind}>
+              {bell.text}
+            </span>
+          ) : null}
         </NavLink>
 
         <NavLink to="/me" className={itemClass}>

@@ -86,3 +86,9 @@
     display: none;
   }
 }
+
+/* Only work that is due, no alarm: counted all the same, in the brand's blue rather than the alarm's red. */
+.badge[data-kind='tasks'] {
+  background: var(--brand);
+  color: var(--card);
+}

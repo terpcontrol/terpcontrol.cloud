@@ -1626,7 +1626,8 @@
       "overdue_one": "{{count}} day overdue",
       "overdue_other": "{{count}} days overdue",
       "following": "Following",
-      "inDays": "in {{count}} d"
+      "inDays": "in {{count}} d",
+      "dueSince": "due since {{time}}"
     }
   },
   "me": {
@@ -3916,7 +3917,9 @@
       "later_one": "nothing due · 1 planned",
       "later_other": "nothing due · {{count}} planned",
       "none": "nothing planned"
-    }
+    },
+    "bellTasks_one": "Alerts · {{count}} task due",
+    "bellTasks_other": "Alerts · {{count}} tasks due"
   },
   "claim": {
     "title": "Add a device · {{step}} of {{of}}",

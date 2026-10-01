@@ -1,5 +1,5 @@
 import { ChevronRight, Circle, Leaf } from 'lucide-react';
-import type { DateTime } from 'luxon';
+import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -10,7 +10,7 @@ import { ageLabel } from '@/ui/age';
 import { authorOf, headlineOf } from '@/ui/entries';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
-import { useZone } from '@/ui/zone';
+import { clock, useZone } from '@/ui/zone';
 import { MoveHereSheet } from '../space/MoveHereSheet';
 import { daysUntil } from '../tasks/tasks';
 import styles from './Cockpit.module.css';
@@ -139,10 +139,15 @@ function DueRow({ task, overview, now }: { task: OverviewTask; overview: SpaceOv
   );
 }
 
-/** "today", "tomorrow", "in 3 d", or how overdue, counted on the account's calendar as the Tasks tab counts. */
+/**
+ * "today", "tomorrow", "in 3 d", or how overdue, counted on the account's
+ * calendar as the Tasks tab counts. A task due today whose hour has passed
+ * says since when, rather than "today" an hour after it fell due.
+ */
 const dueLabel = (t: Translate, dueAt: string, now: DateTime, zone: string | null): string => {
   const days = daysUntil(dueAt, now, zone);
   if (days < 0) return t('home.strip.overdue', { count: -days });
+  if (days === 0 && DateTime.fromISO(dueAt) < now) return t('home.strip.dueSince', { time: clock(dueAt, zone) });
   if (days === 0) return t('home.strip.today');
   if (days === 1) return t('home.strip.tomorrow');
   return t('home.strip.inDays', { count: days });

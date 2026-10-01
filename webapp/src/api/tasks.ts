@@ -23,9 +23,10 @@ const LIMIT = 100;
 export const tasksKey = (done: boolean) => ['tasks', done ? 'done' : 'waiting'];
 
 /** What is waiting, the most overdue first - or, with `done`, what was ticked off in the last two days. */
-export const useTasks = (done: boolean) =>
+export const useTasks = (done: boolean, enabled = true) =>
   useRead({
     queryKey: tasksKey(done),
     queryFn: ({ signal }) => api.get<TaskPage>('/tasks', { done, limit: LIMIT }, signal),
     refetchInterval: TASKS_REFRESH_MS,
+    enabled,
   });

@@ -1630,7 +1630,8 @@
       "overdue_one": "{{count}} Tag überfällig",
       "overdue_other": "{{count}} T überfällig",
       "following": "Folge ich",
-      "inDays": "in {{count}} T"
+      "inDays": "in {{count}} T",
+      "dueSince": "seit {{time}} fällig"
     }
   },
   "me": {
@@ -3920,7 +3921,9 @@
       "later_one": "nichts fällig · 1 geplant",
       "later_other": "nichts fällig · {{count}} geplant",
       "none": "nichts geplant"
-    }
+    },
+    "bellTasks_one": "Meldungen · {{count}} Aufgabe fällig",
+    "bellTasks_other": "Meldungen · {{count}} Aufgaben fällig"
   },
   "claim": {
     "title": "Gerät hinzufügen · {{step}} von {{of}}",

@@ -1,8 +1,8 @@
 import { Bell } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { bellOf, useOpenAlertCount } from '@/api/alerts';
 import { useSession } from '@/api/session';
+import { useBell } from './bell';
 import { ageLabel } from '@/ui/age';
 import { useFreshness } from '@/ui/freshness';
 import { Logo } from '@/ui/Logo';
@@ -31,7 +31,7 @@ export function Freshness({ className }: { className?: string }) {
 export function TopBar() {
   const { t } = useTranslation();
   const { user } = useSession();
-  const bell = bellOf(useOpenAlertCount());
+  const bell = useBell();
 
   return (
     <header className={styles.bar} data-print="omit">
@@ -43,7 +43,11 @@ export function TopBar() {
       </div>
       <Link to="/alerts" className={styles.action} aria-label={bell ? t(bell.key, { count: bell.count }) : t('shell.alerts')}>
         <Bell size={20} strokeWidth={1.75} aria-hidden />
-        {bell ? <span className={`mono ${styles.badge}`}>{bell.text}</span> : null}
+        {bell ? (
+          <span className={`mono ${styles.badge}`} data-kind={bell.kind}>
+            {bell.text}
+          </span>
+        ) : null}
       </Link>
       <Link to="/me" className={styles.avatar} aria-label={t('shell.account')}>
         <span className="mono">{initials(user?.handle ?? '?')}</span>
