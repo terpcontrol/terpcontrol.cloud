@@ -6,6 +6,7 @@ import { useCorrecting } from '@/log/corrections';
 import { EntryRow } from '@/ui/EntryRow';
 import { KIND_ICON, readingNamesOf } from '@/ui/entries';
 import { useZone } from '@/ui/zone';
+import type { OutputName } from './Timeline';
 import { at, fractionOf, stampOf, stopOf } from './window';
 import styles from './Timeline.module.css';
 
@@ -32,6 +33,8 @@ interface LanesProps {
   events?: boolean;
   /** The output the Timeline was opened on, whose lane is marked. */
   focus?: string | null;
+  /** What each lane is called, which for a fridge's compressor is not its output's name. */
+  nameOf: OutputName;
 }
 
 /**
@@ -40,7 +43,7 @@ interface LanesProps {
  * that a line exists there, and tapping it puts the line under the rail and the
  * cursor on its moment - which is the whole reason the two are drawn together.
  */
-export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onScrub, scrub, events = true, focus = null }: LanesProps) {
+export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onScrub, scrub, events = true, focus = null, nameOf }: LanesProps) {
   const { t } = useTranslation();
   // A mark tapped open is the one place the rail draws what somebody wrote, so
   // it is also where they can put right what they wrote. The place that decides
@@ -72,7 +75,7 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
     <section className={styles.lanes}>
       {timeline.outputs.map((lane, index) => (
         <div key={`${lane.deviceId ?? index}-${lane.output}`} className={styles.lane} data-focus={lane.output === focus || undefined}>
-          <span className={`caption ${styles.laneName}`}>{t(`timeline.output.${lane.output}`, { defaultValue: lane.output })}</span>
+          <span className={`caption ${styles.laneName}`}>{nameOf(lane)}</span>
           <div className={styles.track} {...scrub}>
             {lane.spans.map(span => (
               <span

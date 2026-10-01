@@ -14,7 +14,7 @@ import { Timeline } from '@/screens/timeline/Timeline';
 import { figure, targetFigure } from '@/screens/home/units';
 import { scaleOf, stretchesOf } from '@/screens/timeline/window';
 
-const state = vi.hoisted(() => ({ answer: null as SpaceTimeline | null }));
+const state = vi.hoisted(() => ({ answer: null as SpaceTimeline | null, devices: [] as { id: string; type: string }[] }));
 
 // The one read the screen is made of, and the grow the subject line names.
 vi.mock('@/api/timeline', async importOriginal => ({
@@ -23,6 +23,12 @@ vi.mock('@/api/timeline', async importOriginal => ({
 }));
 
 vi.mock('@/api/grows', () => ({ useGrow: () => ({ data: { id: 'grow-1', name: 'Spring run' } }) }));
+
+// The account's devices, which say whether a lane's dehumidifier is a fridge's compressor.
+vi.mock('@/api/devices', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useDevices: () => ({ data: { items: state.devices } }),
+}));
 
 // A chart is a canvas, which jsdom has not got. What it draws is checked by the
 // unit tests below; what the screen does with the cursor is checked around it.
@@ -174,6 +180,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   state.answer = answer;
+  state.devices = [];
 });
 
 describe('the timeline', () => {
@@ -306,6 +313,32 @@ describe('the timeline', () => {
     expect(header()).toHaveTextContent(/Light on/);
     scrubTo(3);
     expect(header()).toHaveTextContent(/everything off/);
+  });
+
+  /**
+   * A fridge module cools and dries with one compressor, on the output the
+   * firmware calls the dehumidifier. The cockpit's tiles call it the
+   * compressor, and a tap from one lands here, so the lane and the header do
+   * too - and a tent's dehumidifier stays a dehumidifier.
+   */
+  it('calls a fridge´s dehumidifier output its compressor, in the lane and in the header', () => {
+    const dehumidifier = { output: 'dehumidifier' as const, spans: [{ startsAt: at(0), endsAt: at(24) }], heardUntil: at(24) };
+    state.answer = {
+      ...answer,
+      outputs: [
+        { ...dehumidifier, deviceId: 'fridge-1' },
+        { ...dehumidifier, deviceId: 'tent-1' },
+      ],
+    };
+    state.devices = [
+      { id: 'fridge-1', type: 'fridge' },
+      { id: 'tent-1', type: 'controller' },
+    ];
+    draw();
+
+    expect(screen.getByText('Compressor')).toBeInTheDocument();
+    expect(screen.getByText('Dehumidifier')).toBeInTheDocument();
+    expect(header()).toHaveTextContent('Compressor on · Dehumidifier on');
   });
 
   /** The other way round: a device still reporting whose outputs have all been off for hours has been heard, and "off" is the truth about it. */

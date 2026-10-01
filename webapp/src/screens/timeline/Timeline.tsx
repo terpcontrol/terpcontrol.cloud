@@ -2,8 +2,9 @@ import { ChevronDown, LineChart } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
-import type { SpaceTimeline, TimelineRange } from '@fg2/shared-types/v1';
+import type { SpaceTimeline, TimelineOutputLane, TimelineRange } from '@fg2/shared-types/v1';
 import { fetchedAt } from '@/api/clock';
+import { useDevices } from '@/api/devices';
 import { useGrow } from '@/api/grows';
 import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -59,6 +60,7 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
 
   const timeline = useTimeline(spaceId, range, pinned);
   const data = timeline.data;
+  const nameOf = useOutputName();
 
   // Once per focus, when what it names has been drawn: scrolling again on every refresh would take the page from under a thumb.
   useEffect(() => {
@@ -201,7 +203,7 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
         </div>
       )}
 
-      <ScrubHeader timeline={data} cursor={here} resting={cursor === null && lastReading !== null} />
+      <ScrubHeader timeline={data} cursor={here} resting={cursor === null && lastReading !== null} nameOf={nameOf} />
 
       {recordingSince !== null ? (
         <p className={`mono ${styles.recording}`} role="note">
@@ -246,10 +248,32 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
         scrub={scrub}
         events={data.events.length > 0}
         focus={focus}
+        nameOf={nameOf}
       />
     </div>
   );
 }
+
+/** What an output lane is called. */
+export type OutputName = (lane: Pick<TimelineOutputLane, 'output' | 'deviceId'>) => string;
+
+/**
+ * The catalogue's name for each output, except that a fridge module's
+ * dehumidifier output is its compressor, which cools and dries at once: the
+ * name the cockpit's tiles give it, so a tap on "Kompressor läuft seit 12 Min"
+ * lands on a lane of the same name rather than on an "Entfeuchter" the cabinet
+ * does not have. The device list is the one every tab already holds.
+ */
+const useOutputName = (): OutputName => {
+  const { t } = useTranslation();
+  const devices = useDevices();
+  const fridges = new Set((devices.data?.items ?? []).filter(device => device.type === 'fridge').map(device => device.id));
+
+  return lane => {
+    const word = lane.output === 'dehumidifier' && lane.deviceId !== null && fridges.has(lane.deviceId) ? 'compressor' : lane.output;
+    return t(`timeline.output.${word}`, { defaultValue: lane.output });
+  };
+};
 
 /**
  * What was true at the cursor, written into a header that stays where it is.
@@ -257,7 +281,7 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
  * thumb is over it - so the reading is pinned above the panels instead, and
  * sticks to the top of the screen while the stack is scrolled.
  */
-function ScrubHeader({ timeline, cursor, resting }: { timeline: SpaceTimeline; cursor: number; resting: boolean }) {
+function ScrubHeader({ timeline, cursor, resting, nameOf }: { timeline: SpaceTimeline; cursor: number; resting: boolean; nameOf: OutputName }) {
   const { t } = useTranslation();
   const zone = useZone();
   /**
@@ -295,9 +319,7 @@ function ScrubHeader({ timeline, cursor, resting }: { timeline: SpaceTimeline; c
       {/* A place with no outputs says nothing here rather than "everything off", which would be a claim about hardware it has not got - and neither does one whose outputs nobody has heard from at the cursor. */}
       {heard.length === 0 ? null : (
         <span className={styles.scrubOutputs}>
-          {running.length === 0
-            ? t('timeline.allOff')
-            : running.map(lane => t('timeline.outputOn', { output: t(`timeline.output.${lane.output}`, { defaultValue: lane.output }) })).join(' · ')}
+          {running.length === 0 ? t('timeline.allOff') : running.map(lane => t('timeline.outputOn', { output: nameOf(lane) })).join(' · ')}
         </span>
       )}
     </p>

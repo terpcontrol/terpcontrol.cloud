@@ -3053,6 +3053,7 @@
     "output": {
       "heater": "Heater",
       "dehumidifier": "Dehumidifier",
+      "compressor": "Compressor",
       "co2": "CO₂",
       "light": "Light",
       "fan": "Fan",

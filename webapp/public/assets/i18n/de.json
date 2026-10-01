@@ -3057,6 +3057,7 @@
     "output": {
       "heater": "Heizung",
       "dehumidifier": "Entfeuchter",
+      "compressor": "Kompressor",
       "co2": "CO₂",
       "light": "Licht",
       "fan": "Lüfter",
