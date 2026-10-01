@@ -535,6 +535,15 @@
   box-shadow: var(--shadow);
 }
 
+/* Beside the rail the left column is twice a phone's width, and the picture
+   filled it: half a screen of a dark tent at night, with Wartung pushed under
+   its edge. It is a glance at the tent, so it keeps a glance's size there. */
+@media (min-width: 900px) {
+  .camera {
+    max-width: 520px;
+  }
+}
+
 .camera img {
   display: block;
   width: 100%;

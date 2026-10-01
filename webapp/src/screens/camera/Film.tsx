@@ -64,7 +64,9 @@ export function Film({ mediaId, collapsed, mayOwn = false }: { mediaId: string; 
 
       {status === 'failed' ? (
         <>
-          <p className={ui.problem} role="alert">
+          {/* A failure in the list is history - the reason it was not made then -
+              and is told quietly; only the film just asked for speaks up. */}
+          <p className={collapsed ? ui.note : ui.problem} role={collapsed ? undefined : 'alert'}>
             {film.render?.error ? t(filmCauseOf(film.render.error)) : t('camera.film.failedPlain')}
           </p>
           {mayOwn && film.render?.error ? (

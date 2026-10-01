@@ -3095,7 +3095,7 @@
     "needsPremium": "HD and a film of a whole grow are part of Premium.",
     "seePremium": "What Premium covers",
     "reduced": "served {{width}} px wide",
-    "makeOne": "Make a timelapse … (range, overlays, 9:16 reel)",
+    "makeOne": "Put together your own timelapse",
     "askFailed": "That film was not asked for.",
     "testImage": "Test image",
     "testing": "Reading…",
@@ -3104,7 +3104,7 @@
     "testNoAnswer": "No answer after two minutes. If the camera still sends the picture, it appears here.",
     "thisCamera": "This camera",
     "connectedVia": "Connected via",
-    "reachedAt": "Reached at",
+    "reachedAt": "Camera ID",
     "tunnelled": "through the tunnel",
     "addressNote": "The password the stream is opened with stays with the server and is never sent back here.",
     "name": "Name",
@@ -3128,7 +3128,7 @@
     "unpairNote": "Unpairing stops this camera being read. Every picture and film it has delivered keeps its link to it.",
     "entitlement": {
       "none": "not entitled",
-      "ungated": "everything included on this install",
+      "ungated": "everything included",
       "included": "included until {{date}}",
       "migration": "carried over until {{date}}",
       "purchase": "until {{date}}",
@@ -3136,26 +3136,34 @@
       "freeLine": "Without Premium, {{missing}}."
     },
     "film": {
-      "queued": "queued",
-      "rendering": "rendering…",
+      "queued": "waiting",
+      "rendering": "being made…",
       "ready": "ready",
-      "failed": "failed",
-      "failedPlain": "The render failed and gave no reason.",
+      "failed": "not made",
+      "failedPlain": "The film could not be made.",
       "lost": "That film could not be read.",
       "open": "Open the film",
-      "queuedNote": "Waiting for the builder, which takes the queue on its next pass. This page follows it; nothing is lost by leaving.",
-      "whatItSaid": "What the render said",
+      "queuedNote": "Waiting its turn. You can leave the page – the film appears here when it is done.",
+      "whatItSaid": "Technical message",
       "failure": {
         "allDark": "Every picture in that span was taken with the light off. A film that keeps them is one to ask for with “Lights-off frames”.",
-        "tooFew": "There are not enough pictures in that span to make a film.",
+        "tooFew": "When it was to be made, there were not yet enough pictures in that span for a film.",
         "cameraGone": "The camera this film was asked of is no longer there.",
-        "encodeFailed": "The pictures in that span could not be made into a film.",
-        "unknown": "The render failed."
+        "encodeFailed": "No film could be made from the pictures of that span.",
+        "unknown": "The film could not be made."
       }
     },
     "noFilms": "No film of this camera yet.",
     "moreFilms": "More films",
-    "youMayLog": "You can see what this camera sees. Its settings, its test image and its timelapses are for whoever steers the place it stands in."
+    "youMayLog": "You can see what this camera sees. Its settings, its test image and its timelapses are for whoever steers the place it stands in.",
+    "liveAge": "live · {{age}}",
+    "quick": {
+      "day": "Film of today",
+      "week": "Film of the week",
+      "phase": "Film of the phase",
+      "grow": "Film of the grow"
+    },
+    "quickNote": "A tap makes the timelapse; it appears in the list below after a few minutes."
   },
   "cameras": {
     "add": {

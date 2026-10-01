@@ -3099,7 +3099,7 @@
     "needsPremium": "HD und der Film eines ganzen Grows gehören zu Premium.",
     "seePremium": "Was Premium umfasst",
     "reduced": "{{width}} px breit ausgeliefert",
-    "makeOne": "Zeitraffer bauen … (Zeitraum, Overlays, 9:16-Reel)",
+    "makeOne": "Eigenen Zeitraffer zusammenstellen",
     "askFailed": "Dieser Film wurde nicht angefordert.",
     "testImage": "Testbild",
     "testing": "Wird gelesen…",
@@ -3108,7 +3108,7 @@
     "testNoAnswer": "Nach zwei Minuten keine Antwort. Schickt die Kamera das Bild doch noch, erscheint es hier.",
     "thisCamera": "Diese Kamera",
     "connectedVia": "Verbunden über",
-    "reachedAt": "Erreichbar unter",
+    "reachedAt": "Kamera-ID",
     "tunnelled": "über den Tunnel",
     "addressNote": "Das Passwort, mit dem der Stream geöffnet wird, bleibt auf dem Server und wird nie zurückgeschickt.",
     "name": "Name",
@@ -3132,7 +3132,7 @@
     "unpairNote": "Nach dem Entkoppeln wird diese Kamera nicht mehr gelesen. Jedes Bild und jeder Film, den sie geliefert hat, behält seine Verbindung zu ihr.",
     "entitlement": {
       "none": "nicht freigeschaltet",
-      "ungated": "auf dieser Installation alles enthalten",
+      "ungated": "alles enthalten",
       "included": "enthalten bis {{date}}",
       "migration": "übernommen bis {{date}}",
       "purchase": "bis {{date}}",
@@ -3140,26 +3140,34 @@
       "freeLine": "Ohne Premium gilt: {{missing}}."
     },
     "film": {
-      "queued": "in der Warteschlange",
-      "rendering": "wird gerendert…",
+      "queued": "wartet",
+      "rendering": "wird erstellt…",
       "ready": "fertig",
-      "failed": "fehlgeschlagen",
-      "failedPlain": "Das Rendern ist ohne Angabe eines Grundes fehlgeschlagen.",
+      "failed": "nicht erstellt",
+      "failedPlain": "Der Film ließ sich nicht erstellen.",
       "lost": "Dieser Film ließ sich nicht lesen.",
       "open": "Film öffnen",
-      "queuedNote": "Wartet auf den Builder, der die Warteschlange beim nächsten Durchlauf abarbeitet. Diese Seite verfolgt das; beim Weggehen geht nichts verloren.",
-      "whatItSaid": "Was das Rendern gemeldet hat",
+      "queuedNote": "Wartet, bis er an der Reihe ist. Du kannst die Seite verlassen – der Film erscheint dann hier.",
+      "whatItSaid": "Technische Meldung",
       "failure": {
         "allDark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film mit diesen Bildern gibt es über „Bilder aus der Dunkelphase“.",
-        "tooFew": "In diesem Zeitraum gibt es nicht genug Bilder für einen Film.",
+        "tooFew": "Als er erstellt werden sollte, gab es in diesem Zeitraum noch nicht genug Bilder für einen Film.",
         "cameraGone": "Die Kamera, von der dieser Film angefordert wurde, gibt es nicht mehr.",
-        "encodeFailed": "Aus den Bildern dieses Zeitraums ließ sich kein Film bauen.",
-        "unknown": "Das Rendern ist fehlgeschlagen."
+        "encodeFailed": "Aus den Bildern dieses Zeitraums ließ sich kein Film erstellen.",
+        "unknown": "Der Film ließ sich nicht erstellen."
       }
     },
     "noFilms": "Von dieser Kamera gibt es noch keinen Film.",
     "moreFilms": "Weitere Filme",
-    "youMayLog": "Du siehst, was diese Kamera sieht. Einstellungen, Testbild und Zeitraffer sind Sache derer, die den Ort steuern, an dem sie steht."
+    "youMayLog": "Du siehst, was diese Kamera sieht. Einstellungen, Testbild und Zeitraffer sind Sache derer, die den Ort steuern, an dem sie steht.",
+    "liveAge": "live · {{age}}",
+    "quick": {
+      "day": "Film von heute",
+      "week": "Film der Woche",
+      "phase": "Film der Phase",
+      "grow": "Film des Grows"
+    },
+    "quickNote": "Ein Tipp erstellt den Zeitraffer; nach ein paar Minuten steht er unten in der Liste."
   },
   "cameras": {
     "add": {

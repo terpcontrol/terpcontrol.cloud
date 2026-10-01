@@ -341,7 +341,7 @@ describe('the camera page, by who is reading', () => {
     drawPage();
 
     expect(screen.getByRole('button', { name: 'Test image' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Make a timelapse/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Put together your own timelapse/ })).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Unpair' })).toBeInTheDocument();
     expect(screen.getByText(/192\.168\.1\.40/)).toBeInTheDocument();
@@ -357,16 +357,16 @@ describe('the camera page, by who is reading', () => {
     state.diary = false;
     const { unmount } = drawPage();
 
-    expect(screen.getByRole('button', { name: /^Today/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Week/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Phase/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Whole grow/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Film of today/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Film of the week/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Film of the phase/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Film of the grow/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Nothing grows here/)).not.toBeInTheDocument();
     unmount();
 
     state.diary = true;
     drawPage();
-    expect(screen.getByRole('button', { name: /^Phase/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Film of the phase/ })).toBeDisabled();
     expect(screen.getByText(/Nothing grows here/)).toBeInTheDocument();
   });
 
@@ -376,7 +376,7 @@ describe('the camera page, by who is reading', () => {
     drawPage();
 
     expect(screen.queryByRole('button', { name: 'Test image' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Make a timelapse/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Put together your own timelapse/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Name' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Unpair' })).not.toBeInTheDocument();
     expect(screen.queryByText(/192\.168\.1\.40/)).not.toBeInTheDocument();
@@ -656,7 +656,7 @@ describe('the films and the pictures behind the first page', () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByRole('button', { name: /Today/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Film of today/ })).toBeDisabled();
     expect(dark.container.textContent).toContain('No picture today, so there is nothing to film yet.');
     dark.unmount();
 
@@ -670,7 +670,7 @@ describe('the films and the pictures behind the first page', () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByRole('button', { name: /Today/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Film of today/ })).toBeEnabled();
   });
 
   /**
@@ -684,7 +684,7 @@ describe('the films and the pictures behind the first page', () => {
   it('asks for a week the server has already finished rather than the one that opened today', () => {
     drawPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /Week/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Film of the week/ }));
 
     expect(state.asked).toHaveLength(1);
     expect(state.asked[0].window).toBe('week');
@@ -711,12 +711,12 @@ describe('the films and the pictures behind the first page', () => {
       );
 
     const recent = drawDarkFor(5);
-    expect(screen.getByRole('button', { name: /Today/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Week/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Film of today/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Film of the week/ })).toBeEnabled();
     recent.unmount();
 
     const gone = drawDarkFor(20);
-    expect(screen.getByRole('button', { name: /Week/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Film of the week/ })).toBeDisabled();
     expect(gone.container.textContent).toContain('The camera took no picture in the week this would film.');
   });
 
@@ -988,7 +988,7 @@ describe('the job it starts', () => {
     state.film = film('rendering');
     const { container } = render(<Film mediaId="media-1" />);
 
-    expect(screen.getByText(/rendering/)).toBeInTheDocument();
+    expect(screen.getByText(/being made/)).toBeInTheDocument();
     expect(container.querySelector('video')).toBeNull();
   });
 
@@ -1042,15 +1042,24 @@ describe('the job it starts', () => {
     const { container } = render(<Film mediaId="media-1" mayOwn />);
 
     expect(screen.getByRole('alert')).toHaveTextContent('Every picture in that span was taken with the light off');
-    expect(screen.getByRole('group')).toHaveTextContent('What the render said');
+    expect(screen.getByRole('group')).toHaveTextContent('Technical message');
     expect(container.textContent).toContain('every picture in that span was taken with the light off');
+  });
+
+  it('tells a failure in the list quietly, as the history it is, rather than as an alarm over a day full of pictures', () => {
+    state.film = film('failed', { error: 'there are not enough pictures in that span to make a film' });
+    render(<Film mediaId="media-1" collapsed />);
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText(/^not made/)).toBeInTheDocument();
+    expect(screen.getByText(/When it was to be made, there were not yet enough pictures/)).toBeInTheDocument();
   });
 
   it('keeps the render´s own words from a reader who cannot go and fix the camera', () => {
     state.film = film('failed', { error: 'ffmpeg exited with status 251' });
     const { container } = render(<Film mediaId="media-1" />);
 
-    expect(screen.getByRole('alert')).toHaveTextContent('The render failed.');
+    expect(screen.getByRole('alert')).toHaveTextContent('The film could not be made.');
     expect(container.textContent).not.toContain('ffmpeg');
   });
 });

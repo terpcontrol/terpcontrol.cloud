@@ -1,4 +1,4 @@
-import { ChevronLeft, Play } from 'lucide-react';
+import { ChevronLeft, Clapperboard } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -171,7 +171,11 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
         <h1 className={styles.name}>{camera.name}</h1>
         <span className={ui.live} data-liveness={liveness}>
           <span className={ui.liveDot} aria-hidden />
-          {camera.state.lastStillAt ? ageLabel(camera.state.lastStillAt, now) : t('camera.never')}
+          {camera.state.lastStillAt
+            ? liveness === 'live'
+              ? t('camera.liveAge', { age: ageLabel(camera.state.lastStillAt, now) })
+              : ageLabel(camera.state.lastStillAt, now)
+            : t('camera.never')}
         </span>
       </header>
 
@@ -384,12 +388,14 @@ function Quick({ buttons, onPick }: { buttons: QuickFilm[]; onPick: (body: Timel
             disabled={one.reason !== null}
             onClick={() => onPick(one.body)}
           >
-            <Play size={11} fill="currentColor" aria-hidden />
+            <Clapperboard size={13} strokeWidth={1.75} aria-hidden />
             {one.label}
             {one.premium ? <span className={styles.premium}>{t('devices.premium')}</span> : null}
           </button>
         ))}
       </div>
+      {/* What a tap does, said once: it makes a film rather than playing one. */}
+      {buttons.some(one => one.reason === null) ? <p className={ui.note}>{t('camera.quickNote')}</p> : null}
       {reasons.map(reason => (
         <p key={reason} className={ui.note}>
           {reason}
@@ -446,21 +452,21 @@ const quickFilms = (t: Translate, camera: Camera, grow: GrowListItem | null, now
   const nothingThatWeek = empty('week');
 
   const rolling: QuickFilm[] = [
-    { label: t('camera.window.day'), body: { window: 'day', startsAt: instantOf(now) }, reason: nothingToFilm, premium: false },
-    { label: t('camera.window.week'), body: { window: 'week' }, reason: nothingThatWeek, premium: false },
+    { label: t('camera.quick.day'), body: { window: 'day', startsAt: instantOf(now) }, reason: nothingToFilm, premium: false },
+    { label: t('camera.quick.week'), body: { window: 'week' }, reason: nothingThatWeek, premium: false },
   ];
   if (!growFilms) return rolling;
 
   return [
     ...rolling,
     {
-      label: t('camera.window.phase'),
+      label: t('camera.quick.phase'),
       body: { window: 'phase', startsAt: phaseStart(grow) ?? '', endsAt: instantOf(now) },
       reason: noGrow,
       premium: false,
     },
     {
-      label: `${t('camera.window.grow')} · ${t('camera.hd')}`,
+      label: `${t('camera.quick.grow')} · ${t('camera.hd')}`,
       body: { window: 'grow', startsAt: grow?.startedAt ?? '', endsAt: grow?.endedAt ?? instantOf(now), quality: 'hd' },
       reason: noGrow ?? (free ? t('camera.needsPremium') : null),
       premium: free,

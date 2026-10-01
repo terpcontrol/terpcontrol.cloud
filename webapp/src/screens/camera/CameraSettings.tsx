@@ -6,6 +6,7 @@ import type { Camera, CameraUpdate } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
+import { useDiaryLayer } from '@/api/layers';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { deviceName } from '@/screens/devices/naming';
@@ -46,6 +47,7 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
   const navigate = useNavigate();
   const now = useNow();
   const { user } = useSession();
+  const diary = useDiaryLayer();
   const devices = useDevices();
   const spaces = useSpaces();
   // Whether this install gates anything at all is the account's answer, not
@@ -186,7 +188,10 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
           {mayManage ? (
             <span className={styles.interval}>
               <Check label={t('camera.staleWarning')} on={flag('staleWarning')} onChange={next => set('staleWarning', next)} />
-              <Check label={t('camera.logErrors')} on={flag('logErrors')} onChange={next => set('logErrors', next)} />
+              {/* A diary line is offered only to somebody who keeps a diary, or who already asked for one. */}
+              {diary || flag('logErrors') ? (
+                <Check label={t('camera.logErrors')} on={flag('logErrors')} onChange={next => set('logErrors', next)} />
+              ) : null}
             </span>
           ) : (
             <span className={`mono ${styles.settingValue}`}>

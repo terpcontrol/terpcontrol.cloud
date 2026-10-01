@@ -565,7 +565,7 @@ describe('the camera page', () => {
     server.me = me({ enforced: false, extendUrl: null, priceLabel: null });
     drawSettings(migrated);
 
-    expect(await screen.findByText('everything included on this install')).toBeInTheDocument();
+    expect(await screen.findByText('everything included')).toBeInTheDocument();
     expect(screen.queryByRole('status')).toBeNull();
   });
 });

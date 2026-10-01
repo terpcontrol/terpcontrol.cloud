@@ -379,7 +379,7 @@
 }
 
 .filmStatus[data-status='failed'] {
-  color: var(--alarm);
+  color: var(--muted);
 }
 
 .filmLink {
