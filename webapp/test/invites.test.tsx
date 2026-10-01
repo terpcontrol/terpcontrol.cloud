@@ -260,7 +260,16 @@ describe('the invitation sheet', () => {
 });
 
 describe('the room a tent stands in', () => {
+  /** A room groups places: an account with one has nothing to group, and is not offered a room above the people it came to let in. */
+  it('offers a room only once there is a second place to share with it', async () => {
+    drawTab();
+    expect(await screen.findByRole('button', { name: 'Make a link' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Put it in a room' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Room members see every space/)).not.toBeInTheDocument();
+  });
+
   it('makes a room and puts the tent in it', async () => {
+    server.spaces = [space({}), space({ id: 'space-2', name: 'Mother tent' })];
     drawTab();
     fireEvent.click(await screen.findByRole('button', { name: 'Put it in a room' }));
 

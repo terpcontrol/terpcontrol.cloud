@@ -32,7 +32,10 @@ import roomStyles from './Room.module.css';
  * the room is drawn here and changed there, and why the switch is an address
  * rather than a mode: the room's member list is the room's page. A tent that
  * stands in no room yet has the switch's second segment as the way to put it
- * in one, because this is the screen on which a grower first wants a room.
+ * in one, because this is the screen on which a grower first wants a room -
+ * once there is a second place to share with it. A room groups places, and
+ * somebody with one fridge was offered to put it in a room of its own, under a
+ * paragraph about rooms, at the top of the page they opened to let one person in.
  *
  * Handing out the way in is the owner's alone. A member sees the same list,
  * because somebody who cannot tell who else is here cannot tell whose entry
@@ -69,6 +72,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
   const room = listed.find(one => one.id === roomId) ?? null;
   const roomName = room?.name ?? page.room?.name ?? null;
   const tents = listed.filter(one => one.roomId === roomId && one.archivedAt === null).length;
+  const several = listed.filter(one => one.kind !== 'room' && one.archivedAt === null).length > 1;
   const ownerId = listed.find(one => one.id === spaceId)?.ownerId ?? null;
   // Two different questions that used to be one. What may be written here is
   // the server's answer, which an administrator has as well; whether the row at
@@ -101,7 +105,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
                 {t('space.members.roomWithTents', { room: room.name, count: tents })}
               </Link>
             </nav>
-          ) : mayWrite ? (
+          ) : mayWrite && several ? (
             <nav className={`${ui.segments} ${ui.segmentsFill}`} aria-label={t('space.members.scopeLabel')}>
               <span className={`${ui.segment} ${styles.scopeOption} ${styles.scopeHere}`} aria-current="page">
                 {name}
@@ -112,7 +116,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
               </button>
             </nav>
           ) : null}
-          <p className={ui.note}>{t('space.members.oneModel')}</p>
+          {room || several ? <p className={ui.note}>{t('space.members.oneModel')}</p> : null}
           {room && mayWrite ? (
             <p className={`mono ${roomStyles.roomLine}`}>
               <span>{t('space.members.room.in', { room: room.name })}</span>
