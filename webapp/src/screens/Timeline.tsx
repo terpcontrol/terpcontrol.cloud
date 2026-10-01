@@ -9,7 +9,7 @@ import { LoadFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { livenessOf, measuredAtOf } from './home/attention';
-import { LivenessPill } from './home/SpaceCard';
+import { LivenessPill } from './home/LivenessPill';
 import { lastSpace, rememberSpace } from './timeline/last-space';
 import { Timeline as TimelineScreen } from './timeline/Timeline';
 import styles from './timeline/Timeline.module.css';

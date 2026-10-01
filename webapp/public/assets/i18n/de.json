@@ -2741,49 +2741,17 @@
     "noReadingsYet": "Noch nichts gemeldet",
     "high": "zu hoch",
     "low": "zu tief",
-    "day": "Tag",
-    "night": "Nacht",
-    "dueNow": "Jetzt fällig",
-    "doneWrites": "Erledigt schreibt {{what}} · {{subject}}",
     "growingHere": "Wächst hier",
     "newGrow": "Grow",
     "moveHere": "Hierher verschieben",
-    "hereSince": "hier seit Tag {{day}}",
-    "today": "heute",
-    "noStillsToday": "Heute noch keine Bilder",
-    "everyPicture": "Alle Bilder",
     "lastStill": "letztes vor {{age}}",
     "stillAlt": "{{name}} um {{time}}",
     "climate24h": "Klima · 24 Std",
     "inBand": "{{percent}} % im Zielband",
-    "inBandOver": "{{percent}} % im Zielband über die {{span}}, die gemessen wurden",
-    "verdict": {
-      "noTarget": "Kein Ziel hier · nichts, woran der Tag zu messen wäre",
-      "metric": {
-        "temperature": "Temperatur",
-        "humidity": "Feuchte",
-        "co2": "CO₂"
-      },
-      "excursion": "1 Ausreißer {{metric}} {{from}}–{{to}}",
-      "excursions": "{{count}} Ausreißer {{metric}}",
-      "stillOut": "jetzt",
-      "ran": "{{output}} lief {{count}}×",
-      "noReadings": "In den letzten 24 Std nichts gehört · nichts, woran der Tag zu messen wäre"
-    },
-    "output": {
-      "heater": "Heizung",
-      "dehumidifier": "Entfeuchter",
-      "co2": "CO₂",
-      "fan": "Lüfter",
-      "exhaust": "Abluft",
-      "backFan": "Rückwandlüfter",
-      "relais": "Relais"
-    },
     "latest": "Zuletzt",
     "moveHereTitle": "Grow nach {{name}} umziehen",
     "presets": {
       "title": "Klima-Preset · {{name}}",
-      "open": "Klima-Preset",
       "stage": "Stadium",
       "preset": "Preset",
       "growHere": "Hier wächst {{name}} · {{stage}}",
@@ -2986,8 +2954,7 @@
         "noTents": "Noch kein Bereich steht in diesem Raum. Ein Bereich kommt über seinen eigenen Mitglieder-Tab hinein."
       },
       "linkStopped": "Der Link {{code}} wurde zurückgezogen, als @{{name}} aus dem Bereich genommen wurde."
-    },
-    "youMayLog": "Du darfst hier loggen: Einträge, Aufgaben und Fotos. Sollwerte, Plan, Alarme und Steckdosen ändert nur, wer diesen Bereich steuert."
+    }
   },
   "log": {
     "title": "Eintrag",
@@ -4644,6 +4611,127 @@
     "follow": {
       "title": "Folgen",
       "text": "Setzt diesen Grow auf deine Startseite, solange er öffentlich ist. Wer folgt, erfährt der Grower nicht, und bei Änderungen wird dir nichts geschickt."
+    },
+    "compressor": {
+      "title": "Kompressor",
+      "text": "Im Kühlschrankmodul kühlt und entfeuchtet derselbe Kompressor: Läuft er, sinken Temperatur und Luftfeuchte zugleich. Deshalb steht er bei beiden Werten – es ist ein Gerät, nicht zwei."
+    },
+    "dayCurve": {
+      "title": "Die letzten 24 Stunden",
+      "text": "Die kleine Kurve zeigt, wie der Wert in den letzten 24 Stunden lief. Grau hinterlegt ist die Nacht, grün der Zielbereich – nachts gilt das Nachtziel, deshalb springt das grüne Band mit dem Licht. Ein Tipp auf die Kachel öffnet den Verlauf."
+    },
+    "ppfd": {
+      "title": "PPFD",
+      "text": "Wie viel für die Pflanze nutzbares Licht auf der Blattebene ankommt, in µmol pro Quadratmeter und Sekunde. Es wird aus dem Lux-Wert des Sensors geschätzt, mit dem Faktor, der für dein Gerät eingestellt ist."
+    }
+  },
+  "cockpit": {
+    "change": "Ändern",
+    "menu": {
+      "label": "Mehr zu {{name}}",
+      "preset": "Klima-Vorlage anwenden",
+      "newGrow": "Grow starten",
+      "moveGrow": "Grow hierher holen",
+      "members": "Mitglieder"
+    },
+    "status": {
+      "good": "Alles im Ziel",
+      "high": "{{metric}} {{delta}} zu hoch",
+      "low": "{{metric}} {{delta}} zu niedrig",
+      "highNow": "{{metric}} gerade {{delta}} zu hoch",
+      "lowNow": "{{metric}} gerade {{delta}} zu niedrig",
+      "since": "seit {{time}}",
+      "maintenance": "Wartung bis {{until}} · Regelung und Alarme pausieren",
+      "settling": "Wartung vorbei · Alarme ruhen noch bis {{until}}",
+      "stale": "Letzte Werte von {{time}} · das Gerät meldet sich verzögert",
+      "noTargets": "Werte kommen an · noch keine Zielwerte",
+      "waiting": "Wartet auf die ersten Werte"
+    },
+    "metric": {
+      "temperature": "Temperatur",
+      "humidity": "Luftfeuchte",
+      "light": "Licht",
+      "co2": "CO₂",
+      "leaf": "Blatt & Licht"
+    },
+    "tile": {
+      "target": {
+        "day": "Tagesziel {{target}}",
+        "night": "Nachtziel {{target}}",
+        "any": "Ziel {{target}}"
+      },
+      "noTarget": "kein Ziel",
+      "co2Night": "nachts kein Ziel",
+      "high": "{{delta}} zu hoch",
+      "low": "{{delta}} zu niedrig",
+      "vpd": "VPD {{value}}",
+      "since": "seit {{time}}",
+      "day": "24 Std",
+      "curveAlt": "{{metric}} der letzten 24 Stunden"
+    },
+    "light": {
+      "on": "An",
+      "off": "Aus",
+      "window": "{{on}}–{{off}} · {{hours}} Std",
+      "noWindow": "kein Zeitplan",
+      "offAt": "aus um {{time}}",
+      "onAt": "an um {{time}}",
+      "barAlt": "Licht an von {{on}} bis {{off}}"
+    },
+    "leaf": {
+      "leaf": "Blatttemperatur",
+      "cooler": "{{value}} °C kühler als die Luft",
+      "warmer": "{{value}} °C wärmer als die Luft",
+      "same": "so warm wie die Luft",
+      "lux": "{{value}} lx",
+      "ppfd": "PPFD {{value}}"
+    },
+    "output": {
+      "compressor": "Kompressor",
+      "heater": "Heizung",
+      "dehumidifier": "Entfeuchter",
+      "co2": "CO₂-Ventil"
+    },
+    "outputs": {
+      "running": "läuft",
+      "runningSince": "läuft seit {{age}}",
+      "off": "aus",
+      "open": "offen",
+      "closed": "zu"
+    },
+    "camera": {
+      "open": "Kamera öffnen",
+      "title": "Kamera",
+      "caption": "Kamera · {{time}} · vor {{age}}",
+      "none": "Noch kein Bild"
+    },
+    "targets": {
+      "title": "Zielwerte",
+      "day": "Tag",
+      "night": "Nacht",
+      "light": "Licht",
+      "limit": "höchstens {{percent}} %",
+      "none": "Noch keine Zielwerte.",
+      "awaiting": "Wartet auf die Einstellungen des Geräts."
+    },
+    "alarms": {
+      "title": "Alarme",
+      "none": "Noch kein Alarm eingeschaltet.",
+      "offline": "Gerät offline",
+      "more": "+{{count}} weitere",
+      "reaches": "Kritische Alarme per {{channels}}",
+      "reachesNobody": "erreichen dich nicht · einrichten ›"
+    },
+    "grow": {
+      "title": "Grow",
+      "due": "Fällig",
+      "tasks": "Alle Aufgaben",
+      "lastEntry": "{{what}} · vor {{age}} · {{who}}"
+    },
+    "latest": {
+      "title": "Zuletzt",
+      "more": "Verlauf",
+      "none": "Noch nichts passiert."
     }
   }
 }

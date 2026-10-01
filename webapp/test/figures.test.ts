@@ -107,7 +107,7 @@ describe('the figures that must stay English', () => {
    * it wrote "171.9 MB" with a full stop under chapter lines of its own
    * reading "18,5 °C · 66 %".
    */
-  const MACHINE = ['src/charts/series.ts', 'src/screens/home/Sparkline.tsx', 'src/screens/space/Overview.tsx', 'src/ui/days.ts'];
+  const MACHINE = ['src/charts/series.ts', 'src/screens/home/Sparkline.tsx', 'src/screens/cockpit/MiniCurve.tsx', 'src/ui/days.ts'];
 
   const files = (from: string): string[] =>
     readdirSync(resolve(process.cwd(), from), { withFileTypes: true }).flatMap(entry =>

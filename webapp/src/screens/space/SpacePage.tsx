@@ -1,22 +1,20 @@
-import { Box, ChevronLeft, Fan, Leaf, Refrigerator, Sun, type LucideIcon } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
-import type { SpaceKind, SpaceOverview } from '@fg2/shared-types/v1';
-import { fetchedAt } from '@/api/clock';
 import { noLongerThere } from '@/api/problem';
-import { useSpaceLive, useSpaceOverview } from '@/api/spaces';
-import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { Tabs } from '@/ui/Tabs';
 import { useNow } from '@/ui/useNow';
 import { livenessOf, measuredAtOf } from '../home/attention';
-import { LivenessPill } from '../home/SpaceCard';
+import { LivenessPill } from '../home/LivenessPill';
 import { Control } from '../control/Control';
 import { DeviceList } from '../devices/DeviceList';
-import { useRememberSpace } from '../timeline/last-space';
 import { Timeline } from '../timeline/Timeline';
 import { Members } from './members/Members';
-import { Overview } from './Overview';
+import { PlaceCockpit } from '../cockpit/PlaceCockpit';
+import { KIND_ICON } from '../cockpit/place';
+import { PlaceMenu } from '../cockpit/PlaceMenu';
+import { usePlace } from '../cockpit/reads';
 import styles from './SpacePage.module.css';
 import ui from '@/ui/ui.module.css';
 
@@ -25,13 +23,12 @@ type SpaceTab = (typeof TABS)[number];
 
 const isTab = (value: string | undefined): value is SpaceTab => (TABS as readonly string[]).includes(value ?? '');
 
-const KIND_ICON: Record<SpaceKind, LucideIcon> = { tent: Box, fridge: Refrigerator, room: Fan, balcony: Sun, other: Leaf };
-
 /**
- * The tent page: the place's name with how alive it is, the five tabs, and the
- * overview it lands on. The overview is read once a minute, the live values
- * every half minute, and whichever answered last is what the figures show;
- * a refresh that fails keeps the last values with their ages.
+ * The tent page: the place's name with how alive it is and its menu, the five
+ * tabs, and the place's cockpit, which it lands on. The overview is read once a
+ * minute, the live values every half minute, and whichever answered last is
+ * what the figures show; a refresh that fails keeps the last values with their
+ * ages.
  */
 export function SpacePage() {
   const { spaceId = '', tab, sub = null } = useParams();
@@ -43,25 +40,9 @@ export function SpacePage() {
 function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; sub: string | null }) {
   const { t } = useTranslation();
   const now = useNow();
-  // The tab bar's own Timeline lands on the place last looked at, and looking at one here is what makes it that place.
-  useRememberSpace(spaceId);
-  const overview = useSpaceOverview(spaceId);
-  const live = useSpaceLive(spaceId, (overview.data?.deviceIds?.length ?? 0) > 0);
+  const { read, current, failedAt } = usePlace(spaceId);
 
-  // The live read is the newer of the two more often than not; the overview's own values stand in until it answers.
-  const fresher = live.data && live.dataUpdatedAt > overview.dataUpdatedAt ? live.data : null;
-  // How old what is on the screen is, which is the age of the readings and not
-  // the age of the answer that carried them. A tent that has said nothing for
-  // four days answers every poll with the same four-day-old figures, and dating
-  // the screen by the fetch put "updated 0 s ago" over a header pill reading
-  // "no reading · 4 d" - the one screen somebody opens to ask whether the tent
-  // is still being heard from, answering that it is. The fetch stands in only
-  // while there is no reading to date the screen by at all.
-  const freshestAt = Math.max(overview.dataUpdatedAt, live.dataUpdatedAt);
-  const measuredAt = measuredAtOf((fresher ?? overview.data)?.values ?? []);
-  useReportFreshness(measuredAt ?? (freshestAt ? fetchedAt(freshestAt) : null));
-
-  if (overview.isPending) {
+  if (read.isPending) {
     return (
       <section className={styles.page}>
         <Waiting lines={2} />
@@ -72,17 +53,8 @@ function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; su
   // Being taken out of somebody's tent is what this usually is, and it is the
   // one failure a retry can never mend: every read behind this page answers 404
   // from then on.
-  if (!overview.data) return noLongerThere(overview.error) ? <NoLongerHere what="space" /> : <LoadFailed retry={() => void overview.refetch()} />;
+  if (!current) return noLongerThere(read.error) ? <NoLongerHere what="space" /> : <LoadFailed retry={() => void read.refetch()} />;
 
-  const current: SpaceOverview = fresher ? { ...overview.data, values: fresher.values, setpoints: fresher.setpoints } : overview.data;
-  // Dated by the half that failed, not by the freshest of the two. The live
-  // read comes round twice as often as the overview, so after the network was
-  // back it had already succeeded while the overview's failure still stood -
-  // and the banner said "could not refresh · showing what was known 0 s ago",
-  // which is two things at once. Of two failed halves it is the older, the way
-  // the alerts inbox puts it: what is on screen is as old as its older half.
-  const staleAt = Math.min(overview.isError ? overview.dataUpdatedAt : Infinity, live.isError ? live.dataUpdatedAt : Infinity);
-  const failedAt = Number.isFinite(staleAt) ? staleAt : null;
   const tabs = TABS.map(key => ({ key, label: t(`space.tabs.${key}`), to: `/spaces/${spaceId}/${key}` }));
   const Icon = KIND_ICON[current.kind];
 
@@ -97,11 +69,12 @@ function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; su
           {current.name}
         </h1>
         <LivenessPill liveness={livenessOf(current, now)} measuredAt={measuredAtOf(current.values)} now={now} explain />
+        <PlaceMenu overview={current} />
       </header>
       <RefreshFailed failedAt={failedAt} now={now} />
       <Tabs items={tabs} label={t('space.tabsLabel')} />
       {tab === 'overview' ? (
-        <Overview overview={current} now={now} />
+        <PlaceCockpit overview={current} />
       ) : tab === 'timeline' ? (
         <Timeline spaceId={spaceId} />
       ) : tab === 'devices' ? (

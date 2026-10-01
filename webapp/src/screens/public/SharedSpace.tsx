@@ -8,7 +8,7 @@ import { EntryRow } from '@/ui/EntryRow';
 import { readingNamesOf } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
 import { livenessOf, measuredAtOf } from '../home/attention';
-import { LivenessPill } from '../home/SpaceCard';
+import { LivenessPill } from '../home/LivenessPill';
 import { figure, targetFigure, UNIT } from '../home/units';
 import { Photo } from '@/ui/Photo';
 import styles from './Public.module.css';

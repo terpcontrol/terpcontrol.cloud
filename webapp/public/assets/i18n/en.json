@@ -2737,49 +2737,17 @@
     "noReadingsYet": "Nothing reported yet",
     "high": "high",
     "low": "low",
-    "day": "day",
-    "night": "night",
-    "dueNow": "Due now",
-    "doneWrites": "Done writes {{what}} · {{subject}}",
     "growingHere": "Growing here",
     "newGrow": "Grow",
     "moveHere": "Move here",
-    "hereSince": "here since day {{day}}",
-    "today": "today",
-    "noStillsToday": "No pictures yet today",
-    "everyPicture": "Every picture",
     "lastStill": "last one {{age}} ago",
     "stillAlt": "{{name}} at {{time}}",
     "climate24h": "Climate · 24 h",
     "inBand": "{{percent}} % in band",
-    "inBandOver": "{{percent}} % in band over the {{span}} that were measured",
-    "verdict": {
-      "noTarget": "No target here · nothing to judge the day against",
-      "metric": {
-        "temperature": "temperature",
-        "humidity": "humidity",
-        "co2": "CO₂"
-      },
-      "excursion": "1 {{metric}} excursion {{from}}–{{to}}",
-      "excursions": "{{count}} {{metric}} excursions",
-      "stillOut": "now",
-      "ran": "{{output}} ran {{count}}×",
-      "noReadings": "Nothing heard in the last 24 h · nothing to judge the day by"
-    },
-    "output": {
-      "heater": "heater",
-      "dehumidifier": "dehumidifier",
-      "co2": "CO₂",
-      "fan": "fan",
-      "exhaust": "exhaust",
-      "backFan": "back fan",
-      "relais": "relay"
-    },
     "latest": "Latest",
     "moveHereTitle": "Move a grow into {{name}}",
     "presets": {
       "title": "Climate preset · {{name}}",
-      "open": "Climate preset",
       "stage": "Stage",
       "preset": "Preset",
       "growHere": "{{name}} grows here · {{stage}}",
@@ -2982,8 +2950,7 @@
         "noTents": "No space stands in this room yet. A space is put in from its own Members tab."
       },
       "linkStopped": "The link {{code}} was stopped when @{{name}} was taken out."
-    },
-    "youMayLog": "You may log here: entries, tasks and photos. Targets, plan, alarms and sockets are changed by whoever steers this space."
+    }
   },
   "log": {
     "title": "Log",
@@ -4640,6 +4607,127 @@
     "follow": {
       "title": "Follow",
       "text": "Puts this grow on your home for as long as it is public. The grower is not told who follows, and nothing is sent to you when it changes."
+    },
+    "compressor": {
+      "title": "Compressor",
+      "text": "In the fridge module one compressor both cools and dries: while it runs, temperature and humidity fall together. That is why it is listed under both readings – it is one machine, not two."
+    },
+    "dayCurve": {
+      "title": "The last 24 hours",
+      "text": "The small curve shows how the reading went over the last 24 hours. The grey stretch is the night, the green band the target range – at night the night target applies, which is why the band steps with the light. Tapping the tile opens the Timeline."
+    },
+    "ppfd": {
+      "title": "PPFD",
+      "text": "How much light the plant can use arrives at leaf level, in µmol per square metre and second. It is estimated from the sensor's lux reading with the factor set for your device."
+    }
+  },
+  "cockpit": {
+    "change": "Change",
+    "menu": {
+      "label": "More about {{name}}",
+      "preset": "Apply a climate preset",
+      "newGrow": "Start a grow",
+      "moveGrow": "Move a grow here",
+      "members": "Members"
+    },
+    "status": {
+      "good": "All on target",
+      "high": "{{metric}} {{delta}} too high",
+      "low": "{{metric}} {{delta}} too low",
+      "highNow": "{{metric}} {{delta}} too high just now",
+      "lowNow": "{{metric}} {{delta}} too low just now",
+      "since": "since {{time}}",
+      "maintenance": "Maintenance until {{until}} · regulation and alarms paused",
+      "settling": "Maintenance over · alarms held until {{until}}",
+      "stale": "Last readings from {{time}} · the device is reporting late",
+      "noTargets": "Readings arriving · no targets yet",
+      "waiting": "Waiting for the first readings"
+    },
+    "metric": {
+      "temperature": "Temperature",
+      "humidity": "Humidity",
+      "light": "Light",
+      "co2": "CO₂",
+      "leaf": "Leaf & light"
+    },
+    "tile": {
+      "target": {
+        "day": "Day target {{target}}",
+        "night": "Night target {{target}}",
+        "any": "Target {{target}}"
+      },
+      "noTarget": "no target",
+      "co2Night": "no target at night",
+      "high": "{{delta}} too high",
+      "low": "{{delta}} too low",
+      "vpd": "VPD {{value}}",
+      "since": "since {{time}}",
+      "day": "24 h",
+      "curveAlt": "{{metric}} over the last 24 hours"
+    },
+    "light": {
+      "on": "On",
+      "off": "Off",
+      "window": "{{on}}–{{off}} · {{hours}} h",
+      "noWindow": "no schedule",
+      "offAt": "off at {{time}}",
+      "onAt": "on at {{time}}",
+      "barAlt": "Light on from {{on}} to {{off}}"
+    },
+    "leaf": {
+      "leaf": "Leaf temperature",
+      "cooler": "{{value}} °C cooler than the air",
+      "warmer": "{{value}} °C warmer than the air",
+      "same": "as warm as the air",
+      "lux": "{{value}} lx",
+      "ppfd": "PPFD {{value}}"
+    },
+    "output": {
+      "compressor": "Compressor",
+      "heater": "Heater",
+      "dehumidifier": "Dehumidifier",
+      "co2": "CO₂ valve"
+    },
+    "outputs": {
+      "running": "running",
+      "runningSince": "running for {{age}}",
+      "off": "off",
+      "open": "open",
+      "closed": "closed"
+    },
+    "camera": {
+      "open": "Open the camera",
+      "title": "Camera",
+      "caption": "Camera · {{time}} · {{age}} ago",
+      "none": "No picture yet"
+    },
+    "targets": {
+      "title": "Targets",
+      "day": "Day",
+      "night": "Night",
+      "light": "Light",
+      "limit": "at most {{percent}} %",
+      "none": "No targets yet.",
+      "awaiting": "Waiting for the device's settings."
+    },
+    "alarms": {
+      "title": "Alarms",
+      "none": "No alarm switched on yet.",
+      "offline": "Device offline",
+      "more": "+{{count}} more",
+      "reaches": "Critical alarms by {{channels}}",
+      "reachesNobody": "don't reach you · set up ›"
+    },
+    "grow": {
+      "title": "Grow",
+      "due": "Due",
+      "tasks": "All tasks",
+      "lastEntry": "{{what}} · {{age}} ago · {{who}}"
+    },
+    "latest": {
+      "title": "Latest",
+      "more": "Timeline",
+      "none": "Nothing has happened yet."
     }
   }
 }

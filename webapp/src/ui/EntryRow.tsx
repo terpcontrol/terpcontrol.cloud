@@ -117,6 +117,12 @@ interface EntryRowProps {
    * `foldRepeats`): how many there were in all, and when the first was written.
    */
   repeats?: { count: number; since: string } | null;
+  /**
+   * The line without what the machine went on to explain, for a summary of the
+   * last few things that happened rather than their record. An alarm keeps its
+   * detail, which is the rule and the reading and the whole of what it says.
+   */
+  brief?: boolean;
 }
 
 /**
@@ -140,6 +146,7 @@ export function EntryRow({
   zone: given,
   onOpen,
   repeats = null,
+  brief = false,
 }: EntryRowProps) {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
@@ -189,7 +196,7 @@ export function EntryRow({
       {/* What the machine's line said, under the kind of thing it was: the
           reading an alarm tripped on, the settings a save changed, the reason
           a device rebooted. */}
-      {detail === null ? null : <span className={styles.detail}>{detail}</span>}
+      {detail === null || (brief && entry.kind !== 'alarm') ? null : <span className={styles.detail}>{detail}</span>}
     </>
   );
 

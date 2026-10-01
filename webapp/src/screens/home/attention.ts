@@ -48,7 +48,7 @@ export const attentionOf = (card: HomeSpaceCard): number => {
 };
 
 /** The one alert that sets the card's tone. */
-export const worstAlertOf = (card: HomeSpaceCard) =>
+export const worstAlertOf = (card: Pick<HomeSpaceCard, 'openAlerts'>) =>
   card.openAlerts.reduce<HomeSpaceCard['openAlerts'][number] | null>(
     (worst, alert) => (worst && SEVERITY[worst.severity] >= SEVERITY[alert.severity] ? worst : alert),
     null,

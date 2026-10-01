@@ -78,6 +78,9 @@ export const HELP_TOPICS = [
   'invite',
   'diaryLayer',
   'follow',
+  'compressor',
+  'dayCurve',
+  'ppfd',
 ] as const;
 
 export type HelpTopic = (typeof HELP_TOPICS)[number];
