@@ -228,6 +228,12 @@ exports.me = (0, common_js_1.named)('Me', exports.user.omit({ activationCode: tr
  * `PATCH /me`. Only what the person owns: the login address is the identity and
  * is not changed here, and `isAdmin`, `isActive` and the activation code are an
  * administrator's.
+ *
+ * The preferences are the one object written field by field: a body names the
+ * ones it changes and keeps the rest. Several are written by the app on its own
+ * - the zone a first sign-in adopts, the shape it last showed - often in the
+ * same second, and a body that carried the whole object back as some screen had
+ * read it undid whichever landed first.
  */
 exports.meUpdate = (0, common_js_1.named)('MeUpdate', exports.user
     .pick({
@@ -236,10 +242,10 @@ exports.meUpdate = (0, common_js_1.named)('MeUpdate', exports.user
     avatarMediaId: true,
     publicProfile: true,
     privacy: true,
-    preferences: true,
     retention: true,
     notifications: true,
 })
+    .extend({ preferences: exports.userPreferences.partial() })
     .partial());
 /**
  * A password on its way in. It travels in one direction only, so `User` has no

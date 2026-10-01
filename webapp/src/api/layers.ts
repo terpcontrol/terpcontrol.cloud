@@ -38,19 +38,16 @@ export const useDiaryLayer = (): boolean => useDiaryAnswer() ?? true;
 /**
  * An answer about the diary, kept with the account so that every device agrees:
  * `on` and `off` win over what the account has used, and null hands the
- * question back to it. The preferences travel whole, so the account is read
- * fresh first rather than sent back as some screen last saw it; the home is
- * read again afterwards, because its cards are what the answer changes.
+ * question back to it. Only the one preference is sent - the server keeps the
+ * rest as stored - and the home is read again afterwards, because its cards are
+ * what the answer changes.
  */
 export const useChooseDiary = () => {
   const client = useQueryClient();
 
   return useMutation({
     mutationKey: meKey,
-    mutationFn: async (diary: DiaryChoice | null) => {
-      const me = await client.fetchQuery({ queryKey: meKey, queryFn: ({ signal }) => api.get<Me>('/me', undefined, signal) });
-      return api.patch<Me>('/me', { preferences: { ...me.preferences, diary } });
-    },
+    mutationFn: (diary: DiaryChoice | null) => api.patch<Me>('/me', { preferences: { diary } }),
     onSuccess: async me => {
       client.setQueryData(meKey, me);
       await client.invalidateQueries({ queryKey: ['home'] });
@@ -61,17 +58,14 @@ export const useChooseDiary = () => {
 /**
  * Records the shape of the app this person has now been shown, so the change
  * it explains is explained once - on this phone and on every other. Like the
- * diary answer it is written into preferences read fresh, so nothing another
- * screen changed a moment ago is carried back over.
+ * diary answer it names its one preference and nothing else, so a zone adopted
+ * in the same second is not written back over.
  */
 export const useSeeLayout = () => {
   const client = useQueryClient();
 
   return useMutation({
-    mutationFn: async (layoutSeen: LayoutSeen) => {
-      const me = await client.fetchQuery({ queryKey: meKey, queryFn: ({ signal }) => api.get<Me>('/me', undefined, signal) });
-      return api.patch<Me>('/me', { preferences: { ...me.preferences, layoutSeen } });
-    },
+    mutationFn: (layoutSeen: LayoutSeen) => api.patch<Me>('/me', { preferences: { layoutSeen } }),
     onSuccess: me => client.setQueryData(meKey, me),
   });
 };

@@ -366,6 +366,32 @@ describe('changing an account', () => {
     expect((await accounts.serialiseMe(grown)).preferences.layoutSeen).toEqual({ diary: true, places: true });
   });
 
+  /**
+   * A first sign-in writes two preferences of its own in the same second: the
+   * zone it adopts and the shape of the app it showed. Each names only its own
+   * field, and neither may take the other back - a zone lost this way left the
+   * account on UTC for good, because it then counted as picked.
+   */
+  it('keeps a zone adopted in the same moment as another preference is written', async () => {
+    const user = await signUp('race');
+
+    await Promise.all([
+      accounts.updateOwn(user.id, { preferences: { timezone: 'Europe/Berlin', timezoneChosen: true } }),
+      accounts.updateOwn(user.id, { preferences: { layoutSeen: { diary: true, places: false } } }),
+      accounts.updateOwn(user.id, { preferences: { diary: 'on' } }),
+    ]);
+
+    const after = await accounts.serialiseMe(await accounts.require(user.id));
+    expect(after.preferences).toMatchObject({
+      timezone: 'Europe/Berlin',
+      timezoneChosen: true,
+      layoutSeen: { diary: true, places: false },
+      diary: 'on',
+      locale: user.preferences.locale,
+    });
+    expect(after.preferences.units).toEqual(accounts.serialise(user).preferences.units);
+  });
+
   it('answers the account as it stands when the body names no field', async () => {
     const user = await signUp('unchanged');
 

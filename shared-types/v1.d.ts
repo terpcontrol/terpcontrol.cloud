@@ -497,9 +497,29 @@ export interface MeUpdate {
    */
   publicProfile?: boolean;
   privacy?: UserPrivacy;
-  preferences?: UserPreferences;
   retention?: UserRetention;
   notifications?: NotificationSettings;
+  preferences?: {
+    units?: UnitPreference;
+    locale?: string;
+    timezone?: string;
+    /**
+     * Whether a person picked `timezone`. False while it is still the UTC every account starts on and every migrated account was given, because the old cloud never knew a zone; the app then adopts the zone of the device it is signed in on, once, and says so. Any change of `timezone` sets it, and a client may set it to keep UTC deliberately. It is never set back.
+     */
+    timezoneChosen?: boolean;
+    /**
+     * Whether the grow diary is offered, as the person answered; null where they have not, and `layers.diary` then follows what the account has used. A body that leaves it out keeps what is stored.
+     */
+    diary?: DiaryChoice | null;
+    /**
+     * Until when "Later" put away the notice that no channel carries this account's critical alarms; null until somebody taps it. A body that leaves it out keeps what is stored.
+     */
+    notifyLaterUntil?: string | null;
+    /**
+     * The shape of the app this person was last shown, as the app recorded it; it says once what changed when the diary comes in or a second place appears. Null until the app first records one. A body that leaves it out keeps what is stored.
+     */
+    layoutSeen?: LayoutSeen | null;
+  };
 }
 
 export interface PasswordChange {

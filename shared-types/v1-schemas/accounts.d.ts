@@ -443,6 +443,12 @@ export declare const me: z.ZodObject<{
  * `PATCH /me`. Only what the person owns: the login address is the identity and
  * is not changed here, and `isAdmin`, `isActive` and the activation code are an
  * administrator's.
+ *
+ * The preferences are the one object written field by field: a body names the
+ * ones it changes and keeps the rest. Several are written by the app on its own
+ * - the zone a first sign-in adopts, the shape it last showed - often in the
+ * same second, and a body that carried the whole object back as some screen had
+ * read it undid whichever landed first.
  */
 export declare const meUpdate: z.ZodObject<{
     notifications: z.ZodOptional<z.ZodObject<{
@@ -485,8 +491,14 @@ export declare const meUpdate: z.ZodObject<{
         hideWeights: z.ZodBoolean;
         hideCounts: z.ZodBoolean;
     }, z.core.$strip>>;
+    retention: z.ZodOptional<z.ZodObject<{
+        climateDays: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>>;
+    bio: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    avatarMediaId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    publicProfile: z.ZodOptional<z.ZodBoolean>;
     preferences: z.ZodOptional<z.ZodObject<{
-        units: z.ZodObject<{
+        units: z.ZodOptional<z.ZodObject<{
             temperature: z.ZodEnum<{
                 celsius: "celsius";
                 fahrenheit: "fahrenheit";
@@ -499,26 +511,20 @@ export declare const meUpdate: z.ZodObject<{
                 liters: "liters";
                 gallons: "gallons";
             }>;
-        }, z.core.$strip>;
-        locale: z.ZodString;
-        timezone: z.ZodString;
-        timezoneChosen: z.ZodOptional<z.ZodBoolean>;
-        diary: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
+        }, z.core.$strip>>;
+        locale: z.ZodOptional<z.ZodString>;
+        timezone: z.ZodOptional<z.ZodString>;
+        timezoneChosen: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
+        diary: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<{
             off: "off";
             on: "on";
-        }>>>;
-        notifyLaterUntil: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
-        layoutSeen: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        }>>>>;
+        notifyLaterUntil: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>>;
+        layoutSeen: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodObject<{
             diary: z.ZodBoolean;
             places: z.ZodBoolean;
-        }, z.core.$strip>>>;
+        }, z.core.$strip>>>>;
     }, z.core.$strip>>;
-    retention: z.ZodOptional<z.ZodObject<{
-        climateDays: z.ZodNullable<z.ZodNumber>;
-    }, z.core.$strip>>;
-    bio: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    avatarMediaId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    publicProfile: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 /** `PUT /me/password`. The current one is asked for again, because a stolen session must not be able to keep itself. */
 export declare const passwordChange: z.ZodObject<{

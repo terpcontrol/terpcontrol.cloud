@@ -295,6 +295,12 @@ export const me = named(
  * `PATCH /me`. Only what the person owns: the login address is the identity and
  * is not changed here, and `isAdmin`, `isActive` and the activation code are an
  * administrator's.
+ *
+ * The preferences are the one object written field by field: a body names the
+ * ones it changes and keeps the rest. Several are written by the app on its own
+ * - the zone a first sign-in adopts, the shape it last showed - often in the
+ * same second, and a body that carried the whole object back as some screen had
+ * read it undid whichever landed first.
  */
 export const meUpdate = named(
   'MeUpdate',
@@ -305,10 +311,10 @@ export const meUpdate = named(
       avatarMediaId: true,
       publicProfile: true,
       privacy: true,
-      preferences: true,
       retention: true,
       notifications: true,
     })
+    .extend({ preferences: userPreferences.partial() })
     .partial(),
 );
 

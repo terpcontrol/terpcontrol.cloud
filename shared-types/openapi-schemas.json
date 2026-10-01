@@ -1110,14 +1110,64 @@
       "privacy": {
         "$ref": "#/components/schemas/UserPrivacy"
       },
-      "preferences": {
-        "$ref": "#/components/schemas/UserPreferences"
-      },
       "retention": {
         "$ref": "#/components/schemas/UserRetention"
       },
       "notifications": {
         "$ref": "#/components/schemas/NotificationSettings"
+      },
+      "preferences": {
+        "type": "object",
+        "properties": {
+          "units": {
+            "$ref": "#/components/schemas/UnitPreference"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "timezoneChosen": {
+            "description": "Whether a person picked `timezone`. False while it is still the UTC every account starts on and every migrated account was given, because the old cloud never knew a zone; the app then adopts the zone of the device it is signed in on, once, and says so. Any change of `timezone` sets it, and a client may set it to keep UTC deliberately. It is never set back.",
+            "type": "boolean"
+          },
+          "diary": {
+            "description": "Whether the grow diary is offered, as the person answered; null where they have not, and `layers.diary` then follows what the account has used. A body that leaves it out keeps what is stored.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiaryChoice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notifyLaterUntil": {
+            "description": "Until when \"Later\" put away the notice that no channel carries this account's critical alarms; null until somebody taps it. A body that leaves it out keeps what is stored.",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "layoutSeen": {
+            "description": "The shape of the app this person was last shown, as the app recorded it; it says once what changed when the diary comes in or a second place appears. Null until the app first records one. A body that leaves it out keeps what is stored.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LayoutSeen"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
       }
     }
   },

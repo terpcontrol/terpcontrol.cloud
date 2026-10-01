@@ -52,7 +52,7 @@ export function NotifyNotice({ later = false }: { later?: boolean }) {
   if (later && (putOff.isPending || putOff.isSuccess || putAway(me.data, now))) return null;
 
   const account = me.data;
-  const askLater = () => putOff.mutate({ preferences: { ...account.preferences, notifyLaterUntil: instantOf(now.plus({ days: LATER_DAYS })) } });
+  const askLater = () => putOff.mutate({ preferences: { notifyLaterUntil: instantOf(now.plus({ days: LATER_DAYS })) } });
 
   return (
     <section className={styles.notice} aria-labelledby={titleId} data-compact={later || undefined}>

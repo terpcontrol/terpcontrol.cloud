@@ -160,33 +160,30 @@ export class AccountsService implements OnModuleInit {
     if (body.handle !== undefined) await this.claimHandle(body.handle, id);
 
     const { notifications, preferences, ...rest } = body;
-    const changes: Partial<StoredUser> = { ...rest };
+    const changes: Record<string, unknown> = { ...rest };
     if (notifications !== undefined) changes.notifications = stored(notifications);
-    if (preferences !== undefined) changes.preferences = await this.preferencesFrom(id, preferences);
+    if (preferences !== undefined) Object.assign(changes, await this.preferencesFrom(id, preferences));
 
     return this.apply(id, changes);
   }
 
   /**
-   * The preferences a body replaces, with the things it may leave out kept as
-   * they are: a body that only means to change the units sends the object back
-   * as some screen read it, and must neither un-choose the zone nor take back an
-   * answer about the diary given on another device, nor forget what the app has
-   * already told this person about its shape.
+   * The preferences a body names, each written as a field of its own, so that
+   * whatever it leaves out stays as stored: two writes in the same second - the
+   * zone a first sign-in adopts and the shape of the app it records - each keep
+   * the other's. The zone counts as picked once it is changed or kept on
+   * purpose, and is never un-picked.
    */
-  private async preferencesFrom(id: string, wanted: NonNullable<MeUpdate['preferences']>): Promise<StoredUser['preferences']> {
+  private async preferencesFrom(id: string, wanted: NonNullable<MeUpdate['preferences']>): Promise<Record<string, unknown>> {
     const current = (await this.require(id)).preferences;
-    const { notifyLaterUntil } = wanted;
+    const { notifyLaterUntil, timezoneChosen: _chosen, ...rest } = wanted;
+    const set: Record<string, unknown> = {};
 
-    return {
-      ...wanted,
-      timezoneChosen: zoneChosen(current, wanted),
-      diary: wanted.diary === undefined ? (current.diary ?? null) : wanted.diary,
-      layoutSeen: wanted.layoutSeen === undefined ? (current.layoutSeen ?? null) : wanted.layoutSeen,
-      // Nor is it somebody asking to be reminded of the notice today.
-      notifyLaterUntil:
-        notifyLaterUntil === undefined ? (current.notifyLaterUntil ?? null) : notifyLaterUntil === null ? null : new Date(notifyLaterUntil),
-    };
+    for (const [key, value] of Object.entries(rest)) if (value !== undefined) set[`preferences.${key}`] = value;
+    if (notifyLaterUntil !== undefined) set['preferences.notifyLaterUntil'] = notifyLaterUntil === null ? null : new Date(notifyLaterUntil);
+    if (zoneChosen(current, wanted)) set['preferences.timezoneChosen'] = true;
+
+    return set;
   }
 
   /**
@@ -415,7 +412,7 @@ export class AccountsService implements OnModuleInit {
     return created.toObject<StoredUser>();
   }
 
-  private async apply(id: string, changes: Partial<StoredUser>): Promise<StoredUser> {
+  private async apply(id: string, changes: Partial<StoredUser> | Record<string, unknown>): Promise<StoredUser> {
     // A partial update that names no field is the account as it stands, and is
     // answered as such: an empty `$set` is a write the database refuses.
     if (Object.keys(changes).length === 0) return this.require(id);
@@ -479,8 +476,7 @@ const stored = (settings: NotificationSettings): StoredNotificationSettings => (
 /**
  * Whether the zone is now one a person picked. Changing it is picking it, and
  * so is saying so outright - keeping UTC on purpose. Once picked it stays
- * picked: a body that sends the preferences back without the flag, as a change
- * of units does, is not a person un-choosing their zone.
+ * picked: a body that leaves the flag out is not a person un-choosing their zone.
  */
 const zoneChosen = (current: StoredUser['preferences'], wanted: NonNullable<MeUpdate['preferences']>): boolean =>
-  current.timezoneChosen === true || wanted.timezoneChosen === true || wanted.timezone !== current.timezone;
+  current.timezoneChosen === true || wanted.timezoneChosen === true || (wanted.timezone !== undefined && wanted.timezone !== current.timezone);

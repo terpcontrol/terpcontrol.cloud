@@ -38,9 +38,8 @@ const UNITS: { kind: keyof UnitPreference; choices: string[] }[] = [
  * because both have to be known before the first frame, long before any
  * account has answered. The units and the time zone are the account's, so that
  * a phone and a laptop agree on what a weight is and on when the night begins;
- * they go to `PATCH /me` as the whole preferences object with one field
- * changed, since the route replaces what it is given rather than merging into
- * it. The demo has no account to keep them on, and is told so under the two
+ * each goes to `PATCH /me` as the one preference it changes, and the server
+ * keeps the rest as stored. The demo has no account to keep them on, and is told so under the two
  * settings it can still change.
  *
  * The zone is the one setting here the server acts on rather than merely draws:
@@ -120,7 +119,7 @@ function FromTheAccount() {
           onChange={value =>
             // The home draws what this decides, so it is read again once the answer has landed.
             update.mutate(
-              { preferences: { ...account.preferences, diary: DIARY.find(option => option.key === value)?.choice ?? null } },
+              { preferences: { diary: DIARY.find(option => option.key === value)?.choice ?? null } },
               { onSuccess: () => void client.invalidateQueries({ queryKey: ['home'] }) },
             )
           }
@@ -144,7 +143,7 @@ function FromTheAccount() {
             name={t(`me.appearance.${kind}`)}
             value={units[kind]}
             disabled={held}
-            onChange={value => update.mutate({ preferences: { ...account.preferences, units: { ...units, [kind]: value } } })}
+            onChange={value => update.mutate({ preferences: { units: { ...units, [kind]: value } } })}
           >
             {choices.map(unit => (
               <option key={unit} value={unit}>
@@ -162,7 +161,7 @@ function FromTheAccount() {
           value={account.preferences.timezone}
           className={styles.zone}
           disabled={held}
-          onChange={value => update.mutate({ preferences: { ...account.preferences, timezone: value } })}
+          onChange={value => update.mutate({ preferences: { timezone: value } })}
         >
           {offeredZones(account.preferences.timezone).map(zone => (
             <option key={zone} value={zone}>

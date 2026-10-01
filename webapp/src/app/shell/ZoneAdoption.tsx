@@ -46,7 +46,7 @@ export function ZoneAdoption() {
 
     asked.current = true;
     update.mutate(
-      { preferences: { ...kept, timezone: here, timezoneChosen: true } },
+      { preferences: { timezone: here, timezoneChosen: true } },
       { onSuccess: () => setAdopted({ from: kept.timezone, zone: here }) },
     );
   }, [account, mayManage, here, update]);
