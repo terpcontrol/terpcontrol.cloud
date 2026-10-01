@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Invite, MemberRole, SpaceKind } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useCreateInvite } from '@/api/invites';
+import { useDiaryLayer } from '@/api/layers';
 import { useSpaceOverview } from '@/api/spaces';
 import { Sheet } from '@/log/Sheet';
 import { copyText } from '@/ui/clipboard';
@@ -48,6 +49,8 @@ export function InviteSheet({
 }) {
   const { t } = useTranslation();
   const create = useCreateInvite(spaceId);
+  // Without the diary there are no entries or tasks for a role to be about, so each role is said in what is there.
+  const diary = useDiaryLayer();
   const [made, setMade] = useState<Invite | null>(shown);
   const [role, setRole] = useState<MemberRole>('can_log');
   const [validity, setValidity] = useState<Validity>('week');
@@ -99,7 +102,7 @@ export function InviteSheet({
             {ROLES.map(one => (
               <button key={one} type="button" role="radio" aria-checked={role === one} className={styles.role} onClick={() => setRole(one)}>
                 <span className={styles.roleName}>{t(`space.members.role.${one}`)}</span>
-                <span className={styles.roleNote}>{t(`space.members.sheet.roleNote.${one}`)}</span>
+                <span className={styles.roleNote}>{t(`space.members.sheet.roleNote.${one}${diary ? '' : 'Plain'}`)}</span>
               </button>
             ))}
           </div>

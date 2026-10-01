@@ -2812,17 +2812,24 @@
         "can_manage": "manage"
       },
       "can": {
-        "see": "See the space, its grows and cams",
+        "see": "See the place and its readings",
+        "seeCams": "See the place, its readings and cams",
+        "seeGrows": "See the place, its readings and grows",
+        "seeAll": "See the place, its grows and cams",
         "log": "Log entries, tick tasks, photos",
-        "steer": "Targets, plan, alarms, sockets",
+        "steer": "Targets, plan, alarms, maintenance",
         "own": "Devices, sharing, delete",
-        "seeRoom": "See every space in the room, its grows and cams"
+        "seeRoom": "See every place in the room and its readings",
+        "seeRoomCams": "See every place in the room, its readings and cams",
+        "seeRoomGrows": "See every place in the room, its readings and grows",
+        "seeRoomAll": "See every place in the room, its grows and cams"
       },
       "mark": {
         "yes": "yes",
         "no": "no"
       },
       "noViewerRole": "Read-only viewing is what share links do; there is no viewer role. Every entry carries its author. Tasks filter Mine / All, notifications are per person.",
+      "noViewerRolePlain": "Read-only viewing is what share links do; there is no viewer role. Notifications are per person.",
       "remove": {
         "title": "Take @{{name}} out?",
         "body": "They lose this place and everything standing in it. What they wrote here stays here and goes on carrying their name.",
@@ -2881,8 +2888,10 @@
         "title": "Invite to {{name}}",
         "role": "Role",
         "roleNote": {
-          "can_log": "sees the space and its grows, logs entries, ticks tasks",
-          "can_manage": "can log, plus targets, plan and alarms"
+          "can_log": "sees the place and its grows, logs entries, ticks tasks",
+          "can_manage": "can log, plus targets, plan and alarms",
+          "can_logPlain": "sees the place and its readings",
+          "can_managePlain": "sees the place and changes its targets, plan and alarms too"
         },
         "valid": "Valid",
         "validity": {

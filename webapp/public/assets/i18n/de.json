@@ -2816,17 +2816,24 @@
         "can_manage": "steuern"
       },
       "can": {
-        "see": "Bereich, Grows und Kameras sehen",
+        "see": "Den Ort und seine Werte sehen",
+        "seeCams": "Den Ort, seine Werte und Kameras sehen",
+        "seeGrows": "Den Ort, seine Werte und Grows sehen",
+        "seeAll": "Den Ort, seine Grows und Kameras sehen",
         "log": "Einträge, Aufgaben, Fotos",
-        "steer": "Sollwerte, Plan, Alarme, Steckdosen",
+        "steer": "Zielwerte, Plan, Alarme, Wartung",
         "own": "Geräte, Teilen, Löschen",
-        "seeRoom": "Jeden Bereich im Raum, seine Grows und Kameras sehen"
+        "seeRoom": "Jeden Ort im Raum und seine Werte sehen",
+        "seeRoomCams": "Jeden Ort im Raum, seine Werte und Kameras sehen",
+        "seeRoomGrows": "Jeden Ort im Raum, seine Werte und Grows sehen",
+        "seeRoomAll": "Jeden Ort im Raum, seine Grows und Kameras sehen"
       },
       "mark": {
         "yes": "ja",
         "no": "nein"
       },
       "noViewerRole": "Zum bloßen Mitlesen gibt es Freigabelinks; eine Zuschauer-Rolle gibt es nicht. Jeder Eintrag zeigt, wer ihn geschrieben hat. Aufgaben lassen sich nach Meine / Alle filtern, Benachrichtigungen gibt es pro Person.",
+      "noViewerRolePlain": "Zum bloßen Mitlesen gibt es Freigabelinks; eine Zuschauer-Rolle gibt es nicht. Benachrichtigungen gibt es pro Person.",
       "remove": {
         "title": "@{{name}} von diesem Ort entfernen?",
         "body": "Damit ist dieser Ort für sie weg, samt allem, was dort steht. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
@@ -2885,8 +2892,10 @@
         "title": "Einladen in {{name}}",
         "role": "Rolle",
         "roleNote": {
-          "can_log": "sieht den Bereich und seine Grows, loggt Einträge, hakt Aufgaben ab",
-          "can_manage": "darf loggen, dazu Sollwerte, Plan und Alarme"
+          "can_log": "sieht den Ort und seine Grows, loggt Einträge, hakt Aufgaben ab",
+          "can_manage": "darf loggen, dazu Zielwerte, Plan und Alarme",
+          "can_logPlain": "sieht den Ort und seine Werte",
+          "can_managePlain": "sieht den Ort und ändert dazu Zielwerte, Plan und Alarme"
         },
         "valid": "Gültig",
         "validity": {

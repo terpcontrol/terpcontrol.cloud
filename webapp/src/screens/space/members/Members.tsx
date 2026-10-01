@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { membersPath } from '@/app/places';
 import type { Space, SpaceKind } from '@fg2/shared-types/v1';
+import { useCameras } from '@/api/cameras';
+import { useDiaryLayer } from '@/api/layers';
 import { useMembers } from '@/api/members';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
@@ -13,6 +15,7 @@ import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayIn } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { ownsCamera } from '@/screens/devices/cameras';
 import { InviteBlock } from './InviteBlock';
 import { guestsOf, lastLoggedOf, peopleCount, personOf, viaRoomCount } from './people';
 import { Permissions } from './Permissions';
@@ -59,6 +62,12 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
   // is to be said about the answer off the page with it.
   const [leaving, setLeaving] = useState<Leaving | null>(null);
   const [stoppedLink, setStoppedLink] = useState<{ code: string; name: string } | null>(null);
+  // What there is to see and write here, so the table promises neither grows
+  // nor entries to somebody who keeps no diary, nor cameras to somebody who
+  // has none: a camera counts once the account's cameras have answered.
+  const diary = useDiaryLayer();
+  const cameras = useCameras();
+  const hasCamera = cameras.data !== undefined && ownsCamera(cameras.data.items);
 
   if (isDemo) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.members.demo')}</p>;
   if (members.isPending) return <Waiting lines={4} />;
@@ -149,7 +158,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
       </header>
 
       <ul className={ui.group}>
-        <OwnerRow isYou={isYou} handle={ownerHandle} name={name} lastLogged={ownerId ? lastLoggedOf(page, ownerId) : null} />
+        <OwnerRow isYou={isYou} handle={ownerHandle} name={name} lastLogged={ownerId ? lastLoggedOf(page, ownerId) : null} diary={diary} />
         {guestsOf(page, spaceId).map(guest => (
           <PersonRow
             key={guest.userId}
@@ -158,6 +167,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
             handle={personOf(page, guest.userId)?.handle ?? null}
             roomName={roomName}
             lastLogged={lastLoggedOf(page, guest.userId)}
+            diary={diary}
             isYou={guest.userId === user?.id}
             mayManage={mayWrite}
             now={now}
@@ -166,7 +176,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
         ))}
       </ul>
 
-      <Permissions kind={kind} />
+      <Permissions kind={kind} diary={diary} cameras={hasCamera} />
 
       {leaving ? (
         <RemoveSheet
@@ -215,8 +225,23 @@ function TentsInRoom({ tents, pending }: { tents: Space[]; pending: boolean }) {
  * member is shown the list at all: telling whose entry they are reading. What
  * is said under the name is that they own the place, which is a fact about the
  * tent rather than a role in it.
+ *
+ * When they last logged is a diary's fact, and without the diary there is
+ * nothing anybody logs - so the line then says whose place it is and no more.
  */
-function OwnerRow({ isYou, handle, name, lastLogged }: { isYou: boolean; handle: string | null; name: string; lastLogged: string | null }) {
+function OwnerRow({
+  isYou,
+  handle,
+  name,
+  lastLogged,
+  diary,
+}: {
+  isYou: boolean;
+  handle: string | null;
+  name: string;
+  lastLogged: string | null;
+  diary: boolean;
+}) {
   const { t } = useTranslation();
   const now = useNow();
 
@@ -234,10 +259,12 @@ function OwnerRow({ isYou, handle, name, lastLogged }: { isYou: boolean; handle:
             that dated every guest's last entry but not theirs would read as if
             the person who runs the place never touched it.
           */}
-          <span className={styles.howFigure}>
-            {' · '}
-            {lastLogged === null ? t('space.members.neverLogged') : t('space.members.lastLogged', { age: ageLabel(lastLogged, now) })}
-          </span>
+          {diary ? (
+            <span className={styles.howFigure}>
+              {' · '}
+              {lastLogged === null ? t('space.members.neverLogged') : t('space.members.lastLogged', { age: ageLabel(lastLogged, now) })}
+            </span>
+          ) : null}
         </span>
       </span>
       <span className={ui.chip}>{t('space.members.role.owner')}</span>

@@ -116,6 +116,10 @@ const server = {
   preview: {} as InvitePreview,
   refuse: null as Problem | null,
   wrote: [] as { method: string; path: string; body: unknown }[],
+  /** Whether the account keeps a diary, as `/me` answers it; null leaves `/me` unanswered, which is the app as it always was. */
+  diary: null as boolean | null,
+  /** The account's cameras, as `/cameras` answers them. */
+  cameras: [] as { id: string; removedAt: string | null; isDemo: boolean }[],
 };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -134,6 +138,8 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
 
   if (method === 'GET' && path.startsWith('/spaces?')) return json({ items: server.spaces, nextCursor: null });
   if (method === 'GET' && path === '/spaces') return json({ items: server.spaces, nextCursor: null });
+  if (method === 'GET' && path === '/me' && server.diary !== null) return json({ id: 'user-1', handle: 'chris', layers: { diary: server.diary } });
+  if (method === 'GET' && path.startsWith('/cameras')) return json({ items: server.cameras, nextCursor: null });
   if (method === 'GET' && path.startsWith('/spaces/space-1/members')) return json(server.members);
   if (method === 'GET' && path.startsWith('/spaces/space-1/invites')) return json({ items: server.invites, nextCursor: null });
   if (method === 'POST' && path === '/spaces/space-1/invites') {
@@ -195,6 +201,8 @@ beforeEach(() => {
   server.invites = [];
   server.refuse = null;
   server.wrote = [];
+  server.diary = null;
+  server.cameras = [];
   server.preview = {
     isValid: true,
     spaceName: 'Blue Dream tent',
@@ -438,6 +446,61 @@ describe('the Members tab as its owner', () => {
     await drawnPeople();
 
     expect(screen.getByText(/Read-only viewing is what share links do; there is no viewer role/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * The table of what each role may do names only what there is: grows, entries
+ * and tasks belong to the diary, and cameras to an account that has one. A
+ * fridge without either was promised "grows and cams" and a row of entries,
+ * tasks and photos it would never see.
+ */
+describe('what the role table promises', () => {
+  const table = async () => {
+    drawTab();
+    await screen.findByText('@jonas');
+    return screen.getByRole('table');
+  };
+
+  it('promises the place and its readings, and no diary row, to an account that keeps no diary and has no camera', async () => {
+    server.diary = false;
+    const grid = await table();
+
+    await waitFor(() => expect(within(grid).getByRole('rowheader', { name: 'See the place and its readings' })).toBeInTheDocument());
+    expect(within(grid).queryByText('Log entries, tick tasks, photos')).not.toBeInTheDocument();
+    expect(within(grid).getByRole('rowheader', { name: 'Targets, plan, alarms, maintenance' })).toBeInTheDocument();
+    expect(within(grid).getAllByRole('row')).toHaveLength(4);
+    expect(screen.getByText('Read-only viewing is what share links do; there is no viewer role. Notifications are per person.')).toBeInTheDocument();
+    // Nobody logs anything without a diary, so no row dates when they last did.
+    expect(screen.queryByText(/nothing logged yet|last logged/)).not.toBeInTheDocument();
+  });
+
+  it('names the cameras once the account has one', async () => {
+    server.diary = false;
+    server.cameras = [{ id: 'cam-1', removedAt: null, isDemo: false }];
+    const grid = await table();
+
+    expect(await within(grid).findByRole('rowheader', { name: 'See the place, its readings and cams' })).toBeInTheDocument();
+  });
+
+  it('names the grows and the diary row for an account that keeps a diary', async () => {
+    server.diary = true;
+    const grid = await table();
+
+    await waitFor(() => expect(within(grid).getByRole('rowheader', { name: 'See the place, its readings and grows' })).toBeInTheDocument());
+    expect(within(grid).getByRole('rowheader', { name: 'Log entries, tick tasks, photos' })).toBeInTheDocument();
+    expect(within(screen.getAllByRole('listitem')[1]).getByText(/last logged 1 d/)).toBeInTheDocument();
+  });
+
+  it('leaves a camera that was removed, or the demo´s, out of what there is to see', async () => {
+    server.diary = true;
+    server.cameras = [
+      { id: 'cam-1', removedAt: NOW.toISO()!, isDemo: false },
+      { id: 'cam-2', removedAt: null, isDemo: true },
+    ];
+    const grid = await table();
+
+    await waitFor(() => expect(within(grid).getByRole('rowheader', { name: 'See the place, its readings and grows' })).toBeInTheDocument());
   });
 });
 
