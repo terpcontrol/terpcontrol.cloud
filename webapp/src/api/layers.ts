@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { DiaryChoice, Me } from '@fg2/shared-types/v1';
+import type { DiaryChoice, LayoutSeen, Me } from '@fg2/shared-types/v1';
 import { meKey, useMe } from './account';
 import { api } from './client';
 import { useHomeShape } from './home';
@@ -55,5 +55,23 @@ export const useChooseDiary = () => {
       client.setQueryData(meKey, me);
       await client.invalidateQueries({ queryKey: ['home'] });
     },
+  });
+};
+
+/**
+ * Records the shape of the app this person has now been shown, so the change
+ * it explains is explained once - on this phone and on every other. Like the
+ * diary answer it is written into preferences read fresh, so nothing another
+ * screen changed a moment ago is carried back over.
+ */
+export const useSeeLayout = () => {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (layoutSeen: LayoutSeen) => {
+      const me = await client.fetchQuery({ queryKey: meKey, queryFn: ({ signal }) => api.get<Me>('/me', undefined, signal) });
+      return api.patch<Me>('/me', { preferences: { ...me.preferences, layoutSeen } });
+    },
+    onSuccess: me => client.setQueryData(meKey, me),
   });
 };

@@ -1460,7 +1460,14 @@
     },
     "zoneAdopted": "Uhrzeiten richten sich jetzt nach {{zone}}, der Zeitzone dieses Geräts. Dein Konto stand noch auf {{from}}, womit jedes Konto beginnt – auch die Ruhezeiten gelten jetzt in der neuen Zone.",
     "zoneAdoptedChange": "Ändern",
-    "zoneAdoptedDismiss": "Verstanden"
+    "zoneAdoptedDismiss": "Verstanden",
+    "layout": {
+      "label": "Was sich geändert hat",
+      "diary": "Das Grow-Tagebuch ist an. „Eintrag“ in der Mitte der Leiste schreibt Gießen, Düngen, Fotos und Notizen; was fällig ist, steht beim Grow und hinter der Glocke.",
+      "places": "Jetzt sind es {{count}} Orte: Start zeigt jeden als Karte, ein Tipp öffnet ihn. Verlauf und Steuerung zeigen den zuletzt geöffneten, oben wechselst du den Ort.",
+      "ok": "Verstanden",
+      "diaryOff": "Ausschalten unter Ich › Darstellung"
+    }
   },
   "home": {
     "entryRepeats": "{{count}}× seit {{since}}",

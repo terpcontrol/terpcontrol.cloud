@@ -1464,7 +1464,14 @@
     },
     "zoneAdopted": "Clock times now follow {{zone}}, the zone this device is in. Your account was still on {{from}}, which every account starts on - quiet hours are read in the new zone too.",
     "zoneAdoptedChange": "Change it",
-    "zoneAdoptedDismiss": "Got it"
+    "zoneAdoptedDismiss": "Got it",
+    "layout": {
+      "label": "What changed",
+      "diary": "The grow diary is on. “Log” in the middle of the bar writes watering, feeding, photos and notes; what is due is with the grow and behind the bell.",
+      "places": "There are {{count}} places now: Home shows each as a card, a tap opens it. Timeline and Control show the one opened last; switch it at the top.",
+      "ok": "Got it",
+      "diaryOff": "Turn it off under Me › Appearance"
+    }
   },
   "home": {
     "entryRepeats": "{{count}}× since {{since}}",

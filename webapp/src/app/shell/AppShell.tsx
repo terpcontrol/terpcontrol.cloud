@@ -3,6 +3,7 @@ import { LogProvider } from '@/log/LogProvider';
 import { Rail } from './Rail';
 import { TabBar } from './TabBar';
 import { TopBar } from './TopBar';
+import { LayoutNotice } from './LayoutNotice';
 import { ZoneAdoption } from './ZoneAdoption';
 import styles from './AppShell.module.css';
 
@@ -24,6 +25,7 @@ export function AppShell() {
           <TopBar />
           <main className={styles.main}>
             <ZoneAdoption />
+            <LayoutNotice />
             <Outlet />
           </main>
         </div>

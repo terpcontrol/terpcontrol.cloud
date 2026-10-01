@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import type { CameraPage, DevicePage } from '@fg2/shared-types/v1';
+import type { CameraPage, DevicePage, LayoutSeen } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { useHomeShape } from '@/api/home';
 import { useDiaryAnswer } from '@/api/layers';
@@ -78,4 +78,15 @@ export const useShape = (): Shape & { ready: boolean } => {
   }, [userId, written]);
 
   return known ? { ...known, ready: true } : { ...remembered(userId), ready: false };
+};
+
+/**
+ * What came in since the shape last shown: the diary, a second place, or both.
+ * Nothing where no shape was ever recorded - nothing changed for somebody seen
+ * for the first time - and nothing for what went away, which the person did.
+ */
+export const newsOf = (seen: LayoutSeen | null, now: LayoutSeen): LayoutSeen | null => {
+  if (seen === null) return null;
+  const news = { diary: now.diary && !seen.diary, places: now.places && !seen.places };
+  return news.diary || news.places ? news : null;
 };

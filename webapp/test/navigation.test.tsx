@@ -28,8 +28,8 @@ vi.mock('@/api/session', async importOriginal => {
  * under the real shell and answered over the wire: the same four tabs for
  * everybody, the Log button where a diary is kept, one place page with no tabs
  * of its own, Verlauf and Steuerung about one place with a switcher only where
- * there is something to switch, and every address a place used to have sent on
- * to where its things are now.
+ * there is something to switch, every address a place used to have sent on to
+ * where its things are now, and a change to the shape of the app said once.
  */
 
 const ago = (minutes: number) => DateTime.now().minus({ minutes }).toUTC().toISO()!;
@@ -366,6 +366,62 @@ describe('Verlauf and Steuerung', () => {
     expect(openingOf('/timeline', '', { current: 'space-1' })).toEqual({ spaceId: 'space-1', underneath: true });
     expect(openingOf('/', '', { only: 'space-1' })).toEqual({ spaceId: 'space-1', underneath: true });
     expect(openingOf('/', '', {})).toEqual({});
+  });
+});
+
+describe('a change to the shape of the app', () => {
+  const patches = () => server.sent.filter(one => one.method === 'PATCH' && one.path === '/me');
+
+  it('records an account seen for the first time as it stands, and says nothing', async () => {
+    server.me = meOf(false, null);
+    open(QUIET);
+
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    expect(patches()[0].body).toMatchObject({ preferences: { layoutSeen: { diary: false, places: false } } });
+    expect(screen.queryByRole('status', { name: 'What changed' })).not.toBeInTheDocument();
+  });
+
+  it('says once that a second place turned Start into cards and put a switcher on the tabs', async () => {
+    server.places = [
+      ['space-1', 'Fridge 1'],
+      ['space-2', 'Tent 2'],
+    ];
+    open(QUIET);
+
+    const notice = await screen.findByRole('status', { name: 'What changed' });
+    expect(notice).toHaveTextContent('There are 2 places now');
+    expect(patches()[0].body).toMatchObject({ preferences: { layoutSeen: { diary: false, places: true } } });
+
+    fireEvent.click(within(notice).getByRole('button', { name: 'Got it' }));
+    expect(screen.queryByRole('status', { name: 'What changed' })).not.toBeInTheDocument();
+    expect(patches()).toHaveLength(1);
+  });
+
+  it('says once that the diary brought the Log button, and where it is turned off', async () => {
+    server.diary = true;
+    server.me = meOf(true, { diary: false, places: false });
+    open(QUIET);
+
+    const notice = await screen.findByRole('status', { name: 'What changed' });
+    expect(notice).toHaveTextContent('The grow diary is on.');
+    expect(within(notice).getByRole('link', { name: 'Turn it off under Me › Appearance' })).toHaveAttribute('href', '/me/appearance');
+  });
+
+  it('records what went away without a word, because the grower did it', async () => {
+    server.me = meOf(false, { diary: true, places: true });
+    open(QUIET);
+
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    expect(patches()[0].body).toMatchObject({ preferences: { layoutSeen: { diary: false, places: false } } });
+    expect(screen.queryByRole('status', { name: 'What changed' })).not.toBeInTheDocument();
+  });
+
+  it('asks the demo nothing and tells it nothing', async () => {
+    who.demo = true;
+    open(QUIET);
+
+    await waitFor(() => expect(server.sent.some(one => one.path === '/home')).toBe(true));
+    expect(patches()).toHaveLength(0);
   });
 });
 
