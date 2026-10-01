@@ -115,6 +115,7 @@ export function PlaceCockpit({
               spaceId={spaceId}
               values={overview.values}
               setpoints={overview.setpoints}
+              targets={overview.targets}
               device={device}
               live={live}
               timeline={timeline}

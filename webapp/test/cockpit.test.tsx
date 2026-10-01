@@ -23,7 +23,7 @@ import type {
 import { LogProvider } from '@/log/LogProvider';
 import { Home } from '@/screens/Home';
 import { PlaceCockpit } from '@/screens/cockpit/PlaceCockpit';
-import { outputsFor, statusOf } from '@/screens/cockpit/place';
+import { judgedPanel, outputsFor, statusOf } from '@/screens/cockpit/place';
 import { spacePage, spaceWhere } from './session';
 
 vi.mock('@/api/session', async importOriginal => {
@@ -710,6 +710,48 @@ describe('what the cockpit decides', () => {
     expect(statusOf({ ...place, setpoints: [] }, now).kind).toBe('noTargets');
     expect(statusOf({ ...place, deviceIds: [] }, now).kind).toBe('none');
     expect(statusOf({ ...place, values: [] }, now).kind).toBe('waiting');
+  });
+
+  /**
+   * The Timeline draws a grow's phase against the targets it recorded when it
+   * began. A tile judges against what the controller holds now, so its curve
+   * is banded the same way, or "62 % · in band" stood over a line drawn under
+   * a band of 65-75 after the targets were changed mid-phase.
+   */
+  it('bands a tile´s curve by the targets the tile judges against, not by the ones the phase began with', () => {
+    const phase = {
+      metric: 'humidity' as const,
+      points: [],
+      targets: [
+        {
+          startsAt: ago(3000),
+          endsAt: ago(0),
+          phaseId: 'phase-1',
+          stage: 'vegetative' as const,
+          day: { setpoint: 70, band: { low: 65, high: 75 } },
+          night: { setpoint: 65, band: { low: 60, high: 70 } },
+        },
+      ],
+    };
+    const now = {
+      day: [{ metric: 'humidity' as const, value: 62, band: 5 }],
+      night: [{ metric: 'humidity' as const, value: 58, band: 5 }],
+    };
+
+    const [from, to] = [ago(1440), ago(0)];
+    expect(judgedPanel(phase, now, from, to)?.targets).toEqual([
+      {
+        startsAt: from,
+        endsAt: to,
+        phaseId: null,
+        stage: null,
+        day: { setpoint: 62, band: { low: 57, high: 67 } },
+        night: { setpoint: 58, band: { low: 53, high: 63 } },
+      },
+    ]);
+    // A place that holds no targets keeps whatever the Timeline drew.
+    expect(judgedPanel(phase, null, from, to)).toBe(phase);
+    expect(judgedPanel(phase, { day: [], night: [] }, from, to)).toBe(phase);
   });
 
   it('leaves out an output the device never reported, and a CO₂ valve the firmware never opens', () => {

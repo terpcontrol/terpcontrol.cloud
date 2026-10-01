@@ -9,10 +9,13 @@ import type {
   Metric,
   OpenAlert,
   OutputMetric,
+  OverviewTargets,
   SeriesPoint,
   SpaceKind,
   TimelineOutputLane,
+  TimelinePanel,
   TimelineSpan,
+  TimelineTarget,
 } from '@fg2/shared-types/v1';
 import { timelinePath } from '@/app/places';
 import { offlineLabel, sinceLabel, valueAge } from '@/ui/age';
@@ -83,6 +86,31 @@ export const verdictOf = (value: CardValue | null, setpoint: CardSetpoint | null
 
 export const setpointOf = (setpoints: CardSetpoint[], metric: Metric): CardSetpoint | null =>
   setpoints.find(setpoint => setpoint.metric === metric) ?? null;
+
+/**
+ * A day of one reading with the band the cockpit judges it by: the
+ * controller's configuration as it stands now, day and night, which is what the
+ * tile's "im Ziel", the status line and its "seit 18:02" are all worked out
+ * against. The Timeline draws a grow's phase against the targets the phase
+ * recorded when it began, and a target changed since - a preset applied, a
+ * value saved under Steuerung - left a tile saying "Tagesziel 62 % · im Ziel"
+ * over a curve drawn under a band of 65-75. Where the place holds no targets
+ * the panel is drawn as it came.
+ */
+export const judgedPanel = (panel: TimelinePanel | null, targets: OverviewTargets | null, startsAt: string, endsAt: string): TimelinePanel | null => {
+  if (!panel || !targets) return panel;
+  const half = (row: CardSetpoint[]): TimelineTarget | null => {
+    const setpoint = setpointOf(row, panel.metric);
+    return setpoint?.value == null || setpoint.band == null
+      ? null
+      : { setpoint: setpoint.value, band: { low: setpoint.value - setpoint.band, high: setpoint.value + setpoint.band } };
+  };
+  const day = half(targets.day);
+  const night = half(targets.night);
+  if (!day && !night) return panel;
+
+  return { ...panel, targets: [{ startsAt, endsAt, phaseId: null, stage: null, day, night }] };
+};
 
 /**
  * The outputs that move each reading, by kind of hardware, in the order a tile

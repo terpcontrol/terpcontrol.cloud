@@ -3,7 +3,7 @@ import type { DateTime } from 'luxon';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { CardSetpoint, CardValue, Device, DeviceLive, Metric, SpaceTimeline, TimelinePanel } from '@fg2/shared-types/v1';
+import type { CardSetpoint, CardValue, Device, DeviceLive, Metric, OverviewTargets, SpaceTimeline, TimelinePanel } from '@fg2/shared-types/v1';
 import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 import { Term } from '@/ui/Help';
@@ -15,6 +15,7 @@ import { MiniCurve, type Tone } from './MiniCurve';
 import {
   focusLink,
   hoursFigure,
+  judgedPanel,
   lightWindowOf,
   nightsOf,
   outputsFor,
@@ -43,6 +44,8 @@ export interface TilesProps {
   spaceId: string;
   values: CardValue[];
   setpoints: CardSetpoint[];
+  /** The day's and the night's targets as the controller holds them now, which the curves' bands are drawn from. */
+  targets?: OverviewTargets | null;
   device: Device | null;
   live: DeviceLive | undefined;
   timeline: SpaceTimeline | undefined;
@@ -99,6 +102,7 @@ function ClimateTile({
   spaceId,
   values,
   setpoints,
+  targets = null,
   device,
   live,
   timeline,
@@ -114,7 +118,9 @@ function ClimateTile({
   const verdict = verdictOf(value, setpoint, now);
   const age = value ? valueAge(value, now) : 'offline';
   const vpd = metric === 'humidity' ? valueOf(values, 'vpd') : null;
-  const panel = timeline?.panels.find(one => one.metric === metric) ?? null;
+  const panel = timeline
+    ? judgedPanel(timeline.panels.find(one => one.metric === metric) ?? null, targets, timeline.startsAt, timeline.endsAt)
+    : null;
   const outputs = outputsFor(device, live, timeline?.outputs, metric);
 
   return (
