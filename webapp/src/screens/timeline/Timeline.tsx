@@ -1,15 +1,14 @@
 import { ChevronDown, LineChart } from 'lucide-react';
+import { DateTime } from 'luxon';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import type { SpaceTimeline, TimelineOutputLane, TimelineRange } from '@fg2/shared-types/v1';
-import { fetchedAt } from '@/api/clock';
 import { useDevices } from '@/api/devices';
 import { useGrow } from '@/api/grows';
 import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { ageLabel, sinceLabel } from '@/ui/age';
-import { useReportFreshness } from '@/ui/freshness';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
@@ -72,8 +71,6 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
   }, [focus, data]);
   const growId = pinned ?? data?.growId ?? null;
   const grow = useGrow(growId);
-
-  useReportFreshness(timeline.dataUpdatedAt ? fetchedAt(timeline.dataUpdatedAt) : null);
 
   const scrub = useScrub(fraction => {
     if (!data) return;
@@ -207,7 +204,7 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
 
       {recordingSince !== null ? (
         <p className={`mono ${styles.recording}`} role="note">
-          {t('timeline.recordingSince', { time: sinceLabel(new Date(recordingSince).toISOString(), now, zone) })}
+          {t('timeline.recordingSince', { time: sinceLabel(DateTime.fromMillis(recordingSince).toISO()!, now, zone) })}
         </p>
       ) : null}
 

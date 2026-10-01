@@ -10,7 +10,6 @@ import { useDiaryLayer } from '@/api/layers';
 import { useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { Term } from '@/ui/Help';
-import { useReportFreshness } from '@/ui/freshness';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { EmptyHome } from './EmptyHome';
@@ -72,7 +71,6 @@ export function Home() {
           loose={loose}
           answer={answer}
           failedAt={home.isError ? home.dataUpdatedAt : null}
-          updatedAt={home.dataUpdatedAt}
           onStartGrow={() => setStarting(true)}
         />
       )}
@@ -122,14 +120,12 @@ function Places({
   loose,
   answer,
   failedAt,
-  updatedAt,
   onStartGrow,
 }: {
   places: Place[];
   loose: HomeSpaceCard[];
   answer: HomeAnswer;
   failedAt: number | null;
-  updatedAt: number;
   onStartGrow: () => void;
 }) {
   const { t } = useTranslation();
@@ -141,8 +137,6 @@ function Places({
   const diary = useDiaryLayer();
   // Offered once the account has been read and only where nobody said no; the demo has no account to keep an answer with.
   const offerDiary = !diary && me.data !== undefined && me.data.preferences.diary !== 'off';
-
-  useReportFreshness(updatedAt ? fetchedAt(updatedAt) : null);
 
   return (
     <section className={styles.page}>

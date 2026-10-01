@@ -1,12 +1,10 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import type { DeviceLive, DeviceSeries, Metric, SpaceOverview } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
-import { fetchedAt, serverNow } from '@/api/clock';
+import { serverNow } from '@/api/clock';
 import { DEVICES_REFRESH_MS } from '@/api/devices';
 import { useRead } from '@/api/read';
 import { useSpaceLive, useSpaceOverview } from '@/api/spaces';
-import { useReportFreshness } from '@/ui/freshness';
-import { measuredAtOf } from '../home/attention';
 
 /**
  * One device's newest values, outputs and the half of the cycle it says it is
@@ -55,11 +53,10 @@ export const useDaySeries = (deviceId: string | null, metric: Metric, enabled: b
  * once a minute and costs a day of series for the verdict; the live read is one
  * `last()` every half minute, and it is the values that age.
  *
- * How old the page is, is the age of its readings and not of the fetch that
- * carried them: a tent quiet for four days answers every poll with the same
- * four-day-old figures, and "updated 0 s ago" over them would answer the one
- * question the page is opened for the wrong way round. The fetch stands in only
- * while there is no reading at all.
+ * How old the page is, is said once, by the pill beside the place's name - the
+ * age of its newest reading, or since when it has been offline - and not again
+ * under the wordmark: "aktualisiert vor 16 s" beside "live · 16 s" was two
+ * clocks for one fact.
  *
  * A refresh that failed is dated by the half that failed, and of two failed
  * halves by the older, because what is on the screen is as old as its older
@@ -70,9 +67,6 @@ export const usePlace = (spaceId: string) => {
   const live = useSpaceLive(spaceId, (overview.data?.deviceIds?.length ?? 0) > 0);
 
   const fresher = live.data && live.dataUpdatedAt > overview.dataUpdatedAt ? live.data : null;
-  const freshestAt = Math.max(overview.dataUpdatedAt, live.dataUpdatedAt);
-  const measuredAt = measuredAtOf((fresher ?? overview.data)?.values ?? []);
-  useReportFreshness(measuredAt ?? (freshestAt ? fetchedAt(freshestAt) : null));
 
   const current: SpaceOverview | undefined =
     overview.data && fresher ? { ...overview.data, values: fresher.values, setpoints: fresher.setpoints } : overview.data;
