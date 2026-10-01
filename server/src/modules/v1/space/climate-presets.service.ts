@@ -28,7 +28,7 @@ export class ClimatePresetsService implements ClimatePresets {
     @Inject(DEVICE_CONFIGURATION_WRITER) private readonly configuration: DeviceConfigurationWriter,
   ) {}
 
-  public applyToSpace(spaceId: string, stage: GrowthStage, preset: string): Promise<AppliedPreset[]> {
+  public applyToSpace(spaceId: string, stage: GrowthStage, preset: string | null): Promise<AppliedPreset[]> {
     return this.writeTo(spaceId, stage, preset);
   }
 

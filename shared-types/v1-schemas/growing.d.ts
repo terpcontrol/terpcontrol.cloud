@@ -1014,6 +1014,7 @@ export declare const phaseCreate: z.ZodObject<{
         curing: "curing";
     }>;
     preset: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    climate: z.ZodOptional<z.ZodBoolean>;
     startedAt: z.ZodOptional<z.ZodISODateTime>;
     plantIds: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>;
 }, z.core.$strip>;
@@ -1221,6 +1222,7 @@ export declare const plantUpdate: z.ZodObject<{
  * wrongly.
  */
 export declare const phaseUpdate: z.ZodObject<{
+    preset: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     stage: z.ZodOptional<z.ZodEnum<{
         germination: "germination";
         seedling: "seedling";
@@ -1229,7 +1231,6 @@ export declare const phaseUpdate: z.ZodObject<{
         drying: "drying";
         curing: "curing";
     }>>;
-    preset: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     startedAt: z.ZodOptional<z.ZodOptional<z.ZodISODateTime>>;
     plantIds: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>>;
 }, z.core.$strip>;

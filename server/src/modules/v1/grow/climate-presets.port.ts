@@ -22,7 +22,7 @@ export interface AppliedPreset {
 
 export interface ClimatePresets {
   /** Writes the preset to every controller standing in the space, and answers the ones it reached. */
-  applyToSpace(spaceId: string, stage: GrowthStage, preset: string): Promise<AppliedPreset[]>;
+  applyToSpace(spaceId: string, stage: GrowthStage, preset: string | null): Promise<AppliedPreset[]>;
 }
 
 export const CLIMATE_PRESETS = Symbol('ClimatePresets');

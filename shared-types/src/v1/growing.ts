@@ -617,6 +617,12 @@ export const phaseCreate = named(
   z.object({
     stage: growthStage,
     preset: z.string().nullable().optional(),
+    climate: z
+      .boolean()
+      .optional()
+      .describe(
+        "Whether the stage's climate is written to the controllers where the plants stand. A preset always writes it; true writes the stage's own climate without one. Absent is false.",
+      ),
     startedAt: instant().optional().describe('Defaults to now.'),
     plantIds: z.array(id()).nullable().optional().describe('Absent or null is every plant.'),
   }),
@@ -731,7 +737,7 @@ export const plantUpdate = named('PlantUpdate', plant.pick({ strain: true, label
  * who put the grow into this phase did not change because the date was typed
  * wrongly.
  */
-export const phaseUpdate = named('PhaseUpdate', phaseCreate.partial());
+export const phaseUpdate = named('PhaseUpdate', phaseCreate.omit({ climate: true }).partial());
 
 /**
  * `PATCH /grows/{id}/placements/{placementId}`. Moving the plants is what

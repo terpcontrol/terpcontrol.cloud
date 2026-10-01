@@ -468,6 +468,10 @@ exports.growCreate = (0, common_js_1.named)('GrowCreate', zod_1.z.object({
 exports.phaseCreate = (0, common_js_1.named)('PhaseCreate', zod_1.z.object({
     stage: common_js_1.growthStage,
     preset: zod_1.z.string().nullable().optional(),
+    climate: zod_1.z
+        .boolean()
+        .optional()
+        .describe("Whether the stage's climate is written to the controllers where the plants stand. A preset always writes it; true writes the stage's own climate without one. Absent is false."),
     startedAt: (0, common_js_1.instant)().optional().describe('Defaults to now.'),
     plantIds: zod_1.z.array((0, common_js_1.id)()).nullable().optional().describe('Absent or null is every plant.'),
 }));
@@ -554,7 +558,7 @@ exports.plantUpdate = (0, common_js_1.named)('PlantUpdate', exports.plant.pick({
  * who put the grow into this phase did not change because the date was typed
  * wrongly.
  */
-exports.phaseUpdate = (0, common_js_1.named)('PhaseUpdate', exports.phaseCreate.partial());
+exports.phaseUpdate = (0, common_js_1.named)('PhaseUpdate', exports.phaseCreate.omit({ climate: true }).partial());
 /**
  * `PATCH /grows/{id}/placements/{placementId}`. Moving the plants is what
  * `POST /grows/{id}/placements` does; this repairs a placement recorded wrongly, `endedAt` included, which is also how a

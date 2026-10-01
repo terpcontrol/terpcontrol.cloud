@@ -2133,6 +2133,10 @@ export interface PhaseCreate {
   stage: GrowthStage;
   preset?: string | null;
   /**
+   * Whether the stage's climate is written to the controllers where the plants stand. A preset always writes it; true writes the stage's own climate without one. Absent is false.
+   */
+  climate?: boolean;
+  /**
    * Defaults to now.
    */
   startedAt?: string;

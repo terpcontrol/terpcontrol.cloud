@@ -48,7 +48,7 @@ let db: V1TestDatabase;
 let access: AccessService;
 let entries: EntryWriterService;
 let grows: GrowsService;
-let applied: { spaceId: string; stage: string; preset: string }[];
+let applied: { spaceId: string; stage: string; preset: string | null }[];
 
 /** Stands in for the space slice, which owns the preset table and writes it to the controllers of a space. */
 const presets: ClimatePresets = {
@@ -417,6 +417,21 @@ describe('entering a phase', () => {
     expect(applied).toEqual([{ spaceId: TENT, stage: 'seedling', preset: 'early_seedling' }]);
     expect(written).toMatchObject({ source: 'preset', deviceId: DEVICE, setBy: null });
     expect(written.targets?.day.temperature).toBe(26);
+  });
+
+  it("puts the controllers on the stage's own climate when it is asked for without a preset", async () => {
+    const grow = await started();
+    const written = await grows.addPhase(grow.id, { stage: 'flowering', climate: true }, OWNER, NOTHING_HIDDEN);
+
+    expect(applied).toEqual([{ spaceId: TENT, stage: 'flowering', preset: null }]);
+    expect(written).toMatchObject({ stage: 'flowering', preset: null, source: 'preset', deviceId: DEVICE, setBy: null });
+  });
+
+  it('leaves the climate alone when the stage comes without a preset and without asking for it', async () => {
+    const grow = await started();
+    await grows.addPhase(grow.id, { stage: 'flowering', climate: false }, OWNER, NOTHING_HIDDEN);
+
+    expect(applied).toEqual([]);
   });
 
   it('is set by the person who picked it when no preset came with it', async () => {

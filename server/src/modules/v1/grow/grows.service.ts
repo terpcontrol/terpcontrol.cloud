@@ -479,6 +479,11 @@ export class GrowsService {
    * carries what it runs, which is the only way a phase that is over can still
    * draw its target band, and it is marked as set by the preset, which is the
    * "auto" tag on the screen.
+   *
+   * `climate` asks for the same without a preset: the stage's own climate. A
+   * grower moving into flower wants the light on twelve hours, and the stage
+   * on its own - the plain "Flower" every climate list offers - was the one
+   * climate the phase picker could not put the tent on.
    */
   public async addPhase(growId: string, body: PhaseCreate, setBy: string | null, hide: Redaction): Promise<Phase> {
     const grow = await this.require(growId);
@@ -490,6 +495,7 @@ export class GrowsService {
       {
         stage: body.stage,
         preset: body.preset ?? null,
+        climate: body.climate === true,
         plantIds: body.plantIds ?? null,
         startedAt: body.startedAt ? new Date(body.startedAt) : undefined,
       },
@@ -507,12 +513,12 @@ export class GrowsService {
    */
   private async enterPhase(
     growId: string,
-    request: { stage: GrowthStage; preset: string | null; plantIds: string[] | null; startedAt?: Date },
+    request: { stage: GrowthStage; preset: string | null; climate?: boolean; plantIds: string[] | null; startedAt?: Date },
     spaceId: string | null,
     setBy: string | null,
   ): Promise<StoredPhase> {
-    const applied =
-      request.preset !== null && spaceId !== null ? ((await this.presets?.applyToSpace(spaceId, request.stage, request.preset)) ?? []) : [];
+    const writesClimate = request.preset !== null || request.climate === true;
+    const applied = writesClimate && spaceId !== null ? ((await this.presets?.applyToSpace(spaceId, request.stage, request.preset)) ?? []) : [];
     const controller = applied.length > 0 ? applied[0] : await this.controllerIn(spaceId);
 
     const phase = await this.phases.setPhase({
