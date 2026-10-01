@@ -104,7 +104,7 @@ export function AlertCard({ alert, rule, names, me, mayManage, now, explainSilen
         <OpenChips alert={alert} rule={rule} device={device} now={now} explainSilence={explainSilence} />
       ) : !open && alert.spaceId ? (
         <div className={styles.chips}>
-          <TimelineChip spaceId={alert.spaceId} />
+          <TimelineChip spaceId={alert.spaceId} alert={alert} rule={rule} />
         </div>
       ) : null}
     </li>
@@ -403,11 +403,19 @@ const ruleName = (t: Translate, alert: Alert, rule: AlarmRule | null): string | 
   return ruleTitle(t, rule);
 };
 
-function TimelineChip({ spaceId }: { spaceId: string }) {
+/**
+ * The Timeline of the place, opened on what the episode was about and when it
+ * began: the curve of the reading it crossed, or the lane of the output it
+ * watched, in the shortest window that holds the start - so yesterday's "Zu
+ * warm" opens on yesterday and not on a quiet day after it.
+ */
+function TimelineChip({ spaceId, alert, rule }: { spaceId: string; alert: Alert; rule: AlarmRule | null }) {
   const { t } = useTranslation();
+  const watch = alert.watched?.watch ?? rule?.watch ?? null;
+  const focus = !watch ? null : watch.kind === 'reading' ? (watch.metric === 'offline' ? null : watch.metric) : watch.output;
 
   return (
-    <Link to={timelinePath(spaceId)} className={ui.chip}>
+    <Link to={timelinePath(spaceId, focus, alert.startedAt)} className={ui.chip}>
       {t('alerts.action.timeline')}
     </Link>
   );
@@ -494,7 +502,7 @@ function OpenChips({
             {t(parked ? 'alerts.action.endMaintenance' : 'alerts.action.maintenance', { minutes: SPANS.minutes })}
           </button>
         ) : null}
-        {alert.spaceId ? <TimelineChip spaceId={alert.spaceId} /> : null}
+        {alert.spaceId ? <TimelineChip spaceId={alert.spaceId} alert={alert} rule={rule} /> : null}
         {!camera && rule && alert.spaceId ? (
           <Link to={controlPath(alert.spaceId, 'alarms', { rule: rule.id })} className={ui.chip}>
             {t('alerts.action.editRule')}

@@ -14,12 +14,15 @@ import { Timeline } from '@/screens/timeline/Timeline';
 import { figure, targetFigure } from '@/screens/home/units';
 import { scaleOf, stretchesOf } from '@/screens/timeline/window';
 
-const state = vi.hoisted(() => ({ answer: null as SpaceTimeline | null, devices: [] as { id: string; type: string }[] }));
+const state = vi.hoisted(() => ({ answer: null as SpaceTimeline | null, devices: [] as { id: string; type: string }[], asked: [] as string[] }));
 
 // The one read the screen is made of, and the grow the subject line names.
 vi.mock('@/api/timeline', async importOriginal => ({
   ...(await importOriginal<object>()),
-  useTimeline: () => ({ data: state.answer, isPending: false, isError: false, dataUpdatedAt: 1, refetch: () => {} }),
+  useTimeline: (_space: string, range: string) => {
+    state.asked.push(range);
+    return { data: state.answer, isPending: false, isError: false, dataUpdatedAt: 1, refetch: () => {} };
+  },
 }));
 
 vi.mock('@/api/grows', () => ({ useGrow: () => ({ data: { id: 'grow-1', name: 'Spring run' } }) }));
@@ -541,6 +544,17 @@ describe('a timeline opened on one reading', () => {
     expect(light).toHaveTextContent('41 250lx');
     // The name explains what is measured, where a steered panel names its band.
     expect(within(leaf).getByRole('button', { name: /Leaf temperature/ })).toBeInTheDocument();
+  });
+
+  it('opens on the shortest window that holds a moment the link names, an alert´s start from yesterday on the week', () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    state.asked = [];
+    drawAt(`/timeline?focus=temperature&at=${encodeURIComponent(DateTime.now().minus({ hours: 26 }).toISO()!)}`);
+    expect(state.asked[0]).toBe('7d');
+
+    state.asked = [];
+    drawAt(`/timeline?at=${encodeURIComponent(DateTime.now().minus({ hours: 3 }).toISO()!)}`);
+    expect(state.asked[0]).toBe('24h');
   });
 
   it('marks the lamp´s lane for the light', () => {

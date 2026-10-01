@@ -36,9 +36,9 @@ export const controlPath = (
   hash: string | null = null,
 ): string => withQuery(page ? `/control/${page}` : '/control', { space: spaceId, ...query }) + (hash ? `#${hash}` : '');
 
-/** The Timeline of a place, opened on one reading where `focus` names it. */
-export const timelinePath = (spaceId: string, focus: string | null = null): string =>
-  withQuery('/timeline', focus ? { space: spaceId, focus } : { space: spaceId });
+/** The Timeline of a place, opened on one reading where `focus` names it, and on one moment where `at` does. */
+export const timelinePath = (spaceId: string, focus: string | null = null, at: string | null = null): string =>
+  withQuery('/timeline', { space: spaceId, ...(focus ? { focus } : {}), ...(at ? { at } : {}) });
 
 /** The account's devices, with the ones standing in a place opened where it is named. */
 export const devicesPath = (spaceId: string | null = null): string => (spaceId ? withQuery('/devices', { space: spaceId }) : '/devices');

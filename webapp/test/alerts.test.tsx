@@ -325,7 +325,11 @@ describe('the inbox', () => {
         `Humidity high · critical · since ${clock(NOW.minus({ hours: 2, minutes: 20 }))} · for 2 h · repeats every 30 min until resolved`,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open timeline' })).toHaveAttribute('href', '/timeline?space=space-1');
+    // On the curve it crossed, at the moment it began.
+    expect(screen.getByRole('link', { name: 'Open timeline' })).toHaveAttribute(
+      'href',
+      `/timeline?space=space-1&focus=humidity&at=${encodeURIComponent(iso(NOW.minus({ hours: 2, minutes: 20 })))}`,
+    );
     expect(screen.getByRole('link', { name: 'Edit rule' })).toHaveAttribute('href', '/control/alarms?space=space-1&rule=rule-1');
   });
 

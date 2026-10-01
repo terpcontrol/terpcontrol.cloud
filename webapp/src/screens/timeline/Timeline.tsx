@@ -47,13 +47,17 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
-  const [range, setRange] = useState<TimelineRange>('24h');
+  const [params] = useSearchParams();
+  const focus = params.get('focus');
+  // A link that names a moment - an alert's "Verlauf öffnen" - opens on the
+  // shortest window that holds it, with the cursor standing on it.
+  const [at] = useState(() => momentOf(params.get('at')));
+  const [range, setRange] = useState<TimelineRange>(() => (at === null ? '24h' : rangeHolding(at, now.toMillis())));
   /** Set only when a stretch chip is tapped: the two rolling ranges let the server pick the grow standing here. */
   const [pinned, setPinned] = useState<string | null>(null);
   /** Null is "the end of the window", so a refresh carries the cursor along with it rather than pinning it to an instant that has scrolled out. */
-  const [cursor, setCursor] = useState<number | null>(null);
+  const [cursor, setCursor] = useState<number | null>(at);
   const [opened, setOpened] = useState<string | null>(null);
-  const focus = useSearchParams()[0].get('focus');
   const screen = useRef<HTMLDivElement>(null);
   const focused = useRef<string | null>(null);
 
@@ -394,4 +398,19 @@ const useScrub = (onFraction: (fraction: number) => void): React.HTMLAttributes<
       dragging.current = false;
     },
   };
+};
+
+/** The instant an address names, or null where it names none or something that is not one. */
+const momentOf = (value: string | null): number | null => {
+  if (!value) return null;
+  const moment = DateTime.fromISO(value);
+  return moment.isValid ? moment.toMillis() : null;
+};
+
+/** The shortest rolling window that still holds an instant, a month at most. */
+const rangeHolding = (at: number, now: number): TimelineRange => {
+  const age = now - at;
+  if (age < 23 * 3_600_000) return '24h';
+  if (age < 6.5 * 86_400_000) return '7d';
+  return '30d';
 };
