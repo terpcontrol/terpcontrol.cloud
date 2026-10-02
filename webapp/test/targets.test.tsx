@@ -698,6 +698,14 @@ describe('the document a draft becomes', () => {
     expect(secondsOf('', 0)).toBeNull();
   });
 
+  it('writes a day-long light one second short of a day, which the firmware would otherwise read as no light at all', () => {
+    const draft = { ...draftOf(CONFIGURATION), lightHours: 24 };
+    const written = withDraft(CONFIGURATION, draft);
+
+    expect(written.daynight).toMatchObject({ day: 21600, night: 21599 });
+    expect(draftOf(written).lightHours).toBe(24);
+  });
+
   it('keeps the hour the light comes on and moves when it goes off, past midnight if it must', () => {
     const draft = { ...draftOf(CONFIGURATION), lightHours: 20 };
 

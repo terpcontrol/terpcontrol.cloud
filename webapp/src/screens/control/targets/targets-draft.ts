@@ -53,14 +53,23 @@ const DEFAULTS: TargetsDraft = {
 /** Seconds round the clock: 25:00 is 01:00, and an hour before 00:30 is 23:30. */
 const roundTheClock = (seconds: number): number => ((seconds % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
 
-/** How long the light is on from when it comes on and goes off. Off at the same second it comes on is a day-long light. */
+/**
+ * How long the light is on from when it comes on and goes off. A day-long light
+ * is written one second short of a day (see `lightsOffOf`); off at the very
+ * second it comes on is read the same way, as an older client wrote it.
+ */
 const hoursBetween = (on: number, off: number): number => {
   const seconds = roundTheClock(off - on);
-  return (seconds === 0 ? DAY_SECONDS : seconds) / HOUR_SECONDS;
+  return (seconds === 0 || seconds >= DAY_SECONDS - 60 ? DAY_SECONDS : seconds) / HOUR_SECONDS;
 };
 
-/** When the light goes off, in the document's seconds past midnight UTC. */
-export const lightsOffOf = (draft: TargetsDraft): number => roundTheClock(draft.lightsOn + Math.round(draft.lightHours * HOUR_SECONDS));
+/**
+ * When the light goes off, in the document's seconds past midnight UTC. A whole
+ * day is one second short of it: the firmware reads a light that goes off the
+ * second it comes on as one that never comes on, so 24 hours kept the tent dark.
+ */
+export const lightsOffOf = (draft: TargetsDraft): number =>
+  roundTheClock(draft.lightsOn + Math.min(Math.round(draft.lightHours * HOUR_SECONDS), DAY_SECONDS - 1));
 
 export const draftOf = (configuration: DeviceConfiguration): TargetsDraft => {
   const lightsOn = figureOf(configuration, 'daynight', 'day') ?? DEFAULTS.lightsOn;
