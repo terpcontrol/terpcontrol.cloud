@@ -3102,7 +3102,7 @@
       "fan": "Fan",
       "relais": "Relay",
       "fanInternal": "Internal fan",
-      "fanExternal": "Exhaust",
+      "fanExternal": "Clip fan",
       "fanBackwall": "Back-wall fan"
     },
     "events": "Events",
@@ -3616,7 +3616,7 @@
       "fan": "Fan",
       "relais": "Relay",
       "fanInternal": "Internal fan",
-      "fanExternal": "Exhaust",
+      "fanExternal": "Clip fan",
       "fanBackwall": "Back-wall fan",
       "compressor": "Compressor"
     },
@@ -4040,7 +4040,7 @@
       "fan": "fan",
       "relais": "relay",
       "fanInternal": "fan in",
-      "fanExternal": "exhaust",
+      "fanExternal": "clip fan",
       "fanBackwall": "back fan",
       "compressor": "compressor"
     },
@@ -5654,5 +5654,55 @@
   "lightOverheat": {
     "label": "Dim from",
     "note": "Measured at the light module itself. Above it, the light dims itself to stay safe."
+  },
+  "configChange": {
+    "field": {
+      "workmode": "Operation",
+      "day": {
+        "temperature": "Day temperature",
+        "humidity": "Day humidity"
+      },
+      "night": {
+        "temperature": "Night temperature",
+        "humidity": "Night humidity"
+      },
+      "co2": {
+        "target": "CO₂ target"
+      },
+      "lights": {
+        "limit": "Light limit",
+        "sunrise": "Sunrise",
+        "sunset": "Sunset",
+        "maintenanceOn": "Light on during maintenance"
+      },
+      "daynight": {
+        "day": "Light on at",
+        "night": "Light off at",
+        "minimalDehumidifierOffTime": "Compressor rest"
+      },
+      "fans": {
+        "external": "Clip fan",
+        "internal": "Inner fans"
+      }
+    },
+    "mode": {
+      "off": "control off",
+      "small": "standard",
+      "full": "standard with energy saving",
+      "temp": "greenhouse",
+      "breed": "germination",
+      "dry": "drying"
+    },
+    "on": "on",
+    "off": "off",
+    "title": {
+      "controlOff": "Control switched off",
+      "controlOn": "Control switched on",
+      "dryingStarted": "Drying started",
+      "dryingEnded": "Drying ended",
+      "energySavingOn": "Energy saving on",
+      "energySavingOff": "Energy saving off",
+      "mode": "Operating mode: {{mode}}"
+    }
   }
 }

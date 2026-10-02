@@ -697,7 +697,7 @@ describe('the rule sheet', () => {
 
     expect(within(watch).getByRole('button', { name: 'Compressor' })).toBeInTheDocument();
     expect(within(watch).queryByRole('button', { name: 'Dehumidifier' })).not.toBeInTheDocument();
-    expect(within(watch).getByRole('button', { name: 'Exhaust' })).toBeInTheDocument();
+    expect(within(watch).getByRole('button', { name: 'Clip fan' })).toBeInTheDocument();
     expect(within(watch).getByRole('button', { name: 'CO₂' })).toBeInTheDocument();
     expect(within(watch).getByRole('button', { name: 'CO₂ valve' })).toBeInTheDocument();
   });

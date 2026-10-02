@@ -1,6 +1,7 @@
 import type { i18n as I18n } from 'i18next';
 import type { Entry, EntryMessage } from '@fg2/shared-types/v1';
 import { alarmLineText } from './alarm-line';
+import { configurationChange, configurationTitle } from './configuration-change';
 
 /**
  * A device does not write sentences; it writes keys. The server parses a log
@@ -17,6 +18,8 @@ import { alarmLineText } from './alarm-line';
 export type MessagePart = 'title' | 'text';
 
 const ALARM_LINES = new Set(['message-alarm-triggered', 'message-alarm-resolved']);
+
+const CONFIGURATION_CHANGE = 'message-device-configuration-updated';
 
 /**
  * The lines the server writes about a firmware update name the build before
@@ -40,6 +43,12 @@ export const resolveDeviceMessage = (i18n: I18n, message: EntryMessage, part: Me
   if (part === 'text' && ALARM_LINES.has(message.key) && message.params.length === 1) {
     const said = alarmLineText(i18n, message.params[0], message.key === 'message-alarm-triggered');
     if (said !== null) return said;
+  }
+
+  // A change of settings names its figures by the firmware's keys; they are said in the app's words.
+  if (message.key === CONFIGURATION_CHANGE && value) {
+    if (part === 'title') return configurationTitle(i18n, value) ?? i18n.t(`${message.key}-title`);
+    return i18n.t(`${message.key}-text`, { value: configurationChange(i18n, value) });
   }
 
   const specific = value ? `${message.key}:${value}-${part}` : null;

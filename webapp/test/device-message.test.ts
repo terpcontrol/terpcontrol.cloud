@@ -32,6 +32,28 @@ describe('device messages against the shipped catalogue', () => {
     expect(text).toContain('30 minutes');
   });
 
+  it('says a change of settings in the words of the controls, and keeps a figure it does not know as it came', () => {
+    const message = {
+      key: 'message-device-configuration-updated',
+      params: ['day.temperature: 25 → 26.5\nlights.maintenanceOn: false → 1\nworkmode: small → full\nfans.mystery: 3 → 4'],
+    };
+
+    expect(resolveDeviceMessage(i18n, message, 'title')).toBe('Settings changed');
+    expect(resolveDeviceMessage(i18n, message, 'text')).toContain(
+      'Day temperature: 25 °C → 26.5 °C\nLight on during maintenance: off → on\nOperation: standard → standard with energy saving\nfans.mystery: 3 → 4',
+    );
+  });
+
+  it('names a change of the work mode alone in its title', () => {
+    const titled = (line: string) => resolveDeviceMessage(i18n, { key: 'message-device-configuration-updated', params: [line] }, 'title');
+
+    expect(titled('workmode: small → off')).toBe('Control switched off');
+    expect(titled('workmode: off → full')).toBe('Control switched on');
+    expect(titled('workmode: full → dry')).toBe('Drying started');
+    expect(titled('workmode: small → full')).toBe('Energy saving on');
+    expect(titled('workmode: small → breed')).toBe('Operating mode: germination');
+  });
+
   it('shows an unknown key as it came rather than as a blank', () => {
     expect(resolveDeviceMessage(i18n, { key: 'message-something-new', params: ['7'] }, 'title')).toBe('message-something-new:7');
   });

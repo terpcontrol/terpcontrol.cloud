@@ -3106,7 +3106,7 @@
       "fan": "Lüfter",
       "relais": "Relais",
       "fanInternal": "Lüfter innen",
-      "fanExternal": "Abluft",
+      "fanExternal": "Klemmlüfter",
       "fanBackwall": "Rückwand\u00adlüfter"
     },
     "events": "Einträge",
@@ -3620,7 +3620,7 @@
       "fan": "Lüfter",
       "relais": "Relais",
       "fanInternal": "Lüfter innen",
-      "fanExternal": "Abluft",
+      "fanExternal": "Klemmlüfter",
       "fanBackwall": "Rückwandlüfter",
       "compressor": "Kompressor"
     },
@@ -4044,7 +4044,7 @@
       "fan": "Lüfter",
       "relais": "Relais",
       "fanInternal": "Lüfter innen",
-      "fanExternal": "Abluft",
+      "fanExternal": "Klemmlüfter",
       "fanBackwall": "Rückwandlüfter",
       "compressor": "Kompressor"
     },
@@ -5658,5 +5658,55 @@
   "lightOverheat": {
     "label": "Dimmen ab",
     "note": "Gemessen am Lichtmodul selbst. Darüber dimmt es sich, um sich zu schützen."
+  },
+  "configChange": {
+    "field": {
+      "workmode": "Betrieb",
+      "day": {
+        "temperature": "Temperatur Tag",
+        "humidity": "Luftfeuchte Tag"
+      },
+      "night": {
+        "temperature": "Temperatur Nacht",
+        "humidity": "Luftfeuchte Nacht"
+      },
+      "co2": {
+        "target": "CO₂-Ziel"
+      },
+      "lights": {
+        "limit": "Lichtgrenze",
+        "sunrise": "Sonnenaufgang",
+        "sunset": "Sonnenuntergang",
+        "maintenanceOn": "Licht an in der Wartung"
+      },
+      "daynight": {
+        "day": "Licht an um",
+        "night": "Licht aus um",
+        "minimalDehumidifierOffTime": "Kompressor-Pause"
+      },
+      "fans": {
+        "external": "Klemmlüfter",
+        "internal": "Innenlüfter"
+      }
+    },
+    "mode": {
+      "off": "Regelung aus",
+      "small": "Standard",
+      "full": "Standard mit Energiespar",
+      "temp": "Gewächshaus",
+      "breed": "Keimung",
+      "dry": "Trocknung"
+    },
+    "on": "an",
+    "off": "aus",
+    "title": {
+      "controlOff": "Regelung ausgeschaltet",
+      "controlOn": "Regelung eingeschaltet",
+      "dryingStarted": "Trocknung begonnen",
+      "dryingEnded": "Trocknung beendet",
+      "energySavingOn": "Energiespar-Modus an",
+      "energySavingOff": "Energiespar-Modus aus",
+      "mode": "Betriebsart: {{mode}}"
+    }
   }
 }
