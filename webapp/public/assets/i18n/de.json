@@ -930,7 +930,7 @@
         "alpha": "automatisch – frühe Testversionen (Alpha)",
         "manual": "keine automatischen Updates"
       },
-      "offlineNote": "Neu starten und Wartung gehen erst wieder, wenn das Gerät verbunden ist.",
+      "offlineNote": "Neu starten und Wartung gehen erst wieder, wenn das Gerät verbunden ist. Was du sonst hier änderst – Regelung, Energiespar, Erweitert –, speichert die Cloud und schickt es dem Gerät, sobald es sich wieder meldet.",
       "technical": "Technische Details"
     },
     "reboot": {
@@ -2615,6 +2615,7 @@
       "over": "die Zeit ist um",
       "openEnded": "läuft, bis er von Hand weitergesetzt wird",
       "pausedFor": "Pausiert: {{reason}}",
+      "startsStage": "Starten setzt einen Grow, der hier steht, auf {{stage}} – mit Tageszähler und Tagebuchzeile. Später einsteigen geht unter Erweitert: Plan bei Schritt fortsetzen.",
       "status": {
         "running": "Läuft",
         "paused": "Pausiert",
@@ -5197,7 +5198,8 @@
       "camera": "Was die meisten nie brauchen. Eine Änderung gilt sofort, und die Kamera wird gleich neu versucht."
     },
     "range": "Von {{min}} bis {{max}} {{unit}}.",
-    "save": "Speichern"
+    "save": "Speichern",
+    "cancel": "Abbrechen"
   },
   "climateControl": {
     "label": "Regelung",
@@ -5251,7 +5253,9 @@
     "greenhouse": "Gewächshaus",
     "greenhouseNote": "Nur die Temperatur: Licht und CO₂ laufen, der Kompressor kühlt nur, die Luftfeuchte wird nicht geregelt.",
     "germination": "Keimung",
-    "germinationNote": "Im Dunkeln: kein Licht, kein CO₂. Heizt und kühlt auf die Nachttemperatur."
+    "germinationNote": "Im Dunkeln: kein Licht, kein CO₂. Heizt und kühlt auf die Nachttemperatur.",
+    "ask": "Auf {{mode}} umstellen? {{what}} Zurück geht es hier mit Standard.",
+    "yes": "Auf {{mode}} umstellen"
   },
   "recover": {
     "title": "Passwort vergessen",

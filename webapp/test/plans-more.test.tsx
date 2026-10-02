@@ -243,6 +243,21 @@ describe('the two ready-made plans', () => {
     expect(state.saved).toHaveLength(0);
   });
 
+  it('say before a plan is started which stage it puts the grow into', () => {
+    state.plan = plan({}, { status: 'stopped', stepStartedAt: null, lastAppliedAt: null });
+    const fridge = device();
+    const view = wrap(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+
+    expect(screen.getByRole('button', { name: 'Start the plan' })).toBeInTheDocument();
+    expect(screen.getByText(/^Starting puts a grow standing here into Veg,/)).toBeInTheDocument();
+
+    // A paused plan goes on where it stood, so resuming it says nothing of the kind.
+    view.unmount();
+    state.plan = plan({}, { status: 'paused' });
+    wrap(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+    expect(screen.queryByText(/^Starting puts a grow/)).not.toBeInTheDocument();
+  });
+
   it('are not offered for a tent controller', () => {
     state.plan = null;
     state.planError = noPlan;

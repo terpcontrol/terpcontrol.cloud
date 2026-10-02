@@ -1174,7 +1174,7 @@ describe('the device panel', () => {
     expect(screen.getAllByText(/^offline since \d\d:\d\d$/)).toHaveLength(2);
     expect(screen.getByRole('button', { name: /^Restart/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /^MaintenancePause/ })).toBeDisabled();
-    expect(screen.getByText('Restart and maintenance work again once the device is connected.')).toBeInTheDocument();
+    expect(screen.getByText(/^Restart and maintenance work again once the device is connected. Anything else you change here/)).toBeInTheDocument();
   });
 
   const regulating = (over: Partial<NonNullable<Device['control']>> = {}): Device =>
@@ -1216,7 +1216,7 @@ describe('the device panel', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/configuration', { set: { control: true } }));
   });
 
-  it('keeps the operating mode under Advanced, and sends a choice on the tap', async () => {
+  it('keeps the operating mode under Advanced, and sends a choice once it is confirmed', async () => {
     await drawWith([regulating()]);
     vi.mocked(api.patch).mockResolvedValue(regulating({ mode: 'greenhouse' }) as never);
     fireEvent.click(await screen.findByText('Fridge module'));
@@ -1224,6 +1224,8 @@ describe('the device panel', () => {
     expect(screen.getByText('Advanced')).toBeInTheDocument();
     expect(screen.getByText('Holds temperature, humidity, light and CO₂ to the targets.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Greenhouse' }));
+    expect(api.patch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to Greenhouse' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/configuration', { set: { mode: 'greenhouse' } }));
   });

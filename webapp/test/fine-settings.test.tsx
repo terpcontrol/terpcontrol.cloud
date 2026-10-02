@@ -113,6 +113,32 @@ describe('the fine settings themselves', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { sunrise: 30 } }));
   });
 
+  it('ask before a fridge goes dark for germination, and go back to the standard at once', async () => {
+    vi.mocked(api.patch).mockResolvedValue(device() as never);
+    const mode = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'operating-mode')!;
+    const Mode = mode.Item;
+    const view = wrap(<Mode device={device()} mayManage offline={false} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Germination' }));
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(screen.getByText(/^Switch to Germination\? In the dark: no light, no CO₂/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByText(/^Switch to Germination\?/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Germination' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to Germination' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { mode: 'germination' } }));
+
+    view.unmount();
+    vi.mocked(api.patch).mockClear();
+    const germinating = device('fridge', {}, {
+      control: { running: true, drying: false, mode: 'germination', energySaving: false },
+    } as Partial<Device>);
+    wrap(<Mode device={germinating} mayManage offline={false} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Standard' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { mode: 'standard' } }));
+  });
+
   it('show the compressor rest the firmware runs with where the document does not state it', () => {
     const rest = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'compressor-rest')!;
     const Rest = rest.Item;

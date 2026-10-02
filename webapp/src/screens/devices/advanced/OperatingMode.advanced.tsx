@@ -21,6 +21,16 @@ function OperatingMode({ device, mayManage }: DeviceContext) {
       help="advanced.operatingMode"
       disabled={!mayManage}
       options={OPERATING_MODES.map(mode => ({ value: mode, label: t(`operatingMode.${mode}`), note: t(`operatingMode.${mode}Note`) }))}
+      // Germination darkens a fridge and the greenhouse mode stops holding its humidity: a tap in bloom
+      // would cost a night of light, so either is asked first. Back to the standard is written at once.
+      ask={mode =>
+        mode === 'standard'
+          ? null
+          : {
+              question: t('operatingMode.ask', { mode: t(`operatingMode.${mode}`), what: t(`operatingMode.${mode}Note`) }),
+              yes: t('operatingMode.yes', { mode: t(`operatingMode.${mode}`) }),
+            }
+      }
     />
   );
 }

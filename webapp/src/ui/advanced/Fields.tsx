@@ -65,10 +65,22 @@ export function FieldChoice({
   help,
   disabled,
   options,
-}: FieldProps & { options: { value: string; label: string; note?: string }[] }) {
+  ask,
+}: FieldProps & {
+  options: { value: string; label: string; note?: string }[];
+  /** The question a choice is asked first with, where one changes more than a tap should; null writes it at once. */
+  ask?: (value: string) => { question: string; yes: string } | null;
+}) {
+  const { t } = useTranslation();
   const configure = useConfigure(device.id);
+  const [asking, setAsking] = useState<string | null>(null);
   const asked = configure.isPending ? configure.variables?.[name] : undefined;
   const chosen = asked ?? fieldValue(device, name);
+  const question = asking === null ? null : (ask?.(asking) ?? null);
+  const write = (value: string) => {
+    setAsking(null);
+    configure.mutate({ [name]: value });
+  };
 
   return (
     <>
@@ -79,13 +91,26 @@ export function FieldChoice({
               key={option.value}
               chosen={option.value === chosen}
               disabled={disabled || configure.isPending}
-              onChoose={() => (option.value === chosen ? undefined : configure.mutate({ [name]: option.value }))}
+              onChoose={() => (option.value === chosen ? undefined : ask?.(option.value) ? setAsking(option.value) : write(option.value))}
             >
               {option.label}
             </Choice>
           ))}
         </Choices>
       </SettingRow>
+      {question && asking !== null ? (
+        <div className={styles.asking} role="group" aria-label={question.question}>
+          <p className={ui.note}>{question.question}</p>
+          <div className={styles.askingActions}>
+            <button type="button" className={`${ui.button} ${ui.primary}`} onClick={() => write(asking)}>
+              {question.yes}
+            </button>
+            <button type="button" className={ui.button} onClick={() => setAsking(null)}>
+              {t('advanced.cancel')}
+            </button>
+          </div>
+        </div>
+      ) : null}
       <Refused error={configure.error} />
     </>
   );

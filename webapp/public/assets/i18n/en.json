@@ -930,7 +930,7 @@
         "alpha": "automatic – early test releases (alpha)",
         "manual": "no automatic updates"
       },
-      "offlineNote": "Restart and maintenance work again once the device is connected.",
+      "offlineNote": "Restart and maintenance work again once the device is connected. Anything else you change here – control, energy saving, Advanced – is kept by the cloud and sent to the device as soon as it is back.",
       "technical": "Technical details"
     },
     "reboot": {
@@ -2607,6 +2607,7 @@
       "over": "its time is up",
       "openEnded": "runs until it is moved on",
       "pausedFor": "Paused: {{reason}}",
+      "startsStage": "Starting puts a grow standing here into {{stage}}, with its day counter and a diary line. To come in later, use Advanced: continue the plan at a step.",
       "status": {
         "running": "Running",
         "paused": "Paused",
@@ -5189,7 +5190,8 @@
       "camera": "What most growers never need. A change applies at once, and the camera is tried again straight away."
     },
     "range": "From {{min}} to {{max}} {{unit}}.",
-    "save": "Save"
+    "save": "Save",
+    "cancel": "Cancel"
   },
   "climateControl": {
     "label": "Control",
@@ -5243,7 +5245,9 @@
     "greenhouse": "Greenhouse",
     "greenhouseNote": "Temperature only: light and CO₂ run, the compressor only cools, humidity is not controlled.",
     "germination": "Germination",
-    "germinationNote": "In the dark: no light, no CO₂. Heats and cools to the night temperature."
+    "germinationNote": "In the dark: no light, no CO₂. Heats and cools to the night temperature.",
+    "ask": "Switch to {{mode}}? {{what}} Standard here switches it back.",
+    "yes": "Switch to {{mode}}"
   },
   "recover": {
     "title": "Forgot your password",

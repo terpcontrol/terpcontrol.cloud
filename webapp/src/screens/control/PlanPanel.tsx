@@ -365,6 +365,7 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
 
   const can = movesOf(plan, now);
   const next = nextStepIndex(plan);
+  const startStage = activeStep(plan)?.stage ?? null;
   const busy = move.isPending || stop.isPending || remove.isPending;
   const close = () => setAsking(null);
 
@@ -418,6 +419,13 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
         ) : null}
         {can.resume || can.pause ? <Help topic="planMoves" /> : null}
       </div>
+
+      {/* Starting puts the grow standing here into the stage the first step names, with a diary
+          line: said before the tap, because a ready plan begins at the seedling whatever the
+          grow stands in, and a fridge in bloom read nothing about it until it had happened. */}
+      {can.resume && plan.state.status !== 'paused' && startStage ? (
+        <p className={ui.note}>{t('space.control.startsStage', { stage: t(`home.stage.${startStage}`) })}</p>
+      ) : null}
 
       {asking === 'extend' ? (
         <div className={styles.asking}>

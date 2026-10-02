@@ -7,10 +7,14 @@
    named so this wins over the card's own fixed action height. */
 button.button {
   flex: 1 1 13rem;
+  /* The icon and the two lines start at the left edge whatever the width: a
+     button that took a whole row centred them, beside two that did not. */
+  justify-content: flex-start;
   height: auto;
   min-height: var(--action-height);
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
+  text-align: left;
   white-space: normal;
 }
 
