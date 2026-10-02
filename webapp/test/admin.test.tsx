@@ -256,7 +256,9 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     return json({ items: server.cameras[at] ?? [], nextCursor: at + 1 < server.cameras.length ? `page-${at + 1}` : null });
   }
   if (path.startsWith('/alerts')) return json({ items: [], nextCursor: null });
-  if (path === '/devices/tc-7f3a') return json({ ...DEVICES[0], configuration: { day: { temperature: 26 }, workmode: 'small' } });
+  if (path === '/devices/tc-7f3a') {
+    return json({ ...DEVICES[0], configuration: { day: { temperature: 26 }, daynight: { day: 21600, night: 64800 }, workmode: 'small' } });
+  }
   if (path.startsWith('/entries')) return json({ items: [], nextCursor: null });
   if (path === '/spaces/space-1/overview') return json({ spaceId: 'space-1', name: 'Blue Dream tent' });
 
@@ -534,6 +536,9 @@ describe('support for a customer', () => {
     expect(screen.getByText('26')).toBeInTheDocument();
     expect(screen.getByText('workmode')).toBeInTheDocument();
     expect(await screen.findByText('@mo · mo@example.invalid')).toBeInTheDocument();
+    // A time of day is kept as seconds past midnight UTC, and read beside them as the clock times they are, the customer's included.
+    expect(await screen.findByText('21600 · 06:00 UTC · 06:00 for the customer')).toBeInTheDocument();
+    expect(screen.getByText('64800 · 18:00 UTC · 18:00 for the customer')).toBeInTheDocument();
     expect(await screen.findByText('Blue Dream tent')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Timeline' })).toHaveAttribute('href', '/timeline?space=space-1');
     expect(screen.getByRole('link', { name: 'Charts' })).toHaveAttribute('href', '/charts?space=space-1');

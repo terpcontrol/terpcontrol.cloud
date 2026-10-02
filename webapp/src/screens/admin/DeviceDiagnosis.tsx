@@ -13,6 +13,8 @@ import { foldRepeats } from '@/ui/entries';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { serverNow } from '@/api/clock';
+import { offsetOf, wallClock } from '../control/targets/targets-draft';
 import { flatten } from './fleet-rows';
 import { useFollowCursor } from './pages';
 import styles from './Admin.module.css';
@@ -122,7 +124,7 @@ export function DeviceDiagnosis() {
         <section className={styles.tableCard}>
           <h2 className={styles.sectionTitle}>{t('admin.diagnosis.settings')}</h2>
           {one.configuration ? (
-            <Settings rows={flatten(one.configuration)} />
+            <Settings rows={withClockTimes(t, flatten(one.configuration), owner?.preferences.timezone ?? null)} />
           ) : (
             <p className={`${ui.note} ${styles.cardNote}`}>{t('admin.diagnosis.noSettings')}</p>
           )}
@@ -182,6 +184,27 @@ function Build({ device }: { device: Device }) {
     </span>
   );
 }
+
+/** Where a document keeps a time of day, as seconds past midnight UTC: a controller's and a fridge's, a lamp's own, a fan's CO2 window. */
+const CLOCK_PATHS = ['daynight.day', 'daynight.night', 'day', 'night', 'co2inject.day', 'co2inject.night'];
+
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/**
+ * The seconds a time of day is kept as, with the clock times they are beside
+ * them: UTC, which is what the device runs on, and the customer's own, which is
+ * what the customer reads in the app - "21600" alone had support doing
+ * arithmetic on the phone with somebody whose lamp comes on at eight.
+ */
+const withClockTimes = (t: Translate, rows: [string, string][], zone: string | null): [string, string][] =>
+  rows.map(([path, value]) => {
+    const seconds = Number(value);
+    if (!CLOCK_PATHS.includes(path) || value === '' || !Number.isFinite(seconds)) return [path, value];
+    const utc = wallClock(seconds, 0);
+    const there = zone ? wallClock(seconds, offsetOf(serverNow(), zone)) : null;
+
+    return [path, `${value} · ${there ? t('admin.diagnosis.clockTimeThere', { utc, there }) : t('admin.diagnosis.clockTime', { utc })}`];
+  });
 
 function Settings({ rows }: { rows: [string, string][] }) {
   return (

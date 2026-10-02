@@ -4472,7 +4472,9 @@
       "factors": "Faktoren und Regelung",
       "hardware": "Hardware-Bericht des Geräts",
       "lines": "Meldungen des Geräts",
-      "noLines": "Das Gerät hat noch nichts gemeldet."
+      "noLines": "Das Gerät hat noch nichts gemeldet.",
+      "clockTime": "{{utc}} UTC",
+      "clockTimeThere": "{{utc}} UTC · {{there}} beim Kunden"
     }
   },
   "units": {

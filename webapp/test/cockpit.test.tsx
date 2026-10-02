@@ -251,6 +251,8 @@ const server = {
   overviews: new Map<string, SpaceOverview>(),
   /** The plan the device runs, as its route answers it; none answers that there is none. */
   plan: null as Record<string, unknown> | null,
+  /** Devices that are not the account's own: a customer's, which support reads one by one. */
+  customers: [] as Device[],
 };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -262,6 +264,9 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   if (path === '/me') return json(server.me);
   if (path === '/spaces') return json(spacePage(spaceWhere(server.youMay), spaceWhere(server.youMay, { id: 'space-2', name: 'Tent 2' })));
   if (path === '/devices') return json({ items: server.devices, nextCursor: null });
+  // One device read on its own, which is how support reads a customer's: none of them is in its own list.
+  const one = /^\/devices\/([^/]+)$/.exec(path);
+  if (one) return json(server.customers.find(device => device.id === one[1]) ?? server.devices.find(device => device.id === one[1]));
   if (/^\/devices\/[^/]+\/live$/.test(path)) return json(server.live);
   if (/^\/devices\/[^/]+\/alarm-rules$/.test(path)) return json({ items: server.rules, nextCursor: null });
   if (/^\/devices\/[^/]+\/plan$/.test(path) && server.plan) return json(server.plan);
@@ -315,6 +320,7 @@ beforeEach(() => {
   server.home = null;
   server.overviews = new Map();
   server.plan = null;
+  server.customers = [];
 });
 
 afterEach(() => {
@@ -502,6 +508,31 @@ describe('a customer´s place read by support', () => {
     expect(await screen.findByText(/^Support view of a customer's place: read only/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^More about/ }));
     expect(screen.queryByRole('link', { name: 'Invite members' })).not.toBeInTheDocument();
+    who.admin = false;
+  });
+
+  /**
+   * Support's cockpit drew the customer's place from the administrator's own
+   * device list, which holds none of the customer's devices: no lamp tile, no
+   * compressor under the readings, no alarms - the very things a case about a
+   * lamp that does not switch is about.
+   */
+  it('shows support the lamp, the outputs and the alarms the customer sees, and nothing that writes', async () => {
+    who.admin = true;
+    server.youMay = 'view';
+    server.customers = server.devices;
+    server.devices = [];
+    draw(<PlaceCockpit overview={overviewOf({ spaceId: 'space-customer' })} headed />);
+
+    expect(await within(await tile('Light')).findByText('On')).toBeInTheDocument();
+    const temperature = await tile('Temperature');
+    await waitFor(() => expect(temperature).toHaveTextContent('Compressor running for 12 min'));
+    const alarms = await screen.findByRole('region', { name: 'Alarms' });
+    expect(await within(alarms).findByText('Device offline · Too warm above 30 °C')).toBeInTheDocument();
+    expect(within(alarms).queryByRole('link', { name: 'Change' })).not.toBeInTheDocument();
+    // Whose phone an alarm reaches is a fact of the reader's account, and support's is not the customer's.
+    expect(within(alarms).queryByRole('link', { name: /don't reach you/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Switch control off/ })).not.toBeInTheDocument();
     who.admin = false;
   });
 });

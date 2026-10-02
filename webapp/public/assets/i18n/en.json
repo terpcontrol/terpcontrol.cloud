@@ -4464,7 +4464,9 @@
       "factors": "Factors and control",
       "hardware": "The device's hardware report",
       "lines": "The device's messages",
-      "noLines": "The device has reported nothing yet."
+      "noLines": "The device has reported nothing yet.",
+      "clockTime": "{{utc}} UTC",
+      "clockTimeThere": "{{utc}} UTC · {{there}} for the customer"
     }
   },
   "units": {

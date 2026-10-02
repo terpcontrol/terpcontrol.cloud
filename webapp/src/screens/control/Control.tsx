@@ -4,10 +4,10 @@ import { Link, Navigate } from 'react-router';
 import { CONTROL_PAGES, controlPath, type ControlPage } from '@/app/places';
 import type { Device, Plan } from '@fg2/shared-types/v1';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
-import { useDevices } from '@/api/devices';
 import { useDevicePlans } from '@/api/plans';
 import { climateLanding } from '@/ui/climate-hardware';
 import { LoadFailed, Waiting } from '@/ui/PageState';
+import { usePlaceDevices } from '@/ui/place-devices';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { Alarms } from './alarms/Alarms';
@@ -42,15 +42,15 @@ export function Control({ spaceId, sub }: { spaceId: string; sub: string | null 
   // standing here, which the ADR's table puts at `manage` - so the question is
   // about this place and not about the session.
   const mayManage = useMayManage(spaceId);
-  const devices = useDevices();
-  const here = devices.data?.items.filter(device => device.spaceId === spaceId) ?? [];
+  const devices = usePlaceDevices(spaceId);
+  const here = devices.items;
   const plans = useDevicePlans(here.map(device => device.id));
   const planFirst = plans.plans.some(plan => plan.state.status === 'running');
 
   if (sub !== null && !isSub(sub)) return <Navigate to={controlPath(spaceId)} replace />;
 
   if (devices.isPending) return <Waiting lines={4} />;
-  if (!devices.data) return <LoadFailed retry={() => void devices.refetch()} />;
+  if (devices.failed) return <LoadFailed retry={devices.refetch} />;
 
   if (here.length === 0) {
     return (

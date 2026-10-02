@@ -6,7 +6,6 @@ import { controlPath, devicesPath, timelinePath, useRememberPlace } from '@/app/
 import type { Device, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { serverNow } from '@/api/clock';
-import { useDevices } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
 import { useSession } from '@/api/session';
@@ -20,6 +19,7 @@ import { Help } from '@/ui/Help';
 import { foldRepeats, readingNamesOf } from '@/ui/entries';
 import { maintenanceQuiet, parksAnything, type Quiet } from '@/ui/maintenance';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
+import { usePlaceDevices } from '@/ui/place-devices';
 import { useMayManage, useVisiting } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -75,8 +75,7 @@ export function PlaceCockpit({
   const { user } = useSession();
   const spaceId = overview.spaceId;
   const hasDevice = overview.deviceIds === null || overview.deviceIds.length > 0;
-  const devices = useDevices(hasDevice);
-  const here = (devices.data?.items ?? []).filter(device => overview.deviceIds?.includes(device.id));
+  const here = usePlaceDevices(spaceId, overview.deviceIds ?? [], hasDevice).items;
   const device = climateDeviceOf(here, overview.deviceIds);
   const live = useDeviceLive(device?.id ?? null).data;
   const timeline = useTimeline(hasDevice ? spaceId : '', '24h', null).data;
@@ -84,7 +83,9 @@ export function PlaceCockpit({
   const visiting = useVisiting(spaceId);
   const me = useMe(false, user !== null && user.isDemo !== true);
   // The grow waits for the account's answer rather than flashing up for somebody who keeps no diary; the demo is shown it whole.
-  const diary = useDiaryLayer() && (me.data !== undefined || user?.isDemo === true);
+  // Support reading a customer's place is shown the customer's grow where one stands there, whatever its own account keeps.
+  const layer = useDiaryLayer() && (me.data !== undefined || user?.isDemo === true);
+  const diary = visiting ? overview.grows.length > 0 : layer;
   const liveness = livenessOf(overview, now);
   const offline = liveness === 'offline';
   const status = statusOf({ ...overview, quiet: quietOf(here, now), controlOff: controlOffOf(here) }, now);
@@ -205,7 +206,10 @@ export function PlaceCockpit({
 
           <div className={styles.column}>
             {hasDevice ? <TargetsSummary spaceId={spaceId} targets={overview.targets} device={device} now={now} mayChange={mayManage} /> : null}
-            {hasDevice && here.length > 0 ? <AlarmsSummary spaceId={spaceId} devices={here} me={me.data} mayChange={mayManage} /> : null}
+            {/* Whether alarms reach somebody is said of the reader's own account, which for support is not the customer's. */}
+            {hasDevice && here.length > 0 ? (
+              <AlarmsSummary spaceId={spaceId} devices={here} me={visiting ? undefined : me.data} mayChange={mayManage} />
+            ) : null}
             {diary && !growUp ? <GrowBlock overview={overview} still={shown?.mediaId ?? null} now={now} /> : null}
             <Latest overview={overview} now={now} pictured={growUp ? (pictured?.mediaId ?? null) : null} />
             {offerDiary ? <DiaryOffer /> : null}
