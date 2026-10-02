@@ -770,14 +770,6 @@
       }
     },
     "button-setup": "Einrichten",
-    "dryer": {
-      "title": "Terp Control FRIDGE DRY",
-      "presets": "Voreinstellungen",
-      "preset-none": "Eigene Werte",
-      "preset-slow": "Langsame Trocknung",
-      "preset-medium": "Normale Trocknung",
-      "preset-fast": "Schnelle Trocknung"
-    },
     "maintenance": {
       "title": "Wartungsmodus",
       "text": "Wie lange soll die Regelung pausieren?",

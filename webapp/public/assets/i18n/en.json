@@ -669,14 +669,6 @@
         "pleaseStart": "Please start the plan first"
       }
     },
-    "dryer": {
-      "title": "Terp Control FRIDGE DRY",
-      "presets": "Presets",
-      "preset-none": "Custom settings",
-      "preset-slow": "Slow drying",
-      "preset-medium": "Normal drying",
-      "preset-fast": "Fast drying"
-    },
     "fan": {
       "title": "Terp Control AIR",
       "workmode": "Control mode",

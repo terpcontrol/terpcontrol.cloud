@@ -61,7 +61,7 @@ Skip the per-PR loop if any preflight check fails; the whole point of preflight 
 
 A "check cycle" = build + rollout + verify. Per PR/branch, run two cycles back-to-back with different version tags. The unique tag is what lets you tell the test firmwares apart in `GET /v1/admin/firmwares` listings later; it isn't load-bearing for the test itself.
 
-Hardware list: by default `fridge controller plug fan light` (the default in `build-fw.sh`). Per `AGENTS.md`, run `fridge` first if you are scoping down. Skip `dryer`.
+Hardware list: by default `fridge controller plug fan light` (the default in `build-fw.sh`). Per `AGENTS.md`, run `fridge` first if you are scoping down.
 
 ### Run a cycle
 

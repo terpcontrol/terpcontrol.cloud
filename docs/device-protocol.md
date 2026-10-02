@@ -18,8 +18,8 @@ topic below - and `scripts/simulate-device.mjs` is a second witness.
 Where they disagree, the firmware wins; the known disagreements are listed in
 [13 Where the witnesses disagree](#13-where-the-witnesses-disagree).
 
-Hardware types in scope: `controller`, `fridge`, `plug`, `fan`, `light`, `cam`. The `dryer`, `dummy` and `*_test`
-build environments are out of scope.
+Hardware types in scope: `controller`, `fridge`, `plug`, `fan`, `light`, `cam`. The `dummy` and `*_test` build
+environments are out of scope.
 
 ---
 

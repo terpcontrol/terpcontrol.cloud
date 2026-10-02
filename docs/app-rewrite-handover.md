@@ -131,9 +131,9 @@ Measured on the restored copy, and worth knowing before touching the migration a
 | Full migration run, after the index fix and the thinning | ~104 s |
 
 The repeated message was a firmware bug — an inverted latch wrote a line every couple of seconds for as long as
-the sensor stayed broken. Fixed in the fridge. **The dryer has the identical latch at `dryer.cpp:101` and was
-deliberately left alone**, because `AGENTS.md` says not to build, roll out or test that hardware type and an
-unbuildable fix is not worth making. That one is waiting on Chris.
+the sensor stayed broken. Fixed in the fridge. The dryer had the identical latch; the dryer hardware type has since
+been removed altogether, firmware included, and migration `020-retired-dryers` deletes the dryers a database still
+holds.
 
 ## Things that will bite
 

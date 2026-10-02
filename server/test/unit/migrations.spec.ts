@@ -1,3 +1,5 @@
+import { createServer } from 'node:http';
+import { AddressInfo } from 'node:net';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose, { Connection, Schema, mongo } from 'mongoose';
 import { alarmRulesSchema } from '@database/schemas/v1/alarm-rules.schema';
@@ -28,6 +30,7 @@ import { measurementBand } from '@/migrations/steps/016-measurement-band';
 import { entryCredentials } from '@/migrations/steps/017-entry-credentials';
 import { targetRecord } from '@/migrations/steps/018-target-record';
 import { workModes } from '@/migrations/steps/019-work-modes';
+import { readingsStore, retiredDryersWith } from '@/migrations/steps/020-retired-dryers';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -650,6 +653,211 @@ describe('the work modes', () => {
     await workModes.run(again);
     expect(again.stats['devices.written'] ?? 0).toBe(0);
     expect(again.stats['plans.written'] ?? 0).toBe(0);
+  });
+});
+
+describe('the dryers', () => {
+  const DRYER = 'dev-dryer-garage';
+
+  it('carries an old database’s dryer across and deletes it with its class, its builds, its lines and its empty place', async () => {
+    const at = new Date(AT - 30 * DAY);
+    await collection('deviceclasses').insertOne({
+      class_id: 'class-dryer',
+      name: 'dryer',
+      description: 'Dryer',
+      concurrent: 5,
+      maxfails: 10,
+      firmware_id: 'fw-dryer-1.0.0',
+    });
+    await collection('devicefirmwares').insertOne({ firmware_id: 'fw-dryer-1.0.0', class_id: 'class-dryer', version: '1.0.0', createdAt: at });
+    await collection('devicefirmwarebinaries').insertOne({ firmware_id: 'fw-dryer-1.0.0', name: 'firmware.bin', data: Buffer.from('dryer-image') });
+    await collection('devices').insertOne({
+      device_id: DRYER,
+      username: `mqtt-${DRYER}`,
+      class_id: 'class-dryer',
+      device_type: 'dryer',
+      owner_id: LEGACY_USER_IDS.ada,
+      name: 'Trockenbox',
+      configuration: '{"workmode":"dry","temperature":18,"humidity":60}',
+      serialnumber: 9,
+      lastseen: AT - DAY,
+      current_firmware: 'fw-dryer-1.0.0',
+    });
+    await collection('devicelogs').insertOne({ device_id: DRYER, message: 'message-maintenance-on', severity: 0, time: at, categories: [] });
+    await collection('claimcodes').insertOne({ claim_code: 'CLAIM-DRYER-01', device_id: DRYER });
+
+    const report = await migrate();
+
+    expect(await collection('devices').countDocuments({ type: 'dryer' })).toBe(0);
+    expect(await collection('deviceClasses').countDocuments({ name: 'dryer' })).toBe(0);
+    expect(await collection('firmwares').countDocuments({ classId: 'class-dryer' })).toBe(0);
+    expect(await collection('firmwareBinaries').countDocuments({ firmwareId: 'fw-dryer-1.0.0' })).toBe(0);
+    expect(await collection('entries').countDocuments({ deviceId: DRYER })).toBe(0);
+    expect(await collection('claimCodes').countDocuments({ deviceId: DRYER })).toBe(0);
+    expect((await one<Record<string, any>>('spaces', { id: spaceIdOf(DRYER) }))?.archivedAt).toBeInstanceOf(Date);
+
+    // Everybody else's hardware is where it was.
+    expect(await one('devices', { id: LEGACY_DEVICE_IDS.fridge })).not.toBeNull();
+    expect(await one('deviceClasses', { name: 'fridge' })).not.toBeNull();
+    expect((await one<Record<string, any>>('spaces', { id: spaceIdOf(LEGACY_DEVICE_IDS.fridge) }))?.archivedAt).toBeNull();
+    // No store is configured in a spec, and the run says so rather than pretending.
+    expect(report.applied.find(outcome => outcome.name === '020-retired-dryers')?.stats).toMatchObject({
+      'readings.leftInTheStore': 1,
+      'devices.deleted': 1,
+      'spaces.ended': 1,
+    });
+  });
+
+  it('asks the store the environment names to forget every reading of the device, and fails when it refuses', async () => {
+    const asked: { url: string; authorization?: string; body: Record<string, string> }[] = [];
+    let status = 204;
+    const store = createServer((request, response) => {
+      let body = '';
+      request.on('data', chunk => (body += chunk));
+      request.on('end', () => {
+        asked.push({ url: request.url ?? '', authorization: request.headers.authorization, body: JSON.parse(body) });
+        response.writeHead(status).end(status === 204 ? undefined : 'no such bucket');
+      });
+    });
+    await new Promise<void>(resolve => store.listen(0, '127.0.0.1', resolve));
+    const saved = { ...process.env };
+    Object.assign(process.env, {
+      INFLUXDB_URL: `http://127.0.0.1:${(store.address() as AddressInfo).port}`,
+      INFLUXDB_TOKEN: 'store-token',
+      INFLUXDB_ORG: 'growers',
+      INFLUXDB_BUCKET: 'climate',
+    });
+
+    try {
+      await readingsStore()!(DRYER);
+      expect(asked).toEqual([
+        {
+          url: '/api/v2/delete?org=growers&bucket=climate',
+          authorization: 'Token store-token',
+          // Both measurements: the raw samples and the daily summaries made of them.
+          body: { start: '1970-01-01T00:00:00Z', stop: '2200-01-01T00:00:00Z', predicate: `device_id="${DRYER}"` },
+        },
+      ]);
+
+      status = 404;
+      await expect(readingsStore()!(DRYER)).rejects.toThrow(/404 no such bucket/u);
+    } finally {
+      process.env = saved;
+      await new Promise(resolve => store.close(resolve));
+    }
+
+    expect(readingsStore()).toBeNull();
+  });
+
+  describe('in a database already migrated', () => {
+    const SHARED = 'sim-dryer-shared';
+    const ALONE = 'sim-dryer-alone';
+    const WITH_A_GUEST = 'sim-dryer-guest';
+    const fridgeSpace = () => spaceIdOf(LEGACY_DEVICE_IDS.fridge);
+    const space = (id: string) => ({ id, ownerId: LEGACY_USER_IDS.ada, kind: 'other', name: id, archivedAt: null, createdAt: new Date(AT) });
+    const dryer = (id: string, spaceId: string) => ({
+      id,
+      type: 'dryer',
+      classId: 'class-dryer',
+      ownerId: LEGACY_USER_IDS.ada,
+      spaceId,
+      createdAt: new Date(AT),
+    });
+
+    let erased: string[];
+    const erasing = () => async (deviceId: string) => {
+      erased.push(deviceId);
+    };
+
+    beforeEach(async () => {
+      await migrate();
+      erased = [];
+
+      await collection('deviceClasses').insertOne({ id: 'class-dryer', name: 'dryer', concurrentUpdates: 1, maxFailures: 0, firmwareIds: {} });
+      await collection('firmwares').insertOne({ id: 'fw-dryer-2', classId: 'class-dryer', version: '2.0.0', createdAt: new Date(AT) });
+      await collection('firmwareBinaries').insertOne({ id: 'bin-dryer-2', firmwareId: 'fw-dryer-2', name: 'firmware.bin', data: Buffer.from('x') });
+      await collection('spaces').insertMany([space('space-dryer-alone'), space('space-dryer-guest')]);
+      await collection('devices').insertMany([
+        dryer(SHARED, fridgeSpace()),
+        dryer(ALONE, 'space-dryer-alone'),
+        dryer(WITH_A_GUEST, 'space-dryer-guest'),
+      ]);
+      await collection('memberships').insertOne({ id: 'membership-guest', spaceId: 'space-dryer-guest', userId: LEGACY_USER_IDS.ben });
+      await collection('invites').insertOne({ id: 'invite-alone', spaceId: 'space-dryer-alone' });
+      await collection('shareLinks').insertOne({ id: 'share-alone', subject: { type: 'space', id: 'space-dryer-alone' } });
+      await collection('alarmRules').insertOne({ id: 'rule-dryer', deviceId: SHARED });
+      await collection('alerts').insertOne({ id: 'alert-dryer', deviceId: SHARED, spaceId: fridgeSpace() });
+      await collection('entries').insertMany([
+        { id: 'line-dryer', deviceId: ALONE, spaceId: 'space-dryer-alone' },
+        { id: 'note-fridge-place', deviceId: null, spaceId: fridgeSpace() },
+      ]);
+      await collection('plans').insertOne({ id: 'plan-dryer', deviceId: SHARED });
+      await collection('targetChanges').insertOne({ id: 'targets-dryer', deviceId: SHARED });
+      await collection('claimCodes').insertOne({ id: 'code-dryer', deviceId: ALONE, code: 'DRY001' });
+      await collection('chartViews').insertOne({ id: 'view-both', definition: { deviceIds: [SHARED, LEGACY_DEVICE_IDS.fridge] } });
+      await collection('cameras').insertOne({
+        id: 'camera-dryer',
+        deviceId: SHARED,
+        spaceId: fridgeSpace(),
+        removedAt: null,
+        uid: 'TCAM9',
+        secret: 's',
+      });
+    });
+
+    it('deletes the dryers with their readings and everything they left, and keeps what is somebody else’s', async () => {
+      const context = new MigrationContext(db(), false, new Date(AT + DAY));
+      await retiredDryersWith(erasing).run(context);
+
+      expect(erased.sort()).toEqual([ALONE, SHARED, WITH_A_GUEST].sort());
+      expect(await collection('devices').countDocuments({ type: 'dryer' })).toBe(0);
+      for (const name of ['alarmRules', 'alerts', 'plans', 'targetChanges', 'claimCodes']) {
+        expect(await collection(name).countDocuments({ deviceId: { $in: [SHARED, ALONE, WITH_A_GUEST] } })).toBe(0);
+      }
+      expect(await one('entries', { id: 'line-dryer' })).toBeNull();
+      expect(await one('entries', { id: 'note-fridge-place' })).not.toBeNull();
+      expect((await one<Record<string, any>>('chartViews', { id: 'view-both' }))?.definition.deviceIds).toEqual([LEGACY_DEVICE_IDS.fridge]);
+      expect(await one('cameras', { id: 'camera-dryer' })).toMatchObject({ deviceId: null, uid: null, secret: null, removedAt: new Date(AT + DAY) });
+      expect(await collection('deviceClasses').countDocuments({ name: 'dryer' })).toBe(0);
+      expect(await one('firmwares', { id: 'fw-dryer-2' })).toBeNull();
+      expect(await one('firmwareBinaries', { id: 'bin-dryer-2' })).toBeNull();
+
+      // The place it held alone ends, the one it shared with the fridge and the one somebody was invited into stay.
+      expect((await one<Record<string, any>>('spaces', { id: 'space-dryer-alone' }))?.archivedAt).toEqual(new Date(AT + DAY));
+      expect(await one('invites', { id: 'invite-alone' })).toBeNull();
+      expect(await one('shareLinks', { id: 'share-alone' })).toBeNull();
+      expect((await one<Record<string, any>>('spaces', { id: 'space-dryer-guest' }))?.archivedAt).toBeNull();
+      expect((await one<Record<string, any>>('spaces', { id: fridgeSpace() }))?.archivedAt).toBeNull();
+      expect(await one('devices', { id: LEGACY_DEVICE_IDS.fridge })).not.toBeNull();
+
+      expect(context.stats).toMatchObject({ 'readings.erased': 3, 'devices.deleted': 3, 'spaces.ended': 1, 'cameras.released': 1 });
+    });
+
+    it('rehearses without a write and without asking the store, and finds nothing to do the second time', async () => {
+      const rehearsal = new MigrationContext(db(), true, new Date(AT + DAY));
+      await retiredDryersWith(erasing).run(rehearsal);
+      expect(erased).toEqual([]);
+      expect(await collection('devices').countDocuments({ type: 'dryer' })).toBe(3);
+      expect(rehearsal.stats).toMatchObject({ 'readings.erased': 3, 'devices.deleted': 3, 'spaces.ended': 1 });
+
+      await retiredDryersWith(erasing).run(new MigrationContext(db(), false, new Date(AT + DAY)));
+      erased = [];
+      const again = new MigrationContext(db(), false, new Date(AT + 2 * DAY));
+      await retiredDryersWith(erasing).run(again);
+
+      expect(erased).toEqual([]);
+      expect(again.stats).toEqual({ rejected: 0 });
+    });
+
+    it('deletes nothing when the store refuses, so the next run finds the same dryers', async () => {
+      const refusing = () => async () => {
+        throw new Error('the store is down');
+      };
+
+      await expect(retiredDryersWith(refusing).run(new MigrationContext(db(), false, new Date(AT + DAY)))).rejects.toThrow('the store is down');
+      expect(await collection('devices').countDocuments({ type: 'dryer' })).toBe(3);
+      expect(await one('alarmRules', { id: 'rule-dryer' })).not.toBeNull();
+    });
   });
 });
 

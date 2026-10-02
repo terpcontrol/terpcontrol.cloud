@@ -365,6 +365,9 @@ export const dailyMeanQuery = (bucket: string, deviceId: string, window: Omit<Fl
 export const rawSamplePredicate = (deviceId: string): string =>
   `_measurement="${MEASUREMENT}" AND device_id="${safe(deviceId, SAFE_NAME, 'device id')}"`;
 
+/** Every point one device ever wrote: its raw samples and the daily summaries made of them. */
+export const everySamplePredicate = (deviceId: string): string => `device_id="${safe(deviceId, SAFE_NAME, 'device id')}"`;
+
 /**
  * The same aggregate of one field over several devices, one series per device.
  * A home draws a sparkline on every card, and with this it costs one read
