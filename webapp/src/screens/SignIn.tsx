@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import type { SessionCreate } from '@fg2/shared-types/v1';
@@ -32,19 +32,25 @@ export function SignIn() {
   const [openingDemo, setOpeningDemo] = useState(false);
 
   const form = useForm<SessionCreate>({ defaultValues: { email: '', password: '', stayLoggedIn: true } });
+  const typedEmail = useWatch({ control: form.control, name: 'email' });
   // Where the guard said this person was going, and a whole address rather than
   // a path: the query is what a deep link is about, so it is replayed untouched
   // and never rebuilt from its parts.
-  const arrival = location.state as { from?: string; ended?: boolean } | null;
+  const arrival = location.state as { from?: string; ended?: boolean; recovered?: boolean; activated?: boolean } | null;
   const destination = arrival?.from ?? '/';
   // Sent here because the server refused the session in use, not because
   // nobody had signed in: said, so the form is not read as the app failing.
   const ended = arrival?.ended === true;
+  // Sent here from setting a new password or activating the account: the next
+  // step is this form, and it says so.
+  const welcome = arrival?.recovered ? 'login.recovered' : arrival?.activated ? 'login.activated' : null;
+  const [inactive, setInactive] = useState(false);
 
   if (user) return <Navigate to={destination} replace />;
 
   const submit = form.handleSubmit(async credentials => {
     setProblem(null);
+    setInactive(false);
     try {
       await session.logIn(credentials);
       await navigate(destination, { replace: true });
@@ -53,6 +59,7 @@ export function SignIn() {
         for (const [field, detail] of Object.entries(error.fieldErrors)) form.setError(field as keyof SessionCreate, { message: detail });
       }
       setProblem(refusalOf(error, t));
+      setInactive(error instanceof ApiError && error.problem.code === 'account_not_activated');
     }
   });
 
@@ -81,6 +88,10 @@ export function SignIn() {
           <p className={ui.note} role="status">
             {t('login.sessionEnded')}
           </p>
+        ) : welcome ? (
+          <p className={ui.note} role="status">
+            {t(welcome)}
+          </p>
         ) : null}
 
         <label className={`label ${styles.fieldLabel}`} htmlFor="email">
@@ -107,10 +118,20 @@ export function SignIn() {
           disabled={busy}
           {...form.register('password', { required: true })}
         />
+        {/* The address already typed goes along, so it is not asked for twice. */}
+        <Link to="/recover" state={{ email: typedEmail }} className={`${styles.textLink} ${styles.forgot}`}>
+          {t('login.forgotPassword')}
+        </Link>
 
         {problem ? (
           <p className={`${ui.problem} ${styles.problem}`} role="alert">
             {problem}
+            {inactive ? (
+              <>
+                {' '}
+                <Link to="/activate">{t('activate.enterCode')}</Link>
+              </>
+            ) : null}
           </p>
         ) : null}
 

@@ -31,6 +31,7 @@ import { V1Body } from '@common/zod-validation.pipe';
 import { PUBLIC_OPERATION } from '../../../openapi';
 import { V1Answer } from '../answer-shape';
 import { accountOf } from '../caller';
+import { AccountMailService } from './account-mail.service';
 import { AccountsService } from './accounts.service';
 import { PasswordResetService } from './password-reset.service';
 
@@ -51,6 +52,7 @@ export class AccountController {
   constructor(
     private readonly accounts: AccountsService,
     private readonly resets: PasswordResetService,
+    private readonly mails: AccountMailService,
   ) {}
 
   @Post('users')
@@ -60,6 +62,9 @@ export class AccountController {
   @V1Answer(signupUser, { status: HttpStatus.CREATED })
   public async signUp(@V1Body(userCreate) body: UserCreate): Promise<SignupUser> {
     const user = await this.accounts.signUp(body.email, body.handle, body.password);
+    // The code goes to the address and nowhere else: whoever can read that
+    // mailbox is who the account is for.
+    if (user.activationCode) await this.mails.activation(user.email, user.activationCode);
 
     // Never the activation code: this route is open, so anyone could otherwise
     // activate an address they do not own.
@@ -122,7 +127,10 @@ export class AccountController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Mail critical alarms, or the rows named, to the login address, unless another address is already set' })
   @V1Answer(meShape)
-  public async mailAlarms(@CurrentUser() caller: AuthContext, @V1Body(emailAlarmsCreate.optional()) body: EmailAlarmsCreate | undefined): Promise<Me> {
+  public async mailAlarms(
+    @CurrentUser() caller: AuthContext,
+    @V1Body(emailAlarmsCreate.optional()) body: EmailAlarmsCreate | undefined,
+  ): Promise<Me> {
     return this.accounts.serialiseMe(await this.accounts.mailAlarms(accountOf(caller), body?.categories));
   }
 

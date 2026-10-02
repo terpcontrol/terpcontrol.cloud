@@ -1,7 +1,9 @@
 import { createBrowserRouter, Navigate, Outlet, type RouteObject } from 'react-router';
 import { AppShell } from './shell/AppShell';
+import { LinkEnded, OldDevice, OldLogin, OpenDemo } from './OldAddresses';
 import { RequireSession } from './RequireSession';
 import { RouteError } from './RouteError';
+import { Activate } from '@/screens/Activate';
 import { AddCamera } from '@/screens/camera/add/AddCamera';
 import { AdminOnly } from '@/screens/admin/AdminOnly';
 import { Users as AdminUsers } from '@/screens/admin/Users';
@@ -39,6 +41,7 @@ import { PlacePage } from '@/screens/place/PlacePage';
 import { Notifications } from '@/screens/notifications/Notifications';
 import { PublicGrowRoute } from '@/screens/public/PublicGrowRoute';
 import { PublicProfileRoute } from '@/screens/public/PublicProfileRoute';
+import { Recover } from '@/screens/Recover';
 import { SharedRoute } from '@/screens/public/SharedRoute';
 import { SignIn } from '@/screens/SignIn';
 import { SignUp } from '@/screens/SignUp';
@@ -92,6 +95,10 @@ export const screens: RouteObject[] = [
   { path: 'spaces/:spaceId/members', element: <PlaceMembers /> },
   { path: 'spaces/:spaceId/:tab/:sub?', element: <OldPlaceLink /> },
   { path: 'index.html', element: <Navigate to="/" replace /> },
+  // The old app's own pages, where bookmarks still point.
+  { path: 'list', element: <Navigate to="/" replace /> },
+  { path: 'account', element: <Navigate to="/me/account" replace /> },
+  { path: 'shares', element: <Navigate to="/me/share-links" replace /> },
   { path: '*', element: <NotFound /> },
 ];
 
@@ -101,6 +108,13 @@ export const screens: RouteObject[] = [
  * reload, and a place. Every screen below the shell is behind a session;
  * the sign-in and sign-up pages and the public addresses are the routes that
  * are not.
+ *
+ * Recovering a password and activating an account are outside it too, since
+ * both happen before there is a session, and so are the addresses the old app
+ * answered - its sign-in with the codes its mails carried, its demo, a
+ * device's pages - which `OldAddresses.tsx` sends on to where those things are
+ * now; the old app's bookmarks inside the session are sent on in the table
+ * above.
  *
  * The public ones sit outside the session gate rather than behind a check
  * inside it, so a stranger who follows a link never meets the sign-in page and
@@ -174,6 +188,14 @@ export const router = createBrowserRouter([
     children: [
       { path: '/sign-in', element: <SignIn /> },
       { path: '/sign-up', element: <SignUp /> },
+      { path: '/recover', element: <Recover /> },
+      { path: '/recover/:token', element: <Recover /> },
+      { path: '/activate', element: <Activate /> },
+      { path: '/activate/:code', element: <Activate /> },
+      { path: '/login', element: <OldLogin /> },
+      { path: '/demo', element: <OpenDemo /> },
+      { path: '/device/:deviceId/:page?', element: <OldDevice /> },
+      { path: '/link-expired', element: <LinkEnded /> },
       { path: '/g/:slug', element: <PublicGrowRoute /> },
       { path: '/shared/:token', element: <SharedRoute /> },
       { path: '/join', element: <JoinRoute /> },

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation } from 'react-router';
 import type { UserCreate } from '@fg2/shared-types/v1';
 import { useActivateAccount, useSignUp } from '@/api/account';
-import { CUSTOM_LINKS_HTML } from '@/api/config';
+import { CUSTOM_LINKS_HTML, PRIVACY_URL } from '@/api/config';
 import { ApiError } from '@/api/problem';
 import { session, useSession } from '@/api/session';
 import { Logo } from '@/ui/Logo';
@@ -54,6 +54,10 @@ export function SignUp() {
   // account was made here for it - somebody already signed in who lands on
   // this page is simply sent on.
   const [entering, setEntering] = useState(false);
+  // An install that publishes a privacy statement has it agreed to before an
+  // account is made; one that publishes none asks nothing.
+  const [agreed, setAgreed] = useState(false);
+  const [unagreed, setUnagreed] = useState(false);
   const form = useForm<UserCreate>({ defaultValues: { email: '', handle: '', password: '' } });
 
   if (user) return <Navigate to={destination} replace state={entering && invitation ? { takeUp: true } : null} />;
@@ -70,6 +74,10 @@ export function SignUp() {
 
   const submit = form.handleSubmit(async body => {
     setProblem(null);
+    if (PRIVACY_URL && !agreed) {
+      setUnagreed(true);
+      return;
+    }
     // The sigil people type out of habit is not part of the name.
     const credentials = { ...body, handle: body.handle.trim().replace(/^@/, '') };
     try {
@@ -208,6 +216,31 @@ export function SignUp() {
           {...form.register('password', { required: true })}
         />
         <FieldProblem message={errors.password?.message} />
+
+        {PRIVACY_URL ? (
+          <>
+            <label className={styles.agree}>
+              <input
+                type="checkbox"
+                checked={agreed}
+                disabled={busy}
+                aria-invalid={unagreed && !agreed}
+                onChange={event => {
+                  setAgreed(event.target.checked);
+                  setUnagreed(false);
+                }}
+              />
+              <span>
+                {t('login.acceptPrivacyBefore')}{' '}
+                <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer">
+                  {t('login.acceptPrivacyLink')}
+                </a>
+                {t('login.acceptPrivacyAfter')}
+              </span>
+            </label>
+            <FieldProblem message={unagreed && !agreed ? t('login.acceptPrivacyNeeded') : undefined} />
+          </>
+        ) : null}
 
         {problem ? (
           <p className={`${ui.problem} ${styles.problem}`} role="alert">

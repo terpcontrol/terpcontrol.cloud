@@ -6,6 +6,8 @@ import type {
   NotificationCategory,
   NotificationSettings,
   PasswordChange,
+  PasswordResetCreate,
+  PasswordResetRedemption,
   PushSubscription,
   PushSubscriptionCreate,
   SessionPage,
@@ -40,6 +42,20 @@ export const meKey = ['me'];
 export const useSignUp = () => useMutation({ mutationFn: (body: UserCreate) => api.post<SignupUser>('/users', body) });
 
 export const useActivateAccount = () => useMutation({ mutationFn: (body: UserActivation) => api.post<void>('/users/activations', body) });
+
+/**
+ * The way back in after a forgotten password, in its two halves: asking for the
+ * mail, which answers the same whether or not the address has an account here,
+ * and spending what it carried - a link's token or the same code typed - on a
+ * new password. Neither opens a session; the new password is signed in with.
+ */
+export const useRequestReset = () => useMutation({ mutationFn: (body: PasswordResetCreate) => api.post<void>('/password-resets', body) });
+
+export const useRedeemReset = () =>
+  useMutation({
+    mutationFn: ({ token, ...body }: PasswordResetRedemption & { token: string }) =>
+      api.post<void>(`/password-resets/${encodeURIComponent(token)}/redemptions`, body),
+  });
 
 /**
  * A screen that is waiting for the account to change behind its back - a

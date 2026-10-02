@@ -1,14 +1,11 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { ConfigType } from '@nestjs/config';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { createHash, randomUUID } from 'node:crypto';
 import { notFound } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
 import { StoredPasswordReset } from '@database/schemas/v1/password-resets.schema';
-import { appConfig } from '@config/configuration';
-import { MailService } from '@modules/mail/mail.service';
-import { logger } from '@utils/logger';
+import { AccountMailService, RECOVERY_VALID_MINUTES } from './account-mail.service';
 import { AccountsService } from './accounts.service';
 
 /**
@@ -24,13 +21,6 @@ import { AccountsService } from './accounts.service';
  * instead must not stay usable behind them.
  */
 
-/**
- * Long enough for a mail to arrive and be read, short enough that a link sitting
- * in a mailbox stops being a way in. The record expires itself at this instant,
- * so nothing has to sweep them.
- */
-const VALID_FOR_MINUTES = 60;
-
 const digest = (token: string): string => createHash('sha256').update(token).digest('hex');
 
 @Injectable()
@@ -38,8 +28,7 @@ export class PasswordResetService {
   constructor(
     @InjectModel(MODEL_V1.passwordReset) private readonly resets: Model<StoredPasswordReset>,
     private readonly accounts: AccountsService,
-    private readonly mail: MailService,
-    @Inject(appConfig.KEY) private readonly app: ConfigType<typeof appConfig>,
+    private readonly mails: AccountMailService,
   ) {}
 
   /**
@@ -58,21 +47,13 @@ export class PasswordResetService {
       id: randomUUID(),
       userId: user.id,
       tokenHash: digest(token),
-      expiresAt: new Date(Date.now() + VALID_FOR_MINUTES * 60 * 1000),
+      // Long enough for a mail to arrive and be read, short enough that a link
+      // sitting in a mailbox stops being a way in. The record expires itself at
+      // this instant, so nothing has to sweep them.
+      expiresAt: new Date(Date.now() + RECOVERY_VALID_MINUTES * 60 * 1000),
     });
 
-    try {
-      await this.mail.send({
-        to: email,
-        subject: 'Reset your Terp Control password',
-        text: `Change password: ${this.app.apiUrlExternal}/login?recovery=${token}`,
-      });
-    } catch (error) {
-      // An install with no SMTP configured is a supported install; the account
-      // simply cannot be recovered by mail there, and the caller is told
-      // nothing either way.
-      logger.error(`Could not send a password reset to ${email}: ${String(error)}`);
-    }
+    await this.mails.recovery(email, token);
   }
 
   /**

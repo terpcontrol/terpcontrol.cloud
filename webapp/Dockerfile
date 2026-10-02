@@ -22,10 +22,14 @@ COPY webapp/ .
 # names the API the bundle is compiled against.
 ARG API_URL_EXTERNAL
 ARG CUSTOM_LINKS_HTML
+ARG PRIVACY_URL
 ENV VITE_API_URL=${API_URL_EXTERNAL}
 # An install's own links below the sign-in form (imprint, terms). Whoever builds
 # the image writes it, which is why it may be markup.
 ENV VITE_CUSTOM_LINKS_HTML=${CUSTOM_LINKS_HTML}
+# The privacy statement a sign-up agrees to; without one the sign-up asks for no
+# agreement, because there is nothing to agree to.
+ENV VITE_PRIVACY_URL=${PRIVACY_URL}
 RUN npm run build
 
 ### STAGE 2: Run ###

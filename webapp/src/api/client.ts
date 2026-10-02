@@ -74,7 +74,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   if (!response.ok) throw new ApiError(await readProblem(response));
   if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+  // An accepted request - a recovery mail on its way - may answer nothing at all.
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 /**

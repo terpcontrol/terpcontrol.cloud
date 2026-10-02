@@ -239,7 +239,7 @@
     "stayLoggedIn": "Stay logged in",
     "login": "Login",
     "createAccount": "Create account",
-    "backToLogin": "Back to login",
+    "backToLogin": "Back to sign-in",
     "forgotPassword": "Forgot password?",
     "demoHint": "Just looking around? Explore real devices without an account.",
     "demoLogin": "Open the demo",
@@ -295,7 +295,11 @@
         "submit": "Activate and continue",
         "later": "You can also come back later: once the account is active, sign in and open the invitation again."
       }
-    }
+    },
+    "acceptPrivacyAfter": ".",
+    "acceptPrivacyNeeded": "Please accept the privacy policy to create an account.",
+    "recovered": "Your password has been changed. Sign in with it now.",
+    "activated": "Your account is active. Sign in now."
   },
   "growPresets": {
     "seedling": {
@@ -5091,6 +5095,36 @@
     "greenhouseNote": "Temperature only: light and CO₂ run, the compressor only cools, humidity is not controlled.",
     "germination": "Germination",
     "germinationNote": "In the dark: no light, no CO₂. Heats and cools to the night temperature."
+  },
+  "recover": {
+    "title": "Forgot your password",
+    "intro": "Enter your account's e-mail address. You will get a mail with a link and a code to set a new password with.",
+    "send": "Send mail",
+    "sending": "Sending …",
+    "sent": "If {{email}} has an account here, a mail is on its way now. Open its link or enter its code - both work for 60 minutes. Check the spam folder too.",
+    "enterCode": "Enter the code from the mail",
+    "haveCode": "I already have a code",
+    "again": "Ask for a new mail",
+    "codeIntro": "Paste the code from the mail into this field. Then you choose your new password.",
+    "code": "Code from the mail",
+    "next": "Continue",
+    "newTitle": "New password",
+    "newIntro": "Choose a new password for your account, then sign in with it.",
+    "set": "Set password",
+    "spent": "This link or code has been used already or has run out. Just ask for a new one.",
+    "askNew": "Ask for a new mail"
+  },
+  "activate": {
+    "title": "Activate your account",
+    "intro": "Enter the code from the activation mail.",
+    "fromLink": "The code from your mail is already in the field. Tap “Activate account”, then sign in.",
+    "submit": "Activate account",
+    "unknown": "That code is unknown or has been used already. If your account is already active, just sign in.",
+    "enterCode": "Enter the activation code"
+  },
+  "oldLink": {
+    "title": "This link has ended",
+    "body": "Terp Control has moved to a new app. Links shared from the old app stopped working with the move. Ask whoever sent you this link for a new one."
   },
   "planLight": {
     "label": "Light on for",

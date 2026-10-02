@@ -295,7 +295,11 @@
         "submit": "Aktivieren und weiter",
         "later": "Du kannst auch später wiederkommen: Sobald das Konto aktiv ist, melde dich an und öffne die Einladung noch einmal."
       }
-    }
+    },
+    "acceptPrivacyAfter": ".",
+    "acceptPrivacyNeeded": "Bitte akzeptiere die Datenschutzbedingungen, um ein Konto anzulegen.",
+    "recovered": "Dein Passwort ist geändert. Melde dich jetzt damit an.",
+    "activated": "Dein Konto ist aktiv. Melde dich jetzt an."
   },
   "growPresets": {
     "seedling": {
@@ -5095,6 +5099,36 @@
     "greenhouseNote": "Nur die Temperatur: Licht und CO₂ laufen, der Kompressor kühlt nur, die Luftfeuchte wird nicht geregelt.",
     "germination": "Keimung",
     "germinationNote": "Im Dunkeln: kein Licht, kein CO₂. Heizt und kühlt auf die Nachttemperatur."
+  },
+  "recover": {
+    "title": "Passwort vergessen",
+    "intro": "Gib die E-Mail-Adresse deines Kontos ein. Du bekommst eine Mail mit einem Link und einem Code, mit denen du ein neues Passwort setzt.",
+    "send": "Mail senden",
+    "sending": "Sendet …",
+    "sent": "Wenn es zu {{email}} ein Konto gibt, ist jetzt eine Mail unterwegs. Öffne den Link darin oder gib den Code ein - beides gilt 60 Minuten. Schau auch im Spam-Ordner nach.",
+    "enterCode": "Code aus der Mail eingeben",
+    "haveCode": "Ich habe schon einen Code",
+    "again": "Neue Mail anfordern",
+    "codeIntro": "Kopiere den Code aus der Mail in dieses Feld. Danach wählst du dein neues Passwort.",
+    "code": "Code aus der Mail",
+    "next": "Weiter",
+    "newTitle": "Neues Passwort",
+    "newIntro": "Wähle ein neues Passwort für dein Konto. Danach meldest du dich damit an.",
+    "set": "Passwort setzen",
+    "spent": "Dieser Link oder Code wurde schon benutzt oder ist abgelaufen. Fordere einfach einen neuen an.",
+    "askNew": "Neue Mail anfordern"
+  },
+  "activate": {
+    "title": "Konto aktivieren",
+    "intro": "Gib den Code aus der Aktivierungsmail ein.",
+    "fromLink": "Der Code aus deiner Mail steht schon im Feld. Tippe auf „Konto aktivieren“, danach meldest du dich an.",
+    "submit": "Konto aktivieren",
+    "unknown": "Diesen Code kennen wir nicht, oder er wurde schon benutzt. Ist dein Konto schon aktiv, melde dich einfach an.",
+    "enterCode": "Aktivierungscode eingeben"
+  },
+  "oldLink": {
+    "title": "Dieser Link ist abgelaufen",
+    "body": "Terp Control ist in eine neue App umgezogen. Links, die in der alten App geteilt wurden, gelten seit dem Umzug nicht mehr. Bitte die Person, die dir den Link geschickt hat, um einen neuen."
   },
   "planLight": {
     "label": "Licht an für",

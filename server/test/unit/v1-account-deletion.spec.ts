@@ -4,6 +4,7 @@ import { AccessService } from '@common/v1/access.service';
 import { ProblemException } from '@common/v1/problem';
 import { AccountDeletionService } from '@modules/v1/account-deletion/account-deletion.service';
 import { AccountsService } from '@modules/v1/account/accounts.service';
+import { AccountMailService } from '@modules/v1/account/account-mail.service';
 import { PasswordResetService } from '@modules/v1/account/password-reset.service';
 import { DevicesService } from '@modules/v1/device/devices.service';
 import { SessionsService } from '@modules/v1/sessions/sessions.service';
@@ -69,10 +70,7 @@ const build = (): void => {
   const resets = new PasswordResetService(
     db.passwordResets,
     accounts,
-    { send: async () => undefined } as never,
-    {
-      apiUrlExternal: 'https://api.test.invalid',
-    } as never,
+    new AccountMailService({ send: async () => undefined } as never, { appUrlExternal: 'https://app.test.invalid' } as never),
   );
   const access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
   const devices = new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access);

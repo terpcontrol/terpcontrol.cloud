@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ModelsModule } from '@database/models.module';
 import { MailModule } from '@modules/mail/mail.module';
 import { AccountController } from './account.controller';
+import { AccountMailService } from './account-mail.service';
 import { AccountsService } from './accounts.service';
 import { PasswordResetService } from './password-reset.service';
 
@@ -15,7 +16,7 @@ import { PasswordResetService } from './password-reset.service';
 @Module({
   imports: [ModelsModule, MailModule],
   controllers: [AccountController],
-  providers: [AccountsService, PasswordResetService],
+  providers: [AccountsService, PasswordResetService, AccountMailService],
   exports: [AccountsService, PasswordResetService],
 })
 export class AccountModule {}

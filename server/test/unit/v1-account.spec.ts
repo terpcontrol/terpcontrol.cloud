@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { DataStoredInToken } from '@common/auth/auth.interface';
 import { TokenService } from '@common/auth/token.service';
 import { AccountsService } from '@modules/v1/account/accounts.service';
+import { AccountMailService, activationMail, recoveryMail } from '@modules/v1/account/account-mail.service';
 import { PasswordResetService } from '@modules/v1/account/password-reset.service';
 import { SessionsService } from '@modules/v1/sessions/sessions.service';
 import { ProblemException } from '@common/v1/problem';
@@ -50,8 +51,8 @@ const notifications = {
 const mailed: { to: string; subject: string; text: string }[] = [];
 
 // Each service reads one thing out of what is stubbed here: the transport's
-// `send`, and the external URL a recovery link is built from.
-const app = { apiUrlExternal: 'https://api.test.invalid' };
+// `send`, and the address of the app a recovery link leads into.
+const app = { appUrlExternal: 'https://app.test.invalid' };
 const mail = {
   send: jest.fn(async (message: { to: string; subject: string; text: string }) => {
     mailed.push(message);
@@ -76,7 +77,7 @@ const build = (): void => {
     { ...notifications },
     { ...retention },
   );
-  resets = new PasswordResetService(database.passwordResets, accounts, mail as never, app as never);
+  resets = new PasswordResetService(database.passwordResets, accounts, new AccountMailService(mail as never, app as never));
   sessions = new SessionsService(database.sessions, accounts, { ...auth });
 };
 
@@ -731,7 +732,7 @@ describe('recovering a password', () => {
     const user = await signUp('recovering');
 
     await resets.request(user.email);
-    const token = mailed[0].text.match(/recovery=([\w-]+)/)?.[1] as string;
+    const token = mailed[0].text.match(/\/recover\/([\w-]+)/)?.[1] as string;
 
     const stored = await database.passwordResets.findOne({ userId: user.id }).select('+tokenHash').lean();
     expect(stored?.tokenHash).not.toContain(token);
@@ -740,6 +741,17 @@ describe('recovering a password', () => {
     expect(await accounts.verify(user.email, NEW_PASSWORD)).not.toBeNull();
 
     expect((await refusal(() => resets.redeem(token, 'third!Password'))).problem.code).toBe('reset_unknown');
+  });
+
+  it('mails the code beside the link, so it can be typed on another device', async () => {
+    const user = await signUp('typed');
+
+    await resets.request(user.email);
+    const token = mailed[0].text.match(/\/recover\/([\w-]+)/)?.[1] as string;
+
+    expect(mailed[0].to).toBe(user.email);
+    expect(mailed[0].text).toContain(`https://app.test.invalid/recover/${token}`);
+    expect(mailed[0].text.split('\n')).toContain(token);
   });
 
   it('mails nothing, and says nothing, for an address with no account here', async () => {
@@ -757,6 +769,41 @@ describe('recovering a password', () => {
     await resets.retire(user.id);
 
     expect(await database.passwordResets.countDocuments({ userId: user.id })).toBe(0);
+  });
+});
+
+describe('the mails before a first sign-in', () => {
+  it('lead into the app where the install names it, in both languages', () => {
+    const recovery = recoveryMail('https://app.test.invalid', 'tok-1');
+    const activation = activationMail('https://app.test.invalid', 'code-1');
+
+    expect(recovery.text).toContain('https://app.test.invalid/recover/tok-1');
+    expect(recovery.text).toContain('Passwort vergessen?');
+    expect(recovery.text).toContain('Forgot password?');
+    expect(activation.text).toContain('https://app.test.invalid/activate/code-1');
+    expect(activation.subject).toMatch(/Konto aktivieren.*Activate your account/);
+  });
+
+  it('carry the code alone, and no link to nowhere, where the install has not said where the app is', () => {
+    const recovery = recoveryMail(null, 'tok-2');
+    const activation = activationMail(null, 'code-2');
+
+    expect(recovery.text).not.toMatch(/https?:\/\//);
+    expect(recovery.text.split('\n')).toContain('tok-2');
+    expect(activation.text).not.toMatch(/https?:\/\//);
+    expect(activation.text.split('\n')).toContain('code-2');
+  });
+
+  it('send the activation code to the address it was asked for, and swallow a transport that fails', async () => {
+    const service = new AccountMailService(mail as never, app as never);
+    await service.activation('new@test.invalid', 'code-3');
+
+    expect(mailed).toHaveLength(1);
+    expect(mailed[0]).toMatchObject({ to: 'new@test.invalid' });
+    expect(mailed[0].text).toContain('https://app.test.invalid/activate/code-3');
+
+    const failing = new AccountMailService({ send: async () => Promise.reject(new Error('no smtp')) } as never, app as never);
+    await expect(failing.recovery('new@test.invalid', 'tok-3')).resolves.toBeUndefined();
   });
 });
 
