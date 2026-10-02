@@ -857,10 +857,18 @@ namespace fg {
   }
 
   // The humidifier is the dehumidifier's rule read the other way round: it runs
-  // while the air is drier than the target by more than the same band and stops
-  // once it is back at the target. It drives no output of the module's own,
-  // only a socket, so it is decided here rather than in a control pass.
+  // while the air is drier than the target by more than a band and stops once it
+  // is back at the target. It drives no output of the module's own, only a
+  // socket, so it is decided here rather than in a control pass.
+  //
+  // The band is the dehumidifier's, but never narrower than the five points it
+  // has always defaulted to: a dry target dehumidifies from the target itself,
+  // with a band of zero, and a humidifier switched at the target would chatter
+  // on and off around it.
+  static constexpr float HUMIDIFIER_MIN_BAND = 5.0f;
+
   static bool humidifierTarget(float humidity, float target, float band, bool stopped) {
+    band = band < HUMIDIFIER_MIN_BAND ? HUMIDIFIER_MIN_BAND : band;
     static bool humidify = false;
     if(stopped) {
       humidify = false;
