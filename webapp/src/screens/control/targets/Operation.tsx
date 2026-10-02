@@ -1,5 +1,7 @@
 import { Power } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
+import { devicesPath } from '@/app/places';
 import type { Device } from '@fg2/shared-types/v1';
 import { useConfigure } from '@/api/devices';
 import { FieldSwitch } from '@/ui/advanced/Fields';
@@ -26,7 +28,25 @@ export function ControlState({ device, mayManage }: { device: Device; mayManage:
   const { t } = useTranslation();
   const configure = useConfigure(device.id);
   const control = device.control;
-  if (!control || (control.running && !control.drying)) return null;
+  if (!control) return null;
+  if (control.running && !control.drying && control.mode !== 'standard') {
+    // Another operating mode holds only part of what the sliders set, which is
+    // said over them rather than left to the device panel it was chosen in.
+    return (
+      <div className={`${ui.card} ${styles.planCard}`} data-status="mode" role="status">
+        <p className={styles.planText}>
+          {t(`climateControl.modeNote.${control.mode}`)}
+          <Help topic="advanced.operatingMode" />
+        </p>
+        {mayManage ? (
+          <Link to={devicesPath(device.spaceId)} className={ui.headLink}>
+            {t('climateControl.modeChange')} ›
+          </Link>
+        ) : null}
+      </div>
+    );
+  }
+  if (control.running && !control.drying) return null;
 
   if (control.drying) {
     return (

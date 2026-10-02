@@ -5056,6 +5056,11 @@
       "off": "Off",
       "window": "{{on}}–{{off}} · {{hours}} h",
       "noWindow": "no schedule",
+      "dark": {
+        "off": "off · control off",
+        "drying": "off · drying",
+        "germination": "off · germination"
+      },
       "offAt": "off at {{time}}",
       "onAt": "on at {{time}}",
       "barAlt": "Light on from {{on}} to {{off}}",
@@ -5097,9 +5102,12 @@
       "title": "Targets",
       "day": "Day",
       "night": "Night",
+      "drying": "Drying",
+      "germination": "Germination",
       "light": "Light",
       "limit": "at most {{percent}} %",
       "none": "No targets yet.",
+      "controlOff": "Control off: the device holds no targets right now.",
       "awaiting": "Waiting for the device's settings."
     },
     "alarms": {
@@ -5129,6 +5137,12 @@
       "lightOff": "Light off",
       "lightOnUntil": "Light on until {{time}}",
       "lightOffUntil": "Light off until {{time}}"
+    },
+    "mode": {
+      "drying": "Drying: no light and no CO₂; the drying temperature and humidity are held.",
+      "greenhouse": "Operating mode greenhouse: only the temperature is held, not the humidity.",
+      "germination": "Operating mode germination: dark and without CO₂; the night temperature is held.",
+      "change": "Change"
     }
   },
   "climatePick": {
@@ -5186,6 +5200,11 @@
     "offTargetsRead": "The device holds no targets right now.",
     "dryingNote": "Drying: no day and night, no light, no CO₂. The device only dehumidifies and heats.",
     "endDrying": "End drying",
+    "modeNote": {
+      "greenhouse": "Operating mode greenhouse: the device holds the temperature only. The humidity below is not held; light and CO₂ run as set.",
+      "germination": "Operating mode germination: dark, no CO₂. The device heats and cools to the night temperature; the day figures, humidity, light and CO₂ below do not apply."
+    },
+    "modeChange": "Change operating mode",
     "offTitle": "Control off."
   },
   "energySaving": {

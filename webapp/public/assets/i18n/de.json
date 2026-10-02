@@ -5060,6 +5060,11 @@
       "off": "Aus",
       "window": "{{on}}–{{off}} · {{hours}} Std",
       "noWindow": "kein Zeitplan",
+      "dark": {
+        "off": "aus · Regelung aus",
+        "drying": "aus · Trocknung",
+        "germination": "aus · Keimung"
+      },
       "offAt": "aus um {{time}}",
       "onAt": "an um {{time}}",
       "barAlt": "Licht an von {{on}} bis {{off}}",
@@ -5101,9 +5106,12 @@
       "title": "Zielwerte",
       "day": "Tag",
       "night": "Nacht",
+      "drying": "Trocknung",
+      "germination": "Keimung",
       "light": "Licht",
       "limit": "höchstens {{percent}} %",
       "none": "Noch keine Zielwerte.",
+      "controlOff": "Regelung aus: Das Gerät hält gerade keine Zielwerte.",
       "awaiting": "Wartet auf die Einstellungen des Geräts."
     },
     "alarms": {
@@ -5133,6 +5141,12 @@
       "lightOff": "Licht aus",
       "lightOnUntil": "Licht an bis {{time}}",
       "lightOffUntil": "Licht aus bis {{time}}"
+    },
+    "mode": {
+      "drying": "Trocknung läuft: kein Licht und kein CO₂, gehalten werden Temperatur und Luftfeuchte der Trocknung.",
+      "greenhouse": "Betriebsart Gewächshaus: Geregelt wird nur die Temperatur, die Luftfeuchte nicht.",
+      "germination": "Betriebsart Keimung: dunkel und ohne CO₂, gehalten wird die Nachttemperatur.",
+      "change": "Ändern"
     }
   },
   "climatePick": {
@@ -5190,6 +5204,11 @@
     "offTargetsRead": "Das Gerät hält gerade keine Zielwerte.",
     "dryingNote": "Trocknung läuft: kein Tag und keine Nacht, kein Licht, kein CO₂. Das Gerät entfeuchtet und heizt nur.",
     "endDrying": "Trocknung beenden",
+    "modeNote": {
+      "greenhouse": "Betriebsart Gewächshaus: Das Gerät regelt nur die Temperatur. Die Luftfeuchte unten wird nicht gehalten, Licht und CO₂ laufen wie eingestellt.",
+      "germination": "Betriebsart Keimung: dunkel, ohne CO₂. Das Gerät heizt und kühlt auf die Nachttemperatur; Tagwerte, Luftfeuchte, Licht und CO₂ unten gelten nicht."
+    },
+    "modeChange": "Betriebsart ändern",
     "offTitle": "Regelung aus."
   },
   "energySaving": {

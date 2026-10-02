@@ -214,8 +214,22 @@ const clockOf = (seconds: number): string => {
  * the server moves the seconds when the clocks change, so today's offset turns
  * one into the other.
  */
+/**
+ * Why a device keeps its lamp dark whatever its window says, or null: switched
+ * off, drying, or germinating in the dark. The window is then no promise, and
+ * "08:00–20:00" over a dark fridge read as a lamp that had failed.
+ */
+export type DarkReason = 'off' | 'drying' | 'germination';
+
+export const darkReasonOf = (device: Device | null): DarkReason | null => {
+  const control = device?.control;
+  if (!control) return null;
+  return !control.running ? 'off' : control.drying ? 'drying' : control.mode === 'germination' ? 'germination' : null;
+};
+
 export const lightWindowOf = (device: Device | null, now: DateTime, zone: string | null): LightWindow | null => {
   if (device?.type === 'light') return lampWindowOf(device, now, zone);
+  if (darkReasonOf(device)) return null;
   // A fan's day is what its light sensor sees; it keeps no light window of its own.
   if (!device?.configuration || !statesTargets(device.configuration) || device.type === 'fan') return null;
   const draft = draftOf(device.configuration);

@@ -40,20 +40,41 @@ export const setpointsOf = (
 ): Setpoints | null => {
   if (!configuration || isDay === null) return null;
 
+  const held = HELD[String(configuration.workmode)] ?? null;
   const setpoints: Setpoints = {
-    day: halfOf(configuration, 'day', hardware),
-    night: halfOf(configuration, 'night', hardware),
-    active: isDay ? 'day' : 'night',
+    day: held?.nightOnly ? {} : halfOf(configuration, 'day', hardware, held),
+    night: halfOf(configuration, 'night', hardware, held),
+    active: isDay && !held?.nightOnly ? 'day' : 'night',
   };
 
   return Object.keys(setpoints.day).length + Object.keys(setpoints.night).length > 0 ? setpoints : null;
 };
 
-const halfOf = (configuration: Record<string, unknown>, half: 'day' | 'night', hardware: Record<string, string>): Partial<Record<Metric, number>> => {
+/**
+ * What a work mode holds of the targets, where it does not hold all of them.
+ * Switched off the firmware holds none. Drying and germination know no day -
+ * the firmware calls neither one - and hold the night's figures: drying its
+ * temperature and humidity without CO2, germination the temperature alone. The
+ * greenhouse mode holds no humidity. A figure a mode does not hold is not one
+ * the tent can be judged by, however it reads.
+ */
+const HELD: Readonly<Record<string, { metrics: readonly Metric[]; nightOnly: boolean }>> = {
+  off: { metrics: [], nightOnly: false },
+  dry: { metrics: ['temperature', 'humidity'], nightOnly: true },
+  breed: { metrics: ['temperature'], nightOnly: true },
+  temp: { metrics: ['temperature', 'co2'], nightOnly: false },
+};
+
+const halfOf = (
+  configuration: Record<string, unknown>,
+  half: 'day' | 'night',
+  hardware: Record<string, string>,
+  held: { metrics: readonly Metric[] } | null,
+): Partial<Record<Metric, number>> => {
   const targets: Partial<Record<Metric, number>> = {};
 
   for (const [metric, path] of Object.entries(TARGETS[half]) as [Metric, string][]) {
-    if (reportsNoSensor(hardware, metric)) continue;
+    if (reportsNoSensor(hardware, metric) || (held && !held.metrics.includes(metric))) continue;
     const value = numberAt(configuration, path);
     if (value !== null) targets[metric] = value;
   }

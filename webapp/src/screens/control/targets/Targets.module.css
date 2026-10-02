@@ -220,7 +220,13 @@
   font-weight: var(--weight-semibold);
 }
 
-/* A drying spell, said in a quiet line over the sliders. */
+/* A drying spell and another operating mode are what the grow or the grower
+   asked for, so their cards keep the quiet border rather than the amber. */
+.planCard[data-status='drying'],
+.planCard[data-status='mode'] {
+  border-color: var(--rule);
+}
+
 .drying {
   margin: 0;
 }

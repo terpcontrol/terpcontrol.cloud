@@ -627,6 +627,9 @@ describe('the targets page', () => {
     await drawn([device({ type: 'fridge', control: { running: true, drying: false, mode: 'greenhouse', energySaving: false } })]);
 
     expect(screen.queryByRole('switch', { name: 'Energy saving' })).not.toBeInTheDocument();
+    // What the mode leaves of the sliders is said over them, with the way to the mode itself.
+    expect(screen.getByText(/^Operating mode greenhouse: the device holds the temperature only/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Change operating mode ›' })).toBeInTheDocument();
   });
 
   it('offers a controller no energy saving, because it has no back-wall fan', async () => {

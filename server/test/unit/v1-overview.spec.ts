@@ -310,6 +310,27 @@ describe('what the tent reads right now', () => {
     ]);
   });
 
+  it('judges the tent only by what its work mode holds: nothing while off, the night alone while drying or germinating', async () => {
+    await db.devices.updateOne({ id: CONTROLLER }, { $set: { 'configuration.co2': { target: 900 }, 'configuration.workmode': 'off' } });
+    expect((await readAs(session(OWNER))).setpoints).toEqual([]);
+
+    await db.devices.updateOne({ id: CONTROLLER }, { $set: { 'configuration.workmode': 'temp' } });
+    expect((await readAs(session(OWNER))).setpoints.map(one => one.metric)).toEqual(['temperature', 'co2']);
+
+    // The device still says it is day: drying knows none, so the night's figures are what it holds.
+    await db.devices.updateOne(
+      { id: CONTROLLER },
+      { $set: { 'configuration.workmode': 'dry', 'configuration.night': { temperature: 18, humidity: 58 } } },
+    );
+    expect((await readAs(session(OWNER))).setpoints).toEqual([
+      { metric: 'temperature', value: 18, band: 1 },
+      { metric: 'humidity', value: 58, band: 5 },
+    ]);
+
+    await db.devices.updateOne({ id: CONTROLLER }, { $set: { 'configuration.workmode': 'breed' } });
+    expect((await readAs(session(OWNER))).setpoints).toEqual([{ metric: 'temperature', value: 18, band: 1 }]);
+  });
+
   it('drops the CO2 target at night, which is when nothing is aiming at one', async () => {
     await db.devices.updateOne({ id: CONTROLLER }, { $set: { 'configuration.co2': { target: 900 } } });
 

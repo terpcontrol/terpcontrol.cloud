@@ -16,6 +16,7 @@ import {
   focusLink,
   hoursFigure,
   judgedPanel,
+  darkReasonOf,
   lightWindowOf,
   nightsOf,
   outputsFor,
@@ -234,6 +235,7 @@ function LightTile({ spaceId, device, live, now, offline }: TilesProps) {
   const { t } = useTranslation();
   const zone = useZone();
   const window = lightWindowOf(device, now, zone);
+  const dark = darkReasonOf(device);
   const level = live?.outputs.light ?? null;
   const age = level ? valueAge(level, now) : 'offline';
   const known = level?.value != null;
@@ -259,7 +261,7 @@ function LightTile({ spaceId, device, live, now, offline }: TilesProps) {
               <Term topic="dayNight">{t('cockpit.light.window', { on: window.on, off: window.off, hours: hoursFigure(window.hours) })}</Term>
             </span>
           ) : (
-            <span>{t('cockpit.light.noWindow')}</span>
+            <span>{t(dark ? `cockpit.light.dark.${dark}` : 'cockpit.light.noWindow')}</span>
           )}
           {age !== 'live' && level ? (
             <span className={styles.lastValue}>

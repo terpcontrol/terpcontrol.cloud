@@ -16,7 +16,7 @@ import { targetFigure, UNIT } from '../home/units';
 import { alarmsReach, reachedBy } from '../notifications/reach';
 import { plugSummaryOf } from '../control/devices/own-summary';
 import { offsetOf } from '../control/targets/targets-draft';
-import { hoursFigure, lightWindowOf } from './place';
+import { darkReasonOf, hoursFigure, lightWindowOf } from './place';
 import { PlanLine } from './PlanLine';
 import styles from './Cockpit.module.css';
 
@@ -74,20 +74,25 @@ export function TargetsSummary({
   const { t } = useTranslation();
   const zone = useZone();
   const light = lightWindowOf(device, now, zone);
+  const dark = darkReasonOf(device);
   // A smart socket has no targets but switch points of its own, which are what it is set to.
   const plug = device ? plugSummaryOf(t, device, offsetOf(now, zone)) : null;
+  // Drying and germination know no day: what they hold is named by the mode rather than called a night.
+  const nightLabel = dark === 'drying' || dark === 'germination' ? t(`cockpit.targets.${dark}`) : t('cockpit.targets.night');
   const rows = plug
     ? plug
     : targets
       ? [
           { label: t('cockpit.targets.day'), parts: halfOf(targets.day, true) },
-          { label: t('cockpit.targets.night'), parts: halfOf(targets.night, false) },
+          { label: nightLabel, parts: halfOf(targets.night, false) },
         ].filter(row => row.parts.length > 0)
       : [];
   if (light) {
     const parts = [t('cockpit.light.window', { on: light.on, off: light.off, hours: hoursFigure(light.hours) })];
     if (light.limit < 100) parts.push(t('cockpit.targets.limit', { percent: light.limit }));
     rows.push({ label: t('cockpit.targets.light'), parts });
+  } else if (dark && dark !== 'off') {
+    rows.push({ label: t('cockpit.targets.light'), parts: [t(`cockpit.light.dark.${dark}`)] });
   }
 
   return (
@@ -109,7 +114,9 @@ export function TargetsSummary({
           ))}
         </dl>
       ) : (
-        <p className={ui.note}>{t(device && awaitingClimate(device) ? 'cockpit.targets.awaiting' : 'cockpit.targets.none')}</p>
+        <p className={ui.note}>
+          {t(dark === 'off' ? 'cockpit.targets.controlOff' : device && awaitingClimate(device) ? 'cockpit.targets.awaiting' : 'cockpit.targets.none')}
+        </p>
       )}
       {device?.control ? <PlanLine spaceId={spaceId} device={device} now={now} /> : null}
     </Summary>

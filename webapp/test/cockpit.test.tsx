@@ -448,6 +448,32 @@ describe('a place whose control is switched off', () => {
   });
 });
 
+describe('a place in another work mode', () => {
+  it('says a germinating fridge is dark and holds its night, and that its light is off for that reason', async () => {
+    server.devices = [fridge({ control: { running: true, drying: false, mode: 'germination', energySaving: false } })];
+    draw(<PlaceCockpit overview={overviewOf()} />);
+
+    expect(await screen.findByText(/^Operating mode germination: dark and without CO₂/)).toBeInTheDocument();
+    expect(screen.getAllByText('off · germination').length).toBeGreaterThan(0);
+  });
+
+  it('says a drying fridge is drying, with the way to end it in Steuerung', async () => {
+    server.devices = [fridge({ control: { running: true, drying: true, mode: 'standard', energySaving: false } })];
+    draw(<PlaceCockpit overview={overviewOf()} />);
+
+    expect(await screen.findByText(/^Drying: no light and no CO₂/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Change ›' })).toHaveAttribute('href', expect.stringContaining('/control'));
+  });
+
+  it('says nothing of a mode where the fridge runs its standard one', async () => {
+    server.devices = [fridge({ control: { running: true, drying: false, mode: 'standard', energySaving: true } })];
+    draw(<PlaceCockpit overview={overviewOf()} />);
+
+    expect(await screen.findByRole('button', { name: /^Switch control off/ })).toBeInTheDocument();
+    expect(screen.queryByText(/^Operating mode/)).not.toBeInTheDocument();
+  });
+});
+
 describe('a reading off its target', () => {
   it('says how far and since when, once the day´s verdict holds an open run outside the band', async () => {
     const startedAt = ago(40);

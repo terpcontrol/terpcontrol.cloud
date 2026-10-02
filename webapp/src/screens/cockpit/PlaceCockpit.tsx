@@ -155,6 +155,7 @@ export function PlaceCockpit({
               mayManage={mayManage}
               ownLine={ownStatusOf(t, device, offsetOf(now, zone))}
             />
+            <ModeLine device={device} spaceId={spaceId} mayManage={mayManage} />
             {/* Switched off, the way back on stands under the sentence that says so rather than under the tiles. */}
             {mayManage && device?.control && !device.control.running ? (
               <div className={styles.actions}>
@@ -329,6 +330,35 @@ function StatusLine({
   ) : (
     <p className={styles.status} data-tone={toneOf(status)} role="status">
       {body}
+    </p>
+  );
+}
+
+/**
+ * The work mode where it is not the everyday one, under the status line: a
+ * fridge left on germination is dark and holds its night temperature, and the
+ * tiles under "Alles im Ziel" read like a fridge holding its day. Set under
+ * Erweitert and forgotten there, it was said nowhere else. Drying is changed
+ * in Steuerung, where it can be ended; a mode, in the device's panel.
+ */
+function ModeLine({ device, spaceId, mayManage }: { device: Device | null; spaceId: string; mayManage: boolean }) {
+  const { t } = useTranslation();
+  const control = device?.control;
+  const kind = !control?.running ? null : control.drying ? 'drying' : control.mode === 'standard' ? null : control.mode;
+  if (!kind) return null;
+
+  return (
+    <p className={styles.status} data-tone="quiet" role="status">
+      <Info size={18} strokeWidth={2} aria-hidden />
+      <span className={styles.statusText}>
+        {t(`cockpit.mode.${kind}`)}
+        <Help topic={kind === 'drying' ? 'drying' : 'advanced.operatingMode'} />
+      </span>
+      {mayManage ? (
+        <Link to={kind === 'drying' ? controlPath(spaceId) : devicesPath(spaceId)} className={ui.headLink}>
+          {t('cockpit.mode.change')} ›
+        </Link>
+      ) : null}
     </p>
   );
 }
