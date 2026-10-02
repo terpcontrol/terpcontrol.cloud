@@ -21,6 +21,7 @@ import {
   SOCKETS_PER_REPORT_CHUNK,
   SOCKET_ADDRESS_MAX_LEN,
   SOCKET_HOLD_MAX_SECONDS,
+  SOCKET_HOST_TYPES,
   TIMED_SOCKET_ROLES,
   socketListKey,
 } from '../shared-types/v1-schemas/socket-report.js';
@@ -321,6 +322,39 @@ const DEFAULT_CONFIG = {
   fans: { internal: 60, external: 40 },
 };
 
+// What the stand-alone modules keep instead, with the defaults their firmware
+// starts from (firmware/src_hwtype/{plug,fan,light}): a smart socket regulating
+// a heater by its own sensor, an AIR fan at a fixed speed, and a lamp with its
+// times at the top of its document.
+const TYPE_CONFIG = {
+  plug: {
+    mqttcontrol: false,
+    workmode: 'heater',
+    usedaynight: false,
+    daynight: { day: 21600, night: 79200 },
+    timer: { timeframes: [] },
+    heater: { day: { on: 22, off: 25 }, night: { on: 20, off: 23 } },
+    cooler: { day: { on: 28, off: 25 }, night: { on: 26, off: 23 } },
+    humidify: { day: { on: 55, off: 60 }, night: { on: 50, off: 55 } },
+    dehumidify: { day: { on: 65, off: 60 }, night: { on: 60, off: 55 } },
+    co2: { mode: 'const', period: 60, duration: 10, on: 600, off: 1000 },
+    limits: {
+      overtemperature: { enabled: false, limit: 30, hysteresis: 1 },
+      undertemperature: { enabled: false, limit: 10, hysteresis: 1 },
+      time: { enabled: false, min_on: 0, min_off: 0 },
+    },
+    fan: '',
+  },
+  fan: {
+    mqttcontrol: false,
+    mode: 0,
+    min_speed: 30,
+    day: { temperature: 25, humidity: 60, fixed_speed: 70, max_speed: 100 },
+    night: { temperature: 21, humidity: 55, fixed_speed: 40, max_speed: 60 },
+  },
+  light: { mqttcontrol: false, day: 21600, night: 79200, max_temperature: 35, limit: 100, sunrise: 15, sunset: 15 },
+};
+
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const round = (value, digits = 2) => Number(value.toFixed(digits));
 
@@ -346,11 +380,13 @@ const configValue = (config, path, fallback) => path.split('.').reduce((node, ke
 // host's own clock would light a 08-20 Berlin window two hours early in summer.
 const lightPercent = (config, at) => {
   const secondsOfDay = at.getUTCHours() * 3600 + at.getUTCMinutes() * 60 + at.getUTCSeconds();
-  const dayStart = configValue(config, 'daynight.day', DEFAULT_CONFIG.daynight.day);
-  const nightStart = configValue(config, 'daynight.night', DEFAULT_CONFIG.daynight.night);
-  const limit = configValue(config, 'lights.limit', 100);
-  const rampUp = configValue(config, 'lights.sunrise', 15) * 60;
-  const rampDown = configValue(config, 'lights.sunset', 15) * 60;
+  // A LIGHT keeps its times, its limit and its ramps at the top of its document.
+  const flat = typeof config.day === 'number';
+  const dayStart = flat ? config.day : configValue(config, 'daynight.day', DEFAULT_CONFIG.daynight.day);
+  const nightStart = flat ? configValue(config, 'night', 79200) : configValue(config, 'daynight.night', DEFAULT_CONFIG.daynight.night);
+  const limit = configValue(config, flat ? 'limit' : 'lights.limit', 100);
+  const rampUp = configValue(config, flat ? 'sunrise' : 'lights.sunrise', 15) * 60;
+  const rampDown = configValue(config, flat ? 'sunset' : 'lights.sunset', 15) * 60;
 
   const isDay =
     dayStart <= nightStart
@@ -654,7 +690,7 @@ class SimulatedDevice {
   constructor({ deviceId, type, username, password }) {
     Object.assign(this, { deviceId, type, username, password });
     this.topic = suffix => `/devices/${this.deviceId}/${suffix}`;
-    this.config = structuredClone(DEFAULT_CONFIG);
+    this.config = structuredClone(TYPE_CONFIG[type] ?? DEFAULT_CONFIG);
     this.state = { temperature: 22, humidity: 58, co2: 500 };
     this.random = makeRandom(deviceId);
     this.testOutputs = null;
@@ -799,7 +835,11 @@ class SimulatedDevice {
       this.hardwareInfo('leaf_temp', 'on');
       this.hardwareInfo('ppfd', 'on');
     }
+    // A smart socket that keeps to its protections says so, as its firmware does.
+    if (this.type === 'plug') this.hardwareInfo('protections', 'on');
     if (this.memory.webcamDid) this.hardwareInfo('webcam_did', this.memory.webcamDid);
+    // Only the controller and the fridge drive smart sockets, and only they announce what they take.
+    if (!SOCKET_HOST_TYPES.includes(this.type)) return;
     this.publishCapabilities();
     this.publishSockets();
   }
@@ -928,6 +968,7 @@ class SimulatedDevice {
    * the state of the boot report forever.
    */
   syncSockets(sample, at = new Date()) {
+    if (!SOCKET_HOST_TYPES.includes(this.type)) return;
     for (const socket of this.memory.sockets) socket.state = this.#socketState(socket, sample, at);
     if (this.#socketSignature() === this.reportedSockets) return;
     if (Date.now() - this.lastSocketReport < SOCKET_REPORT_MIN_MS) return;
