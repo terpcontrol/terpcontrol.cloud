@@ -419,7 +419,7 @@ describe('the clock under a running step', () => {
     draw();
 
     // The header states the step's length and the ladder below it repeats it.
-    expect(screen.getAllByText('No stage · 7 d')).not.toHaveLength(0);
+    expect(screen.getAllByText('No stage · 7 days')).not.toHaveLength(0);
     expect(screen.getByText('25 min on this step · 7 d left')).toBeInTheDocument();
   });
 

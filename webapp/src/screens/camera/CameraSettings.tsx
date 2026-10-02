@@ -367,7 +367,8 @@ const reachedAt = (camera: Camera): string | null => {
   const said =
     camera.kind === 'rtsp'
       ? [camera.url, camera.transport && camera.transport !== 'tcp' ? camera.transport.toUpperCase() : null]
-      : [camera.did, camera.ip, camera.model];
+      : // The model is the firmware's code for it; the Terp Cam's is what the screen already calls it.
+        [camera.did, camera.ip, camera.model === 'terp_cam' ? null : camera.model];
 
   return said.filter(Boolean).join(' · ') || null;
 };

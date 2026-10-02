@@ -2666,8 +2666,8 @@
         "minutes_other": "{{count}} Min",
         "hours_one": "{{count}} Std",
         "hours_other": "{{count}} Std",
-        "days_one": "{{count}} T",
-        "days_other": "{{count}} T",
+        "days_one": "{{count}} Tag",
+        "days_other": "{{count}} Tage",
         "weeks_one": "{{count}} Woche",
         "weeks_other": "{{count}} Wochen"
       },
@@ -5338,8 +5338,8 @@
   },
   "planLight": {
     "label": "Licht an für",
-    "unit": "h",
-    "short": "{{hours}} h Licht",
+    "unit": "Std",
+    "short": "{{hours}} Std Licht",
     "range": "Licht an für: {{min}} bis {{max}} Stunden, oder leer lassen."
   },
   "readyPlans": {
@@ -5564,7 +5564,7 @@
       "cooler": "Für eine Kühlung oder einen Lüfter: an, sobald es wärmer als der Einschaltpunkt ist, aus unter dem Ausschaltpunkt.",
       "humidify": "Für einen Befeuchter: an, sobald die Luft trockener als der Einschaltpunkt ist, aus über dem Ausschaltpunkt.",
       "dehumidify": "Für einen Entfeuchter: an, sobald die Luft feuchter als der Einschaltpunkt ist, aus unter dem Ausschaltpunkt.",
-      "co2": "Für ein CO₂-Ventil: an unter dem Einschaltpunkt, aus über dem Ausschaltpunkt. Braucht den CO₂-Sensor, den es als Zubehör gibt; ohne ihn bleibt die Steckdose aus.",
+      "co2": "Für ein CO₂-Ventil: an unter dem Einschaltpunkt, aus über dem Ausschaltpunkt. Braucht den CO₂-Sensor, den es als Zubehör gibt; ohne ihn bleibt die Steckdose aus. Dosieren in Intervallen und das Drosseln eines AIR stehen unter Geräte › diese Steckdose › Erweitert.",
       "timer": "Die Steckdose schaltet zu festen Uhrzeiten, ohne auf einen Messwert zu schauen."
     },
     "dayNight": "Nachts eigene Schaltpunkte",

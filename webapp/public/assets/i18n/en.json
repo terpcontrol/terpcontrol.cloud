@@ -2658,8 +2658,8 @@
         "minutes_other": "{{count}} min",
         "hours_one": "{{count}} h",
         "hours_other": "{{count}} h",
-        "days_one": "{{count}} d",
-        "days_other": "{{count}} d",
+        "days_one": "{{count}} day",
+        "days_other": "{{count}} days",
         "weeks_one": "{{count}} wk",
         "weeks_other": "{{count}} wk"
       },
@@ -5556,7 +5556,7 @@
       "cooler": "For a cooler or a fan: on once it is warmer than the switch-on point, off below the switch-off point.",
       "humidify": "For a humidifier: on once the air is drier than the switch-on point, off above the switch-off point.",
       "dehumidify": "For a dehumidifier: on once the air is more humid than the switch-on point, off below the switch-off point.",
-      "co2": "For a CO₂ valve: on below the switch-on point, off above the switch-off point. Needs the CO₂ sensor sold as an accessory; without it the socket stays off.",
+      "co2": "For a CO₂ valve: on below the switch-on point, off above the switch-off point. Needs the CO₂ sensor sold as an accessory; without it the socket stays off. Dosing in intervals and slowing an AIR down are under Devices › this socket › Advanced.",
       "timer": "The socket switches at set times of day, whatever the readings say."
     },
     "dayNight": "Own switch points at night",

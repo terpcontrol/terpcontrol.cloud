@@ -566,7 +566,7 @@ describe('what the camera is set to', () => {
   it('states the identity and address a Terp Cam answers on', () => {
     drawSettings({ did: 'AAC2851962SPLP', ip: '192.168.144.145', model: 'terp_cam' });
 
-    expect(screen.getByText('AAC2851962SPLP · 192.168.144.145 · terp_cam')).toBeInTheDocument();
+    expect(screen.getByText('AAC2851962SPLP · 192.168.144.145')).toBeInTheDocument();
   });
 
   it('draws no address at all where the server kept it from this reader', () => {
