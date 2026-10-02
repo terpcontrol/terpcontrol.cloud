@@ -49,16 +49,16 @@
         </ion-button>
       </ion-item>
       <!-- P2P camera: addressed by id, no credentials/host to enter. -->
-      <ion-item lines="none" *ngIf="isOkamCam">
+      <ion-item lines="none" *ngIf="isP2pCam">
         <ion-icon slot="start" name="videocam-outline" color="secondary"></ion-icon>
         <ion-label class="ion-text-wrap">
           {{ 'auxDevices.webcam.terpCamConnected' | translate }}
-          <p>{{ okamCamId }}</p>
+          <p>{{ p2pCamId }}</p>
         </ion-label>
       </ion-item>
       <!-- Connection fields: once connected — or entering the address manually.
            Not for P2P cameras, which have no RTSP endpoint. -->
-      <ng-container *ngIf="!isOkamCam && (hasWebcam || terpCamManual)">
+      <ng-container *ngIf="!isP2pCam && (hasWebcam || terpCamManual)">
         <ion-item>
           <ion-label position="floating">{{ 'auxDevices.webcam.user' | translate }}</ion-label>
           <ion-input [(ngModel)]="terpCamFields.user" (ngModelChange)="onTerpCamFieldsChange()" autocomplete="off"></ion-input>
