@@ -523,6 +523,15 @@ describe('a place in another work mode', () => {
     expect(screen.getByRole('link', { name: 'Change ›' })).toHaveAttribute('href', expect.stringContaining('/control'));
   });
 
+  it('says a drying fridge holds no CO₂ because it is drying, not because it is night', async () => {
+    server.devices = [fridge({ control: { running: true, drying: true, mode: 'standard', energySaving: false } })];
+    const drying = setpoints.map(one => (one.metric === 'co2' ? { ...one, value: null } : one));
+    draw(<PlaceCockpit overview={overviewOf({ setpoints: drying })} />);
+
+    expect(await screen.findByText('no target · drying')).toBeInTheDocument();
+    expect(screen.queryByText('No target at night')).not.toBeInTheDocument();
+  });
+
   it('says nothing of a mode where the fridge runs its standard one', async () => {
     server.devices = [fridge({ control: { running: true, drying: false, mode: 'standard', energySaving: true } })];
     draw(<PlaceCockpit overview={overviewOf()} />);

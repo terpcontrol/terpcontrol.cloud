@@ -160,7 +160,7 @@ function ClimateTile({
                   low: targetFigure(range.low, metric),
                   high: `${targetFigure(range.high, metric)} ${UNIT[metric] ?? ''}`.trim(),
                 })
-              : targetLabel(t, metric, setpoint, live)}
+              : targetLabel(t, metric, setpoint, live, device)}
           </span>
           <VerdictWords verdict={verdict} metric={metric} now={now} explain={explainBand} />
         </p>
@@ -183,14 +183,25 @@ function ClimateTile({
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
+/** Why a fridge holds no target at all for a reading, where the reason is the mode it runs. */
+const unheldBy = (device: Device | null): 'off' | 'drying' | 'germination' | 'greenhouse' | null => {
+  const dark = darkReasonOf(device);
+  if (dark) return dark;
+  return device?.control?.mode === 'greenhouse' ? 'greenhouse' : null;
+};
+
 /**
  * "Tagesziel 25 °C": the target of the half of the cycle the device says it is
  * in, which is the target the verdict beside it is judged by. CO2 is raised
  * only while the lamp is on, so at night it says it has none rather than
  * looking unset.
  */
-const targetLabel = (t: Translate, metric: Steered, setpoint: CardSetpoint | null, live: DeviceLive | undefined): string => {
+const targetLabel = (t: Translate, metric: Steered, setpoint: CardSetpoint | null, live: DeviceLive | undefined, device: Device | null): string => {
   const half = live?.setpoints?.active ?? null;
+  // A fridge that is drying, germinating or switched off holds no target here because of what it is doing,
+  // which is said: "nachts kein Ziel" over a drying room's CO2 read as though night were the reason.
+  const by = unheldBy(device);
+  if (setpoint?.value == null && by) return t('cockpit.tile.noTargetBy', { mode: t(`cockpit.tile.mode.${by}`) });
   if (setpoint?.value == null) return t(metric === 'co2' && half === 'night' ? 'cockpit.tile.co2Night' : 'cockpit.tile.noTarget');
   const target = `${targetFigure(setpoint.value, metric)} ${UNIT[metric] ?? ''}`.trim();
   return t(half ? `cockpit.tile.target.${half}` : 'cockpit.tile.target.any', { target });

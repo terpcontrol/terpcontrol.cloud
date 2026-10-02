@@ -3429,7 +3429,7 @@
     "entriesHint": "die Einträge des Zeitraums, auf den Bildern um sie herum"
   },
   "publicPage": {
-    "footer": "Terp Control: Ein Controller im Zelt schreibt das Klima mit, eine Kamera macht die Bilder, den Rest schreibt der Grower.",
+    "footer": "Terp Control: Ein Controller oder ein Kühlschrankmodul schreibt das Klima mit, eine Kamera macht die Bilder, den Rest schreibt der Grower.",
     "openApp": "Zur App",
     "toLight": "Auf hell umschalten",
     "toDark": "Auf dunkel umschalten",
@@ -5078,6 +5078,13 @@
       },
       "noTarget": "kein Ziel",
       "co2Night": "nachts kein Ziel",
+      "noTargetBy": "kein Ziel · {{mode}}",
+      "mode": {
+        "off": "Regelung aus",
+        "drying": "Trocknung",
+        "germination": "Keimung",
+        "greenhouse": "Gewächshaus"
+      },
       "switches": "schaltet bei {{low}}–{{high}}",
       "high": "{{delta}} zu hoch",
       "low": "{{delta}} zu niedrig",

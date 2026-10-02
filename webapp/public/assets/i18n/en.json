@@ -3421,7 +3421,7 @@
     "entriesHint": "the diary lines of the span, on the frames around them"
   },
   "publicPage": {
-    "footer": "Terp Control: a controller in the tent writes the climate down, a camera takes the pictures, and the grower writes the rest.",
+    "footer": "Terp Control: a controller or a fridge module writes the climate down, a camera takes the pictures, and the grower writes the rest.",
     "openApp": "Open the app",
     "toLight": "Switch to light",
     "toDark": "Switch to dark",
@@ -5070,6 +5070,13 @@
       },
       "noTarget": "no target",
       "co2Night": "no target at night",
+      "noTargetBy": "no target · {{mode}}",
+      "mode": {
+        "off": "control off",
+        "drying": "drying",
+        "germination": "germination",
+        "greenhouse": "greenhouse"
+      },
       "switches": "switches at {{low}}–{{high}}",
       "high": "{{delta}} too high",
       "low": "{{delta}} too low",
