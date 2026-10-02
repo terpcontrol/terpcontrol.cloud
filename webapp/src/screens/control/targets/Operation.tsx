@@ -6,6 +6,7 @@ import type { Device } from '@fg2/shared-types/v1';
 import { useConfigure } from '@/api/devices';
 import { FieldSwitch } from '@/ui/advanced/Fields';
 import { Help } from '@/ui/Help';
+import { useSwitchOn } from '../../devices/switch-on';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import styles from './Targets.module.css';
@@ -27,6 +28,7 @@ import styles from './Targets.module.css';
 export function ControlState({ device, mayManage }: { device: Device; mayManage: boolean }) {
   const { t } = useTranslation();
   const configure = useConfigure(device.id);
+  const on = useSwitchOn(device);
   const control = device.control;
   if (!control) return null;
   if (control.running && !control.drying && control.mode !== 'standard') {
@@ -72,17 +74,12 @@ export function ControlState({ device, mayManage }: { device: Device; mayManage:
         <Help topic="climateControl" />
       </p>
       {mayManage ? (
-        <button
-          type="button"
-          className={`${ui.button} ${ui.primary}`}
-          disabled={configure.isPending}
-          onClick={() => configure.mutate({ control: true })}
-        >
+        <button type="button" className={`${ui.button} ${ui.primary}`} disabled={on.pending} onClick={() => void on.switchOn()}>
           <Power size={16} strokeWidth={1.75} aria-hidden />
-          {t(configure.isPending ? 'climateControl.switching' : 'climateControl.onAction')}
+          {t(on.pending ? 'climateControl.switching' : 'climateControl.onAction')}
         </button>
       ) : null}
-      <Refused error={configure.error} />
+      <Refused error={on.error} />
     </div>
   );
 }

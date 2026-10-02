@@ -8,6 +8,7 @@ import { Sheet } from '@/log/Sheet';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { TwoLines } from './Maintenance';
+import { useSwitchOn } from './switch-on';
 import styles from './Maintenance.module.css';
 
 /**
@@ -27,7 +28,7 @@ import styles from './Maintenance.module.css';
  */
 export function ControlButton({ device, offline, className }: { device: Device; offline: boolean; className?: string }) {
   const { t } = useTranslation();
-  const configure = useConfigure(device.id);
+  const on = useSwitchOn(device);
   const [asking, setAsking] = useState(false);
   const control = device.control;
   if (!control) return null;
@@ -45,14 +46,14 @@ export function ControlButton({ device, offline, className }: { device: Device; 
       ) : (
         <TwoLines
           Icon={Power}
-          name={t(configure.isPending ? 'climateControl.switching' : 'climateControl.onAction')}
-          does={t(offline ? 'climateControl.onDoesLater' : 'climateControl.onDoes')}
-          disabled={configure.isPending}
+          name={t(on.pending ? 'climateControl.switching' : 'climateControl.onAction')}
+          does={t(offline ? 'climateControl.onDoesLater' : on.resumes ? 'climateControl.onDoesPlan' : 'climateControl.onDoes')}
+          disabled={on.pending}
           className={`${ui.primary} ${styles.filled} ${className ?? ''}`}
-          onClick={() => configure.mutate({ control: true })}
+          onClick={() => void on.switchOn()}
         />
       )}
-      {!control.running ? <Refused error={configure.error} /> : null}
+      {!control.running ? <Refused error={on.error} /> : null}
       {asking ? <ControlOffSheet device={device} offline={offline} onClose={() => setAsking(false)} /> : null}
     </>
   );

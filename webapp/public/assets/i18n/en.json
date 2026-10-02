@@ -3853,6 +3853,7 @@
     },
     "planRunning": "Saving pauses the running plan, which would otherwise put its own targets back within the hour.",
     "planPaused": "The plan is paused while these targets hold.",
+    "planPausedFor": "The plan is paused: {{reason}}",
     "resume": "Resume plan",
     "pauseReason": "Targets set by hand",
     "unsaved": "Unsaved changes",
@@ -5182,6 +5183,7 @@
     },
     "onAction": "Switch control on",
     "onDoes": "Holds the targets again",
+    "onDoesPlan": "Holds the targets again, and the plan goes on",
     "onDoesLater": "Applies once the device is back online",
     "switching": "Sending …",
     "title": "Switch control off?",
@@ -5369,7 +5371,8 @@
     "waiting": "{{step}} is waiting for you to confirm",
     "openEnded": "{{step}}, until you move it on",
     "changing": "{{step}}, moving on to {{next}} shortly",
-    "ending": "{{step}}, the plan is about to finish"
+    "ending": "{{step}}, the plan is about to finish",
+    "paused": "{{step}}, paused – resume under Control"
   },
   "co2Report": {
     "title": "CO₂ cylinder",

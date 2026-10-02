@@ -10,9 +10,10 @@ import styles from './Cockpit.module.css';
 
 /**
  * "Plan: Flower, 12 more days, then late flower": where a running plan stands
- * and when it changes the targets next, under the targets it is setting. It is
- * drawn only while a plan runs - one that is paused or put away sets nothing -
- * and it leads to Steuerung, which opens on the plan while one runs.
+ * and when it changes the targets next, under the targets it is setting. A
+ * paused plan sets nothing but is said too, because one left paused - by the
+ * control switch, by targets set by hand - otherwise stood still without a
+ * word; one put away is not. It leads to Steuerung, where a plan is resumed.
  */
 
 export function PlanLine({ spaceId, device, now }: { spaceId: string; device: Device; now: DateTime }) {

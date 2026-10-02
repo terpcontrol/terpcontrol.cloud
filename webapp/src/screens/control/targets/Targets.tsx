@@ -530,7 +530,9 @@ function Panel({
         </div>
       ) : status === 'paused' ? (
         <div className={`${ui.card} ${styles.planCard}`} data-status="paused" role="status">
-          <p className={styles.planText}>{t('targets.planPaused')}</p>
+          <p className={styles.planText}>
+            {plan.data?.state.pauseReason ? t('targets.planPausedFor', { reason: plan.data.state.pauseReason }) : t('targets.planPaused')}
+          </p>
           {mayManage ? (
             <>
               <button type="button" className={ui.button} disabled={busy} onClick={() => move.mutate({ kind: 'resume' })}>

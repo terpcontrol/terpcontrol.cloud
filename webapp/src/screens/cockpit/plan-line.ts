@@ -17,9 +17,11 @@ const leftWords = (t: Translate, ms: number): string =>
   ms >= DAY_MS ? t('planLine.days', { count: Math.ceil(ms / DAY_MS) }) : t('planLine.hours', { count: Math.max(1, Math.ceil(ms / HOUR_MS)) });
 
 export const planLineOf = (t: Translate, plan: Plan, now: DateTime): string | null => {
-  if (plan.state?.status !== 'running') return null;
+  if (plan.state?.status !== 'running' && plan.state?.status !== 'paused') return null;
   const step = activeStep(plan);
   if (!step) return null;
+  // A paused plan sets nothing, but one that stands still unnoticed is a grow that stops moving on.
+  if (plan.state.status === 'paused') return t('planLine.paused', { step: step.name });
 
   const at = readingAt(plan.state, now);
   const next = nextStepIndex(plan);

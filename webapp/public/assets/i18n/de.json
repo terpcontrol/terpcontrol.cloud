@@ -3857,6 +3857,7 @@
     },
     "planRunning": "Speichern pausiert den laufenden Plan, der sonst innerhalb einer Stunde seine eigenen Zielwerte zurücksetzen würde.",
     "planPaused": "Der Plan ist pausiert, solange diese Zielwerte gelten.",
+    "planPausedFor": "Der Plan ist pausiert: {{reason}}",
     "resume": "Plan fortsetzen",
     "pauseReason": "Zielwerte von Hand gesetzt",
     "unsaved": "Ungespeicherte Änderungen",
@@ -5186,6 +5187,7 @@
     },
     "onAction": "Regelung einschalten",
     "onDoes": "Hält wieder die Zielwerte",
+    "onDoesPlan": "Hält wieder die Zielwerte, der Plan läuft weiter",
     "onDoesLater": "Gilt, sobald das Gerät wieder online ist",
     "switching": "Wird gesendet …",
     "title": "Regelung ausschalten?",
@@ -5373,7 +5375,8 @@
     "waiting": "{{step}} wartet auf deine Bestätigung",
     "openEnded": "{{step}}, bis du weiterschaltest",
     "changing": "{{step}}, gleich geht es weiter mit {{next}}",
-    "ending": "{{step}}, der Plan ist gleich fertig"
+    "ending": "{{step}}, der Plan ist gleich fertig",
+    "paused": "{{step}}, pausiert – fortsetzen unter Steuerung"
   },
   "co2Report": {
     "title": "CO₂-Flasche",

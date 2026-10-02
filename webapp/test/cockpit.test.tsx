@@ -242,6 +242,8 @@ const server = {
   rules: rules(),
   home: null as HomeAnswer | null,
   overviews: new Map<string, SpaceOverview>(),
+  /** The plan the device runs, as its route answers it; none answers that there is none. */
+  plan: null as Record<string, unknown> | null,
 };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -255,6 +257,8 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   if (path === '/devices') return json({ items: server.devices, nextCursor: null });
   if (/^\/devices\/[^/]+\/live$/.test(path)) return json(server.live);
   if (/^\/devices\/[^/]+\/alarm-rules$/.test(path)) return json({ items: server.rules, nextCursor: null });
+  if (/^\/devices\/[^/]+\/plan$/.test(path) && server.plan) return json(server.plan);
+  if (/^\/devices\/[^/]+\/plan\/transitions$/.test(path)) return json(server.plan);
   if (/^\/devices\/[^/]+\/series$/.test(path)) {
     return json({
       deviceId: 'device-1',
@@ -303,6 +307,7 @@ beforeEach(() => {
   server.rules = rules();
   server.home = null;
   server.overviews = new Map();
+  server.plan = null;
 });
 
 afterEach(() => {
@@ -435,6 +440,39 @@ describe('a place whose control is switched off', () => {
       expect(fetchStub).toHaveBeenCalledWith(
         expect.stringContaining('/devices/device-1/configuration'),
         expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ set: { control: true } }) }),
+      ),
+    );
+  });
+
+  it('resumes the plan the switch paused when it is switched back on, and says so on the button', async () => {
+    server.devices = [off()];
+    server.plan = {
+      id: 'plan-1',
+      deviceId: 'device-1',
+      name: 'Photoperiod',
+      steps: [
+        {
+          id: 's1',
+          name: 'Veg',
+          stage: 'vegetative',
+          preset: null,
+          duration: { days: 14 },
+          settings: {},
+          lightHours: 18,
+          waitForConfirmation: false,
+          confirmationMessage: null,
+        },
+      ],
+      state: { status: 'paused', activeStepIndex: 0, stepStartedAt: ago(600), pausedElapsedMs: 0, pauseReason: 'Control was switched off.' },
+    };
+    draw(<PlaceCockpit overview={overviewOf()} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Switch control on.*the plan goes on/ }));
+
+    await waitFor(() =>
+      expect(fetchStub).toHaveBeenCalledWith(
+        expect.stringContaining('/devices/device-1/plan/transitions'),
+        expect.objectContaining({ method: 'POST', body: JSON.stringify({ kind: 'resume' }) }),
       ),
     );
   });

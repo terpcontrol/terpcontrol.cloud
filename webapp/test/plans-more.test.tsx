@@ -305,8 +305,8 @@ describe('the cockpit´s line for a running plan', () => {
     expect(planLineOf(t, open, NOW)).toBe('Veg, until you move it on');
   });
 
-  it('says nothing about a plan that is paused or put away', () => {
-    expect(planLineOf(t, plan({}, { status: 'paused' }), NOW)).toBeNull();
+  it('says a paused plan stands still, and nothing about one put away', () => {
+    expect(planLineOf(t, plan({}, { status: 'paused' }), NOW)).toMatch(/, paused – resume under Control$/);
     expect(planLineOf(t, plan({}, { status: 'stopped' }), NOW)).toBeNull();
   });
 });
