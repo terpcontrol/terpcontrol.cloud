@@ -25,6 +25,8 @@ interface WeekCardProps {
   current: boolean;
   /** The first card on the page, whose words explain themselves once for all of them. */
   explain?: boolean;
+  /** Opens the grow's pictures on this one, where the page offers a viewer. */
+  onPicture?: (mediaId: string) => void;
 }
 
 const figure = (value: number | null, decimals: number): string => (value === null ? '–' : decimalFigure(value, decimals));
@@ -35,7 +37,7 @@ const figure = (value: number | null, decimals: number): string => (value === nu
  * was done, where the grow's own readings stand, and the week's lines with who
  * wrote them.
  */
-export function WeekCard({ week, grow, people, now, current, explain }: WeekCardProps) {
+export function WeekCard({ week, grow, people, now, current, explain, onPicture }: WeekCardProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(current);
   // The rest of the week's lines, asked for only once somebody asks to read
@@ -97,9 +99,21 @@ export function WeekCard({ week, grow, people, now, current, explain }: WeekCard
           const src = picture ? mediaUrl(picture, THUMBNAIL_WIDTH.dayTile) : null;
           return (
             <li key={day.dayNumber} className={styles.dayTile} data-future={at > lived}>
-              <span className={styles.thumb} title={t('home.card.dayN', { day: day.dayNumber })}>
-                {src ? <img src={src} alt={t('grow.dayStillAlt', { day: day.dayNumber })} loading="lazy" /> : null}
-              </span>
+              {src && picture && onPicture ? (
+                <button
+                  type="button"
+                  className={styles.thumb}
+                  title={t('home.card.dayN', { day: day.dayNumber })}
+                  aria-label={t('grow.openDayPicture', { day: day.dayNumber })}
+                  onClick={() => onPicture(picture)}
+                >
+                  <img src={src} alt="" loading="lazy" />
+                </button>
+              ) : (
+                <span className={styles.thumb} title={t('home.card.dayN', { day: day.dayNumber })}>
+                  {src ? <img src={src} alt={t('grow.dayStillAlt', { day: day.dayNumber })} loading="lazy" /> : null}
+                </span>
+              )}
               <span className={`mono ${styles.dayName}`}>{t('grow.dayShort', { day: day.dayNumber })}</span>
               {/* The card is named after the stage its week ended in, which says
                   nothing about a week that held two or three of them. The day a

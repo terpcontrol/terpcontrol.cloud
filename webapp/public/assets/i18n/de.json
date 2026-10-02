@@ -2526,7 +2526,8 @@
     "youMayLog": "Du darfst in das Tagebuch dieses Grows schreiben. Umziehen, teilen und ernten kann nur, wer den Ort steuert, an dem er steht.",
     "schemeWeek": "Schema-Woche {{week}}",
     "phaseFor_one": "seit {{count}} Tag",
-    "phaseFor_other": "seit {{count}} Tagen"
+    "phaseFor_other": "seit {{count}} Tagen",
+    "openDayPicture": "Bilder ab Tag {{day}} ansehen"
   },
   "space": {
     "later": {

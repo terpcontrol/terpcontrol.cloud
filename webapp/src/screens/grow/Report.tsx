@@ -13,6 +13,9 @@ import { decimalFigure } from '@/ui/figures';
 import { growDayOf } from '@/ui/entries';
 import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
+import { PictureViewer } from '@/ui/PictureViewer';
+import { useZone } from '@/ui/zone';
+import { pictureCaption, picturesOf, useGrowPhotoLines } from './photos';
 import { standsIn } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import styles from './Report.module.css';
@@ -28,7 +31,11 @@ import styles from './Report.module.css';
  */
 export function Report({ grow, spaces, mayOwn, now }: { grow: GrowListItem; spaces: Space[]; mayOwn: boolean; now: DateTime }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const report = useGrowReport(grow.id);
+  const lines = useGrowPhotoLines(grow.id);
+  const [viewing, setViewing] = useState(false);
+  const pictures = picturesOf(grow, lines.data);
 
   if (report.isPending) return <Waiting lines={4} />;
   if (!report.data) return <LoadFailed retry={() => void report.refetch()} />;
@@ -47,8 +54,16 @@ export function Report({ grow, spaces, mayOwn, now }: { grow: GrowListItem; spac
         <Total value={totals.entryCount} label={t('grow.report.entries')} />
         <Total value={totals.waterCount} label={t('grow.report.waters')} />
         <Total value={totals.feedCount} label={t('grow.report.feeds')} />
-        <Total value={totals.photoCount} label={t('grow.report.photos')} />
+        <Total value={totals.photoCount} label={t('grow.report.photos')} onOpen={pictures.length > 0 ? () => setViewing(true) : undefined} />
       </dl>
+      {viewing ? (
+        <PictureViewer
+          pictures={pictures.map(picture => mediaUrl(picture.mediaId, THUMBNAIL_WIDTH.frame) ?? '')}
+          captions={pictures.map(picture => pictureCaption(t, picture, zone))}
+          from={pictures.length - 1}
+          onClose={() => setViewing(false)}
+        />
+      ) : null}
 
       {harvest ? (
         <p className={`mono ${styles.harvest}`}>
@@ -147,10 +162,19 @@ function Export({ growId, mayOwn }: { growId: string; mayOwn: boolean }) {
   );
 }
 
-function Total({ value, label }: { value: number; label: string }) {
+/** One figure of the grow; the photos open the pictures they count. */
+function Total({ value, label, onOpen }: { value: number; label: string; onOpen?: () => void }) {
   return (
     <div>
-      <dd className={`figure ${ui.stripValue} ${styles.totalValue}`}>{value}</dd>
+      <dd className={`figure ${ui.stripValue} ${styles.totalValue}`}>
+        {onOpen ? (
+          <button type="button" className={styles.totalOpen} onClick={onOpen}>
+            {value}
+          </button>
+        ) : (
+          value
+        )}
+      </dd>
       <dt className="caption">{label}</dt>
     </div>
   );

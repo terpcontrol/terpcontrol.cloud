@@ -13,6 +13,8 @@ interface PictureViewerProps {
    * outside their window.
    */
   pictures: string[];
+  /** What each picture is shown under - its day, its date, what was written with it - where the surface knows. */
+  captions?: string[];
   /** Which of them was opened. */
   from: number;
   onClose: () => void;
@@ -32,7 +34,7 @@ interface PictureViewerProps {
  * over a refused picture is the same decision the strip makes by leaving its
  * frame out, rather than a blank frame and a number that skips.
  */
-export function PictureViewer({ pictures, from, onClose }: PictureViewerProps) {
+export function PictureViewer({ pictures, captions, from, onClose }: PictureViewerProps) {
   const { t } = useTranslation();
   const panel = useModalFocus<HTMLDivElement>(onClose);
   const [shown, setShown] = useState(() => Math.min(Math.max(0, from), Math.max(0, pictures.length - 1)));
@@ -50,7 +52,9 @@ export function PictureViewer({ pictures, from, onClose }: PictureViewerProps) {
     return () => document.removeEventListener('keydown', onKey);
   }, [pictures.length]);
 
-  const caption = t('home.entryPhotos.alt', { n: shown + 1, count: pictures.length });
+  const counted = t('home.entryPhotos.alt', { n: shown + 1, count: pictures.length });
+  // One picture has nothing to count and nowhere to step to.
+  const caption = captions?.[shown] ? (pictures.length > 1 ? `${captions[shown]} · ${shown + 1}/${pictures.length}` : captions[shown]) : counted;
 
   return (
     <div className={styles.scrim} onPointerDown={event => event.target === event.currentTarget && onClose()}>
@@ -62,26 +66,28 @@ export function PictureViewer({ pictures, from, onClose }: PictureViewerProps) {
           </button>
         </header>
         <Photo className={styles.frame} src={pictures[shown] ?? null} alt={caption} />
-        <footer className={styles.steps}>
-          <button
-            type="button"
-            className={styles.step}
-            disabled={shown === 0}
-            onClick={() => setShown(at => at - 1)}
-            aria-label={t('home.entryPhotos.previous')}
-          >
-            <ChevronLeft size={20} strokeWidth={1.75} aria-hidden />
-          </button>
-          <button
-            type="button"
-            className={styles.step}
-            disabled={shown >= pictures.length - 1}
-            onClick={() => setShown(at => at + 1)}
-            aria-label={t('home.entryPhotos.next')}
-          >
-            <ChevronRight size={20} strokeWidth={1.75} aria-hidden />
-          </button>
-        </footer>
+        {pictures.length > 1 ? (
+          <footer className={styles.steps}>
+            <button
+              type="button"
+              className={styles.step}
+              disabled={shown === 0}
+              onClick={() => setShown(at => at - 1)}
+              aria-label={t('home.entryPhotos.previous')}
+            >
+              <ChevronLeft size={20} strokeWidth={1.75} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className={styles.step}
+              disabled={shown >= pictures.length - 1}
+              onClick={() => setShown(at => at + 1)}
+              aria-label={t('home.entryPhotos.next')}
+            >
+              <ChevronRight size={20} strokeWidth={1.75} aria-hidden />
+            </button>
+          </footer>
+        ) : null}
       </div>
     </div>
   );

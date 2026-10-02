@@ -2522,7 +2522,8 @@
     "youMayLog": "You may write in this grow's diary. Moving it, splitting it and harvesting it are for whoever steers the place it stands in.",
     "schemeWeek": "scheme week {{week}}",
     "phaseFor_one": "for {{count}} day",
-    "phaseFor_other": "for {{count}} days"
+    "phaseFor_other": "for {{count}} days",
+    "openDayPicture": "See the pictures from day {{day}}"
   },
   "space": {
     "later": {
