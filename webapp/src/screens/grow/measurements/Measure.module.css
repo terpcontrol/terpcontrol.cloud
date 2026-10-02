@@ -64,12 +64,20 @@
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-3);
   margin-top: var(--space-4);
 }
 
+/* Save is the one that must always be read whole: it takes the row, and the
+   round's button stands beside it only where both fit. */
 .save {
-  flex: 1;
+  flex: 1 0 auto;
+  order: -1;
+}
+
+.actions > * {
+  white-space: nowrap;
 }
 
 .away {

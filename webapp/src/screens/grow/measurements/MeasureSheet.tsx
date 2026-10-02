@@ -57,14 +57,17 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
   // Which plant the figures are about, and which measurement is being typed.
   // A sheet opened on one plant is already about that plant; one opened on the
   // grow starts at the first plant standing in it, because that is where a
-  // round of measuring starts.
+  // round of measuring starts - where anything is measured per plant at all.
+  // A grow that measures only the room is measured as the grow: a temperature
+  // typed against "Zkittlez 1" read as that plant's.
   const [chosenPlant, setChosenPlant] = useState<string | null | undefined>(target.plantIds[0]);
   const [key, setKey] = useState<string | null>(null);
   const [typed, setTyped] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<unknown>(null);
 
-  const plantId = chosenPlant === undefined ? (standing[0]?.id ?? null) : chosenPlant;
+  const perPlant = definitions.some(one => one.perPlant);
+  const plantId = chosenPlant === undefined ? (perPlant ? (standing[0]?.id ?? null) : null) : chosenPlant;
   // Standing in front of the whole grow, only what is measured of the grow can
   // be written: a height belongs to a plant, and one typed against nothing
   // would be a number with nobody to read it back for.
@@ -137,11 +140,12 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
 
   if (definitions.length === 0) return <NothingToMeasure target={target} onClose={onClose} />;
 
-  const roundOfPlants = plantId !== null && standing.length > 1;
+  // A round is plant after plant of something measured per plant; a reading of the room has no next plant.
+  const roundOfPlants = plantId !== null && standing.length > 1 && definition?.perPlant === true;
 
   return (
     <Sheet title={t('grow.measurements.measure.title')} onClose={onClose}>
-      {standing.length > 0 ? (
+      {standing.length > 0 && perPlant ? (
         <div className={styles.chips} role="group" aria-label={t('grow.measurements.measure.whichPlant')}>
           {standing.map(plant => (
             <Chip key={plant.id} chosen={plant.id === plantId} onChoose={() => setChosenPlant(plant.id)}>
