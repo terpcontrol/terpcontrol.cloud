@@ -170,6 +170,13 @@ export interface DeviceHistory {
    * stretch nothing was heard across.
    */
   lastSampleAt: string | null;
+  /**
+   * When an AIR fan said it ran its day and when its night, as the switchings
+   * of the `day` it reports beside its readings. Only a read that asked about the
+   * fan carries it: an AIR has no lamp, and this is the one thing in the store
+   * that says when its night was.
+   */
+  days?: OutputSwitching[];
 }
 
 /** What the device schema fills in, reached only for a device that is not in the database at all. */
@@ -353,16 +360,20 @@ export class DataService implements LightStateReader {
    */
   public async history(deviceId: string, request: SeriesRequest): Promise<DeviceHistory> {
     const outputs = request.outputs ?? [];
+    // The fan's own day is read in the same scan as its output, so a chart of an AIR is shaded by its night.
+    const extra = outputs.includes('fan') ? [DAY_FIELD] : [];
     const [series, switchings, lastSampleAt] = await Promise.all([
       this.series(deviceId, request),
-      this.switchingsOf(deviceId, outputs, request),
+      this.switchingsOf(deviceId, outputs, request, extra),
       this.newestSampleIn(deviceId, outputs, request),
     ]);
+    const days = switchings.get(DAY_FIELD) ?? [];
 
     return {
       series,
       outputs: outputs.map(output => ({ output, switchings: switchings.get(fieldOfOutputMetric(output)) ?? [] })),
       lastSampleAt,
+      ...(days.length > 0 ? { days } : {}),
     };
   }
 
@@ -621,10 +632,11 @@ export class DataService implements LightStateReader {
     deviceId: string,
     outputs: readonly OutputMetric[],
     window: { startsAt: Date; endsAt: Date },
+    extra: readonly string[] = [],
   ): Promise<Map<string, OutputSwitching[]>> {
     if (outputs.length === 0 || window.endsAt <= window.startsAt) return new Map();
 
-    const fields = [...new Set(outputs.map(fieldOfOutputMetric))];
+    const fields = [...new Set([...outputs.map(fieldOfOutputMetric), ...extra])];
     return switchingsByField(await this.read(switchingsQuery(this.bucket, deviceId, fields, window)));
   }
 

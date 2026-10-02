@@ -105,8 +105,13 @@ export const targetsOf = (metric: Metric, stretches: readonly TargetStretch[]): 
  */
 export const nightsOf = (histories: readonly DeviceHistory[], window: SeriesWindow): TimelineSpan[] => {
   const lit = histories.find(one => outputIn(one, 'light').switchings.length > 0);
+  if (lit) return spansOf(outputIn(lit, 'light'), false, lit.series, window, heardAt(lit));
 
-  return lit ? spansOf(outputIn(lit, 'light'), false, lit.series, window, heardAt(lit)) : [];
+  // A place with no lamp at all - an AIR fan on its own - is shaded by the night the fan says it runs,
+  // as far as its own output was heard. The old charts drew that as a line of its own.
+  const fan = histories.find(one => (one.days ?? []).length > 0 && one.series.outputs.some(output => output.output === 'fan'));
+
+  return fan ? spansOf({ output: 'fan', switchings: fan.days ?? [] }, false, fan.series, window, heardAt(fan)) : [];
 };
 
 /**

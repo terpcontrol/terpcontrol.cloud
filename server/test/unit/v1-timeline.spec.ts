@@ -1200,6 +1200,22 @@ describe('the night and the lanes over a window wider than the cycle', () => {
     expect(nightsOf([history()], WINDOW)).toEqual(dark);
   });
 
+  it('shades an AIR fan´s place by the night the fan reports, where no lamp is there to say it', () => {
+    const lamp = history();
+    // The same cycle, reported by a fan as its own day rather than switched as a lamp: the fan has no light output at all.
+    const fan: DeviceHistory = {
+      series: { ...lamp.series, outputs: [{ output: 'fan', points: lamp.series.outputs[0].points }] },
+      outputs: [{ output: 'fan', switchings: [] }],
+      lastSampleAt: lamp.lastSampleAt,
+      days: lamp.outputs[0].switchings,
+    };
+
+    expect(nightsOf([fan], WINDOW)).toEqual(stretches(false));
+    // A lamp in the same place still answers first, and a fan that said nothing of its day shades nothing.
+    expect(nightsOf([fan, lamp], WINDOW)).toEqual(stretches(false));
+    expect(nightsOf([{ ...fan, days: undefined }], WINDOW)).toEqual([]);
+  });
+
   it('draws the lamp´s lane as the stretches it ran for, at the same resolution', () => {
     expect(lanesOf([history()], WINDOW)).toEqual([
       { output: 'light', deviceId: CONTROLLER, spans: stretches(true), heardUntil: CLOSES.toISOString() },
