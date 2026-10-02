@@ -17,7 +17,7 @@ export type DiaryLifecycleStage = 'germination' | 'seedling' | 'vegetative' | 'f
 
 export type DurationUnit = 'minutes' | 'hours' | 'days' | 'weeks';
 
-export type SocketRole = 'dehumidifier' | 'heater' | 'light' | 'secondary_light' | 'co2';
+export type SocketRole = 'dehumidifier' | 'heater' | 'light' | 'secondary_light' | 'co2' | 'relay';
 
 
 export interface Alarm {
@@ -512,6 +512,7 @@ export interface SocketEntry {
 // here rather than derived from a schema.
 
 export const SOCKET_ROLES: SocketRole[];
+export function socketRolesFor(deviceType: string): SocketRole[];
 export const MAX_SOCKETS: number;
 export const SOCKETS_PER_REPORT_CHUNK: number;
 export function socketListKey(chunk: number): string;

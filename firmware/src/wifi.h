@@ -62,6 +62,7 @@ struct SmartSocketOutputStates {
   bool light_on = false;
   bool secondary_light_on = false;
   bool co2_on = false;
+  bool relay_on = false;
 };
 
 // Upper bound on the number of paired smart sockets. Any number of them may

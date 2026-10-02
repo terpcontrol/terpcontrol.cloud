@@ -1556,7 +1556,8 @@
       "heater",
       "light",
       "secondary_light",
-      "co2"
+      "co2",
+      "relay"
     ]
   },
   "SocketEntry": {

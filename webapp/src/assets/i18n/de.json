@@ -1021,7 +1021,8 @@
         "heater": "Heizung",
         "light": "Licht",
         "secondary_light": "Zweites Licht",
-        "co2": "CO2-Ventil"
+        "co2": "CO2-Ventil",
+        "relay": "Wie das Relais"
       },
       "remove": "Entfernen",
       "removeConfirmTitle": "Steckdose entfernen?",

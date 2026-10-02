@@ -6,6 +6,7 @@
 // here rather than derived from a schema.
 
 export const SOCKET_ROLES: SocketRole[];
+export function socketRolesFor(deviceType: string): SocketRole[];
 export const MAX_SOCKETS: number;
 export const SOCKETS_PER_REPORT_CHUNK: number;
 export function socketListKey(chunk: number): string;

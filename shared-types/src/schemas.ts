@@ -608,7 +608,7 @@ export const chartPreset = named(
  * runtime half of this package: firmware, server and webapp all read the same
  * format from there.
  */
-export const socketRole = named('SocketRole', z.enum(['dehumidifier', 'heater', 'light', 'secondary_light', 'co2']));
+export const socketRole = named('SocketRole', z.enum(['dehumidifier', 'heater', 'light', 'secondary_light', 'co2', 'relay']));
 
 export const socketEntry = named(
   'SocketEntry',

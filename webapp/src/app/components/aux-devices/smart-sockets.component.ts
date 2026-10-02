@@ -2,7 +2,7 @@ import { Component, Input, OnChanges, OnDestroy, SimpleChanges } from '@angular/
 import { AlertController } from '@ionic/angular';
 import { TranslateService } from '@ngx-translate/core';
 import { DeviceService } from 'src/app/services/devices.service';
-import { MAX_SOCKETS, readSockets, socketKey, SocketEntry, socketsReported, SOCKET_ROLES } from 'src/app/util/socket-info';
+import { MAX_SOCKETS, readSockets, socketKey, SocketEntry, socketRolesFor, socketsReported } from 'src/app/util/socket-info';
 
 const DEVICE_ONLINE_TIMEOUT_MS = 10 * 60 * 1000;
 const SOCKET_CONFIRM_POLLS = 3;
@@ -23,10 +23,10 @@ const SOCKET_TEST_RESET_MS = 6000;
 })
 export class SmartSocketsComponent implements OnChanges, OnDestroy {
   @Input() deviceId = '';
+  @Input() deviceType = '';
   @Input() hardwareInfo: Record<string, string> | undefined;
   @Input() lastseen: number | undefined;
 
-  public socketRoles = [...SOCKET_ROLES];
   public sockets: SocketEntry[] = [];
 
   public editingKey: string | null = null;
@@ -61,6 +61,11 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
 
   ngOnDestroy() {
     this.timers.forEach(timer => clearTimeout(timer));
+  }
+
+  /** The roles this device type's firmware offers. */
+  get socketRoles(): string[] {
+    return socketRolesFor(this.deviceType);
   }
 
   get socketsReported(): boolean {

@@ -586,7 +586,20 @@ namespace fg {
     });
 
     cloud.onCommand([&](const JsonDocument& command) {
+      wifiHandleAuxCommand(command, &cloud);
+    });
 
+    // Boot-time hardware-info report of the paired sockets, so the cloud can
+    // show and manage them (queued, safe without a connection).
+    wifiInitAuxCloudReporting(&cloud);
+
+    cloud.onUpdate([&](bool updating) {
+      if(updating) {
+        out_relais.set(0);
+        // The OTA download blocks the loop task until reboot, so wifiTick()
+        // will not run again to switch the sockets off. Do it right here.
+        wifiForceAllSmartSocketsOff();
+      }
     });
 
     cloud.onControl([&](std::pair<std::string, std::string> output) {
@@ -815,6 +828,10 @@ namespace fg {
     > status;
 
     state.out = out_relais.get();
+
+    SmartSocketOutputStates socket_states;
+    socket_states.relay_on = state.out > 0;
+    wifiReportSmartSocketOutputs(socket_states);
 
     status["sensors"]["temperature"] = state.temperature;
     status["sensors"]["humidity"] = state.humidity;
@@ -1412,6 +1429,9 @@ namespace fg {
 
     });
 
+    menu->addOption("Smart Sockets", ICON_SETTINGS, [ui, this](){
+      showSmartSocketsUi(ui, &cloud);
+    });
 
     menu->addOption("WiFi Connection", ICON_WIFI_FULL, [ui, this](){
       showWifiUi(ui, &cloud);

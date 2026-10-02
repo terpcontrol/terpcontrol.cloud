@@ -16,7 +16,22 @@
  */
 
 /** The jobs a socket can be given. A role may hold several sockets. */
-const SOCKET_ROLES = ['dehumidifier', 'heater', 'light', 'secondary_light', 'co2'];
+const SOCKET_ROLES = ['dehumidifier', 'heater', 'light', 'secondary_light', 'co2', 'relay'];
+
+const CLIMATE_ROLES = ['dehumidifier', 'heater', 'light', 'secondary_light', 'co2'];
+
+/**
+ * The roles each device type's firmware offers; a type missing here drives no
+ * sockets. A PLUG has a single output, so its sockets switch with its relay.
+ */
+const DEVICE_SOCKET_ROLES = {
+  controller: CLIMATE_ROLES,
+  fridge: CLIMATE_ROLES,
+  fridge2: CLIMATE_ROLES,
+  plug: ['relay'],
+};
+
+const socketRolesFor = deviceType => DEVICE_SOCKET_ROLES[deviceType] || [];
 
 /** A device drives at most this many sockets, spread over the roles as it likes. */
 const MAX_SOCKETS = 32;
@@ -141,6 +156,7 @@ function socketReportKey(hardwareInfo) {
 
 module.exports = {
   SOCKET_ROLES,
+  socketRolesFor,
   MAX_SOCKETS,
   SOCKETS_PER_REPORT_CHUNK,
   socketListKey,

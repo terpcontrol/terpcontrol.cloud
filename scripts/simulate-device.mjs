@@ -16,7 +16,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 // The socket report is a contract between firmware, server and webapp; the
 // simulator answers to the same one.
-import { MAX_SOCKETS, SOCKETS_PER_REPORT_CHUNK, socketListKey } from '../shared-types/index.js';
+import { MAX_SOCKETS, SOCKETS_PER_REPORT_CHUNK, socketListKey, socketRolesFor } from '../shared-types/index.js';
 
 const STATE_DIR = '.simulated-devices';
 const API_URL = process.env.SIM_API_URL.replace(/\/$/, '');
@@ -959,6 +959,8 @@ class SimulatedDevice {
    * `socket_list<k>` chunks, because a log message has a fixed size budget.
    */
   publishSockets() {
+    // Firmware that drives no sockets says nothing about them.
+    if (!socketRolesFor(this.type).length) return;
     const sockets = this.memory.sockets;
     const roles = [...new Set(sockets.map(socket => socket.role))];
     this.hardwareInfo('sockets', roles.length ? roles.join(',') : 'none');
@@ -1114,6 +1116,21 @@ class SimulatedDevice {
         this.testOutputs = null;
         this.boot('REMOTE');
         break;
+      case 'socket_set':
+      case 'socket_remove':
+      case 'socket_test':
+        // The firmware knows only its own type's roles and refuses the rest.
+        if (!socketRolesFor(this.type).includes(command.role)) {
+          this.log(`message-aux-command-failed:${command.action}:${command.role}`, 1);
+          break;
+        }
+        this.#socketCommand(command);
+        break;
+    }
+  }
+
+  #socketCommand(command) {
+    switch (command.action) {
       case 'socket_set':
         this.#setSocket(command);
         break;

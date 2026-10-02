@@ -1,8 +1,9 @@
 import { Component, Input } from '@angular/core';
+import { socketRolesFor } from 'src/app/util/socket-info';
 
 /**
  * "Connected devices" card: mounts the one webcam and — for device types
- * running the socket firmware (controller + fridge) — the smart sockets.
+ * whose firmware drives smart sockets — the smart sockets.
  * All logic lives in the two child components.
  */
 @Component({
@@ -16,8 +17,7 @@ export class AuxDevicesComponent {
   @Input() hardwareInfo: Record<string, string> | undefined;
   @Input() lastseen: number | undefined;
 
-  /** Controllers AND fridges drive smart sockets (both run the socket firmware). */
   get supportsSockets(): boolean {
-    return ['controller', 'fridge', 'fridge2'].includes(this.deviceType);
+    return socketRolesFor(this.deviceType).length > 0;
   }
 }

@@ -6,6 +6,7 @@
 export {
   MAX_SOCKETS,
   SOCKET_ROLES,
+  socketRolesFor,
   readSockets,
   socketKey,
   socketReportKey,

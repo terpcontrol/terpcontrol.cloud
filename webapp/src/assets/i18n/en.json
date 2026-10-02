@@ -1025,7 +1025,8 @@
         "heater": "Heater",
         "light": "Light",
         "secondary_light": "Second light",
-        "co2": "CO2 valve"
+        "co2": "CO2 valve",
+        "relay": "Same as relay"
       },
       "remove": "Remove",
       "removeConfirmTitle": "Remove socket?",

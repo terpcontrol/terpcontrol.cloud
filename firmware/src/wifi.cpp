@@ -606,6 +606,7 @@ static bool socketTargetForRole(const std::string& role) {
   if(role == "light") return smart_socket_output_states.light_on;
   if(role == "secondary_light") return smart_socket_output_states.secondary_light_on;
   if(role == "co2") return smart_socket_output_states.co2_on;
+  if(role == "relay") return smart_socket_output_states.relay_on;
   return false;
 }
 
@@ -2175,6 +2176,7 @@ static std::string legacySocketRoleKey(const std::string& role) {
   if(role == "other1") return "sock_oth1";
   if(role == "other2") return "sock_oth2";
   if(role == "other3") return "sock_oth3";
+  if(role == "relay") return "sock_relay";
   return "sock_misc";
 }
 
@@ -2465,15 +2467,12 @@ static void tickAuxDeviceSearch() {
   Serial.println("[smart-socket] searching the network for moved sockets");
 }
 
+// The roles this hardware type offers. A PLUG has one output, so its sockets
+// do not get a job of their own: they switch together with the relay.
 const std::vector<std::string>& getSocketRolesList() {
-  static const std::vector<std::string> roles = {
-    "back",
-    "dehumidifier",
-    "heater",
-    "light",
-    "secondary_light",
-    "co2",
-  };
+  static const std::vector<std::string> roles = strcmp(HWTYPE, "plug") == 0
+    ? std::vector<std::string>{"back", "relay"}
+    : std::vector<std::string>{"back", "dehumidifier", "heater", "light", "secondary_light", "co2"};
   return roles;
 }
 

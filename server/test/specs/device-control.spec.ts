@@ -140,6 +140,13 @@ describe('POST /device/auxcommand', () => {
     expect(JSON.parse(command.payload)).toMatchObject({ action: 'socket_test', role: 'heater' });
   });
 
+  it("forwards the PLUG's relay role", async () => {
+    await owner.client.post('/device/auxcommand').send({ device_id: device.deviceId, action: 'socket_test', role: 'relay' }).expect(200);
+
+    const command = await simulator.waitFor('command');
+    expect(JSON.parse(command.payload)).toMatchObject({ action: 'socket_test', role: 'relay' });
+  });
+
   it('passes a socket slot through', async () => {
     await owner.client.post('/device/auxcommand').send({ device_id: device.deviceId, action: 'socket_remove', role: 'light', slot: 2 }).expect(200);
 
