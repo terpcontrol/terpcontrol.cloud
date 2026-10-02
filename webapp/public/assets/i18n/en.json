@@ -4550,7 +4550,7 @@
     },
     "socketRoles": {
       "title": "Socket roles",
-      "text": "Each smart socket is paired to a role on the controller and switches with it: a heater socket with the heater, a light socket with the lamp, a pump or timer socket on its own timer, and a manual one only while you hold it. Roles are set on the controller, not here."
+      "text": "Each smart socket is paired to a role on the device and switches with it: a heater socket with the heater, a light socket with the lamp, a pump or timer socket on its own timer, and a manual one only while you hold it. An exhaust runs from 0.8 °C over the target and stops just above it, a humidifier from 5 points of humidity under the target and stops at the target. Roles are set on the device, not here."
     },
     "socketHold": {
       "title": "Hold",

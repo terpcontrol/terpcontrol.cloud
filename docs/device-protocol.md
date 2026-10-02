@@ -560,8 +560,8 @@ a role):
 | `heater` | the heater output |
 | `light`, `secondary_light` | the light output |
 | `co2` | the CO2 valve |
-| `humidifier` | the dehumidifier's band read the other way round: on below the target minus `targetHumidityDiff`, off at the target |
-| `exhaust` | the cooling decision the temperature and breeding modes compute |
+| `humidifier` | the dehumidifier's band read the other way round: on below the target minus `targetHumidityDiff` (never less than 5 points), off at the target |
+| `exhaust` | the cooling decision the temperature and breeding modes compute; in the standard modes (`small`, `full`) the same rule on its own: on above the target by 0.8 °C, off below 0.3 °C over it |
 | `circulation`, `fan` | anything: on whenever the module is controlling and not paused |
 | `pump`, `custom_timer` | the row's own timer, and nothing else |
 | `manual` | nothing: off unless an override holds it |
@@ -1074,9 +1074,10 @@ reader of either should not conclude from it.
   report a socket table and the three capability keys. The simulator reports both for every type it can be
   started as, which means a simulated `plug` or `light` announces sockets no real one of that type ever would.
 - **The new control laws.** The firmware decides a humidifier from the dehumidifier's band and hysteresis and an
-  exhaust from the cooling decision the mode computed, with the state each of them carries between passes. The
-  simulator has neither a PID nor hysteresis and reads both off the sample it has just published — the same
-  shape, not the same code. What a socket does in the field is what the firmware does.
+  exhaust from the cooling decision the mode computed or, in the standard modes, from the same over-temperature
+  rule, with the state each of them carries between passes. The simulator has neither a PID nor hysteresis and
+  reads both off the sample it has just published — the same shape, not the same code. What a socket does in the
+  field is what the firmware does.
 - **The socket state column.** The firmware reports `on` or `off` only for a socket that answered its last
   command, and nothing for one it could not reach, because the socket is HTTP away. Nothing in the simulator can
   fail to answer, so its rows never report an unknown state after the first command.

@@ -882,13 +882,31 @@ namespace fg {
     return humidify;
   }
 
+  // An exhaust socket runs while the box is too warm. The standard modes run the
+  // compressor only to dry the air, so there it takes the rule the temperature
+  // mode cools by on its own: on above the target by 0.8 °C, off again below
+  // 0.3 °C over it.
+  static bool exhaustTarget(float temperature, float target, bool stopped) {
+    static bool exhaust = false;
+    if(stopped) {
+      exhaust = false;
+    }
+    else if(temperature > target + 0.8f) {
+      exhaust = true;
+    }
+    else if(temperature < target + 0.3f) {
+      exhaust = false;
+    }
+    return exhaust;
+  }
+
   void FridgeController::loop() {
     updateSensors();
     checkDayCycle();
 
-    // Whether the module is cooling right now, which is what an exhaust socket
-    // follows: it is the same decision, taken by whichever mode computes it.
-    bool cooling_on = false;
+    // What an exhaust socket follows: the compressor where a mode cools with it,
+    // the over-temperature rule in the standard modes, nothing otherwise.
+    bool exhaust_on = false;
 
     if(testmode_duration > 0) {
       testmode_duration--;
@@ -945,6 +963,7 @@ namespace fg {
         controlLight();
         controlDehumidifier();
         controlHeater();
+        exhaust_on = exhaustTarget(state.temperature, state.target_temperature, isPaused());
         out_fan_external.set(settings.fans.external * 2.55);
       }
       else if(settings.workmode == FridgeControllerSettings::MODE_SMALL) {
@@ -955,6 +974,7 @@ namespace fg {
         controlLight();
         controlDehumidifier();
         controlHeater();
+        exhaust_on = exhaustTarget(state.temperature, state.target_temperature, isPaused());
         out_fan_external.set(settings.fans.external * 2.55);
       }
       // else if(settings.workmode == FridgeControllerSettings::MODE_EXP) {
@@ -968,7 +988,7 @@ namespace fg {
         Serial.println("MODE TEMP");
         controlLight();
         controlCooling();
-        cooling_on = state.out_dehumidifier > 0;
+        exhaust_on = state.out_dehumidifier > 0;
         controlHeater();
         controlCo2();
         out_fan_external.set(settings.fans.external * 2.55);
@@ -986,7 +1006,7 @@ namespace fg {
         Serial.println("MODE BREED");
         controlHeater();
         controlCooling();
-        cooling_on = state.out_dehumidifier > 0;
+        exhaust_on = state.out_dehumidifier > 0;
         out_co2.set(0);
         out_light.set(0);
         state.out_light = 0;
@@ -1031,7 +1051,7 @@ namespace fg {
       socket_states.co2_on = state.out_co2 > 0;
       socket_states.humidifier_on = humidifierTarget(state.humidity, state.target_humidity,
                                                      settings.daynight.targetHumidityDiff, !controlling);
-      socket_states.exhaust_on = cooling_on;
+      socket_states.exhaust_on = exhaust_on;
       socket_states.running = controlling;
       wifiReportSmartSocketOutputs(socket_states);
 

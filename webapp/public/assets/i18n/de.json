@@ -4554,7 +4554,7 @@
     },
     "socketRoles": {
       "title": "Steckdosen-Rollen",
-      "text": "Jede smarte Steckdose ist am Controller einer Rolle zugeordnet und schaltet mit ihr: eine Heizungs-Steckdose mit der Heizung, eine Licht-Steckdose mit der Lampe, Pumpe oder Timer nach eigenem Timer und eine manuelle nur, solange du sie hältst. Die Rollen werden am Controller festgelegt, nicht hier."
+      "text": "Jede smarte Steckdose ist am Gerät einer Rolle zugeordnet und schaltet mit ihr: eine Heizungs-Steckdose mit der Heizung, eine Licht-Steckdose mit der Lampe, Pumpe oder Timer nach eigenem Timer und eine manuelle nur, solange du sie hältst. Eine Abluft läuft ab 0,8 °C über dem Ziel und hört knapp darüber auf, ein Befeuchter ab 5 Punkten Luftfeuchte unter dem Ziel und hört beim Ziel auf. Die Rollen werden am Gerät festgelegt, nicht hier."
     },
     "socketHold": {
       "title": "Halten",

@@ -61,6 +61,10 @@ const SOCKET_ROLES = [
   'manual',
 ];
 
+// The narrowest band a humidifier socket is switched by, whatever the
+// dehumidifier's own: a dry target dehumidifies from the target itself.
+const HUMIDIFIER_MIN_BAND = 5;
+
 // The commands beyond the three socket ones this build takes.
 const SOCKET_CAPABILITIES = ['socket_override', 'socket_timer', 'light_override'];
 
@@ -416,8 +420,9 @@ const step = (state, config, at, stepSeconds, random) => {
 /**
  * What a socket role follows, as the firmware's control laws decide it: the
  * outputs the module is already running for the five roles that have one, the
- * cooling decision for an exhaust, the dehumidifier's band read the other way
- * round for a humidifier, and anything that moves air whenever the module is
+ * over-temperature rule for an exhaust in every mode but drying, the
+ * dehumidifier's band read the other way round - never narrower than five
+ * points - for a humidifier, and anything that moves air whenever the module is
  * controlling at all.
  *
  * The firmware is the witness. There is no PID and no hysteresis here, so the
@@ -425,11 +430,12 @@ const step = (state, config, at, stepSeconds, random) => {
  * enough to drive a screen, not a second implementation of the laws.
  */
 const socketFollows = (role, sample, config, at) => {
-  const running = configValue(config, 'workmode', DEFAULT_CONFIG.workmode) !== 'off';
+  const mode = configValue(config, 'workmode', DEFAULT_CONFIG.workmode);
+  const running = mode !== 'off';
   const isDay = lightPercent(config, at) > 0.5;
   const targetHumidity = configValue(config, isDay ? 'day.humidity' : 'night.humidity', isDay ? 60 : 55);
   const targetTemperature = configValue(config, isDay ? 'day.temperature' : 'night.temperature', isDay ? 25 : 21);
-  const band = configValue(config, 'daynight.targetHumidityDiff', 5);
+  const band = Math.max(configValue(config, 'daynight.targetHumidityDiff', 5), HUMIDIFIER_MIN_BAND);
 
   const follows = {
     heater: sample.outputs.heater > 0,
@@ -438,7 +444,7 @@ const socketFollows = (role, sample, config, at) => {
     secondary_light: sample.outputs.light > 0,
     co2: sample.outputs.co2 > 0,
     humidifier: running && sample.sensors.humidity < targetHumidity - band,
-    exhaust: running && sample.sensors.temperature > targetTemperature + 0.8,
+    exhaust: running && mode !== 'dry' && sample.sensors.temperature > targetTemperature + 0.8,
     circulation: running,
     fan: running,
   };

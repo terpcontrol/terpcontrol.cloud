@@ -774,10 +774,17 @@ namespace fg {
   }
 
   // The humidifier is the dehumidifier's rule read the other way round: it runs
-  // while the air is drier than the target by more than the same band and stops
-  // once it is back at the target. It drives no output of the module's own,
-  // only a socket, so it is decided here rather than in a control pass.
+  // while the air is drier than the target by more than a band and stops once it
+  // is back at the target. It drives no output of the module's own, only a
+  // socket, so it is decided here rather than in a control pass.
+  //
+  // The band is the dehumidifier's, but never narrower than the five points it
+  // defaults to: a humidifier switched at the target itself would chatter on and
+  // off around it.
+  static constexpr float HUMIDIFIER_MIN_BAND = 5.0f;
+
   static bool humidifierTarget(float humidity, float target, float band, bool stopped) {
+    band = band < HUMIDIFIER_MIN_BAND ? HUMIDIFIER_MIN_BAND : band;
     static bool humidify = false;
     if(stopped) {
       humidify = false;
@@ -789,6 +796,24 @@ namespace fg {
       humidify = humidity < (target - band);
     }
     return humidify;
+  }
+
+  // An exhaust socket runs while the tent is too warm. The standard mode runs
+  // the dehumidifier only to dry the air, so there it takes the rule the
+  // temperature mode cools by on its own: on above the target by 0.8 °C, off
+  // again below 0.3 °C over it.
+  static bool exhaustTarget(float temperature, float target, bool stopped) {
+    static bool exhaust = false;
+    if(stopped) {
+      exhaust = false;
+    }
+    else if(temperature > target + 0.8f) {
+      exhaust = true;
+    }
+    else if(temperature < target + 0.3f) {
+      exhaust = false;
+    }
+    return exhaust;
   }
 
   void ControllerController::loop() {
@@ -820,9 +845,9 @@ namespace fg {
       }
     }
 
-    // Whether the module is cooling right now, which is what an exhaust socket
-    // follows: it is the same decision, taken by whichever mode computes it.
-    bool cooling_on = false;
+    // What an exhaust socket follows: the cooling decision where a mode cools,
+    // the over-temperature rule in the standard mode, nothing otherwise.
+    bool exhaust_on = false;
 
 	if(sensors_valid == false) {
       Serial.println("SENSOR ERROR!!! FAILSAVE MODE!!!");
@@ -850,12 +875,15 @@ namespace fg {
         controlLight();
         controlDehumidifier();
         controlHeater();
+        exhaust_on = exhaustTarget(state.temperature,
+                                   state.is_day ? settings.day.temperature : settings.night.temperature,
+                                   isPaused());
       }
       else if(settings.workmode == ControllerControllerSettings::MODE_TEMP) {
         Serial.println("MODE TEMP");
         controlLight();
         controlCooling();
-        cooling_on = state.out_dehumidifier > 0;
+        exhaust_on = state.out_dehumidifier > 0;
         controlHeater();
 		
         if(hasCo2Sensor()) {
@@ -882,7 +910,7 @@ namespace fg {
         Serial.println("MODE BREED");
         controlHeater();
         controlCooling();
-        cooling_on = state.out_dehumidifier > 0;
+        exhaust_on = state.out_dehumidifier > 0;
         co2_valve_open = false;
         state.out_co2 = 0;
         out_light.set(0);
@@ -924,7 +952,7 @@ namespace fg {
                                                      state.is_day ? settings.day.humidity : settings.night.humidity,
                                                      settings.daynight.targetHumidityDiff,
                                                      !controlling);
-      socket_states.exhaust_on = cooling_on;
+      socket_states.exhaust_on = exhaust_on;
       socket_states.running = controlling;
       wifiReportSmartSocketOutputs(socket_states);
 
