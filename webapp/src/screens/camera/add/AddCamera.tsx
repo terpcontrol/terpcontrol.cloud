@@ -7,7 +7,7 @@ import { useDevices } from '@/api/devices';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
-import { controllersOf } from './controllers';
+import { pairersOf } from './pairers';
 import { PairTerpCam } from './PairTerpCam';
 import { RtspCamera } from './RtspCamera';
 import styles from './AddCamera.module.css';
@@ -16,10 +16,10 @@ import styles from './AddCamera.module.css';
  * The three ways a camera arrives, which are three different things to explain
  * rather than three shapes of the same form.
  *
- * A Terp Cam is paired at the controller and the cloud hears about it over
- * MQTT, so this screen has nothing to send for one: it says what to do at the
- * hardware and then watches for what turns up. A standalone Terp Cam is the
- * same camera without a controller to pair it, and that flow is unproven
+ * A Terp Cam is paired at a fridge module or a controller and the cloud hears
+ * about it over MQTT, so this screen has nothing to send for one: it says what
+ * to do at the hardware and then watches for what turns up. A standalone Terp
+ * Cam is the same camera without a device to pair it, and that flow is unproven
  * against a camera on a desk, so the tab says what it will do and offers
  * nothing that could fail on somebody's - drawn in the dashed card the app
  * gives every "not here yet", so that the tab has the shape its two siblings
@@ -56,9 +56,10 @@ export function AddCamera() {
  * asks for none of it.
  *
  * Two things are owned here rather than by the tab that uses them. The first is
- * which tab opens: pairing at a controller is the way in only for somebody who
- * has one, so an account with none opens on the address form instead, and the
- * choice waits for the device list so that the tab never moves under a finger.
+ * which tab opens: pairing at a device is the way in only for somebody who has
+ * one to pair at, so an account with none opens on the address form instead,
+ * and the choice waits for the device list so that the tab never moves under a
+ * finger.
  * The second is the line a newly paired camera is measured against, which has
  * to outlive a tab change: it is the cameras this account had when the *screen*
  * was opened, and looking at the RTSP tab and back is not opening it again.
@@ -68,13 +69,13 @@ function Ways() {
   const devices = useDevices();
   const [chosen, setChosen] = useState<Kind | null>(null);
 
-  const controllers = controllersOf(devices.data?.items ?? []);
-  const opened = useCamerasAsOpened(controllers.length > 0);
+  const pairers = pairersOf(devices.data?.items ?? []);
+  const opened = useCamerasAsOpened(pairers.length > 0);
 
   if (devices.isPending) return <Waiting lines={4} />;
   if (!devices.data) return <LoadFailed retry={() => void devices.refetch()} />;
 
-  const kind = chosen ?? (controllers.length > 0 ? 'controller' : 'rtsp');
+  const kind = chosen ?? (pairers.length > 0 ? 'terpcam' : 'rtsp');
 
   return (
     <>
@@ -92,7 +93,7 @@ function Ways() {
       </div>
 
       <section className={styles.panel} aria-label={t(`cameras.add.tab.${kind}`)}>
-        {kind === 'controller' ? <PairTerpCam controllers={controllers} opened={opened} /> : null}
+        {kind === 'terpcam' ? <PairTerpCam pairers={pairers} opened={opened} /> : null}
         {kind === 'standalone' ? <Standalone /> : null}
         {kind === 'rtsp' ? <RtspCamera devices={devices.data.items} /> : null}
       </section>
@@ -100,9 +101,9 @@ function Ways() {
   );
 }
 
-type Kind = 'controller' | 'standalone' | 'rtsp';
+type Kind = 'terpcam' | 'standalone' | 'rtsp';
 
-const KINDS: Kind[] = ['controller', 'standalone', 'rtsp'];
+const KINDS: Kind[] = ['terpcam', 'standalone', 'rtsp'];
 
 /**
  * What a standalone Terp Cam will be, and that it is not here yet. It is the

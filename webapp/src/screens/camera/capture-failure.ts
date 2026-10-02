@@ -45,8 +45,8 @@ const CAUSES: Cause[] = [
     key: 'noAnswer',
     says: /econnrefused|connection refused|refused|timed out|timeout|etimedout|unreachable|ehostunreach|enetunreach|no route to host|did not answer/i,
   },
-  // The tent's own controller is the way to this camera, and it is not there.
-  { key: 'noController', says: /not connected to the broker|nothing is speaking to the devices|answers to no controller/i },
+  // The tent's own device is the way to this camera, and it is not there.
+  { key: 'noDevice', says: /not connected to the broker|nothing is speaking to the devices|answers to no controller/i },
   // Nothing to reach it at, which is a setting rather than a fault.
   { key: 'noAddress', says: /no stream address|no p2p id|not a p2p device id|rendezvous/i },
   // Something answered and it was not a stream: a wrong path, a web page, a closed port behind a proxy.

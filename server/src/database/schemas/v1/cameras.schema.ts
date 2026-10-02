@@ -4,7 +4,7 @@ import { cameraKind, cameraModel, cameraTransport, grantKind } from '@fg2/shared
 
 /**
  * A camera of its own rather than a field on a device: a tent has the Terp Cam
- * its controller pairs, RTSP cameras pulled through that controller's tunnel and
+ * its device pairs, RTSP cameras pulled through that device's tunnel and
  * standalone Terp Cams the cloud reaches itself.
  *
  * Two fields are stored differently from the way they are served. `secret` has no

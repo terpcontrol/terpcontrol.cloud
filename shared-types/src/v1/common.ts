@@ -225,9 +225,10 @@ export const metricValue = named(
 export const seriesPoint = named('SeriesPoint', z.object({ measuredAt: instant(), value: z.number().nullable() }));
 
 /**
- * `terpcam_controller` is the Terp Cam a controller pairs and answers for;
+ * `terpcam_controller` is the Terp Cam a device pairs at its display and answers
+ * for - a controller or a fridge module, whatever the name says;
  * `terpcam_standalone` is one the cloud reaches itself; `rtsp` is any other
- * camera, pulled through the controller's tunnel.
+ * camera, pulled through a device's tunnel or opened by the cloud directly.
  */
 export const cameraKind = named('CameraKind', z.enum(['terpcam_controller', 'terpcam_standalone', 'rtsp']));
 

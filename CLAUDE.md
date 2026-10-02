@@ -126,6 +126,10 @@ maintenance mode, reboot, pairing and removing smart sockets, and firmware updat
 firmware id a few seconds after being told to update). Alarms fire too - define one in the webapp and push a value
 past it with `send --set`.
 
+The device also relays its tunnel, as every Terp Control device does: an RTSP camera added at an address only this
+machine reaches (an RTSP server on `127.0.0.1`) and pulled through the simulated device delivers its stills exactly
+as a camera on a grower's home network would.
+
 Log messages use the `message-*` keys from `webapp/public/assets/i18n/en.json`; anything else shows up verbatim.
 
 ### The webcam

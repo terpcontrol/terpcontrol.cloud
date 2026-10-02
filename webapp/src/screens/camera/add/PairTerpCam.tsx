@@ -18,10 +18,10 @@ import styles from './AddCamera.module.css';
 const STEPS = ['one', 'two', 'three'] as const;
 
 /**
- * Pairing the Terp Cam a controller answers for, which this screen does not do:
- * the knob on the controller does it, the controller reports the pairing over
- * MQTT, and the cloud makes the camera's row from that report. So the app's
- * part is to say what to turn and then to notice what arrives.
+ * Pairing the Terp Cam a device answers for, which this screen does not do:
+ * the knob on a fridge module or a controller does it, the device reports the
+ * pairing over MQTT, and the cloud makes the camera's row from that report. So
+ * the app's part is to say what to press and then to notice what arrives.
  *
  * What counts as arrived is a camera this account did not have when the screen
  * was opened, so the list is read twice: once and never again, which is the
@@ -32,23 +32,34 @@ const STEPS = ['one', 'two', 'three'] as const;
  * another tab and coming back is not opening the screen again.
  *
  * All of that presumes the knob these steps describe, so an account with no
- * controller is told it has none and pointed at the claim flow instead: a watch
- * that nothing can ever cross is not an honest thing to leave running.
+ * such device is told it has none and pointed at the claim flow instead: a
+ * watch that nothing can ever cross is not an honest thing to leave running.
  */
-export function PairTerpCam({ controllers, opened }: { controllers: Device[]; opened: UseQueryResult<CameraPage> }) {
-  return controllers.length === 0 ? <NoController /> : <Watching opened={opened} />;
+export function PairTerpCam({ pairers, opened }: { pairers: Device[]; opened: UseQueryResult<CameraPage> }) {
+  return pairers.length === 0 ? <NoDevice /> : <Watching pairers={pairers} opened={opened} />;
 }
 
 /**
- * The steps to take at the controller, and what turns up because of them.
+ * Where the steps send somebody, by the kind of device they will stand at: a
+ * grower with one fridge module is told "at the fridge module", and only an
+ * account with both kinds is told "at the device".
+ */
+const atWhich = (pairers: Device[]): string => {
+  const types = new Set(pairers.map(device => device.type));
+  return types.size === 1 ? [...types][0] : 'device';
+};
+
+/**
+ * The steps to take at the device, and what turns up because of them.
  *
  * The watching is the ordinary camera read on its ordinary beat rather than a
  * loop of its own - the first still is about a minute away, so asking faster
  * would tell nobody anything sooner - and it stops when the screen is left,
  * because that is when the line it is measured against has no reader left.
  */
-function Watching({ opened }: { opened: UseQueryResult<CameraPage> }) {
+function Watching({ pairers, opened }: { pairers: Device[]; opened: UseQueryResult<CameraPage> }) {
   const { t } = useTranslation();
+  const at = t(`cameras.add.terpcam.at.${atWhich(pairers)}`);
   const now = useNow();
   const cameras = useCameras();
   const devices = useDevices();
@@ -90,7 +101,7 @@ function Watching({ opened }: { opened: UseQueryResult<CameraPage> }) {
               {index + 1}
             </span>
             <div>
-              <p className={styles.stepTitle}>{t(`cameras.add.terpcam.${step}.title`)}</p>
+              <p className={styles.stepTitle}>{t(`cameras.add.terpcam.${step}.title`, { at })}</p>
               <p className={styles.stepText}>{t(`cameras.add.terpcam.${step}.text`)}</p>
             </div>
           </li>
@@ -119,20 +130,20 @@ function Watching({ opened }: { opened: UseQueryResult<CameraPage> }) {
 }
 
 /**
- * What this tab is for somebody who has no controller: the missing part, named,
- * and the way to get one. The three steps are left undrawn rather than greyed
- * out, because none of them is a thing that could be done here later - the knob
- * they describe is on hardware this account has not claimed.
+ * What this tab is for somebody with no device to pair at: the missing part,
+ * named, and the way to get one. The three steps are left undrawn rather than
+ * greyed out, because none of them is a thing that could be done here later -
+ * the knob they describe is on hardware this account has not claimed.
  */
-function NoController() {
+function NoDevice() {
   const { t } = useTranslation();
 
   return (
     <section className={`${ui.cardDashed} ${styles.block}`}>
-      <span className="label">{t('cameras.add.terpcam.noController.label')}</span>
-      <p className={styles.text}>{t('cameras.add.terpcam.noController.text')}</p>
+      <span className="label">{t('cameras.add.terpcam.noDevice.label')}</span>
+      <p className={styles.text}>{t('cameras.add.terpcam.noDevice.text')}</p>
       <Link className={`${ui.button} ${styles.way}`} to="/claim">
-        {t('cameras.add.terpcam.noController.claim')}
+        {t('cameras.add.terpcam.noDevice.claim')}
         <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
       </Link>
     </section>
@@ -142,9 +153,9 @@ function NoController() {
 /**
  * A camera that has turned up while somebody watched, and the two things step
  * three promises they can say about it. It is named rather than made here - the
- * row already exists, because the controller's report is what made it - so the
+ * row already exists, because the device's report is what made it - so the
  * name the person gives replaces the one the pairing invented, which is the
- * controller's own.
+ * device's own.
  */
 function FoundCamera({ camera, devices, spaces, stillId }: { camera: Camera; devices: Device[]; spaces: Space[]; stillId: string | null }) {
   const { t } = useTranslation();
@@ -160,12 +171,7 @@ function FoundCamera({ camera, devices, spaces, stillId }: { camera: Camera; dev
   const place = spaces.find(space => space.id === camera.spaceId)?.name ?? null;
   const source = stillId ? mediaUrl(stillId, THUMBNAIL_WIDTH.still) : null;
 
-  const line = [
-    camera.kind === 'terpcam_controller'
-      ? t('devices.via', { name: through ?? t('devices.type.controller') })
-      : t(`devices.cameraKind.${camera.kind}`),
-    place,
-  ]
+  const line = [camera.kind === 'terpcam_controller' && through ? t('devices.via', { name: through }) : t(`devices.cameraKind.${camera.kind}`), place]
     .filter(Boolean)
     .join(' · ');
 

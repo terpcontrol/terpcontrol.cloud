@@ -87,7 +87,9 @@
   letter-spacing: normal;
   text-align: left;
   text-transform: none;
-  white-space: normal;
+  /* Wrapped like any text, with a line break in the catalogue kept: an
+     explanation that lists addresses reads them one to a line. */
+  white-space: pre-line;
   animation: appear 120ms ease-out;
 }
 

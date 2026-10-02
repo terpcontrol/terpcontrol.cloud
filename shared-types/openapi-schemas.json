@@ -9259,7 +9259,9 @@
     "type": "string",
     "enum": [
       "tcp",
-      "udp"
+      "udp",
+      "http",
+      "https"
     ]
   },
   "CameraModel": {
@@ -9420,7 +9422,7 @@
             "type": "null"
           }
         ],
-        "description": "The controller that answers for this camera; null for one the cloud reaches itself, and on a shared or public read."
+        "description": "The device that answers for this camera; null for one the cloud reaches itself, and on a shared or public read."
       },
       "spaceId": {
         "anyOf": [
@@ -9489,7 +9491,7 @@
       },
       "tunnel": {
         "type": "boolean",
-        "description": "Pull the stream through the controller’s tunnel rather than reaching it directly."
+        "description": "Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly."
       },
       "model": {
         "anyOf": [
@@ -9781,7 +9783,7 @@
       },
       "tunnel": {
         "type": "boolean",
-        "description": "Pull the stream through the controller’s tunnel rather than reaching it directly."
+        "description": "Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly."
       },
       "model": {
         "anyOf": [
@@ -9798,7 +9800,7 @@
         "const": "rtsp"
       },
       "deviceId": {
-        "description": "The controller whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.",
+        "description": "The device whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.",
         "anyOf": [
           {
             "type": "string",
@@ -9811,7 +9813,15 @@
       },
       "url": {
         "type": "string",
-        "description": "The whole stream URL, credentials included."
+        "description": "The stream URL. A login written into it is used; one that carries none keeps the login stored."
+      },
+      "username": {
+        "description": "The login name the stream is opened with, written into the URL; empty takes it away.",
+        "type": "string"
+      },
+      "password": {
+        "description": "The password the stream is opened with, written into the URL; empty takes it away.",
+        "type": "string"
       }
     },
     "required": [
@@ -9894,7 +9904,7 @@
       },
       "tunnel": {
         "type": "boolean",
-        "description": "Pull the stream through the controller’s tunnel rather than reaching it directly."
+        "description": "Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly."
       },
       "model": {
         "anyOf": [
@@ -9907,7 +9917,7 @@
         ]
       },
       "deviceId": {
-        "description": "The controller whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.",
+        "description": "The device whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.",
         "anyOf": [
           {
             "type": "string",
@@ -9920,7 +9930,15 @@
       },
       "url": {
         "type": "string",
-        "description": "The whole stream URL, credentials included."
+        "description": "The stream URL. A login written into it is used; one that carries none keeps the login stored."
+      },
+      "username": {
+        "description": "The login name the stream is opened with, written into the URL; empty takes it away.",
+        "type": "string"
+      },
+      "password": {
+        "description": "The password the stream is opened with, written into the URL; empty takes it away.",
+        "type": "string"
       }
     }
   },

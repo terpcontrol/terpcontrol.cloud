@@ -3090,10 +3090,10 @@
       "stoppedEarly": "the stream ended before a picture arrived",
       "refusedLogin": "the camera refused the login it is paired with",
       "noAnswer": "the camera did not answer",
-      "noController": "the controller this camera answers through was not reachable",
       "noAddress": "there is no address to reach this camera at",
       "noStream": "what answered was not a video stream",
-      "unknown": "the camera could not be read"
+      "unknown": "the camera could not be read",
+      "noDevice": "the device this camera answers through was not reachable"
     },
     "frameAlt": "{{name}} at {{time}}",
     "noFramesToday": "No picture today yet",
@@ -3130,7 +3130,6 @@
     "thisCamera": "This camera",
     "connectedVia": "Connected via",
     "reachedAt": "Camera ID",
-    "tunnelled": "through the tunnel",
     "addressNote": "The password the stream is opened with stays with the server and is never sent back here.",
     "name": "Name",
     "looksAt": "Looks at",
@@ -3205,7 +3204,33 @@
     "inTimeline": "See it in the Timeline",
     "address": "Address",
     "changeAddress": "Change the address",
-    "addressChangeNote": "The whole address, with user and password if the camera needs one: rtsp://user:password@192.168.1.20:554/stream. Pictures and films stay with this camera. After saving, “Take a picture now” checks that it is reachable."
+    "addressChangeNote": "Left empty, user and password stay as they are. Pictures, films and Premium stay with this camera. After saving, “Take a picture now” checks that it is reachable.",
+    "rtspThrough": "RTSP via {{device}}",
+    "rtspDirect": "RTSP, opened by the cloud",
+    "username": "User",
+    "password": "Password",
+    "keepAddress": "Leave it as it is",
+    "stream": {
+      "lead": "What most growers never need: how the cloud fetches the stream.",
+      "tunnel": "Pull through the device",
+      "tunnelOn": "The cloud pulls the stream from your network through {{device}}.",
+      "tunnelOff": "The cloud opens the stream itself, which only works for a camera reachable from the internet.",
+      "throughWhich": "Through which device?",
+      "transport": "Transport",
+      "transports": {
+        "tcp": "TCP",
+        "http": "HTTP",
+        "https": "HTTPS",
+        "udp": "UDP"
+      },
+      "transportNote": {
+        "tcp": "The default, right for almost every camera.",
+        "http": "RTSP tunnelled through HTTP, for a camera that only answers that way.",
+        "https": "RTSP tunnelled through HTTPS, for a camera that only answers that way.",
+        "udp": "Only for a camera the cloud reaches directly."
+      }
+    },
+    "rtspTunnelled": "RTSP via the device"
   },
   "cameras": {
     "add": {
@@ -3214,28 +3239,33 @@
       "cancel": "Cancel",
       "demo": "The demo may look at everything and change nothing, so it cannot add a camera.",
       "tab": {
-        "controller": "Terp Cam",
         "standalone": "Terp Cam · standalone",
-        "rtsp": "RTSP"
+        "rtsp": "RTSP",
+        "terpcam": "Terp Cam"
       },
       "terpcam": {
         "one": {
-          "title": "Plug the cam in near the controller",
-          "text": "Blue light blinks when it is ready to pair."
+          "title": "Plug the cam in nearby",
+          "text": "Within Wi-Fi reach of the device. The blue light blinks when it is ready to pair."
         },
         "two": {
-          "title": "On the controller: turn the knob to Cam › Pair",
-          "text": "No phone app, no Wi-Fi password: the controller hands the cam its network."
+          "title": "{{at}}: press the knob, then Terp Cam › connect cam",
+          "text": "No phone app, no Wi-Fi password: the device hands the cam its network. One cam per device."
         },
         "three": {
           "title": "It shows up here",
-          "text": "First still in about a minute. Name it and say what it looks at."
+          "text": "The display says “cam ready”, and the first still follows in about a minute. Name it and say what it looks at."
         },
         "watching": "Nothing new yet. This list fills itself for as long as it is open.",
-        "noController": {
-          "label": "No controller yet",
-          "text": "A Terp Cam is paired by the knob on a controller, and this account has none claimed. Claim one first and this tab will walk you through the pairing.",
-          "claim": "Claim a controller"
+        "at": {
+          "fridge": "At the fridge module",
+          "controller": "At the controller",
+          "device": "At the device"
+        },
+        "noDevice": {
+          "label": "No device yet",
+          "text": "A Terp Cam is paired at the display of a fridge module or a controller, and this account has none claimed. Claim one first and this tab will walk you through the pairing.",
+          "claim": "Claim a device"
         }
       },
       "found": {
@@ -3250,7 +3280,7 @@
       },
       "standalone": {
         "label": "Standalone Terp Cam",
-        "text": "Joins your Wi-Fi from this phone (QR on the cam). Lives in a place with no controller; gets its own timelapses; Premium included 12 months.",
+        "text": "Joins your Wi-Fi from this phone (QR on the cam). Lives in a place with no device; gets its own timelapses; Premium included 12 months.",
         "coming": "Coming soon."
       },
       "rtsp": {
@@ -3259,9 +3289,8 @@
         "premiumPriced": "An RTSP camera works without Premium but has no included year of its own: Premium for it is bought, {{price}}.",
         "gatesNothing": "Premium is not charged on this installation, so an RTSP camera costs you nothing here.",
         "address": "Stream address",
-        "placeholder": "rtsp://user:pass@192.168.1.40/stream1",
-        "throughController": "Pulled through {{controller}} on your network; stills every 30 s like a Terp Cam.",
-        "direct": "No controller stands there, so the cloud opens the stream itself: an address on your home network will not answer it.",
+        "placeholder": "rtsp://192.168.1.40:554/stream1",
+        "direct": "No device stands there, so the cloud opens the stream itself: an address on your home network will not answer it.",
         "where": "Where does it look?",
         "nowhere": "There is no place to put a camera in yet. Name the one it looks at and it is made here.",
         "name": "Name",
@@ -3274,11 +3303,11 @@
         "failed": "No picture: {{reason}}",
         "noReason": "the camera gave no reason",
         "shotAlt": "The picture the test came back with",
-        "pickAPlace": "Pick the place it looks at below: a place with a controller in it is reached through that controller, one without is not.",
-        "throughWhich": "Through which controller?",
+        "pickAPlace": "Pick the place it looks at below: where a device stands there, the cloud pulls the stream from your network through it.",
+        "throughWhich": "Through which device?",
         "carrier": {
-          "stale": "{{controller}} last said something {{age}} ago",
-          "offline": "{{controller}} is offline · last heard {{age}} ago, so the stream will not answer until it is back"
+          "stale": "{{device}} last said something {{age}} ago",
+          "offline": "{{device}} is offline · last heard {{age}} ago, so the stream will not answer until it is back"
         },
         "placeName": "Name of the place",
         "placeKind": "Kind of place",
@@ -3298,7 +3327,12 @@
         "madeSomewhere": "The camera has been added. It is on your Devices tab now, and testing again updates it.",
         "remove": "Take it away again",
         "removing": "Taking it away …",
-        "open": "Open the camera"
+        "open": "Open the camera",
+        "username": "User",
+        "password": "Password",
+        "loginInAddress": "The login is already written into the address and is used as it is.",
+        "throughDevice": "Pulled through {{device}} from your network; a still every 30 s.",
+        "directByChoice": "The cloud opens the stream itself (Advanced), so the address has to be reachable from the internet."
       }
     }
   },
@@ -4075,7 +4109,7 @@
     "hardware": {
       "next": "sockets and cam?",
       "title": "Sockets and cam",
-      "text": "What the controller has found: the sockets it drives and the cam it answers for. Both can wait.",
+      "text": "What the device has found: the sockets it drives and the cam it answers for. Both can wait.",
       "sockets": "Reported sockets",
       "noSockets": "none yet",
       "notReported": "not reported yet",
@@ -4584,11 +4618,11 @@
     },
     "cameraPauses": {
       "title": "Night off, off during maintenance",
-      "text": "Night off skips pictures while the controller's light is off; off during maintenance skips them while the controller is in maintenance or switched off. Both only work for a camera that belongs to a controller, and with night off no warning is raised when this camera stops delivering."
+      "text": "Night off skips pictures while the device's light is off; off during maintenance skips them while the device is in maintenance or switched off. Both only work for a camera that belongs to a device, and with night off no warning is raised when this camera stops delivering."
     },
     "staleWarning": {
       "title": "Tells you",
-      "text": "The warning comes once no picture has arrived for ten intervals, and ten minutes at the least – but not while its controller is offline, which has an alert of its own. Logging failed captures writes a diary warning for every try that fails."
+      "text": "The warning comes once no picture has arrived for ten intervals, and ten minutes at the least – but not while its device is offline, which has an alert of its own. Logging failed captures writes a diary warning for every try that fails."
     },
     "premiumCamera": {
       "title": "Premium",
@@ -4600,11 +4634,11 @@
     },
     "overlays": {
       "title": "Overlays",
-      "text": "What is drawn on the film: the grow's day, a temperature and humidity curve with the moment marked, and diary entries as captions. Each needs something to draw from – a grow, a controller, entries – and is left out where there is none."
+      "text": "What is drawn on the film: the grow's day, a temperature and humidity curve with the moment marked, and diary entries as captions. Each needs something to draw from – a grow, a device, entries – and is left out where there is none."
     },
     "lightsOffFrames": {
       "title": "Lights-off frames",
-      "text": "Left off, pictures taken while the controller's light was off are dropped, so the film does not flash dark every night. A picture with no light reading counts as lit."
+      "text": "Left off, pictures taken while the device's light was off are dropped, so the film does not flash dark every night. A picture with no light reading counts as lit."
     },
     "render": {
       "title": "Render",
@@ -4612,7 +4646,7 @@
     },
     "unpair": {
       "title": "Unpair",
-      "text": "The cloud stops reading this camera; its pictures and films stay. A Terp Cam stays paired to its controller, though, and comes back here the next time the controller reports it, for example after a restart."
+      "text": "The cloud stops reading this camera; its pictures and films stay. A Terp Cam stays paired to its device, though, and comes back here the next time the device reports it, for example after a restart."
     },
     "rtsp": {
       "title": "RTSP",
@@ -4711,6 +4745,14 @@
         "title": "Operating mode",
         "text": "What the fridge does as a whole while control is on. Standard holds temperature, humidity, light and CO₂. Greenhouse holds the temperature only: light and CO₂ keep running, the compressor only cools and does not dehumidify on purpose. Germination keeps it dark and heats and cools to the night temperature. Energy saving applies to standard only. A drying phase takes precedence and returns to the operating mode afterwards."
       },
+      "cameraTunnel": {
+        "title": "Pull through the device",
+        "text": "On, the cloud pulls the stream from your home network over the connection of the device in this place, so the camera needs no port forwarding and no dynamic DNS. Turn it off only for a camera reachable from the internet: the cloud then opens the stream itself, and the device's connection is left alone."
+      },
+      "cameraTransport": {
+        "title": "Transport",
+        "text": "How the stream is read. TCP is right for almost every camera. HTTP or HTTPS only where the camera offers RTSP tunnelled through HTTP alone. UDP only for a camera the cloud reaches directly; it does not pass through the device. Where no picture comes, try another setting and then “Take a picture now”."
+      },
       "release": {
         "title": "Give the device up",
         "text": "Takes the device out of your account so someone else can add it – after a sale, a move to another account or a swap. Its grow plan, its alarms and the camera connected through it go with it. The place and the diary stay, and nothing changes on the device itself."
@@ -4783,6 +4825,10 @@
         "title": "Overheat protection",
         "text": "Above this temperature at the light module the lamp dims itself down until it is cooler again. That protects the lamp and the plants right under it."
       }
+    },
+    "streamAddress": {
+      "title": "Stream address",
+      "text": "Where the camera offers its video stream, with its IP on your network (shown in your router or in the camera's app). Common addresses:\nTapo: rtsp://IP:554/stream1\nReolink: rtsp://IP:554/h264Preview_01_main\nHikvision: rtsp://IP:554/Streaming/Channels/101\nUser and password go into the fields below. For Tapo that is the camera account from the Tapo app (Camera Settings › Advanced Settings › Camera Account), not your TP-Link account. A Reolink camera needs RTSP switched on in its network settings."
     },
     "stepLightHours": {
       "title": "Light on for (in a step)",
@@ -4993,7 +5039,8 @@
     "lead": {
       "device": "What most growers never need. A change applies at once and is sent to the device.",
       "place": "What most growers never need, for this place.",
-      "charts": "Finer settings of the charts."
+      "charts": "Finer settings of the charts.",
+      "camera": "What most growers never need. A change applies at once, and the camera is tried again straight away."
     },
     "range": "From {{min}} to {{max}} {{unit}}.",
     "save": "Save"

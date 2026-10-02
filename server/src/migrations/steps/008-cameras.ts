@@ -49,7 +49,12 @@ const STILL_INTERVAL_SECONDS = 30;
 
 const ENTITLEMENT_MONTHS = 12;
 
-const TRANSPORTS = ['tcp', 'udp'];
+/**
+ * Every `-rtsp_transport` the old app offered (tcp, http, https) and udp
+ * besides. An http or https dropped here would leave a camera that only answers
+ * RTSP over HTTP read over TCP, which is a camera that never delivers again.
+ */
+const TRANSPORTS = ['tcp', 'udp', 'http', 'https'];
 
 const MODELS = ['terp_cam', 'tapo_c200', 'reolink', 'hikvision', 'custom'];
 

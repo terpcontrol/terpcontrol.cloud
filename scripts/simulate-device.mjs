@@ -101,6 +101,10 @@ const SENSOR_FAULTS = {
 // diary four lines an hour here too.
 const SENSOR_FAULT_MIN_MS = 900000;
 
+// How much of a tunnelled connection goes into one MQTT message. The firmware
+// sends far smaller pieces; the cloud reassembles whatever size arrives, and a
+// still pulled through the tunnel is a few hundred kilobytes.
+const TUNNEL_CHUNK_BYTES = 4096;
 
 // ---------------------------------------------------------------- MQTT client
 
@@ -1066,13 +1070,64 @@ class SimulatedDevice {
 
   async listen() {
     this.mqtt.onMessage((topic, payload) => this.#onServerMessage(topic.split('/').pop(), payload));
-    for (const suffix of ['configuration', 'command', 'firmware']) await this.mqtt.subscribe(this.topic(suffix));
+    for (const suffix of ['configuration', 'command', 'firmware', 'tunnel_write']) await this.mqtt.subscribe(this.topic(suffix));
   }
 
   #onServerMessage(kind, payload) {
     if (kind === 'configuration') return this.#onConfiguration(payload);
     if (kind === 'firmware') return this.#onFirmware(payload.trim());
     if (kind === 'command') return this.#onCommand(payload);
+    if (kind === 'tunnel_write') return this.#onTunnel(payload);
+  }
+
+  // The tunnel every device's firmware carries: the cloud names a host and a
+  // port on the home network, and the device relays a TCP connection to it
+  // byte for byte over MQTT. That is how a stream camera at a local address is
+  // read, so a camera on this machine - an RTSP server on localhost - is
+  // reachable through a simulated device exactly as through a real one. The
+  // UDP relay of the Terp Cam's P2P path is not simulated.
+  #tunnels = new Map();
+
+  #onTunnel(payload) {
+    let message;
+    try {
+      message = JSON.parse(payload);
+    } catch {
+      return;
+    }
+    if (message.udp) return;
+
+    const open = this.#tunnels.get(message.connection_id);
+    if (message.disconnected) {
+      open?.socket.destroy();
+      this.#tunnels.delete(message.connection_id);
+      return;
+    }
+
+    const tunnel = open ?? this.#openTunnel(message.connection_id, message.host, message.port);
+    if (message.payload) tunnel.socket.write(Buffer.from(message.payload, 'base64'));
+  }
+
+  #openTunnel(connectionId, host, port) {
+    const tunnel = { socket: net.connect(port, host), sequence: 0 };
+    const send = body => this.mqtt.publish(this.topic('tunnel_read'), JSON.stringify({ connection_id: connectionId, sequence: tunnel.sequence++, ...body }));
+
+    tunnel.socket.on('data', data => {
+      for (let at = 0; at < data.length; at += TUNNEL_CHUNK_BYTES) {
+        const part = data.subarray(at, at + TUNNEL_CHUNK_BYTES);
+        send({ length: part.length, payload: part.toString('base64') });
+      }
+    });
+    // A refused or dropped connection ends in 'close', which is what the cloud is told.
+    tunnel.socket.on('error', () => {});
+    tunnel.socket.on('close', () => {
+      if (this.#tunnels.get(connectionId) !== tunnel) return;
+      this.#tunnels.delete(connectionId);
+      send({ disconnected: true });
+    });
+
+    this.#tunnels.set(connectionId, tunnel);
+    return tunnel;
   }
 
   // Settings the user saved in the webapp. Like the firmware, the device
@@ -1228,7 +1283,8 @@ Commands:
                          rather than faked; the run says so at the end.
   run                    stay online: publish live samples and answer the
                          configuration, test-mode, maintenance, reboot, smart
-                         socket, camera and firmware messages the server sends
+                         socket, camera and firmware messages the server sends,
+                         and relay the tunnel a stream camera is pulled through
   send                   publish a single live sample and exit
   configure <key=value>  change a device setting, dotted paths, and upload it
                          (e.g. configure day.temperature=27 lights.limit=60)

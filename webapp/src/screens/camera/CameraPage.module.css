@@ -482,6 +482,37 @@
   height: 34px;
 }
 
+/* The address being corrected and the login under it take a line of their own
+   under the label, as a row of controls does, because a URL cut to its last
+   twenty characters cannot be checked. In a column a field would otherwise
+   take its basis as its height. */
+.settingStack[data-editing] {
+  flex-basis: 100%;
+  align-items: stretch;
+  gap: var(--space-2);
+  padding-bottom: var(--space-1);
+}
+
+.settingStack[data-editing] > .settingNote {
+  text-align: left;
+}
+
+.settingStack > .settingInput {
+  flex: none;
+  width: 100%;
+  max-width: none;
+}
+
+.login {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.login > .settingInput {
+  flex: 1 1 0;
+  max-width: none;
+}
+
 /* A row of controls takes a line of its own under its label, set from the
    left: the figure and its unit, and under them each switch on a line of its
    own, so none of them is broken across two lines on a phone. */

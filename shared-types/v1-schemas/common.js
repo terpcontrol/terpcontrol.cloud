@@ -193,9 +193,10 @@ exports.metricValue = (0, exports.named)('MetricValue', zod_1.z.object({
  */
 exports.seriesPoint = (0, exports.named)('SeriesPoint', zod_1.z.object({ measuredAt: (0, exports.instant)(), value: zod_1.z.number().nullable() }));
 /**
- * `terpcam_controller` is the Terp Cam a controller pairs and answers for;
+ * `terpcam_controller` is the Terp Cam a device pairs at its display and answers
+ * for - a controller or a fridge module, whatever the name says;
  * `terpcam_standalone` is one the cloud reaches itself; `rtsp` is any other
- * camera, pulled through the controller's tunnel.
+ * camera, pulled through a device's tunnel or opened by the cloud directly.
  */
 exports.cameraKind = (0, exports.named)('CameraKind', zod_1.z.enum(['terpcam_controller', 'terpcam_standalone', 'rtsp']));
 /**

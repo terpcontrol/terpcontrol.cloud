@@ -508,8 +508,13 @@ export const mediaUpload = named(
 // Cameras
 // ---------------------------------------------------------------------------
 
-/** How an RTSP stream is pulled. Null on a Terp Cam, which is not RTSP at all. */
-export const cameraTransport = named('CameraTransport', z.enum(['tcp', 'udp']));
+/**
+ * How ffmpeg pulls an RTSP stream, as its `-rtsp_transport` names it: `tcp`
+ * (what null means too), `udp`, and RTSP tunnelled through HTTP or HTTPS for a
+ * camera that only answers that way. Null on a Terp Cam, which is not RTSP at
+ * all. `udp` never passes through a device's tunnel, which carries TCP alone.
+ */
+export const cameraTransport = named('CameraTransport', z.enum(['tcp', 'udp', 'http', 'https']));
 
 /** A hint for the URL template a stream was built from, never how it is read. */
 export const cameraModel = named('CameraModel', z.enum(['terp_cam', 'tapo_c200', 'reolink', 'hikvision', 'custom']));
@@ -555,8 +560,9 @@ export const cameraState = named(
 
 /**
  * A camera of its own, not a field on a device: a tent has the Terp Cam its
- * controller pairs, RTSP cameras pulled through that controller's tunnel, and
- * standalone Terp Cams the cloud reaches itself.
+ * device pairs (a controller or a fridge module), RTSP cameras pulled through
+ * the tunnel of a device standing there, and standalone Terp Cams the cloud
+ * reaches itself.
  *
  * The stored document also has the camera's `secret`, and its `url` carries the
  * credentials the stream is opened with. **Neither is ever serialised**, to the
@@ -572,7 +578,7 @@ export const camera = named(
     kind: cameraKind,
     deviceId: id()
       .nullable()
-      .describe('The controller that answers for this camera; null for one the cloud reaches itself, and on a shared or public read.'),
+      .describe('The device that answers for this camera; null for one the cloud reaches itself, and on a shared or public read.'),
     spaceId: id().nullable(),
     name: z.string(),
     looksAt: z.string().nullable().describe('What it is pointed at, as a label beside the picture.'),
@@ -582,7 +588,7 @@ export const camera = named(
     ip: z.string().nullable().describe('Last address on the local network, as the controller reported it.'),
     url: z.string().nullable().describe('The stream URL with its credentials removed.'),
     transport: cameraTransport.nullable(),
-    tunnel: z.boolean().describe('Pull the stream through the controller’s tunnel rather than reaching it directly.'),
+    tunnel: z.boolean().describe('Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly.'),
     model: cameraModel.nullable(),
     stillIntervalSeconds: z.number().int(),
     nightOff: z.boolean(),
@@ -673,6 +679,13 @@ export const standaloneCameraCreate = named(
  * `url` carries the credentials the stream is opened with, which is why it is
  * spelled out rather than picked off `Camera`: the resource answers the same URL
  * with them stripped, so the two fields do not mean the same thing.
+ *
+ * The login can also come on its own, in `username` and `password`, which the
+ * server writes into the URL. That is how a login whose password holds an `@`
+ * or a `:` arrives intact, and how a camera's address is changed without
+ * knowing the login it is opened with: a `url` with no login of its own keeps
+ * the one stored, and only a `username` or `password` that is sent replaces its
+ * half of it (an empty one takes that half away). Neither is ever answered.
  */
 export const rtspCameraCreate = named(
   'RtspCameraCreate',
@@ -681,8 +694,10 @@ export const rtspCameraCreate = named(
     deviceId: id()
       .nullable()
       .optional()
-      .describe('The controller whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.'),
-    url: z.string().describe('The whole stream URL, credentials included.'),
+      .describe('The device whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.'),
+    url: z.string().describe('The stream URL. A login written into it is used; one that carries none keeps the login stored.'),
+    username: z.string().optional().describe('The login name the stream is opened with, written into the URL; empty takes it away.'),
+    password: z.string().optional().describe('The password the stream is opened with, written into the URL; empty takes it away.'),
   }),
 );
 
@@ -696,10 +711,10 @@ export const cameraCreate = named(
  * says which camera it is. Its kind and its P2P id are what it is; a camera
  * that is not RTSP simply never carries the stream fields.
  *
- * The controller is here because for a stream it is not part of what the camera
- * is but of how it is reached: an RTSP camera moved to another tent is pulled
- * through whatever controller stands there, or through none. A Terp Cam's
- * controller is the one that paired it and is refused on this route.
+ * The device is here because for a stream it is not part of what the camera is
+ * but of how it is reached: an RTSP camera moved to another tent is pulled
+ * through whatever device stands there, or through none. A Terp Cam's device
+ * is the one that paired it and is refused on this route.
  */
 export const cameraUpdate = named('CameraUpdate', rtspCameraCreate.omit({ kind: true }).partial());
 

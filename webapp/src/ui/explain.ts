@@ -64,6 +64,7 @@ export const HELP_TOPICS = [
   'render',
   'unpair',
   'rtsp',
+  'streamAddress',
   'rolloutFailures',
   'publicPage',
   'linkActions',

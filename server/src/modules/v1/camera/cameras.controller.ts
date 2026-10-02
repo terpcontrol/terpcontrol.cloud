@@ -42,6 +42,7 @@ import { MediaService } from './media.service';
 import { litFromPicture } from './still-light';
 import { coveredBy, TimelapseService } from './timelapse.service';
 import { OptionalSessionGuard } from './optional-session.guard';
+import { changesTheStream } from './stream-url';
 import { isRolling, periodAround, periodBefore } from './film-periods';
 import { DEFAULT_ASPECT, DEFAULT_OVERLAYS } from './timelapse-overlays';
 import { V1Answer } from '../answer-shape';
@@ -136,7 +137,10 @@ export class CamerasController {
 
     const deviceId = body.kind === 'terpcam_standalone' ? null : (body.deviceId ?? null);
     if (deviceId) await this.access.require(ctx, subjectRef('device', deviceId), 'manage');
-    if (body.kind === 'rtsp' && body.tunnel) await this.requireATunnel(deviceId);
+    if (body.kind === 'rtsp' && body.tunnel) {
+      await this.requireATunnel(deviceId);
+      refuseUdpThroughATunnel(body.transport);
+    }
     if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
     if (!deviceId && !body.spaceId) {
       throw badRequest('nowhere_to_put_it', 'A camera belongs to a space or to the controller that answers for it; name one of them.');
@@ -178,10 +182,15 @@ export class CamerasController {
    * doing so. A stream is the one thing only an RTSP camera has, so naming one
    * on a Terp Cam is refused rather than stored where nothing would read it.
    *
-   * A stream also carries the controller it is pulled through, and that follows
-   * the tent: a camera moved to a place another controller stands in has to be
+   * A stream also carries the device it is pulled through, and that follows
+   * the tent: a camera moved to a place another device stands in has to be
    * pulled through that one, so the screen that moves it sends both and this
    * route checks the pair is one the cloud could act on.
+   *
+   * A new address keeps the login the stream was opened with unless it brings
+   * one of its own (`stream-url.ts`): the login is never answered, so nobody
+   * correcting an address could send it back. The camera keeps its id, and with
+   * it every picture, film and the Premium it carries.
    */
   @Patch(':id')
   @UseGuards(AuthGuard, AccessGuard)
@@ -197,14 +206,17 @@ export class CamerasController {
     if (current.kind !== 'rtsp' && (namesAStream(body) || body.deviceId !== undefined)) {
       throw unprocessable('not_a_stream', 'This camera is a Terp Cam, which the cloud reaches by its own id rather than at a stream address.');
     }
-    // Naming somebody else's controller would pull a stream through hardware
-    // they never offered, so moving a camera onto one is managing that one too.
+    // Naming somebody else's device would pull a stream through hardware they
+    // never offered, so moving a camera onto one is managing that one too.
     if (body.deviceId) await this.access.require(ctx, subjectRef('device', body.deviceId), 'manage');
     // Either half of the pair decides the other, so both are judged together,
     // and only when this request is what changes them: a camera stored before
     // the pair was checked is not made unrenameable by it.
     if ((body.deviceId !== undefined || body.tunnel !== undefined) && (body.tunnel ?? current.tunnel)) {
       await this.requireATunnel(body.deviceId !== undefined ? body.deviceId : current.deviceId);
+    }
+    if ((body.transport !== undefined || body.tunnel !== undefined) && (body.tunnel ?? current.tunnel)) {
+      refuseUdpThroughATunnel(body.transport !== undefined ? body.transport : current.transport);
     }
     if (body.stillIntervalSeconds !== undefined && body.stillIntervalSeconds < MINIMUM_STILL_INTERVAL_SECONDS) {
       throw unprocessable(
@@ -213,7 +225,7 @@ export class CamerasController {
       );
     }
 
-    const updated = await this.cameras.update(id, body);
+    const updated = await this.cameras.update(id, body, current.url);
     if (!updated) throw notFound('camera_not_found', 'There is no camera with that id.');
 
     // The settings may be the ones that were failing, so it is tried again at once.
@@ -447,16 +459,27 @@ export class CamerasController {
   /**
    * That a stream said to be pulled through a tunnel has one to be pulled
    * through. A camera may name a device without that: the device is then only
-   * where it stands. A tunnel is a promise about the network, and the
-   * controller is the only hardware that keeps it.
+   * where it stands, and what pauses the camera in maintenance and at night.
    */
   private async requireATunnel(deviceId: string | null | undefined): Promise<void> {
-    if (!deviceId) throw unprocessable('tunnel_without_controller', 'A stream pulled through a tunnel needs the controller whose tunnel it is.');
+    if (!deviceId) throw unprocessable('tunnel_without_device', 'A stream pulled through a tunnel needs the device whose tunnel it is.');
     if (!(await this.cameras.carriesATunnel(deviceId))) {
-      throw unprocessable('not_a_controller', 'Only a controller has a tunnel to pull a stream through.');
+      throw notFound('device_not_found', 'There is no device with that id to pull a stream through.');
     }
   }
 }
+
+/**
+ * A device's tunnel carries TCP and nothing else, and RTP over UDP would have
+ * to reach the cloud on ports of its own - so a stream pulled through a tunnel
+ * over UDP is a camera that never delivers a picture, and is refused rather
+ * than stored.
+ */
+const refuseUdpThroughATunnel = (transport: CameraUpdate['transport']): void => {
+  if (transport === 'udp') {
+    throw unprocessable('udp_through_tunnel', 'A stream pulled through a device’s tunnel is read over TCP or HTTP; UDP does not pass through it.');
+  }
+};
 
 /** What a create body says about a camera that is already there: its settings, never its identity. */
 const settingsOf = (body: CameraCreate): CameraUpdate => ({
@@ -473,7 +496,7 @@ const settingsOf = (body: CameraCreate): CameraUpdate => ({
 
 /** The fields only an RTSP camera has; a Terp Cam is reached by its own id. */
 const namesAStream = (body: CameraUpdate): boolean =>
-  body.url !== undefined || body.transport !== undefined || body.tunnel !== undefined || body.model !== undefined;
+  changesTheStream(body) || body.transport !== undefined || body.tunnel !== undefined || body.model !== undefined;
 
 /** What the unique index says when two requests raced for the same film. */
 const isDuplicateKey = (error: unknown): boolean => (error as { code?: number } | null)?.code === 11000;

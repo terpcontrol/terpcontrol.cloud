@@ -229,9 +229,10 @@ export declare const seriesPoint: z.ZodObject<{
     value: z.ZodNullable<z.ZodNumber>;
 }, z.core.$strip>;
 /**
- * `terpcam_controller` is the Terp Cam a controller pairs and answers for;
+ * `terpcam_controller` is the Terp Cam a device pairs at its display and answers
+ * for - a controller or a fridge module, whatever the name says;
  * `terpcam_standalone` is one the cloud reaches itself; `rtsp` is any other
- * camera, pulled through the controller's tunnel.
+ * camera, pulled through a device's tunnel or opened by the cloud directly.
  */
 export declare const cameraKind: z.ZodEnum<{
     terpcam_controller: "terpcam_controller";

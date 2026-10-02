@@ -3,7 +3,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { Camera, CameraCreate, CameraUpdate } from '@fg2/shared-types/v1';
-import { withoutCredentials } from '@common/log-path';
 import { demoCamera } from '@utils/demo';
 import { AccessContext, AccessRange, Grantee } from '@common/v1/access.types';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
@@ -14,14 +13,15 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { EntitlementService, yearFrom } from './entitlement.service';
+import { changesTheStream, streamUrl, withoutUserInfo } from './stream-url';
 
 /**
  * The `cameras` collection: what is stored about a camera, and what of it is
  * answered.
  *
  * A camera is its own record rather than a field on a device, so a tent holds
- * several - the Terp Cam its controller pairs, RTSP cameras pulled through that
- * controller's tunnel, and standalone Terp Cams the cloud reaches itself. A
+ * several - the Terp Cam its device pairs, RTSP cameras pulled through that
+ * device's tunnel, and standalone Terp Cams the cloud reaches itself. A
  * camera that is taken away stays behind as a tombstone (`removedAt`), because
  * every picture it ever delivered still points at it.
  */
@@ -68,14 +68,14 @@ export class CamerasService {
   }
 
   /**
-   * Whether a stream may be pulled through this device. The tunnel is a
-   * controller's alone: every other type stands in a tent without offering the
-   * network a way in, so a fridge module named as the carrier of a stream is a
-   * promise nothing could keep.
+   * Whether a stream may be pulled through this device. Every Terp Control
+   * device carries the tunnel - it is part of the firmware they all share - so
+   * a fridge module is as good a way into the home network as a controller,
+   * and the one most single-device growers have. What is asked is only that
+   * the device is still there.
    */
   public async carriesATunnel(deviceId: string): Promise<boolean> {
-    const device = await this.devices.findOne({ id: deviceId }, { type: 1 }).lean();
-    return device?.type === 'controller';
+    return (await this.devices.exists({ id: deviceId })) !== null;
   }
 
   /** The one Terp Cam this controller has paired, which `POST /cameras` adopts rather than doubling. */
@@ -182,7 +182,7 @@ export class CamerasService {
       uid: null,
       ip: null,
       secret: null,
-      url: body.kind === 'rtsp' ? body.url : null,
+      url: body.kind === 'rtsp' ? streamUrl(null, body) : null,
       transport: body.kind === 'rtsp' ? (body.transport ?? null) : null,
       tunnel: body.kind === 'rtsp' ? (body.tunnel ?? false) : false,
       model: body.kind === 'rtsp' ? (body.model ?? null) : 'terp_cam',
@@ -201,9 +201,15 @@ export class CamerasService {
     return camera;
   }
 
-  /** Only what a client may write; what a camera *is* - its kind and its id - is not patched. */
-  public async update(id: string, body: CameraUpdate): Promise<CameraDocument | null> {
-    const changes = Object.fromEntries(Object.entries(body).filter(([, value]) => value !== undefined));
+  /**
+   * Only what a client may write; what a camera *is* - its kind and its id - is
+   * not patched. A new address or login is worked into the URL stored before
+   * it (`stream-url.ts`), which is what `stored` is.
+   */
+  public async update(id: string, body: CameraUpdate, stored: string | null = null): Promise<CameraDocument | null> {
+    const { username, password, ...rest } = body;
+    const url = changesTheStream(body) ? streamUrl(stored, { url: body.url, username, password }) : undefined;
+    const changes = Object.fromEntries(Object.entries({ ...rest, url }).filter(([, value]) => value !== undefined));
     return this.cameras.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<CameraDocument>();
   }
 
@@ -334,22 +340,3 @@ const narrowing = (filter: CameraFilter): FilterQuery<CameraDocument> => ({
   ...(filter.deviceId ? { deviceId: filter.deviceId } : {}),
   ...(filter.includeRemoved ? {} : { removedAt: null }),
 });
-
-/**
- * The stream URL as it is answered: the credentials it is opened with are the
- * server's to keep, and the owner is no more entitled to read them back than
- * anybody else. A value that is not a URL at all is redacted by pattern, so a
- * malformed one cannot carry a password out.
- */
-const withoutUserInfo = (url: string | null): string | null => {
-  if (url === null) return null;
-
-  try {
-    const parsed = new URL(url);
-    parsed.username = '';
-    parsed.password = '';
-    return parsed.toString();
-  } catch {
-    return withoutCredentials(url);
-  }
-};

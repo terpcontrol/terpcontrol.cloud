@@ -22,8 +22,8 @@ import { TimelapseService } from './timelapse.service';
 /**
  * Cameras, and the pictures and films they produce.
  *
- * A tent holds several cameras: the Terp Cam its controller pairs, RTSP cameras
- * pulled through that controller's tunnel, and standalone Terp Cams the cloud
+ * A tent holds several cameras: the Terp Cam its device pairs, RTSP cameras
+ * pulled through that device's tunnel, and standalone Terp Cams the cloud
  * reaches itself. The poller reads them, the builder rolls the stills up, both
  * store `media` rows, and the bytes go into the bucket they have always gone in.
  *

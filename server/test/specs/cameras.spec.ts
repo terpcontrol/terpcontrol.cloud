@@ -1,5 +1,6 @@
 import { anonymous, createAccount, loginAsAdmin, Session } from '../support/api';
 import { claimCodeOf, DeviceSimulator, provisionDevice, settle, startSimulator } from '../support/device';
+import { argumentAfter, armFfmpeg, ffmpegCalls, resetFfmpeg } from '../support/ffmpeg';
 import { joinSpace, setRow } from '../support/fixtures';
 
 /**
@@ -57,14 +58,61 @@ describe('adding a camera', () => {
     expect(refused.body.detail).toMatch(/no rendezvous/);
   });
 
-  it('will not pull a stream through hardware that has no tunnel', async () => {
+  it('pulls a stream through a fridge module as it does through a controller', async () => {
+    // Every Terp Control device carries the tunnel, and a fridge module is the
+    // only device most single-fridge growers have.
     const fridge = await provisionDevice(owner, 'fridge');
+
+    const created = await owner.client
+      .post('/v1/cameras')
+      .send(rtsp({ deviceId: fridge.deviceId, tunnel: true }))
+      .expect(201);
+    expect(created.body).toMatchObject({ deviceId: fridge.deviceId, tunnel: true });
+  });
+
+  it('makes the Terp Cam a fridge module pairs at its display, and adopts it rather than doubling it', async () => {
+    const fridge = await provisionDevice(owner, 'fridge');
+    const simulator = await startSimulator(fridge);
+    await settle();
+
+    try {
+      await simulator.publish('log', { severity: 0, message: 'hardware-info:webcam_did=TERPCAMFRIDGE' });
+      await settle(600);
+
+      const [paired] = (await owner.client.get(`/v1/cameras?deviceId=${fridge.deviceId}`).expect(200)).body.items;
+      expect(paired).toMatchObject({ kind: 'terpcam_controller', did: 'TERPCAMFRIDGE', deviceId: fridge.deviceId });
+
+      const named = await owner.client
+        .post('/v1/cameras')
+        .send({ kind: 'terpcam_controller', deviceId: fridge.deviceId, name: 'Fridge cam' })
+        .expect(201);
+      expect(named.body).toMatchObject({ id: paired.id, name: 'Fridge cam' });
+    } finally {
+      await simulator.close();
+    }
+  });
+
+  it('takes every transport ffmpeg reads RTSP over, and refuses UDP through a tunnel that carries TCP alone', async () => {
+    for (const transport of ['tcp', 'udp', 'http', 'https']) {
+      await owner.client.post('/v1/cameras').send(rtsp({ transport })).expect(201);
+    }
 
     const refused = await owner.client
       .post('/v1/cameras')
-      .send(rtsp({ deviceId: fridge.deviceId, tunnel: true }))
+      .send(rtsp({ deviceId: device.deviceId, tunnel: true, transport: 'udp' }))
       .expect(422);
-    expect(refused.body.code).toBe('not_a_controller');
+    expect(refused.body.code).toBe('udp_through_tunnel');
+  });
+
+  it('takes the login apart from the address, written in so that a password with an @ in it still opens', async () => {
+    resetFfmpeg();
+    armFfmpeg(failingRuns('apart-from-the-address'));
+    const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.70:554/apart-from-the-address', username: 'cam', password: 'p@ss' }));
+
+    expect((await owner.client.get(`/v1/cameras/${id}`).expect(200)).body.url).toBe('rtsp://10.0.0.70:554/apart-from-the-address');
+    await owner.client.post(`/v1/cameras/${id}/test-captures`).expect(200);
+
+    expect(openedAt('apart-from-the-address')).toBe('rtsp://cam:p%40ss@10.0.0.70:554/apart-from-the-address');
   });
 
   it('will not put a camera nowhere, nor into somebody else´s tent', async () => {
@@ -122,14 +170,23 @@ describe('what the camera page edits', () => {
     expect(away.body).toMatchObject({ deviceId: null, tunnel: false });
   });
 
-  it('refuses a tunnel through hardware that has none, and a tunnel through nothing at all', async () => {
+  it('moves the stream onto a fridge module´s tunnel, and refuses a tunnel through nothing at all', async () => {
     const fridge = await provisionDevice(owner, 'fridge');
 
-    const notAController = await owner.client.patch(`/v1/cameras/${camera}`).send({ deviceId: fridge.deviceId, tunnel: true }).expect(422);
-    expect(notAController.body.code).toBe('not_a_controller');
+    const moved = await owner.client.patch(`/v1/cameras/${camera}`).send({ deviceId: fridge.deviceId, tunnel: true }).expect(200);
+    expect(moved.body).toMatchObject({ deviceId: fridge.deviceId, tunnel: true });
 
     const nothingToTunnelThrough = await owner.client.patch(`/v1/cameras/${camera}`).send({ deviceId: null, tunnel: true }).expect(422);
-    expect(nothingToTunnelThrough.body.code).toBe('tunnel_without_controller');
+    expect(nothingToTunnelThrough.body.code).toBe('tunnel_without_device');
+
+    // UDP does not pass through the tunnel, whichever half of the pair is what changes.
+    const udp = await owner.client.patch(`/v1/cameras/${camera}`).send({ transport: 'udp' }).expect(422);
+    expect(udp.body.code).toBe('udp_through_tunnel');
+    await owner.client.patch(`/v1/cameras/${camera}`).send({ transport: 'http' }).expect(200);
+    await owner.client.patch(`/v1/cameras/${camera}`).send({ tunnel: false }).expect(200);
+    await owner.client.patch(`/v1/cameras/${camera}`).send({ transport: 'udp' }).expect(200);
+    expect((await owner.client.patch(`/v1/cameras/${camera}`).send({ tunnel: true }).expect(422)).body.code).toBe('udp_through_tunnel');
+    await owner.client.patch(`/v1/cameras/${camera}`).send({ transport: null }).expect(200);
   });
 
   it('refuses a controller a stranger owns', async () => {
@@ -150,6 +207,73 @@ describe('what the camera page edits', () => {
     await anonymous().patch(`/v1/cameras/${camera}`).send({ name: 'Mine now' }).expect(401);
   });
 });
+
+/**
+ * The address a router moved, the password somebody changed: corrected on the
+ * camera that is there, so its pictures, its films and its Premium stay with
+ * it. The login is never answered, so the address sent without one keeps the
+ * one stored - which is what the ffmpeg run the server makes is read for here,
+ * because nothing else says what a stream is opened with.
+ */
+describe('a stream´s address, changed in place', () => {
+  it('keeps the login it is opened with when only the address changes', async () => {
+    const id = await addCamera(rtsp({ url: 'rtsp://viewer:hunter2@10.0.0.71:554/kept-login' }));
+    resetFfmpeg();
+    armFfmpeg(failingRuns('moved-login'));
+
+    const moved = await owner.client.patch(`/v1/cameras/${id}`).send({ url: 'rtsp://10.0.0.72:554/moved-login' }).expect(200);
+    expect(moved.body).toMatchObject({ id, url: 'rtsp://10.0.0.72:554/moved-login' });
+    await owner.client.post(`/v1/cameras/${id}/test-captures`).expect(200);
+
+    expect(openedAt('moved-login')).toBe('rtsp://viewer:hunter2@10.0.0.72:554/moved-login');
+  });
+
+  it('changes the password alone, and reads the stream the way it is told to', async () => {
+    const id = await addCamera(rtsp({ url: 'rtsp://viewer:hunter2@10.0.0.73:554/new-password' }));
+    resetFfmpeg();
+    armFfmpeg(failingRuns('new-password'));
+
+    await owner.client.patch(`/v1/cameras/${id}`).send({ password: 'n3w', transport: 'http' }).expect(200);
+    await owner.client.post(`/v1/cameras/${id}/test-captures`).expect(200);
+
+    const run = ffmpegCalls().find(args => args.join(' ').includes('new-password'));
+    expect(argumentAfter(run!, '-i')).toBe('rtsp://viewer:n3w@10.0.0.73:554/new-password');
+    expect(argumentAfter(run!, '-rtsp_transport')).toBe('http');
+  });
+
+  it('pulls the stream through the tunnel of the fridge module it names', async () => {
+    const fridge = await provisionDevice(owner, 'fridge');
+    const simulator = await startSimulator(fridge);
+    await settle();
+
+    try {
+      resetFfmpeg();
+      // Whatever ffmpeg says to the stream is what the device is asked to pass on.
+      armFfmpeg(failingRuns('through-the-fridge').map(run => ({ ...run, writeToInput: Buffer.from('OPTIONS').toString('hex') })));
+      const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.74:554/through-the-fridge', deviceId: fridge.deviceId, tunnel: true }));
+      await owner.client.post(`/v1/cameras/${id}/test-captures`).expect(200);
+
+      const carriesBytes = (payload: string) => JSON.parse(payload).payload !== undefined;
+      const asked = JSON.parse((await simulator.waitFor('tunnel_write', 10_000, carriesBytes)).payload);
+      expect(asked).toMatchObject({ host: '10.0.0.74', port: 554, payload: Buffer.from('OPTIONS').toString('base64') });
+    } finally {
+      await simulator.close();
+    }
+  });
+});
+
+/**
+ * Answers enough runs of one stream to cover the poller as well as the request:
+ * a new camera is due at once, and a run the poller took would otherwise leave
+ * the request to the real ffmpeg and an address that never answers.
+ */
+const failingRuns = (match: string) => Array.from({ length: 4 }, () => ({ match, stderr: 'Connection refused', exit: 1 }));
+
+/** The URL the server opened a stream at, read off the ffmpeg run it made for it. */
+const openedAt = (match: string): string | undefined => {
+  const run = ffmpegCalls().find(args => args.join(' ').includes(match));
+  return run ? argumentAfter(run, '-i') : undefined;
+};
 
 /**
  * A query string carries a flag as text, and the flag was parsed with a

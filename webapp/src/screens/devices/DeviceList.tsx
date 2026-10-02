@@ -615,9 +615,12 @@ function CameraRow({ camera, place, devices, stillId, now }: CameraRowProps) {
   const freshness = cameraFreshness(camera, now);
 
   const line = [
-    camera.kind === 'terpcam_controller'
-      ? t('devices.via', { name: through ?? t('devices.type.controller') })
-      : t(`devices.cameraKind.${camera.kind}`),
+    camera.kind === 'terpcam_controller' && through
+      ? t('devices.via', { name: through })
+      : // A stream is pulled through a device only where its tunnel is on.
+        camera.kind === 'rtsp' && camera.tunnel && through
+        ? t('camera.rtspThrough', { device: through })
+        : t(`devices.cameraKind.${camera.kind}`),
     // A controller named after the tent it stands in would put the same word
     // twice in a row: "via FG2 · FG2".
     place === through ? null : place,

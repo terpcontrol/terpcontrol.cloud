@@ -1069,10 +1069,17 @@ export declare const mediaUpload: z.ZodObject<{
         avatar: "avatar";
     }>;
 }, z.core.$strip>;
-/** How an RTSP stream is pulled. Null on a Terp Cam, which is not RTSP at all. */
+/**
+ * How ffmpeg pulls an RTSP stream, as its `-rtsp_transport` names it: `tcp`
+ * (what null means too), `udp`, and RTSP tunnelled through HTTP or HTTPS for a
+ * camera that only answers that way. Null on a Terp Cam, which is not RTSP at
+ * all. `udp` never passes through a device's tunnel, which carries TCP alone.
+ */
 export declare const cameraTransport: z.ZodEnum<{
     tcp: "tcp";
     udp: "udp";
+    http: "http";
+    https: "https";
 }>;
 /** A hint for the URL template a stream was built from, never how it is read. */
 export declare const cameraModel: z.ZodEnum<{
@@ -1127,8 +1134,9 @@ export declare const cameraState: z.ZodObject<{
 }, z.core.$strip>;
 /**
  * A camera of its own, not a field on a device: a tent has the Terp Cam its
- * controller pairs, RTSP cameras pulled through that controller's tunnel, and
- * standalone Terp Cams the cloud reaches itself.
+ * device pairs (a controller or a fridge module), RTSP cameras pulled through
+ * the tunnel of a device standing there, and standalone Terp Cams the cloud
+ * reaches itself.
  *
  * The stored document also has the camera's `secret`, and its `url` carries the
  * credentials the stream is opened with. **Neither is ever serialised**, to the
@@ -1156,6 +1164,8 @@ export declare const camera: z.ZodObject<{
     transport: z.ZodNullable<z.ZodEnum<{
         tcp: "tcp";
         udp: "udp";
+        http: "http";
+        https: "https";
     }>>;
     tunnel: z.ZodBoolean;
     model: z.ZodNullable<z.ZodEnum<{
@@ -1213,6 +1223,8 @@ export declare const cameraPage: z.ZodObject<{
         transport: z.ZodNullable<z.ZodEnum<{
             tcp: "tcp";
             udp: "udp";
+            http: "http";
+            https: "https";
         }>>;
         tunnel: z.ZodBoolean;
         model: z.ZodNullable<z.ZodEnum<{
@@ -1293,6 +1305,13 @@ export declare const standaloneCameraCreate: z.ZodObject<{
  * `url` carries the credentials the stream is opened with, which is why it is
  * spelled out rather than picked off `Camera`: the resource answers the same URL
  * with them stripped, so the two fields do not mean the same thing.
+ *
+ * The login can also come on its own, in `username` and `password`, which the
+ * server writes into the URL. That is how a login whose password holds an `@`
+ * or a `:` arrives intact, and how a camera's address is changed without
+ * knowing the login it is opened with: a `url` with no login of its own keeps
+ * the one stored, and only a `username` or `password` that is sent replaces its
+ * half of it (an empty one takes that half away). Neither is ever answered.
  */
 export declare const rtspCameraCreate: z.ZodObject<{
     name: z.ZodString;
@@ -1307,6 +1326,8 @@ export declare const rtspCameraCreate: z.ZodObject<{
     transport: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
         tcp: "tcp";
         udp: "udp";
+        http: "http";
+        https: "https";
     }>>>;
     tunnel: z.ZodOptional<z.ZodBoolean>;
     model: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
@@ -1319,6 +1340,8 @@ export declare const rtspCameraCreate: z.ZodObject<{
     kind: z.ZodLiteral<"rtsp">;
     deviceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     url: z.ZodString;
+    username: z.ZodOptional<z.ZodString>;
+    password: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 export declare const cameraCreate: z.ZodDiscriminatedUnion<[z.ZodObject<{
     name: z.ZodString;
@@ -1357,6 +1380,8 @@ export declare const cameraCreate: z.ZodDiscriminatedUnion<[z.ZodObject<{
     transport: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
         tcp: "tcp";
         udp: "udp";
+        http: "http";
+        https: "https";
     }>>>;
     tunnel: z.ZodOptional<z.ZodBoolean>;
     model: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
@@ -1369,16 +1394,18 @@ export declare const cameraCreate: z.ZodDiscriminatedUnion<[z.ZodObject<{
     kind: z.ZodLiteral<"rtsp">;
     deviceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     url: z.ZodString;
+    username: z.ZodOptional<z.ZodString>;
+    password: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>], "kind">;
 /**
  * `PATCH /cameras/{id}`: everything a camera is given at creation except what
  * says which camera it is. Its kind and its P2P id are what it is; a camera
  * that is not RTSP simply never carries the stream fields.
  *
- * The controller is here because for a stream it is not part of what the camera
- * is but of how it is reached: an RTSP camera moved to another tent is pulled
- * through whatever controller stands there, or through none. A Terp Cam's
- * controller is the one that paired it and is refused on this route.
+ * The device is here because for a stream it is not part of what the camera is
+ * but of how it is reached: an RTSP camera moved to another tent is pulled
+ * through whatever device stands there, or through none. A Terp Cam's device
+ * is the one that paired it and is refused on this route.
  */
 export declare const cameraUpdate: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
@@ -1386,7 +1413,11 @@ export declare const cameraUpdate: z.ZodObject<{
     transport: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<{
         tcp: "tcp";
         udp: "udp";
+        http: "http";
+        https: "https";
     }>>>>;
+    username: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    password: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     spaceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     deviceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     tunnel: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;

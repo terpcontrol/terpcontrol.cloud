@@ -485,7 +485,7 @@ describe('what a failed capture is called', () => {
     ['Server returned 401 Unauthorized', 'refusedLogin'],
     ['connect ECONNREFUSED 192.168.1.40:554', 'noAnswer'],
     ['timed out waiting for the device to deliver an image', 'noAnswer'],
-    ['the device is not connected to the broker', 'noController'],
+    ['the device is not connected to the broker', 'noDevice'],
     ['this camera has no stream address', 'noAddress'],
     ['Error opening input: Invalid data found when processing input', 'noStream'],
     ['ffmpeg exited with status 251', 'unknown'],
@@ -547,12 +547,20 @@ describe('what the camera is set to', () => {
   });
 
   it('states the stream it pulls, how, and whether it goes through the tunnel', () => {
-    drawSettings({ kind: 'rtsp', did: null, model: null, url: 'rtsp://192.168.144.77:554/stream1', transport: 'tcp', tunnel: true });
+    drawSettings({ kind: 'rtsp', did: null, model: null, url: 'rtsp://192.168.144.77:554/stream1', transport: 'http', tunnel: true });
 
-    expect(screen.getByText('rtsp://192.168.144.77:554/stream1 · TCP · through the tunnel')).toBeInTheDocument();
-    // Stated and not a field: what was served has had its credentials stripped
-    // out, so saving it back would be saving over them.
-    expect(screen.queryByRole('textbox', { name: 'Reached at' })).not.toBeInTheDocument();
+    // TCP is what nearly every stream is read over, so only another way is said.
+    expect(screen.getByText('rtsp://192.168.144.77:554/stream1 · HTTP')).toBeInTheDocument();
+    expect(screen.getByText(/^RTSP via the device/)).toBeInTheDocument();
+    // Stated until it is asked to change: the field it becomes is the next test file's.
+    expect(screen.queryByRole('textbox', { name: 'Address' })).not.toBeInTheDocument();
+  });
+
+  it('says a stream the cloud opens itself is opened by the cloud, and leaves TCP unsaid', () => {
+    drawSettings({ kind: 'rtsp', did: null, model: null, deviceId: null, url: 'rtsp://cam.example.org/live', transport: 'tcp', tunnel: false });
+
+    expect(screen.getByText('rtsp://cam.example.org/live')).toBeInTheDocument();
+    expect(screen.getByText(/^RTSP, opened by the cloud/)).toBeInTheDocument();
   });
 
   it('states the identity and address a Terp Cam answers on', () => {

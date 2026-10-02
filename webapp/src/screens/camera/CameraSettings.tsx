@@ -12,6 +12,7 @@ import { useSpaces } from '@/api/spaces';
 import { deviceName } from '@/screens/devices/naming';
 import { countdownDays } from '@/screens/me/premium/entitlement';
 import { missingLine } from '@/screens/me/premium/free-tier';
+import { AdvancedSection } from '@/ui/advanced/Advanced';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
@@ -25,9 +26,11 @@ import { refusalText } from '@/ui/refusal';
  * stops.
  *
  * How it is reached is what the camera *is* and is stated rather than offered:
- * a Terp Cam is paired at its controller and an RTSP camera is an address, and
- * neither is something this form turns into the other. Somebody who may only
- * look is shown the same facts with no fields at all.
+ * a Terp Cam is paired at its device and an RTSP camera is an address, and
+ * neither is something this form turns into the other. The address itself can
+ * be corrected, and how a stream is pulled is under Erweitert at the foot of
+ * the card. Somebody who may only look is shown the same facts with no fields
+ * at all.
  *
  * Everything the contract lets a camera be set to is on this card, because a
  * setting with no screen is one nobody can undo: a grower who once turned
@@ -62,14 +65,26 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
   const [draft, setDraft] = useState<CameraUpdate>({});
   const [unpairing, setUnpairing] = useState(false);
   const [readdressing, setReaddressing] = useState(false);
+  const editing = camera.kind === 'rtsp' && mayManage && readdressing;
   // Leaving it out when the light goes off or the tent is worked in is a
-  // controller's to decide: without one, neither switch does anything - and
+  // device's to decide: without one, neither switch does anything - and
   // "night off" took the camera's only warning with it.
   const steered = camera.deviceId !== null;
 
   const value = <K extends keyof CameraUpdate>(key: K): CameraUpdate[K] =>
     key in draft ? draft[key] : (camera[key as keyof Camera] as CameraUpdate[K]);
-  const set = <K extends keyof CameraUpdate>(key: K, next: CameraUpdate[K]) => setDraft(current => ({ ...current, [key]: next }));
+  /** Nothing typed is no change, so an emptied field leaves the draft rather than standing in it as one. */
+  const set = <K extends keyof CameraUpdate>(key: K, next: CameraUpdate[K]) =>
+    setDraft(current => {
+      const rest = { ...current };
+      delete rest[key];
+      return next === undefined ? rest : { ...rest, [key]: next };
+    });
+  /** Leaving the address as it is, with whatever was typed into it so far. */
+  const keepAddress = () => {
+    for (const key of ['url', 'username', 'password'] as const) set(key, undefined);
+    setReaddressing(false);
+  };
   // The serialiser answers every one of these as a plain boolean, the stale
   // warning included, so a switch reads what it is given and decides nothing.
   const flag = (key: 'nightOff' | 'maintenanceOff' | 'logErrors' | 'staleWarning'): boolean => (key in draft ? draft[key] : camera[key]) === true;
@@ -79,6 +94,8 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
   // The carrier by the name every other screen gives it, never the type key a claim stored as one.
   const carrier = devices.data?.items.find(device => device.id === camera.deviceId) ?? null;
   const through = carrier ? deviceName(carrier, t) : null;
+  // What a stream can be pulled through: what stands where the camera looks, and the device it already names.
+  const here = (devices.data?.items ?? []).filter(device => device.spaceId === camera.spaceId || device.id === camera.deviceId);
 
   const save = () =>
     update.mutate(draft, {
@@ -103,28 +120,60 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
             address for its owner and nulls every field of it for everybody
             else, so a co-manager or a guest is shown no row at all rather than
             a row of dashes. */}
-        {reachedAt(t, camera) ? (
-          <Row label={t(camera.kind === 'rtsp' ? 'camera.address' : 'camera.reachedAt')}>
-            <span className={styles.settingStack}>
-              {/* A stream's address is the one thing a router changes under it, so it is changed here rather than by unpairing. */}
-              {camera.kind === 'rtsp' && mayManage && readdressing ? (
-                <input
-                  className={`mono ${ui.input} ${styles.settingInput}`}
-                  value={(value('url') as string | undefined) ?? camera.url ?? ''}
-                  onChange={event => set('url', event.target.value)}
-                  aria-label={t('camera.address')}
-                  autoCapitalize="none"
-                  spellCheck={false}
-                />
+        {reachedAt(camera) ? (
+          <Row label={t(camera.kind === 'rtsp' ? 'camera.address' : 'camera.reachedAt')} help={camera.kind === 'rtsp' ? 'streamAddress' : undefined}>
+            <span className={styles.settingStack} data-editing={editing || undefined}>
+              {/* A stream's address is the one thing a router changes under it,
+                  so it is changed here rather than by unpairing, which would
+                  leave the pictures, the films and the Premium behind on a
+                  camera nobody reads any more. The login is never served, so
+                  its two fields start empty and an empty one keeps it. */}
+              {editing ? (
+                <>
+                  <input
+                    className={`mono ${ui.input} ${styles.settingInput}`}
+                    value={(value('url') as string | undefined) ?? camera.url ?? ''}
+                    onChange={event => set('url', event.target.value)}
+                    aria-label={t('camera.address')}
+                    autoCapitalize="none"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <span className={styles.login}>
+                    <input
+                      className={`${ui.input} ${styles.settingInput}`}
+                      value={draft.username ?? ''}
+                      placeholder={t('camera.username')}
+                      onChange={event => set('username', event.target.value || undefined)}
+                      aria-label={t('camera.username')}
+                      autoCapitalize="none"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    <input
+                      className={`${ui.input} ${styles.settingInput}`}
+                      type="password"
+                      value={draft.password ?? ''}
+                      placeholder={t('camera.password')}
+                      onChange={event => set('password', event.target.value || undefined)}
+                      aria-label={t('camera.password')}
+                      autoComplete="new-password"
+                    />
+                  </span>
+                </>
               ) : (
-                <span className={`mono ${styles.settingValue}`}>{reachedAt(t, camera)}</span>
+                <span className={`mono ${styles.settingValue}`}>{reachedAt(camera)}</span>
               )}
               {camera.kind === 'rtsp' ? (
                 <span className={`${ui.note} ${styles.settingNote}`}>{t(readdressing ? 'camera.addressChangeNote' : 'camera.addressNote')}</span>
               ) : null}
-              {camera.kind === 'rtsp' && mayManage && !readdressing ? (
-                <button type="button" className={`mono ${styles.settingLink} ${styles.linkButton}`} onClick={() => setReaddressing(true)}>
-                  {t('camera.changeAddress')} ›
+              {camera.kind === 'rtsp' && mayManage ? (
+                <button
+                  type="button"
+                  className={`mono ${styles.settingLink} ${styles.linkButton}`}
+                  onClick={readdressing ? keepAddress : () => setReaddressing(true)}
+                >
+                  {t(readdressing ? 'camera.keepAddress' : 'camera.changeAddress')} ›
                 </button>
               ) : null}
             </span>
@@ -271,6 +320,8 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
         </div>
       ) : null}
       {mayOwn ? <p className={ui.note}>{t('camera.unpairNote')}</p> : null}
+
+      <AdvancedSection scope="camera" context={{ camera, devices: here, mayManage }} />
     </section>
   );
 }
@@ -302,23 +353,20 @@ function Row({ label, help, children }: { label: string; help?: HelpTopic; child
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
- * Where the cloud reaches this camera: the stream it pulls and how, or the P2P
- * identity and address a Terp Cam answers on.
+ * Where the cloud reaches this camera: the stream it pulls, read some other way
+ * than TCP where it is, or the P2P identity and address a Terp Cam answers on.
+ * Saying what the server is trying is worth far more than saying nothing,
+ * because the failure this page reports above is usually a failure to reach
+ * exactly this.
  *
- * It is stated and not offered as a field, although the contract would take a
- * new one. The URL is answered with its credentials stripped out - they are the
- * server's to keep - so a field prefilled with what was served would write the
- * stripped value back the first time somebody pressed Save, and the stream
- * would stop opening. Correcting an address that has moved wants a field that
- * starts empty and asks for the whole URL, which is what the add tab already
- * is; until there is one here, saying what the server is trying is worth far
- * more than saying nothing, because the failure this page reports a line above
- * is usually a failure to reach exactly this.
+ * The URL is answered with its login stripped out - it is the server's to
+ * keep - which is why changing it here sends the address on its own and the
+ * login only where somebody typed one: the server keeps the stored one.
  */
-const reachedAt = (t: Translate, camera: Camera): string | null => {
+const reachedAt = (camera: Camera): string | null => {
   const said =
     camera.kind === 'rtsp'
-      ? [camera.url, camera.transport?.toUpperCase() ?? null, camera.tunnel ? t('camera.tunnelled') : null]
+      ? [camera.url, camera.transport && camera.transport !== 'tcp' ? camera.transport.toUpperCase() : null]
       : [camera.did, camera.ip, camera.model];
 
   return said.filter(Boolean).join(' · ') || null;
@@ -326,7 +374,11 @@ const reachedAt = (t: Translate, camera: Camera): string | null => {
 
 /** How the cloud reaches this camera, under a label that already says "via". */
 const connection = (t: Translate, camera: Camera, through: string | null): string => {
-  if (camera.kind === 'terpcam_controller') return through ?? t('devices.type.controller');
+  if (camera.kind === 'terpcam_controller') return through ?? t('devices.cameraKind.terpcam_controller');
+  if (camera.kind === 'rtsp') {
+    if (!camera.tunnel) return t('camera.rtspDirect');
+    return through ? t('camera.rtspThrough', { device: through }) : t('camera.rtspTunnelled');
+  }
 
   return t(`devices.cameraKind.${camera.kind}`);
 };

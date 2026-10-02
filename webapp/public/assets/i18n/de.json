@@ -3094,10 +3094,10 @@
       "stoppedEarly": "der Stream endete, bevor ein Bild ankam",
       "refusedLogin": "die Kamera hat die hinterlegte Anmeldung abgelehnt",
       "noAnswer": "die Kamera hat nicht geantwortet",
-      "noController": "der Controller, über den diese Kamera antwortet, war nicht erreichbar",
       "noAddress": "es gibt keine Adresse, unter der diese Kamera erreichbar wäre",
       "noStream": "was geantwortet hat, war kein Videostream",
-      "unknown": "die Kamera konnte nicht gelesen werden"
+      "unknown": "die Kamera konnte nicht gelesen werden",
+      "noDevice": "das Gerät, über das diese Kamera antwortet, war nicht erreichbar"
     },
     "frameAlt": "{{name}} um {{time}}",
     "noFramesToday": "Heute noch kein Bild",
@@ -3134,7 +3134,6 @@
     "thisCamera": "Diese Kamera",
     "connectedVia": "Verbunden über",
     "reachedAt": "Kamera-ID",
-    "tunnelled": "über den Tunnel",
     "addressNote": "Das Passwort, mit dem der Stream geöffnet wird, bleibt auf dem Server und wird nie zurückgeschickt.",
     "name": "Name",
     "looksAt": "Zeigt auf",
@@ -3209,7 +3208,33 @@
     "inTimeline": "Im Verlauf ansehen",
     "address": "Adresse",
     "changeAddress": "Adresse ändern",
-    "addressChangeNote": "Die ganze Adresse, mit Benutzer und Passwort, falls die Kamera eines braucht: rtsp://benutzer:passwort@192.168.1.20:554/stream. Bilder und Filme bleiben bei dieser Kamera. Nach dem Speichern prüft „Jetzt ein Bild“, ob sie erreichbar ist."
+    "addressChangeNote": "Leer gelassen bleiben Benutzer und Passwort, wie sie sind. Bilder, Filme und Premium bleiben bei dieser Kamera. Nach dem Speichern prüft „Jetzt ein Bild“, ob sie erreichbar ist.",
+    "rtspThrough": "RTSP über {{device}}",
+    "rtspDirect": "RTSP, direkt aus der Cloud",
+    "username": "Benutzer",
+    "password": "Passwort",
+    "keepAddress": "Nicht ändern",
+    "stream": {
+      "lead": "Was die meisten nie brauchen: wie die Cloud den Stream holt.",
+      "tunnel": "Über das Gerät holen",
+      "tunnelOn": "Die Cloud holt den Stream über {{device}} aus deinem Netz.",
+      "tunnelOff": "Die Cloud öffnet den Stream selbst. Das geht nur bei einer Kamera, die aus dem Internet erreichbar ist.",
+      "throughWhich": "Über welches Gerät?",
+      "transport": "Transport",
+      "transports": {
+        "tcp": "TCP",
+        "http": "HTTP",
+        "https": "HTTPS",
+        "udp": "UDP"
+      },
+      "transportNote": {
+        "tcp": "Der Standard, passt für fast jede Kamera.",
+        "http": "RTSP durch HTTP getunnelt, für eine Kamera, die nur so antwortet.",
+        "https": "RTSP durch HTTPS getunnelt, für eine Kamera, die nur so antwortet.",
+        "udp": "Nur für eine Kamera, die die Cloud direkt erreicht."
+      }
+    },
+    "rtspTunnelled": "RTSP über das Gerät"
   },
   "cameras": {
     "add": {
@@ -3218,28 +3243,33 @@
       "cancel": "Abbrechen",
       "demo": "Die Demo darf alles ansehen und nichts ändern, sie kann also keine Kamera hinzufügen.",
       "tab": {
-        "controller": "Terp Cam",
         "standalone": "Terp Cam · eigenständig",
-        "rtsp": "RTSP"
+        "rtsp": "RTSP",
+        "terpcam": "Terp Cam"
       },
       "terpcam": {
         "one": {
-          "title": "Die Cam in der Nähe des Controllers einstecken",
-          "text": "Das blaue Licht blinkt, sobald sie bereit zum Koppeln ist."
+          "title": "Die Cam in der Nähe einstecken",
+          "text": "In WLAN-Reichweite des Geräts. Das blaue Licht blinkt, sobald sie bereit zum Koppeln ist."
         },
         "two": {
-          "title": "Am Controller: den Knopf auf Cam › Pair drehen",
-          "text": "Keine App, kein WLAN-Passwort: der Controller gibt der Cam sein Netz."
+          "title": "{{at}}: Knopf drücken, dann Terp Cam › connect cam",
+          "text": "Keine App, kein WLAN-Passwort: das Gerät gibt der Cam sein WLAN. Eine Cam pro Gerät."
         },
         "three": {
           "title": "Sie taucht hier auf",
-          "text": "Das erste Bild kommt nach etwa einer Minute. Gib ihr einen Namen und sag, worauf sie zeigt."
+          "text": "Das Display zeigt „cam ready“, das erste Bild kommt nach etwa einer Minute. Gib ihr einen Namen und sag, worauf sie zeigt."
         },
         "watching": "Noch nichts Neues. Diese Liste füllt sich von selbst, solange sie offen ist.",
-        "noController": {
-          "label": "Noch kein Controller",
-          "text": "Eine Terp Cam wird über den Knopf am Controller gekoppelt, und dieses Konto hat noch keinen übernommen. Übernimm zuerst einen, dann führt dich dieser Reiter durch das Koppeln.",
-          "claim": "Controller übernehmen"
+        "at": {
+          "fridge": "Am Kühlschrank\u00admodul",
+          "controller": "Am Controller",
+          "device": "Am Gerät"
+        },
+        "noDevice": {
+          "label": "Noch kein Gerät",
+          "text": "Eine Terp Cam wird am Display eines Kühlschrankmoduls oder Controllers gekoppelt, und dieses Konto hat noch keins übernommen. Übernimm zuerst eins, dann führt dich dieser Reiter durch das Koppeln.",
+          "claim": "Gerät übernehmen"
         }
       },
       "found": {
@@ -3254,7 +3284,7 @@
       },
       "standalone": {
         "label": "Eigenständige Terp Cam",
-        "text": "Kommt per Handy in dein WLAN (QR-Code auf der Cam). Hängt an einem Ort ohne Controller, bekommt eigene Zeitraffer, Premium für 12 Monate enthalten.",
+        "text": "Kommt per Handy in dein WLAN (QR-Code auf der Cam). Hängt an einem Ort ohne Gerät, bekommt eigene Zeitraffer, Premium für 12 Monate enthalten.",
         "coming": "Kommt bald."
       },
       "rtsp": {
@@ -3263,9 +3293,8 @@
         "premiumPriced": "Eine RTSP-Kamera läuft auch ohne Premium, hat aber kein eigenes Freijahr: Premium wird für sie gekauft, {{price}}.",
         "gatesNothing": "Auf dieser Installation wird Premium nicht berechnet, eine RTSP-Kamera kostet hier also nichts.",
         "address": "Stream-Adresse",
-        "placeholder": "rtsp://user:pass@192.168.1.40/stream1",
-        "throughController": "Wird über {{controller}} in deinem Netz geholt; alle 30 s ein Bild wie bei einer Terp Cam.",
-        "direct": "Dort steht kein Controller, die Cloud öffnet den Stream also selbst: eine Adresse aus deinem Heimnetz antwortet ihr nicht.",
+        "placeholder": "rtsp://192.168.1.40:554/stream1",
+        "direct": "Dort steht kein Gerät, die Cloud öffnet den Stream also selbst: eine Adresse aus deinem Heimnetz antwortet ihr nicht.",
         "where": "Wo schaut sie hin?",
         "nowhere": "Es gibt noch keinen Ort, an den eine Kamera passt. Benenne den, auf den sie schaut, und er wird hier angelegt.",
         "name": "Name",
@@ -3278,11 +3307,11 @@
         "failed": "Kein Bild: {{reason}}",
         "noReason": "die Kamera nannte keinen Grund",
         "shotAlt": "Das Bild aus dem Test",
-        "pickAPlace": "Wähle unten den Ort, auf den sie schaut: ein Ort mit Controller wird über diesen Controller erreicht, einer ohne nicht.",
-        "throughWhich": "Über welchen Controller?",
+        "pickAPlace": "Wähle unten den Ort, auf den sie schaut: steht dort ein Gerät, holt die Cloud den Stream darüber aus deinem Netz.",
+        "throughWhich": "Über welches Gerät?",
         "carrier": {
-          "stale": "{{controller}} hat zuletzt vor {{age}} etwas gemeldet",
-          "offline": "{{controller}} ist offline · zuletzt gemeldet vor {{age}}, der Stream antwortet also erst wieder, wenn er zurück ist"
+          "stale": "{{device}} hat zuletzt vor {{age}} etwas gemeldet",
+          "offline": "{{device}} ist offline · zuletzt gemeldet vor {{age}}, der Stream antwortet also erst wieder, sobald das Gerät zurück ist"
         },
         "placeName": "Name des Orts",
         "placeKind": "Art des Orts",
@@ -3302,7 +3331,12 @@
         "madeSomewhere": "Die Kamera wurde hinzugefügt. Sie steht jetzt im Tab Geräte, ein weiterer Test aktualisiert sie.",
         "remove": "Wieder entfernen",
         "removing": "Wird entfernt …",
-        "open": "Kamera öffnen"
+        "open": "Kamera öffnen",
+        "username": "Benutzer",
+        "password": "Passwort",
+        "loginInAddress": "Die Anmeldung steht schon in der Adresse und wird so verwendet.",
+        "throughDevice": "Wird über {{device}} aus deinem Netz geholt; alle 30 s ein Bild.",
+        "directByChoice": "Die Cloud öffnet den Stream selbst (Erweitert), die Adresse muss also aus dem Internet erreichbar sein."
       }
     }
   },
@@ -4079,7 +4113,7 @@
     "hardware": {
       "next": "Steckdosen und Cam?",
       "title": "Steckdosen und Cam",
-      "text": "Was der Controller gefunden hat: die Steckdosen, die er schaltet, und die Cam, für die er antwortet. Beides hat Zeit.",
+      "text": "Was das Gerät gefunden hat: die Steckdosen, die es schaltet, und die Cam, für die es antwortet. Beides hat Zeit.",
       "sockets": "Gemeldete Steckdosen",
       "noSockets": "noch keine",
       "notReported": "noch nicht gemeldet",
@@ -4588,11 +4622,11 @@
     },
     "cameraPauses": {
       "title": "Nachts aus, bei Wartung aus",
-      "text": "„Nachts aus“ lässt Bilder aus, solange das Licht des Controllers aus ist; „bei Wartung aus“, solange der Controller im Wartungsmodus oder ausgeschaltet ist. Beides wirkt nur bei einer Kamera, die zu einem Controller gehört, und mit „nachts aus“ gibt es keine Warnung, wenn diese Kamera nichts mehr liefert."
+      "text": "„Nachts aus“ lässt Bilder aus, solange das Licht des Geräts aus ist; „bei Wartung aus“, solange das Gerät im Wartungsmodus oder ausgeschaltet ist. Beides wirkt nur bei einer Kamera, die zu einem Gerät gehört, und mit „nachts aus“ gibt es keine Warnung, wenn diese Kamera nichts mehr liefert."
     },
     "staleWarning": {
       "title": "Meldet",
-      "text": "Die Warnung kommt, wenn zehn Intervalle lang – mindestens zehn Minuten – kein Bild kam, aber nicht, solange ihr Controller offline ist; dafür gibt es dessen eigenen Alarm. „Fehlgeschlagene Aufnahmen ins Tagebuch“ schreibt für jeden gescheiterten Versuch eine Warnung ins Tagebuch."
+      "text": "Die Warnung kommt, wenn zehn Intervalle lang – mindestens zehn Minuten – kein Bild kam, aber nicht, solange ihr Gerät offline ist; dafür gibt es dessen eigenen Alarm. „Fehlgeschlagene Aufnahmen ins Tagebuch“ schreibt für jeden gescheiterten Versuch eine Warnung ins Tagebuch."
     },
     "premiumCamera": {
       "title": "Premium",
@@ -4604,11 +4638,11 @@
     },
     "overlays": {
       "title": "Overlays",
-      "text": "Was auf den Film gezeichnet wird: der Tag des Grows, eine Temperatur- und Feuchtekurve mit markiertem Moment und Tagebucheinträge als Bildunterschriften. Jedes braucht eine Quelle – einen Grow, einen Controller, Einträge – und entfällt, wo es keine gibt."
+      "text": "Was auf den Film gezeichnet wird: der Tag des Grows, eine Temperatur- und Feuchtekurve mit markiertem Moment und Tagebucheinträge als Bildunterschriften. Jedes braucht eine Quelle – einen Grow, ein Gerät, Einträge – und entfällt, wo es keine gibt."
     },
     "lightsOffFrames": {
       "title": "Bilder aus der Dunkelphase",
-      "text": "Ausgeschaltet fallen Bilder weg, die bei ausgeschaltetem Licht des Controllers entstanden sind, damit der Film nicht jede Nacht dunkel aufblitzt. Ein Bild ohne Lichtmessung zählt als hell."
+      "text": "Ausgeschaltet fallen Bilder weg, die bei ausgeschaltetem Licht des Geräts entstanden sind, damit der Film nicht jede Nacht dunkel aufblitzt. Ein Bild ohne Lichtmessung zählt als hell."
     },
     "render": {
       "title": "Rendern",
@@ -4616,7 +4650,7 @@
     },
     "unpair": {
       "title": "Entkoppeln",
-      "text": "Die Cloud liest diese Kamera nicht mehr; ihre Bilder und Filme bleiben. Eine Terp Cam bleibt aber mit ihrem Controller gekoppelt und kommt hierher zurück, sobald der Controller sie das nächste Mal meldet, etwa nach einem Neustart."
+      "text": "Die Cloud liest diese Kamera nicht mehr; ihre Bilder und Filme bleiben. Eine Terp Cam bleibt aber mit ihrem Gerät gekoppelt und kommt hierher zurück, sobald das Gerät sie das nächste Mal meldet, etwa nach einem Neustart."
     },
     "rtsp": {
       "title": "RTSP",
@@ -4715,6 +4749,14 @@
         "title": "Betriebsart",
         "text": "Was der Kühlschrank als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂. Gewächshaus regelt nur die Temperatur: Licht und CO₂ laufen weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Keimung hält es dunkel und heizt und kühlt auf die Nachttemperatur. Der Energiespar-Modus gilt nur im Standard. Eine Trocknungsphase geht vor und kehrt danach zur Betriebsart zurück."
       },
+      "cameraTunnel": {
+        "title": "Über das Gerät holen",
+        "text": "Eingeschaltet holt die Cloud den Stream über die Verbindung des Geräts an diesem Ort aus deinem Heimnetz, so braucht die Kamera weder Portfreigabe noch DynDNS. Ausschalten nur für eine Kamera, die aus dem Internet erreichbar ist: dann öffnet die Cloud den Stream selbst, und die Verbindung des Geräts wird nicht belastet."
+      },
+      "cameraTransport": {
+        "title": "Transport",
+        "text": "Wie der Stream gelesen wird. TCP passt für fast jede Kamera. HTTP oder HTTPS nur, wenn die Kamera RTSP allein durch HTTP getunnelt anbietet. UDP nur für eine Kamera, die die Cloud direkt erreicht; durch das Gerät geht es nicht. Kommt kein Bild, lohnt ein Versuch mit einer anderen Einstellung und dann „Jetzt ein Bild“."
+      },
       "release": {
         "title": "Gerät abgeben",
         "text": "Nimmt das Gerät aus deinem Konto, damit jemand anderes es hinzufügen kann – nach einem Verkauf, einem Kontowechsel oder einem Gerätetausch. Sein Grow-Plan, seine Alarme und die Kamera, die über das Gerät verbunden ist, gehen mit. Der Ort und das Tagebuch bleiben, und am Gerät selbst ändert sich nichts."
@@ -4787,6 +4829,10 @@
         "title": "Überhitzungsschutz",
         "text": "Über dieser Temperatur am Lichtmodul dimmt sich die Lampe herunter, bis es wieder kühler ist. Das schützt die Lampe und die Pflanzen direkt darunter."
       }
+    },
+    "streamAddress": {
+      "title": "Stream-Adresse",
+      "text": "Wo die Kamera ihren Videostream anbietet, mit ihrer IP in deinem Netz (steht im Router oder in der App der Kamera). Übliche Adressen:\nTapo: rtsp://IP:554/stream1\nReolink: rtsp://IP:554/h264Preview_01_main\nHikvision: rtsp://IP:554/Streaming/Channels/101\nBenutzer und Passwort gehören in die Felder darunter. Bei Tapo ist das das Kamerakonto aus der Tapo-App (Kamera-Einstellungen › Erweiterte Einstellungen › Kamerakonto), nicht dein TP-Link-Konto. Bei Reolink muss RTSP in den Netzwerk-Einstellungen der Kamera eingeschaltet sein."
     },
     "stepLightHours": {
       "title": "Licht an für (im Schritt)",
@@ -4997,7 +5043,8 @@
     "lead": {
       "device": "Was die meisten nie brauchen. Eine Änderung gilt sofort und wird ans Gerät geschickt.",
       "place": "Was die meisten nie brauchen, für diesen Ort.",
-      "charts": "Feineinstellungen der Graphen."
+      "charts": "Feineinstellungen der Graphen.",
+      "camera": "Was die meisten nie brauchen. Eine Änderung gilt sofort, und die Kamera wird gleich neu versucht."
     },
     "range": "Von {{min}} bis {{max}} {{unit}}.",
     "save": "Speichern"

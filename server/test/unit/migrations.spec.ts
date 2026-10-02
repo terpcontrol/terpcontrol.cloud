@@ -1154,6 +1154,14 @@ describe('cameras', () => {
     );
   });
 
+  it('keeps a stream read as RTSP over HTTP, which the old app offered beside TCP', async () => {
+    await collection('devices').updateOne({ device_id: LEGACY_DEVICE_IDS.fridge }, { $set: { 'cloudSettings.rtspStreamTransport': 'https' } });
+
+    await migrate();
+
+    expect(await one<Record<string, any>>('cameras', { id: cameraIdOf(LEGACY_DEVICE_IDS.fridge) })).toMatchObject({ transport: 'https' });
+  });
+
   it('gives a device that has stills but no stream a retired camera, so no picture loses its link', async () => {
     await migrate();
 

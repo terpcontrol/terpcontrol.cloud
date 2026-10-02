@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
-import type { Camera, Device, RtspCameraCreate, Space, SpaceKind } from '@fg2/shared-types/v1';
+import type { Camera, CameraTransport, CameraUpdate, Device, RtspCameraCreate, Space, SpaceKind } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useAmendCamera, useCaptureOnce, useCreateCamera, useDropCamera } from '@/api/cameras';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
@@ -9,13 +9,14 @@ import { useSpaces } from '@/api/spaces';
 import { deviceName } from '@/screens/devices/naming';
 import { useCreateSpace } from '@/screens/grow/new/create-space';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
-import { Term } from '@/ui/Help';
+import { Help, Term } from '@/ui/Help';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough } from '@/ui/session-access';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { controllersOf } from './controllers';
+import { carriersOf, hasLogin } from '../stream';
+import { StreamFold, TransportRow, TunnelRow } from '../StreamOptions';
 import styles from './AddCamera.module.css';
 
 /** Where the reason a button cannot be pressed is written, so both buttons can point a screen reader at it. */
@@ -37,11 +38,17 @@ const PLACE_KINDS: SpaceKind[] = ['tent', 'room', 'balcony', 'other'];
  * commit stops claiming to be one, and taking it away again is offered here,
  * where a mistyped address is mistyped.
  *
- * Where a controller stands in the tent the stream is pulled through its
- * tunnel, which is what makes an address on a home network reachable at all;
- * where none does, the cloud opens the stream itself. Which controller that is
- * is said before the test rather than found out after it, because a tent may
- * hold more than one and an offline one is a stream that will not answer.
+ * Where a Terp Control device stands in the place - a fridge module as much as
+ * a controller - the stream is pulled through its tunnel, which is what makes
+ * an address on a home network reachable at all; where none does, the cloud
+ * opens the stream itself. Which device that is is said before the test rather
+ * than found out after it, because a place may hold more than one and an
+ * offline one is a stream that will not answer. Turning the tunnel off for a
+ * camera the internet reaches, and how the stream is read, are under Erweitert.
+ *
+ * The login has fields of its own rather than being typed into the address:
+ * the server writes it in, so a password with an `@` in it arrives intact. An
+ * address pasted with a login already in it keeps that one.
  */
 export function RtspCamera({ devices }: { devices: Device[] }) {
   const { t } = useTranslation();
@@ -55,10 +62,15 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   const drop = useDropCamera();
 
   const [url, setUrl] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [spaceId, setSpaceId] = useState<string | null>(null);
-  /** Which of a tent's controllers carries the stream, where it holds more than one. */
+  /** Which of a place's devices carries the stream, where it holds more than one. */
   const [carrierId, setCarrierId] = useState<string | null>(null);
+  /** Off only for a camera the internet reaches, which the cloud then opens itself. */
+  const [tunnel, setTunnel] = useState(true);
+  const [transport, setTransport] = useState<CameraTransport>('tcp');
   /** The camera once it exists, so a second test amends it rather than making another. */
   const [made, setMade] = useState<Camera | null>(null);
 
@@ -70,10 +82,10 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   // refusal after the address and the name had already been typed.
   const places = spaces.data.items.filter(space => enough(space.youMay, 'manage'));
 
-  // Only a controller has a tunnel, so a fridge module standing in the tent is
-  // not a way in and the stream has to be opened from the cloud instead.
-  const carriers = spaceId === null ? [] : controllersOf(devices, spaceId);
-  const controller = carriers.find(device => device.id === carrierId) ?? carriers[0] ?? null;
+  const live = (device: Device) => deviceLiveness(device.state.lastSeenAt, now) === 'live';
+  const carriers = spaceId === null ? [] : carriersOf(devices, spaceId, live);
+  const carrier = carriers.find(device => device.id === carrierId) ?? carriers[0] ?? null;
+  const pulled = carrier !== null && tunnel;
 
   // What is still missing, in the order the form asks for it, so that a button
   // which cannot be pressed says why instead of being grey for no stated
@@ -83,26 +95,42 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   const ready = missing === null;
   const working = create.isPending || amend.isPending || capture.isPending || drop.isPending;
 
-  /** A different tent is a different set of controllers, so the one picked here does not follow. */
+  /** A different place is a different set of devices, so the one picked here does not follow. */
   const putIn = (id: string) => {
     setSpaceId(id);
     setCarrierId(null);
   };
 
+  /** UDP does not pass through a tunnel, so turning it back on reads the stream over TCP again. */
+  const pullThrough = (next: boolean) => {
+    setTunnel(next);
+    if (next && transport === 'udp') setTransport('tcp');
+  };
+
   /**
    * The camera this form is about, made the first time it is needed and kept
-   * afterwards. The tunnel is worked out again on every write, because the tent
-   * may have been changed since the test that made the camera.
+   * afterwards. Everything is worked out again on every write, because the
+   * place or the login may have been changed since the test that made it - an
+   * emptied login field takes that half of the login away again.
    */
   const ensure = async (): Promise<Camera> => {
-    const settings = { name: name.trim(), spaceId, url: url.trim(), deviceId: controller?.id ?? null, tunnel: controller !== null };
+    const address = url.trim();
+    const settings: CameraUpdate = {
+      name: name.trim(),
+      spaceId,
+      url: address,
+      ...(hasLogin(address) ? {} : { username: username.trim(), password }),
+      deviceId: carrier?.id ?? null,
+      tunnel: pulled,
+      transport,
+    };
     if (made) {
       const amended = await amend.mutateAsync({ cameraId: made.id, body: settings });
       setMade(amended);
       return amended;
     }
 
-    const body: RtspCameraCreate = { kind: 'rtsp', ...settings };
+    const body: RtspCameraCreate = { kind: 'rtsp', ...settings, name: name.trim(), url: address };
     const fresh = await create.mutateAsync(body);
     setMade(fresh);
     return fresh;
@@ -132,7 +160,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   };
 
   const shot = capture.data?.mediaId ? mediaUrl(capture.data.mediaId, THUMBNAIL_WIDTH.frame) : null;
-  const liveness = controller ? deviceLiveness(controller.state.lastSeenAt, now) : null;
+  const liveness = pulled && carrier ? deviceLiveness(carrier.state.lastSeenAt, now) : null;
 
   return (
     <>
@@ -148,9 +176,12 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
       </section>
 
       <section className={styles.block}>
-        <label className="label" htmlFor="rtsp-url">
-          {t('cameras.add.rtsp.address')}
-        </label>
+        <div className={styles.blockHead}>
+          <label className="label" htmlFor="rtsp-url">
+            {t('cameras.add.rtsp.address')}
+          </label>
+          <Help topic="streamAddress" />
+        </div>
         <input
           id="rtsp-url"
           className={`mono ${ui.input}`}
@@ -161,12 +192,37 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
           spellCheck={false}
           onChange={event => setUrl(event.target.value)}
         />
-        <p className={styles.text}>{wayIn(t, spaceId, controller)}</p>
-        {controller && liveness && liveness !== 'live' ? (
+        {hasLogin(url) ? (
+          <p className={styles.text}>{t('cameras.add.rtsp.loginInAddress')}</p>
+        ) : (
+          <div className={styles.login}>
+            <input
+              className={ui.input}
+              value={username}
+              placeholder={t('cameras.add.rtsp.username')}
+              aria-label={t('cameras.add.rtsp.username')}
+              autoCapitalize="none"
+              autoComplete="off"
+              spellCheck={false}
+              onChange={event => setUsername(event.target.value)}
+            />
+            <input
+              className={ui.input}
+              type="password"
+              value={password}
+              placeholder={t('cameras.add.rtsp.password')}
+              aria-label={t('cameras.add.rtsp.password')}
+              autoComplete="new-password"
+              onChange={event => setPassword(event.target.value)}
+            />
+          </div>
+        )}
+        <p className={styles.text}>{wayIn(t, spaceId, carrier, pulled)}</p>
+        {carrier && liveness && liveness !== 'live' ? (
           <p className={styles.text} {...ageAttribute(liveness)}>
             {t(`cameras.add.rtsp.carrier.${liveness}`, {
-              controller: deviceName(controller, t),
-              age: ageLabel(controller.state.lastSeenAt, now),
+              device: deviceName(carrier, t),
+              age: ageLabel(carrier.state.lastSeenAt, now),
             })}
           </p>
         ) : null}
@@ -192,7 +248,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
           <span className="label">{t('cameras.add.rtsp.throughWhich')}</span>
           <Choices label={t('cameras.add.rtsp.throughWhich')}>
             {carriers.map(device => (
-              <Choice key={device.id} chosen={device.id === controller?.id} onChoose={() => setCarrierId(device.id)}>
+              <Choice key={device.id} chosen={device.id === carrier?.id} onChoose={() => setCarrierId(device.id)}>
                 {deviceName(device, t)}
               </Choice>
             ))}
@@ -213,6 +269,11 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
           onChange={event => setName(event.target.value)}
         />
       </section>
+
+      <StreamFold>
+        {carrier ? <TunnelRow on={tunnel} carrier={carrier} onChange={pullThrough} /> : null}
+        <TransportRow value={transport} tunnel={pulled} onChange={setTransport} />
+      </StreamFold>
 
       <Refused error={create.error ?? amend.error ?? capture.error ?? drop.error} />
 
@@ -323,15 +384,17 @@ const placeOf = (spaces: Space[], spaceId: string | null): string | null => spac
 
 /**
  * How the cloud will reach this address, which is a fact about the place the
- * camera looks at rather than about the address: a tent with a controller in it
- * is reached through that controller's tunnel, and one without is not reachable
- * at all unless the stream is already open to the internet. Before a place is
- * picked neither is true yet, so the line says which question is still open
- * instead of promising a tunnel through a controller nobody has named.
+ * camera looks at rather than about the address: a place with a device in it
+ * is reached through that device's tunnel, and one without is not reachable at
+ * all unless the stream is already open to the internet - which is also what
+ * turning the tunnel off under Erweitert says. Before a place is picked neither
+ * is true yet, so the line says which question is still open instead of
+ * promising a tunnel through a device nobody has named.
  */
-const wayIn = (t: Translate, spaceId: string | null, controller: Device | null): string => {
+const wayIn = (t: Translate, spaceId: string | null, carrier: Device | null, pulled: boolean): string => {
   if (spaceId === null) return t('cameras.add.rtsp.pickAPlace');
-  if (controller) return t('cameras.add.rtsp.throughController', { controller: deviceName(controller, t) });
+  if (carrier && pulled) return t('cameras.add.rtsp.throughDevice', { device: deviceName(carrier, t) });
+  if (carrier) return t('cameras.add.rtsp.directByChoice');
 
   return t('cameras.add.rtsp.direct');
 };

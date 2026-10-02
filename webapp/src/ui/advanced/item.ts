@@ -1,9 +1,10 @@
 import type { ComponentType } from 'react';
-import type { Device, SocketPage } from '@fg2/shared-types/v1';
+import type { Camera, Device, SocketPage } from '@fg2/shared-types/v1';
 
 /**
  * The items an Erweitert section offers, wherever one stands: per device in its
- * panel, per place at the foot of its cockpit, and on the charts page.
+ * panel, per place at the foot of its cockpit, on the charts page and per
+ * camera on its page.
  *
  * Erweitert is where what most growers never need goes - a work mode, a ramp, a
  * protocol - one collapsed section beside the thing it is about rather than one
@@ -47,10 +48,19 @@ export interface ChartsContext {
   spaceId: string | null;
 }
 
+/** What an item about one camera is drawn with, on its page. */
+export interface CameraContext {
+  camera: Camera;
+  /** Everything standing where the camera looks: the devices a stream can be pulled through. */
+  devices: Device[];
+  mayManage: boolean;
+}
+
 export interface AdvancedContexts {
   device: DeviceContext;
   place: PlaceContext;
   charts: ChartsContext;
+  camera: CameraContext;
 }
 
 export type AdvancedScope = keyof AdvancedContexts;

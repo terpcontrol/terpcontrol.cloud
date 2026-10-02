@@ -15,8 +15,8 @@ import { TerpCamP2PService } from './terpcam-p2p.service';
  *
  * A Terp Cam is read off its video stream, by this server where a rendezvous is
  * configured and by its controller otherwise. Every other camera is an address
- * ffmpeg opens, through the controller's tunnel where the stream only exists on
- * the tent's own network.
+ * ffmpeg opens, through the tunnel of a device in the tent where the stream only
+ * exists on the tent's own network.
  */
 
 const FFMPEG_TIMEOUT_MS = 90_000;
@@ -170,8 +170,8 @@ export class CaptureService {
       throw new Error('this camera has no stream address');
     }
 
-    // A camera that is only visible from the tent is read through the
-    // controller's MQTT tunnel, which answers on a local port.
+    // A camera that is only visible from the tent is read through the MQTT
+    // tunnel of a device standing there, which answers on a local port.
     const streamUrl = camera.tunnel && camera.deviceId ? await this.tunnel.createTunnelProxyServer(new URL(camera.url), camera.deviceId) : camera.url;
 
     let attempt = await this.runFfmpegStill(streamUrl, camera, FFMPEG_FAST_PROBE_ARGS);

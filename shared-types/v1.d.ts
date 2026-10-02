@@ -207,7 +207,7 @@ export type ExportScope = 'grow' | 'account';
 
 export type UploadMediaKind = 'photo' | 'avatar';
 
-export type CameraTransport = 'tcp' | 'udp';
+export type CameraTransport = 'tcp' | 'udp' | 'http' | 'https';
 
 export type CameraModel = 'terp_cam' | 'tapo_c200' | 'reolink' | 'hikvision' | 'custom';
 
@@ -2836,7 +2836,7 @@ export interface Camera {
   ownerId: string | null;
   kind: CameraKind;
   /**
-   * The controller that answers for this camera; null for one the cloud reaches itself, and on a shared or public read.
+   * The device that answers for this camera; null for one the cloud reaches itself, and on a shared or public read.
    */
   deviceId: string | null;
   spaceId: string | null;
@@ -2861,7 +2861,7 @@ export interface Camera {
   url: string | null;
   transport: CameraTransport | null;
   /**
-   * Pull the stream through the controller’s tunnel rather than reaching it directly.
+   * Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly.
    */
   tunnel: boolean;
   model: CameraModel | null;
@@ -2959,19 +2959,27 @@ export interface RtspCameraCreate {
   staleWarning?: boolean;
   transport?: CameraTransport | null;
   /**
-   * Pull the stream through the controller’s tunnel rather than reaching it directly.
+   * Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly.
    */
   tunnel?: boolean;
   model?: CameraModel | null;
   kind: 'rtsp';
   /**
-   * The controller whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.
+   * The device whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.
    */
   deviceId?: string | null;
   /**
-   * The whole stream URL, credentials included.
+   * The stream URL. A login written into it is used; one that carries none keeps the login stored.
    */
   url: string;
+  /**
+   * The login name the stream is opened with, written into the URL; empty takes it away.
+   */
+  username?: string;
+  /**
+   * The password the stream is opened with, written into the URL; empty takes it away.
+   */
+  password?: string;
 }
 
 export interface CameraUpdate {
@@ -2992,18 +3000,26 @@ export interface CameraUpdate {
   staleWarning?: boolean;
   transport?: CameraTransport | null;
   /**
-   * Pull the stream through the controller’s tunnel rather than reaching it directly.
+   * Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly.
    */
   tunnel?: boolean;
   model?: CameraModel | null;
   /**
-   * The controller whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.
+   * The device whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.
    */
   deviceId?: string | null;
   /**
-   * The whole stream URL, credentials included.
+   * The stream URL. A login written into it is used; one that carries none keeps the login stored.
    */
   url?: string;
+  /**
+   * The login name the stream is opened with, written into the URL; empty takes it away.
+   */
+  username?: string;
+  /**
+   * The password the stream is opened with, written into the URL; empty takes it away.
+   */
+  password?: string;
 }
 
 export interface TestCaptureAnswer {
