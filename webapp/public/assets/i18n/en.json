@@ -3003,7 +3003,8 @@
     "tryAgain": "Try again",
     "dismiss": "Dismiss",
     "takingBack": "taking it back",
-    "undoFailed": "Could not take that line back"
+    "undoFailed": "Could not take that line back",
+    "taskClosed": "Task done"
   },
   "timeline": {
     "rangeLabel": "Range",

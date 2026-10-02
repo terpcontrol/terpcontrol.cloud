@@ -3007,7 +3007,8 @@
     "tryAgain": "Nochmal versuchen",
     "dismiss": "Schließen",
     "takingBack": "wird widerrufen",
-    "undoFailed": "Der Eintrag konnte nicht widerrufen werden"
+    "undoFailed": "Der Eintrag konnte nicht widerrufen werden",
+    "taskClosed": "Aufgabe erledigt"
   },
   "timeline": {
     "rangeLabel": "Zeitraum",

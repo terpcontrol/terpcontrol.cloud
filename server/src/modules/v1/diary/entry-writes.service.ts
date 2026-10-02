@@ -12,7 +12,9 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
+import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { DEMO_WRITE_MESSAGE } from '@utils/demo';
+import { dueTasksOf, occurrencePrefix } from '../home/due-tasks';
 import { requireLogOn } from './entry-targets';
 import { requireMatchingKind, resolveEntryValues } from './entry-values';
 import { MAINTENANCE_STARTER, MaintenancePort } from './maintenance.port';
@@ -43,6 +45,15 @@ export const VISIT_SECONDS = 15 * 60;
  */
 const CLOCK_SKEW_MS = 60_000;
 
+/**
+ * How far ahead a watering or a feed written by hand still counts as the task
+ * of that kind: today's, or one due before this time tomorrow.
+ */
+const CLOSES_AHEAD_MS = 24 * 60 * 60 * 1000;
+
+/** Mongo says 11000 when a unique index refuses a write; the driver types it as an unknown error. */
+const isDuplicateKey = (error: unknown): boolean => typeof error === 'object' && error !== null && (error as { code?: number }).code === 11000;
+
 @Injectable()
 export class EntryWritesService {
   constructor(
@@ -50,6 +61,7 @@ export class EntryWritesService {
     @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
     @InjectModel(MODEL_V1.plant) private readonly plants: Model<PlantDocument>,
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
+    @InjectModel(MODEL_V1.reminder) private readonly reminders: Model<ReminderDocument>,
     private readonly access: AccessService,
     private readonly writer: EntryWriterService,
     @Inject(MAINTENANCE_STARTER) private readonly maintenance: MaintenancePort,
@@ -63,9 +75,8 @@ export class EntryWritesService {
     await requireLogOn(this.access, ctx, body);
 
     const grow = await this.growOf(body.growId ?? null, body.plantIds ?? []);
-
-    const entry = await this.writer.write({
-      source: 'human',
+    const line = {
+      source: 'human' as const,
       authorId,
       occurredAt,
       growId: grow?.id ?? body.growId ?? null,
@@ -73,10 +84,16 @@ export class EntryWritesService {
       deviceId: body.deviceId ?? null,
       cameraId: body.cameraId ?? null,
       plantIds: body.plantIds ?? [],
-      taskId: body.taskId ?? null,
       text: body.text ?? null,
       mediaIds: body.mediaIds ?? [],
       values: resolveEntryValues(body.values, grow, occurredAt),
+    };
+    const closes = body.taskId === undefined ? await this.dueTaskOf(body.kind, grow, occurredAt) : null;
+
+    const entry = await this.writer.write({ ...line, taskId: body.taskId ?? closes }).catch(error => {
+      // Ticked off by somebody else in the same moment: the watering is still written.
+      if (closes !== null && isDuplicateKey(error)) return this.writer.write({ ...line, taskId: null });
+      throw error;
     });
 
     if (entry.kind === 'visit') await this.quietenTheTent(entry, grow);
@@ -165,6 +182,37 @@ export class EntryWritesService {
 
     const here = await this.devices.find({ spaceId: { $in: spaceIds } }, { id: 1 }).lean<Pick<StoredDevice, 'id'>[]>();
     await Promise.all(here.map(device => this.maintenance.startMaintenance(device.id, VISIT_SECONDS)));
+  }
+
+  /**
+   * The task a watering or a feed written by hand closes: the one of that kind
+   * due on the grow - or on the place it stands in - first, if it is overdue or
+   * due within a day. Somebody who waters through the Log button has watered;
+   * a task left open beside the line would remind them again, and ticking it
+   * would write the watering twice. Its rhythm then counts from this watering,
+   * which is when the plants were watered.
+   */
+  private async dueTaskOf(kind: EntryCreate['kind'], grow: GrowDocument | null, at: Date): Promise<string | null> {
+    if (!grow || (kind !== 'water' && kind !== 'feed')) return null;
+
+    const spaceIds = grow.placements.flatMap(placement => (placement.endedAt === null && placement.spaceId ? [placement.spaceId] : []));
+    const reminders = await this.reminders
+      .find({
+        kind,
+        $or: [
+          { 'subject.type': 'grow', 'subject.id': grow.id },
+          { 'subject.type': 'space', 'subject.id': { $in: spaceIds } },
+        ],
+      })
+      .lean<ReminderDocument[]>();
+    if (reminders.length === 0) return null;
+
+    const completions = await this.entries
+      .find({ $or: reminders.map(reminder => ({ taskId: reminder.onceAt ? reminder.id : { $regex: `^${occurrencePrefix(reminder.id)}` } })) })
+      .lean<EntryDocument[]>();
+    const [first] = dueTasksOf(reminders, completions, at, CLOSES_AHEAD_MS).sort((one, other) => one.dueAt.localeCompare(other.dueAt));
+
+    return first?.id ?? null;
   }
 
   /** The grow a feed is resolved against: the one named, else the one the plants belong to. */

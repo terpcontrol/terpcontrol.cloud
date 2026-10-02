@@ -83,7 +83,11 @@ function Toast({ line, onUndo, onRetry, onDismiss, onDetails }: Omit<ToastsProps
 
   return (
     <div className={styles.toast}>
-      <span className={styles.label}>{line.label}</span>
+      <span className={styles.label}>
+        {line.label}
+        {/* A watering written by hand closes the watering task that was due, and says so. */}
+        {line.details && line.entry?.taskId ? ` · ${t('log.taskClosed')}` : null}
+      </span>
       {line.undoing ? (
         <span className={`mono ${styles.quiet}`}>{t('log.takingBack')}</span>
       ) : (

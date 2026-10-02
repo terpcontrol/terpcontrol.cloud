@@ -159,7 +159,7 @@ beforeEach(async () => {
     startMaintenance: async (deviceId, forSeconds) => void quietened.push({ deviceId, forSeconds }),
   };
 
-  entries = new EntryWritesService(db.entries, db.grows, db.plants, db.devices, access, new EntryWriterService(db.entries), maintenance);
+  entries = new EntryWritesService(db.entries, db.grows, db.plants, db.devices, db.reminders, access, new EntryWriterService(db.entries), maintenance);
 
   const alarms: StageAlarms = { applyStage: async () => undefined };
   const mail = { send: async () => undefined } as unknown as MailService;
@@ -467,6 +467,46 @@ describe('ticking a task off', () => {
     await entries.remove(session(OWNER), entry.id);
 
     await expect(completions.complete(session(OWNER), 'reminder-1', {})).resolves.toMatchObject({ taskId: 'reminder-1' });
+  });
+
+  /**
+   * Watering through the Log button is watering: the task of that kind due on
+   * the grow is closed by the line, the rhythm counts on from it, and taking
+   * the line back opens the task again. What is days away is left alone.
+   */
+  it('is closed by a watering or a feed written by hand, when one is due', async () => {
+    const day = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    await aReminder({ kind: 'water', label: 'Water', createdAt: new Date(now - 3 * day - 60_000), defaults: null });
+    await db.reminders.create({
+      id: 'reminder-far',
+      subject: { type: 'space', id: SPACE },
+      kind: 'feed',
+      label: 'Feed',
+      everyDays: 7,
+      onceAt: null,
+      assigneeId: null,
+      createdBy: OWNER,
+      createdAt: new Date(now),
+    });
+
+    const watered = await entries.create(session(OWNER), { kind: 'water', growId: GROW, values: { kind: 'water', litres: 2 } });
+    expect(watered.taskId).toMatch(/^reminder-1:\d+$/);
+
+    const fed = await entries.create(session(OWNER), { kind: 'feed', growId: GROW, values: { kind: 'feed' } });
+    expect(fed.taskId).toBeNull();
+
+    const note = await entries.create(session(OWNER), { kind: 'note', growId: GROW, values: { kind: 'note' }, text: 'Watered' });
+    expect(note.taskId).toBeNull();
+
+    // Watered again a minute later: the next one is three days off.
+    const again = await entries.create(session(OWNER), { kind: 'water', growId: GROW, values: { kind: 'water' } });
+    expect(again.taskId).toBeNull();
+
+    await entries.remove(session(OWNER), again.id);
+    await entries.remove(session(OWNER), watered.id);
+    const back = await entries.create(session(OWNER), { kind: 'water', growId: GROW, values: { kind: 'water' } });
+    expect(back.taskId).toBe(watered.taskId);
   });
 
   it('tells a stranger there is no such task before it tells them what is due there', async () => {
