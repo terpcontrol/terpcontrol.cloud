@@ -65,17 +65,21 @@ const CMD_CHANNEL = 0;
 const VIDEO_CHANNEL = 1;
 const FRAME_MAGIC = Buffer.from([0x55, 0xaa, 0x15, 0xa8]);
 
-// The timeouts below assume a slow path between the camera's site and the cloud:
-// every datagram crosses the controller's uplink inside the relay, so a round
-// trip can take seconds when the uplink is busy with the keyframe itself.
-const LOGIN_MS = 10_000;
+// The timeouts below assume a slow and lossy path between the camera's site and
+// the cloud: every datagram crosses the controller's uplink inside the relay.
+// None of them runs before the relay is up - the MQTT request and the
+// controller's dial-in have RELAY_DIAL_MS to themselves - but on the relay a TCP
+// segment the uplink loses is resent only after ~3s, and after 6s more if it is
+// lost again (lwIP's initial retransmission timeout, doubling), so a round trip
+// that takes half a second on a good link can take ten on a choppy one.
+const LOGIN_MS = 15_000;
 /**
- * How long a login waits for the camera to send anything at all. It answers a
- * handshake within half a second on the LAN, so a camera still silent after this
- * has dropped the session - it does that now and then when one opens just as
- * another is starting - and a fresh one is cheaper than waiting out LOGIN_MS.
+ * How long a login waits for the camera to send anything at all. The camera now
+ * and then drops a session that opens just as another is starting, and a fresh
+ * one is cheaper than waiting out LOGIN_MS. It answers within half a second on
+ * the LAN, so this is sized for the relay instead: two lost segments in a row.
  */
-const LOGIN_SILENT_MS = 5_000;
+const LOGIN_SILENT_MS = 10_000;
 /**
  * How long one attempt waits for a keyframe. The first frame of a fresh stream is
  * one, so this is only spent in full when that frame cannot be repaired and the
@@ -86,9 +90,11 @@ const TRANSFER_MS = 60_000;
 /** How long the stream may stay silent, including before its first datagram. */
 const IDLE_MS = 15_000;
 /**
- * A gap this old will not close; take the next keyframe instead of repairing.
- * Every fragment is acked as it arrives, so the camera resends the oldest one it
- * is missing within tens of milliseconds; this only covers one that never comes.
+ * A gap that has not closed while the stream kept arriving for this long will
+ * not close; take the next keyframe instead of repairing. Every fragment is acked
+ * as it arrives, so the camera resends the oldest one it is missing within tens
+ * of milliseconds. Only time with data arriving counts: on a link that stalls,
+ * the resend is held up with everything else and arrives once it recovers.
  */
 const GAP_ABANDON_MS = 3_000;
 /** Indices per DrwAck; it names each one, so this bounds the datagram's size. */
@@ -737,7 +743,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
       );
       ack();
       if (found.frame) return found.frame;
-      if (Date.now() - lastProgress > GAP_ABANDON_MS) {
+      if (lastData - lastProgress > GAP_ABANDON_MS) {
         assembly = new FragmentAssembly();
         lastProgress = Date.now();
       }
