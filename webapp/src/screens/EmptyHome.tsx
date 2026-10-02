@@ -7,6 +7,7 @@ import { session, useSession } from '@/api/session';
 import { canScan } from '@/ui/barcode';
 import { useMayManage } from '@/ui/session-access';
 import { QrScanner } from '@/ui/QrScanner';
+import { LegacyMove } from './claim/LegacyMove';
 import ui from '@/ui/ui.module.css';
 import styles from './EmptyHome.module.css';
 
@@ -224,6 +225,8 @@ function ClaimCode() {
           {t('home.addDevice.camera')} ›
         </Link>
       </p>
+
+      <LegacyMove className={styles.legacy} />
 
       {scanning ? <QrScanner onCode={onCode} onClose={closeScanner} onFailed={onFailed} /> : null}
     </article>

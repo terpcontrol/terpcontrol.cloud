@@ -298,3 +298,42 @@
   max-height: 11rem;
   overflow-y: auto;
 }
+
+/* The way across from the old cloud: folded under the field that asks for a
+   code, because only a module that made the move shows one. */
+.legacy {
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+  color: var(--muted);
+}
+
+.legacy summary {
+  cursor: pointer;
+  color: var(--brand);
+  font-weight: var(--weight-semibold);
+}
+
+.legacy p,
+.legacy ol {
+  margin: var(--space-2) 0 0;
+}
+
+.legacy ol {
+  padding-left: 1.4em;
+}
+
+.legacy li + li {
+  margin-top: var(--space-1);
+}
+
+.legacy a {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The address to type, whole and selectable, wrapped anywhere rather than off the edge. */
+.address {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}

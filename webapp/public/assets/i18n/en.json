@@ -248,10 +248,6 @@
     "acceptPrivacyBefore": "I accept the",
     "acceptPrivacyLink": "privacy policy",
     "privacyTitle": "Privacy policy",
-    "legacy": {
-      "toggle": "Moving over from the old Fridge Grow 2.0 / Plantalytix cloud?",
-      "intro": "Connect your existing module to the Terp Control cloud (instructions in German):"
-    },
     "messages": {
       "loginFailedTitle": "Login failed",
       "errorTitle": "Error",
@@ -5139,6 +5135,20 @@
   "oldLink": {
     "title": "This link has ended",
     "body": "Terp Control has moved to a new app. Links shared from the old app stopped working with the move. Ask whoever sent you this link for a new one."
+  },
+  "legacyMove": {
+    "toggle": "Coming from the old Fridge Grow 2.0 / Plantalytix cloud?",
+    "intro": "Accounts of the old cloud were not carried over - this one is your new one. Your module shows a code only once it talks to this server. This is how you switch it over:",
+    "changeServer": "On the module, open “Change Server” under “Wifi Connection”. Tip: typing works better after switching to the “Off” mode first.",
+    "noChangeServer": "If it is missing,",
+    "firmware": "install a new firmware first",
+    "noChangeServerEnd": " and then still follow every step here.",
+    "address": "Enter this address there:",
+    "addressEnd": " - to type the “s” of “https” you have to delete the “://” first.",
+    "password": "Type an “a” as the password, even though one is already there: before you tap “Done”, the field must read “aa”.",
+    "update": "Wait until the firmware update has finished and the module has restarted.",
+    "failed": "If it says “Connection failed”, restart the module - otherwise you cannot leave the menu.",
+    "portal": "Now open “Connect to portal”. The module then shows the code you enter here."
   },
   "planLight": {
     "label": "Light on for",

@@ -84,6 +84,20 @@ describe('the empty home', () => {
    * first-run copy written for somebody's own brand-new account and told to set
    * up hardware it may not claim.
    */
+  it('folds the way across from the old cloud under the code, with this install’s own address', () => {
+    draw();
+    const card = screen.getByRole('heading', { name: 'Add a device' }).closest('article')!;
+    const guide = within(card).getByText('Coming from the old Fridge Grow 2.0 / Plantalytix cloud?').closest('details')!;
+
+    expect(guide).not.toHaveAttribute('open');
+    expect(within(guide).getByText(/Change Server/)).toBeInTheDocument();
+    expect(within(guide).getByRole('link', { name: 'install a new firmware first' })).toHaveAttribute(
+      'href',
+      'https://github.com/terpcontrol/terpcontrol.cloud/blob/master/UPGRADING-FIRMWARE.md',
+    );
+    expect(guide.querySelector('code')?.textContent).toMatch(/^https?:\/\//);
+  });
+
   it('tells the demo that the demo is empty rather than offering it a grower first run', () => {
     who.is = 'demo';
     draw();

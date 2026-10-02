@@ -248,10 +248,6 @@
     "acceptPrivacyBefore": "Ich akzeptiere die",
     "acceptPrivacyLink": "Datenschutzbedingungen",
     "privacyTitle": "Datenschutzbedingungen",
-    "legacy": {
-      "toggle": "Du kommst von der alten Fridge Grow 2.0 / Plantalytix Cloud?",
-      "intro": "So verbindest du dein bestehendes Modul mit der Terp Control Cloud:"
-    },
     "messages": {
       "loginFailedTitle": "Anmeldung fehlgeschlagen",
       "errorTitle": "Fehler",
@@ -5143,6 +5139,20 @@
   "oldLink": {
     "title": "Dieser Link ist abgelaufen",
     "body": "Terp Control ist in eine neue App umgezogen. Links, die in der alten App geteilt wurden, gelten seit dem Umzug nicht mehr. Bitte die Person, die dir den Link geschickt hat, um einen neuen."
+  },
+  "legacyMove": {
+    "toggle": "Du kommst von der alten Fridge Grow 2.0 / Plantalytix Cloud?",
+    "intro": "Konten der alten Cloud wurden nicht übernommen - dieses hier ist dein neues. Dein Modul zeigt erst einen Code, wenn es mit diesem Server verbunden ist. So stellst du es um:",
+    "changeServer": "Öffne am Modul unter „Wifi Connection“ den Punkt „Change Server“. Tipp: Die Eingabe klappt besser, wenn du vorher in den Modus „Off“ wechselst.",
+    "noChangeServer": "Fehlt der Punkt, spiel zuerst",
+    "firmware": "eine neue Firmware auf",
+    "noChangeServerEnd": " und folge danach trotzdem allen Schritten hier.",
+    "address": "Gib dort diese Adresse ein:",
+    "addressEnd": " - für das „s“ in „https“ musst du erst das „://“ löschen.",
+    "password": "Gib beim Kennwort ein „a“ ein, auch wenn dort schon eins steht: Bevor du auf „Done“ tippst, muss „aa“ im Feld stehen.",
+    "update": "Warte, bis das Firmware-Update durch ist und das Modul neu gestartet hat.",
+    "failed": "Steht dort „Connection failed“, starte das Modul neu - sonst kommst du aus dem Menü nicht mehr heraus.",
+    "portal": "Rufe jetzt „Connect to portal“ auf. Das Modul zeigt dann den Code, den du hier eingibst."
   },
   "planLight": {
     "label": "Licht an für",

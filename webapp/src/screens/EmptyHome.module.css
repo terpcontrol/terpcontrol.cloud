@@ -84,3 +84,8 @@
     padding-top: 0;
   }
 }
+
+/* The way across from the old cloud, a step below the links of the card. */
+.legacy {
+  margin-top: var(--space-3);
+}

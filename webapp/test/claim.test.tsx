@@ -205,6 +205,11 @@ describe('adding a device', () => {
     expect(screen.queryByRole('textbox', { name: 'Name of the place' })).not.toBeInTheDocument();
   });
 
+  it('folds the way across from the old cloud under the code it asks for', () => {
+    draw();
+    expect(screen.getByText('Coming from the old Fridge Grow 2.0 / Plantalytix cloud?').closest('details')).not.toHaveAttribute('open');
+  });
+
   it('takes the code the empty home already read', () => {
     draw('/claim?code=ABCD1234');
 

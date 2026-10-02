@@ -12,6 +12,7 @@ import { Refused } from '@/ui/PageState';
 import { QrScanner } from '@/ui/QrScanner';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
+import { LegacyMove } from './LegacyMove';
 import { cameraName, deviceName } from './steps';
 import styles from './Claim.module.css';
 
@@ -138,6 +139,8 @@ export function CodeStep({
       <button type="submit" className={`${ui.button} ${ui.primary} ${styles.wide}`} disabled={claim.isPending}>
         {claim.isPending ? t('claim.code.claiming') : t('claim.code.claim')}
       </button>
+
+      <LegacyMove />
 
       {scanning ? <QrScanner onCode={onCode} onClose={closeScanner} onFailed={onFailed} /> : null}
     </form>
