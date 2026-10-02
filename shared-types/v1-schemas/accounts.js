@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.pushPayload = exports.adminUserUpdate = exports.adminUserCreate = exports.adminUserPage = exports.userExport = exports.exportStatus = exports.notificationLogEntry = exports.notificationSubjectType = exports.telegramLink = exports.pushSubscriptionCreate = exports.pushSubscription = exports.pushSubscriptionKeys = exports.passwordResetRedemption = exports.passwordResetCreate = exports.automationSession = exports.automationSessionCreate = exports.sessionRefresh = exports.demoSessionCreate = exports.sessionResult = exports.sessionUser = exports.sessionCreate = exports.sessionPage = exports.session = exports.sessionTokens = exports.authToken = exports.userActivation = exports.signupUser = exports.userCreate = exports.passwordChange = exports.meUpdate = exports.me = exports.meClimateRetention = exports.premium = exports.premiumFree = exports.user = exports.notificationSettings = exports.quietHours = exports.notificationRouting = exports.notificationChannels = exports.telegramChannel = exports.webhookChannel = exports.notificationCategory = exports.userRetention = exports.userPreferences = exports.layoutSeen = exports.userPrivacy = void 0;
+exports.pushPayload = exports.adminUserUpdate = exports.adminUserCreate = exports.adminUserPage = exports.userExport = exports.exportStatus = exports.notificationLogEntry = exports.notificationSubjectType = exports.telegramLink = exports.pushSubscriptionCreate = exports.pushSubscription = exports.pushSubscriptionKeys = exports.passwordResetRedemption = exports.passwordResetCreate = exports.automationSession = exports.automationSessionCreate = exports.sessionRefresh = exports.demoSessionCreate = exports.sessionResult = exports.sessionUser = exports.sessionCreate = exports.sessionPage = exports.session = exports.sessionTokens = exports.authToken = exports.userActivation = exports.signupUser = exports.userCreate = exports.passwordChange = exports.emailAlarmsCreate = exports.meUpdate = exports.me = exports.meClimateRetention = exports.premium = exports.premiumFree = exports.user = exports.notificationSettings = exports.quietHours = exports.notificationRouting = exports.notificationChannels = exports.telegramChannel = exports.webhookChannel = exports.notificationCategory = exports.userRetention = exports.userPreferences = exports.layoutSeen = exports.userPrivacy = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -54,6 +54,10 @@ exports.userPreferences = (0, common_js_1.named)('UserPreferences', zod_1.z.obje
         .nullable()
         .optional()
         .describe('The shape of the app this person was last shown, as the app recorded it; it says once what changed when the diary comes in or a second place appears. Null until the app first records one. A body that leaves it out keeps what is stored.'),
+    deviceOfferDeclined: zod_1.z
+        .boolean()
+        .optional()
+        .describe('Whether "No thanks" was said to the line that offers a sensor to somebody who keeps a diary without one. A body that leaves it out keeps what is stored.'),
 }));
 /** How long raw climate points are kept; `null` keeps them for as long as the install does. */
 exports.userRetention = (0, common_js_1.named)('UserRetention', zod_1.z.object({
@@ -258,6 +262,14 @@ exports.meUpdate = (0, common_js_1.named)('MeUpdate', exports.user
  * whose password predates it.
  */
 const password = () => zod_1.z.string().min(1);
+/**
+ * `POST /me/email-alarms`: which rows of the grid the tap sends to the login
+ * address - the ones that can call on this account at all, which the app works
+ * out from what the account has. Without a body it is the critical alarms.
+ */
+exports.emailAlarmsCreate = (0, common_js_1.named)('EmailAlarmsCreate', zod_1.z.object({
+    categories: zod_1.z.array(exports.notificationCategory).min(1).optional(),
+}));
 /** `PUT /me/password`. The current one is asked for again, because a stolen session must not be able to keep itself. */
 exports.passwordChange = (0, common_js_1.named)('PasswordChange', zod_1.z.object({
     currentPassword: password(),

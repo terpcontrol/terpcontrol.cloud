@@ -1017,13 +1017,17 @@ export const cardSetpoint = named(
   }),
 );
 
-/** The newest picture of a space, as a card shows it. */
+/**
+ * The picture a space is shown by: its newest one taken with the light on, so a
+ * tent whose lamp is off by day is not shown dark in the hours somebody looks.
+ */
 export const latestStill = named(
   'LatestStill',
   z.object({
     mediaId: id(),
     cameraId: id(),
     capturedAt: instant(),
+    lightOff: z.boolean().describe('Whether the camera has taken newer pictures since, in the dark; this one is then the last taken in the light.'),
   }),
 );
 
@@ -1286,6 +1290,9 @@ export const overviewCamera = named(
     stills: z
       .array(cameraStill)
       .describe("Today's, oldest first and at most one per slot of the day, so the strip spans the day rather than its last few minutes."),
+    litStill: cameraStill
+      .nullable()
+      .describe('The newest picture taken with the light on, where the newest of all was taken in the dark; null where the newest is lit or none ever was.'),
   }),
 );
 

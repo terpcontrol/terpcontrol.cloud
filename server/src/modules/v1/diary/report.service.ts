@@ -144,7 +144,9 @@ export class GrowReportService {
         seen,
         bandOf(chapter),
       ),
-      this.coverOf(spaceIds, new Date((seen.startsAt.getTime() + seen.endsAt.getTime()) / 2), world.grant, world.range),
+      this.coverOf(spaceIds, new Date((seen.startsAt.getTime() + seen.endsAt.getTime()) / 2), world.grant, world.range).then(
+        cover => cover ?? photoOf(entries, new Date((seen.startsAt.getTime() + seen.endsAt.getTime()) / 2), world.grant),
+      ),
     ]);
 
     const counted = (kind: EntryKind): number => entries.filter(entry => entry.kind === kind).length;
@@ -218,6 +220,8 @@ export class GrowReportService {
         {
           cameraId: { $in: cameras.map(camera => camera.id) },
           kind: 'still',
+          // A chapter is told under a picture of the tent lit, never of it dark.
+          lit: { $ne: false },
           capturedAt: { $gte: searched.startsAt, $lte: searched.endsAt },
         },
         { id: 1, capturedAt: 1 },
@@ -340,3 +344,18 @@ export const harvestOf = (plants: readonly PlantDocument[], hide: Redaction, ran
     dryWeightG: hide.weights ? null : total(harvested.map(one => one.dryWeightG)),
   };
 };
+
+/**
+ * A chapter the cameras did not see lit around its middle is told under the
+ * photo written into it nearest that middle, as its week cards already are -
+ * a picture of a cam taken into a photo line only where the reader may see the
+ * cameras.
+ */
+const photoOf = (entries: EntryDocument[], middle: Date, grant: Grant): string | null =>
+  entries
+    .filter(entry => entry.mediaIds.length > 0 && (grant.includeCameras || entry.cameraId === null))
+    .reduce<EntryDocument | null>(
+      (best, entry) =>
+        best === null || Math.abs(entry.occurredAt.getTime() - middle.getTime()) < Math.abs(best.occurredAt.getTime() - middle.getTime()) ? entry : best,
+      null,
+    )?.mediaIds[0] ?? null;

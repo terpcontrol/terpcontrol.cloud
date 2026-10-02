@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { compare, hash } from 'bcrypt';
 import { Model } from 'mongoose';
 import { randomUUID } from 'node:crypto';
-import { AdminUserCreate, AdminUserUpdate, Me, MeUpdate, NotificationSettings, User } from '@fg2/shared-types/v1';
+import { AdminUserCreate, AdminUserUpdate, Me, MeUpdate, NotificationCategory, NotificationSettings, User } from '@fg2/shared-types/v1';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { conflict, notFound } from '@common/v1/problem';
@@ -195,12 +195,11 @@ export class AccountsService implements OnModuleInit {
    * field by field rather than as the whole settings object, so a change made a
    * moment ago in another tab is not carried back over.
    */
-  public async mailAlarms(id: string): Promise<StoredUser> {
+  public async mailAlarms(id: string, rows: NotificationCategory[] = [alertCategory('critical')!]): Promise<StoredUser> {
     const user = await this.require(id);
-    const row = alertCategory('critical')!;
 
     await this.users.updateOne({ id, 'notifications.channels.email': null }, { $set: { 'notifications.channels.email': user.email } });
-    await this.users.updateOne({ id }, { $addToSet: { [`notifications.routing.${row}`]: 'email' } });
+    await this.users.updateOne({ id }, { $addToSet: Object.fromEntries(rows.map(row => [`notifications.routing.${row}`, 'email'])) });
 
     return this.require(id);
   }
@@ -307,6 +306,7 @@ export class AccountsService implements OnModuleInit {
         diary: user.preferences.diary ?? null,
         notifyLaterUntil: user.preferences.notifyLaterUntil?.toISOString() ?? null,
         layoutSeen: user.preferences.layoutSeen ? { diary: user.preferences.layoutSeen.diary, places: user.preferences.layoutSeen.places } : null,
+        deviceOfferDeclined: user.preferences.deviceOfferDeclined === true,
       },
       retention: { climateDays: user.retention.climateDays },
       notifications: {

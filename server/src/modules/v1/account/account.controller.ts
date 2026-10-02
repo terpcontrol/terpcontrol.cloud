@@ -1,6 +1,7 @@
 import { Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiAcceptedResponse, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
+  EmailAlarmsCreate,
   Me,
   MeUpdate,
   PasswordChange,
@@ -11,6 +12,7 @@ import {
   UserCreate,
 } from '@fg2/shared-types/v1';
 import {
+  emailAlarmsCreate,
   me as meShape,
   meUpdate,
   passwordChange,
@@ -110,16 +112,18 @@ export class AccountController {
   /**
    * The one tap that turns somebody who believes they are watched over into
    * somebody who is: critical alarms - a device gone offline, a tent too warm -
-   * by mail to the address they sign in with. It takes no body, so the address
-   * cannot be anybody else's; asking again changes nothing.
+   * by mail to the address they sign in with, and whatever else can call on
+   * this account, such as a reminder that is due. The body names rows of the
+   * grid and never an address, so the address cannot be anybody else's;
+   * asking again changes nothing.
    */
   @Post('me/email-alarms')
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Mail critical alarms to the login address, unless another address is already set' })
+  @ApiOperation({ summary: 'Mail critical alarms, or the rows named, to the login address, unless another address is already set' })
   @V1Answer(meShape)
-  public async mailAlarms(@CurrentUser() caller: AuthContext): Promise<Me> {
-    return this.accounts.serialiseMe(await this.accounts.mailAlarms(accountOf(caller)));
+  public async mailAlarms(@CurrentUser() caller: AuthContext, @V1Body(emailAlarmsCreate.optional()) body: EmailAlarmsCreate | undefined): Promise<Me> {
+    return this.accounts.serialiseMe(await this.accounts.mailAlarms(accountOf(caller), body?.categories));
   }
 
   /**

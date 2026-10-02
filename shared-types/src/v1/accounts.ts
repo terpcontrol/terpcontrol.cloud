@@ -71,6 +71,12 @@ export const userPreferences = named(
       .describe(
         'The shape of the app this person was last shown, as the app recorded it; it says once what changed when the diary comes in or a second place appears. Null until the app first records one. A body that leaves it out keeps what is stored.',
       ),
+    deviceOfferDeclined: z
+      .boolean()
+      .optional()
+      .describe(
+        'Whether "No thanks" was said to the line that offers a sensor to somebody who keeps a diary without one. A body that leaves it out keeps what is stored.',
+      ),
   }),
 );
 
@@ -329,6 +335,18 @@ export const meUpdate = named(
  * whose password predates it.
  */
 const password = () => z.string().min(1);
+
+/**
+ * `POST /me/email-alarms`: which rows of the grid the tap sends to the login
+ * address - the ones that can call on this account at all, which the app works
+ * out from what the account has. Without a body it is the critical alarms.
+ */
+export const emailAlarmsCreate = named(
+  'EmailAlarmsCreate',
+  z.object({
+    categories: z.array(notificationCategory).min(1).optional(),
+  }),
+);
 
 /** `PUT /me/password`. The current one is asked for again, because a stolen session must not be able to keep itself. */
 export const passwordChange = named(

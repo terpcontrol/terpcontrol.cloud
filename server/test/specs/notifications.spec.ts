@@ -107,9 +107,9 @@ describe('the settings an account writes for itself', () => {
 
 /**
  * The one tap that mails critical alarms to the login address. It is the one
- * way that address becomes a notification address without being typed, and it
- * takes no body: there is nothing in the request that could name somebody
- * else's.
+ * way that address becomes a notification address without being typed, and its
+ * body names rows of the grid and nothing else: there is nothing in the request
+ * that could name somebody else's address.
  */
 describe('critical alarms by mail to the login address', () => {
   it('names the login address on the critical row, sends nothing yet, and is the same answer when asked again', async () => {
@@ -124,6 +124,16 @@ describe('critical alarms by mail to the login address', () => {
     const again = await tapper.client.post('/v1/me/email-alarms').expect(200);
     expect(again.body.notifications).toEqual(tapped.body.notifications);
     expect((await capturedMail()).filter(mail => mail.to.includes(tapper.username))).toEqual([]);
+  });
+
+  it('routes the rows a body names, such as the reminders of somebody without a device', async () => {
+    const tapper = await createAccount('notify-rows');
+
+    const tapped = await tapper.client.post('/v1/me/email-alarms').send({ categories: ['tasks', 'warnings'] }).expect(200);
+    expect(tapped.body.notifications.channels.email).toBe(tapper.username);
+    expect(tapped.body.notifications.routing).toMatchObject({ alerts: [], warnings: ['email'], tasks: ['email'] });
+
+    await tapper.client.post('/v1/me/email-alarms').send({ categories: [] }).expect(400);
   });
 
   it('is an account´s own, and no tour´s', async () => {

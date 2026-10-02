@@ -764,11 +764,15 @@ exports.cardSetpoint = (0, common_js_1.named)('CardSetpoint', zod_1.z.object({
     value: zod_1.z.number().nullable(),
     band: zod_1.z.number().nullable().describe('Half the width of the band around the target; null for a metric that has none.'),
 }));
-/** The newest picture of a space, as a card shows it. */
+/**
+ * The picture a space is shown by: its newest one taken with the light on, so a
+ * tent whose lamp is off by day is not shown dark in the hours somebody looks.
+ */
 exports.latestStill = (0, common_js_1.named)('LatestStill', zod_1.z.object({
     mediaId: (0, common_js_1.id)(),
     cameraId: (0, common_js_1.id)(),
     capturedAt: (0, common_js_1.instant)(),
+    lightOff: zod_1.z.boolean().describe('Whether the camera has taken newer pictures since, in the dark; this one is then the last taken in the light.'),
 }));
 /**
  * A day of one metric, the size of a stamp: what a card draws beside its figures
@@ -968,6 +972,9 @@ exports.overviewCamera = (0, common_js_1.named)('OverviewCamera', zod_1.z.object
     stills: zod_1.z
         .array(exports.cameraStill)
         .describe("Today's, oldest first and at most one per slot of the day, so the strip spans the day rather than its last few minutes."),
+    litStill: exports.cameraStill
+        .nullable()
+        .describe('The newest picture taken with the light on, where the newest of all was taken in the dark; null where the newest is lit or none ever was.'),
 }));
 /**
  * A grow standing in this space. The card the home draws, and what is true of it

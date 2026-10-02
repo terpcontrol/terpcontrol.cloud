@@ -42,6 +42,7 @@ export interface MediaDraft {
   lengthSeconds?: number | null;
   render?: MediaDocument['render'];
   exportJob?: MediaDocument['exportJob'];
+  lit?: boolean | null;
 }
 
 /** What a camera holds of one kind, which is what an export says about the stills it cannot carry. */
@@ -211,6 +212,7 @@ export class MediaService {
       lengthSeconds: draft.lengthSeconds ?? null,
       render: draft.render ?? null,
       exportJob: draft.exportJob ?? null,
+      lit: draft.lit ?? null,
     };
 
     await this.media.create(row);

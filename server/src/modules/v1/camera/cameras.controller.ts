@@ -39,6 +39,7 @@ import { CameraPollerService } from './camera-poller.service';
 import { CaptureService } from './capture.service';
 import { EntitlementService } from './entitlement.service';
 import { MediaService } from './media.service';
+import { litFromPicture } from './still-light';
 import { coveredBy, TimelapseService } from './timelapse.service';
 import { OptionalSessionGuard } from './optional-session.guard';
 import { isRolling, periodAround, periodBefore } from './film-periods';
@@ -258,7 +259,8 @@ export class CamerasController {
       // than with nothing.
       const still = await this.capture.readStill(camera, true);
       const capturedAt = new Date();
-      const stored = await this.media.storeBytes({ kind: 'still', mime: 'image/jpeg', cameraId: camera.id, capturedAt }, still);
+      const lit = await litFromPicture(still);
+      const stored = await this.media.storeBytes({ kind: 'still', mime: 'image/jpeg', cameraId: camera.id, capturedAt, lit }, still);
       await this.cameras.noteCapture(camera.id, capturedAt, null);
 
       return { succeeded: true, mediaId: stored.id, capturedAt: capturedAt.toISOString(), error: null };

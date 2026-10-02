@@ -57,6 +57,7 @@ export declare const userPreferences: z.ZodObject<{
         diary: z.ZodBoolean;
         places: z.ZodBoolean;
     }, z.core.$strip>>>;
+    deviceOfferDeclined: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 /** How long raw climate points are kept; `null` keeps them for as long as the install does. */
 export declare const userRetention: z.ZodObject<{
@@ -236,6 +237,7 @@ export declare const user: z.ZodObject<{
             diary: z.ZodBoolean;
             places: z.ZodBoolean;
         }, z.core.$strip>>>;
+        deviceOfferDeclined: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>;
     retention: z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
@@ -407,6 +409,7 @@ export declare const me: z.ZodObject<{
             diary: z.ZodBoolean;
             places: z.ZodBoolean;
         }, z.core.$strip>>>;
+        deviceOfferDeclined: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>;
     retention: z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
@@ -524,7 +527,22 @@ export declare const meUpdate: z.ZodObject<{
             diary: z.ZodBoolean;
             places: z.ZodBoolean;
         }, z.core.$strip>>>>;
+        deviceOfferDeclined: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
     }, z.core.$strip>>;
+}, z.core.$strip>;
+/**
+ * `POST /me/email-alarms`: which rows of the grid the tap sends to the login
+ * address - the ones that can call on this account at all, which the app works
+ * out from what the account has. Without a body it is the critical alarms.
+ */
+export declare const emailAlarmsCreate: z.ZodObject<{
+    categories: z.ZodOptional<z.ZodArray<z.ZodEnum<{
+        plan: "plan";
+        alerts: "alerts";
+        warnings: "warnings";
+        tasks: "tasks";
+        weekly_timelapse: "weekly_timelapse";
+    }>>>;
 }, z.core.$strip>;
 /** `PUT /me/password`. The current one is asked for again, because a stolen session must not be able to keep itself. */
 export declare const passwordChange: z.ZodObject<{
@@ -855,6 +873,7 @@ export declare const adminUserPage: z.ZodObject<{
                 diary: z.ZodBoolean;
                 places: z.ZodBoolean;
             }, z.core.$strip>>>;
+            deviceOfferDeclined: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>;
         retention: z.ZodObject<{
             climateDays: z.ZodNullable<z.ZodNumber>;

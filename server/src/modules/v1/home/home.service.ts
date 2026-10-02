@@ -236,15 +236,26 @@ export class HomeService {
       .lean<EntryDocument[]>();
   }
 
+  /**
+   * The picture a card is shown by: the newest one taken with the light on, so
+   * a tent lit by night is not shown dark all day. Where the camera has taken
+   * nothing in the light at all, its newest picture stands in.
+   */
   private async latestStill(cameraIds: string[]): Promise<LatestStill | null> {
     if (cameraIds.length === 0) return null;
 
-    const still = await this.media
-      .findOne({ cameraId: { $in: cameraIds }, kind: 'still' }, { id: 1, cameraId: 1, capturedAt: 1 })
-      .sort({ capturedAt: -1 })
-      .lean<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'> | null>();
+    const newestOf = (lit: boolean) =>
+      this.media
+        .findOne({ cameraId: { $in: cameraIds }, kind: 'still', ...(lit ? { lit: { $ne: false } } : {}) }, { id: 1, cameraId: 1, capturedAt: 1, lit: 1 })
+        .sort({ capturedAt: -1 })
+        .lean<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt' | 'lit'> | null>();
 
-    return still && still.cameraId ? { mediaId: still.id, cameraId: still.cameraId, capturedAt: still.capturedAt.toISOString() } : null;
+    const newest = await newestOf(false);
+    if (!newest?.cameraId) return null;
+
+    const lightOff = newest.lit === false;
+    const still = lightOff ? ((await newestOf(true)) ?? newest) : newest;
+    return still.cameraId ? { mediaId: still.id, cameraId: still.cameraId, capturedAt: still.capturedAt.toISOString(), lightOff } : null;
   }
 
   /** The entries that completed a task of these reminders: a one-off by its id, a rhythm by any of its occurrences. */

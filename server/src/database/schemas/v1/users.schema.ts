@@ -128,6 +128,8 @@ export const usersSchema = new Schema<StoredUser>(
       notifyLaterUntil: { type: Date, default: null },
       // The shape of the app this person was last told about, so a change to it is said once.
       layoutSeen: { type: layoutSeenSchema, default: null },
+      // "No thanks" to the sensor offered under a diary kept without one.
+      deviceOfferDeclined: { type: Boolean, default: false },
     },
     retention: {
       climateDays: { type: Number, default: null },

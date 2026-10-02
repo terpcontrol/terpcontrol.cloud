@@ -12,6 +12,7 @@ import { CamerasService } from './cameras.service';
 import { CaptureService, CorruptFrameError } from './capture.service';
 import { MediaService } from './media.service';
 import { LIGHT_STATE_READER, LightStateReader } from './light-state';
+import { litFromPicture } from './still-light';
 
 /**
  * Reads one still from every camera on a schedule, and stores it.
@@ -123,7 +124,8 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
       state.failureCount = 0;
 
       const capturedAt = new Date();
-      await this.media.storeBytes({ kind: 'still', mime: 'image/jpeg', cameraId: camera.id, capturedAt }, still);
+      const lit = await this.litOf(camera, still);
+      await this.media.storeBytes({ kind: 'still', mime: 'image/jpeg', cameraId: camera.id, capturedAt, lit }, still);
       await this.cameras.noteCapture(camera.id, capturedAt, null);
     } catch (e) {
       const reason = (e as Error)?.message ?? String(e);
@@ -138,6 +140,16 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
       state.lastTry = Date.now();
       this.beingRead.delete(camera.id);
     }
+  }
+
+  /**
+   * Whether the picture was taken with the light on, which is what decides the
+   * picture a place, a grow and a week are shown by: the controller's light
+   * output where the camera stands with one, else the picture itself.
+   */
+  private async litOf(camera: CameraDocument, still: Buffer): Promise<boolean | null> {
+    const said = camera.deviceId && this.light ? await this.light.isLightOn(camera.deviceId).catch(() => null) : null;
+    return said ?? (await litFromPicture(still));
   }
 
   /** A camera that is told to say so puts its failures in the diary, where the person looking for them is. */

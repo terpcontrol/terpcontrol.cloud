@@ -147,7 +147,7 @@ export class OverviewService {
     });
     const window = seenOf({ startsAt: new Date(until.getTime() - VERDICT_HOURS * 3600 * 1000), endsAt: until }, range);
 
-    const [plants, reminders, entries, stills, hide, series] = await Promise.all([
+    const [plants, reminders, entries, stills, lit, hide, series] = await Promise.all([
       this.plants
         .find({ growId: { $in: growIds } })
         .sort({ createdAt: 1, _id: 1 })
@@ -166,6 +166,7 @@ export class OverviewService {
         .limit(ENTRIES_ON_THE_PAGE)
         .lean<EntryDocument[]>(),
       this.stillsToday(cameras, owner?.preferences.timezone ?? null, range, until),
+      this.litStills(cameras, range, until),
       this.redactionFor(grant, grows),
       steering
         ? this.data.series(steering.deviceId, {
@@ -223,7 +224,7 @@ export class OverviewService {
           until,
         ),
       ),
-      cameras: cameras.map(camera => cameraHere(camera, stills.get(camera.id) ?? [], closed)),
+      cameras: cameras.map(camera => cameraHere(camera, stills.get(camera.id) ?? [], lit.get(camera.id) ?? null, closed)),
       entries: told,
       readingNames: readingNamesOf(grows),
       dueTasks,
@@ -311,6 +312,32 @@ export class OverviewService {
         ]);
 
         return [camera.id, found.map(row => ({ mediaId: row.mediaId, capturedAt: row.capturedAt.toISOString() }))] as const;
+      }),
+    );
+
+    return new Map(rows);
+  }
+
+  /**
+   * For each camera whose newest picture was taken in the dark, the newest one
+   * taken in the light: a tent lit by night is dark in every hour somebody
+   * checks on it by day, and its place is shown by the picture of it lit.
+   */
+  private async litStills(cameras: CameraDocument[], range: AccessRange, until: Date): Promise<Map<string, CameraStill | null>> {
+    const within = { capturedAt: { $lte: until, ...(range.startsAt ? { $gte: new Date(range.startsAt) } : {}) } };
+    const rows = await Promise.all(
+      cameras.map(async camera => {
+        const newest = await this.media
+          .findOne({ cameraId: camera.id, kind: 'still', ...within }, { lit: 1 })
+          .sort({ capturedAt: -1 })
+          .lean<Pick<MediaDocument, 'lit'> | null>();
+        if (newest?.lit !== false) return [camera.id, null] as const;
+
+        const lit = await this.media
+          .findOne({ cameraId: camera.id, kind: 'still', lit: { $ne: false }, ...within }, { id: 1, capturedAt: 1 })
+          .sort({ capturedAt: -1 })
+          .lean<Pick<MediaDocument, 'id' | 'capturedAt'> | null>();
+        return [camera.id, lit ? { mediaId: lit.id, capturedAt: lit.capturedAt.toISOString() } : null] as const;
       }),
     );
 
@@ -424,9 +451,10 @@ const growHere = (grow: GrowDocument, spaceId: string, plants: PlantDocument[], 
  * September. The strip itself is already clamped, so what is left is a camera
  * that says what it took and not what it is taking.
  */
-const cameraHere = (camera: CameraDocument, stills: CameraStill[], closed: boolean): OverviewCamera => ({
+const cameraHere = (camera: CameraDocument, stills: CameraStill[], litStill: CameraStill | null, closed: boolean): OverviewCamera => ({
   cameraId: camera.id,
   name: camera.name,
   lastStillAt: closed ? null : (camera.state.lastStillAt?.toISOString() ?? null),
   stills,
+  litStill,
 });

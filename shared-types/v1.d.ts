@@ -355,6 +355,10 @@ export interface UserPreferences {
    * The shape of the app this person was last shown, as the app recorded it; it says once what changed when the diary comes in or a second place appears. Null until the app first records one. A body that leaves it out keeps what is stored.
    */
   layoutSeen?: LayoutSeen | null;
+  /**
+   * Whether "No thanks" was said to the line that offers a sensor to somebody who keeps a diary without one. A body that leaves it out keeps what is stored.
+   */
+  deviceOfferDeclined?: boolean;
 }
 
 export interface UserRetention {
@@ -519,7 +523,18 @@ export interface MeUpdate {
      * The shape of the app this person was last shown, as the app recorded it; it says once what changed when the diary comes in or a second place appears. Null until the app first records one. A body that leaves it out keeps what is stored.
      */
     layoutSeen?: LayoutSeen | null;
+    /**
+     * Whether "No thanks" was said to the line that offers a sensor to somebody who keeps a diary without one. A body that leaves it out keeps what is stored.
+     */
+    deviceOfferDeclined?: boolean;
   };
+}
+
+export interface EmailAlarmsCreate {
+  /**
+   * @minItems 1
+   */
+  categories?: [NotificationCategory, ...NotificationCategory[]];
 }
 
 export interface PasswordChange {
@@ -3134,6 +3149,10 @@ export interface LatestStill {
   mediaId: string;
   cameraId: string;
   capturedAt: string;
+  /**
+   * Whether the camera has taken newer pictures since, in the dark; this one is then the last taken in the light.
+   */
+  lightOff: boolean;
 }
 
 export interface CardTrend {
@@ -3360,6 +3379,10 @@ export interface OverviewCamera {
    * Today's, oldest first and at most one per slot of the day, so the strip spans the day rather than its last few minutes.
    */
   stills: CameraStill[];
+  /**
+   * The newest picture taken with the light on, where the newest of all was taken in the dark; null where the newest is lit or none ever was.
+   */
+  litStill: CameraStill | null;
 }
 
 export interface OverviewGrow {

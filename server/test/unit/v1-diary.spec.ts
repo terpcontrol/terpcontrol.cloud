@@ -584,11 +584,30 @@ describe('a week card', () => {
   });
 
   /**
-   * A card is named after the stage its week ended in, which says nothing about
-   * a week that held two or three: seven days of germination, seedling and veg
-   * were drawn as one veg week with the first two nowhere on the screen.
+   * A week that held two stages is named after the one most of it lay in: five
+   * days of seedling and two of veg were badged "Veg Wo 1", which read as the
+   * week the grow had spent in veg.
    */
-  it('marks the day a stage began on the strip, and leaves the week named after the one it ended in', async () => {
+  it('names a finished week after the stage most of it lay in, and the week still running after the stage it is in', async () => {
+    await db.grows.updateOne({ id: GROW }, { $set: { 'phases.1.startedAt': onDay(13, 0), 'phases.2.startedAt': onDay(34, 0) } });
+
+    const page = await weeks.page(GROW, await grantFor(session(OWNER)), {}, NOW);
+
+    expect(page.items.map(week => [week.weekNumber, week.stage])).toEqual([
+      [5, 'flowering'],
+      [4, 'vegetative'],
+      [3, 'vegetative'],
+      [2, 'seedling'],
+      [1, 'seedling'],
+    ]);
+  });
+
+  /**
+   * A card is named after one stage, which says nothing about a week that held
+   * two or three: seven days of germination, seedling and veg were drawn as one
+   * veg week with the first two nowhere on the screen.
+   */
+  it('marks the day a stage began on the strip, and leaves the week named after the one most of it lay in', async () => {
     const page = await weeks.page(GROW, await grantFor(session(OWNER)), {}, NOW);
     const week4 = page.items.find(week => week.weekNumber === 4)!;
 
@@ -728,6 +747,23 @@ describe('a week card', () => {
     expect(week.days.map(day => day.dayNumber)).toEqual([29, 30, 31, 32, 33, 34, 35]);
     expect(week.days.map(day => day.mediaId)).toEqual([null, 'still-near', 'still-off', null, null, null, null]);
     expect(week.days[1]).toMatchObject({ cameraId: CAMERA, capturedAt: onDay(30, 4.2).toISOString() });
+  });
+
+  /**
+   * A lamp on a night schedule is off at midday, so the still taken nearest
+   * midday is a dark tent: each day is shown by the one taken in the light
+   * nearest midday instead, and only a day never seen lit by a dark one.
+   */
+  it('shows each day by a still taken in the light, however near midday a dark one was', async () => {
+    await db.media.create([
+      { id: 'still-dark', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(30, 4), lit: false },
+      { id: 'still-lit', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(30, 13), lit: true },
+      { id: 'still-only-dark', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(31, 4), lit: false },
+    ]);
+
+    const week = await weekFive();
+
+    expect(week.days.map(day => day.mediaId)).toEqual([null, 'still-lit', 'still-only-dark', null, null, null, null]);
   });
 
   it('pages, and continues after the week the cursor names', async () => {
@@ -1004,6 +1040,25 @@ describe('the report', () => {
 
     expect(answer.phases[0].spaceIds).toEqual([TENT]);
     expect(answer.phases[0].coverMediaId).toBe('still-cover');
+  });
+
+  it('covers a chapter the camera saw only in the dark with a photo written into it', async () => {
+    await db.media.create({ id: 'still-dark', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(28, 4), lit: false });
+    const chapter = (await report.read(GROW, await grantFor(session(OWNER)), NOW)).phases[0];
+    await db.entries.create({
+      id: 'entry-photo',
+      kind: 'photo',
+      source: 'human',
+      authorId: OWNER,
+      growId: GROW,
+      occurredAt: new Date(chapter.startedAt),
+      mediaIds: ['photo-phone'],
+      values: { kind: 'photo' },
+    });
+
+    const answer = await report.read(GROW, await grantFor(session(OWNER)), NOW);
+
+    expect(answer.phases[0].coverMediaId).toBe('photo-phone');
   });
 
   it('says where the plants stood only to somebody who keeps them', async () => {

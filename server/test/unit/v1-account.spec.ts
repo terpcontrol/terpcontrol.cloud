@@ -601,6 +601,22 @@ describe('critical alarms by mail, in one tap', () => {
   });
 });
 
+describe('what else can call on an account, in the same tap', () => {
+  /**
+   * A grower without a device has nothing that raises a critical alarm: what
+   * calls on them is a reminder that is due and a camera that stopped. The tap
+   * routes the rows the app names, and still names no address but the login.
+   */
+  it('routes the rows it is asked to, and only those', async () => {
+    const user = await signUp('one-tap-rows');
+
+    const tapped = accounts.serialise(await accounts.mailAlarms(user.id, ['tasks', 'warnings']));
+
+    expect(tapped.notifications.channels.email).toBe('one-tap-rows@test.invalid');
+    expect(tapped.notifications.routing).toMatchObject({ alerts: [], warnings: ['email'], tasks: ['email'], plan: [], weekly_timelapse: [] });
+  });
+});
+
 describe('signing in', () => {
   it('answers the same nothing for a wrong password and for an address with no account', async () => {
     const user = await signUp('verify');

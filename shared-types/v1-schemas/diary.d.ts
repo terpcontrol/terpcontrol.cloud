@@ -2152,11 +2152,15 @@ export declare const cardSetpoint: z.ZodObject<{
     value: z.ZodNullable<z.ZodNumber>;
     band: z.ZodNullable<z.ZodNumber>;
 }, z.core.$strip>;
-/** The newest picture of a space, as a card shows it. */
+/**
+ * The picture a space is shown by: its newest one taken with the light on, so a
+ * tent whose lamp is off by day is not shown dark in the hours somebody looks.
+ */
 export declare const latestStill: z.ZodObject<{
     mediaId: z.ZodString;
     cameraId: z.ZodString;
     capturedAt: z.ZodISODateTime;
+    lightOff: z.ZodBoolean;
 }, z.core.$strip>;
 /**
  * A day of one metric, the size of a stamp: what a card draws beside its figures
@@ -2528,6 +2532,7 @@ export declare const homeSpaceCard: z.ZodObject<{
         mediaId: z.ZodString;
         cameraId: z.ZodString;
         capturedAt: z.ZodISODateTime;
+        lightOff: z.ZodBoolean;
     }, z.core.$strip>>;
     dueTasks: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -2823,6 +2828,7 @@ export declare const homeAnswer: z.ZodObject<{
             mediaId: z.ZodString;
             cameraId: z.ZodString;
             capturedAt: z.ZodISODateTime;
+            lightOff: z.ZodBoolean;
         }, z.core.$strip>>;
         dueTasks: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
@@ -3083,6 +3089,10 @@ export declare const overviewCamera: z.ZodObject<{
     name: z.ZodString;
     lastStillAt: z.ZodNullable<z.ZodISODateTime>;
     stills: z.ZodArray<z.ZodObject<{
+        mediaId: z.ZodString;
+        capturedAt: z.ZodISODateTime;
+    }, z.core.$strip>>;
+    litStill: z.ZodNullable<z.ZodObject<{
         mediaId: z.ZodString;
         capturedAt: z.ZodISODateTime;
     }, z.core.$strip>>;
@@ -3414,6 +3424,10 @@ export declare const spaceOverview: z.ZodObject<{
         name: z.ZodString;
         lastStillAt: z.ZodNullable<z.ZodISODateTime>;
         stills: z.ZodArray<z.ZodObject<{
+            mediaId: z.ZodString;
+            capturedAt: z.ZodISODateTime;
+        }, z.core.$strip>>;
+        litStill: z.ZodNullable<z.ZodObject<{
             mediaId: z.ZodString;
             capturedAt: z.ZodISODateTime;
         }, z.core.$strip>>;
@@ -6171,6 +6185,10 @@ export declare const sharedSpace: z.ZodObject<{
                 mediaId: z.ZodString;
                 capturedAt: z.ZodISODateTime;
             }, z.core.$strip>>;
+            litStill: z.ZodNullable<z.ZodObject<{
+                mediaId: z.ZodString;
+                capturedAt: z.ZodISODateTime;
+            }, z.core.$strip>>;
         }, z.core.$strip>>;
         entries: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
@@ -6802,6 +6820,10 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             name: z.ZodString;
             lastStillAt: z.ZodNullable<z.ZodISODateTime>;
             stills: z.ZodArray<z.ZodObject<{
+                mediaId: z.ZodString;
+                capturedAt: z.ZodISODateTime;
+            }, z.core.$strip>>;
+            litStill: z.ZodNullable<z.ZodObject<{
                 mediaId: z.ZodString;
                 capturedAt: z.ZodISODateTime;
             }, z.core.$strip>>;
@@ -7453,6 +7475,10 @@ export declare const sharedResolution: z.ZodObject<{
                 name: z.ZodString;
                 lastStillAt: z.ZodNullable<z.ZodISODateTime>;
                 stills: z.ZodArray<z.ZodObject<{
+                    mediaId: z.ZodString;
+                    capturedAt: z.ZodISODateTime;
+                }, z.core.$strip>>;
+                litStill: z.ZodNullable<z.ZodObject<{
                     mediaId: z.ZodString;
                     capturedAt: z.ZodISODateTime;
                 }, z.core.$strip>>;

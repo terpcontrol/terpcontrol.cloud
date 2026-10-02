@@ -175,9 +175,14 @@ export class GrowWeeksService {
     const here = spacesDuring(grow, seen.startsAt, seen.endsAt);
     const deviceIds = world.controllers.filter(controller => here.includes(controller.spaceId)).map(controller => controller.deviceId);
     const entries = world.diary.filter(entry => entry.occurredAt >= seen.startsAt && entry.occurredAt < seen.endsAt);
-    // The last instant inside the week, not the first outside it: a phase that
-    // begins exactly where the week ends belongs to the next week.
-    const phase = headlinePhaseAt(grow, new Date(seen.endsAt.getTime() - 1));
+    // A week that is over is named after the stage most of it lay in - the one
+    // standing at its middle - so five days of seedling and two of veg read as
+    // seedling. The week still running is named after the stage the grow is in
+    // now, as Start and the grow's own header name it. The last instant inside
+    // it, not the first outside: a phase that begins exactly where the week
+    // ends belongs to the next week.
+    const over = seen.endsAt.getTime() - seen.startsAt.getTime() >= 7 * DAY_MS;
+    const phase = headlinePhaseAt(grow, over ? new Date((seen.startsAt.getTime() + seen.endsAt.getTime()) / 2) : new Date(seen.endsAt.getTime() - 1));
 
     const [climate, days] = await Promise.all([
       // A week card states how the tent was kept, not how well: judging it needs
@@ -216,8 +221,8 @@ export class GrowWeeksService {
   }
 
   /**
-   * The seven thumbnails: for each day of the week, the still taken nearest the
-   * middle of it. One read per week rather than one per day, and only the
+   * The seven thumbnails: for each day of the week, the still taken in the
+   * light nearest the middle of it. One read per week rather than one per day, and only the
    * pictures around each of the seven hours rather than every picture the
    * cameras took; a day with none near its middle is then looked through whole.
    *
@@ -248,7 +253,7 @@ export class GrowWeeksService {
             .find(
               {
                 $and: [
-                  { cameraId: { $in: cameraIds }, kind: 'still' },
+                  { cameraId: { $in: cameraIds }, kind: 'still', lit: { $ne: false } },
                   { capturedAt: { $gte: seen.startsAt, $lte: seen.endsAt } },
                   {
                     $or: pictured.map(day => ({
@@ -270,8 +275,18 @@ export class GrowWeeksService {
     // such a day takes the still nearest its midday from anywhere inside it:
     // two indexed reads per day that needs them, the one before and the one
     // after, both bounded by the day and by the window.
+    // The same goes for a day whose lamp was off at midday: its picture is the
+    // one taken in the light nearest midday, and only a day the camera never saw
+    // lit is shown by a dark one.
     const missing = pictured.filter(day => nearestTo(stills, day.nearest) === null);
-    const fallbacks = new Map(await Promise.all(missing.map(async day => [day.dayNumber, await this.nearestInDay(cameraIds, day, seen)] as const)));
+    const fallbacks = new Map(
+      await Promise.all(
+        missing.map(
+          async day =>
+            [day.dayNumber, (await this.nearestInDay(cameraIds, day, seen, true)) ?? (await this.nearestInDay(cameraIds, day, seen, false))] as const,
+        ),
+      ),
+    );
 
     return days.map(day => {
       const closest = day.seen ? (nearestTo(stills, day.nearest) ?? fallbacks.get(day.dayNumber) ?? null) : null;
@@ -294,6 +309,7 @@ export class GrowWeeksService {
     cameraIds: string[],
     day: { startsAt: Date; endsAt: Date; nearest: Date },
     seen: Span,
+    lit: boolean,
   ): Promise<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'> | null> {
     if (cameraIds.length === 0) return null;
 
@@ -304,13 +320,14 @@ export class GrowWeeksService {
     // it stops where the window does, like the look forward.
     const upTo = day.nearest < until ? day.nearest : until;
     const projection = { id: 1, cameraId: 1, capturedAt: 1 };
+    const light = lit ? { lit: { $ne: false } } : {};
     const [before, after] = await Promise.all([
       this.media
-        .findOne({ cameraId: { $in: cameraIds }, kind: 'still', capturedAt: { $gte: from, $lte: upTo } }, projection)
+        .findOne({ cameraId: { $in: cameraIds }, kind: 'still', ...light, capturedAt: { $gte: from, $lte: upTo } }, projection)
         .sort({ capturedAt: -1 })
         .lean<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'>>(),
       this.media
-        .findOne({ cameraId: { $in: cameraIds }, kind: 'still', capturedAt: { $gt: day.nearest, $lt: until } }, projection)
+        .findOne({ cameraId: { $in: cameraIds }, kind: 'still', ...light, capturedAt: { $gt: day.nearest, $lt: until } }, projection)
         .sort({ capturedAt: 1 })
         .lean<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'>>(),
     ]);

@@ -562,6 +562,10 @@
             "type": "null"
           }
         ]
+      },
+      "deviceOfferDeclined": {
+        "description": "Whether \"No thanks\" was said to the line that offers a sensor to somebody who keeps a diary without one. A body that leaves it out keeps what is stored.",
+        "type": "boolean"
       }
     },
     "required": [
@@ -1166,7 +1170,23 @@
                 "type": "null"
               }
             ]
+          },
+          "deviceOfferDeclined": {
+            "description": "Whether \"No thanks\" was said to the line that offers a sensor to somebody who keeps a diary without one. A body that leaves it out keeps what is stored.",
+            "type": "boolean"
           }
+        }
+      }
+    }
+  },
+  "EmailAlarmsCreate": {
+    "type": "object",
+    "properties": {
+      "categories": {
+        "minItems": 1,
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/NotificationCategory"
         }
       }
     }
@@ -10499,12 +10519,17 @@
         "type": "string",
         "format": "date-time",
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "lightOff": {
+        "type": "boolean",
+        "description": "Whether the camera has taken newer pictures since, in the dark; this one is then the last taken in the light."
       }
     },
     "required": [
       "mediaId",
       "cameraId",
-      "capturedAt"
+      "capturedAt",
+      "lightOff"
     ]
   },
   "CardTrend": {
@@ -11344,13 +11369,25 @@
           "$ref": "#/components/schemas/CameraStill"
         },
         "description": "Today's, oldest first and at most one per slot of the day, so the strip spans the day rather than its last few minutes."
+      },
+      "litStill": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/CameraStill"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The newest picture taken with the light on, where the newest of all was taken in the dark; null where the newest is lit or none ever was."
       }
     },
     "required": [
       "cameraId",
       "name",
       "lastStillAt",
-      "stills"
+      "stills",
+      "litStill"
     ]
   },
   "OverviewGrow": {

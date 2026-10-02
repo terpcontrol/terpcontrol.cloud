@@ -29,6 +29,13 @@ export type MediaDocument = Omit<Media, 'createdAt' | 'capturedAt' | 'endsAt' | 
   endsAt: Date | null;
   render: MediaRenderDocument | null;
   exportJob: MediaExportDocument | null;
+  /**
+   * Whether a still was taken with the light on: what the controller said its
+   * light was doing at that moment, or false for a picture too dark to show
+   * anything. Null where neither says - every still before this was kept, a
+   * camera with no controller in a tent that was lit - which counts as lit.
+   */
+  lit?: boolean | null;
 };
 
 const overlaysSchema = new Schema<MediaOverlays>(
@@ -100,6 +107,7 @@ export const mediaSchema = new Schema<MediaDocument>(
     lengthSeconds: { type: Number, default: null },
     render: { type: renderSchema, default: null },
     exportJob: { type: exportSchema, default: null },
+    lit: { type: Boolean, default: null },
   },
   { collection: 'media', versionKey: false },
 );

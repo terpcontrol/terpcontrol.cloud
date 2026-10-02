@@ -459,7 +459,28 @@ describe('the day´s pictures', () => {
     const page = await readAs(session(OWNER));
     const quiet = page.cameras.find(camera => camera.cameraId === QUIET_CAMERA);
 
-    expect(quiet).toEqual({ cameraId: QUIET_CAMERA, name: 'Cam 2', lastStillAt: '2026-06-01T09:00:00.000Z', stills: [] });
+    expect(quiet).toEqual({ cameraId: QUIET_CAMERA, name: 'Cam 2', lastStillAt: '2026-06-01T09:00:00.000Z', stills: [], litStill: null });
+  });
+
+  /**
+   * A tent lit by night is dark in every hour its grower looks at it by day.
+   * Where the newest picture was taken with the light off, the place is also
+   * answered the newest one taken with it on.
+   */
+  it('answers the newest picture taken in the light where the newest was taken in the dark', async () => {
+    const lit = await readAs(session(OWNER));
+    expect(lit.cameras.find(camera => camera.cameraId === CAMERA)?.litStill).toBeNull();
+
+    await db.media.create([
+      { ...still('still-11-lit', CAMERA, '2026-06-10T11:20:00.000Z'), lit: true },
+      { ...still('still-11-dark', CAMERA, '2026-06-10T11:50:00.000Z'), lit: false },
+    ]);
+
+    const dark = await readAs(session(OWNER));
+    expect(dark.cameras.find(camera => camera.cameraId === CAMERA)?.litStill).toEqual({
+      mediaId: 'still-11-lit',
+      capturedAt: '2026-06-10T11:20:00.000Z',
+    });
   });
 });
 
