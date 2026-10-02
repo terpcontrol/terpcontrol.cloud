@@ -1,7 +1,9 @@
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 /**
@@ -12,10 +14,47 @@ import { VitePWA } from 'vite-plugin-pwa';
 /** The version the app states about itself, read from its own package rather than typed a second time. */
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
+/**
+ * The contract's runtime modules are pre-bundled once and cached, and Vite keys
+ * that cache on the lockfile and this config - not on the modules, which
+ * `npm run generate` rewrites in place behind a linked package. A development
+ * server left running then hands the browser yesterday's contract, and a table
+ * added since is undefined in it. So this plugin's name carries a hash of the
+ * modules, which keys the cache on what they say, and a running server restarts
+ * when they change.
+ */
+const CONTRACT = fileURLToPath(new URL('../shared-types/v1-schemas', import.meta.url));
+
+const contractHash = (): string => {
+  if (!existsSync(CONTRACT)) return 'none';
+  const hash = createHash('sha1');
+  for (const file of readdirSync(CONTRACT)
+    .filter(name => name.endsWith('.js'))
+    .sort())
+    hash.update(file).update(readFileSync(join(CONTRACT, file)));
+  return hash.digest('hex').slice(0, 12);
+};
+
+const followContract = (): Plugin => ({
+  name: `contract-${contractHash()}`,
+  apply: 'serve',
+  configureServer(server) {
+    let restart: ReturnType<typeof setTimeout> | undefined;
+    server.watcher.add(CONTRACT);
+    server.watcher.on('change', file => {
+      if (!file.startsWith(CONTRACT) || !file.endsWith('.js')) return;
+      // A generate writes every module at once: one restart for all of them.
+      clearTimeout(restart);
+      restart = setTimeout(() => void server.restart(), 500);
+    });
+  },
+});
+
 export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [
     react(),
+    followContract(),
     VitePWA({
       registerType: 'autoUpdate',
       // `public/manifest.webmanifest` is the manifest, linked from index.html.
