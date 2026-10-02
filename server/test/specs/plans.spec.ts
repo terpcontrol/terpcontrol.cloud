@@ -248,8 +248,8 @@ describe('writing the plan', () => {
     // Left out on the way in, and answered as `null` rather than as absent, so
     // the plan a client reads has the same keys on every step.
     expect(written.body.steps).toEqual([
-      { ...climateOnly('Woche 1'), id: expect.any(String), stage: null, preset: null },
-      { ...climateOnly('Woche 2'), id: expect.any(String), stage: null, preset: null },
+      { ...climateOnly('Woche 1'), id: expect.any(String), stage: null, preset: null, lightHours: null },
+      { ...climateOnly('Woche 2'), id: expect.any(String), stage: null, preset: null, lightHours: null },
     ]);
   });
 
@@ -300,6 +300,34 @@ describe('writing the plan', () => {
 
     expect(written.body.steps[0].duration).toEqual({ value: 0.5, unit: 'days' });
     expect((await planOf(owner, mine.deviceId)).steps[0].duration).toEqual({ value: 0.5, unit: 'days' });
+  });
+
+  /**
+   * The flip to 12/12 is the one change a photoperiod plan cannot do without,
+   * and a step - a template above all - does not know when the tent's light
+   * comes on. So it says how long the light stays on, and the engine puts that
+   * on the device's own morning when it sends the step.
+   */
+  it('keeps the light hours a step names, refuses a day longer than a day, and refuses them for a device that never sent its settings', async () => {
+    const mine = await aController(owner);
+
+    const written = await owner.client
+      .put(`/v1/devices/${mine.deviceId}/plan`)
+      .send(aPlan({ steps: [step('Veg', { lightHours: 18 }), step('Flower', { lightHours: 12 })] }))
+      .expect(200);
+    expect(written.body.steps.map((one: { lightHours: number | null }) => one.lightHours)).toEqual([18, 12]);
+
+    await owner.client
+      .put(`/v1/devices/${mine.deviceId}/plan`)
+      .send(aPlan({ steps: [step('Veg', { lightHours: 25 })] }))
+      .expect(400);
+
+    const fresh = await provisionDevice(owner, 'controller');
+    const refused = await owner.client
+      .put(`/v1/devices/${fresh.deviceId}/plan`)
+      .send(aPlan({ steps: [step('Flower', { lightHours: 12 })] }))
+      .expect(422);
+    expect(refused.body.code).toBe('device_sent_no_settings');
   });
 
   it('refuses a body the contract does not describe', async () => {
@@ -369,6 +397,23 @@ describe('moving through the plan', () => {
     expect(refused.body.code).toBe('nothing_to_confirm');
 
     await owner.client.post(`/v1/devices/${mine.deviceId}/plan/transitions`).send({ kind: 'stop' }).expect(400);
+  });
+
+  it('goes on with the step somebody chose, by its id, and refuses one the plan does not have', async () => {
+    const mine = await aController(owner);
+    const written = await owner.client.put(`/v1/devices/${mine.deviceId}/plan`).send(aPlan()).expect(200);
+    const flower = written.body.steps[1].id;
+
+    // A plan at rest is started in the middle, which is how a plan joins a grow that is already flowering.
+    const moved = await owner.client.post(`/v1/devices/${mine.deviceId}/plan/transitions`).send({ kind: 'goto', stepId: flower }).expect(201);
+    expect(moved.body.state).toMatchObject({ status: 'running', activeStepIndex: 1 });
+    expect(moved.body.steps).toEqual(written.body.steps);
+
+    const refused = await owner.client
+      .post(`/v1/devices/${mine.deviceId}/plan/transitions`)
+      .send({ kind: 'goto', stepId: 'no-such-step' })
+      .expect(409);
+    expect(refused.body.code).toBe('plan_step_gone');
   });
 
   it('refuses to start a plan that has no steps to run', async () => {

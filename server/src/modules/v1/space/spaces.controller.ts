@@ -1,8 +1,19 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import { Device, PresetApplication, PresetApplicationCreate, Space, SpaceCreate, SpaceLive, SpacePage, SpaceUpdate } from '@fg2/shared-types/v1';
 import {
+  Co2Report,
+  Device,
+  PresetApplication,
+  PresetApplicationCreate,
+  Space,
+  SpaceCreate,
+  SpaceLive,
+  SpacePage,
+  SpaceUpdate,
+} from '@fg2/shared-types/v1';
+import {
+  co2Report,
   device as deviceShape,
   presetApplication,
   presetApplicationCreate,
@@ -19,6 +30,7 @@ import { AccessContext } from '@common/v1/access.types';
 import { V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { V1Answer } from '../answer-shape';
+import { Co2ReportService } from './co2-report.service';
 import { PresetApplicationsService } from './preset-applications.service';
 import { SpaceLiveService } from './space-live.service';
 import { SpacesService } from './spaces.service';
@@ -47,6 +59,7 @@ export class SpacesController {
     private readonly live: SpaceLiveService,
     private readonly presets: PresetApplicationsService,
     private readonly access: AccessService,
+    private readonly co2: Co2ReportService,
   ) {}
 
   @Get()
@@ -86,6 +99,16 @@ export class SpacesController {
   public async readLive(@Param('id') id: string): Promise<SpaceLive> {
     await this.spaces.require(id);
     return this.live.liveOf(id);
+  }
+
+  @Get(':id/co2-report')
+  @UseGuards(AuthGuard, AccessGuard)
+  @Requires('view', 'space')
+  @ApiOperation({ summary: 'What the CO2 cylinders of this space lasted, and what the one in use has left' })
+  @V1Answer(co2Report)
+  public async readCo2Report(@Param('id') id: string): Promise<Co2Report> {
+    await this.spaces.require(id);
+    return this.co2.reportOf(id);
   }
 
   @Patch(':id')

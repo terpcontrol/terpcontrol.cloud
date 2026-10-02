@@ -159,6 +159,23 @@ const MAX_SWITCHINGS = 10000;
  */
 const NOT_A_SENTINEL = `r["_field"] != "${CO2_OUTPUT_FIELD}" or (r["_value"] >= 0.0 and r["_value"] != ${NO_CO2_VALVE}.0)`;
 
+/**
+ * How often a device's CO2 valve opened over a stretch. Each sample counts the
+ * openings since the one before it and starts again at nought, so the count of
+ * a stretch is the sum of its samples, whatever the device's cadence was. The
+ * "there is no valve" figure is left out in the store, where a sum would
+ * otherwise swallow it.
+ *
+ * Only raw samples are counted. A day that has left an install's retention
+ * window is kept as its mean, and a mean of counts says nothing about how many
+ * samples it was taken over.
+ */
+export const valveOpeningsQuery = (bucket: string, deviceId: string, window: Omit<FluxWindow, 'stepSeconds'>): string =>
+  `${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => r["_field"] == "${CO2_OUTPUT_FIELD}")
+    |> filter(fn: (r) => r["_value"] >= 0.0 and r["_value"] != ${NO_CO2_VALVE}.0)
+    |> sum()`;
+
 /** The two answers `switchingsQuery` yields, which is what tells the state a window opens in from a switching inside it. */
 export const SWITCHING_RESULT = { opening: 'opening', switching: 'switching' } as const;
 

@@ -18,7 +18,7 @@ export type WebhookMethod = 'GET' | 'POST' | 'PUT';
 
 export type NotificationChannel = 'email' | 'push' | 'telegram' | 'webhook';
 
-export type PlanTransitionKind = 'confirm' | 'skip' | 'extend' | 'pause' | 'resume';
+export type PlanTransitionKind = 'confirm' | 'skip' | 'extend' | 'pause' | 'resume' | 'goto';
 
 export type SocketRole =
   | ''
@@ -104,6 +104,13 @@ export type PlanTransition =
     }
   | {
       kind: 'resume';
+    }
+  | {
+      kind: 'goto';
+      /**
+       * The step the plan runs from, by its id.
+       */
+      stepId: string;
     };
 
 export type AlarmOrigin = 'preset' | 'always' | 'device' | 'human';
@@ -846,11 +853,17 @@ export interface DevicePage {
   nextCursor: string | null;
 }
 
+export interface DeviceSettingsWritten {
+  vpdLeafOffsetDay: number;
+  vpdLeafOffsetNight: number;
+  ppfdLuxFactor: number;
+}
+
 export interface DeviceUpdate {
   name?: string | null;
   spaceId?: string | null;
   firmware?: DeviceFirmwareTarget;
-  settings?: DeviceSettings;
+  settings?: DeviceSettingsWritten;
 }
 
 export interface DeviceConfigurationEnvelope {
@@ -1212,6 +1225,10 @@ export interface PlanStep {
   preset: string | null;
   duration: StepDuration;
   settings: DeviceConfiguration;
+  /**
+   * How long the light is on while this step runs; null leaves the photoperiod as it is.
+   */
+  lightHours: number | null;
   waitForConfirmation: boolean;
   confirmationMessage: string | null;
 }
@@ -1286,6 +1303,10 @@ export interface PlanStepInput {
   preset?: string | null;
   duration: StepDuration;
   settings: DeviceConfiguration;
+  /**
+   * How long the light is on while this step runs; null leaves the photoperiod as it is.
+   */
+  lightHours?: number | null;
   waitForConfirmation: boolean;
   confirmationMessage: string | null;
 }
@@ -3569,6 +3590,45 @@ export interface SpaceLive {
   setpoints: CardSetpoint[];
   devices: SpaceLiveDevice[];
   cameras: SpaceLiveCamera[];
+}
+
+export interface Co2Cylinder {
+  /**
+   * When it went in.
+   */
+  since: string;
+  /**
+   * When the next one replaced it; null for the cylinder in use.
+   */
+  until: string | null;
+  /**
+   * What it held when it went in.
+   */
+  filledGrams: number;
+  /**
+   * What was left when it came out: the weight written down, or nothing at all where none was. Null for the cylinder in use.
+   */
+  restGrams: number | null;
+  /**
+   * How often the valve opened while it was in.
+   */
+  openings: number;
+  /**
+   * Its own rate; null for the cylinder in use, and where nothing was used.
+   */
+  openingsPerGram: number | null;
+}
+
+export interface Co2Report {
+  cylinders: Co2Cylinder[];
+  /**
+   * Over every finished cylinder together; null until one has finished.
+   */
+  openingsPerGram: number | null;
+  /**
+   * What the cylinder in use has left by that rate; null without a rate or a cylinder.
+   */
+  restGrams: number | null;
 }
 
 export interface TimelineSpan {

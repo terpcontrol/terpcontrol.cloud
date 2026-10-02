@@ -7,6 +7,7 @@ import { GrowModule } from '@modules/v1/grow/grow.module';
 import { PhaseModule } from '@modules/v1/phase/phase.module';
 import { PlanModule } from '@modules/v1/plan/plan.module';
 import { ClimatePresetsModule } from './climate-presets.service';
+import { Co2ReportService } from './co2-report.service';
 import { PresetApplicationsService } from './preset-applications.service';
 import { SpaceLiveService } from './space-live.service';
 import { SpacesController } from './spaces.controller';
@@ -32,7 +33,7 @@ import { SpacesService } from './spaces.service';
 @Module({
   imports: [ModelsModule, V1CommonModule, DataModule, DeviceModule, GrowModule, PhaseModule, PlanModule, ClimatePresetsModule],
   controllers: [SpacesController],
-  providers: [SpacesService, SpaceLiveService, PresetApplicationsService],
+  providers: [SpacesService, SpaceLiveService, PresetApplicationsService, Co2ReportService],
   exports: [SpacesService, SpaceLiveService, PresetApplicationsService],
 })
 export class SpaceModule {}

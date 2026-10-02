@@ -184,6 +184,16 @@ export declare const devicePage: z.ZodObject<{
     nextCursor: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
 /**
+ * The settings as a client writes them: the same three figures, each held to
+ * the range a leaf or a lamp can be (`DEVICE_SETTING_RANGES`). An answer is not
+ * held to it, because a figure the old cloud stored is answered as it was.
+ */
+export declare const deviceSettingsWritten: z.ZodObject<{
+    vpdLeafOffsetDay: z.ZodNumber;
+    vpdLeafOffsetNight: z.ZodNumber;
+    ppfdLuxFactor: z.ZodNumber;
+}, z.core.$strip>;
+/**
  * `PATCH /devices/{id}`: what a person decides about a device. What it is, who
  * owns it and everything under `state` are not a client's to write, and the
  * configuration document has routes of its own: replaced whole with the
@@ -200,12 +210,12 @@ export declare const deviceUpdate: z.ZodObject<{
         }>;
         targetId: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>;
+    spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     settings: z.ZodOptional<z.ZodObject<{
         vpdLeafOffsetDay: z.ZodNumber;
         vpdLeafOffsetNight: z.ZodNumber;
         ppfdLuxFactor: z.ZodNumber;
     }, z.core.$strip>>;
-    spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 /**
  * `PUT /devices/{id}/configuration`, and what it answers: a `PUT` replaces the
@@ -920,6 +930,7 @@ export declare const planStep: z.ZodObject<{
         }>;
     }, z.core.$strip>;
     settings: z.ZodRecord<z.ZodString, z.ZodAny>;
+    lightHours: z.ZodNullable<z.ZodNumber>;
     waitForConfirmation: z.ZodBoolean;
     confirmationMessage: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
@@ -983,6 +994,7 @@ export declare const plan: z.ZodObject<{
             }>;
         }, z.core.$strip>;
         settings: z.ZodRecord<z.ZodString, z.ZodAny>;
+        lightHours: z.ZodNullable<z.ZodNumber>;
         waitForConfirmation: z.ZodBoolean;
         confirmationMessage: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>;
@@ -1054,6 +1066,7 @@ export declare const planStepInput: z.ZodObject<{
         }>;
     }, z.core.$strip>;
     settings: z.ZodRecord<z.ZodString, z.ZodAny>;
+    lightHours: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     waitForConfirmation: z.ZodBoolean;
     confirmationMessage: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
@@ -1097,6 +1110,7 @@ export declare const planReplace: z.ZodObject<{
             }>;
         }, z.core.$strip>;
         settings: z.ZodRecord<z.ZodString, z.ZodAny>;
+        lightHours: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         waitForConfirmation: z.ZodBoolean;
         confirmationMessage: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>;
@@ -1130,6 +1144,7 @@ export declare const planTemplate: z.ZodObject<{
             }>;
         }, z.core.$strip>;
         settings: z.ZodRecord<z.ZodString, z.ZodAny>;
+        lightHours: z.ZodNullable<z.ZodNumber>;
         waitForConfirmation: z.ZodBoolean;
         confirmationMessage: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>;
@@ -1163,6 +1178,7 @@ export declare const planTemplatePage: z.ZodObject<{
                 }>;
             }, z.core.$strip>;
             settings: z.ZodRecord<z.ZodString, z.ZodAny>;
+            lightHours: z.ZodNullable<z.ZodNumber>;
             waitForConfirmation: z.ZodBoolean;
             confirmationMessage: z.ZodNullable<z.ZodString>;
         }, z.core.$strip>>;
@@ -1195,6 +1211,7 @@ export declare const planTemplateCreate: z.ZodObject<{
             }>;
         }, z.core.$strip>;
         settings: z.ZodRecord<z.ZodString, z.ZodAny>;
+        lightHours: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         waitForConfirmation: z.ZodBoolean;
         confirmationMessage: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>;
@@ -1225,11 +1242,16 @@ export declare const planTemplateUpdate: z.ZodObject<{
             }>;
         }, z.core.$strip>;
         settings: z.ZodRecord<z.ZodString, z.ZodAny>;
+        lightHours: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         waitForConfirmation: z.ZodBoolean;
         confirmationMessage: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>>;
 }, z.core.$strip>;
-/** What `POST /devices/{id}/plan/transitions` asks of a running plan. */
+/**
+ * What `POST /devices/{id}/plan/transitions` asks of a plan. `goto` runs the
+ * plan from the start of the step it names, whether it was running, paused or
+ * at rest: going back a step, or starting a plan in the middle of a grow.
+ */
 export declare const planTransition: z.ZodDiscriminatedUnion<[z.ZodObject<{
     kind: z.ZodEnum<{
         confirm: "confirm";
@@ -1260,6 +1282,11 @@ export declare const planTransition: z.ZodDiscriminatedUnion<[z.ZodObject<{
     kind: z.ZodEnum<{
         resume: "resume";
     }>;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodEnum<{
+        goto: "goto";
+    }>;
+    stepId: z.ZodString;
 }, z.core.$strip>], "kind">;
 /**
  * Where a rule came from. `always` is a rule the cloud keeps for every device

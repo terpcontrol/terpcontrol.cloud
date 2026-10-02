@@ -24,7 +24,7 @@
  * different places. No schema, so a client imports it without pulling zod in.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.co2PlugOf = exports.co2InjectFor = exports.dosesInWindows = exports.co2FanKey = exports.co2FanOf = exports.configurationFieldsOf = exports.CONFIGURATION_FIELDS = exports.FAN_MODES = exports.MOST_TIMER_WINDOWS = exports.CO2_DOSINGS = exports.switchPointName = exports.SWITCH_POINT_RANGE = exports.PLUG_SWITCHING = exports.PLUG_MODES = exports.MIN_COMPRESSOR_REST_SECONDS = exports.OPERATING_MODES = void 0;
+exports.DEVICE_SETTING_RANGES = exports.co2PlugOf = exports.co2InjectFor = exports.dosesInWindows = exports.co2FanKey = exports.co2FanOf = exports.configurationFieldsOf = exports.CONFIGURATION_FIELDS = exports.FAN_MODES = exports.MOST_TIMER_WINDOWS = exports.CO2_DOSINGS = exports.switchPointName = exports.SWITCH_POINT_RANGE = exports.PLUG_SWITCHING = exports.PLUG_MODES = exports.MIN_COMPRESSOR_REST_SECONDS = exports.OPERATING_MODES = void 0;
 /**
  * What a fridge or a controller is set to do as a whole, in a person's words:
  * the standard climate control, temperature only (the firmware's `temp`), or
@@ -35,14 +35,29 @@ exports.OPERATING_MODES = ['standard', 'greenhouse', 'germination'];
 const CONTROL = { control: { kind: 'switch', path: null } };
 /** The least the compressor rests between two runs. Below this it is not protected, whatever an older app allowed. */
 exports.MIN_COMPRESSOR_REST_SECONDS = 240;
+/**
+ * How long the lamp takes to come up in the morning and go down in the
+ * evening, in minutes: both firmwares that dim a lamp ramp it over this rather
+ * than switching it hard.
+ */
+const RAMPS = {
+    sunrise: { kind: 'number', path: 'lights.sunrise', min: 0, max: 60, step: 1 },
+    sunset: { kind: 'number', path: 'lights.sunset', min: 0, max: 60, step: 1 },
+};
 const FRIDGE = {
     ...CONTROL,
     // The back-wall fan stands still while the compressor is off: the firmware's `full`.
     energySaving: { kind: 'switch', path: null },
     mode: { kind: 'choice', path: null, options: exports.OPERATING_MODES },
     compressorRest: { kind: 'number', path: 'daynight.minimalDehumidifierOffTime', min: exports.MIN_COMPRESSOR_REST_SECONDS, max: 900, step: 30 },
+    ...RAMPS,
+    // The lamp stays at its working brightness through a maintenance window at night too.
+    maintenanceLight: { kind: 'switch', path: 'lights.maintenanceOn' },
+    // Per cent. The clip fan may stand still; the inner fans keep a tenth, which is the least the firmware runs them at.
+    clipFan: { kind: 'number', path: 'fans.external', min: 0, max: 100, step: 5 },
+    innerFans: { kind: 'number', path: 'fans.internal', min: 10, max: 100, step: 5 },
 };
-const CONTROLLER = { ...CONTROL };
+const CONTROLLER = { ...CONTROL, ...RAMPS };
 /** A time of day as the firmware keeps every one: seconds past midnight UTC. The app writes whole minutes. */
 const TIME_OF_DAY = { kind: 'number', min: 0, max: 86399, step: 60 };
 /**
@@ -191,3 +206,16 @@ const co2PlugOf = (fan) => {
     return typeof id === 'string' && id !== '' ? id : null;
 };
 exports.co2PlugOf = co2PlugOf;
+/**
+ * The cloud's own settings of a device (`Device.settings`), which no firmware
+ * reads: how much cooler than the air a leaf is taken to be where no leaf
+ * sensor measures it, which is what VPD is worked out with, and the factor
+ * that turns the light sensor's lux into PPFD. The ranges are what
+ * `PATCH /devices/{id}` holds them to and what the screens offer; a figure
+ * outside them is a typing slip rather than a lamp or a leaf.
+ */
+exports.DEVICE_SETTING_RANGES = {
+    vpdLeafOffsetDay: { min: -10, max: 5, step: 0.5 },
+    vpdLeafOffsetNight: { min: -10, max: 5, step: 0.5 },
+    ppfdLuxFactor: { min: 0.005, max: 0.05, step: 0.0001 },
+};

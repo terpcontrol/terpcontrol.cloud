@@ -156,7 +156,7 @@ export const notificationChannel = named('NotificationChannel', z.enum(['email',
  * What can be asked of a running plan. Stated once: the plan routes take one of
  * these and the diary writes the one that caused a `plan` entry.
  */
-export const planTransitionKind = named('PlanTransitionKind', z.enum(['confirm', 'skip', 'extend', 'pause', 'resume']));
+export const planTransitionKind = named('PlanTransitionKind', z.enum(['confirm', 'skip', 'extend', 'pause', 'resume', 'goto']));
 
 /**
  * What a smart socket drives. The first five are what deployed firmware already

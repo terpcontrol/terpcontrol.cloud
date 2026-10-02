@@ -227,6 +227,61 @@ describe('what reaches the hardware', () => {
     }
   });
 
+  it('changes the fine settings a few growers need by name, each where its device has it', async () => {
+    const fridge = await provisionDevice(owner, 'fridge');
+    await owner.client
+      .put(`/v1/devices/${fridge.deviceId}/configuration`)
+      .send({ configuration: { workmode: 'small', lights: { limit: 80, sunrise: 15, sunset: 15 }, fans: { external: 100, internal: 100 } } })
+      .expect(200);
+
+    const changed = await owner.client
+      .patch(`/v1/devices/${fridge.deviceId}/configuration`)
+      .send({ set: { sunrise: 30, sunset: 0, maintenanceLight: true, clipFan: 40, innerFans: 60 } })
+      .expect(200);
+    expect(changed.body.configuration.lights).toEqual({ limit: 80, sunrise: 30, sunset: 0, maintenanceOn: 1 });
+    expect(changed.body.configuration.fans).toEqual({ external: 40, internal: 60 });
+
+    // The inner fans keep the tenth the firmware never goes below.
+    const refused = await owner.client
+      .patch(`/v1/devices/${fridge.deviceId}/configuration`)
+      .send({ set: { innerFans: 5, sunrise: 90 } })
+      .expect(422);
+    expect(refused.body.errors.map((error: { field: string }) => error.field)).toEqual(['set.innerFans', 'set.sunrise']);
+
+    // A tent controller dims its lamp on the same ramp, and has no fans of its own.
+    const tent = await provisionDevice(owner, 'controller');
+    await owner.client
+      .put(`/v1/devices/${tent.deviceId}/configuration`)
+      .send({ configuration: { workmode: 2, lights: { limit: 100 } } })
+      .expect(200);
+    await owner.client
+      .patch(`/v1/devices/${tent.deviceId}/configuration`)
+      .send({ set: { sunrise: 20 } })
+      .expect(200);
+    await owner.client
+      .patch(`/v1/devices/${tent.deviceId}/configuration`)
+      .send({ set: { clipFan: 20 } })
+      .expect(422);
+  });
+
+  it('keeps the leaf offsets and the lux factor within what a leaf or a lamp can be', async () => {
+    const device = await provisionDevice(owner, 'controller');
+    const settings = { vpdLeafOffsetDay: -3, vpdLeafOffsetNight: -1, ppfdLuxFactor: 0.0122 };
+
+    const written = await owner.client.patch(`/v1/devices/${device.deviceId}`).send({ settings }).expect(200);
+    expect(written.body.settings).toEqual(settings);
+
+    await owner.client
+      .patch(`/v1/devices/${device.deviceId}`)
+      .send({ settings: { ...settings, ppfdLuxFactor: 15 } })
+      .expect(400);
+    await owner.client
+      .patch(`/v1/devices/${device.deviceId}`)
+      .send({ settings: { ...settings, vpdLeafOffsetDay: -40 } })
+      .expect(400);
+    expect((await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.settings).toEqual(settings);
+  });
+
   it('says of a device that never reported its configuration that it has none, on both routes alike', async () => {
     const silent = await provisionDevice(owner, 'controller');
 

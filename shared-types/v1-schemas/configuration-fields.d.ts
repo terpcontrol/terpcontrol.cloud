@@ -137,4 +137,29 @@ export declare const dosesInWindows: (plug: Document) => boolean;
 export declare const co2InjectFor: (plugId: string, plug: Document, speed: number) => Record<string, unknown>;
 /** The smart socket a fan is slowed for, as the fan's own document names it. */
 export declare const co2PlugOf: (fan: Document) => string | null;
+/**
+ * The cloud's own settings of a device (`Device.settings`), which no firmware
+ * reads: how much cooler than the air a leaf is taken to be where no leaf
+ * sensor measures it, which is what VPD is worked out with, and the factor
+ * that turns the light sensor's lux into PPFD. The ranges are what
+ * `PATCH /devices/{id}` holds them to and what the screens offer; a figure
+ * outside them is a typing slip rather than a lamp or a leaf.
+ */
+export declare const DEVICE_SETTING_RANGES: {
+    readonly vpdLeafOffsetDay: {
+        readonly min: -10;
+        readonly max: 5;
+        readonly step: 0.5;
+    };
+    readonly vpdLeafOffsetNight: {
+        readonly min: -10;
+        readonly max: 5;
+        readonly step: 0.5;
+    };
+    readonly ppfdLuxFactor: {
+        readonly min: 0.005;
+        readonly max: 0.05;
+        readonly step: 0.0001;
+    };
+};
 export {};

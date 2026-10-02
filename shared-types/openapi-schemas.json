@@ -155,7 +155,8 @@
       "skip",
       "extend",
       "pause",
-      "resume"
+      "resume",
+      "goto"
     ]
   },
   "SocketRole": {
@@ -2246,6 +2247,31 @@
       "nextCursor"
     ]
   },
+  "DeviceSettingsWritten": {
+    "type": "object",
+    "properties": {
+      "vpdLeafOffsetDay": {
+        "type": "number",
+        "minimum": -10,
+        "maximum": 5
+      },
+      "vpdLeafOffsetNight": {
+        "type": "number",
+        "minimum": -10,
+        "maximum": 5
+      },
+      "ppfdLuxFactor": {
+        "type": "number",
+        "minimum": 0.005,
+        "maximum": 0.05
+      }
+    },
+    "required": [
+      "vpdLeafOffsetDay",
+      "vpdLeafOffsetNight",
+      "ppfdLuxFactor"
+    ]
+  },
   "DeviceUpdate": {
     "type": "object",
     "properties": {
@@ -2270,7 +2296,7 @@
         "$ref": "#/components/schemas/DeviceFirmwareTarget"
       },
       "settings": {
-        "$ref": "#/components/schemas/DeviceSettings"
+        "$ref": "#/components/schemas/DeviceSettingsWritten"
       }
     }
   },
@@ -3364,6 +3390,19 @@
       "settings": {
         "$ref": "#/components/schemas/DeviceConfiguration"
       },
+      "lightHours": {
+        "anyOf": [
+          {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 24
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "How long the light is on while this step runs; null leaves the photoperiod as it is."
+      },
       "waitForConfirmation": {
         "type": "boolean"
       },
@@ -3381,6 +3420,7 @@
       "preset",
       "duration",
       "settings",
+      "lightHours",
       "waitForConfirmation",
       "confirmationMessage"
     ]
@@ -3610,6 +3650,19 @@
       },
       "settings": {
         "$ref": "#/components/schemas/DeviceConfiguration"
+      },
+      "lightHours": {
+        "anyOf": [
+          {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 24
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "How long the light is on while this step runs; null leaves the photoperiod as it is."
       },
       "waitForConfirmation": {
         "type": "boolean"
@@ -3849,6 +3902,26 @@
         },
         "required": [
           "kind"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "goto"
+            ]
+          },
+          "stepId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The step the plan runs from, by its id."
+          }
+        },
+        "required": [
+          "kind",
+          "stepId"
         ]
       }
     ]
@@ -11985,6 +12058,90 @@
       "setpoints",
       "devices",
       "cameras"
+    ]
+  },
+  "Co2Cylinder": {
+    "type": "object",
+    "properties": {
+      "since": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+        "description": "When it went in."
+      },
+      "until": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "When the next one replaced it; null for the cylinder in use."
+      },
+      "filledGrams": {
+        "type": "number",
+        "description": "What it held when it went in."
+      },
+      "restGrams": {
+        "description": "What was left when it came out: the weight written down, or nothing at all where none was. Null for the cylinder in use.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "openings": {
+        "type": "number",
+        "description": "How often the valve opened while it was in."
+      },
+      "openingsPerGram": {
+        "description": "Its own rate; null for the cylinder in use, and where nothing was used.",
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "since",
+      "until",
+      "filledGrams",
+      "restGrams",
+      "openings",
+      "openingsPerGram"
+    ]
+  },
+  "Co2Report": {
+    "type": "object",
+    "properties": {
+      "cylinders": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Co2Cylinder"
+        }
+      },
+      "openingsPerGram": {
+        "description": "Over every finished cylinder together; null until one has finished.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "restGrams": {
+        "description": "What the cylinder in use has left by that rate; null without a rate or a cylinder.",
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "cylinders",
+      "openingsPerGram",
+      "restGrams"
     ]
   },
   "TimelineRange": {

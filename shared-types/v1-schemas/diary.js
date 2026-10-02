@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.exportAccepted = exports.media = exports.mediaExportJob = exports.exportScope = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.growReadingNames = exports.readingName = exports.entryReading = void 0;
 exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -1066,6 +1066,34 @@ exports.spaceLive = (0, common_js_1.named)('SpaceLive', zod_1.z.object({
     setpoints: zod_1.z.array(exports.cardSetpoint),
     devices: zod_1.z.array(exports.spaceLiveDevice),
     cameras: zod_1.z.array(exports.spaceLiveCamera),
+}));
+/**
+ * One CO2 cylinder: from the diary line that says it went in to the one that
+ * says the next did. The grams are what somebody weighed and wrote down with
+ * the refill (the measurements `co2FillingInitial` and `co2FillingRest`); the
+ * valve's openings are what the devices standing here counted meanwhile.
+ */
+exports.co2Cylinder = (0, common_js_1.named)('Co2Cylinder', zod_1.z.object({
+    since: (0, common_js_1.instant)().describe('When it went in.'),
+    until: (0, common_js_1.instant)().nullable().describe('When the next one replaced it; null for the cylinder in use.'),
+    filledGrams: zod_1.z.number().describe('What it held when it went in.'),
+    restGrams: zod_1.z
+        .number()
+        .nullable()
+        .describe('What was left when it came out: the weight written down, or nothing at all where none was. Null for the cylinder in use.'),
+    openings: zod_1.z.number().describe('How often the valve opened while it was in.'),
+    openingsPerGram: zod_1.z.number().nullable().describe('Its own rate; null for the cylinder in use, and where nothing was used.'),
+}));
+/**
+ * `GET /spaces/{id}/co2-report`: what the CO2 cylinders of a place lasted,
+ * newest first, and what the one in use has left - worked out from the
+ * openings it has seen so far at the average rate of the cylinders before it.
+ * Empty where no refill was ever written down here.
+ */
+exports.co2Report = (0, common_js_1.named)('Co2Report', zod_1.z.object({
+    cylinders: zod_1.z.array(exports.co2Cylinder),
+    openingsPerGram: zod_1.z.number().nullable().describe('Over every finished cylinder together; null until one has finished.'),
+    restGrams: zod_1.z.number().nullable().describe('What the cylinder in use has left by that rate; null without a rate or a cylinder.'),
 }));
 /**
  * What the Timeline tab is asked for. `24h`, `7d` and `30d` are windows ending

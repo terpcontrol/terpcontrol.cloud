@@ -41,6 +41,7 @@ import {
   switchingsByField,
   switchingsQuery,
   trendQuery,
+  valveOpeningsQuery,
 } from './flux';
 
 /**
@@ -503,6 +504,12 @@ export class DataService implements LightStateReader {
     const instants = rows.map(row => (row._time ? new Date(row._time).getTime() : NaN)).filter(at => Number.isFinite(at));
 
     return instants.length > 0 ? new Date(Math.min(...instants)) : null;
+  }
+
+  /** How often a device's CO2 valve opened over a stretch (see `valveOpeningsQuery`); nought where it never reported one. */
+  public async valveOpenings(deviceId: string, window: { startsAt: Date; endsAt: Date }): Promise<number> {
+    const rows = await this.read(valveOpeningsQuery(this.bucket, deviceId, window));
+    return rows.reduce((sum, row) => sum + (typeof row._value === 'number' && Number.isFinite(row._value) ? row._value : 0), 0);
   }
 
   /**

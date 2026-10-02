@@ -1,6 +1,7 @@
 import type { Plan, PlanState, PlanTemplate } from '@fg2/shared-types/v1';
 import { StoredPlanTemplate } from '@database/schemas/v1/plan-templates.schema';
 import { StoredPlan, StoredPlanState } from '@database/schemas/v1/plans.schema';
+import { answeredStep } from './plan-steps';
 
 /** The stored documents as the contract has them: instants as ISO strings, and nothing a reader may not see. */
 
@@ -36,7 +37,7 @@ export const planOf = (plan: StoredPlan, mayManage: boolean): Plan => ({
   deviceId: plan.deviceId,
   templateId: plan.templateId,
   name: plan.name,
-  steps: plan.steps,
+  steps: plan.steps.map(answeredStep),
   loop: plan.loop,
   notify: { mode: plan.notify.mode, email: mayManage ? plan.notify.email : null, writeEntries: plan.notify.writeEntries },
   state: stateOf(plan.state),
@@ -49,5 +50,5 @@ export const planTemplateOf = (template: StoredPlanTemplate): PlanTemplate => ({
   ownerId: template.ownerId,
   name: template.name,
   isPublic: template.isPublic,
-  steps: template.steps,
+  steps: template.steps.map(answeredStep),
 });

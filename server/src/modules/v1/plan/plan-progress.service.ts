@@ -188,9 +188,10 @@ export class PlanProgressService {
   }
 
   /**
-   * A step somebody activated: starting a plan that was stopped, or resuming one
-   * that has run to its end. The clock starts over, and the step's stage is the
-   * grow's, exactly as when the engine reaches the step itself.
+   * A step somebody activated: starting a plan that was stopped, resuming one
+   * that has run to its end, or going on with the step somebody chose. The
+   * clock starts over, and the step's stage is the grow's, exactly as when the
+   * engine reaches the step itself.
    */
   public async activate(plan: StoredPlan, index: number, now: Date, transition: PlanTransitionKind, by: string | null): Promise<StoredPlan> {
     const started = await this.store(plan, running(index, now));
@@ -198,7 +199,8 @@ export class PlanProgressService {
     if (!step) return started;
 
     const place = await this.place(started);
-    await this.announce(started, place, transition, by, 'message-recipe-step-manually-activated', [`${index + 1} (${step.name})`]);
+    const key = transition === 'goto' ? 'message-recipe-step-chosen' : 'message-recipe-step-manually-activated';
+    await this.announce(started, place, transition, by, key, [`${index + 1} (${step.name})`]);
     await this.setPhase(started, place, step);
 
     return started;

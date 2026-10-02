@@ -53,6 +53,7 @@ const step = (partial: Partial<PlanStep> & Pick<PlanStep, 'id' | 'name'>): PlanS
   preset: null,
   duration: { value: 1, unit: 'days' },
   settings: {},
+  lightHours: null,
   waitForConfirmation: false,
   confirmationMessage: null,
   ...partial,
@@ -245,6 +246,42 @@ describe('what the step is applied to', () => {
 
     expect(applied).toEqual([{ deviceId: DEVICE, settings: {} }]);
     expect(appliedFor).toEqual(['drying']);
+  });
+
+  it('sends a step´s light hours as the device´s own morning and the evening that many hours later', async () => {
+    await aDevice();
+    // 08:00 UTC, which the device states and the step does not.
+    await db.devices.updateOne({ id: DEVICE }, { $set: { 'configuration.daynight': { day: 8 * 3600, night: 2 * 3600, sunrise: 15 } } });
+    await aPlan([step({ id: 'a', name: 'Flower', lightHours: 12, settings: { day: { temperature: 25 } } })]);
+
+    await engine.run(NOW);
+
+    expect(applied).toEqual([{ deviceId: DEVICE, settings: { day: { temperature: 25 }, daynight: { day: 8 * 3600, night: 20 * 3600 } } }]);
+  });
+
+  it('keeps the morning a recipe states itself, and sends a step of light hours alone', async () => {
+    await aDevice();
+    await aPlan([
+      step({ id: 'a', name: 'Veg', lightHours: 18, settings: { daynight: { day: 22 * 3600 } } }),
+      step({ id: 'b', name: 'Flower', lightHours: 12 }),
+    ]);
+
+    await engine.run(NOW);
+    expect(applied[0].settings).toEqual({ daynight: { day: 22 * 3600, night: 16 * 3600 } });
+
+    // A device that never said when its light comes on gets the firmware's own 06:00.
+    await transitions.transition(DEVICE, { kind: 'skip' }, OWNER);
+    await engine.run(at(MINUTE));
+    expect(applied[1].settings).toEqual({ daynight: { day: 6 * 3600, night: 18 * 3600 } });
+  });
+
+  it('keeps a light that is on all day a second short of the day, which the firmware would read as never on', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Seedling', lightHours: 24 })]);
+
+    await engine.run(NOW);
+
+    expect(applied[0].settings).toEqual({ daynight: { day: 6 * 3600, night: 6 * 3600 - 1 } });
   });
 
   it('re-sends the running step at most once an hour', async () => {
@@ -503,6 +540,37 @@ describe('the transitions', () => {
     });
     expect((await entries()).map(entry => entry.values)).toContainEqual(expect.objectContaining({ transition: 'skip' }));
     expect((await grow()).phases.map(phase => phase.stage)).toEqual(['flowering']);
+  });
+
+  it('goes on with a step somebody chose, from the start of it, whatever the plan was doing', async () => {
+    await aDevice();
+    await aGrowIn(SPACE);
+    await aPlan(
+      [step({ id: 'a', name: 'Veg', stage: 'vegetative' }), step({ id: 'b', name: 'Flower', stage: 'flowering' }), step({ id: 'c', name: 'Dry' })],
+      { state: { ...stoppedState, status: 'paused', activeStepIndex: 0, pausedElapsedMs: 5 * HOUR, pauseReason: 'away' } },
+    );
+
+    const moved = await transitions.transition(DEVICE, { kind: 'goto', stepId: 'b' }, OWNER);
+
+    expect(moved.state).toMatchObject({ status: 'running', activeStepIndex: 1, pausedElapsedMs: 0, pauseReason: null, lastAppliedAt: null });
+    const written = await entries();
+    expect(written.map(entry => entry.message)).toContainEqual({ key: 'message-recipe-step-chosen', params: ['2 (Flower)'] });
+    expect(written.map(entry => entry.values)).toContainEqual(expect.objectContaining({ kind: 'plan', stepIndex: 1, transition: 'goto' }));
+    expect((await grow()).phases.map(phase => phase.stage)).toEqual(['flowering']);
+
+    // Back to the first step of a running plan, which starts that step's clock again.
+    await transitions.transition(DEVICE, { kind: 'goto', stepId: 'a' }, OWNER);
+    expect((await stored()).state).toMatchObject({ status: 'running', activeStepIndex: 0 });
+  });
+
+  it('refuses a step the plan no longer has', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Veg' })]);
+
+    await expect(transitions.transition(DEVICE, { kind: 'goto', stepId: 'gone' }, OWNER)).rejects.toMatchObject({
+      problem: { status: 409, code: 'plan_step_gone' },
+    });
+    expect((await stored()).state.activeStepIndex).toBe(0);
   });
 
   it('starts a stopped plan on the step it stands at', async () => {

@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { DurationUnit, PlanStep, PlanStepInput, StepDuration } from '@fg2/shared-types/v1';
+import type { DeviceConfiguration, DurationUnit, PlanStep, PlanStepInput, StepDuration } from '@fg2/shared-types/v1';
 import { unprocessable } from '@common/v1/problem';
 import { StoredPlan, StoredPlanState } from '@database/schemas/v1/plans.schema';
 
@@ -110,7 +110,53 @@ export const stepsOf = (steps: PlanStepInput[]): PlanStep[] => {
     ]);
   }
 
-  return steps.map(step => ({ ...step, id: step.id ?? uuidv4(), stage: step.stage ?? null, preset: step.preset ?? null }));
+  return steps.map(step => ({
+    ...step,
+    id: step.id ?? uuidv4(),
+    stage: step.stage ?? null,
+    preset: step.preset ?? null,
+    lightHours: step.lightHours ?? null,
+  }));
+};
+
+/** A step as the contract answers it: one stored before it could name light hours names none. */
+export const answeredStep = (step: PlanStep): PlanStep => ({ ...step, lightHours: step.lightHours ?? null });
+
+/** Whether a step changes anything on the device: figures of its own, light hours, or a stage, which decides the work mode. */
+export const stepWrites = (step: PlanStep): boolean =>
+  Object.keys(step.settings ?? {}).length > 0 || (step.lightHours ?? null) !== null || step.stage !== null;
+
+const DAY_SECONDS = 24 * 60 * 60;
+
+/** When the light comes on where neither the step nor the device has ever said: the firmware's own default, 06:00 UTC. */
+const DEFAULT_LIGHTS_ON = 6 * 60 * 60;
+
+const sectionOf = (document: DeviceConfiguration | null, key: string): Record<string, unknown> => {
+  const value = document?.[key];
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+};
+
+/**
+ * What a step sends, merged into the device's document like every other step:
+ * its own settings, and its light hours as the two times of day the firmware
+ * keeps. The light keeps the hour it comes on - the step's own where a recipe
+ * carried one, else the device's - and goes off that many hours later, the
+ * way a climate preset lands a photoperiod.
+ *
+ * A whole day is one second short of it. The firmware reads a light that goes
+ * off the second it comes on as one that never comes on at all, so a step of
+ * 24 hours would otherwise keep the tent dark.
+ */
+export const settingsSent = (step: PlanStep, current: DeviceConfiguration | null): DeviceConfiguration => {
+  const hours = step.lightHours ?? null;
+  if (hours === null) return step.settings;
+
+  const own = sectionOf(step.settings, 'daynight');
+  const on = [own.day, sectionOf(current, 'daynight').day].find(value => typeof value === 'number' && Number.isFinite(value)) as number | undefined;
+  const lightsOn = on ?? DEFAULT_LIGHTS_ON;
+  const lit = Math.min(Math.round(hours * 60 * 60), DAY_SECONDS - 1);
+
+  return { ...step.settings, daynight: { ...own, day: lightsOn, night: (lightsOn + lit) % DAY_SECONDS } };
 };
 
 /**

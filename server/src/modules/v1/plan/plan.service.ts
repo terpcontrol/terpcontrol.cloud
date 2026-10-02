@@ -128,7 +128,7 @@ export class PlanService implements ScheduleFollower {
    * targets, and the manual targets page refuses it in a sentence.
    */
   private async mustHaveSomewhereToWrite(deviceId: string, steps: StoredPlan['steps']): Promise<void> {
-    if (!steps.some(step => Object.keys(step.settings ?? {}).length > 0)) return;
+    if (!steps.some(step => Object.keys(step.settings ?? {}).length > 0 || step.lightHours !== null)) return;
 
     const device = await this.devices.findOne({ id: deviceId }, { configuration: 1 }).lean<Pick<StoredDevice, 'configuration'> | null>();
     const configuration = device?.configuration ?? null;
@@ -195,7 +195,27 @@ export class PlanService implements ScheduleFollower {
         return this.pause(plan, transition.reason, now);
       case 'resume':
         return this.resume(plan, now, by);
+      case 'goto':
+        return this.goTo(plan, transition.stepId, now, by);
     }
+  }
+
+  /**
+   * The plan runs from the start of the step named, wherever it stood and
+   * whatever it was doing: back to a step that ended too soon, or into the
+   * middle of a recipe for a grow that is already flowering. It is a start of
+   * that step like any other - the clock begins at nought, the step's stage is
+   * the grow's, and the step reaches the device on the engine's next pass - so
+   * a paused plan runs again: going on with a step is not pausing at it.
+   *
+   * The step is named by its id rather than its place, so a list edited on
+   * another screen in the meantime cannot move the plan onto the wrong one.
+   */
+  private async goTo(plan: StoredPlan, stepId: string, now: Date, by: string | null): Promise<StoredPlan> {
+    const index = plan.steps.findIndex(step => step.id === stepId);
+    if (index < 0) throw conflict('plan_step_gone', 'This plan has no such step any more.');
+
+    return this.progress.activate(plan, index, now, 'goto', by);
   }
 
   /** The answer the step was waiting for. It is the step's end, so the plan moves on as it would have on its own. */

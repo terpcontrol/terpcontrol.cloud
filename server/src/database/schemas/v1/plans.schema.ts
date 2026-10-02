@@ -44,6 +44,8 @@ export const planStepSchema = new Schema<PlanStep>(
     // A fragment of the device's own configuration document, as untyped here as
     // that document is.
     settings: { type: Schema.Types.Mixed, required: true, default: () => ({}) },
+    // A step written before steps could name light hours has none, which reads as null.
+    lightHours: { type: Number, default: null },
     waitForConfirmation: { type: Boolean, required: true, default: false },
     confirmationMessage: { type: String, default: null },
   },

@@ -165,6 +165,7 @@ export declare const planEntryValues: z.ZodObject<{
         confirm: "confirm";
         extend: "extend";
         skip: "skip";
+        goto: "goto";
     }>>;
 }, z.core.$strip>;
 export declare const entryValues: z.ZodDiscriminatedUnion<[z.ZodObject<{
@@ -239,6 +240,7 @@ export declare const entryValues: z.ZodDiscriminatedUnion<[z.ZodObject<{
         confirm: "confirm";
         extend: "extend";
         skip: "skip";
+        goto: "goto";
     }>>;
 }, z.core.$strip>], "kind">;
 /** A device's log line, parsed once on the way in. The keys are the webapp's `message-*` catalogue. */
@@ -370,6 +372,7 @@ export declare const entry: z.ZodObject<{
             confirm: "confirm";
             extend: "extend";
             skip: "skip";
+            goto: "goto";
         }>>;
     }, z.core.$strip>], "kind">;
     mediaIds: z.ZodArray<z.ZodString>;
@@ -492,6 +495,7 @@ export declare const entryPage: z.ZodObject<{
                 confirm: "confirm";
                 extend: "extend";
                 skip: "skip";
+                goto: "goto";
             }>>;
         }, z.core.$strip>], "kind">;
         mediaIds: z.ZodArray<z.ZodString>;
@@ -2523,6 +2527,7 @@ export declare const homeSpaceCard: z.ZodObject<{
                 confirm: "confirm";
                 extend: "extend";
                 skip: "skip";
+                goto: "goto";
             }>>;
         }, z.core.$strip>], "kind">;
         mediaIds: z.ZodArray<z.ZodString>;
@@ -2819,6 +2824,7 @@ export declare const homeAnswer: z.ZodObject<{
                     confirm: "confirm";
                     extend: "extend";
                     skip: "skip";
+                    goto: "goto";
                 }>>;
             }, z.core.$strip>], "kind">;
             mediaIds: z.ZodArray<z.ZodString>;
@@ -3548,6 +3554,7 @@ export declare const spaceOverview: z.ZodObject<{
                 confirm: "confirm";
                 extend: "extend";
                 skip: "skip";
+                goto: "goto";
             }>>;
         }, z.core.$strip>], "kind">;
         mediaIds: z.ZodArray<z.ZodString>;
@@ -3744,6 +3751,38 @@ export declare const spaceLive: z.ZodObject<{
         cameraId: z.ZodString;
         lastStillAt: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>>;
+}, z.core.$strip>;
+/**
+ * One CO2 cylinder: from the diary line that says it went in to the one that
+ * says the next did. The grams are what somebody weighed and wrote down with
+ * the refill (the measurements `co2FillingInitial` and `co2FillingRest`); the
+ * valve's openings are what the devices standing here counted meanwhile.
+ */
+export declare const co2Cylinder: z.ZodObject<{
+    since: z.ZodISODateTime;
+    until: z.ZodNullable<z.ZodISODateTime>;
+    filledGrams: z.ZodNumber;
+    restGrams: z.ZodNullable<z.ZodNumber>;
+    openings: z.ZodNumber;
+    openingsPerGram: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>;
+/**
+ * `GET /spaces/{id}/co2-report`: what the CO2 cylinders of a place lasted,
+ * newest first, and what the one in use has left - worked out from the
+ * openings it has seen so far at the average rate of the cylinders before it.
+ * Empty where no refill was ever written down here.
+ */
+export declare const co2Report: z.ZodObject<{
+    cylinders: z.ZodArray<z.ZodObject<{
+        since: z.ZodISODateTime;
+        until: z.ZodNullable<z.ZodISODateTime>;
+        filledGrams: z.ZodNumber;
+        restGrams: z.ZodNullable<z.ZodNumber>;
+        openings: z.ZodNumber;
+        openingsPerGram: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>>;
+    openingsPerGram: z.ZodNullable<z.ZodNumber>;
+    restGrams: z.ZodNullable<z.ZodNumber>;
 }, z.core.$strip>;
 /**
  * What the Timeline tab is asked for. `24h`, `7d` and `30d` are windows ending
@@ -4193,6 +4232,7 @@ export declare const spaceTimeline: z.ZodObject<{
                 confirm: "confirm";
                 extend: "extend";
                 skip: "skip";
+                goto: "goto";
             }>>;
         }, z.core.$strip>], "kind">;
         mediaIds: z.ZodArray<z.ZodString>;
@@ -4503,6 +4543,7 @@ export declare const growWeekCard: z.ZodObject<{
                 confirm: "confirm";
                 extend: "extend";
                 skip: "skip";
+                goto: "goto";
             }>>;
         }, z.core.$strip>], "kind">;
         mediaIds: z.ZodArray<z.ZodString>;
@@ -4700,6 +4741,7 @@ export declare const growWeekCardPage: z.ZodObject<{
                     confirm: "confirm";
                     extend: "extend";
                     skip: "skip";
+                    goto: "goto";
                 }>>;
             }, z.core.$strip>], "kind">;
             mediaIds: z.ZodArray<z.ZodString>;
@@ -4874,6 +4916,7 @@ export declare const growReportPhase: z.ZodObject<{
                 confirm: "confirm";
                 extend: "extend";
                 skip: "skip";
+                goto: "goto";
             }>>;
         }, z.core.$strip>], "kind">;
         mediaIds: z.ZodArray<z.ZodString>;
@@ -5072,6 +5115,7 @@ export declare const growReport: z.ZodObject<{
                     confirm: "confirm";
                     extend: "extend";
                     skip: "skip";
+                    goto: "goto";
                 }>>;
             }, z.core.$strip>], "kind">;
             mediaIds: z.ZodArray<z.ZodString>;
@@ -5471,6 +5515,7 @@ export declare const publicGrowPage: z.ZodObject<{
                     confirm: "confirm";
                     extend: "extend";
                     skip: "skip";
+                    goto: "goto";
                 }>>;
             }, z.core.$strip>], "kind">;
             mediaIds: z.ZodArray<z.ZodString>;
@@ -5685,6 +5730,7 @@ export declare const publicWeekPage: z.ZodObject<{
                     confirm: "confirm";
                     extend: "extend";
                     skip: "skip";
+                    goto: "goto";
                 }>>;
             }, z.core.$strip>], "kind">;
             mediaIds: z.ZodArray<z.ZodString>;
@@ -5948,6 +5994,7 @@ export declare const sharedGrow: z.ZodObject<{
                         confirm: "confirm";
                         extend: "extend";
                         skip: "skip";
+                        goto: "goto";
                     }>>;
                 }, z.core.$strip>], "kind">;
                 mediaIds: z.ZodArray<z.ZodString>;
@@ -6306,6 +6353,7 @@ export declare const sharedSpace: z.ZodObject<{
                     confirm: "confirm";
                     extend: "extend";
                     skip: "skip";
+                    goto: "goto";
                 }>>;
             }, z.core.$strip>], "kind">;
             mediaIds: z.ZodArray<z.ZodString>;
@@ -6592,6 +6640,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         confirm: "confirm";
                         extend: "extend";
                         skip: "skip";
+                        goto: "goto";
                     }>>;
                 }, z.core.$strip>], "kind">;
                 mediaIds: z.ZodArray<z.ZodString>;
@@ -6944,6 +6993,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     confirm: "confirm";
                     extend: "extend";
                     skip: "skip";
+                    goto: "goto";
                 }>>;
             }, z.core.$strip>], "kind">;
             mediaIds: z.ZodArray<z.ZodString>;
@@ -7247,6 +7297,7 @@ export declare const sharedResolution: z.ZodObject<{
                             confirm: "confirm";
                             extend: "extend";
                             skip: "skip";
+                            goto: "goto";
                         }>>;
                     }, z.core.$strip>], "kind">;
                     mediaIds: z.ZodArray<z.ZodString>;
@@ -7599,6 +7650,7 @@ export declare const sharedResolution: z.ZodObject<{
                         confirm: "confirm";
                         extend: "extend";
                         skip: "skip";
+                        goto: "goto";
                     }>>;
                 }, z.core.$strip>], "kind">;
                 mediaIds: z.ZodArray<z.ZodString>;

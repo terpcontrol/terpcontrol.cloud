@@ -90,15 +90,31 @@ const CONTROL: ConfigurationFields = { control: { kind: 'switch', path: null } }
 /** The least the compressor rests between two runs. Below this it is not protected, whatever an older app allowed. */
 export const MIN_COMPRESSOR_REST_SECONDS = 240;
 
+/**
+ * How long the lamp takes to come up in the morning and go down in the
+ * evening, in minutes: both firmwares that dim a lamp ramp it over this rather
+ * than switching it hard.
+ */
+const RAMPS: ConfigurationFields = {
+  sunrise: { kind: 'number', path: 'lights.sunrise', min: 0, max: 60, step: 1 },
+  sunset: { kind: 'number', path: 'lights.sunset', min: 0, max: 60, step: 1 },
+};
+
 const FRIDGE: ConfigurationFields = {
   ...CONTROL,
   // The back-wall fan stands still while the compressor is off: the firmware's `full`.
   energySaving: { kind: 'switch', path: null },
   mode: { kind: 'choice', path: null, options: OPERATING_MODES },
   compressorRest: { kind: 'number', path: 'daynight.minimalDehumidifierOffTime', min: MIN_COMPRESSOR_REST_SECONDS, max: 900, step: 30 },
+  ...RAMPS,
+  // The lamp stays at its working brightness through a maintenance window at night too.
+  maintenanceLight: { kind: 'switch', path: 'lights.maintenanceOn' },
+  // Per cent. The clip fan may stand still; the inner fans keep a tenth, which is the least the firmware runs them at.
+  clipFan: { kind: 'number', path: 'fans.external', min: 0, max: 100, step: 5 },
+  innerFans: { kind: 'number', path: 'fans.internal', min: 10, max: 100, step: 5 },
 };
 
-const CONTROLLER: ConfigurationFields = { ...CONTROL };
+const CONTROLLER: ConfigurationFields = { ...CONTROL, ...RAMPS };
 
 /** A time of day as the firmware keeps every one: seconds past midnight UTC. The app writes whole minutes. */
 const TIME_OF_DAY = { kind: 'number', min: 0, max: 86399, step: 60 } as const;
@@ -291,3 +307,17 @@ export const co2PlugOf = (fan: Document): string | null => {
   const id = sectionIn(fan, 'co2inject')?.device_id;
   return typeof id === 'string' && id !== '' ? id : null;
 };
+
+/**
+ * The cloud's own settings of a device (`Device.settings`), which no firmware
+ * reads: how much cooler than the air a leaf is taken to be where no leaf
+ * sensor measures it, which is what VPD is worked out with, and the factor
+ * that turns the light sensor's lux into PPFD. The ranges are what
+ * `PATCH /devices/{id}` holds them to and what the screens offer; a figure
+ * outside them is a typing slip rather than a lamp or a leaf.
+ */
+export const DEVICE_SETTING_RANGES = {
+  vpdLeafOffsetDay: { min: -10, max: 5, step: 0.5 },
+  vpdLeafOffsetNight: { min: -10, max: 5, step: 0.5 },
+  ppfdLuxFactor: { min: 0.005, max: 0.05, step: 0.0001 },
+} as const;

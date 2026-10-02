@@ -20,7 +20,7 @@ import {
   subjectRef,
   webhookMethod,
 } from './common.js';
-import { OPERATING_MODES } from './configuration-fields.js';
+import { DEVICE_SETTING_RANGES, OPERATING_MODES } from './configuration-fields.js';
 import { SOCKET_ADDRESS_MAX_LEN, SOCKET_CREDENTIAL_MAX_LEN, SOCKET_HOLD_MAX_SECONDS } from './socket-report.js';
 
 /**
@@ -144,6 +144,23 @@ export const device = named(
 
 export const devicePage = named('DevicePage', page(device));
 
+const withinRange = (name: keyof typeof DEVICE_SETTING_RANGES) =>
+  z.number().min(DEVICE_SETTING_RANGES[name].min).max(DEVICE_SETTING_RANGES[name].max);
+
+/**
+ * The settings as a client writes them: the same three figures, each held to
+ * the range a leaf or a lamp can be (`DEVICE_SETTING_RANGES`). An answer is not
+ * held to it, because a figure the old cloud stored is answered as it was.
+ */
+export const deviceSettingsWritten = named(
+  'DeviceSettingsWritten',
+  z.object({
+    vpdLeafOffsetDay: withinRange('vpdLeafOffsetDay'),
+    vpdLeafOffsetNight: withinRange('vpdLeafOffsetNight'),
+    ppfdLuxFactor: withinRange('ppfdLuxFactor'),
+  }),
+);
+
 /**
  * `PATCH /devices/{id}`: what a person decides about a device. What it is, who
  * owns it and everything under `state` are not a client's to write, and the
@@ -152,7 +169,10 @@ export const devicePage = named('DevicePage', page(device));
  */
 export const deviceUpdate = named(
   'DeviceUpdate',
-  device.pick({ name: true, spaceId: true, firmware: true, settings: true }).partial(),
+  device
+    .pick({ name: true, spaceId: true, firmware: true })
+    .extend({ settings: deviceSettingsWritten })
+    .partial(),
 );
 
 /**
@@ -598,6 +618,15 @@ export const planStep = named(
     // A fragment of the device's own configuration document, so it is as untyped
     // as that document is.
     settings: deviceConfiguration,
+    // Hours rather than the document's two times of day, because a step - and a
+    // template above all - is written for a tent whose morning it does not know:
+    // the light keeps the hour it comes on and goes off this much later.
+    lightHours: z
+      .number()
+      .min(1)
+      .max(24)
+      .nullable()
+      .describe('How long the light is on while this step runs; null leaves the photoperiod as it is.'),
     waitForConfirmation: z.boolean(),
     confirmationMessage: z.string().nullable(),
   }),
@@ -673,7 +702,7 @@ export const plan = named(
  * present and `null` where a step says nothing, so what a client reads back is
  * what a client may write.
  */
-export const planStepInput = named('PlanStepInput', planStep.partial({ id: true, stage: true, preset: true }));
+export const planStepInput = named('PlanStepInput', planStep.partial({ id: true, stage: true, preset: true, lightHours: true }));
 
 /**
  * `PUT /devices/{id}/plan`. A device runs one plan, so the route both writes the
@@ -709,7 +738,11 @@ export const planTemplateCreate = named(
 /** `PATCH /plan-templates/{id}`: the same fields, each only if it changes. */
 export const planTemplateUpdate = named('PlanTemplateUpdate', planTemplateCreate.partial());
 
-/** What `POST /devices/{id}/plan/transitions` asks of a running plan. */
+/**
+ * What `POST /devices/{id}/plan/transitions` asks of a plan. `goto` runs the
+ * plan from the start of the step it names, whether it was running, paused or
+ * at rest: going back a step, or starting a plan in the middle of a grow.
+ */
 export const planTransition = named(
   'PlanTransition',
   z.discriminatedUnion('kind', [
@@ -718,6 +751,7 @@ export const planTransition = named(
     z.object({ kind: planTransitionKind.extract(['extend']), by: stepDuration }),
     z.object({ kind: planTransitionKind.extract(['pause']), reason: z.string().nullable() }),
     z.object({ kind: planTransitionKind.extract(['resume']) }),
+    z.object({ kind: planTransitionKind.extract(['goto']), stepId: id().describe('The step the plan runs from, by its id.') }),
   ]),
 );
 

@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.captureStillCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.adminDeviceCreate = exports.deviceConfigurationReading = exports.co2FanCoupling = exports.deviceConfigurationPatch = exports.timerWindow = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.devicePage = exports.device = exports.deviceState = exports.deviceControl = exports.operatingMode = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
-exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = void 0;
-exports.adminLogPage = exports.adminLogLine = void 0;
+exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.captureStillCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.adminDeviceCreate = exports.deviceConfigurationReading = exports.co2FanCoupling = exports.deviceConfigurationPatch = exports.timerWindow = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.deviceSettingsWritten = exports.devicePage = exports.device = exports.deviceState = exports.deviceControl = exports.operatingMode = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
+exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = void 0;
+exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 const configuration_fields_js_1 = require("./configuration-fields.js");
@@ -103,13 +103,27 @@ exports.device = (0, common_js_1.named)('Device', zod_1.z.object({
     state: exports.deviceState,
 }));
 exports.devicePage = (0, common_js_1.named)('DevicePage', (0, common_js_1.page)(exports.device));
+const withinRange = (name) => zod_1.z.number().min(configuration_fields_js_1.DEVICE_SETTING_RANGES[name].min).max(configuration_fields_js_1.DEVICE_SETTING_RANGES[name].max);
+/**
+ * The settings as a client writes them: the same three figures, each held to
+ * the range a leaf or a lamp can be (`DEVICE_SETTING_RANGES`). An answer is not
+ * held to it, because a figure the old cloud stored is answered as it was.
+ */
+exports.deviceSettingsWritten = (0, common_js_1.named)('DeviceSettingsWritten', zod_1.z.object({
+    vpdLeafOffsetDay: withinRange('vpdLeafOffsetDay'),
+    vpdLeafOffsetNight: withinRange('vpdLeafOffsetNight'),
+    ppfdLuxFactor: withinRange('ppfdLuxFactor'),
+}));
 /**
  * `PATCH /devices/{id}`: what a person decides about a device. What it is, who
  * owns it and everything under `state` are not a client's to write, and the
  * configuration document has routes of its own: replaced whole with the
  * targets, or changed a named setting at a time.
  */
-exports.deviceUpdate = (0, common_js_1.named)('DeviceUpdate', exports.device.pick({ name: true, spaceId: true, firmware: true, settings: true }).partial());
+exports.deviceUpdate = (0, common_js_1.named)('DeviceUpdate', exports.device
+    .pick({ name: true, spaceId: true, firmware: true })
+    .extend({ settings: exports.deviceSettingsWritten })
+    .partial());
 /**
  * `PUT /devices/{id}/configuration`, and what it answers: a `PUT` replaces the
  * document whole because the server does not read enough of it to merge one.
@@ -436,6 +450,15 @@ exports.planStep = (0, common_js_1.named)('PlanStep', zod_1.z.object({
     // A fragment of the device's own configuration document, so it is as untyped
     // as that document is.
     settings: exports.deviceConfiguration,
+    // Hours rather than the document's two times of day, because a step - and a
+    // template above all - is written for a tent whose morning it does not know:
+    // the light keeps the hour it comes on and goes off this much later.
+    lightHours: zod_1.z
+        .number()
+        .min(1)
+        .max(24)
+        .nullable()
+        .describe('How long the light is on while this step runs; null leaves the photoperiod as it is.'),
     waitForConfirmation: zod_1.z.boolean(),
     confirmationMessage: zod_1.z.string().nullable(),
 }));
@@ -496,7 +519,7 @@ exports.plan = (0, common_js_1.named)('Plan', zod_1.z.object({
  * present and `null` where a step says nothing, so what a client reads back is
  * what a client may write.
  */
-exports.planStepInput = (0, common_js_1.named)('PlanStepInput', exports.planStep.partial({ id: true, stage: true, preset: true }));
+exports.planStepInput = (0, common_js_1.named)('PlanStepInput', exports.planStep.partial({ id: true, stage: true, preset: true, lightHours: true }));
 /**
  * `PUT /devices/{id}/plan`. A device runs one plan, so the route both writes the
  * first one and replaces the one that is there; where the plan stands is `state`
@@ -517,13 +540,18 @@ exports.planTemplatePage = (0, common_js_1.named)('PlanTemplatePage', (0, common
 exports.planTemplateCreate = (0, common_js_1.named)('PlanTemplateCreate', exports.planTemplate.pick({ name: true, isPublic: true }).extend({ steps: zod_1.z.array(exports.planStepInput) }));
 /** `PATCH /plan-templates/{id}`: the same fields, each only if it changes. */
 exports.planTemplateUpdate = (0, common_js_1.named)('PlanTemplateUpdate', exports.planTemplateCreate.partial());
-/** What `POST /devices/{id}/plan/transitions` asks of a running plan. */
+/**
+ * What `POST /devices/{id}/plan/transitions` asks of a plan. `goto` runs the
+ * plan from the start of the step it names, whether it was running, paused or
+ * at rest: going back a step, or starting a plan in the middle of a grow.
+ */
 exports.planTransition = (0, common_js_1.named)('PlanTransition', zod_1.z.discriminatedUnion('kind', [
     zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['confirm']) }),
     zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['skip']) }),
     zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['extend']), by: exports.stepDuration }),
     zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['pause']), reason: zod_1.z.string().nullable() }),
     zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['resume']) }),
+    zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['goto']), stepId: (0, common_js_1.id)().describe('The step the plan runs from, by its id.') }),
 ]));
 /* ------------------------------------------------------------------- alarms */
 /**

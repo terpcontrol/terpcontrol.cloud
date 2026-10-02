@@ -1416,6 +1416,42 @@ export const spaceLive = named(
 );
 
 /**
+ * One CO2 cylinder: from the diary line that says it went in to the one that
+ * says the next did. The grams are what somebody weighed and wrote down with
+ * the refill (the measurements `co2FillingInitial` and `co2FillingRest`); the
+ * valve's openings are what the devices standing here counted meanwhile.
+ */
+export const co2Cylinder = named(
+  'Co2Cylinder',
+  z.object({
+    since: instant().describe('When it went in.'),
+    until: instant().nullable().describe('When the next one replaced it; null for the cylinder in use.'),
+    filledGrams: z.number().describe('What it held when it went in.'),
+    restGrams: z
+      .number()
+      .nullable()
+      .describe('What was left when it came out: the weight written down, or nothing at all where none was. Null for the cylinder in use.'),
+    openings: z.number().describe('How often the valve opened while it was in.'),
+    openingsPerGram: z.number().nullable().describe('Its own rate; null for the cylinder in use, and where nothing was used.'),
+  }),
+);
+
+/**
+ * `GET /spaces/{id}/co2-report`: what the CO2 cylinders of a place lasted,
+ * newest first, and what the one in use has left - worked out from the
+ * openings it has seen so far at the average rate of the cylinders before it.
+ * Empty where no refill was ever written down here.
+ */
+export const co2Report = named(
+  'Co2Report',
+  z.object({
+    cylinders: z.array(co2Cylinder),
+    openingsPerGram: z.number().nullable().describe('Over every finished cylinder together; null until one has finished.'),
+    restGrams: z.number().nullable().describe('What the cylinder in use has left by that rate; null without a rate or a cylinder.'),
+  }),
+);
+
+/**
  * What the Timeline tab is asked for. `24h`, `7d` and `30d` are windows ending
  * at the instant the request names; `phase` and `grow` are stretches of one grow
  * and so cannot be answered without being told which.

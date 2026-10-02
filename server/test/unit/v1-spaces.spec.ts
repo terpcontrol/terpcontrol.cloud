@@ -15,6 +15,7 @@ import { PlanProgressService } from '@modules/v1/plan/plan-progress.service';
 import { PlanService } from '@modules/v1/plan/plan.service';
 import { MailService } from '@modules/mail/mail.service';
 import { ClimatePresetsService } from '@modules/v1/space/climate-presets.service';
+import { Co2ReportService } from '@modules/v1/space/co2-report.service';
 import { PresetApplicationsService } from '@modules/v1/space/preset-applications.service';
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
 import { SpacesController } from '@modules/v1/space/spaces.controller';
@@ -152,7 +153,13 @@ beforeEach(async () => {
   spaces = new SpacesService(db.spaces, db.memberships, db.invites, db.shareLinks, db.devices, db.cameras, db.grows, devices, access);
   configured = [];
   presets = presetsOf();
-  controller = new SpacesController(spaces, new SpaceLiveService(db.devices, db.cameras, {} as DataService), presets, access);
+  controller = new SpacesController(
+    spaces,
+    new SpaceLiveService(db.devices, db.cameras, {} as DataService),
+    presets,
+    access,
+    new Co2ReportService(db.entries, db.devices, {} as DataService),
+  );
   guard = new AccessGuard(new Reflector(), access);
   await seed();
 });

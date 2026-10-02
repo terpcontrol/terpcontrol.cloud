@@ -523,6 +523,7 @@ describe('ticking a plan step off', () => {
     preset: null,
     duration: { value: 1, unit: 'days' },
     settings: {},
+    lightHours: null,
     waitForConfirmation: false,
     confirmationMessage: null,
     ...partial,

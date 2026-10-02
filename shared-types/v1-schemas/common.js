@@ -135,7 +135,7 @@ exports.notificationChannel = (0, exports.named)('NotificationChannel', zod_1.z.
  * What can be asked of a running plan. Stated once: the plan routes take one of
  * these and the diary writes the one that caused a `plan` entry.
  */
-exports.planTransitionKind = (0, exports.named)('PlanTransitionKind', zod_1.z.enum(['confirm', 'skip', 'extend', 'pause', 'resume']));
+exports.planTransitionKind = (0, exports.named)('PlanTransitionKind', zod_1.z.enum(['confirm', 'skip', 'extend', 'pause', 'resume', 'goto']));
 /**
  * What a smart socket drives. The first five are what deployed firmware already
  * knows; the rest arrive with the socket firmware change.

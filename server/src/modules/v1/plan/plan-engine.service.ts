@@ -8,7 +8,7 @@ import { StoredPlan } from '@database/schemas/v1/plans.schema';
 import { logger } from '@utils/logger';
 import { DEVICE_CONFIGURATION_WRITER, DeviceConfigurationWriter } from './device-configuration.port';
 import { PlanProgressService } from './plan-progress.service';
-import { activeStep, isOver } from './plan-steps';
+import { activeStep, isOver, settingsSent, stepWrites } from './plan-steps';
 
 /** The loop that walks the running plans: what is over moves on, and what is running is kept on its step. */
 
@@ -108,7 +108,7 @@ export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
     if (!this.isAnswering(device, now)) return;
     // A step that names a stage writes even with no figures of its own: the
     // stage decides the work mode, and a drying step dries.
-    const writes = Object.keys(step.settings ?? {}).length > 0 || step.stage !== null;
+    const writes = stepWrites(step);
     if (writes && Object.keys(device?.configuration ?? {}).length === 0) return;
 
     try {
@@ -116,7 +116,7 @@ export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
       // empty change to the firmware, which rebuilds its whole settings from it.
       // One that only names a stage sends the document the device already runs,
       // with the work mode that stage asks for.
-      if (writes && (await this.configuration.applyConfiguration(plan.deviceId, step.settings, step.stage))) {
+      if (writes && (await this.configuration.applyConfiguration(plan.deviceId, settingsSent(step, device?.configuration ?? null), step.stage))) {
         logger.info(`Applied recipe step ${plan.state.activeStepIndex} to device ${plan.deviceId}`);
       }
 

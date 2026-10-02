@@ -163,6 +163,7 @@ export declare const planTransitionKind: z.ZodEnum<{
     confirm: "confirm";
     extend: "extend";
     skip: "skip";
+    goto: "goto";
 }>;
 /**
  * What a smart socket drives. The first five are what deployed firmware already
