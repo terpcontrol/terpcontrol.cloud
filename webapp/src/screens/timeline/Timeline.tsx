@@ -8,7 +8,9 @@ import { useGrowSeries } from '@/api/charts';
 import { serverNow } from '@/api/clock';
 import { useDevices } from '@/api/devices';
 import { useGrow } from '@/api/grows';
+import type { Picture } from '@/api/public';
 import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
+import { useCorrecting } from '@/log/corrections';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { ageLabel, sinceLabel } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
@@ -23,6 +25,15 @@ import { at, pointAt, spans, stampOf } from './window';
 import styles from './Timeline.module.css';
 
 const RANGES: TimelineRange[] = ['24h', '7d', '30d', 'phase', 'grow'];
+
+/** What a link is shown: the three rolling windows, which need no grow and no account to read. */
+const SHARED_RANGES: TimelineRange[] = ['24h', '7d', '30d'];
+
+/** Somebody reading through a link: its token, and where its pictures come from. */
+export interface SharedReader {
+  token: string;
+  picture: Picture;
+}
 
 interface TimelineProps {
   spaceId: string;
@@ -43,10 +54,25 @@ interface TimelineProps {
  * tap lands on the curve it was about rather than at the top of the stack.
  */
 export function Timeline({ spaceId, heading }: TimelineProps) {
-  return <TimelineFor key={spaceId} spaceId={spaceId} heading={heading} />;
+  return <TimelineFor key={spaceId} spaceId={spaceId} heading={heading} shared={null} />;
 }
 
-function TimelineFor({ spaceId, heading }: TimelineProps) {
+/**
+ * The same Timeline for somebody reading a place through a link: read only,
+ * over the last day, week or month, through the link's own window, with no way
+ * into the app's other screens - the reader has no account to open them with.
+ */
+export function SharedTimeline({ spaceId, shared }: { spaceId: string; shared: SharedReader }) {
+  return <TimelineFor spaceId={spaceId} shared={shared} />;
+}
+
+/** The lanes of a signed-in reader, who may put right a line of their own from the rail. */
+function CorrectableLanes(props: React.ComponentProps<typeof Lanes>) {
+  return <Lanes {...props} correcting={useCorrecting()} />;
+}
+
+function TimelineFor({ spaceId, heading, shared }: TimelineProps & { shared: SharedReader | null }) {
+  const Rail = shared ? Lanes : CorrectableLanes;
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
@@ -64,9 +90,9 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
   const screen = useRef<HTMLDivElement>(null);
   const focused = useRef<string | null>(null);
 
-  const timeline = useTimeline(spaceId, range, pinned);
+  const timeline = useTimeline(spaceId, range, pinned, shared?.token ?? null);
   const data = timeline.data;
-  const nameOf = useOutputName();
+  const nameOf = useOutputName(shared === null);
 
   // Once per focus, when what it names has been drawn: scrolling again on every refresh would take the page from under a thumb.
   useEffect(() => {
@@ -76,7 +102,9 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
     focused.current = focus;
     target.scrollIntoView?.({ block: 'center' });
   }, [focus, data]);
-  const growId = pinned ?? data?.growId ?? null;
+  // A link is shown the place and not the grows that stood in it, which are
+  // reads of an account it has not got.
+  const growId = shared ? null : (pinned ?? data?.growId ?? null);
   const grow = useGrow(growId);
   const readings = useReadings(growId, grow.data?.measurements ?? [], range);
 
@@ -88,7 +116,9 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
 
   // The stretches of a grow are offered where a grow is, and a month where none
   // is: nothing is drawn greyed out for somebody who has never started one.
-  const offered = RANGES.filter(one => (rangeNeedsGrow(one) ? growId !== null : one !== '30d' || growId === null || range === one));
+  const offered = shared
+    ? SHARED_RANGES
+    : RANGES.filter(one => (rangeNeedsGrow(one) ? growId !== null : one !== '30d' || growId === null || range === one));
 
   const chips = (
     // Which days are drawn is the answer to the chips, not one of them, so it
@@ -119,7 +149,7 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
             behind it and this rail is the only screen that draws it, so without
             this those months have no address at all: every other way in names
             the grow standing here now. */}
-        {data && data.grows.length > 1 ? (
+        {!shared && data && data.grows.length > 1 ? (
           <span className={`${ui.chip} ${styles.growChip}`}>
             <span className={styles.growName}>{data.grows.find(one => one.growId === growId)?.name ?? t('timeline.pickGrow')}</span>
             <ChevronDown size={13} strokeWidth={1.75} aria-hidden />
@@ -148,7 +178,7 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
             with any window, any step and every line the place has. Not where
             nothing was ever measured here - by a device or by hand - which is
             a chart of nothing whatever the window. */}
-        {!data || data.panels.length > 0 || data.lastReadingAt !== null || readings.length > 0 ? (
+        {!shared && (!data || data.panels.length > 0 || data.lastReadingAt !== null || readings.length > 0) ? (
           <Link to={growId !== null ? `/charts?space=${spaceId}&grow=${growId}` : `/charts?space=${spaceId}`} className={ui.chip}>
             <LineChart size={13} strokeWidth={1.75} aria-hidden />
             {t('charts.title')}
@@ -212,6 +242,7 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
             entry.cameraId === null ? entry.mediaIds.map(mediaId => ({ mediaId, takenAt: entry.occurredAt })) : [],
           )}
           onScrub={setCursor}
+          picture={shared?.picture}
         />
       ) : (
         // No camera here: the panels keep their scrubber, which is the one control a thumb has.
@@ -266,7 +297,7 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
         />
       ))}
 
-      <Lanes
+      <Rail
         timeline={data}
         from={from}
         to={to}
@@ -281,6 +312,7 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
         nameOf={nameOf}
         // Where nothing measures, what was written is the whole of the window, so it is listed rather than folded into marks.
         listAll={data.panels.length === 0 && data.outputs.length === 0 && data.lastReadingAt === null}
+        picture={shared?.picture}
       />
     </div>
   );
@@ -323,9 +355,10 @@ export type OutputName = (lane: Pick<TimelineOutputLane, 'output' | 'deviceId'>)
  * lands on a lane of the same name rather than on an "Entfeuchter" the cabinet
  * does not have. The device list is the one every tab already holds.
  */
-const useOutputName = (): OutputName => {
+const useOutputName = (signedIn: boolean): OutputName => {
   const { t } = useTranslation();
-  const devices = useDevices();
+  // A link is not told the hardware, so its lanes carry no device to look up.
+  const devices = useDevices(signedIn);
   const fridges = new Set((devices.data?.items ?? []).filter(device => device.type === 'fridge').map(device => device.id));
 
   return lane => {

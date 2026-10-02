@@ -2,8 +2,7 @@ import { DateTime } from 'luxon';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
-import { useCorrecting } from '@/log/corrections';
-import { EntryRow } from '@/ui/EntryRow';
+import { EntryRow, type EntryPicture } from '@/ui/EntryRow';
 import { KIND_ICON, readingNamesOf } from '@/ui/entries';
 import { useZone } from '@/ui/zone';
 import type { OutputName } from './Timeline';
@@ -37,7 +36,16 @@ interface LanesProps {
   nameOf: OutputName;
   /** Lists every line of the window under the rail while no mark is open, newest first. */
   listAll?: boolean;
+  /** How a line opened on the rail is put right, where the reader may; nothing for a reader who may not. */
+  correcting?: Correcting;
+  /** Where the lines' pictures come from, for a reader through a link; the session's own by default. */
+  picture?: EntryPicture;
 }
+
+/** The way a line is put right - `useCorrecting` in the app, which a reader through a link has no use for. */
+export type Correcting = (entry: Entry, on: { label: string; spaceId: string }) => (() => void) | undefined;
+
+const NOT_CORRECTED: Correcting = () => undefined;
 
 /**
  * What the outputs did and what anybody wrote, under the curves they explain.
@@ -59,12 +67,13 @@ export function Lanes({
   focus = null,
   nameOf,
   listAll = false,
-}: LanesProps) {
-  const { t } = useTranslation();
   // A mark tapped open is the one place the rail draws what somebody wrote, so
   // it is also where they can put right what they wrote. The place that decides
   // is the tent the rail is of: a line is drawn here because it happened here.
-  const correcting = useCorrecting();
+  correcting = NOT_CORRECTED,
+  picture,
+}: LanesProps) {
+  const { t } = useTranslation();
   // The axis is cut at midnight and the marks are titled with the hour, both
   // of which are the account's and not this browser's: a window of a week read
   // two zones away otherwise labels its stops with the wrong days.
@@ -167,6 +176,8 @@ export function Lanes({
               people={timeline.people}
               measurements={readingNamesOf(timeline.readingNames, entry.growId)}
               now={now}
+              picture={picture}
+              byline={picture === undefined}
               onOpen={correcting(entry, { label: timeline.name, spaceId: timeline.spaceId })}
             />
           ))}

@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -32,6 +32,9 @@ import { ThemeProvider } from '@/theme/ThemeProvider';
  */
 
 const state = vi.hoisted(() => ({ session: null as unknown }));
+
+// A chart is a canvas, which jsdom has not got.
+vi.mock('@/charts/Chart', () => ({ Chart: ({ ariaLabel }: { ariaLabel: string }) => <div role="img" aria-label={ariaLabel} /> }));
 
 vi.mock('@/api/session', async importOriginal => ({
   ...(await importOriginal<object>()),
@@ -131,8 +134,47 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
  * a reader may follow it, and a link onto the same diary, which carries no id
  * and therefore nothing to follow.
  */
+/** What a place's Timeline answers a link: the tent, and not the hardware or the grows that stood in it. */
+const sharedTimeline = {
+  spaceId: 'space-1',
+  name: 'Tent 1',
+  kind: 'tent',
+  range: '24h',
+  growId: null,
+  dayFrom: null,
+  dayTo: null,
+  startsAt: NOW.minus({ hours: 24 }).toISO()!,
+  endsAt: NOW.toISO()!,
+  stepSeconds: 180,
+  deviceIds: null,
+  panels: [
+    {
+      metric: 'temperature',
+      points: [24, 12, 0].map(hours => ({ measuredAt: NOW.minus({ hours }).toISO()!, value: 24.5 })),
+      targets: [],
+    },
+  ],
+  lastReadingAt: null,
+  nights: [],
+  alarms: [],
+  outputs: [],
+  events: [],
+  machineEvents: { shown: 0, total: 0 },
+  grows: [],
+  readingNames: [],
+  cameras: [],
+  people: [],
+};
+
+/** Every read made through a link, with the token it carried. */
+const reads: { path: string; share: string | null }[] = [];
+
 const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
-  const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
+  const url = new URL(String(input), 'http://localhost');
+  const path = url.pathname.replace(/^\/v1/, '');
+  reads.push({ path, share: url.searchParams.get('share') });
+
+  if (path === '/spaces/space-1/timeline') return json({ ...sharedTimeline, range: url.searchParams.get('range') });
 
   if (path === `/public/grows/${page.slug}`) return json(page);
   if (path === '/shared/a-token') {
@@ -474,12 +516,14 @@ describe('a tent behind a link', () => {
   });
 
   it('dims a reading that has stopped moving, however fresh the answer said it was', () => {
-    const { unmount } = draw(<SharedSpace space={sharedSpace(NOW.minus({ minutes: 1 }).toISO()!)} picture={publicPicture('spring-run')} now={NOW} />);
+    const { unmount } = draw(
+      <SharedSpace space={sharedSpace(NOW.minus({ minutes: 1 }).toISO()!)} token="a-token" picture={publicPicture('spring-run')} now={NOW} />,
+    );
 
     expect(screen.getByText('25.1').closest('[data-age]')).toHaveAttribute('data-age', 'live');
     unmount();
 
-    draw(<SharedSpace space={sharedSpace(at(4))} picture={publicPicture('spring-run')} now={NOW} />);
+    draw(<SharedSpace space={sharedSpace(at(4))} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
 
     // The pill above the tiles already aged it; the tiles under it kept saying live.
     expect(screen.getByText('25.1').closest('[data-age]')).toHaveAttribute('data-age', 'offline');
@@ -516,7 +560,7 @@ describe('a tent behind a link', () => {
       },
     };
 
-    draw(<SharedSpace space={space} picture={publicPicture('spring-run')} now={NOW} />);
+    draw(<SharedSpace space={space} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
 
     expect(screen.queryByText('Nothing reported yet')).not.toBeInTheDocument();
     expect(screen.getByText(/^Last day of this window/)).toBeInTheDocument();
@@ -524,11 +568,29 @@ describe('a tent behind a link', () => {
     expect(screen.getByText('20.8 – 29.0')).toBeInTheDocument();
   });
 
+  it('draws the place’s Timeline for the link, over a day, a week or a month, and offers no way into the app', async () => {
+    vi.stubGlobal('fetch', fetchStub);
+    reads.length = 0;
+    draw(<SharedSpace space={sharedSpace(NOW.minus({ minutes: 1 }).toISO()!)} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
+
+    expect(await screen.findByRole('group', { name: 'Range' })).toBeInTheDocument();
+    for (const label of ['24 h', '7 d', '30 d']) expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    for (const label of ['Phase', 'Grow']) expect(screen.queryByRole('button', { name: label })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Charts/ })).not.toBeInTheDocument();
+    await waitFor(() => expect(reads).toContainEqual({ path: '/spaces/space-1/timeline', share: 'a-token' }));
+    // The link has no session, so nothing a session would read is asked for.
+    expect(reads.some(read => read.path === '/devices' || read.path.startsWith('/grows'))).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: '30 d' }));
+    await waitFor(() => expect(fetchStub).toHaveBeenLastCalledWith(expect.stringContaining('range=30d'), expect.anything()));
+    vi.unstubAllGlobals();
+  });
+
   it('still says nothing has been reported of a tent whose window is open', () => {
     const open = sharedSpace(at(1));
     const space: SpaceOverview = { ...open, values: [], verdict: { ...open.verdict, endsAt: NOW.toISO()! } };
 
-    draw(<SharedSpace space={space} picture={publicPicture('spring-run')} now={NOW} />);
+    draw(<SharedSpace space={space} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
 
     expect(screen.getByText('Nothing reported yet')).toBeInTheDocument();
   });

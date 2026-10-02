@@ -11,6 +11,7 @@ import { livenessOf, measuredAtOf } from '../home/attention';
 import { LivenessPill } from '../home/LivenessPill';
 import { figure, targetFigure, UNIT } from '../home/units';
 import { Photo } from '@/ui/Photo';
+import { SharedTimeline } from '../timeline/Timeline';
 import styles from './Public.module.css';
 import { windowIsCurrent } from './window';
 import { DATED_CLOCK } from '@/ui/zone';
@@ -27,7 +28,20 @@ const TILES: Metric[] = ['temperature', 'humidity', 'vpd', 'co2'];
  * roads is shut to a reader with no account. What is left is the part that was
  * worth sharing: the readings with their ages, and the diary.
  */
-export function SharedSpace({ space, picture, now, banner }: { space: SpaceOverview; picture: Picture; now: DateTime; banner?: ReactNode }) {
+export function SharedSpace({
+  space,
+  token,
+  picture,
+  now,
+  banner,
+}: {
+  space: SpaceOverview;
+  /** The link it is read through, which is also what reads its Timeline. */
+  token: string;
+  picture: Picture;
+  now: DateTime;
+  banner?: ReactNode;
+}) {
   const { t } = useTranslation();
   const liveness = livenessOf(space, now);
   const shown = TILES.flatMap(metric => space.values.filter(value => value.metric === metric));
@@ -74,6 +88,14 @@ export function SharedSpace({ space, picture, now, banner }: { space: SpaceOverv
       {space.cameras.map(camera => (
         <Stills key={camera.cameraId} camera={camera} picture={picture} now={now} />
       ))}
+
+      {/* "Look at my curves" is why a place is shared, so its Timeline is
+          here: the last day, week or month, read only and through the link's
+          own window. */}
+      <section className={styles.timeline} aria-label={t('publicPage.timeline')}>
+        <span className="label">{t('publicPage.timeline')}</span>
+        <SharedTimeline spaceId={space.spaceId} shared={{ token, picture }} />
+      </section>
 
       {space.grows.length > 0 ? (
         <ul className={styles.growRows} aria-label={t('space.growingHere')}>

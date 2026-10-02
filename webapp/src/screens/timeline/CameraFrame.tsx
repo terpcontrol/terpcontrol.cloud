@@ -26,6 +26,8 @@ interface CameraFrameProps {
   /** The photos written in the window, which stand in where the camera took nothing near the cursor. */
   photos?: { mediaId: string; takenAt: string }[];
   onScrub: (time: number) => void;
+  /** Where a picture comes from: the session's own, or a link's for somebody reading through one. */
+  picture?: (mediaId: string, width?: number) => string | null;
 }
 
 /** How far from the cursor a written photo may have been taken to stand in for a camera picture. */
@@ -36,7 +38,7 @@ const PHOTO_REACH = 24 * 60 * 60 * 1000;
  * cursor the panels carry, so a thumb dragging it walks the curves as well as
  * the pictures; play steps through the frames there actually are.
  */
-export function CameraFrame({ cameras, from, to, cursor, day, photos = [], onScrub }: CameraFrameProps) {
+export function CameraFrame({ cameras, from, to, cursor, day, photos = [], onScrub, picture = mediaUrl }: CameraFrameProps) {
   const { t } = useTranslation();
   const zone = useZone();
   const called = useCameraCalled();
@@ -50,14 +52,14 @@ export function CameraFrame({ cameras, from, to, cursor, day, photos = [], onScr
         .filter(one => Math.abs(at(one.takenAt) - cursor) <= PHOTO_REACH)
         .sort((one, other) => Math.abs(at(one.takenAt) - cursor) - Math.abs(at(other.takenAt) - cursor))[0] ?? null);
   const playing = usePlay(camera.frames, cursor, onScrub);
-  const source = frame ? mediaUrl(frame.mediaId, THUMBNAIL_WIDTH.frame) : photo ? mediaUrl(photo.mediaId, THUMBNAIL_WIDTH.frame) : null;
+  const source = frame ? picture(frame.mediaId, THUMBNAIL_WIDTH.frame) : photo ? picture(photo.mediaId, THUMBNAIL_WIDTH.frame) : null;
   const caption = frame ? captureOf(at(frame.capturedAt), to - from, zone) : null;
   const first = camera.frames[0] ? at(camera.frames[0].capturedAt) : null;
   const missing =
     first !== null && cursor < first
       ? t('timeline.camSince', { time: stampOf(cursor, to - from, zone), since: zonedAt(first, zone).toFormat(DATED_CLOCK) })
       : t('timeline.noFrameAt', { time: stampOf(cursor, to - from, zone) });
-  useReadAhead(camera.frames, cursor, playing.on);
+  useReadAhead(camera.frames, cursor, playing.on, picture);
 
   return (
     <section className={styles.frame}>
@@ -133,16 +135,21 @@ export function Slider({ from, to, cursor, onScrub }: { from: number; to: number
  * plays: three pictures a second is faster than a phone fetches them one at a
  * time, where a thumb on the slider asks for one and waits for it anyway.
  */
-const useReadAhead = (frames: { mediaId: string; capturedAt: string }[], cursor: number, playing: boolean) => {
+const useReadAhead = (
+  frames: { mediaId: string; capturedAt: string }[],
+  cursor: number,
+  playing: boolean,
+  picture: (mediaId: string, width?: number) => string | null,
+) => {
   useEffect(() => {
     if (!playing) return;
 
     for (const frame of frames.filter(one => at(one.capturedAt) > cursor).slice(0, READ_AHEAD)) {
-      const source = mediaUrl(frame.mediaId, THUMBNAIL_WIDTH.frame);
+      const source = picture(frame.mediaId, THUMBNAIL_WIDTH.frame);
       // The browser keeps what it fetched; the element itself is only the ask.
       if (source) new Image().src = source;
     }
-  }, [frames, cursor, playing]);
+  }, [frames, cursor, playing, picture]);
 };
 
 /** Play walks the frames from where the cursor stands and stops at the last one; it never loops back. */

@@ -17,7 +17,8 @@ import { windowIsCurrent } from './window';
 import styles from './Public.module.css';
 
 /**
- * `/shared/{token}`: a diary or a tent, read through a key somebody was handed.
+ * `/shared/{token}`: a diary or a tent, read through a key somebody was handed;
+ * a tent with its Timeline.
  *
  * The token is the reader's whole proof and the server never hands back the
  * link behind it - not who made it, not how often it has been opened - so this
@@ -65,7 +66,7 @@ export function SharedRoute() {
     </PublicShell>
   ) : (
     <PublicShell title={subject.space.name}>
-      <SharedSpace space={subject.space} picture={picture} now={now} banner={banner} />
+      <SharedSpace space={subject.space} token={token} picture={picture} now={now} banner={banner} />
     </PublicShell>
   );
 }

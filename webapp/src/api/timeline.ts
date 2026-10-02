@@ -22,10 +22,11 @@ export const TIMELINE_REFRESH_MS = 60_000;
 /** `phase` and `grow` are stretches of one grow, so the server refuses them without one. */
 export const rangeNeedsGrow = (range: TimelineRange): boolean => range === 'phase' || range === 'grow';
 
-export const useTimeline = (spaceId: string, range: TimelineRange, growId: string | null) =>
+/** A link's token, where the Timeline is read through one: the reader's whole proof, and the window it was given. */
+export const useTimeline = (spaceId: string, range: TimelineRange, growId: string | null, share: string | null = null) =>
   useRead({
-    queryKey: ['space', spaceId, 'timeline', range, growId],
-    queryFn: ({ signal }) => api.get<SpaceTimeline>(`/spaces/${spaceId}/timeline`, { range, growId }, signal),
+    queryKey: ['space', spaceId, 'timeline', range, growId, share],
+    queryFn: ({ signal }) => api.get<SpaceTimeline>(`/spaces/${spaceId}/timeline`, { range, growId, share }, signal),
     enabled: spaceId !== '' && (!rangeNeedsGrow(range) || growId !== null),
     refetchInterval: rangeNeedsGrow(range) ? false : TIMELINE_REFRESH_MS,
     placeholderData: keepPreviousData,

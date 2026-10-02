@@ -754,3 +754,10 @@
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+/* The Timeline of a shared place, under its tiles and pictures. */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
