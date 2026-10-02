@@ -18,5 +18,11 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 . scripts/compose.sh
 
 terpcontrol_compose pull "$@"
+# A MongoDB image the data is not ready for refuses to start, so the data has to
+# be upgraded before the container is recreated rather than discovered after.
+if [ $# -eq 0 ] || [[ " $* " == *" mongodb "* ]]; then
+    . scripts/mongodb.sh
+    mongodb_check
+fi
 terpcontrol_compose build "$@"
 terpcontrol_compose up -d --force-recreate --remove-orphans "$@"

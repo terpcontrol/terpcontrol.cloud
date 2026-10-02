@@ -15,7 +15,7 @@ if [ -z "$MONGO_CONTAINER" ]; then
 fi
 
 INFLUX_CONTAINER="$(terpcontrol_compose ps -q influxdb)"
-if [ -z "$INFLUX_CONTAINER" ]; then
+if [ -z "$INFLUX_CONTAINER" ] && [ "$BACKUP_TARGET" != "mongo" ]; then
     echo "Error: InfluxDB container is not running."
     exit 1
 fi
