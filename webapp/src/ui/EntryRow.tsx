@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Entry, Person, ReadingName } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { entryDetail } from '@/i18n/device-message';
-import { authorOf, doneByOf, headlineOf, KIND_ICON, readingFigure } from './entries';
+import { authorOf, doneByOf, headlineOf, KIND_ICON, ownReading, readingFigure } from './entries';
 import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, nowThere, useZone, zoned } from './zone';
 import { Photo } from './Photo';
 import { PictureViewer } from './PictureViewer';
@@ -193,7 +193,7 @@ export function EntryRow({
       {readings.length > 0 ? (
         <span className={`mono ${styles.readings}`}>
           {readings.map(reading => {
-            const definition = measurements.find(one => one.key === reading.key);
+            const definition = measurements.find(one => one.key === reading.key) ?? ownReading(t, reading.key);
             return (
               <span key={`${reading.key}-${reading.plantId ?? ''}`}>
                 {' · '}

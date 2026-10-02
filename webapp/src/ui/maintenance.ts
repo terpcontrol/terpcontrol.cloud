@@ -53,6 +53,13 @@ export const parkedOutputs = (device: Device): OutputMetric[] =>
  */
 export const VISIT_MINUTES = 15;
 
+/**
+ * The windows a grower picks from: a look and a watering, repotting or
+ * defoliating, a harvest. The device takes any length; three are all anybody
+ * needs to choose between, and the first is the step-in the diary tile writes.
+ */
+export const MAINTENANCE_MINUTES = [VISIT_MINUTES, 30, 60] as const;
+
 /** The minutes the cloud goes on holding a device's alarms after its window has run out. */
 export const SETTLE_MINUTES = MAINTENANCE_SETTLE_SECONDS / 60;
 

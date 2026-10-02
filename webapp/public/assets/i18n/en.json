@@ -2705,7 +2705,8 @@
         "invalid_duration": "A step is extended by a length greater than zero.",
         "duplicate_step_id": "Two steps of this plan carry the same id, so nothing was saved. Close the sheet and open it again.",
         "plan_template_name_taken": "You already have a template with that name. Give this one another.",
-        "refresh": "Read it again"
+        "refresh": "Read it again",
+        "plan_step_gone": "The plan no longer has this step – it was changed in the meantime."
       },
       "template": {
         "keepTitle": "Keep as a template",
@@ -3442,11 +3443,10 @@
     "end": "End now",
     "ending": "Ending …",
     "ended": "Asked to end it. The alarms come back once the climate has settled.",
-    "action": "Maintenance · {{minutes}} min",
     "actionNote": "Pause control and alarms",
     "running": "Maintenance until {{until}}",
     "runningNote": "Control and alarms paused",
-    "title": "Maintenance · {{minutes}} minutes",
+    "title": "Maintenance",
     "pauses": "For {{minutes}} minutes the device stops {{outputs}}, so you can work in peace.",
     "pausesNothing": "This device takes no maintenance command and stops nothing. Only its alarms stay off.",
     "pausesEach_one": "For {{minutes}} minutes this pauses the device here:",
@@ -3465,7 +3465,10 @@
       "dehumidifier": "the dehumidifier",
       "compressor": "the compressor",
       "co2": "the CO₂ valve"
-    }
+    },
+    "actionChoose": "Maintenance",
+    "howLong": "How long",
+    "minutes": "{{minutes}} min"
   },
   "alarms": {
     "title": "Alarms",
@@ -3621,7 +3624,14 @@
       },
       "dry": {
         "name": "Too dry"
-      }
+      },
+      "co2Empty": {
+        "name": "CO₂ cylinder empty"
+      },
+      "running": {
+        "name": "Fridge runs without a break"
+      },
+      "runs": "runs {{length}} without a break"
     },
     "channelOff": "{{channel}} (off)",
     "addDevice": "Add a device",
@@ -4490,7 +4500,7 @@
     },
     "maintenance": {
       "title": "Maintenance",
-      "text": "For working in the tent or cabinet: for 15 minutes the device stops the heater, the dehumidifier or compressor and the CO₂ valve, and dims the light. Alarms stay off for 25 minutes – the maintenance and 10 minutes for the climate to come back. Then everything carries on by itself."
+      "text": "For working in the tent or cabinet: for 15, 30 or 60 minutes the device stops the heater, the dehumidifier or compressor and the CO₂ valve, and dims the light. Alarms stay off 10 minutes longer, until the climate is back. Then everything carries on by itself; you can also end maintenance sooner."
     },
     "reboot": {
       "title": "Restart",
@@ -4510,7 +4520,7 @@
     },
     "alarmTemplates": {
       "title": "Set up in one tap",
-      "text": "One tap writes an ordinary alarm rule. Its line comes from your targets: 5 °C over the warmer one, 4 °C under the cooler one, 10 points of humidity over the higher one and 20 under the lower one. It is critical, so it goes out by your notification settings, quiet hours included. Tap the rule to change its line, how long it waits or anything else."
+      "text": "One tap writes an ordinary alarm rule. For temperature and humidity its line comes from your targets: 5 °C over the warmer one, 4 °C under the cooler one, 10 points of humidity over the higher one and 20 under the lower one. “CO₂ cylinder empty” speaks up under 350 ppm, less than outdoor air: with a cylinder on the valve, it has run empty. “Fridge runs without a break” speaks up when the compressor runs 30 minutes without a pause – usually a door left open, a broken seal or too much heat from the lamp. Every one is critical, so it goes out by your notification settings, quiet hours included. Tap the rule to change its line, how long it waits or anything else."
     },
     "alarmQuiet": {
       "title": "Muting and maintenance",
@@ -4739,12 +4749,48 @@
       },
       "lightRamp": {
         "title": "Sunrise and sunset",
-        "text": "How many minutes the lamp takes to ramp up after it comes on and to dim down before it goes off. 0 switches it hard on and off."
+        "text": "How many minutes the light takes to come up in the morning and go down in the evening, 0 to 60. Fifteen minutes suits almost every lamp. 0 switches it hard – for drivers that flicker at low dimming levels."
+      },
+      "maintenanceLight": {
+        "title": "Light on during maintenance",
+        "text": "By day maintenance dims the light to 15 % anyway. Switched on, it also runs at 15 % during the dark period, so you can see what you are doing at night. In flower, light in the dark period disturbs the plants – leave it off then."
+      },
+      "fans": {
+        "title": "Fans",
+        "text": "The clip fan moves the leaves: seedlings do not like it at full strength, and at night the noise counts. 0 % stops it. The inner fans move the air around the cabinet; the figure is the least they run at, and they speed up when they need to. They do not go below 10 %."
+      },
+      "compressorRest": {
+        "title": "Compressor rest",
+        "text": "How long the compressor stays off at least before it may start again, which protects it from short-cycling. It cannot be less than 240 seconds; more makes the control slower, because cooling and dehumidifying have to wait longer."
+      },
+      "leafOffset": {
+        "title": "Leaf against air",
+        "text": "How much warmer or cooler than the air the leaf is taken to be wherever no leaf sensor measures it. That is what VPD is worked out with on Start, in History and on the targets. Under light a leaf evaporates water and is cooler: the default is −2 °C by day and 0 °C at night. Nothing is regulated by it."
+      },
+      "ppfdFactor": {
+        "title": "Lux to PPFD factor",
+        "text": "Turns the light sensor's lux into PPFD. The right factor depends on the lamp's spectrum: white full-spectrum LED about 0.015, high-pressure sodium (HPS) about 0.0122. With the wrong one the PPFD shown is up to 20 % off."
+      },
+      "continuePlan": {
+        "title": "Continue the plan at a step",
+        "text": "Puts the plan on a step of your choice: back to a step that ended too soon, or into the middle of a grow, straight into flower for instance. The step starts from the beginning, its values reach the device within a minute, and a grow in this place moves into its phase. A paused or stopped plan runs again afterwards."
+      },
+      "co2Report": {
+        "title": "CO₂ cylinder",
+        "text": "When a cylinder goes in, note what it holds and – if you weighed it – what was left in the old one. From the valve openings the device counts, the card works out how many openings a gram of CO₂ is. From the first empty cylinder on it estimates what is left in the one in use and how long it will last."
       },
       "lightOverheat": {
         "title": "Overheat protection",
         "text": "Above this temperature at the light module the lamp dims itself down until it is cooler again. That protects the lamp and the plants right under it."
       }
+    },
+    "stepLightHours": {
+      "title": "Light on for (in a step)",
+      "text": "How many hours a day the light is on while this step runs. It comes on at the usual time (“Light on at” under Targets) and goes off that many hours later. Twelve hours is what makes photoperiod plants flower. Left empty, the light keeps the hours it has."
+    },
+    "readyPlans": {
+      "title": "Ready-made plans",
+      "text": "Two whole grows for the fridge: photoperiod (about 16 weeks, flower starts with the switch to 12 hours of light) and autoflower (about 11 weeks, the light stays at 18 hours). Every step brings its phase's targets; before flower, before harvest and at the end of drying the plan waits for you. Choosing one opens the plan to look through; nothing is written until “Save plan”."
     },
     "socketTimer": {
       "title": "Timer",
@@ -4998,6 +5044,95 @@
     "greenhouseNote": "Temperature only: light and CO₂ run, the compressor only cools, humidity is not controlled.",
     "germination": "Germination",
     "germinationNote": "In the dark: no light, no CO₂. Heats and cools to the night temperature."
+  },
+  "planLight": {
+    "label": "Light on for",
+    "unit": "h",
+    "short": "{{hours}} h light",
+    "range": "Light on for: {{min}} to {{max}} hours, or leave it empty."
+  },
+  "readyPlans": {
+    "label": "Ready-made plans",
+    "weeks_one": "about {{count}} week",
+    "weeks_other": "about {{count}} weeks",
+    "saved": "Saved templates",
+    "offer": "There are two ready-made plans for the fridge, photoperiod and autoflower: from seedling to drying, with targets, light hours and a question at each big step.",
+    "start": "Choose a ready-made plan"
+  },
+  "message-recipe-step-chosen-title": "Plan continued at a step",
+  "message-recipe-step-chosen-text": "The plan carries on at step {{value}}.",
+  "tuning": {
+    "minutes": "min",
+    "seconds": "s",
+    "sunrise": "Sunrise",
+    "sunset": "Sunset",
+    "maintenanceLight": "Light on during maintenance",
+    "maintenanceLightOn": "The light runs at 15 % during maintenance at night too.",
+    "maintenanceLightOff": "At night it stays dark during maintenance.",
+    "clipFan": "Clip fan",
+    "innerFans": "Inner fans, at least",
+    "compressorRest": "Compressor rest"
+  },
+  "sensorFactors": {
+    "day": "Leaf against air · day",
+    "night": "Leaf against air · night",
+    "offset": "{{value}} °C",
+    "colder": "{{label}}: cooler",
+    "warmer": "{{label}}: warmer",
+    "measured": "The leaf sensor measures the leaf itself; these apply only where it gives no reading, and to the VPD preview of the targets.",
+    "lux": "Lux to PPFD factor",
+    "luxRange": "From {{min}} to {{max}}.",
+    "lamp": {
+      "led": "White LED · {{factor}}",
+      "hps": "HPS · {{factor}}"
+    }
+  },
+  "continuePlan": {
+    "label": "Continue the plan at a step",
+    "which": "Step",
+    "step": "{{number}} · {{name}}",
+    "now": "now",
+    "go": "Continue here",
+    "ask": "“{{plan}}” carries on at {{step}}. The step starts from the beginning, the time of the current one is dropped, and its values reach the device within a minute.",
+    "askAtRest": "“{{plan}}” starts at {{step}} instead of step 1. The step starts from the beginning, and its values reach the device within a minute.",
+    "yes": "Continue at step {{number}}",
+    "done": "The plan is now running at {{step}}."
+  },
+  "planLine": {
+    "plan": "Plan:",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "hours_one": "{{count}} hour",
+    "hours_other": "{{count}} hours",
+    "left": "{{step}}, {{left}} to go, then {{next}}",
+    "leftLast": "{{step}}, {{left}} to go, then the plan is done",
+    "waiting": "{{step}} is waiting for you to confirm",
+    "openEnded": "{{step}}, until you move it on",
+    "changing": "{{step}}, moving on to {{next}} shortly",
+    "ending": "{{step}}, the plan is about to finish"
+  },
+  "co2Report": {
+    "title": "CO₂ cylinder",
+    "none": "No cylinder noted yet. Note the next one when it goes in – from the first empty one on, the card works out what is left in the one in use and how long it will last.",
+    "inUse": "In use since {{day}} · {{grams}} g",
+    "rest": "About {{grams}} g left ({{percent}} %)",
+    "lasts_one": "lasts about {{count}} more day",
+    "lasts_other": "lasts about {{count}} more days",
+    "noRate": "What is left can be estimated once a cylinder has run empty and been noted.",
+    "rate_one": "{{rate}} valve openings a gram, from {{count}} empty cylinder",
+    "rate_other": "{{rate}} valve openings a gram, from {{count}} empty cylinders",
+    "cylinder": "{{from}} – {{to}} · {{grams}} g used",
+    "cylinderRate": "{{rate}} openings a g",
+    "add": "New cylinder in",
+    "filled": "The new cylinder holds",
+    "leftOver": "Left in the old one",
+    "empty": "empty",
+    "leftOverNote": "Left empty, the old cylinder counts as empty.",
+    "save": "Note it"
+  },
+  "ownReading": {
+    "co2FillingInitial": "New CO₂ cylinder",
+    "co2FillingRest": "Left in the old one"
   },
   "release": {
     "label": "Give the device up",

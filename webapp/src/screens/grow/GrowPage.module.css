@@ -136,6 +136,29 @@
   color: var(--ink);
 }
 
+/* The phase's tips, folded under the phase line until somebody wants them. */
+.tips {
+  font-size: var(--text-sm);
+}
+
+.tips > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--label);
+}
+
+.tips ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding-left: 1.25rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
 /* The ways out of the grow page that are not tabs - what it measures, the
    moves a grow goes through, and sharing it - as one row of chips. Sharing
    stands at the far end, apart from the moves, because it changes who reads

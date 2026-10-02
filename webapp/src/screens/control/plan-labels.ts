@@ -21,21 +21,23 @@ export interface StepFacts {
   preset: string | null;
   duration: StepDuration;
   settings: Record<string, unknown>;
+  lightHours?: number | null;
   waitForConfirmation: boolean;
 }
 
 /**
- * "Flower · late flower · 3 wk · waits for you". A step that writes nothing says
- * so, because a step that only marks time is a deliberate thing to write and
- * would otherwise look like one whose figures had been forgotten.
+ * "Flower · late flower · 3 wk · 12 h light · waits for you". A step that writes
+ * nothing says so, because a step that only marks time is a deliberate thing to
+ * write and would otherwise look like one whose figures had been forgotten.
  */
 export const stepMeta = (t: Translate, step: StepFacts): string =>
   [
     step.stage ? t(`home.stage.${step.stage}`) : t('space.control.noStage'),
     step.preset ? t(`grow.presetName.${step.preset}`, { defaultValue: step.preset }) : null,
     durationLabel(t, step.duration),
+    step.lightHours != null ? t('planLight.short', { hours: step.lightHours }) : null,
     step.waitForConfirmation ? t('space.control.waits') : null,
-    Object.keys(step.settings).length === 0 ? t('space.control.step.writesNothingShort') : null,
+    Object.keys(step.settings).length === 0 && step.lightHours == null ? t('space.control.step.writesNothingShort') : null,
   ]
     .filter(Boolean)
     .join(' · ');

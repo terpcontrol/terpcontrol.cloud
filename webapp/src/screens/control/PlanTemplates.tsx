@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Plan, PlanNotify } from '@fg2/shared-types/v1';
+import type { Device, Plan, PlanNotify } from '@fg2/shared-types/v1';
 import { usePlanTemplates, useSavePlanTemplate } from '@/api/plans';
 import { useSession } from '@/api/session';
 import { Sheet } from '@/log/Sheet';
@@ -8,6 +8,7 @@ import { Waiting } from '@/ui/PageState';
 import { Block } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { draftFromTemplate, type PlanDraft } from './plan-edit';
+import { offersReadyPlans, READY_PLANS, readyDraft, weeksOf } from './ready-plans';
 import { PlanRefusal } from './Refusal';
 import styles from './Control.module.css';
 
@@ -82,12 +83,17 @@ export function KeepAsTemplateSheet({ plan, onClose }: { plan: Plan; onClose: ()
  * recipe with those steps in it, so that what the tent will be run by is read
  * before it is saved - and, for a tent that is already running one, so that what
  * the change does to it is said first.
+ *
+ * A fridge is offered the two ready-made plans first, which is where somebody
+ * who has never written a plan starts; what anybody saved follows them.
  */
 export function StartFromTemplateSheet({
+  device,
   notify,
   onClose,
   onChosen,
 }: {
+  device: Device;
   notify: PlanNotify;
   onClose: () => void;
   onChosen: (draft: PlanDraft) => void;
@@ -96,14 +102,36 @@ export function StartFromTemplateSheet({
   const { user } = useSession();
   const templates = usePlanTemplates();
   const items = templates.data?.items ?? [];
+  const ready = offersReadyPlans(device);
 
   return (
     <Sheet title={t('space.control.template.startTitle')} onClose={onClose}>
       <div className={styles.editor}>
         <p className={ui.note}>{t('space.control.template.startNote')}</p>
 
+        {ready ? (
+          <Block label={t('readyPlans.label')} help="readyPlans">
+            <ul className={styles.templates}>
+              {READY_PLANS.map(plan => (
+                <li key={plan.id}>
+                  <button type="button" className={`${ui.card} ${styles.template}`} onClick={() => onChosen(readyDraft(t, plan, notify))}>
+                    <span className={styles.templateName}>{t(`growPresets.plans.${plan.id}.name`)}</span>
+                    <span className={styles.templateWhat}>{t(`growPresets.plans.${plan.id}.description`)}</span>
+                    <span className={`mono ${styles.templateNote}`}>
+                      {[t('space.control.template.steps', { count: plan.steps.length }), t('readyPlans.weeks', { count: weeksOf(plan) })].join(' · ')}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Block>
+        ) : null}
+
         {templates.isPending ? <Waiting lines={2} /> : null}
-        {!templates.isPending && items.length === 0 ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.control.template.none')}</p> : null}
+        {!templates.isPending && items.length === 0 && !ready ? (
+          <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.control.template.none')}</p>
+        ) : null}
+        {ready && items.length > 0 ? <span className="label">{t('readyPlans.saved')}</span> : null}
 
         <ul className={styles.templates}>
           {items.map(template => (

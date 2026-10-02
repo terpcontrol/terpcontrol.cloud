@@ -13,7 +13,7 @@ import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { Alarms } from '@/screens/control/alarms/Alarms';
 import { boundLabel, channelsLabel, routedChannels, scaleNote, type Translate, watchLabel } from '@/screens/control/alarms/rules';
-import { templatesFor } from '@/screens/control/alarms/templates';
+import { ruleFor, templateBody, templatesFor } from '@/screens/control/alarms/templates';
 import { headersOf } from '@/ui/headers';
 
 /**
@@ -1098,16 +1098,61 @@ describe('the alarm templates', () => {
   });
 
   it('works each line out from the targets the device holds, and falls back where it states none', () => {
-    const held = device({ configuration: { day: { temperature: 26, humidity: 60 }, night: { temperature: 20, humidity: 55 } } });
+    const held = device({ configuration: { day: { temperature: 26, humidity: 60 }, night: { temperature: 20, humidity: 55 } } }, { co2: 'off' });
     const lines = (one: Device) =>
-      Object.fromEntries(templatesFor(one).map(template => [template.key, [template.edge, template.value, template.forMinutes]]));
+      Object.fromEntries(
+        templatesFor(one).map(({ key, watch, forMinutes }) => [
+          key,
+          watch.kind === 'reading' ? [watch.edge, watch.value, forMinutes] : [watch.output, forMinutes],
+        ]),
+      );
 
     expect(lines(held)).toEqual({ warm: ['upper', 31, 10], cold: ['lower', 16, 15], humid: ['upper', 70, 20], dry: ['lower', 35, 20] });
-    expect(lines(device({ configuration: null }))).toEqual({
+    expect(lines(device({ configuration: null }, { co2: 'off' }))).toEqual({
       warm: ['upper', 30, 10],
       cold: ['lower', 15, 15],
       humid: ['upper', 75, 20],
       dry: ['lower', 35, 20],
+    });
+  });
+
+  it('offers an empty CO2 cylinder only where CO2 is measured, and a compressor that does not stop only on a fridge', () => {
+    const keys = (one: Device) => templatesFor(one).map(template => template.key);
+
+    expect(keys(device({}, { co2: 'off' }))).not.toContain('co2Empty');
+    expect(keys(device())).toContain('co2Empty');
+    expect(templatesFor(device()).find(template => template.key === 'co2Empty')).toMatchObject({
+      watch: { kind: 'reading', metric: 'co2', edge: 'lower', value: 350 },
+      forMinutes: 10,
+    });
+    // A tent controller's dehumidifier is a room machine on a socket, which may well run for hours.
+    expect(keys(device())).not.toContain('running');
+    expect(templatesFor(device({ type: 'fridge' })).find(template => template.key === 'running')).toMatchObject({
+      watch: { kind: 'output_running', output: 'dehumidifier' },
+      forMinutes: 30,
+    });
+  });
+
+  it('is not offered again once a rule watches the same thing, whoever wrote it', () => {
+    const fridge = device({ type: 'fridge' });
+    const empty = templatesFor(fridge).find(template => template.key === 'co2Empty')!;
+    const running = templatesFor(fridge).find(template => template.key === 'running')!;
+
+    expect(ruleFor([rule({ watch: { kind: 'reading', metric: 'co2', upper: null, lower: 300 } })], empty)).not.toBeNull();
+    expect(ruleFor([rule({ watch: { kind: 'reading', metric: 'co2', upper: 1500, lower: null } })], empty)).toBeNull();
+    expect(ruleFor([rule({ watch: { kind: 'output_running', output: 'dehumidifier' } })], running)).not.toBeNull();
+    expect(ruleFor([rule({ watch: { kind: 'output_running', output: 'heater' } })], running)).toBeNull();
+  });
+
+  it('writes the compressor rule as a rule on the output running, named for the fridge', () => {
+    const running = templatesFor(device({ type: 'fridge' })).find(template => template.key === 'running')!;
+
+    expect(templateBody((key: string) => key, running)).toMatchObject({
+      name: 'alarms.template.running.name',
+      watch: { kind: 'output_running', output: 'dehumidifier' },
+      forSeconds: 1800,
+      severity: 'critical',
+      repeatSeconds: 0,
     });
   });
 

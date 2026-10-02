@@ -33,6 +33,17 @@ import { entryHeadline, machineLineParts } from '@/i18n/device-message';
 export const readingNamesOf = (named: GrowReadingNames[], growId: string | null): ReadingName[] =>
   (growId === null ? undefined : named.find(one => one.growId === growId)?.readings) ?? [];
 
+/**
+ * The readings the app writes itself rather than a grow's own measurements:
+ * the two weights of a CO2 cylinder, written into a place's diary when one goes
+ * in. A grow that defines them - every grow carried over from the old app does -
+ * names them its own way; anywhere else they are named here, not by their key.
+ */
+const OWN_READINGS: Readonly<Record<string, string>> = { co2FillingInitial: 'g', co2FillingRest: 'g' };
+
+export const ownReading = (t: (key: string) => string, key: string): ReadingName | undefined =>
+  key in OWN_READINGS ? { key, name: t(`ownReading.${key}`), unit: OWN_READINGS[key] } : undefined;
+
 /** One mark per kind of line, so a diary row and a mark on the timeline's rail draw the same thing the same way. */
 export const KIND_ICON: Record<EntryKind, LucideIcon> = {
   water: Droplet,

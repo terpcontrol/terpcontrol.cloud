@@ -444,7 +444,7 @@ describe('a place whose control is switched off', () => {
     draw(<PlaceCockpit overview={overviewOf()} />);
 
     expect(await screen.findByRole('button', { name: /^Switch control off/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Maintenance · 15 min/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^MaintenancePause/ })).toBeInTheDocument();
   });
 });
 

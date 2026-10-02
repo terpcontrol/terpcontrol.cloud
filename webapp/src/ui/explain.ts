@@ -93,6 +93,8 @@ export const HELP_TOPICS = [
   'fanMode',
   'fanSpeeds',
   'lightSchedule',
+  'stepLightHours',
+  'readyPlans',
 ] as const;
 
 /**

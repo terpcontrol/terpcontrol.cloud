@@ -1139,9 +1139,9 @@ describe('the device panel', () => {
   it('says what maintenance stops on a fridge module, for how long the alarms stay off, and starts it on the answer', async () => {
     await drawWith([fridge()]);
     fireEvent.click(await screen.findByText('Fridge module'));
-    fireEvent.click(screen.getByRole('button', { name: /^Maintenance · 15 min/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^MaintenancePause/ }));
 
-    const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 minutes' });
+    const asked = await screen.findByRole('dialog', { name: 'Maintenance' });
     expect(within(asked).getByText(/the device stops the heater, the compressor and the CO₂ valve/)).toBeInTheDocument();
     expect(within(asked).getByText(/Alarms stay off for 25 minutes – the 15 minutes and 10 more/)).toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
@@ -1159,7 +1159,7 @@ describe('the device panel', () => {
     expect(screen.getByText(/^In maintenance until \d\d:\d\d — no alarm on this device until \d\d:\d\d$/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Maintenance until/ }));
 
-    const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 minutes' });
+    const asked = await screen.findByRole('dialog', { name: 'Maintenance' });
     expect(within(asked).queryByRole('button', { name: 'Start maintenance' })).not.toBeInTheDocument();
     fireEvent.click(within(asked).getByRole('button', { name: 'End now' }));
 
@@ -1173,7 +1173,7 @@ describe('the device panel', () => {
     // The row's pill and the panel's connection line, in the same words.
     expect(screen.getAllByText(/^offline since \d\d:\d\d$/)).toHaveLength(2);
     expect(screen.getByRole('button', { name: /^Restart/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /^Maintenance · 15 min/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^MaintenancePause/ })).toBeDisabled();
     expect(screen.getByText('Restart and maintenance work again once the device is connected.')).toBeInTheDocument();
   });
 

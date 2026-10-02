@@ -423,6 +423,43 @@
   color: var(--muted);
 }
 
+/* A button whose words are longer than a phone is wide wraps them rather than running out of itself. */
+.wraps {
+  height: auto;
+  min-height: var(--control-height);
+  padding-block: var(--space-2);
+  white-space: normal;
+  text-align: center;
+}
+
+.templateWhat {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+/* On a phone a step's line and its four buttons do not fit side by side: the
+   line keeps the width and the buttons go under it, rather than squeezing the
+   line into a column a word wide. The figures go one to a row, where two
+   across would cut off their units. */
+@media (max-width: 599px) {
+  .editHead {
+    flex-wrap: wrap;
+  }
+
+  .editHead .stepText {
+    flex-basis: calc(100% - 18px - var(--space-3));
+  }
+
+  .editButtons {
+    justify-content: flex-start;
+    margin-left: calc(18px + var(--space-3));
+  }
+
+  .figures {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (min-width: 900px) {
   /* The figures fit three across once there is room, so the six read as the
      two halves of the cycle they are. */

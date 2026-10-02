@@ -12,11 +12,14 @@ import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { DURATION_UNITS } from './plan-clock';
+import { draftOf as targetsOf } from './targets/targets-draft';
 import {
   asWritableBy,
   editEffect,
   figuresFor,
   figureOf,
+  LIGHT_HOURS,
+  lightHoursFit,
   moveStep,
   newStep,
   otherSections,
@@ -157,7 +160,7 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
         <button
           type="button"
           className={`${ui.button} ${ui.primary} ${styles.submit}`}
-          disabled={save.isPending}
+          disabled={save.isPending || !lightHoursFit(draft.steps)}
           onClick={() => save.mutate(replaceBody(draft), { onSuccess: () => onClose() })}
         >
           {save.isPending ? t('grow.lifecycle.saving') : t('space.control.editor.save')}
@@ -261,6 +264,7 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
         {figuresFor(device).map(figure => (
           <FigureField key={figure.key} figure={figure} step={step} onChange={onChange} />
         ))}
+        <LightHoursField step={step} onChange={onChange} />
         {/* The figure this controller cannot run keeps its place and says what
             it needs, rather than leaving a gap that reads as a screen that
             forgot it. It is the row the manual targets page draws, in the same
@@ -272,8 +276,13 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
           </span>
         )}
       </div>
+      {step.lightHours !== null && (step.lightHours < LIGHT_HOURS.min || step.lightHours > LIGHT_HOURS.max) ? (
+        <p className={ui.note} role="alert">
+          {t('planLight.range', LIGHT_HOURS)}
+        </p>
+      ) : null}
       <p className={ui.note}>
-        {writesNothing(step.settings)
+        {writesNothing(step.settings) && step.lightHours === null
           ? t('space.control.step.writesNothing')
           : awaiting
             ? t('space.control.step.writesNowhere')
@@ -281,7 +290,7 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
       </p>
       {extra.length > 0 ? <p className={ui.note}>{t('space.control.step.alsoWrites', { sections: extra.join(', ') })}</p> : null}
       {device.configuration ? (
-        <button type="button" className={ui.button} onClick={() => onChange({ settings: fromController(step, device) })}>
+        <button type="button" className={`${ui.button} ${styles.wraps}`} onClick={() => onChange(fromController(step, device))}>
           {t('space.control.step.takeFromController')}
         </button>
       ) : null}
@@ -305,9 +314,52 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
   );
 }
 
-/** The figures of the step's settings as the controller states them now, for a step that should hold what the tent already holds. */
-const fromController = (step: StepDraft, device: Device) =>
-  figuresFor(device).reduce((settings, figure) => withFigure(settings, figure, figureOf(device.configuration ?? {}, figure)), step.settings);
+/**
+ * The figures of the step's settings and its light hours as the controller
+ * states them now, for a step that should hold what the tent already holds.
+ */
+const fromController = (step: StepDraft, device: Device): Partial<StepDraft> => {
+  const configuration = device.configuration ?? {};
+  const daynight = configuration.daynight as Record<string, unknown> | undefined;
+  const statesLight = typeof daynight?.day === 'number' && typeof daynight?.night === 'number';
+
+  return {
+    settings: figuresFor(device).reduce((settings, figure) => withFigure(settings, figure, figureOf(configuration, figure)), step.settings),
+    lightHours: statesLight ? Math.round(targetsOf(configuration).lightHours) : step.lightHours,
+  };
+};
+
+/**
+ * How long the light is on while the step runs: what turns a vegetative tent
+ * into a flowering one. The light keeps the hour it comes on, so the step says
+ * hours rather than times of day. Empty leaves the photoperiod as it is.
+ */
+function LightHoursField({ step, onChange }: { step: StepDraft; onChange: (over: Partial<StepDraft>) => void }) {
+  const { t } = useTranslation();
+  const id = `step-light-${step.key}`;
+
+  return (
+    <span className={styles.figure}>
+      <span className={styles.figureLabel}>
+        <label htmlFor={id}>{t('planLight.label')}</label>
+        <Help topic="stepLightHours" />
+      </span>
+      <input
+        id={id}
+        className={`mono ${styles.figureInput}`}
+        type="number"
+        inputMode="numeric"
+        min={LIGHT_HOURS.min}
+        max={LIGHT_HOURS.max}
+        step={1}
+        placeholder="—"
+        value={step.lightHours ?? ''}
+        onChange={event => onChange({ lightHours: event.target.value === '' ? null : Number(event.target.value) })}
+      />
+      <span className={`mono ${styles.figureUnit}`}>{t('planLight.unit')}</span>
+    </span>
+  );
+}
 
 /** One climate figure. Empty is a figure this step does not write, which is not the same as zero. */
 function FigureField({ figure, step, onChange }: { figure: Figure; step: StepDraft; onChange: (over: Partial<StepDraft>) => void }) {

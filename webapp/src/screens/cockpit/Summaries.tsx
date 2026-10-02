@@ -17,6 +17,7 @@ import { alarmsReach, reachedBy } from '../notifications/reach';
 import { plugSummaryOf } from '../control/devices/own-summary';
 import { offsetOf } from '../control/targets/targets-draft';
 import { hoursFigure, lightWindowOf } from './place';
+import { PlanLine } from './PlanLine';
 import styles from './Cockpit.module.css';
 
 /**
@@ -110,6 +111,7 @@ export function TargetsSummary({
       ) : (
         <p className={ui.note}>{t(device && awaitingClimate(device) ? 'cockpit.targets.awaiting' : 'cockpit.targets.none')}</p>
       )}
+      {device?.control ? <PlanLine spaceId={spaceId} device={device} now={now} /> : null}
     </Summary>
   );
 }

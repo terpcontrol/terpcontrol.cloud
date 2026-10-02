@@ -1,4 +1,4 @@
-import { Droplets, DropletOff, ThermometerSnowflake, ThermometerSun, type LucideIcon } from 'lucide-react';
+import { CloudOff, Droplets, DropletOff, Refrigerator, ThermometerSnowflake, ThermometerSun, type LucideIcon } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -279,13 +279,22 @@ function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, name
   );
 }
 
-const TEMPLATE_ICON: Record<TemplateKey, LucideIcon> = { warm: ThermometerSun, cold: ThermometerSnowflake, humid: Droplets, dry: DropletOff };
+const TEMPLATE_ICON: Record<TemplateKey, LucideIcon> = {
+  warm: ThermometerSun,
+  cold: ThermometerSnowflake,
+  humid: Droplets,
+  dry: DropletOff,
+  co2Empty: CloudOff,
+  running: Refrigerator,
+};
 
 /**
- * Too warm, too cold, too humid, too dry: each one tap from a rule. A template
- * whose rule this device already has - written here, by a stage or by the
- * firmware - is not offered again; the rule is in the list above and opens like
- * every other. Once all four are there the offer goes away.
+ * Too warm, too cold, too humid, too dry - and where the hardware has the
+ * part, an empty CO2 cylinder and a compressor that does not stop: each one tap
+ * from a rule. A template whose rule this device already has - written here, by
+ * a stage or by the firmware - is not offered again; the rule is in the list
+ * above and opens like every other. Once all of them are there the offer goes
+ * away.
  */
 function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule[]; onMade: (ruleId: string) => void }) {
   const { t } = useTranslation();
@@ -312,10 +321,15 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
       <ul className={styles.templateList}>
         {offered.map(template => {
           const Icon = TEMPLATE_ICON[template.key];
-          const line = t(`alarms.template.${template.edge}`, {
-            value: `${targetFigure(template.value, template.metric)} ${unitOf({ kind: 'reading', metric: template.metric, upper: null, lower: null })}`,
-            length: durationLabel(template.forMinutes * 60),
-          });
+          const { watch } = template;
+          const length = durationLabel(template.forMinutes * 60);
+          const line =
+            watch.kind === 'reading'
+              ? t(`alarms.template.${watch.edge}`, {
+                  value: `${targetFigure(watch.value, watch.metric)} ${unitOf({ kind: 'reading', metric: watch.metric, upper: null, lower: null })}`,
+                  length,
+                })
+              : t('alarms.template.runs', { length });
           const name = t(`alarms.template.${template.key}.name`);
 
           return (

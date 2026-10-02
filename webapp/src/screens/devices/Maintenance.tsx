@@ -6,28 +6,28 @@ import type { Device, DeviceCommandResult } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useDevicesCommand } from '@/api/commands';
 import { Sheet } from '@/log/Sheet';
-import { parkedLabel, parkedQuiet, parksAnything, quietMinutes, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
+import { MAINTENANCE_MINUTES, parkedLabel, parkedQuiet, parksAnything, quietMinutes, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
 import { Refused } from '@/ui/PageState';
+import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
 import { deviceTitle } from './naming';
 import styles from './Maintenance.module.css';
 
 /**
- * The two things a grower does to the hardware itself: a quarter of an hour of
- * maintenance, and a restart. Both reach real hardware and neither can be taken
- * back, so each is a button that opens a question saying what is about to stop,
- * and the question turns into the receipt once it has been answered.
+ * The two things a grower does to the hardware itself: a window of maintenance
+ * - a quarter of an hour, half an hour or an hour - and a restart. Both reach
+ * real hardware and neither can be taken back, so each is a button that opens
+ * a question saying what is about to stop, and the question turns into the
+ * receipt once it has been answered.
  *
  * Maintenance is sent as the device command and not written as a diary line:
  * it is the same window on the same hardware, but a grower who keeps no diary
  * should not find one started by pressing a button about the tent.
  */
 
-const WINDOW_SECONDS = VISIT_MINUTES * 60;
-
-/** The window, the settling after it, and the sum of the two - the span nothing is raised in. */
-const SPANS = { minutes: VISIT_MINUTES, settle: SETTLE_MINUTES, quiet: quietMinutes(WINDOW_SECONDS) };
+/** A window of so many minutes, the settling after it, and the sum of the two - the span nothing is raised in. */
+const spansOf = (minutes: number) => ({ minutes, settle: SETTLE_MINUTES, quiet: quietMinutes(minutes * 60) });
 
 /** A button that says what it is, and under it what it does - the two lines a grower decides on. */
 export function TwoLines({ Icon, name, does, disabled, className, onClick }: TwoLinesProps) {
@@ -52,8 +52,9 @@ interface TwoLinesProps {
 }
 
 /**
- * "Maintenance · 15 min" and what that means under it, or, while the devices
- * are parked, until when. It opens the question; it never sends.
+ * "Maintenance" and what that means under it, or, while the devices are
+ * parked, until when. It opens the question, where the length is chosen; it
+ * never sends.
  */
 export function MaintenanceButton({
   devices,
@@ -75,7 +76,7 @@ export function MaintenanceButton({
     <>
       <TwoLines
         Icon={Wrench}
-        name={running ? t('maintenance.running', { until: clock(running.until, zone) }) : t('maintenance.action', SPANS)}
+        name={running ? t('maintenance.running', { until: clock(running.until, zone) }) : t('maintenance.actionChoose')}
         does={t(running ? 'maintenance.runningNote' : 'maintenance.actionNote')}
         disabled={disabled}
         className={className}
@@ -114,12 +115,14 @@ function MaintenanceSheet({ devices, now, onClose }: { devices: Device[]; now: D
   const { t } = useTranslation();
   const zone = useZone();
   const send = useDevicesCommand();
+  const [minutes, setMinutes] = useState<number>(VISIT_MINUTES);
+  const spans = spansOf(minutes);
   const running = parkedQuiet(devices, DateTime.max(now, serverNow()));
   const ids = devices.map(device => device.id);
   const receipts = send.data ?? null;
   const ended = send.variables?.command.kind === 'maintenance' && send.variables.command.forSeconds === 0;
 
-  const start = () => send.mutate({ deviceIds: ids, command: { kind: 'maintenance', forSeconds: WINDOW_SECONDS } });
+  const start = () => send.mutate({ deviceIds: ids, command: { kind: 'maintenance', forSeconds: minutes * 60 } });
   const end = () => send.mutate({ deviceIds: ids, command: { kind: 'maintenance', forSeconds: 0 } });
 
   const actions = receipts ? (
@@ -145,14 +148,23 @@ function MaintenanceSheet({ devices, now, onClose }: { devices: Device[]; now: D
   );
 
   return (
-    <Sheet title={t('maintenance.title', SPANS)} onClose={onClose} actions={actions}>
+    <Sheet title={t('maintenance.title')} onClose={onClose} actions={actions}>
       <div className={styles.body} role={receipts ? 'status' : undefined}>
         {receipts ? (
-          <Receipt receipts={receipts} ended={ended} />
+          <Receipt receipts={receipts} ended={ended} spans={spans} />
         ) : running ? (
           <p>{t('maintenance.runningText', { until: clock(running.until, zone), alarms: clock(running.alarmsUntil, zone) })}</p>
         ) : (
-          <WhatPauses devices={devices} />
+          <>
+            <Choices label={t('maintenance.howLong')}>
+              {MAINTENANCE_MINUTES.map(length => (
+                <Choice key={length} chosen={minutes === length} disabled={send.isPending} onChoose={() => setMinutes(length)}>
+                  {t('maintenance.minutes', { minutes: length })}
+                </Choice>
+              ))}
+            </Choices>
+            <WhatPauses devices={devices} spans={spans} />
+          </>
         )}
       </div>
     </Sheet>
@@ -160,17 +172,17 @@ function MaintenanceSheet({ devices, now, onClose }: { devices: Device[]; now: D
 }
 
 /** What a window stops, device by device where there are several, and how long nothing is raised. */
-function WhatPauses({ devices }: { devices: Device[] }) {
+function WhatPauses({ devices, spans }: { devices: Device[]; spans: ReturnType<typeof spansOf> }) {
   const { t } = useTranslation();
   const only = devices.length === 1 ? devices[0] : null;
 
   return (
     <>
       {only ? (
-        <p>{parksAnything(only) ? t('maintenance.pauses', { ...SPANS, outputs: parkedLabel(t, only) }) : t('maintenance.pausesNothing', SPANS)}</p>
+        <p>{parksAnything(only) ? t('maintenance.pauses', { ...spans, outputs: parkedLabel(t, only) }) : t('maintenance.pausesNothing', spans)}</p>
       ) : (
         <>
-          <p>{t('maintenance.pausesEach', { ...SPANS, count: devices.length })}</p>
+          <p>{t('maintenance.pausesEach', { ...spans, count: devices.length })}</p>
           <ul className={styles.list}>
             {devices.map(device => (
               <li key={device.id}>
@@ -182,21 +194,21 @@ function WhatPauses({ devices }: { devices: Device[] }) {
           </ul>
         </>
       )}
-      <p>{t('maintenance.alarms', SPANS)}</p>
+      <p>{t('maintenance.alarms', spans)}</p>
       <p className={ui.note}>{t('maintenance.after', { count: devices.length })}</p>
     </>
   );
 }
 
 /** What came back: a window asked for, or ended - and, where a device was not there to hear it, that too. */
-function Receipt({ receipts, ended }: { receipts: DeviceCommandResult[]; ended: boolean }) {
+function Receipt({ receipts, ended, spans }: { receipts: DeviceCommandResult[]; ended: boolean; spans: ReturnType<typeof spansOf> }) {
   const { t } = useTranslation();
   const unheard = receipts.some(receipt => !receipt.deviceOnline);
 
   return (
     <>
-      <p>{ended ? t('maintenance.ended') : t('maintenance.started', SPANS)}</p>
-      {unheard && !ended ? <p className={ui.note}>{t('maintenance.unheard', SPANS)}</p> : null}
+      <p>{ended ? t('maintenance.ended') : t('maintenance.started', spans)}</p>
+      {unheard && !ended ? <p className={ui.note}>{t('maintenance.unheard', spans)}</p> : null}
     </>
   );
 }

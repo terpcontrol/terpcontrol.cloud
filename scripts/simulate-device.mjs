@@ -314,7 +314,7 @@ const PROFILES = {
 
 const DEFAULT_CONFIG = {
   workmode: 'small',
-  daynight: { day: 21600, night: 64800 },
+  daynight: { day: 21600, night: 64800, minimalDehumidifierOffTime: 240 },
   day: { temperature: 25, humidity: 60 },
   night: { temperature: 21, humidity: 55 },
   co2: { target: 900, sunsetOff: true },

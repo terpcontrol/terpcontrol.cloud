@@ -124,19 +124,36 @@ describe('maintenance on the cockpit', () => {
   it('says what it is and what it does, asks first, and sends the device command rather than a diary line', async () => {
     draw();
 
-    const button = await screen.findByRole('button', { name: /^Maintenance · 15 min/ });
+    const button = await screen.findByRole('button', { name: /^Maintenance/ });
     expect(button).toHaveTextContent('Pause control and alarms');
     expect(screen.queryByText(/Alarms off/)).not.toBeInTheDocument();
 
     fireEvent.click(button);
-    const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 minutes' });
-    expect(within(asked).getByText(/stops the heater, the compressor and the CO₂ valve/)).toBeInTheDocument();
+    const asked = await screen.findByRole('dialog', { name: 'Maintenance' });
+    // A quarter of an hour unless somebody picks longer.
+    expect(within(asked).getByRole('button', { name: '15 min' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(asked).getByText(/For 15 minutes the device stops the heater, the compressor and the CO₂ valve/)).toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
 
     fireEvent.click(within(asked).getByRole('button', { name: 'Start maintenance' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 900 }));
     expect(api.post).not.toHaveBeenCalledWith('/entries', expect.anything());
+  });
+
+  it('runs as long as somebody picks - half an hour or an hour - and says so throughout', async () => {
+    draw();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Maintenance/ }));
+    const asked = await screen.findByRole('dialog', { name: 'Maintenance' });
+    fireEvent.click(within(asked).getByRole('button', { name: '60 min' }));
+
+    expect(within(asked).getByText(/For 60 minutes the device stops/)).toBeInTheDocument();
+    expect(within(asked).getByText(/Alarms stay off for 70 minutes – the 60 minutes and 10 more/)).toBeInTheDocument();
+    fireEvent.click(within(asked).getByRole('button', { name: 'Start maintenance' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 3600 }));
+    expect(await within(asked).findByText(/After 60 minutes everything carries on by itself; alarms come back after 70 minutes/)).toBeInTheDocument();
   });
 
   it('is not offered while the place is offline', async () => {
@@ -166,7 +183,7 @@ describe('maintenance on the cockpit', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/^Maintenance until \d\d:\d\d · regulation and alarms paused$/);
 
     fireEvent.click(button);
-    const asked = await screen.findByRole('dialog', { name: 'Maintenance · 15 minutes' });
+    const asked = await screen.findByRole('dialog', { name: 'Maintenance' });
     fireEvent.click(within(asked).getByRole('button', { name: 'End now' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 0 }));

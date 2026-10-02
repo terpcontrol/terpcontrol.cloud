@@ -34,6 +34,7 @@ import {
   throughStep,
 } from './plan-clock';
 import { draftOf, emptyDraft, type PlanDraft } from './plan-edit';
+import { offersReadyPlans } from './ready-plans';
 import { durationLabel, stepMeta } from './plan-labels';
 import styles from './Control.module.css';
 import { deviceName } from '@/screens/devices/naming';
@@ -80,7 +81,8 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   // Starting from a template is offered only where there is one to start
   // from: the button used to open a sheet that said there were none.
   const templates = usePlanTemplates();
-  const anyTemplate = templates.data?.items.length !== 0;
+  const ready = offersReadyPlans(device);
+  const anyTemplate = templates.data?.items.length !== 0 || ready;
 
   const name = deviceName(device, t);
   // The page is headed "Grow plan", so the panel is headed by whose plan it is.
@@ -118,12 +120,23 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
                   ? t('targets.waiting', { device: deviceTitle(device, t, all.data?.items) })
                   : t('space.control.noClimateNote')}
             </p>
+            {landing === 'document' && ready ? <p className={ui.note}>{t('readyPlans.offer')}</p> : null}
             {mayManage && landing === 'document' ? (
               <div className={styles.actions}>
-                <button type="button" className={`${ui.button} ${ui.primary}`} onClick={() => setEditing(emptyDraft(name, DEFAULT_NOTIFY))}>
+                {/* A fridge starts where a beginner starts: from one of the two ready plans. */}
+                {ready ? (
+                  <button type="button" className={`${ui.button} ${ui.primary}`} onClick={() => setPicking(true)}>
+                    {t('readyPlans.start')}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className={`${ui.button} ${ready ? '' : ui.primary}`}
+                  onClick={() => setEditing(emptyDraft(name, DEFAULT_NOTIFY))}
+                >
                   {t('space.control.write')}
                 </button>
-                {anyTemplate ? (
+                {anyTemplate && !ready ? (
                   <button type="button" className={ui.button} onClick={() => setPicking(true)}>
                     {t('space.control.fromTemplate')}
                   </button>
@@ -138,6 +151,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
         {editing ? <PlanEditor device={device} plan={null} draft={editing} onClose={() => setEditing(null)} /> : null}
         {picking ? (
           <StartFromTemplateSheet
+            device={device}
             notify={DEFAULT_NOTIFY}
             onClose={() => setPicking(false)}
             onChosen={draft => {
@@ -195,6 +209,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
       {keeping ? <KeepAsTemplateSheet plan={plan.data} onClose={() => setKeeping(false)} /> : null}
       {picking ? (
         <StartFromTemplateSheet
+          device={device}
           notify={plan.data.notify}
           onClose={() => setPicking(false)}
           onChosen={draft => {

@@ -17,6 +17,7 @@ import { calendarDay, useZone } from '@/ui/zone';
 import { Feeding } from './Feeding';
 import { GrowLifecycle } from './Lifecycle';
 import { PhaseBar } from './PhaseBar';
+import { PhaseTips } from './PhaseTips';
 import { lastPlaceOf } from './placement';
 import { Plants } from './Plants';
 import { Report } from './Report';
@@ -240,6 +241,9 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
             plants were entered and are all gone. */}
         {plants.length > 0 ? <span className={styles.muted}> · {t('home.card.plants', { count: plants.length })}</span> : null}
       </p>
+
+      {/* An ended grow has no phase to be in, so it has nothing to be told about one. */}
+      {endedOn ? null : <PhaseTips stage={summary.stage} />}
 
       {/* What the grow measures is the grow's own, not a week's and not a
           plant's, so the way in is a row of the header rather than a tab. It is

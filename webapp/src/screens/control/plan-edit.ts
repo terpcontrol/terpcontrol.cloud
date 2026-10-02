@@ -30,6 +30,8 @@ export interface StepDraft {
   preset: string | null;
   duration: StepDuration;
   settings: DeviceConfiguration;
+  /** How long the light is on while the step runs; null leaves the photoperiod as it is. */
+  lightHours: number | null;
   waitForConfirmation: boolean;
   confirmationMessage: string | null;
 }
@@ -44,14 +46,15 @@ export interface PlanDraft {
 
 let drawn = 0;
 
-const keyed = (step: Omit<StepDraft, 'key'>): StepDraft => ({ ...step, key: `draft-${++drawn}` });
+/** A step as the editor holds it, with a key of its own to draw the list by. */
+export const keyedStep = (step: Omit<StepDraft, 'key'>): StepDraft => ({ ...step, key: `draft-${++drawn}` });
 
 export const draftOf = (plan: Plan): PlanDraft => ({
   name: plan.name,
   templateId: plan.templateId,
   loop: plan.loop,
   notify: { ...plan.notify },
-  steps: plan.steps.map(step => keyed({ ...step })),
+  steps: plan.steps.map(step => keyedStep({ ...step, lightHours: step.lightHours ?? null })),
 });
 
 /**
@@ -64,18 +67,19 @@ export const draftFromTemplate = (steps: PlanStep[], name: string, templateId: s
   templateId,
   loop: false,
   notify,
-  steps: steps.map(({ id: _id, ...step }) => keyed({ ...step })),
+  steps: steps.map(({ id: _id, ...step }) => keyedStep({ ...step, lightHours: step.lightHours ?? null })),
 });
 
 export const emptyDraft = (name: string, notify: PlanNotify): PlanDraft => ({ name, templateId: null, loop: false, notify, steps: [] });
 
 export const newStep = (name: string): StepDraft =>
-  keyed({
+  keyedStep({
     name,
     stage: null,
     preset: null,
     duration: { value: 1, unit: 'weeks' },
     settings: {},
+    lightHours: null,
     waitForConfirmation: false,
     confirmationMessage: null,
   });
@@ -88,6 +92,13 @@ export const replaceBody = (draft: PlanDraft): PlanReplace => ({
   notify: draft.notify,
   steps: draft.steps.map(({ key: _key, ...step }) => step),
 });
+
+/** The light hours a step may name: the targets page's own range. */
+export const LIGHT_HOURS = { min: 1, max: 24 } as const;
+
+/** Whether every step names light hours the server takes, or none at all. */
+export const lightHoursFit = (steps: StepDraft[]): boolean =>
+  steps.every(step => step.lightHours === null || (step.lightHours >= LIGHT_HOURS.min && step.lightHours <= LIGHT_HOURS.max));
 
 /** A step one place up or down. Out of the list at either end is no move at all rather than a wrap-around. */
 export const moveStep = (steps: StepDraft[], index: number, by: -1 | 1): StepDraft[] => {

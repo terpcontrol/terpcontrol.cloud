@@ -665,6 +665,31 @@
   font-size: var(--text-sm);
 }
 
+/* Where a running plan stands, under the targets it sets: one line that leads to it. */
+.planLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.planLine > svg:first-child {
+  flex: none;
+  color: var(--label);
+}
+
+.planLine > svg:last-child {
+  flex: none;
+  margin-left: auto;
+  color: var(--label);
+}
+
+.planWord {
+  color: var(--label);
+}
+
 .reach {
   display: inline-flex;
   align-items: center;

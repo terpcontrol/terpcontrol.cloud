@@ -20,7 +20,7 @@ import styles from './Control.module.css';
  */
 
 /** A refusal that means the screen is out of date, and is put right by reading the plan again. */
-const STALE = ['nothing_to_confirm', 'plan_not_running', 'plan_already_running', 'plan_not_found'];
+const STALE = ['nothing_to_confirm', 'plan_not_running', 'plan_already_running', 'plan_not_found', 'plan_step_gone'];
 
 const SPOKEN = [...STALE, 'plan_has_no_steps', 'invalid_duration', 'duplicate_step_id', 'plan_template_name_taken'];
 

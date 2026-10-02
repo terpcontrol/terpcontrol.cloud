@@ -2709,7 +2709,8 @@
         "invalid_duration": "Ein Schritt wird um eine Länge größer als null verlängert.",
         "duplicate_step_id": "Zwei Schritte dieses Plans tragen dieselbe Id, es wurde also nichts gespeichert. Schließ das Blatt und öffne es erneut.",
         "plan_template_name_taken": "Du hast schon eine Vorlage mit diesem Namen. Gib dieser einen anderen.",
-        "refresh": "Neu einlesen"
+        "refresh": "Neu einlesen",
+        "plan_step_gone": "Diesen Schritt hat der Plan nicht mehr – er wurde inzwischen geändert."
       },
       "template": {
         "keepTitle": "Als Vorlage sichern",
@@ -3446,11 +3447,10 @@
     "end": "Jetzt beenden",
     "ending": "Wird beendet …",
     "ended": "Beenden angefragt. Die Alarme kommen zurück, sobald sich das Klima beruhigt hat.",
-    "action": "Wartung · {{minutes}} Min",
     "actionNote": "Regelung und Alarme pausieren",
     "running": "Wartung bis {{until}}",
     "runningNote": "Regelung und Alarme pausiert",
-    "title": "Wartung · {{minutes}} Minuten",
+    "title": "Wartung",
     "pauses": "Für {{minutes}} Minuten stellt das Gerät {{outputs}} ab, damit du in Ruhe arbeiten kannst.",
     "pausesNothing": "Dieses Gerät kennt die Wartung nicht und stellt nichts ab. Nur seine Alarme bleiben aus.",
     "pausesEach_one": "Für {{minutes}} Minuten pausiert das Gerät hier:",
@@ -3469,7 +3469,10 @@
       "dehumidifier": "den Entfeuchter",
       "compressor": "den Kompressor",
       "co2": "das CO₂-Ventil"
-    }
+    },
+    "actionChoose": "Wartung",
+    "howLong": "Wie lange",
+    "minutes": "{{minutes}} Min"
   },
   "alarms": {
     "title": "Alarme",
@@ -3625,7 +3628,14 @@
       },
       "dry": {
         "name": "Zu trocken"
-      }
+      },
+      "co2Empty": {
+        "name": "CO₂-Flasche leer"
+      },
+      "running": {
+        "name": "Kühlschrank läuft ununterbrochen"
+      },
+      "runs": "läuft {{length}} am Stück"
     },
     "channelOff": "{{channel}} (aus)",
     "addDevice": "Gerät hinzufügen",
@@ -4494,7 +4504,7 @@
     },
     "maintenance": {
       "title": "Wartung",
-      "text": "Für die Arbeit im Zelt oder Schrank: 15 Minuten lang stellt das Gerät Heizung, Entfeuchter oder Kompressor und CO₂-Ventil ab und dimmt das Licht. Alarme bleiben 25 Minuten aus – die Wartung und 10 Minuten, bis das Klima wieder stimmt. Danach regelt alles von selbst weiter."
+      "text": "Für die Arbeit im Zelt oder Schrank: 15, 30 oder 60 Minuten lang stellt das Gerät Heizung, Entfeuchter oder Kompressor und CO₂-Ventil ab und dimmt das Licht. Alarme bleiben 10 Minuten länger aus, bis das Klima wieder stimmt. Danach regelt alles von selbst weiter; du kannst die Wartung auch vorher beenden."
     },
     "reboot": {
       "title": "Neu starten",
@@ -4514,7 +4524,7 @@
     },
     "alarmTemplates": {
       "title": "Mit einem Tipp einrichten",
-      "text": "Ein Tipp legt eine gewöhnliche Alarmregel an. Ihre Grenze kommt aus deinen Zielwerten: 5 °C über der wärmeren, 4 °C unter der kühleren, 10 Punkte Luftfeuchte über der höheren und 20 unter der niedrigeren. Sie ist kritisch, geht also über deine Benachrichtigungseinstellungen raus, auch in der Ruhezeit. Grenze, Dauer und alles andere änderst du, indem du die Regel antippst."
+      "text": "Ein Tipp legt eine gewöhnliche Alarmregel an. Bei Temperatur und Luftfeuchte kommt die Grenze aus deinen Zielwerten: 5 °C über der wärmeren, 4 °C unter der kühleren, 10 Punkte Luftfeuchte über der höheren und 20 unter der niedrigeren. „CO₂-Flasche leer“ meldet sich unter 350 ppm, weniger als Außenluft: Mit einer Flasche am Ventil heißt das, sie ist leer. „Kühlschrank läuft ununterbrochen“ meldet sich, wenn der Kompressor 30 Minuten ohne Pause läuft – meist eine offene Tür, eine kaputte Dichtung oder zu viel Wärme von der Lampe. Jede Regel ist kritisch, geht also über deine Benachrichtigungseinstellungen raus, auch in der Ruhezeit. Grenze, Dauer und alles andere änderst du, indem du die Regel antippst."
     },
     "alarmQuiet": {
       "title": "Stummschalten und Wartung",
@@ -4743,12 +4753,48 @@
       },
       "lightRamp": {
         "title": "Sonnenauf- und -untergang",
-        "text": "Wie viele Minuten die Lampe nach dem Einschalten hochfährt und vor dem Ausschalten herunterdimmt. 0 schaltet sie hart an und aus."
+        "text": "Wie viele Minuten das Licht morgens hochfährt und abends herunterdimmt, von 0 bis 60. 15 Minuten passen fast immer. 0 schaltet hart – für Lampentreiber, die bei kleinen Dimmstufen flackern."
+      },
+      "maintenanceLight": {
+        "title": "Licht an in der Wartung",
+        "text": "Tagsüber dimmt die Wartung das Licht ohnehin auf 15 %. Eingeschaltet brennt es auch in der Dunkelphase mit 15 %, damit du nachts siehst, was du tust. In der Blüte stört Licht in der Dunkelphase die Pflanzen – dann lieber aus lassen."
+      },
+      "fans": {
+        "title": "Lüfter",
+        "text": "Der Klemmlüfter bewegt die Blätter: Sämlinge vertragen volle Kraft schlecht, und nachts zählt die Lautstärke. 0 % stellt ihn ab. Die Innenlüfter verteilen die Luft im Schrank; der Wert ist ihre Mindestdrehzahl, bei Bedarf drehen sie höher. Unter 10 % gehen sie nicht."
+      },
+      "compressorRest": {
+        "title": "Kompressor-Pause",
+        "text": "So lange bleibt der Kompressor mindestens aus, bevor er wieder anlaufen darf. Das schützt ihn vor kurzem Takten. Weniger als 240 Sekunden geht nicht; mehr macht die Regelung träger, weil Kühlen und Entfeuchten länger warten müssen."
+      },
+      "leafOffset": {
+        "title": "Blatt zur Luft",
+        "text": "Wie viel wärmer oder kühler als die Luft das Blatt angenommen wird, wo kein Blattsensor misst. Daraus wird der VPD berechnet, den Start, Verlauf und die Zielwerte zeigen. Unter Licht verdunstet das Blatt Wasser und ist kühler: Standard ist tagsüber −2 °C und nachts 0 °C. Geregelt wird danach nichts."
+      },
+      "ppfdFactor": {
+        "title": "Lux-zu-PPFD-Faktor",
+        "text": "Rechnet den Lux-Wert des Lichtsensors in PPFD um. Der passende Faktor hängt vom Spektrum der Lampe ab: weiße Vollspektrum-LED etwa 0,015, Natriumdampflampe (HPS) etwa 0,0122. Mit dem falschen Faktor liegt die PPFD-Anzeige um bis zu 20 % daneben."
+      },
+      "continuePlan": {
+        "title": "Plan bei Schritt fortsetzen",
+        "text": "Setzt den Plan auf einen Schritt deiner Wahl: zurück zu einem Schritt, der zu früh vorbei war, oder mitten in einen Grow einsteigen, etwa direkt in die Blüte. Der gewählte Schritt beginnt von vorn, seine Werte gehen innerhalb einer Minute ans Gerät, und ein Grow an diesem Ort wechselt in seine Phase. Ein pausierter oder gestoppter Plan läuft danach wieder."
+      },
+      "co2Report": {
+        "title": "CO₂-Flasche",
+        "text": "Trag beim Einsetzen jeder Flasche ein, was sie enthält, und – wenn du sie gewogen hast – was in der alten noch war. Aus den Ventilöffnungen, die das Gerät zählt, rechnet die Karte aus, wie viele Öffnungen ein Gramm CO₂ ergibt. Ab der ersten leeren Flasche schätzt sie, was in der aktuellen noch ist und wie lange sie reicht."
       },
       "lightOverheat": {
         "title": "Überhitzungsschutz",
         "text": "Über dieser Temperatur am Lichtmodul dimmt sich die Lampe herunter, bis es wieder kühler ist. Das schützt die Lampe und die Pflanzen direkt darunter."
       }
+    },
+    "stepLightHours": {
+      "title": "Licht an für (im Schritt)",
+      "text": "Wie viele Stunden am Tag das Licht brennt, solange dieser Schritt läuft. Es geht zur gewohnten Uhrzeit an („Licht an um“ unter Zielwerte) und so viele Stunden später aus. 12 Stunden lösen bei photoperiodischen Pflanzen die Blüte aus. Leer gelassen bleibt die Lichtdauer, wie sie ist."
+    },
+    "readyPlans": {
+      "title": "Fertige Pläne",
+      "text": "Zwei ganze Grows für den Kühlschrank: Photoperiodisch (ca. 16 Wochen, die Blüte beginnt mit der Umstellung auf 12 Stunden Licht) und Autoflower (ca. 11 Wochen, das Licht bleibt bei 18 Stunden). Jeder Schritt bringt die Zielwerte seiner Phase mit; vor der Blüte, vor der Ernte und am Ende der Trocknung wartet der Plan auf dich. Auswählen öffnet den Plan zum Durchsehen, gespeichert wird erst mit „Plan speichern“."
     },
     "socketTimer": {
       "title": "Zeitschaltung",
@@ -5002,6 +5048,95 @@
     "greenhouseNote": "Nur die Temperatur: Licht und CO₂ laufen, der Kompressor kühlt nur, die Luftfeuchte wird nicht geregelt.",
     "germination": "Keimung",
     "germinationNote": "Im Dunkeln: kein Licht, kein CO₂. Heizt und kühlt auf die Nachttemperatur."
+  },
+  "planLight": {
+    "label": "Licht an für",
+    "unit": "h",
+    "short": "{{hours}} h Licht",
+    "range": "Licht an für: {{min}} bis {{max}} Stunden, oder leer lassen."
+  },
+  "readyPlans": {
+    "label": "Fertige Pläne",
+    "weeks_one": "ca. {{count}} Woche",
+    "weeks_other": "ca. {{count}} Wochen",
+    "saved": "Gespeicherte Vorlagen",
+    "offer": "Für den Kühlschrank gibt es zwei fertige Pläne, Photoperiodisch und Autoflower: vom Sämling bis zur Trocknung, mit Zielwerten, Lichtstunden und einer Frage an jeder großen Stelle.",
+    "start": "Fertigen Plan wählen"
+  },
+  "message-recipe-step-chosen-title": "Plan bei Schritt fortgesetzt",
+  "message-recipe-step-chosen-text": "Der Plan macht bei Schritt {{value}} weiter.",
+  "tuning": {
+    "minutes": "min",
+    "seconds": "s",
+    "sunrise": "Sonnenaufgang",
+    "sunset": "Sonnenuntergang",
+    "maintenanceLight": "Licht an in der Wartung",
+    "maintenanceLightOn": "Auch nachts brennt das Licht während der Wartung mit 15 %.",
+    "maintenanceLightOff": "Nachts bleibt es während der Wartung dunkel.",
+    "clipFan": "Klemmlüfter",
+    "innerFans": "Innenlüfter, mindestens",
+    "compressorRest": "Kompressor-Pause"
+  },
+  "sensorFactors": {
+    "day": "Blatt zur Luft · Tag",
+    "night": "Blatt zur Luft · Nacht",
+    "offset": "{{value}} °C",
+    "colder": "{{label}}: kühler",
+    "warmer": "{{label}}: wärmer",
+    "measured": "Der Blattsensor misst die Blatttemperatur selbst; diese Werte gelten nur, wo er keinen Wert liefert, und für die VPD-Vorschau der Zielwerte.",
+    "lux": "Lux-zu-PPFD-Faktor",
+    "luxRange": "Von {{min}} bis {{max}}.",
+    "lamp": {
+      "led": "Weiß-LED · {{factor}}",
+      "hps": "HPS · {{factor}}"
+    }
+  },
+  "continuePlan": {
+    "label": "Plan bei Schritt fortsetzen",
+    "which": "Schritt",
+    "step": "{{number}} · {{name}}",
+    "now": "jetzt",
+    "go": "Hier weitermachen",
+    "ask": "„{{plan}}“ macht bei {{step}} weiter. Der Schritt beginnt von vorn, die Zeit des jetzigen ist vergessen, und seine Werte gehen innerhalb einer Minute ans Gerät.",
+    "askAtRest": "„{{plan}}“ startet bei {{step}} statt bei Schritt 1. Der Schritt beginnt von vorn, und seine Werte gehen innerhalb einer Minute ans Gerät.",
+    "yes": "Bei Schritt {{number}} weitermachen",
+    "done": "Der Plan läuft jetzt bei {{step}}."
+  },
+  "planLine": {
+    "plan": "Plan:",
+    "days_one": "{{count}} Tag",
+    "days_other": "{{count}} Tage",
+    "hours_one": "{{count}} Stunde",
+    "hours_other": "{{count}} Stunden",
+    "left": "{{step}}, noch {{left}}, dann {{next}}",
+    "leftLast": "{{step}}, noch {{left}}, dann ist der Plan fertig",
+    "waiting": "{{step}} wartet auf deine Bestätigung",
+    "openEnded": "{{step}}, bis du weiterschaltest",
+    "changing": "{{step}}, gleich geht es weiter mit {{next}}",
+    "ending": "{{step}}, der Plan ist gleich fertig"
+  },
+  "co2Report": {
+    "title": "CO₂-Flasche",
+    "none": "Noch keine Flasche eingetragen. Trag die nächste ein, wenn du sie einsetzt – ab der ersten leeren Flasche rechnet die Karte aus, was in der aktuellen noch ist und wie lange sie reicht.",
+    "inUse": "In Gebrauch seit {{day}} · {{grams}} g",
+    "rest": "Noch etwa {{grams}} g ({{percent}} %)",
+    "lasts_one": "reicht noch etwa {{count}} Tag",
+    "lasts_other": "reicht noch etwa {{count}} Tage",
+    "noRate": "Was noch drin ist, lässt sich erst schätzen, wenn eine Flasche leer geworden und eingetragen ist.",
+    "rate_one": "{{rate}} Ventilöffnungen je Gramm, aus {{count}} leeren Flasche",
+    "rate_other": "{{rate}} Ventilöffnungen je Gramm, aus {{count}} leeren Flaschen",
+    "cylinder": "{{from}} – {{to}} · {{grams}} g verbraucht",
+    "cylinderRate": "{{rate}} Öffnungen je g",
+    "add": "Neue Flasche eingesetzt",
+    "filled": "Die neue Flasche enthält",
+    "leftOver": "In der alten war noch",
+    "empty": "leer",
+    "leftOverNote": "Leer gelassen zählt die alte Flasche als leer.",
+    "save": "Eintragen"
+  },
+  "ownReading": {
+    "co2FillingInitial": "Neue CO₂-Flasche",
+    "co2FillingRest": "Rest der alten"
   },
   "release": {
     "label": "Gerät abgeben",
