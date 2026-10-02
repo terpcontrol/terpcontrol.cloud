@@ -1410,10 +1410,6 @@
       "baseUrl": "Home Assistant URL",
       "webhookId": "Webhook ID",
       "hint": "Create a webhook trigger in an automation; local instances are reached through your device's tunnel automatically."
-    },
-    "custom": {
-      "name": "Custom",
-      "hint": "Configure URL, method, headers and payload yourself below."
     }
   },
   "install": {
@@ -3639,7 +3635,11 @@
       "deleteAsk": "The rule is gone for good. An alert it has already raised stays in the inbox.",
       "deleteYes": "Delete it",
       "offlineWatch": "This one watches whether the device reports at all, which is not something that can be pointed elsewhere.",
-      "forOfflineNote": "On top of the ten minutes after which a device counts as offline."
+      "forOfflineNote": "On top of the ten minutes after which a device counts as offline.",
+      "template": "Webhook template",
+      "templateFill": "Fill in the fields",
+      "templateFilled": "The URL, method and messages above are filled in. Check them and save the rule.",
+      "templateFilledTunnel": "The URL, method and messages above are filled in. The address is on the local network, so the call goes through the device's tunnel. Check everything and save the rule."
     },
     "offlineRule": "Device offline",
     "watchRunning": "{{output}} running",
@@ -4839,6 +4839,14 @@
     "installApp": {
       "title": "App on the home screen",
       "text": "Terp Control needs no app store: the browser puts the page on the home screen as an app with its own icon. It then opens full-screen without an address bar, and you stay signed in. On an iPhone it is also the only way to push notifications, because Safari delivers them only to apps on the home screen."
+    },
+    "alarmRepeat": {
+      "title": "Repeat",
+      "text": "While the alarm lasts, it is said again every so many minutes - for a warning or a notice just as for a critical alarm. That helps above all a webhook that switches something at home: if one call is lost, the next one comes. 0 says it once."
+    },
+    "webhookTemplate": {
+      "title": "Webhook template",
+      "text": "For Home Assistant, Discord, Telegram and ntfy the template fills in the URL, method and messages from the few answers the service needs. What is saved is an ordinary webhook, which you can still change by hand. A Home Assistant address on the local network is called through the device's tunnel automatically."
     },
     "streamAddress": {
       "title": "Stream address",

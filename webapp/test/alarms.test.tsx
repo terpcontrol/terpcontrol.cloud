@@ -789,7 +789,7 @@ describe('the rule sheet', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
-  it('repeats a critical rule every half hour, and asks nothing about repeating a quieter one', async () => {
+  it('repeats a critical rule every half hour, and keeps the repeat of a quieter one under Advanced', async () => {
     const sheet = await openNew();
 
     expect(within(sheet).getByRole('spinbutton', { name: 'every' })).toHaveValue(30);
@@ -798,10 +798,46 @@ describe('the rule sheet', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'warning' }));
     expect(within(sheet).queryByRole('spinbutton', { name: 'every' })).not.toBeInTheDocument();
 
+    fireEvent.click(within(sheet).getByText('Advanced'));
+    expect(within(sheet).getByRole('spinbutton', { name: 'every' })).toHaveValue(0);
+    fireEvent.change(within(sheet).getByRole('spinbutton', { name: 'every' }), { target: { value: '5' } });
+
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
 
     await waitFor(() =>
-      expect(api.post).toHaveBeenCalledWith('/devices/device-1/alarm-rules', expect.objectContaining({ severity: 'warning', repeatSeconds: 0 })),
+      expect(api.post).toHaveBeenCalledWith('/devices/device-1/alarm-rules', expect.objectContaining({ severity: 'warning', repeatSeconds: 300 })),
+    );
+  });
+
+  it('fills a Home Assistant webhook from its address and id, through the tunnel for an address at home', async () => {
+    const sheet = await openNew();
+
+    fireEvent.change(within(sheet).getByLabelText('above'), { target: { value: '31' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'a webhook' }));
+    fireEvent.click(within(sheet).getByText('Advanced'));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Home Assistant' }));
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Home Assistant URL' }), { target: { value: 'http://homeassistant.local:8123/' } });
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Webhook ID' }), { target: { value: 'grow-alarm' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Fill in the fields' }));
+
+    expect(within(sheet).getByRole('textbox', { name: 'URL' })).toHaveValue('http://homeassistant.local:8123/api/webhook/grow-alarm');
+    expect(within(sheet).getByRole('status')).toHaveTextContent('goes through the device');
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
+
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith(
+        '/devices/device-1/alarm-rules',
+        expect.objectContaining({
+          delivery: {
+            mode: 'custom',
+            custom: expect.objectContaining({
+              channel: 'webhook',
+              target: 'http://homeassistant.local:8123/api/webhook/grow-alarm',
+              webhook: expect.objectContaining({ method: 'POST', tunnel: true }),
+            }),
+          },
+        }),
+      ),
     );
   });
 
@@ -817,11 +853,9 @@ describe('the rule sheet', () => {
   });
 
   /**
-   * The sheet asks about repeating only where the question is offered, so a
-   * quieter rule that already repeats is edited without ever seeing that
-   * field. Saving it must therefore hand the interval back untouched: the
-   * rules the migration wrote carry one at every severity, and a save that
-   * zeroed it would silence a rule nobody meant to change.
+   * The rules the migration wrote carry a repeat at every severity, and a
+   * save that zeroed it would silence a rule nobody meant to change: saving
+   * it with nothing changed hands the interval back untouched.
    */
   it('gives a warning rule its repeat back when it is saved with nothing changed', async () => {
     const carried = rule({
@@ -841,7 +875,8 @@ describe('the rule sheet', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Fridge running non-stop/ }));
     const sheet = screen.getByRole('dialog', { name: 'Edit the alarm' });
-    expect(within(sheet).queryByRole('spinbutton', { name: 'every' })).not.toBeInTheDocument();
+    // A quieter rule that already repeats opens Advanced, so the interval is never folded away.
+    expect(within(sheet).getByRole('spinbutton', { name: 'every' })).toHaveValue(10);
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
 

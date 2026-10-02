@@ -1406,10 +1406,6 @@
       "baseUrl": "Home-Assistant-URL",
       "webhookId": "Webhook-ID",
       "hint": "Lege in einer Automatisierung einen Webhook-Trigger an; lokale Instanzen werden automatisch über den Tunnel deines Geräts erreicht."
-    },
-    "custom": {
-      "name": "Eigener Webhook",
-      "hint": "URL, Methode, Header und Payload stellst du unten selbst ein."
     }
   },
   "install": {
@@ -3643,7 +3639,11 @@
       "deleteAsk": "Die Regel ist endgültig weg. Ein Alarm, den sie schon ausgelöst hat, bleibt im Posteingang.",
       "deleteYes": "Löschen",
       "offlineWatch": "Diese Regel beobachtet, ob das Gerät überhaupt meldet; darauf lässt sich nichts anderes richten.",
-      "forOfflineNote": "Zusätzlich zu den zehn Minuten, nach denen ein Gerät als offline gilt."
+      "forOfflineNote": "Zusätzlich zu den zehn Minuten, nach denen ein Gerät als offline gilt.",
+      "template": "Vorlage für den Webhook",
+      "templateFill": "Felder ausfüllen",
+      "templateFilled": "URL, Methode und Nachrichten oben sind ausgefüllt. Prüf sie und speichere die Regel.",
+      "templateFilledTunnel": "URL, Methode und Nachrichten oben sind ausgefüllt. Die Adresse liegt im lokalen Netz, deshalb geht der Aufruf durch den Tunnel des Geräts. Prüf alles und speichere die Regel."
     },
     "offlineRule": "Gerät offline",
     "watchRunning": "{{output}} läuft",
@@ -4843,6 +4843,14 @@
     "installApp": {
       "title": "App auf dem Home-Bildschirm",
       "text": "Terp Control braucht keinen App Store: Der Browser legt die Seite als App mit eigenem Symbol auf den Home-Bildschirm. Sie öffnet sich dann im Vollbild ohne Adressleiste, und du bleibst angemeldet. Auf dem iPhone ist das außerdem der einzige Weg zu Push-Nachrichten, denn Safari stellt sie nur Apps vom Home-Bildschirm zu."
+    },
+    "alarmRepeat": {
+      "title": "Wiederholen",
+      "text": "Solange der Alarm anhält, kommt er alle so viele Minuten erneut - bei einer Warnung oder einem Hinweis genauso wie bei einem kritischen Alarm. Das hilft vor allem einem Webhook, der zu Hause etwas schaltet: Geht ein Aufruf verloren, kommt der nächste. 0 sagt es einmal."
+    },
+    "webhookTemplate": {
+      "title": "Vorlage für den Webhook",
+      "text": "Für Home Assistant, Discord, Telegram und ntfy füllt die Vorlage URL, Methode und Nachrichten aus den wenigen Angaben, die der Dienst braucht. Gespeichert wird ein ganz normaler Webhook, den du danach noch von Hand ändern kannst. Eine Home-Assistant-Adresse im lokalen Netz wird automatisch über den Tunnel des Geräts aufgerufen."
     },
     "streamAddress": {
       "title": "Stream-Adresse",

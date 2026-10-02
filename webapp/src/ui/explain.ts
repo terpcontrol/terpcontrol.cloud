@@ -41,6 +41,8 @@ export const HELP_TOPICS = [
   'offlineRule',
   'alarmTemplates',
   'alarmQuiet',
+  'alarmRepeat',
+  'webhookTemplate',
   'severity',
   'tellBy',
   'routingGrid',

@@ -6,6 +6,7 @@ import { useCreateAlarmRule, useRemoveAlarmRule, useUpdateAlarmRule } from '@/ap
 import { Sheet } from '@/log/Sheet';
 import { EmailAlarmsOffer } from '@/screens/notifications/NotifyNotice';
 import { Refused } from '@/ui/PageState';
+import advanced from '@/ui/advanced/Advanced.module.css';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import {
@@ -31,6 +32,7 @@ import {
   wantsBound,
   withSeverity,
 } from './rules';
+import { isComplete, templateOf, WEBHOOK_TEMPLATES, type TemplateValues, type WebhookTemplate } from './webhook-templates';
 import styles from './Alarms.module.css';
 
 const SEVERITIES: Severity[] = ['critical', 'warning', 'info'];
@@ -261,14 +263,133 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
           {draft.tellBy === 'webhook' ? <WebhookFields draft={draft} onChange={change} /> : null}
         </Block>
 
-        {draft.severity === 'critical' ? (
-          <Block label={t('alarms.sheet.repeat')}>
-            <Minutes label={t('alarms.sheet.repeatEvery')} value={draft.repeatMinutes} onChange={repeatMinutes => change({ repeatMinutes })} />
-            <p className={ui.note}>{t(draft.tellBy === 'email' ? 'alarms.sheet.repeatNoteEmail' : 'alarms.sheet.repeatNote')}</p>
-          </Block>
-        ) : null}
+        {draft.severity === 'critical' ? <Repeat draft={draft} onChange={change} /> : null}
+
+        <RuleAdvanced draft={draft} onChange={change} />
       </div>
     </Sheet>
+  );
+}
+
+/** How often the rule says itself again while it lasts. */
+function Repeat({ draft, onChange, help }: { draft: RuleDraft; onChange: (over: Partial<RuleDraft>) => void; help?: 'alarmRepeat' }) {
+  const { t } = useTranslation();
+
+  return (
+    <Block label={t('alarms.sheet.repeat')} help={help}>
+      <Minutes label={t('alarms.sheet.repeatEvery')} value={draft.repeatMinutes} onChange={repeatMinutes => onChange({ repeatMinutes })} />
+      <p className={ui.note}>{t(draft.tellBy === 'email' ? 'alarms.sheet.repeatNoteEmail' : 'alarms.sheet.repeatNote')}</p>
+    </Block>
+  );
+}
+
+/**
+ * What few rules need, folded at the foot of the sheet: a template that fills
+ * in a webhook for a known service, and the repeat of a rule that is not
+ * critical - which a critical rule asks in the open, and which a webhook
+ * switching something at home wants at any level, in case one call was lost.
+ * A quieter rule that already repeats opens the section, so its interval is
+ * never hidden behind a fold.
+ */
+function RuleAdvanced({ draft, onChange }: { draft: RuleDraft; onChange: (over: Partial<RuleDraft>) => void }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(draft.severity !== 'critical' && draft.repeatMinutes > 0);
+  const webhook = draft.tellBy === 'webhook';
+  const quiet = draft.severity !== 'critical';
+  if (!webhook && !quiet) return null;
+
+  return (
+    <details className={advanced.section} open={open}>
+      <summary
+        className="label"
+        onClick={event => {
+          event.preventDefault();
+          setOpen(!open);
+        }}
+      >
+        {t('advanced.title')}
+      </summary>
+      {open ? (
+        <div className={styles.sheet}>
+          {webhook ? <TemplateFields draft={draft} onChange={onChange} /> : null}
+          {quiet ? <Repeat draft={draft} onChange={onChange} help="alarmRepeat" /> : null}
+        </div>
+      ) : null}
+    </details>
+  );
+}
+
+/**
+ * A webhook for Home Assistant, Discord, Telegram or ntfy, from the few
+ * answers each of them asks for. It fills in the webhook fields above and
+ * saves nothing itself; a rule that matches a template opens it with its
+ * answers read back out of the URL and the message.
+ */
+function TemplateFields({ draft, onChange }: { draft: RuleDraft; onChange: (over: Partial<RuleDraft>) => void }) {
+  const { t } = useTranslation();
+  const matched = templateOf(draft);
+  const [chosen, setChosen] = useState<WebhookTemplate | null>(matched);
+  const [values, setValues] = useState<TemplateValues>(() => (matched?.read(draft) ?? {}) as TemplateValues);
+  const [filled, setFilled] = useState(false);
+
+  const choose = (template: WebhookTemplate) => {
+    setChosen(template);
+    setFilled(false);
+    setValues(
+      Object.fromEntries(
+        template.fields.map(field => [field.key, template === matched ? (matched.read(draft)?.[field.key] ?? '') : (field.initial ?? '')]),
+      ),
+    );
+  };
+
+  return (
+    <Block label={t('alarms.sheet.template')} help="webhookTemplate">
+      <Choices label={t('alarms.sheet.template')}>
+        {WEBHOOK_TEMPLATES.map(template => (
+          <Choice key={template.id} chosen={chosen?.id === template.id} onChoose={() => choose(template)}>
+            {t(`webhookTargets.${template.id}.name`)}
+          </Choice>
+        ))}
+      </Choices>
+      {chosen ? (
+        <div className={styles.fields}>
+          <p className={ui.note}>{t(`webhookTargets.${chosen.id}.hint`)}</p>
+          {chosen.fields.map(field => (
+            <label key={field.key} className={styles.templateField}>
+              <span className="label">{t(field.label)}</span>
+              <input
+                className={ui.input}
+                type={field.secret ? 'password' : 'text'}
+                value={values[field.key] ?? ''}
+                placeholder={field.placeholder}
+                autoComplete="off"
+                spellCheck={false}
+                onChange={event => {
+                  setFilled(false);
+                  setValues(current => ({ ...current, [field.key]: event.target.value }));
+                }}
+              />
+            </label>
+          ))}
+          <button
+            type="button"
+            className={ui.button}
+            disabled={!isComplete(chosen, values)}
+            onClick={() => {
+              onChange(chosen.fill(values, t));
+              setFilled(true);
+            }}
+          >
+            {t('alarms.sheet.templateFill')}
+          </button>
+          {filled ? (
+            <p className={ui.note} role="status">
+              {t(draft.tunnel ? 'alarms.sheet.templateFilledTunnel' : 'alarms.sheet.templateFilled')}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </Block>
   );
 }
 
