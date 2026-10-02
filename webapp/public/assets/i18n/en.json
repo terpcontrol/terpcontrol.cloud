@@ -881,7 +881,7 @@
     "socketCount_other": "{{count}} sockets",
     "camCount_one": "{{count}} cam",
     "camCount_other": "{{count}} cams",
-    "details": "What {{name}} is",
+    "details": "Details of {{name}}",
     "via": "via {{name}}",
     "premium": "Premium",
     "noStill": "no picture yet",
@@ -972,7 +972,7 @@
     "socket": {
       "needsFirmware": "This build takes no override. Its sockets keep running exactly as they do; the switch arrives with the next controller firmware.",
       "offline": "Offline · nothing is listening, so nothing is sent.",
-      "details": "What {{name}} is, and how long to hold it",
+      "details": "Details of {{name}}, and how long to hold it",
       "slot": "Slot",
       "byRole": "addressed by its role",
       "address": "Address",

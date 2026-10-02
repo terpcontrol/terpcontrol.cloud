@@ -881,7 +881,7 @@
     "socketCount_other": "{{count}} Steckdosen",
     "camCount_one": "{{count}} Kamera",
     "camCount_other": "{{count}} Kameras",
-    "details": "Was {{name}} ist",
+    "details": "Details zu {{name}}",
     "via": "über {{name}}",
     "premium": "Premium",
     "noStill": "noch kein Bild",
@@ -972,7 +972,7 @@
     "socket": {
       "needsFirmware": "Dieser Build kennt keinen Handbetrieb. Seine Steckdosen laufen unverändert weiter; der Schalter kommt mit der nächsten Controller-Firmware.",
       "offline": "Offline · niemand hört zu, also wird nichts gesendet.",
-      "details": "Was {{name}} ist und wie lange es gehalten wird",
+      "details": "Details zu {{name}} und wie lange es gehalten wird",
       "slot": "Platz",
       "byRole": "über seine Rolle angesprochen",
       "address": "Adresse",

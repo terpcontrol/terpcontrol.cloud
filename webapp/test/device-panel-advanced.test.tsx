@@ -286,7 +286,7 @@ describe('a socket’s timer and its Advanced', () => {
         />
       </QueryClientProvider>,
     );
-    fireEvent.click(screen.getByRole('button', { name: /^What .* is, and how long/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Details of .*, and how long/ }));
   };
 
   it('says a pump without a timer stays off, and sends the cycle it is given with its address and role', async () => {

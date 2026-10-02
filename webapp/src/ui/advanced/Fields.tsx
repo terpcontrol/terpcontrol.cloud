@@ -96,7 +96,21 @@ export function FieldChoice({
  * The range is the table's, and a figure outside it is refused here with the
  * range in the words the server would refuse it in.
  */
-export function FieldNumber({ device, name, label, help, disabled, unit, note }: FieldProps & { unit: string; note?: React.ReactNode }) {
+export function FieldNumber({
+  device,
+  name,
+  label,
+  help,
+  disabled,
+  unit,
+  note,
+  fallback = null,
+}: FieldProps & {
+  unit: string;
+  note?: React.ReactNode;
+  /** What the firmware runs with where its document does not state the figure, shown rather than an empty field. */
+  fallback?: number | null;
+}) {
   const { t } = useTranslation();
   const configure = useConfigure(device.id);
   const field = configurationFieldsOf(device.type)[name];
@@ -104,10 +118,11 @@ export function FieldNumber({ device, name, label, help, disabled, unit, note }:
   const [typed, setTyped] = useState<string | null>(null);
   if (field?.kind !== 'number') return null;
 
-  const shown = typed ?? (typeof stored === 'number' ? String(stored) : '');
+  const standing = typeof stored === 'number' ? stored : fallback;
+  const shown = typed ?? (standing === null ? '' : String(standing));
   const wanted = Number(shown.replace(',', '.'));
   const fits = shown.trim() !== '' && Number.isFinite(wanted) && wanted >= field.min && wanted <= field.max;
-  const changed = typed !== null && wanted !== stored;
+  const changed = typed !== null && wanted !== standing;
 
   return (
     <>

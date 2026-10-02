@@ -198,6 +198,12 @@
   cursor: pointer;
 }
 
+/* An offline pill stands under the name, as wide as its words. */
+.rowLive {
+  align-self: flex-start;
+  margin-top: var(--space-1);
+}
+
 /* The opened device: the facts, what is standing on it, the two things done to
    the hardware, the way to rename it, and the technical details folded away. */
 .panel {

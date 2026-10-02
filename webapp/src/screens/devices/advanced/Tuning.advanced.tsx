@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { MIN_COMPRESSOR_REST_SECONDS } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import type { Device } from '@fg2/shared-types/v1';
 import { FieldNumber, FieldSwitch } from '@/ui/advanced/Fields';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
@@ -67,6 +68,7 @@ function CompressorRest({ device, mayManage }: DeviceContext) {
       label={t('tuning.compressorRest')}
       help="advanced.compressorRest"
       unit={t('tuning.seconds')}
+      fallback={MIN_COMPRESSOR_REST_SECONDS}
       disabled={!mayManage}
     />
   );

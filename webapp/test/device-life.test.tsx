@@ -73,7 +73,7 @@ const drawTab = async (youMay: AccessNeed = 'own') => {
 
   wrap(<DeviceList />);
   // The account's one plug is called a plug: the tail of its id is for telling two apart.
-  fireEvent.click(await screen.findByRole('button', { name: 'What Plug is' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Details of Plug' }));
 };
 
 beforeAll(async () => {
@@ -129,7 +129,7 @@ describe('naming a device and moving it', () => {
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
     wrap(<DeviceList />);
-    fireEvent.click(await screen.findByRole('button', { name: 'What East lamp is' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Details of East lamp' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Rename or move' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save the name' }));

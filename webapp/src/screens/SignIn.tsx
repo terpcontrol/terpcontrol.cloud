@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
@@ -45,6 +45,12 @@ export function SignIn() {
   // step is this form, and it says so.
   const welcome = arrival?.recovered ? 'login.recovered' : arrival?.activated ? 'login.activated' : null;
   const [inactive, setInactive] = useState(false);
+  // Opened at its own address - a bookmark on the old /login - this page is the
+  // first thing to run, so a session kept in this browser is read here too and
+  // its owner let in rather than shown an empty form.
+  useEffect(() => {
+    void session.restore();
+  }, []);
 
   if (user) return <Navigate to={destination} replace />;
 

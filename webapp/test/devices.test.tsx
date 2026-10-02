@@ -245,7 +245,7 @@ describe('the switch on a socket row', () => {
   it('still offers to find a socket on a build that is too old to hold one', () => {
     draw(socket(), 'This build takes no override.');
 
-    fireEvent.click(screen.getByRole('button', { name: /What Heater is/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Details of Heater/ }));
 
     expect(screen.getByRole('button', { name: 'Find it' })).toBeEnabled();
   });
@@ -253,7 +253,7 @@ describe('the switch on a socket row', () => {
   it('refuses to find a socket only where nobody is listening, and says so beside it', () => {
     draw(socket(), 'Offline · nothing is listening, so nothing is sent.', true, 'Offline · nothing is listening, so nothing is sent.');
 
-    fireEvent.click(screen.getByRole('button', { name: /What Heater is/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Details of Heater/ }));
 
     expect(screen.getByRole('button', { name: 'Find it' })).toBeDisabled();
     // The reason is what makes a grey chip something other than a broken one,
@@ -264,7 +264,7 @@ describe('the switch on a socket row', () => {
   it('opens the times, the address and the way back when the row is opened', () => {
     draw(socket({ state: 'on', override: { state: 'on', validUntil: NOW.plus({ hours: 1 }).toISO()! } }));
 
-    fireEvent.click(screen.getByRole('button', { name: /What Heater is/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Details of Heater/ }));
 
     expect(screen.getByText('10.0.0.63')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Back to auto' })).toBeInTheDocument();
@@ -445,7 +445,7 @@ describe("the controller's own light output", () => {
 
   it('offers the times a socket is held for, and holds the output for whichever was chosen', () => {
     drawOutput();
-    fireEvent.click(screen.getByRole('button', { name: /What Light output is/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Details of Light output/ }));
 
     expect(holdsFor().map(durationLabel)).toEqual(['15 min', '1 h', '4 h', '8 h', '24 h']);
     fireEvent.click(screen.getByRole('button', { name: '4 h' }));
@@ -471,7 +471,7 @@ describe("the controller's own light output", () => {
    */
   it('offers no hold times where no hold can be asked for, and says why once', () => {
     drawOutput({ lights: LIGHTS }, { ...CAPABILITIES, lightOverride: false });
-    fireEvent.click(screen.getByRole('button', { name: /What Light output is/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Details of Light output/ }));
 
     expect(screen.queryByRole('button', { name: '4 h' })).not.toBeInTheDocument();
     expect(screen.getAllByText(/cannot be told to hold its light output/)).toHaveLength(1);
@@ -799,7 +799,7 @@ describe('what the Devices tab calls a device', () => {
     list.cameras = [];
     await drawList();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'What Fridge module is' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Details of Fridge module' }));
 
     const technical = (await screen.findByText('Technical details')).closest('details')!;
     expect(within(technical).getByText('Fridge module')).toBeInTheDocument();
@@ -812,7 +812,7 @@ describe('what the Devices tab calls a device', () => {
     list.cameras = [];
     await drawList();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'What hydro is' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Details of hydro' }));
 
     const technical = (await screen.findByText('Technical details')).closest('details')!;
     expect(within(technical).getByText('hydro')).toBeInTheDocument();
@@ -953,7 +953,7 @@ describe('what the Devices tab calls a device', () => {
     });
     wrap(<DeviceList />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'What Controller is' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Details of Controller' }));
 
     expect(await screen.findByText('from 12 Sep 2026')).toBeInTheDocument();
     const technical = screen.getByText('Technical details').closest('details')!;
@@ -987,7 +987,7 @@ describe('what the Devices tab calls a device', () => {
    * about roles it does not have.
    */
   it('does not call a plug on its current build old, nor say which socket roles it takes', async () => {
-    await drawOpened(standing({ name: null, type: 'plug' }), () => Promise.resolve({ items: [], nextCursor: null }), 'What Plug is');
+    await drawOpened(standing({ name: null, type: 'plug' }), () => Promise.resolve({ items: [], nextCursor: null }), 'Details of Plug');
 
     expect(screen.queryByText(/legacy/)).toBeNull();
     expect(screen.queryByText('Takes')).toBeNull();
@@ -995,7 +995,7 @@ describe('what the Devices tab calls a device', () => {
 
   /** "legacy" on the row was explained nowhere; what the build takes is the panel's fact. */
   it('says what a controller´s build takes in its panel rather than calling it legacy on the row', async () => {
-    await drawOpened(standing({}), () => Promise.resolve({ items: [], nextCursor: null }), 'What Controller is');
+    await drawOpened(standing({}), () => Promise.resolve({ items: [], nextCursor: null }), 'Details of Controller');
 
     expect(screen.queryByText(/legacy/)).toBeNull();
     expect(screen.getByText('Takes')).toBeInTheDocument();
@@ -1008,7 +1008,7 @@ describe('what the Devices tab calls a device', () => {
     await drawOpened(
       standing({ state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: build.id } } as Partial<Device>),
       () => (fails ? Promise.reject(new Error('timed out')) : Promise.resolve({ items: [build], nextCursor: null })),
-      'What Controller is',
+      'Details of Controller',
     );
 
     expect(await screen.findByText(/could not be read/, undefined, { timeout: 8000 })).toBeInTheDocument();
@@ -1029,7 +1029,7 @@ describe('what the Devices tab calls a device', () => {
         state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: running.id, updateFailedAt },
       } as Partial<Device>);
 
-    await drawOpened(pinned(null), () => Promise.resolve({ items: [running, owed], nextCursor: null }), 'What Controller is');
+    await drawOpened(pinned(null), () => Promise.resolve({ items: [running, owed], nextCursor: null }), 'Details of Controller');
     expect(await screen.findByText(/New firmware is being installed/)).toBeInTheDocument();
     // Which build, by its version, is for the technical details.
     expect(screen.getByText('Technical details').closest('details')).toHaveTextContent('To be installed84ef30ca');
@@ -1038,7 +1038,7 @@ describe('what the Devices tab calls a device', () => {
     await drawOpened(
       pinned(NOW.minus({ minutes: 5 }).toISO()!),
       () => Promise.resolve({ items: [running, owed], nextCursor: null }),
-      'What Controller is',
+      'Details of Controller',
     );
     expect(await screen.findByText(/New firmware did not install \(.* ago\)/)).toBeInTheDocument();
   });
@@ -1051,7 +1051,7 @@ describe('what the Devices tab calls a device', () => {
         state: { lastSeenAt: NOW.toISO()!, firmwareId: running.id },
       } as Partial<Device>),
       () => Promise.resolve({ items: [running], nextCursor: null }),
-      'What Controller is',
+      'Details of Controller',
     );
 
     expect(await screen.findByText('0.0.0')).toBeInTheDocument();
@@ -1114,7 +1114,7 @@ describe('the device panel', () => {
 
     fireEvent.click(await screen.findByText('Fridge module'));
 
-    expect(screen.getByRole('button', { name: 'What Fridge module is' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'Details of Fridge module' })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('connected')).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Update automatically' })).toHaveAttribute('aria-checked', 'false');
     expect(await screen.findByText('version not known')).toBeInTheDocument();

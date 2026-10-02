@@ -444,12 +444,23 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
         <div className={styles.rowText}>
           <span className={styles.rowTitle}>{title}</span>
           {line ? <span className={styles.rowNote}>{line}</span> : null}
+          {/* "offline seit 1. Okt 10:19" took the width the name needs on a phone, and a
+              tap on it opened its explanation rather than the row: under the name, it is
+              part of the row. */}
+          {offline ? (
+            <span className={`${ui.live} ${styles.rowLive}`} data-liveness={liveness}>
+              <span className={ui.liveDot} aria-hidden />
+              {pill}
+            </span>
+          ) : null}
         </div>
-        <span className={ui.live} data-liveness={liveness}>
-          <span className={ui.liveDot} aria-hidden />
-          {explain ? <Term topic="liveness">{pill}</Term> : pill}
-          {spokeAt && !offline ? ` · ${ageLabel(spokeAt, now)}` : ''}
-        </span>
+        {offline ? null : (
+          <span className={ui.live} data-liveness={liveness}>
+            <span className={ui.liveDot} aria-hidden />
+            {explain ? <Term topic="liveness">{pill}</Term> : pill}
+            {spokeAt ? ` · ${ageLabel(spokeAt, now)}` : ''}
+          </span>
+        )}
         <button type="button" className={styles.expand} aria-expanded={open} aria-label={t('devices.details', { name: title })}>
           {open ? <ChevronDown size={16} strokeWidth={2} aria-hidden /> : <ChevronRight size={16} strokeWidth={2} aria-hidden />}
         </button>

@@ -113,6 +113,15 @@ describe('the fine settings themselves', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { sunrise: 30 } }));
   });
 
+  it('show the compressor rest the firmware runs with where the document does not state it', () => {
+    const rest = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'compressor-rest')!;
+    const Rest = rest.Item;
+    wrap(<Rest device={device()} mayManage offline={false} />);
+
+    expect(screen.getByRole('textbox', { name: 'Compressor rest' })).toHaveValue('240');
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+  });
+
   it('move a leaf offset half a degree a tap and save it with the other factors as they are', async () => {
     vi.mocked(api.patch).mockResolvedValue(device() as never);
     const Offsets = sensorItems[0].Item;
