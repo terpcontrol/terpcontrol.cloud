@@ -3082,7 +3082,6 @@
     "demoNoSpaces": "Die Demo hat nichts zu zeichnen; in dieser wurde nichts zum Anschauen hinterlegt.",
     "leafShort": "Blatt",
     "noTargetNow": "um diese Zeit kein Ziel",
-    "reading": "{{name}} · erfasst",
     "readAt": "gemessen {{time}}",
     "camSince": "Kein Cam-Bild um {{time}} – die Cam filmt seit {{since}}",
     "noFrameAt": "Kein Cam-Bild um {{time}}",

@@ -47,7 +47,8 @@ export function ReadingPanel({ definition, points, nights, from, to, cursor, scr
   return (
     <section className={styles.panel}>
       <header className={styles.panelHead}>
-        <span className={styles.metric}>{t('timeline.reading', { name: definition.name })}</span>
+        {/* The right-hand side says it was read by hand and when, so the name stands alone. */}
+        <span className={styles.metric}>{definition.name}</span>
         <span className={`figure ${styles.panelValue}`}>{last ? readingFigure(last.value) : '—'}</span>
         <span className={`mono ${styles.panelUnit}`}>{definition.unit}</span>
         <span className={`label ${styles.band}`}>

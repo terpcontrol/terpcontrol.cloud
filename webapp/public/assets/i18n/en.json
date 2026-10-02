@@ -3078,7 +3078,6 @@
     "demoNoSpaces": "The demo has nothing to draw; nothing has been left in this one to look at.",
     "leafShort": "leaf",
     "noTargetNow": "no target at this time",
-    "reading": "{{name}} · recorded",
     "readAt": "read {{time}}",
     "camSince": "No camera picture at {{time}} – the camera has filmed since {{since}}",
     "noFrameAt": "No camera picture at {{time}}",
