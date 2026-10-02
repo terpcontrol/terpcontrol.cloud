@@ -59,14 +59,15 @@ export function DiaryWeek({ week, picture, now, current, ended, asOf, explain }:
   const humidity = week.climate.find(row => row.metric === 'humidity');
 
   return (
-    <article className={styles.week} aria-label={t('grow.weekN', { week: week.weekNumber })}>
+    <article className={styles.week} aria-label={t('grow.dayRange', { from: week.dayFrom, to: week.dayTo })}>
       <button type="button" className={styles.weekHeader} aria-expanded={open} onClick={() => setOpen(value => !value)}>
         <span className={styles.weekTitle}>
-          <span className={`name ${styles.weekName}`}>{t('grow.weekN', { week: week.weekNumber })}</span>
-          <span className={`mono ${styles.weekRange}`} data-age={asOf && !windowIsCurrent(asOf, now) ? 'stale' : undefined}>
-            {t('grow.dayRange', { from: week.dayFrom, to: week.dayTo })}
-            {asOf ? ` · ${t('publicPage.asOf', { age: ageLabel(asOf, now) })}` : ''}
-          </span>
+          <span className={`name ${styles.weekName}`}>{t('grow.dayRange', { from: week.dayFrom, to: week.dayTo })}</span>
+          {asOf ? (
+            <span className={`mono ${styles.weekRange}`} data-age={!windowIsCurrent(asOf, now) ? 'stale' : undefined}>
+              {t('publicPage.asOf', { age: ageLabel(asOf, now) })}
+            </span>
+          ) : null}
         </span>
         {week.stage ? (
           <span className={ui.tag}>
@@ -98,13 +99,11 @@ export function DiaryWeek({ week, picture, now, current, ended, asOf, explain }:
         })}
       </ul>
 
-      {/* A reader is not told which controllers these averages came from, so an
-          empty list is the one thing that list still says: nothing measures
-          where the grow stood. Null is not being told, and then the averages
-          speak for themselves. */}
-      {week.deviceIds?.length === 0 ? (
-        <p className={`mono ${styles.quiet}`}>{t('grow.noController')}</p>
-      ) : week.climate.length === 0 ? (
+      {/* Where nothing measures where the grow stood there is no climate to
+          average, and a diary kept by hand is not told on every card what it
+          lacks. Null is not being told, and then the averages speak for
+          themselves. */}
+      {week.deviceIds?.length === 0 ? null : week.climate.length === 0 ? (
         <p className={`mono ${styles.quiet}`}>{t('grow.nothingMeasured')}</p>
       ) : (
         <dl className={`${ui.strip} ${styles.stats}`}>

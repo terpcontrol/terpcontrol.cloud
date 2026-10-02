@@ -65,14 +65,14 @@ export function WeekCard({ week, grow, people, now, current, explain }: WeekCard
   const pictureless = week.days.every(day => !day.mediaId && !photoOn(day.startsAt, week.entries));
 
   return (
-    <article className={styles.card} aria-label={t('grow.weekN', { week: week.weekNumber })}>
+    <article className={styles.card} aria-label={t('grow.dayRange', { from: week.dayFrom, to: week.dayTo })}>
       <button type="button" className={styles.header} aria-expanded={open} onClick={() => setOpen(value => !value)}>
+        {/* A card is called by its days and badged with the week of the stage
+            it lay in: "Tag 15–21 · Veg Wo 2". A third count - the grow's own
+            week - was what the feeding scheme reads, and is said there alone. */}
         <span className={styles.title}>
-          <span className={`name ${styles.weekName}`}>{t('grow.weekN', { week: week.weekNumber })}</span>
-          <span className={`mono ${styles.range}`}>
-            {t('grow.dayRange', { from: week.dayFrom, to: week.dayTo })}
-            {current ? ` · ${t('grow.thisWeek')}` : ''}
-          </span>
+          <span className={`name ${styles.weekName}`}>{t('grow.dayRange', { from: week.dayFrom, to: week.dayTo })}</span>
+          {current ? <span className={`mono ${styles.range}`}>{t('grow.thisWeek')}</span> : null}
         </span>
         {week.stage ? (
           <span className={ui.tag}>
@@ -114,10 +114,7 @@ export function WeekCard({ week, grow, people, now, current, explain }: WeekCard
         })}
       </ul>
 
-      {week.deviceIds?.length === 0 ? (
-        // Nothing measures where the grow stands, so there is nothing to average: the card says so rather than drawing dashes.
-        <p className={`mono ${styles.noClimate}`}>{t('grow.noController')}</p>
-      ) : week.climate.length === 0 ? (
+      {week.deviceIds?.length === 0 ? null : week.climate.length === 0 ? (
         <p className={`mono ${styles.noClimate}`}>{t('grow.nothingMeasured')}</p>
       ) : (
         <dl className={`${ui.strip} ${styles.stats}`}>
@@ -149,7 +146,8 @@ export function WeekCard({ week, grow, people, now, current, explain }: WeekCard
                     named the manufacturer alone would credit that chart with figures it never published. */}
                 <span className={styles.feedingTitle}>
                   {schemeName(grow, t)}
-                  {grow.scheme?.edited ? ` · ${t('grow.edited')}` : ''} · {t('grow.weekN', { week: week.weekNumber })}
+                  {grow.scheme?.edited ? ` · ${t('grow.edited')}` : ''} ·{' '}
+                  <Term topic="schemeWeek">{t('grow.schemeWeek', { week: week.weekNumber })}</Term>
                 </span>
                 <span className={styles.feedingAmounts}>
                   {week.feeding.amounts

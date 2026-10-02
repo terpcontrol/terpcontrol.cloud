@@ -259,8 +259,8 @@ describe('a public diary', () => {
 
     // The weeks the page carried and the ones asked for afterwards read as one
     // diary, newest first, and the control is still there because there is more.
-    const cards = screen.getAllByRole('article', { name: /^Week/ }).map(card => card.getAttribute('aria-label'));
-    expect(cards).toEqual(['Week 5', 'Week 4']);
+    const cards = screen.getAllByRole('article', { name: /^Day/ }).map(card => card.getAttribute('aria-label'));
+    expect(cards).toEqual(['Day 29–35', 'Day 22–28']);
     fireEvent.click(screen.getByRole('button', { name: 'Earlier weeks' }));
     expect(asked).toHaveBeenCalledTimes(1);
   });
@@ -421,15 +421,16 @@ describe('how old a page says it is', () => {
   it('dates and dims the newest card of a diary a link stopped short of', () => {
     draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={at(7, 12)} />);
 
-    const range = screen.getByText(/day 29–35/);
-    expect(range).toHaveTextContent('as of 7 d ago');
-    expect(range).toHaveAttribute('data-age', 'stale');
+    expect(screen.getByText('Day 29–35')).toBeInTheDocument();
+    const age = screen.getByText(/as of 7 d ago/);
+    expect(age).toHaveAttribute('data-age', 'stale');
   });
 
   it('says nothing about age on an earlier week, because dating those would be dating the past', () => {
     draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current={false} ended={false} asOf={null} />);
 
-    expect(screen.getByText(/day 29–35/)).not.toHaveTextContent('as of');
+    expect(screen.getByText('Day 29–35')).toBeInTheDocument();
+    expect(screen.queryByText(/as of/)).not.toBeInTheDocument();
   });
 });
 

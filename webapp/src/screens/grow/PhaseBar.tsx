@@ -40,9 +40,10 @@ export function PhaseBar({ grow, now }: { grow: GrowListItem; now: DateTime }) {
       {STAGES.map((name, index) => {
         const isCurrent = index === current;
         const reached = isCurrent || days[name] !== undefined;
+        // The stage it is in counts its days like the ones before it: "Tag 9" beside the grow's own "Tag 21" read as a second day counter.
         const detail = isCurrent
           ? grow.summary.phaseDay !== null
-            ? t('grow.dayN', { day: grow.summary.phaseDay })
+            ? t('grow.days', { count: grow.summary.phaseDay })
             : ''
           : reached && days[name] !== undefined
             ? t('grow.days', { count: days[name] })

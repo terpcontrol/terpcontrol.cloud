@@ -387,7 +387,7 @@ describe('the phase bar', () => {
     expect([...segments].map(segment => segment.getAttribute('data-reached'))).toEqual(['false', 'false', 'true', 'true', 'false', 'false']);
     expect(container).toHaveTextContent('Germ');
     expect(container).toHaveTextContent('Veg24 d');
-    expect(container).toHaveTextContent('Flowerday 11');
+    expect(container).toHaveTextContent('Flower11 d');
     expect(container).toHaveTextContent('Cure');
   });
 
@@ -408,7 +408,7 @@ describe('the phase bar', () => {
     // the day the server counts for the stage are the same 35 days between them:
     // the counter the current segment draws is a day of the grow like the rest.
     expect(container).toHaveTextContent('Veg23 d');
-    expect(container).toHaveTextContent('Flowerday 12');
+    expect(container).toHaveTextContent('Flower12 d');
   });
 });
 
@@ -722,8 +722,9 @@ describe('a week card', () => {
   it('draws the week, its averages, the feeding with its done count, the readings and the entries', () => {
     draw(<WeekCard week={week} grow={grow} people={people} now={NOW} current />);
 
-    expect(screen.getByText('Week 5')).toBeInTheDocument();
-    expect(screen.getByText(/day 29–35/)).toHaveTextContent('this week');
+    // Called by its days and badged with the week of its stage; the grow's own week is the scheme's, and said there.
+    expect(screen.getByText('Day 29–35')).toBeInTheDocument();
+    expect(screen.getByText('this week')).toBeInTheDocument();
     expect(screen.getByText('Flower wk 2')).toBeInTheDocument();
     expect(screen.getByText('26.4 / 20.8')).toBeInTheDocument();
     expect(screen.getByText('60')).toBeInTheDocument();
@@ -746,10 +747,11 @@ describe('a week card', () => {
     expect(screen.getByRole('button', { name: '+ 2 more' })).toBeInTheDocument();
   });
 
-  it('says why there is nothing to average where no controller stands, rather than drawing dashes', () => {
+  it('draws no climate at all where no controller stands, rather than dashes or a line about what is missing', () => {
     draw(<WeekCard week={{ ...week, deviceIds: [], climate: [], lightHours: null }} grow={grow} people={people} now={NOW} current />);
 
-    expect(screen.getByText('No controller where this grow stands · nothing to average')).toBeInTheDocument();
+    expect(screen.queryByText('Nothing measured this week')).not.toBeInTheDocument();
+    expect(screen.queryByText(/No controller/)).not.toBeInTheDocument();
     expect(screen.queryByText('–')).not.toBeInTheDocument();
   });
 
@@ -767,6 +769,6 @@ describe('a week card', () => {
 
     fireEvent.click(screen.getByRole('button', { expanded: false }));
     expect(screen.getByText('Defoliated')).toBeInTheDocument();
-    expect(within(screen.getByRole('button', { expanded: true })).getByText('Week 4')).toBeInTheDocument();
+    expect(within(screen.getByRole('button', { expanded: true })).getByText('Day 29–35')).toBeInTheDocument();
   });
 });

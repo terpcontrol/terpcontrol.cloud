@@ -2070,7 +2070,7 @@
     "days_other": "{{count}} d",
     "week": "week {{week}}",
     "weekN": "Week {{week}}",
-    "dayRange": "day {{from}}–{{to}}",
+    "dayRange": "Day {{from}}–{{to}}",
     "dayShort": "D {{day}}",
     "correctLine": "Correct this line",
     "thisWeek": "this week",
@@ -2146,7 +2146,6 @@
       }
     },
     "dayN": "day {{day}}",
-    "noController": "No controller where this grow stands · nothing to average",
     "nothingMeasured": "Nothing measured this week",
     "presetName": {
       "late_flowering": "Late flower",
@@ -2520,7 +2519,10 @@
       "keepMine": "Keep mine",
       "takeTheirs": "Take theirs"
     },
-    "youMayLog": "You may write in this grow's diary. Moving it, splitting it and harvesting it are for whoever steers the place it stands in."
+    "youMayLog": "You may write in this grow's diary. Moving it, splitting it and harvesting it are for whoever steers the place it stands in.",
+    "schemeWeek": "scheme week {{week}}",
+    "phaseFor_one": "for {{count}} day",
+    "phaseFor_other": "for {{count}} days"
   },
   "space": {
     "later": {
@@ -2970,8 +2972,8 @@
     "when": "When",
     "less": "Less water",
     "more": "More water",
-    "feedWeek": "Feed · week {{week}} of the scheme",
-    "stopsAfter": "stops after week {{week}}",
+    "feedWeek": "Feed · scheme week {{week}}",
+    "stopsAfter": "stopped after scheme week {{week}}",
     "noScheme": "No feeding scheme here · what goes in the can is yours",
     "mixOrder": "Mix in this order · pH last · scheme values are a starting point, not a rule",
     "measurements": "Measurements",
@@ -3016,7 +3018,8 @@
     "taskClosed": "Task done",
     "rightClick": "right-click or shift-click a tile for details",
     "oneTapVisit": "One tap logs it right away, with 5 seconds to undo. Maintenance asks first, because it pauses the control.",
-    "camLightOff": "{{name}} · light off · picture from {{time}}"
+    "camLightOff": "{{name}} · light off · picture from {{time}}",
+    "startsIn": "from scheme week {{week}}"
   },
   "timeline": {
     "rangeLabel": "Range",
@@ -4411,8 +4414,8 @@
       "text": "Day 1 is the day the grow began, and each further day is another 24 hours from that moment. The counter starts with the first phase and stops when the grow ends."
     },
     "growWeek": {
-      "title": "Grow week and stage week",
-      "text": "Grow weeks run in sevens from day 1; the week cards and the feeding scheme go by them. Beside a stage, week 2 is the stage's second grow week, and the day counts from the day the stage began."
+      "title": "Week of the stage",
+      "text": "“Veg week 2” is the second week the grow has stood in veg. How far the grow is overall is said by the day: day 1 is the day it began. The week cards are named by their days and carry the week of the stage most of that week lay in."
     },
     "autoTag": {
       "title": "auto",
@@ -4657,6 +4660,10 @@
     "deviceOffer": {
       "title": "Device or camera",
       "text": "A controller or a fridge module measures temperature and humidity by itself, steers heating, light and fans, and tells you when something is wrong. A camera takes pictures for the diary and for timelapses. You add either on the Device tab. “No thanks” hides this line on all your devices."
+    },
+    "schemeWeek": {
+      "title": "Scheme week",
+      "text": "A feeding scheme counts weeks from the grow's first day, not from the start of a stage: scheme week 3 is days 15–21. That is why it can differ from “veg week 2”. The doses on the Feed tile and on the week card are that week's."
     }
   },
   "place": {

@@ -341,12 +341,12 @@ describe('the log sheet', () => {
     // A long press is a hold on a phone and a shift-click on a keyboard.
     fireEvent.click(screen.getByRole('button', { name: /^Feed/ }), { shiftKey: true });
 
-    const details = await screen.findByRole('dialog', { name: 'Feed · week 5 of the scheme' });
+    const details = await screen.findByRole('dialog', { name: 'Feed · scheme week 5' });
     expect(within(details).getByText('4 L')).toBeInTheDocument();
     expect(within(details).getByText('8 ml')).toBeInTheDocument();
     expect(within(details).getByText('4 ml')).toBeInTheDocument();
     // A product this week prints no figure for is finished, not dosed at zero.
-    expect(within(details).getByText('stops after week 4')).toBeInTheDocument();
+    expect(within(details).getByText('stopped after scheme week 4')).toBeInTheDocument();
 
     fireEvent.click(within(details).getByRole('button', { name: 'Log as planned' }));
     expect(api.post).toHaveBeenCalledWith('/entries', {
@@ -364,11 +364,11 @@ describe('the log sheet', () => {
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: /^Feed/ }), { shiftKey: true });
 
-    const details = await screen.findByRole('dialog', { name: 'Feed · week 5 of the scheme' });
+    const details = await screen.findByRole('dialog', { name: 'Feed · scheme week 5' });
     fireEvent.change(within(details).getByLabelText('When'), { target: { value: '2026-09-11' } });
 
     // A week back is a week earlier in the grid, and the sheet says so before anything is written.
-    const lastWeek = await screen.findByRole('dialog', { name: 'Feed · week 4 of the scheme' });
+    const lastWeek = await screen.findByRole('dialog', { name: 'Feed · scheme week 4' });
     expect(within(lastWeek).getByText('8 ml')).toBeInTheDocument();
     expect(within(lastWeek).queryByText('4 ml')).not.toBeInTheDocument();
 

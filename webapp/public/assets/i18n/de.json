@@ -2150,7 +2150,6 @@
       }
     },
     "dayN": "Tag {{day}}",
-    "noController": "Kein Controller, wo dieser Grow steht · nichts zu mitteln",
     "nothingMeasured": "Diese Woche nichts gemessen",
     "presetName": {
       "late_flowering": "Späte Blüte",
@@ -2524,7 +2523,10 @@
       "keepMine": "Meines behalten",
       "takeTheirs": "Deren übernehmen"
     },
-    "youMayLog": "Du darfst in das Tagebuch dieses Grows schreiben. Umziehen, teilen und ernten kann nur, wer den Ort steuert, an dem er steht."
+    "youMayLog": "Du darfst in das Tagebuch dieses Grows schreiben. Umziehen, teilen und ernten kann nur, wer den Ort steuert, an dem er steht.",
+    "schemeWeek": "Schema-Woche {{week}}",
+    "phaseFor_one": "seit {{count}} Tag",
+    "phaseFor_other": "seit {{count}} Tagen"
   },
   "space": {
     "later": {
@@ -2974,8 +2976,8 @@
     "when": "Wann",
     "less": "Weniger Wasser",
     "more": "Mehr Wasser",
-    "feedWeek": "Düngen · Woche {{week}} des Schemas",
-    "stopsAfter": "endet nach Woche {{week}}",
+    "feedWeek": "Düngen · Schema-Woche {{week}}",
+    "stopsAfter": "abgesetzt nach Schema-Woche {{week}}",
     "noScheme": "Hier gibt es kein Düngeschema · was in die Kanne kommt, entscheidest du",
     "mixOrder": "In dieser Reihenfolge mischen · pH zuletzt · die Werte des Schemas sind ein Anhaltspunkt, keine Regel",
     "measurements": "Messwerte",
@@ -3020,7 +3022,8 @@
     "taskClosed": "Aufgabe erledigt",
     "rightClick": "Rechtsklick oder Umschalt-Klick: Details",
     "oneTapVisit": "Ein Tipp trägt sofort ein und lässt sich 5 Sekunden lang zurücknehmen. Wartung fragt vorher, weil sie die Regelung pausiert.",
-    "camLightOff": "{{name}} · Licht aus · Bild von {{time}}"
+    "camLightOff": "{{name}} · Licht aus · Bild von {{time}}",
+    "startsIn": "ab Schema-Woche {{week}}"
   },
   "timeline": {
     "rangeLabel": "Zeitraum",
@@ -4415,8 +4418,8 @@
       "text": "Tag 1 ist der Tag, an dem der Grow begann; jeder weitere Tag sind 24 Stunden mehr ab diesem Moment. Der Zähler beginnt mit der ersten Phase und bleibt stehen, wenn der Grow endet."
     },
     "growWeek": {
-      "title": "Grow-Woche und Stadiumswoche",
-      "text": "Grow-Wochen laufen in Siebenerschritten ab Tag 1; nach ihnen gehen die Wochenkarten und das Fütterungsschema. Neben einem Stadium ist Woche 2 die zweite Grow-Woche dieses Stadiums, und der Tag zählt ab dem Tag, an dem es begann."
+      "title": "Woche der Phase",
+      "text": "„Veg Woche 2“ ist die zweite Woche, die der Grow in Veg steht. Wie weit der Grow insgesamt ist, sagt der Tag: Tag 1 ist der Tag, an dem er begann. Die Wochenkarten heißen nach ihren Tagen und tragen die Woche der Phase, in der der größte Teil der Woche lag."
     },
     "autoTag": {
       "title": "auto",
@@ -4661,6 +4664,10 @@
     "deviceOffer": {
       "title": "Gerät oder Kamera",
       "text": "Ein Controller oder ein Kühlschrankmodul misst Temperatur und Luftfeuchte von selbst, regelt Heizung, Licht und Lüfter und meldet sich, wenn etwas nicht stimmt. Eine Kamera macht Bilder für Tagebuch und Zeitraffer. Beides fügst du im Tab Gerät hinzu. „Nein danke“ blendet diese Zeile auf all deinen Geräten aus."
+    },
+    "schemeWeek": {
+      "title": "Schema-Woche",
+      "text": "Ein Düngeschema zählt die Wochen ab dem ersten Tag des Grows, nicht ab dem Beginn der Phase: Schema-Woche 3 sind die Tage 15–21. Darum kann sie von „Veg Woche 2“ abweichen. Die Mengen auf der Düngen-Kachel und auf der Wochenkarte sind die dieser Woche."
     }
   },
   "place": {

@@ -31,7 +31,7 @@ import { useMayManage } from '@/ui/session-access';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
-import { dayAt, dosesOf, lastCan, litresOf, nextStage, readingsOf, schemeStep, stoppedAfter } from './defaults';
+import { dayAt, dosesOf, lastCan, litresOf, nextStage, readingsOf, schemeStep, startsAfter, stoppedAfter } from './defaults';
 import { about, lineLabel } from './lines';
 import { useLog, type LogTarget, type TileKind } from './log-context';
 import { Sheet } from './Sheet';
@@ -259,12 +259,19 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
           {step ? (
             step.amounts.map(amount => {
               const dose = doses.find(one => one.productKey === amount.productKey);
-              const until = amount.value === null ? stoppedAfter(grow, amount.productKey) : null;
+              const from = amount.value === null ? startsAfter(grow, amount.productKey, step.week) : null;
+              const until = amount.value === null && from === null ? stoppedAfter(grow, amount.productKey) : null;
               return (
                 <div key={amount.productKey} className={styles.dose} data-off={amount.value === null}>
                   <span className={styles.doseName}>{amount.name}</span>
                   <span className={`mono ${styles.doseRate}`}>
-                    {amount.value === null ? (until === null ? '' : t('log.stopsAfter', { week: until })) : `${amount.value} ${amount.unit}`}
+                    {amount.value === null
+                      ? from !== null
+                        ? t('log.startsIn', { week: from })
+                        : until === null || until >= step.week
+                          ? ''
+                          : t('log.stopsAfter', { week: until })
+                      : `${amount.value} ${amount.unit}`}
                   </span>
                   <span className={`figure ${styles.doseAmount}`}>{dose ? `${readingFigure(dose.amount)} ${dose.unit}` : '—'}</span>
                 </div>
@@ -544,7 +551,9 @@ const schemeLine = (grow: GrowListItem | undefined): string => {
   if (!origin) return '';
   const name = origin.type === 'asset' ? assetTitle(origin.assetId) : origin.schemeId;
 
-  return [name, grow?.scheme?.plantType].filter(Boolean).join(' · ');
+  // A medium the shipped grid names by its key ("light_mix") is already in the grid's title, and a key is never shown.
+  const medium = grow?.scheme?.plantType;
+  return [name, medium && !/^[a-z0-9_]+$/.test(medium) ? medium : null].filter(Boolean).join(' · ');
 };
 
 /**

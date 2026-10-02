@@ -79,3 +79,16 @@ export const stoppedAfter = (grow: GrowListItem | undefined, productKey: string)
 
   return weeks.length === 0 ? null : Math.max(...weeks.map(week => week.week));
 };
+
+/**
+ * The first week after this one whose grid doses the product, which is what a
+ * product left out this week is waiting for: Bio·Bloom in week 3 of a scheme
+ * that starts it in week 4 is "from week 4", not a product already stopped.
+ */
+export const startsAfter = (grow: GrowListItem | undefined, productKey: string, week: number): number | null => {
+  const later = (grow?.scheme?.grid ?? []).filter(
+    row => row.week > week && row.amounts.some(amount => amount.productKey === productKey && amount.value !== null),
+  );
+
+  return later.length === 0 ? null : Math.min(...later.map(row => row.week));
+};

@@ -225,7 +225,8 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
                 <Term topic="growWeek">{t('grow.week', { week: summary.stageWeek })}</Term>
               </>
             ) : null}
-            {summary.phaseDay !== null ? ` · ${t('grow.dayN', { day: summary.phaseDay })}` : ''}
+            {/* How long it has stood in the stage, in days rather than as a second "Tag", which is the grow's own count. */}
+            {summary.phaseDay !== null ? ` · ${t('grow.phaseFor', { count: summary.phaseDay })}` : ''}
           </span>
         ) : (
           <span className={styles.phase}>{t('home.card.noPhase')}</span>
