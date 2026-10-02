@@ -4442,6 +4442,8 @@
       "type": "Type",
       "serial": "Serial number",
       "owner": "Owner",
+      "zone": "Customer's time zone",
+      "noZone": "none chosen (their browser's)",
       "lastSeen": "Last heard",
       "firmware": "Firmware · channel",
       "place": "Place",
@@ -5165,7 +5167,8 @@
       "greenhouse": "Operating mode greenhouse: only the temperature is held, not the humidity.",
       "germination": "Operating mode germination: dark and without CO₂; the night temperature is held.",
       "change": "Change"
-    }
+    },
+    "visiting": "Support view of a customer's place: read only. Times are in your time zone."
   },
   "climatePick": {
     "label": "Targets",

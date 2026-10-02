@@ -4446,6 +4446,8 @@
       "type": "Typ",
       "serial": "Seriennummer",
       "owner": "Besitzer",
+      "zone": "Zeitzone des Kunden",
+      "noZone": "keine gewählt (Zeitzone seines Browsers)",
       "lastSeen": "Zuletzt gehört",
       "firmware": "Firmware · Kanal",
       "place": "Ort",
@@ -5169,7 +5171,8 @@
       "greenhouse": "Betriebsart Gewächshaus: Geregelt wird nur die Temperatur, die Luftfeuchte nicht.",
       "germination": "Betriebsart Keimung: dunkel und ohne CO₂, gehalten wird die Nachttemperatur.",
       "change": "Ändern"
-    }
+    },
+    "visiting": "Support-Ansicht eines Kundenorts: nur lesen. Zeiten stehen in deiner Zeitzone."
   },
   "climatePick": {
     "label": "Zielwerte",

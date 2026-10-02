@@ -20,7 +20,7 @@ import { Help } from '@/ui/Help';
 import { foldRepeats, readingNamesOf } from '@/ui/entries';
 import { maintenanceQuiet, parksAnything, type Quiet } from '@/ui/maintenance';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
+import { useMayManage, useVisiting } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
@@ -81,6 +81,7 @@ export function PlaceCockpit({
   const live = useDeviceLive(device?.id ?? null).data;
   const timeline = useTimeline(hasDevice ? spaceId : '', '24h', null).data;
   const mayManage = useMayManage(spaceId);
+  const visiting = useVisiting(spaceId);
   const me = useMe(false, user !== null && user.isDemo !== true);
   // The grow waits for the account's answer rather than flashing up for somebody who keeps no diary; the demo is shown it whole.
   const diary = useDiaryLayer() && (me.data !== undefined || user?.isDemo === true);
@@ -88,7 +89,7 @@ export function PlaceCockpit({
   const offline = liveness === 'offline';
   const status = statusOf({ ...overview, quiet: quietOf(here, now), controlOff: controlOffOf(here) }, now);
   // Offered once the account has been read, and only where nobody said no; the demo has no account to keep an answer with.
-  const offerDiary = me.data !== undefined && !me.data.layers.diary && me.data.preferences.diary !== 'off';
+  const offerDiary = !visiting && me.data !== undefined && !me.data.layers.diary && me.data.preferences.diary !== 'off';
   const Icon = KIND_ICON[overview.kind];
   const camera = newestCamera(overview);
   // A diary kept by hand, with nothing here that measures or watches: the grow
@@ -132,6 +133,12 @@ export function PlaceCockpit({
         </header>
       ) : null}
       {headed ? <RefreshFailed failedAt={failedAt} now={now} /> : null}
+      {visiting ? (
+        <p className={styles.status} data-tone="quiet" role="status">
+          <Info size={18} strokeWidth={2} aria-hidden />
+          <span className={styles.statusText}>{t('cockpit.visiting')}</span>
+        </p>
+      ) : null}
 
       {byHand ? (
         <div className={styles.columns} data-single>
@@ -165,7 +172,7 @@ export function PlaceCockpit({
                 </span>
               </div>
             ) : null}
-            <NotifyNotice later />
+            {visiting ? null : <NotifyNotice later />}
             {hasDevice ? (
               <Tiles
                 spaceId={spaceId}

@@ -7,7 +7,7 @@ import { controlPath, membersPath } from '@/app/places';
 import { useMe } from '@/api/account';
 import { useDiaryLayer } from '@/api/layers';
 import { useSession } from '@/api/session';
-import { useMayManage } from '@/ui/session-access';
+import { useMayInSpace, useMayManage } from '@/ui/session-access';
 import { RenameSheet } from '../place/RenameSheet';
 import { MoveHereSheet } from '../space/MoveHereSheet';
 import styles from './Cockpit.module.css';
@@ -32,6 +32,7 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
   const { t } = useTranslation();
   const { user } = useSession();
   const mayManage = useMayManage(overview.spaceId);
+  const member = useMayInSpace(overview.spaceId) !== undefined;
   const diary = useDiaryLayer();
   const me = useMe(false, user !== null && user.isDemo !== true);
   const [open, setOpen] = useState(false);
@@ -86,9 +87,12 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
               {t('cockpit.menu.rename')}
             </button>
           ) : null}
-          <Link to={membersPath(overview.spaceId)} onClick={() => setOpen(false)}>
-            {t('cockpit.menu.members')}
-          </Link>
+          {/* Who else is here is a member's question; support reading a customer's place is not one. */}
+          {member ? (
+            <Link to={membersPath(overview.spaceId)} onClick={() => setOpen(false)}>
+              {t('cockpit.menu.members')}
+            </Link>
+          ) : null}
           {mayManage && hasDevice ? (
             <Link to={controlPath(overview.spaceId, null, {}, 'presets')} onClick={() => setOpen(false)}>
               {t('cockpit.menu.preset')} <span className={styles.menuLine}>{t('cockpit.menu.presetLine')}</span>

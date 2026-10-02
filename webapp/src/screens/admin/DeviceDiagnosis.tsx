@@ -89,6 +89,8 @@ export function DeviceDiagnosis() {
           label={t('admin.diagnosis.owner')}
           value={owner ? `@${owner.handle} · ${owner.email}` : one.ownerId ? <span className="mono">{one.ownerId}</span> : t('admin.fleet.unclaimed')}
         />
+        {/* The customer reads every time in their own zone; on the phone with them, support has to know which. */}
+        {owner ? <Fact label={t('admin.diagnosis.zone')} value={owner.preferences.timezone ?? t('admin.diagnosis.noZone')} /> : null}
         <Fact
           label={t('admin.diagnosis.lastSeen')}
           value={
@@ -170,12 +172,13 @@ function Place({ spaceId }: { spaceId: string }) {
 
 /** The build it reports, by the version it was stamped with where this install has a record of it. */
 function Build({ device }: { device: Device }) {
+  const { t } = useTranslation();
   const firmwares = useFirmwares(device.classId);
   const build = (firmwares.data?.pages ?? []).flatMap(page => page.items).find(one => one.id === device.state.firmwareId);
 
   return (
     <span className="mono">
-      {build ? `${build.version || build.name}` : (device.state.firmwareId ?? '—')} · {device.firmware.channel}
+      {build ? `${build.version || build.name}` : (device.state.firmwareId ?? '—')} · {t(`devices.channel.${device.firmware.channel}`)}
     </span>
   );
 }

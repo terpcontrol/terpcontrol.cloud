@@ -42,11 +42,12 @@ export const useEverySpace = () =>
 
 export const overviewKey = (spaceId: string) => ['space', spaceId, 'overview'];
 
-export const useSpaceOverview = (spaceId: string) =>
+export const useSpaceOverview = (spaceId: string, enabled = true) =>
   useRead({
     queryKey: overviewKey(spaceId),
     queryFn: ({ signal }) => api.get<SpaceOverview>(`/spaces/${spaceId}/overview`, undefined, signal),
     refetchInterval: OVERVIEW_REFRESH_MS,
+    enabled: enabled && spaceId !== '',
   });
 
 /**

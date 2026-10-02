@@ -26,10 +26,17 @@ import { PlaceCockpit } from '@/screens/cockpit/PlaceCockpit';
 import { judgedPanel, outputsFor, statusOf } from '@/screens/cockpit/place';
 import { spacePage, spaceWhere } from './session';
 
+/** Who reads the cockpit: the grower, or support reading a customer's place. */
+const who = vi.hoisted(() => ({ admin: false }));
+
 vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN } = await import('./session');
 
-  return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => SIGNED_IN };
+  return {
+    ...(await importOriginal<object>()),
+    mediaUrl: (id: string) => `/media/${id}`,
+    useSession: () => (who.admin ? { ...SIGNED_IN, user: { ...SIGNED_IN.user!, isAdmin: true } } : SIGNED_IN),
+  };
 });
 
 /**
@@ -483,6 +490,19 @@ describe('a place whose control is switched off', () => {
 
     expect(await screen.findByRole('button', { name: /^Switch control off/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^MaintenancePause/ })).toBeInTheDocument();
+  });
+});
+
+describe('a customer´s place read by support', () => {
+  it('says it is support reading it, and offers no invitation and none of the account´s own offers', async () => {
+    who.admin = true;
+    server.youMay = 'view';
+    draw(<PlaceCockpit overview={overviewOf({ spaceId: 'space-customer' })} headed />);
+
+    expect(await screen.findByText(/^Support view of a customer's place: read only/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^More about/ }));
+    expect(screen.queryByRole('link', { name: 'Invite members' })).not.toBeInTheDocument();
+    who.admin = false;
   });
 });
 

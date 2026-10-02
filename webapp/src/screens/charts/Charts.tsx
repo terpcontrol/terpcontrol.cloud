@@ -12,7 +12,7 @@ import { useWindowEntries } from '@/api/entries';
 import { useGrow, useGrowPlants, useGrows, useGrowsEverIn, useSpaceGrows } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { useSession } from '@/api/session';
-import { useSpaces } from '@/api/spaces';
+import { useSpaceOverview, useSpaces } from '@/api/spaces';
 import { useScrub, type Selection } from '@/charts/scrub';
 import { dayOfGrow, downloadCsv, readAt, type PlotLine } from '@/charts/series';
 import { NewLinkSheet } from '@/screens/me/sharing/NewLinkSheet';
@@ -25,7 +25,7 @@ import { CopyButton } from '@/ui/CopyButton';
 import { looseFigure } from '@/ui/figures';
 import { Help } from '@/ui/Help';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
-import { stoodIn, useMayManage } from '@/ui/session-access';
+import { stoodIn, useMayManage, useVisiting } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone, zonedAt } from '@/ui/zone';
@@ -182,7 +182,9 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
   const now = useNow();
   const zone = useZone();
   const { user } = useSession();
-  const mayManage = useMayManage();
+  const visiting = useVisiting(spaceId);
+  // A view is kept in the account that saves it; support reading a customer's place keeps none.
+  const mayManage = useMayManage() && !visiting;
   const mayShare = useMayManage(spaceId) && user?.isDemo !== true;
   const [params, setParams] = useSearchParams();
 
@@ -290,6 +292,8 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
 
   const spaceRow = spaces.data?.items.find(space => space.id === place) ?? null;
   const subject = [spaceRow?.name ?? null, grow?.name ?? null].filter(Boolean).join(' · ');
+  // A customer's place is not in the administrator's own list, so its name is read from the place itself.
+  const visitedName = useSpaceOverview(spaceId ?? '', visiting).data?.name ?? '…';
 
   const setQuery = (over: Record<string, string | null>) => {
     const kept = new URLSearchParams(params);
@@ -306,9 +310,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
     setLiveNow(serverNow().toMillis());
     // A range of one's own starts on the days the chart was showing, so the curves stay while the days are changed.
     const shownDays: Record<string, string | null> =
-      window?.kind === 'span' && !(from && to)
-        ? { from: zonedAt(window.from, zone).toISODate(), to: zonedAt(window.to, zone).toISODate() }
-        : {};
+      window?.kind === 'span' && !(from && to) ? { from: zonedAt(window.from, zone).toISODate(), to: zonedAt(window.to, zone).toISODate() } : {};
     setQuery({
       range: next,
       ...(next === 'custom' ? shownDays : { from: null, to: null }),
@@ -540,7 +542,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
     </>
   );
 
-  const head = <Header spaceId={spaceId} growId={grow?.id ?? null} subject={subject} />;
+  const head = <Header spaceId={spaceId} growId={grow?.id ?? null} subject={visiting ? `${visitedName} · ${t('timeline.visiting')}` : subject} />;
   const advanced = (
     <AdvancedSection
       scope="charts"

@@ -155,3 +155,18 @@ export const useMayManage = (spaceId: string | null = null): boolean => useMayIn
 
 /** Whether this session may write a line of its own in a given place. */
 export const useMayLogIn = (spaceId: string | null = null): boolean => useMayIn(spaceId, 'log');
+
+/**
+ * Whether this is support reading a customer's place: an administrator may
+ * read any place, and one that is not among their own is somebody else's. The
+ * screens then say so and offer nothing that would write - an invitation, a
+ * saved view, the account's own offers - because what they would write to is
+ * the administrator's account, or the customer's place, and neither is what
+ * support came for. False until the account's places have been read.
+ */
+export const useVisiting = (spaceId: string | null): boolean => {
+  const { user } = useSession();
+  const spaces = useSpaces(user?.isAdmin === true && spaceId !== null);
+
+  return user?.isAdmin === true && spaceId !== null && spaces.data !== undefined && !spaces.data.items.some(space => space.id === spaceId);
+};
