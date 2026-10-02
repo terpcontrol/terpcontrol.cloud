@@ -68,21 +68,31 @@ const FRAME_MAGIC = Buffer.from([0x55, 0xaa, 0x15, 0xa8]);
 // The timeouts below assume a slow path between the camera's site and the cloud:
 // every datagram crosses the controller's uplink inside the relay, so a round
 // trip can take seconds when the uplink is busy with the keyframe itself.
-const LOGIN_MS = 15_000;
+const LOGIN_MS = 10_000;
 /**
- * How long one attempt waits for a keyframe. A fresh stream usually delivers one
- * in 15-18s even on the LAN, and a camera behind a slower uplink or in night mode
- * (lower frame rate, so a longer GOP in wall time) needs more than that.
+ * How long a login waits for the camera to send anything at all. It answers a
+ * handshake within half a second on the LAN, so a camera still silent after this
+ * has dropped the session - it does that now and then when one opens just as
+ * another is starting - and a fresh one is cheaper than waiting out LOGIN_MS.
+ */
+const LOGIN_SILENT_MS = 5_000;
+/**
+ * How long one attempt waits for a keyframe. The first frame of a fresh stream is
+ * one, so this is only spent in full when that frame cannot be repaired and the
+ * next keyframe of the GOP is waited for instead - longer in wall time in night
+ * mode, which runs at a lower frame rate.
  */
 const TRANSFER_MS = 60_000;
 /** How long the stream may stay silent, including before its first datagram. */
 const IDLE_MS = 15_000;
 /**
  * A gap this old will not close; take the next keyframe instead of repairing.
- * Repairing takes an ack to the camera and the resend back, both queued behind
- * the burst the keyframe itself is, so on a slow uplink it needs a few seconds.
+ * Every fragment is acked as it arrives, so the camera resends the oldest one it
+ * is missing within tens of milliseconds; this only covers one that never comes.
  */
 const GAP_ABANDON_MS = 3_000;
+/** Indices per DrwAck; it names each one, so this bounds the datagram's size. */
+const MAX_ACK_INDICES = 128;
 /** A malfunctioning camera must not stream without end. */
 const MAX_FRAME_BYTES = 4 * 1024 * 1024;
 /**
@@ -231,7 +241,7 @@ function send(socket: P2PSocket, to: Endpoint, packet: Buffer): void {
 }
 
 /** Symmetric table cipher: `prev` is always the ciphertext byte. */
-function obfuscate(buf: Buffer): Buffer {
+export function obfuscate(buf: Buffer): Buffer {
   const out = Buffer.allocUnsafe(buf.length);
   let prev = 0;
   for (let i = 0; i < buf.length; i++) {
@@ -242,7 +252,7 @@ function obfuscate(buf: Buffer): Buffer {
   return out;
 }
 
-function deobfuscate(buf: Buffer): Buffer {
+export function deobfuscate(buf: Buffer): Buffer {
   const out = Buffer.allocUnsafe(buf.length);
   let prev = 0;
   for (let i = 0; i < buf.length; i++) {
@@ -278,13 +288,57 @@ function buildCgi(channel: number, index: number, cgi: string): Buffer {
   return obfuscate(Buffer.concat([head, inner, body]));
 }
 
-function buildAck(channel: number, index: number): Buffer {
-  const body = Buffer.alloc(6);
+/**
+ * DrwAck naming every index in `indices`. It acknowledges exactly those: the
+ * camera keeps resending the oldest DRW it has no ack for, every ~40ms (measured),
+ * so an index left out is one it sends again - which is what repairs a fragment
+ * lost on the way, and what floods the link when received ones go unnamed.
+ */
+export function buildAck(channel: number, indices: number[]): Buffer {
+  const body = Buffer.alloc(4 + 2 * indices.length);
   body[0] = 0xd1;
   body[1] = channel;
-  body.writeUInt16BE(1, 2);
-  body.writeUInt16BE(index & 0xffff, 4);
+  body.writeUInt16BE(indices.length, 2);
+  indices.forEach((index, i) => body.writeUInt16BE(index & 0xffff, 4 + 2 * i));
   return buildPacket(0xd1, body);
+}
+
+/** How far before the first fragment seen a late one is still taken as part of the stream. */
+const MAX_EARLY_FRAGMENTS = 1024;
+
+/**
+ * The video channel's fragments, kept by index, and the contiguous run that
+ * starts at the lowest index received. The lowest is not necessarily the first
+ * to arrive: a fragment lost at the start of the stream is resent after later
+ * ones, and it is the start of the keyframe.
+ */
+export class FragmentAssembly {
+  /** Index of the first fragment received; the others are kept by their distance from it. */
+  private first: number | null = null;
+  private readonly fragments = new Map<number, Buffer>();
+  private lowest = 0;
+  private length = 0;
+
+  /** Keeps the fragment; true when the contiguous run grew, and with it what contiguous() returns. */
+  public add(index: number, payload: Buffer): boolean {
+    if (this.first === null) this.first = index;
+    // Signed distance, so a resend from before the first fragment is negative rather than near 65536.
+    const at = ((((index - this.first) & 0xffff) + 0x8000) & 0xffff) - 0x8000;
+    if (this.fragments.has(at) || at < -MAX_EARLY_FRAGMENTS) return false;
+    this.fragments.set(at, payload);
+    if (this.fragments.size === 1 || at < this.lowest) {
+      this.lowest = at;
+      this.length = 0;
+    } else if (at !== this.lowest + this.length) {
+      return false;
+    }
+    while (this.fragments.has(this.lowest + this.length)) this.length++;
+    return true;
+  }
+
+  public contiguous(): Buffer {
+    return Buffer.concat(Array.from({ length: this.length }, (_, i) => this.fragments.get(this.lowest + i) as Buffer));
+  }
 }
 
 /**
@@ -575,8 +629,11 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     const reply = new Map<number, Buffer>();
     // Held in an object because it is assigned from inside a callback.
     const state: { verdict: StatusVerdict } = { verdict: 'pending' };
-    const until = Date.now() + LOGIN_MS;
-    while (Date.now() < until) {
+    // What came back, by packet type: the failure message says how far it got.
+    const heard = new Map<number, number>();
+    const started = Date.now();
+    const until = started + LOGIN_MS;
+    while (Date.now() < until && (heard.size > 0 || Date.now() < started + LOGIN_SILENT_MS)) {
       // Asked once it answers: a second get_status would restart the reply.
       if (reply.size === 0) {
         for (const packet of [buildPacket(0x00), buildPacket(0x05, did), buildPacket(0x20, devlgn), buildPacket(0x41, did)]) {
@@ -587,13 +644,14 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
 
       await this.drain(inbox, 1_000, entry => {
         const m = entry.message;
+        if (m.length >= 2) heard.set(m[1], (heard.get(m[1]) ?? 0) + 1);
         if (m.length >= 4 && (m[1] === 0x42 || m[1] === 0x43)) {
           send(socket, entry.from, obfuscate(m));
           return false;
         }
         if (m.length > 8 && m[1] === 0xd0 && m[5] === CMD_CHANNEL) {
           const index = m.readUInt16BE(6);
-          send(socket, peer, buildAck(CMD_CHANNEL, index));
+          send(socket, peer, buildAck(CMD_CHANNEL, [index]));
           if (!reply.has(index)) reply.set(index, m.subarray(8));
           const ordered = [...reply.keys()].sort((a, b) => a - b).map(key => reply.get(key) as Buffer);
           state.verdict = checkStatusReply(Buffer.concat(ordered).toString('latin1'), label);
@@ -608,74 +666,79 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
       if (state.verdict === 'refused') throw new CameraRefusedError('camera rejected the password');
       if (state.verdict === 'foreign') throw new CameraRefusedError(`UID belongs to a different camera than ${label}`);
     }
-    throw new Error(reply.size ? 'camera did not say which camera it is' : 'camera did not accept the session');
+    if (reply.size) throw new Error('camera did not say which camera it is');
+    const seconds = Math.round((Date.now() - started) / 1000);
+    const got = [...heard].map(([type, n]) => `${type.toString(16).padStart(2, '0')}x${n}`).join(' ');
+    throw new Error(`camera did not accept the session (${got ? `only ${got}` : 'nothing back'} in ${seconds}s)`);
   }
 
   /**
    * Take a full-resolution keyframe off the video stream; the caller stops the
-   * stream. Two things here are load-bearing and each was measured:
+   * stream. The first frame of a fresh stream is the keyframe, a burst of ~30-50
+   * fragments, and the controller's relay loses one now and then. What gets it
+   * through is acking EVERY fragment as it arrives: the camera then resends only
+   * the one that is missing, within tens of milliseconds, and the keyframe is
+   * complete a moment later. Acking only the newest fragment left every other one
+   * unacknowledged, so the camera kept resending the oldest of them instead of the
+   * one that was lost; the keyframe was given up and the next one of the GOP,
+   * 15-20 seconds later, waited for.
    *
-   * - EVERY frame is examined, not just the first: a restarted stream begins
-   *   mid-GOP, so the IDR is usually not the first frame to arrive.
-   * - A stalled gap is ABANDONED, not re-acked. Re-acking is a resend request in
-   *   this protocol, so pressing it triggers a go-back-N flood; the next IDR is
-   *   a second away, which is cheaper.
+   * EVERY frame is still examined, not just the first, for when that one is lost
+   * after all and the next keyframe has to do.
    */
   private async readKeyframe(session: Session): Promise<Buffer | null> {
     const { socket, peer, inbox, auth } = session;
     inbox.length = 0;
     this.request(session, `livestream.cgi?streamid=10&substream=2&${auth}`);
 
-    let slots = new Map<number, Buffer>();
-    let base: number | null = null;
-    let contiguous = 0;
+    let assembly = new FragmentAssembly();
+    const unacked: number[] = [];
+    const ack = () => {
+      while (unacked.length) send(socket, peer, buildAck(VIDEO_CHANNEL, unacked.splice(0, MAX_ACK_INDICES)));
+    };
     const started = Date.now();
     let lastData = Date.now();
     let lastProgress = Date.now();
 
     while (Date.now() - started < TRANSFER_MS && Date.now() - lastData < IDLE_MS) {
       const found: { frame: Buffer | null } = { frame: null };
-      await this.drain(inbox, 300, entry => {
-        const m = entry.message;
-        if (m.length < 8) return false;
-        if (m[1] === 0xe0) {
-          send(socket, peer, buildPacket(0xe1));
+      await this.drain(
+        inbox,
+        300,
+        entry => {
+          const m = entry.message;
+          if (m.length < 8) return false;
+          if (m[1] === 0xe0) {
+            send(socket, peer, buildPacket(0xe1));
+            return false;
+          }
+          if (m[1] !== 0xd0 || m[5] !== VIDEO_CHANNEL) return false;
+
+          const index = m.readUInt16BE(6);
+          const declared = m.readUInt16BE(2);
+          let length = declared - 4;
+          if (length <= 0 || length > m.length - 8) length = m.length - 8;
+          if (length <= 0) return false;
+
+          lastData = Date.now();
+          // A fragment that arrives twice was resent because our ack got lost, so it is acked again.
+          unacked.push(index);
+          if (!assembly.add(index, m.subarray(8, 8 + length))) return false;
+
+          lastProgress = Date.now();
+          const frame = this.findKeyframe(assembly.contiguous());
+          if (frame) {
+            found.frame = frame;
+            return true;
+          }
           return false;
-        }
-        if (m[1] !== 0xd0 || m[5] !== VIDEO_CHANNEL) return false;
-
-        const index = m.readUInt16BE(6);
-        const declared = m.readUInt16BE(2);
-        let length = declared - 4;
-        if (length <= 0 || length > m.length - 8) length = m.length - 8;
-        if (length <= 0) return false;
-
-        lastData = Date.now();
-        if (base === null) base = index;
-        const slot = (index - base) & 0xffff;
-        if (slot > 0x8000) return false;
-        if (!slots.has(slot)) slots.set(slot, m.subarray(8, 8 + length));
-
-        const before = contiguous;
-        while (slots.has(contiguous)) contiguous++;
-        if (contiguous === before) return false;
-
-        lastProgress = Date.now();
-        send(socket, peer, buildAck(VIDEO_CHANNEL, (base + contiguous - 1) & 0xffff));
-
-        const buffered = Buffer.concat([...Array(contiguous).keys()].map(i => slots.get(i)));
-        const frame = this.findKeyframe(buffered);
-        if (frame) {
-          found.frame = frame;
-          return true;
-        }
-        return false;
-      });
+        },
+        ack,
+      );
+      ack();
       if (found.frame) return found.frame;
       if (Date.now() - lastProgress > GAP_ABANDON_MS) {
-        slots = new Map();
-        base = null;
-        contiguous = 0;
+        assembly = new FragmentAssembly();
         lastProgress = Date.now();
       }
     }
@@ -712,14 +775,19 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     return false;
   }
 
-  /** Consume queued datagrams for up to `ms`, stopping early if `handler` says so. */
-  private async drain(inbox: Inbox, ms: number, handler: (entry: Inbox[number]) => boolean): Promise<void> {
+  /**
+   * Consume queued datagrams for up to `ms`, stopping early if `handler` says so.
+   * `caughtUp` runs whenever the queue has been emptied, so replies to a burst go
+   * out once per burst rather than once per datagram.
+   */
+  private async drain(inbox: Inbox, ms: number, handler: (entry: Inbox[number]) => boolean, caughtUp?: () => void): Promise<void> {
     const until = Date.now() + ms;
     for (;;) {
       while (inbox.length) {
         const entry = inbox.shift();
         if (entry && handler(entry)) return;
       }
+      caughtUp?.();
       if (Date.now() >= until) return;
       await new Promise(resolve => setTimeout(resolve, 5));
     }
