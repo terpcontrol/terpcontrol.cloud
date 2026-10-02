@@ -63,7 +63,8 @@ describe('an account whose zone nobody picked', () => {
   it('takes the zone of this device, marks it picked, and says so with the way back', () => {
     draw();
 
-    expect(state.sent).toEqual([{ preferences: { units, locale: 'en', timezone: 'Europe/Berlin', timezoneChosen: true } }]);
+    // The zone alone: whatever else the app writes in the same moment is kept beside it.
+    expect(state.sent).toEqual([{ preferences: { timezone: 'Europe/Berlin', timezoneChosen: true } }]);
     expect(screen.getByRole('status')).toHaveTextContent('Clock times now follow Europe/Berlin');
     expect(screen.getByRole('status')).toHaveTextContent('still on UTC');
     expect(screen.getByRole('link', { name: 'Change it' })).toHaveAttribute('href', '/me/appearance');
@@ -91,6 +92,20 @@ describe('an account whose zone somebody picked', () => {
     draw();
 
     expect(state.sent).toEqual([]);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * What the server writes itself - the day counter burnt into a film - is in the
+ * language the account was last used in, so the account is told it.
+ */
+describe('the language the app is used in', () => {
+  it('is told to an account that last heard another, without a word on screen', () => {
+    state.preferences = { units, locale: 'de', timezone: 'UTC', timezoneChosen: true };
+    draw();
+
+    expect(state.sent).toEqual([{ preferences: { locale: 'en' } }]);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });

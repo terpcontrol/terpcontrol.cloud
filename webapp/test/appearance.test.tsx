@@ -16,9 +16,9 @@ import { ThemeProvider } from '@/theme/ThemeProvider';
  * Me › Appearance: the theme and the language stay the browser's, the units
  * go to the account.
  *
- * The units are the thing to check on the wire: `PATCH /me` replaces the
- * preferences object it is given, so one menu moved has to send the other two
- * units, the locale and the time zone back exactly as they were read. The
+ * The units are the thing to check on the wire: `PATCH /me` keeps every
+ * preference a body leaves out, so one menu moved sends that one preference
+ * and nothing it might send back stale - the units whole, as they are one. The
  * theme and the language are checked to land where they have always lived -
  * one attribute on <html>, one key in local storage - and nowhere near a
  * request.
@@ -68,7 +68,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   if (pathname === '/v1/me' && method === 'PATCH') {
     const body = JSON.parse(String(init?.body)) as MeUpdate;
     server.patched.push(body);
-    server.me = { ...server.me, ...body } as Me;
+    server.me = { ...server.me, ...body, preferences: { ...server.me.preferences, ...body.preferences } } as Me;
     return json(server.me);
   }
   // The German catalogue, as the language switch fetches it before switching.
@@ -133,15 +133,13 @@ describe('the units', () => {
     expect(screen.getByRole('option', { name: '°F' })).toBeInTheDocument();
   });
 
-  it('sends the whole preferences object with one unit changed, so nothing else is turned back', async () => {
+  it('sends the units with one changed and nothing else, so no other preference is turned back', async () => {
     draw();
 
     fireEvent.change(await screen.findByRole('combobox', { name: 'Temperature' }), { target: { value: 'fahrenheit' } });
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
-    expect(server.patched[0]).toEqual({
-      preferences: { units: { temperature: 'fahrenheit', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
-    });
+    expect(server.patched[0]).toEqual({ preferences: { units: { temperature: 'fahrenheit', weight: 'grams', volume: 'liters' } } });
   });
 
   it('are not offered to the demo, which is told why instead', () => {
@@ -161,7 +159,7 @@ describe('the units', () => {
  * "Automatic" is no answer at all: the account's use decides.
  */
 describe('the grow diary', () => {
-  it('reads "automatic" where nobody has answered, and sends an answer with the rest of the preferences', async () => {
+  it('reads "automatic" where nobody has answered, and sends the answer alone', async () => {
     draw();
 
     const diary = await screen.findByRole('combobox', { name: 'Grow diary' });
@@ -169,9 +167,7 @@ describe('the grow diary', () => {
     fireEvent.change(diary, { target: { value: 'off' } });
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
-    expect(server.patched[0]).toEqual({
-      preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin', diary: 'off' },
-    });
+    expect(server.patched[0]).toEqual({ preferences: { diary: 'off' } });
   });
 
   it('hands the question back to the account´s use when "automatic" is chosen again', async () => {
@@ -207,15 +203,13 @@ describe('the time zone', () => {
     expect(await screen.findByRole('option', { name: 'UTC' })).toBeInTheDocument();
   });
 
-  it('sends the whole preferences object with the zone changed, so the units are not turned back', async () => {
+  it('sends the zone alone, so the units are not turned back', async () => {
     draw();
 
     fireEvent.change(await screen.findByRole('combobox', { name: 'Time zone' }), { target: { value: 'America/New_York' } });
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
-    expect(server.patched[0]).toEqual({
-      preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'America/New_York' },
-    });
+    expect(server.patched[0]).toEqual({ preferences: { timezone: 'America/New_York' } });
   });
 });
 

@@ -3837,7 +3837,17 @@
     "later": "Later",
     "done": "Critical alarms now come by e-mail to {{email}}.",
     "reaches": "Critical alarms reach you by {{channels}}.",
-    "change": "Change"
+    "change": "Change",
+    "titleRows": "{{what}} do not reach you",
+    "doneRows": "{{what}} now come by e-mail to {{email}}.",
+    "row": {
+      "alerts": "critical alarms",
+      "warnings": "camera warnings",
+      "tasks": "task reminders",
+      "plan": "grow plan questions",
+      "weekly_timelapse": "the week's film"
+    },
+    "and": "and"
   },
   "alerts": {
     "bell_one": "Alerts · {{count}} open",
@@ -4483,7 +4493,7 @@
     },
     "emailAlarms": {
       "title": "Alarms by e-mail",
-      "text": "Until a way is set up, no alarm reaches you, not even “device offline”. One tap sends critical alarms by e-mail to the address you sign in with. Warnings and everything else stay as they are. Change or switch it off under Me › Notifications. “Later” hides this notice for a week."
+      "text": "Until a way is set up, nothing reaches you: no alarm, not even “device offline”, no task that is due and no camera that stopped delivering. One tap sends what can call on you by e-mail to the address you sign in with: a device's critical alarms, a camera's warning and the reminders of your tasks. Everything else stays as it is. Change or switch it off under Me › Notifications. “Later” hides this notice for a week."
     },
     "quietHours": {
       "title": "Quiet hours",

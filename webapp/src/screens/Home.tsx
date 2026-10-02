@@ -151,8 +151,8 @@ function Places({
         </p>
       ) : null}
 
-      {/* Only where something could raise an alarm: a place with no device has nobody to warn about. */}
-      {places.some(place => place.deviceIds.length > 0) ? <NotifyNotice later /> : null}
+      {/* It says itself whether anything here can call on the account - a device, a camera, a reminder. */}
+      <NotifyNotice later />
       {diary ? <DueStrip cards={cards} now={now} /> : null}
 
       <div className={styles.cards}>

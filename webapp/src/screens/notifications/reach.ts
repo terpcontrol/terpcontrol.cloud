@@ -1,6 +1,6 @@
 import type { DateTime } from 'luxon';
-import type { Me } from '@fg2/shared-types/v1';
-import { routedChannels } from '@/screens/control/alarms/rules';
+import type { Me, NotificationCategory } from '@fg2/shared-types/v1';
+import { isConfigured, routedChannels } from '@/screens/control/alarms/rules';
 import { isAhead } from '@/ui/age';
 
 /**
@@ -28,6 +28,36 @@ export const LATER_DAYS = 7;
 
 /** Whether "Later" is still holding the notice back. */
 export const putAway = (me: Me, now: DateTime): boolean => isAhead(me.preferences.notifyLaterUntil ?? null, now);
+
+/**
+ * What can call on this account, as rows of the routing grid: a device's
+ * alarms, a camera's warning that it stopped delivering, and the reminders of
+ * a diary. Somebody who keeps a diary without a device has no critical alarm
+ * that could ever reach them, and was offered only that.
+ */
+export interface Callers {
+  steering: boolean;
+  cameras: boolean;
+  diary: boolean;
+}
+
+export const callingRows = ({ steering, cameras, diary }: Callers): NotificationCategory[] => [
+  ...(steering ? (['alerts'] as const) : []),
+  ...(cameras ? (['warnings'] as const) : []),
+  ...(diary ? (['tasks'] as const) : []),
+];
+
+/** Whether a row of the grid arrives anywhere: routed to a channel this account can be reached on. */
+export const rowReaches = (me: Me, row: NotificationCategory): boolean =>
+  (me.notifications.routing[row] ?? []).some(channel => isConfigured(me, channel));
+
+/**
+ * Whether what calls on this account reaches it. With a device that is its
+ * critical alarms, as it always was; without one, any of what can call -
+ * a reminder or a camera's warning - arriving anywhere is enough.
+ */
+export const callsReach = (me: Me, rows: NotificationCategory[]): boolean =>
+  rows.includes('alerts') ? alarmsReach(me) : rows.length === 0 || rows.some(row => rowReaches(me, row));
 
 /** Where the one tap sends mail: the address the person already set, or else the one they sign in with - which is what the server does. */
 export const mailAddressOf = (me: Me): string => me.notifications.channels.email ?? me.email;

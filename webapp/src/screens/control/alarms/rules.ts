@@ -290,7 +290,7 @@ export interface RoutedChannel {
 }
 
 /** A channel is configured when the account has given it something to deliver to; push, when some browser of it is subscribed. */
-const isConfigured = (me: Me, channel: NotificationChannel): boolean =>
+export const isConfigured = (me: Me, channel: NotificationChannel): boolean =>
   channel === 'push' ? me.pushSubscribed : me.notifications.channels[channel] !== null;
 
 /**

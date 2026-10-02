@@ -19,8 +19,8 @@ vi.mock('@/api/session', async importOriginal => {
 /**
  * The one grey line Start shows an account that keeps no diary. Both answers
  * are kept with the account rather than in this browser, so a "no thanks"
- * given on a phone is not asked again on the laptop - and both send the
- * preferences back whole, read fresh, because `PATCH /me` replaces them.
+ * given on a phone is not asked again on the laptop - and both send the one
+ * preference alone, because `PATCH /me` keeps what a body leaves out.
  */
 
 const me = (): Me => ({
@@ -66,7 +66,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     const body = JSON.parse(String(init?.body)) as MeUpdate;
     server.patched.push(body);
     const diary = body.preferences?.diary ?? null;
-    server.me = { ...server.me, ...body, layers: { diary: diary === 'on' } } as Me;
+    server.me = { ...server.me, ...body, preferences: { ...server.me.preferences, ...body.preferences }, layers: { diary: diary === 'on' } } as Me;
     return json(server.me);
   }
   return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
@@ -108,14 +108,13 @@ describe('the diary, offered on Start', () => {
     expect(screen.getByRole('button', { name: i18next.t('help.about', { title: 'Grow diary' }) })).toBeInTheDocument();
   });
 
-  it('keeps "no thanks" with the account, sending the rest of the preferences back as the account has them', async () => {
+  it('keeps "no thanks" with the account, sending that answer alone', async () => {
     draw();
 
     fireEvent.click(screen.getByRole('button', { name: 'No thanks' }));
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
-    expect(server.asked.slice(0, 2)).toEqual(['GET /v1/me', 'PATCH /v1/me']);
-    expect(server.patched[0]).toEqual({ preferences: { ...me().preferences, diary: 'off' } });
+    expect(server.patched[0]).toEqual({ preferences: { diary: 'off' } });
   });
 
   it('switches the diary on for the account', async () => {

@@ -3841,7 +3841,17 @@
     "later": "Später",
     "done": "Kritische Alarme kommen jetzt per E-Mail an {{email}}.",
     "reaches": "Kritische Alarme erreichen dich per {{channels}}.",
-    "change": "Ändern"
+    "change": "Ändern",
+    "titleRows": "{{what}} erreichen dich nicht",
+    "doneRows": "{{what}} kommen jetzt per E-Mail an {{email}}.",
+    "row": {
+      "alerts": "kritische Alarme",
+      "warnings": "Warnungen der Cam",
+      "tasks": "Erinnerungen an Aufgaben",
+      "plan": "Fragen des Grow-Plans",
+      "weekly_timelapse": "der Wochenfilm"
+    },
+    "and": "und"
   },
   "alerts": {
     "bell_one": "Meldungen · {{count}} offen",
@@ -4487,7 +4497,7 @@
     },
     "emailAlarms": {
       "title": "Alarme per E-Mail",
-      "text": "Solange kein Weg eingerichtet ist, meldet sich kein Alarm bei dir, auch „Gerät offline“ nicht. Ein Tipp schickt kritische Alarme per E-Mail an die Adresse, mit der du dich anmeldest. Warnungen und alles andere bleiben, wie sie sind. Ändern oder abschalten kannst du das unter Ich › Benachrichtigungen. „Später“ blendet diesen Hinweis für eine Woche aus."
+      "text": "Solange kein Weg eingerichtet ist, meldet sich nichts bei dir: kein Alarm, auch „Gerät offline“ nicht, keine fällige Aufgabe und keine Cam, die nichts mehr liefert. Ein Tipp schickt per E-Mail an die Adresse, mit der du dich anmeldest, was sich bei dir melden kann: kritische Alarme eines Geräts, die Warnung einer Cam und die Erinnerungen an deine Aufgaben. Alles andere bleibt, wie es ist. Ändern oder abschalten kannst du das unter Ich › Benachrichtigungen. „Später“ blendet diesen Hinweis für eine Woche aus."
     },
     "quietHours": {
       "title": "Ruhezeiten",

@@ -3,6 +3,7 @@ import { useRead, useReadPages } from './read';
 import type {
   Me,
   MeUpdate,
+  NotificationCategory,
   NotificationSettings,
   PasswordChange,
   PushSubscription,
@@ -68,16 +69,17 @@ export const useUpdateMe = () => {
 
 /**
  * Critical alarms by mail to the address the account signs in with, in the one
- * tap that asks for exactly that. Nothing is sent but the tap: the server names
+ * tap that asks for exactly that - or the rows named, which is what can call on
+ * an account without a device. Nothing is sent but the rows: the server names
  * the address itself, keeps one the person already typed, and writes only the
- * address and the alarm row, so a change made elsewhere a moment ago stands.
+ * address and those rows, so a change made elsewhere a moment ago stands.
  */
 export const useMailAlarms = () => {
   const client = useQueryClient();
 
   return useMutation({
     mutationKey: meKey,
-    mutationFn: () => api.post<Me>('/me/email-alarms'),
+    mutationFn: (rows?: NotificationCategory[]) => (rows ? api.post<Me>('/me/email-alarms', { categories: rows }) : api.post<Me>('/me/email-alarms')),
     onSuccess: me => client.setQueryData(meKey, me),
   });
 };
