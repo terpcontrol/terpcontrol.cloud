@@ -268,8 +268,12 @@ describe('the inbox', () => {
     server.cameras = [];
     draw();
 
-    expect(await screen.findByText("Nothing is watching yet. Alerts come from a controller's alarm rules and from a cam.")).toBeInTheDocument();
+    expect(
+      await screen.findByText('Alarms land here once a device measures or a cam films. What is due in the diary is under Tasks.'),
+    ).toBeInTheDocument();
     expect(screen.queryByText('Nothing has gone wrong.')).not.toBeInTheDocument();
+    // Nothing here can raise an alarm, so there is nothing to mute.
+    expect(screen.queryByRole('button', { name: 'Mute all 1 h' })).not.toBeInTheDocument();
   });
 
   it('files every open alert under NOW and the resolved ones under the day they began', async () => {

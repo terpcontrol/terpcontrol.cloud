@@ -445,7 +445,7 @@ describe('a reading off its target', () => {
     });
     draw(<PlaceCockpit overview={overview} />);
 
-    const status = await screen.findByRole('link', { name: `Temperature 2.4 °C too high · since ${hhmm(startedAt)}` });
+    const status = await screen.findByRole('link', { name: new RegExp(`^Temperature 2\\.4 °C too high · since (\\d+ \\w+ )?${hhmm(startedAt)}$`) });
     expect(status).toHaveAttribute('href', '/timeline?space=space-1&focus=temperature');
     expect(await tile('Temperature')).toHaveTextContent('2.4 °C too high');
     expect(await tile('Temperature')).toHaveAttribute('data-verdict', 'off');
@@ -479,7 +479,8 @@ describe('a place that has gone quiet', () => {
     server.live = deviceLive();
     draw(<PlaceCockpit overview={overview} />);
 
-    expect(await screen.findByText(`Offline since ${hhmm(ago(180))}`)).toBeInTheDocument();
+    // Read after midnight, three hours back is yesterday and says its date too.
+    expect(await screen.findByText(new RegExp(`^Offline since (\\d+ \\w+ )?${hhmm(ago(180))}$`))).toBeInTheDocument();
     expect(screen.getByText('Unplug the device, wait 10 seconds, plug it back in.')).toBeInTheDocument();
 
     const temperature = await tile('Temperature');
@@ -606,7 +607,13 @@ describe('the diary on a place', () => {
   /** With a camera, its picture heads the grow block, with the day and the stage on it, and is not drawn a second time. */
   it('heads the grow block with the camera´s picture where a camera watches the place', async () => {
     server.me = me(true);
-    const camera = { cameraId: 'cam-1', name: 'Terp Cam · B07171', lastStillAt: ago(1), stills: [{ mediaId: 'media-1', capturedAt: ago(1) }], litStill: null };
+    const camera = {
+      cameraId: 'cam-1',
+      name: 'Terp Cam · B07171',
+      lastStillAt: ago(1),
+      stills: [{ mediaId: 'media-1', capturedAt: ago(1) }],
+      litStill: null,
+    };
     draw(<PlaceCockpit overview={{ ...growing, cameras: [camera] }} />);
 
     const grow = await screen.findByRole('region', { name: 'Grow' });
@@ -779,7 +786,9 @@ describe('what the cockpit decides', () => {
     expect(statusOf({ ...place, setpoints: [] }, now).kind).toBe('noTargets');
     expect(statusOf({ ...place, deviceIds: [] }, now).kind).toBe('none');
     // A camera that stopped is the one thing a place without a sensor has to report.
-    expect(statusOf({ ...place, deviceIds: [], openAlerts: [{ ...alert, kind: 'camera_stale' as never, severity: 'warning' as const }] }, now).kind).toBe('alert');
+    expect(
+      statusOf({ ...place, deviceIds: [], openAlerts: [{ ...alert, kind: 'camera_stale' as never, severity: 'warning' as const }] }, now).kind,
+    ).toBe('alert');
     expect(statusOf({ ...place, values: [] }, now).kind).toBe('waiting');
   });
 
