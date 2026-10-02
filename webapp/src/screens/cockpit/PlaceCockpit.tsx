@@ -24,6 +24,8 @@ import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
+import { ownStatusOf } from '../control/devices/own-summary';
+import { offsetOf } from '../control/targets/targets-draft';
 import { ControlButton } from '../devices/ControlSwitch';
 import { MaintenanceButton } from '../devices/Maintenance';
 import { livenessOf, measuredAtOf } from '../home/attention';
@@ -143,7 +145,16 @@ export function PlaceCockpit({
       ) : (
         <div className={styles.columns}>
           <div className={styles.column}>
-            <StatusLine status={status} overview={overview} camera={camera} diary={diary} now={now} zone={zone} mayManage={mayManage} />
+            <StatusLine
+              status={status}
+              overview={overview}
+              camera={camera}
+              diary={diary}
+              now={now}
+              zone={zone}
+              mayManage={mayManage}
+              ownLine={ownStatusOf(t, device, offsetOf(now, zone))}
+            />
             {/* Switched off, the way back on stands under the sentence that says so rather than under the tiles. */}
             {mayManage && device?.control && !device.control.running ? (
               <div className={styles.actions}>
@@ -256,6 +267,7 @@ function StatusLine({
   now,
   zone,
   mayManage,
+  ownLine = null,
 }: {
   status: Status;
   overview: SpaceOverview;
@@ -264,6 +276,8 @@ function StatusLine({
   now: DateTime;
   zone: string | null;
   mayManage: boolean;
+  /** What a smart socket or a lamp standing here is set to, which is what it has instead of targets. */
+  ownLine?: string | null;
 }) {
   const { t } = useTranslation();
 
@@ -287,7 +301,7 @@ function StatusLine({
   }
 
   const Icon = STATUS_ICON[status.kind];
-  const text = statusText(t, status, now, zone);
+  const text = status.kind === 'noTargets' && ownLine ? ownLine : statusText(t, status, now, zone);
   const to =
     status.kind === 'alert'
       ? status.alert.kind === 'camera_stale' && camera

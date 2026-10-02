@@ -133,7 +133,19 @@ const wrap = (children: React.ReactNode) =>
 const draw = (one: Socket, refusal: string | null = null, mayManage = true, unheard: string | null = null) => {
   const [row] = rowsOf([one]);
 
-  return wrap(<SocketRow row={row} deviceId="device-1" refusal={refusal} unheard={unheard} mayManage={mayManage} runs={null} now={NOW} />);
+  return wrap(
+    <SocketRow
+      row={row}
+      deviceId="device-1"
+      refusal={refusal}
+      unheard={unheard}
+      mayManage={mayManage}
+      runs={null}
+      now={NOW}
+      capabilities={CAPABILITIES}
+      deviceName="Tent controller"
+    />,
+  );
 };
 
 const device = (configuration: DeviceConfiguration | null): Device => ({ id: 'device-1', type: 'controller', configuration }) as Device;
@@ -1104,7 +1116,7 @@ describe('the device panel', () => {
 
     expect(screen.getByRole('button', { name: 'What Fridge module is' })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('connected')).toBeInTheDocument();
-    expect(screen.getByText('no automatic updates')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Update automatically' })).toHaveAttribute('aria-checked', 'false');
     expect(await screen.findByText('version not known')).toBeInTheDocument();
   });
 
@@ -1216,12 +1228,12 @@ describe('the device panel', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/configuration', { set: { mode: 'greenhouse' } }));
   });
 
-  it('has no control switch and no Advanced for hardware with no work mode', async () => {
+  it('has no control switch and no operating mode for hardware with no work mode', async () => {
     await drawWith([{ ...fridge(), id: 'plug-1', type: 'plug', name: null, control: null } as Device]);
     fireEvent.click(await screen.findByText('Plug'));
 
     expect(screen.queryByRole('button', { name: /control/ })).not.toBeInTheDocument();
-    expect(screen.queryByText('Advanced')).not.toBeInTheDocument();
+    expect(screen.queryByText('Operating mode')).not.toBeInTheDocument();
   });
 
   /** A plug parks nothing, so it is offered the restart and no maintenance that would only be a promise. */

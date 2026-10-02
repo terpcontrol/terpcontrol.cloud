@@ -1,0 +1,125 @@
+/* Pairing a socket by its address and changing one: a short form in a sheet,
+   and the timer of a pump in its row. The fields, chips and notes are the
+   app's own; only how they stand together is said here. */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
+
+.form p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* The two credentials beside each other where there is room, stacked on a phone. */
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-3);
+}
+
+/* "on for [2] [min] every [6] [h]": a sentence with two spans in it. */
+.cycle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.spanValue {
+  width: 4.5rem;
+  text-align: right;
+}
+
+.spanUnit {
+  width: auto;
+}
+
+/* The timer of a pump in its row, and the folded Erweitert under the holds. */
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
+}
+
+.blockHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.advanced {
+  margin-top: var(--space-3);
+}
+
+.advanced > summary {
+  cursor: pointer;
+  width: fit-content;
+}
+
+.advanced[open] > summary {
+  margin-bottom: var(--space-2);
+}
+
+.danger {
+  border-color: var(--alarm);
+  color: var(--alarm);
+}
+
+.dangerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-height);
+  padding: 0 var(--space-4);
+  background: transparent;
+  border: var(--rule-width) solid var(--alarm);
+  border-radius: var(--radius);
+  color: var(--alarm);
+  font: inherit;
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.dangerButton:disabled {
+  border-color: var(--rule);
+  color: var(--muted);
+  cursor: default;
+}
+
+/* The socket list's own Erweitert, under the last section of a device's sockets. */
+.listAdvanced {
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.listAdvanced > summary {
+  cursor: pointer;
+  width: fit-content;
+}

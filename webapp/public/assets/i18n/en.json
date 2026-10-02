@@ -4071,7 +4071,7 @@
       "notReported": "not reported yet",
       "cam": "Cam",
       "noCam": "none",
-      "socketsAtTheDevice": "A socket is paired on the controller itself, which searches the network for it; it turns up in this list once the controller reports it. The app can then switch it - it cannot add one or say what it is for.",
+      "socketsAtTheDevice": "A Terp Control socket is paired on the controller itself – it looks for it on the network – and shows up in this list once it reports it. A Tasmota socket you pair later under Devices › your device › Advanced, by its IP address.",
       "pairTheCam": "Pair a Terp Cam",
       "bothCanWait": "Both can wait: a controller with nothing plugged into it still measures the place it stands in."
     },
@@ -4550,7 +4550,7 @@
     },
     "socketRoles": {
       "title": "Socket roles",
-      "text": "Each smart socket is paired to a role on the device and switches with it: a heater socket with the heater, a light socket with the lamp, a pump or timer socket on its own timer, and a manual one only while you hold it. An exhaust runs from 0.8 °C over the target and stops just above it, a humidifier from 5 points of humidity under the target and stops at the target. Roles are set on the device, not here."
+      "text": "Every smart socket is given a role at the device and switches with it: a heater socket with the heater, a light socket with the lamp, pump or timer by a cycle of its own, and a manual one only while you hold it. An exhaust runs from 0.8 °C over the target and stops just above it, a humidifier from 5 points of humidity under the target and stops at the target. The role is set when the socket is paired; it can be changed under Advanced in the socket."
     },
     "socketHold": {
       "title": "Hold",
@@ -4566,7 +4566,7 @@
     },
     "firmwareChannel": {
       "title": "Updates",
-      "text": "Where the device gets new firmware from. By hand: it stays on the version it has, and new versions do not arrive by themselves. Automatic: new versions are installed as they come out – stable ones, or with beta and alpha test versions too. While an update installs, a controller or fridge module switches every output and socket off for a moment, then restarts."
+      "text": "Whether the device installs new firmware by itself. On: new stable versions arrive by themselves, with their fixes; under Advanced test versions (beta, alpha) can be chosen too. Off: it stays on the version it has. While an update installs, a controller or fridge module switches every output and socket off for a moment, then restarts."
     },
     "stillCadence": {
       "title": "Still every",
@@ -4700,7 +4700,83 @@
       "operatingMode": {
         "title": "Operating mode",
         "text": "What the fridge does as a whole while control is on. Standard holds temperature, humidity, light and CO₂. Greenhouse holds the temperature only: light and CO₂ keep running, the compressor only cools and does not dehumidify on purpose. Germination keeps it dark and heats and cools to the night temperature. Energy saving applies to standard only. A drying phase takes precedence and returns to the operating mode afterwards."
+      },
+      "release": {
+        "title": "Give the device up",
+        "text": "Takes the device out of your account so someone else can add it – after a sale, a move to another account or a swap. Its grow plan, its alarms and the camera connected through it go with it. The place and the diary stay, and nothing changes on the device itself."
+      },
+      "updateChannel": {
+        "title": "Update channel",
+        "text": "Which channel the device installs new firmware from by itself. Stable gets released versions only. Beta gets test versions before everyone else, alpha earlier ones still. Test versions can have faults a stable one does not."
+      },
+      "firmwarePin": {
+        "title": "Firmware version",
+        "text": "Puts one device on a particular build, for example to roll back after a faulty release or to give one customer a test build. The device stays on it until somebody switches automatic updates back on."
+      },
+      "pairSocket": {
+        "title": "Pair a socket by IP",
+        "text": "Pairs a Tasmota socket with this device by its address on the local network. The role says what it switches with: the heater, the dehumidifier, the CO₂, the light – or by a cycle of its own as a pump or an own timer. A Terp Control socket is paired on the device itself."
+      },
+      "editSocket": {
+        "title": "Change a socket",
+        "text": "Rarely needed: the device finds its sockets again by their hardware id, even when the router gives them new addresses. Address, role and credentials can be changed; empty credentials keep what the socket has."
+      },
+      "removeSocket": {
+        "title": "Remove a socket",
+        "text": "The device forgets the socket and resets it. It then no longer switches along and leaves the list. Only works while the device is connected."
+      },
+      "co2Dosing": {
+        "title": "CO₂ dosing",
+        "text": "Throughout opens the valve whenever the reading drops below the switch-on point. In intervals, the socket doses only in one window of every interval – for example 10 minutes every hour – so a fan can be slowed during that time."
+      },
+      "co2Fan": {
+        "title": "Slow an AIR fan",
+        "text": "While the socket doses in intervals, an AIR fan runs at the set speed at most, so the CO₂ is not blown out again right away. The fan knows the socket's dosing windows for it; when its interval changes, the fan is told."
+      },
+      "plugProtections": {
+        "title": "Protections",
+        "text": "Switch the socket off whatever it is regulating: above a temperature, below a temperature, and they keep least times on and off so an appliance does not switch every few seconds. It comes back on only once the reading is back by the set gap."
+      },
+      "lightRamp": {
+        "title": "Sunrise and sunset",
+        "text": "How many minutes the lamp takes to ramp up after it comes on and to dim down before it goes off. 0 switches it hard on and off."
+      },
+      "lightOverheat": {
+        "title": "Overheat protection",
+        "text": "Above this temperature at the light module the lamp dims itself down until it is cooler again. That protects the lamp and the plants right under it."
       }
+    },
+    "socketTimer": {
+      "title": "Timer",
+      "text": "A socket with the role Pump or Own timer switches by its own cycle, not by the climate: for example on for 2 minutes, every 6 hours. Without a timer it stays off. The cycle keeps running on the device even when the connection to the cloud is gone."
+    },
+    "plugMode": {
+      "title": "Switches by",
+      "text": "What the socket regulates with its own sensor: heating, cooling, humidifying, dehumidifying or CO₂ – then it switches at two points of the reading. With a timer it switches at set times of day, and Off keeps it off."
+    },
+    "plugDayNight": {
+      "title": "Day and night",
+      "text": "The socket knows the day only as a time: it begins at “Day from” and ends at “Night from”, on your clock. With switch points of their own at night it regulates to other values at night; in CO₂ mode it does not dose at night at all."
+    },
+    "switchPoints": {
+      "title": "Switch points",
+      "text": "Two values rather than one target: at one the socket switches on, at the other off. The gap between them keeps it from switching back and forth with every reading – the wider it is, the less often it switches, and the further the reading swings."
+    },
+    "timerWindows": {
+      "title": "Time windows",
+      "text": "When the socket is on, the same every day: from a time of day for so many minutes. A window may run past midnight. The times are on your clock and move with daylight saving time."
+    },
+    "fanMode": {
+      "title": "The fan runs",
+      "text": "Fixed: the AIR runs at one set speed by day and another at night. By temperature, humidity or both: it runs at its lowest speed while the reading stays under the target, and speeds up the further the reading rises above it – up to its highest speed. Day, for the AIR, is while its light sensor sees light."
+    },
+    "fanSpeeds": {
+      "title": "Speed",
+      "text": "As a share of full speed. In fixed mode one value holds by day and one at night. Regulated, the fan never runs slower than “At least” and never faster than “Most” – so the night stays quiet and the air still moves."
+    },
+    "lightSchedule": {
+      "title": "Light",
+      "text": "When the lamp comes on and goes off, on your clock: the times move with daylight saving time. The brightness is the most it ramps up to. How long it fades in and out is under Advanced at the device."
     }
   },
   "place": {
@@ -4922,5 +4998,263 @@
     "greenhouseNote": "Temperature only: light and CO₂ run, the compressor only cools, humidity is not controlled.",
     "germination": "Germination",
     "germinationNote": "In the dark: no light, no CO₂. Heats and cools to the night temperature."
+  },
+  "release": {
+    "label": "Give the device up",
+    "open": "Remove from account …",
+    "note": "After a sale, a move to another account or a swap: someone else can then add it with the code on its display.",
+    "title": "Give {{name}} up",
+    "sureTitle": "Really give it up?",
+    "what": "“{{name}}” leaves your account. Whoever holds the device next adds it to their own account with the code on its display.",
+    "goes": "Its grow plan, its alarms and the camera connected through it go with the device.",
+    "stays": "The place {{place}} and its diary stay. Nothing changes on the device itself: it keeps regulating with its last settings until someone else takes it over.",
+    "staysNowhere": "Nothing changes on the device itself: it keeps regulating with its last settings until someone else takes it over.",
+    "next": "Continue",
+    "sure": "This cannot be undone. The device only comes back to your account if you add it again with the code on its display, as the first time.",
+    "yes": "Remove for good",
+    "releasing": "Removing …",
+    "done": "“{{name}}” has left your account and can now be added by someone else."
+  },
+  "autoUpdate": {
+    "label": "Update automatically",
+    "note": {
+      "stable": "New stable firmware installs by itself.",
+      "beta": "New firmware installs by itself, test releases too (beta, under Advanced).",
+      "alpha": "New firmware installs by itself, early test releases too (alpha, under Advanced).",
+      "manual": "Off: the device stays on its version, and fixes do not arrive by themselves either."
+    }
+  },
+  "updateChannel": {
+    "label": "Update channel",
+    "stable": "Stable",
+    "beta": "Beta",
+    "alpha": "Alpha",
+    "note": {
+      "stable": "Only released versions.",
+      "beta": "Test releases too, before they are released to everyone.",
+      "alpha": "Early test releases too, for whoever tries new things first.",
+      "manual": "Automatic updates are off. Choosing a channel here switches them on."
+    }
+  },
+  "firmwarePin": {
+    "label": "Firmware version",
+    "note": "Admins only: install a particular build, for example to roll back.",
+    "pick": "Pick a build …",
+    "none": "No builds for this device class",
+    "running": "running",
+    "wasStable": "was stable",
+    "install": "Install …",
+    "title": "Firmware for {{name}}",
+    "what": "“{{name}}” installs {{build}} and stays on it: automatic updates switch off with it.",
+    "restart": "While it updates the device switches its outputs off for a moment and restarts. Whether it worked shows under Firmware afterwards.",
+    "yes": "Install",
+    "sent": "“{{name}}” is to install {{build}}. If the device is connected, it starts right away."
+  },
+  "socketForm": {
+    "pair": {
+      "label": "Pair a socket by IP",
+      "open": "Pair …",
+      "note": "For a Tasmota socket on the same Wi-Fi.",
+      "title": "Pair a socket by IP",
+      "intro": "For a Tasmota socket – NOUS, Athom or a Shelly you flashed yourself – on the same Wi-Fi as {{device}}. A Terp Control socket is paired on the device itself: Settings › Smart Sockets.",
+      "yes": "Pair",
+      "sent": "Sent. The socket appears in the list once {{device}} reports it, usually within half a minute."
+    },
+    "unheard": "{{device}} is not listening right now, so nothing changed. Try again once it is connected.",
+    "role": "Role",
+    "address": "Address",
+    "addressHint": "IP address or name on the local network.",
+    "username": "User",
+    "password": "Password",
+    "credentialsHint": "Only needed if the socket has a web password.",
+    "credentialsKeep": "Leave empty to keep what the socket has.",
+    "reach": "Switching happens on the local network, from the device: the socket only has to be reachable for the device, not from the internet.",
+    "cycle": {
+      "label": "Timer",
+      "on": "on for",
+      "every": "every",
+      "onLabel": "How long on",
+      "everyLabel": "How often",
+      "unitLabel": "Unit of “{{what}}”"
+    },
+    "problem": {
+      "role": "Choose a role.",
+      "address": "An address without spaces, 40 characters at most.",
+      "credentials": "User and password are 48 characters at most.",
+      "timer": "The socket has to be on for less than its interval, and the interval a day at most.",
+      "timerFirmware": "This firmware has no timer. It comes with a firmware update."
+    },
+    "noRoles": "This firmware does not say which roles it knows, so nothing can be paired here. A firmware update brings it; until then, pair on the device itself.",
+    "edit": {
+      "label": "Address, role, credentials",
+      "open": "Change …",
+      "title": "Change {{name}}",
+      "yes": "Send",
+      "sent": "Sent. The list shows the change once {{device}} reports its sockets.",
+      "noAddress": "The device reports no address for this socket, so it can only be changed on the device itself."
+    },
+    "remove": {
+      "label": "Remove the socket",
+      "open": "Remove …",
+      "title": "Remove {{name}}?",
+      "text": "The device forgets the socket ({{address}}) and resets it; it no longer switches along. A Terp Control socket is then paired again on the device, a Tasmota socket here by IP.",
+      "yes": "Remove",
+      "sent": "Sent. The socket leaves the list once the device reports its sockets."
+    },
+    "timer": {
+      "label": "Timer",
+      "missing": "No timer set – without one the socket stays off.",
+      "change": "Change",
+      "set": "Set",
+      "save": "Send",
+      "value": "on for {{on}}, every {{every}}"
+    }
+  },
+  "ownPanel": {
+    "title": "Settings",
+    "waiting": "{{device}} has not sent its settings yet, so there is nothing to change here. Changing any setting on the device itself sends them; connecting alone does not.",
+    "sentNote": "The device acknowledges no setting; what it really does shows in its readings.",
+    "status": "Readings arrive · socket: {{mode}}",
+    "statusLight": "Readings arrive · light {{on}}–{{off}}",
+    "sentAt": "Sent to the device at {{time}}"
+  },
+  "plugSettings": {
+    "mode": {
+      "label": "Switches by",
+      "off": "Off",
+      "heater": "Heating",
+      "cooler": "Cooling",
+      "humidify": "Humidifying",
+      "dehumidify": "Dehumidifying",
+      "co2": "CO₂",
+      "timer": "Timer"
+    },
+    "modeNote": {
+      "off": "The socket stays off.",
+      "heater": "For a heater: on once it is colder than the switch-on point, off above the switch-off point.",
+      "cooler": "For a cooler or a fan: on once it is warmer than the switch-on point, off below the switch-off point.",
+      "humidify": "For a humidifier: on once the air is drier than the switch-on point, off above the switch-off point.",
+      "dehumidify": "For a dehumidifier: on once the air is more humid than the switch-on point, off below the switch-off point.",
+      "co2": "For a CO₂ valve: on below the switch-on point, off above the switch-off point. Needs the CO₂ sensor sold as an accessory; without it the socket stays off.",
+      "timer": "The socket switches at set times of day, whatever the readings say."
+    },
+    "dayNight": "Own switch points at night",
+    "dayNightOn": "Day and night each have their own switch points.",
+    "dayNightOff": "The same switch points hold round the clock.",
+    "dayOnly": "Dose by day only",
+    "dayOnlyOn": "The valve stays shut at night.",
+    "dayOnlyOff": "Doses round the clock whenever the reading drops below the switch-on point.",
+    "dayLabel": "Day and night",
+    "dayFrom": "Day from",
+    "nightFrom": "Night from",
+    "points": "Switch points",
+    "day": "By day",
+    "night": "At night",
+    "edge": {
+      "rising": {
+        "on": "On below",
+        "off": "Off above"
+      },
+      "falling": {
+        "on": "On above",
+        "off": "Off below"
+      }
+    },
+    "pointName": "{{edge}} – {{half}}",
+    "crossed": {
+      "rising": "The switch-on point has to be below the switch-off point, or the socket keeps switching back and forth.",
+      "falling": "The switch-on point has to be above the switch-off point, or the socket keeps switching back and forth."
+    },
+    "windows": {
+      "label": "Time windows",
+      "none": "No time window: the socket stays off.",
+      "add": "+ Time window",
+      "most": "{{count}} time windows at most.",
+      "at": "on at",
+      "atLabel": "Time window {{number}}: on at",
+      "for": "for",
+      "forLabel": "Time window {{number}}: minutes",
+      "minutes": "min",
+      "ends": "until {{time}}",
+      "remove": "Remove time window {{number}}",
+      "bad": "Every time window runs 1 to 1440 minutes."
+    },
+    "summary": {
+      "rising": "on below {{on}} · off above {{off}}",
+      "falling": "on above {{on}} · off below {{off}}",
+      "dayOnly": "by day only",
+      "noWindows": "none"
+    }
+  },
+  "fanSettings": {
+    "mode": {
+      "label": "The fan runs",
+      "fixed": "Fixed",
+      "temperature": "By temperature",
+      "humidity": "By humidity",
+      "both": "By both"
+    },
+    "modeNote": {
+      "fixed": "Runs at the set speed by day and at night. The targets above do not apply then.",
+      "temperature": "Speeds up once it is warmer than 1 °C below the target temperature, and runs at its most 1 °C above it. The humidity above does not apply.",
+      "humidity": "Speeds up once the air is more humid than 5 % below the target humidity, and runs at its most 5 % above it. The temperature above does not apply.",
+      "both": "Follows whichever of the two readings is further over its target."
+    },
+    "speeds": "Speed",
+    "day": "By day",
+    "night": "At night",
+    "mostDay": "Most by day",
+    "mostNight": "Most at night",
+    "least": "At least",
+    "aria": {
+      "fixedDay": "Speed by day",
+      "fixedNight": "Speed at night",
+      "mostDay": "Highest speed by day",
+      "mostNight": "Highest speed at night",
+      "least": "Lowest speed"
+    },
+    "mostBelowLeast": "The highest speed cannot be below the lowest.",
+    "slowed": "While {{plug}} doses CO₂, the fan runs at {{speed}} % at most.",
+    "uncouple": "Stop slowing it"
+  },
+  "lightSettings": {
+    "title": "Light",
+    "on": "Light on at",
+    "off": "Light off at",
+    "hours": "on {{hours}} h"
+  },
+  "plugCo2": {
+    "label": "CO₂ dosing",
+    "const": "Throughout",
+    "periodic": "In intervals",
+    "constNote": "The valve opens whenever the reading drops below the switch-on point.",
+    "periodicNote": "Doses only in one window of every interval, say 10 minutes every hour.",
+    "every": "Interval",
+    "for": "Dosing for",
+    "fan": "Slow an AIR fan",
+    "noFan": "None",
+    "fanSpeed": "Fan while dosing",
+    "fanNone": "No fan is slowed.",
+    "fanNote": "While dosing, the fan runs at {{speed}} % at most so the CO₂ stays in the tent."
+  },
+  "plugProtections": {
+    "overheat": "Off when too hot",
+    "overheatAt": "Off above",
+    "overheatBack": "On again once this much cooler",
+    "cold": "Off when too cold",
+    "coldAt": "Off below",
+    "coldBack": "On again once this much warmer",
+    "least": "Least times",
+    "leastOn": "On at least",
+    "leastOff": "Off at least",
+    "needsFirmware": "This firmware does not keep to the protections. A firmware update brings them; until then they cannot be set."
+  },
+  "lightRamp": {
+    "sunrise": "Sunrise",
+    "sunset": "Sunset"
+  },
+  "lightOverheat": {
+    "label": "Dim from",
+    "note": "Measured at the light module itself. Above it, the light dims itself to stay safe."
   }
 }

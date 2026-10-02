@@ -1,0 +1,115 @@
+/* What a smart socket, an AIR fan and a LIGHT are set to under Steuerung. The
+   rows, blocks, chips and the save bar are the targets page's own; what is
+   drawn here is the line under a choice, a switch in a card of its own, and
+   the windows of a socket's timer. */
+
+.note {
+  margin: var(--space-2) 0 0;
+  line-height: 1.5;
+}
+
+/* One switch with its name and (i) on the left, and what it means under them. */
+.switchRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.switchLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.switchNote {
+  grid-column: 1 / -1;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.empty {
+  margin: 0;
+  padding: var(--space-3);
+}
+
+/* "on at [10:00] for [15] min · until 10:15  ×": one window of a timer, which
+   wraps on a phone with the cross staying at the end of its first line. */
+.window {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
+.windowPart {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.windowWord {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.windowTime {
+  width: 7rem;
+  padding-inline: var(--space-2);
+}
+
+.windowMinutes {
+  width: 4.5rem;
+  text-align: right;
+}
+
+.windowEnds {
+  flex: 1;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.windowRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  margin-left: auto;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.windowRemove:hover {
+  color: var(--ink);
+}
+
+.windowAdd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+/* A coupling to another device, said in a card under the panel's figures. */
+.coupled {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.coupledText {
+  flex: 1 1 14rem;
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}

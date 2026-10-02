@@ -254,7 +254,8 @@ describe('adding a device', () => {
     draw('/claim?device=sim-controller-7f3a&at=3');
 
     expect(await screen.findByRole('link', { name: 'Pair a Terp Cam' })).toHaveAttribute('href', '/cameras/add');
-    expect(screen.getByText(/A socket is paired on the controller itself/)).toBeInTheDocument();
+    expect(screen.getByText(/A Terp Control socket is paired on the controller itself/)).toBeInTheDocument();
+    expect(screen.getByText(/A Tasmota socket you pair later under Devices › your device › Advanced/)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Devices tab/ })).not.toBeInTheDocument();
   });
 

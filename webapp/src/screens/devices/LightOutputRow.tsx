@@ -96,8 +96,8 @@ export function LightOutputRow({ output, spaceId = null, unheard, mayManage, run
   // them: it is set on Steuerung, beside the hours the light is on, and saved
   // with them. A second slider here wrote the same figure at once on release
   // under another name, so the row says what it is and where it is changed. A
-  // plain lamp has no targets page and keeps its slider.
-  const limitOnTargets = spaceId !== null && !!output.configuration && statesTargets(output.configuration);
+  // LIGHT module is set on Steuerung too, beside the times it is on.
+  const limitOnTargets = spaceId !== null && !!output.configuration && (statesTargets(output.configuration) || output.type === 'light');
   // Why the buttons are out of reach. The old build's refusal ends by pointing
   // at the brightness as the half that gets through anyway, which is the whole
   // of its comfort - and on a device that has sent no settings there is no
@@ -110,7 +110,7 @@ export function LightOutputRow({ output, spaceId = null, unheard, mayManage, run
   // not waiting for an update, so it is not told to.
   const neverHolds = !SOCKET_HOST_TYPES.includes(output.type);
   const cannotForce = neverHolds
-    ? t(cannotSetLevel ? 'devices.lightOutput.neverHoldsAlone' : 'devices.lightOutput.neverHolds')
+    ? t(cannotSetLevel || limitOnTargets ? 'devices.lightOutput.neverHoldsAlone' : 'devices.lightOutput.neverHolds')
     : !output.takesOverride
       ? t(cannotSetLevel ? 'devices.lightOutput.needsFirmwareAlone' : 'devices.lightOutput.needsFirmware')
       : unheard;

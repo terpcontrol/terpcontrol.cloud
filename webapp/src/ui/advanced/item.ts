@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import type { Device } from '@fg2/shared-types/v1';
+import type { Device, SocketPage } from '@fg2/shared-types/v1';
 
 /**
  * The items an Erweitert section offers, wherever one stands: per device in its
@@ -25,6 +25,12 @@ export interface DeviceContext {
   mayManage: boolean;
   /** Gone quiet: a change is stored and sent, and the device takes it when it is back. */
   offline: boolean;
+  /** Whether the person may give the device up, which is the owner's alone. Left out, they may not. */
+  mayOwn?: boolean;
+  /** Whether the person runs this install, which some of what is here is for. Left out, they do not. */
+  isAdmin?: boolean;
+  /** The device's smart sockets as it last reported them, once read; left out for a device that drives none. */
+  sockets?: SocketPage;
 }
 
 /** What an item about one place is drawn with. */

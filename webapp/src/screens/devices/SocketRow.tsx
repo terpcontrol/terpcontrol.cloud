@@ -2,13 +2,15 @@ import { ChevronDown, ChevronRight, Plug } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ActuatorRuns, SocketOverrideState } from '@fg2/shared-types/v1';
+import type { ActuatorRuns, DeviceCapabilities, SocketOverrideState } from '@fg2/shared-types/v1';
 import { useSetOverride, useTestSocket } from '@/api/devices';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { ageLabel, leftLabel } from '@/ui/age';
 import { Fact, Facts } from './Facts';
+import { isTimed } from './socket-form';
 import { defaultHold, durationLabel, holdsFor, TEST_SECONDS, type SocketRowModel } from './sockets';
+import { SocketAdvanced, SocketTimerBlock } from './SocketSheets';
 import styles from './Devices.module.css';
 import { refusalText } from '@/ui/refusal';
 
@@ -36,6 +38,10 @@ interface SocketRowProps {
   /** What this row's output did in the last day, where the tent's verdict is already in hand. */
   runs: ActuatorRuns | null;
   now: DateTime;
+  /** What the device's build understands, which decides whether a timer or a role can be sent at all. */
+  capabilities: DeviceCapabilities;
+  /** The device that drives this socket, as its own row names it. */
+  deviceName: string;
 }
 
 /**
@@ -54,7 +60,7 @@ interface SocketRowProps {
  * Nothing here pretends a command arrived: the row goes on showing what the
  * device last reported, and what the command answered is said underneath.
  */
-export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, now }: SocketRowProps) {
+export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, now, capabilities, deviceName }: SocketRowProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const override = useSetOverride();
@@ -177,6 +183,12 @@ export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, no
             </div>
           ) : null}
           <Receipt result={test.data} error={test.error} pending={test.isPending} />
+
+          {/* What a pump or a timer of one's own repeats: without it the socket stays off. */}
+          {mayManage && isTimed(row.role) ? <SocketTimerBlock deviceId={deviceId} row={row} capabilities={capabilities} refusal={unheard} /> : null}
+          {mayManage ? (
+            <SocketAdvanced deviceId={deviceId} deviceName={deviceName} name={name} row={row} capabilities={capabilities} unheard={unheard} />
+          ) : null}
         </div>
       ) : null}
     </li>

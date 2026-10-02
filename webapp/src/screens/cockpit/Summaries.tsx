@@ -14,6 +14,8 @@ import { useZone } from '@/ui/zone';
 import { boundsOf, channelsLabel, ruleTitle } from '../control/alarms/rules';
 import { targetFigure, UNIT } from '../home/units';
 import { alarmsReach, reachedBy } from '../notifications/reach';
+import { plugSummaryOf } from '../control/devices/own-summary';
+import { offsetOf } from '../control/targets/targets-draft';
 import { hoursFigure, lightWindowOf } from './place';
 import styles from './Cockpit.module.css';
 
@@ -71,12 +73,16 @@ export function TargetsSummary({
   const { t } = useTranslation();
   const zone = useZone();
   const light = lightWindowOf(device, now, zone);
-  const rows = targets
-    ? [
-        { label: t('cockpit.targets.day'), parts: halfOf(targets.day, true) },
-        { label: t('cockpit.targets.night'), parts: halfOf(targets.night, false) },
-      ].filter(row => row.parts.length > 0)
-    : [];
+  // A smart socket has no targets but switch points of its own, which are what it is set to.
+  const plug = device ? plugSummaryOf(t, device, offsetOf(now, zone)) : null;
+  const rows = plug
+    ? plug
+    : targets
+      ? [
+          { label: t('cockpit.targets.day'), parts: halfOf(targets.day, true) },
+          { label: t('cockpit.targets.night'), parts: halfOf(targets.night, false) },
+        ].filter(row => row.parts.length > 0)
+      : [];
   if (light) {
     const parts = [t('cockpit.light.window', { on: light.on, off: light.off, hours: hoursFigure(light.hours) })];
     if (light.limit < 100) parts.push(t('cockpit.targets.limit', { percent: light.limit }));

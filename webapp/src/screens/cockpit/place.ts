@@ -49,7 +49,14 @@ export type Steered = 'temperature' | 'humidity' | 'co2';
  */
 export const climateDeviceOf = (devices: Device[] | undefined, deviceIds: readonly string[] | null): Device | null => {
   const here = (devices ?? []).filter(device => deviceIds?.includes(device.id));
-  return here.find(device => statesTargets(device.configuration)) ?? here[0] ?? null;
+  // An AIR fan states a temperature and a humidity too, but it follows the
+  // tent's controller rather than standing for it: it has no lamp and no CO2.
+  return (
+    here.find(device => statesTargets(device.configuration) && device.type !== 'fan') ??
+    here.find(device => statesTargets(device.configuration)) ??
+    here[0] ??
+    null
+  );
 };
 
 export const valueOf = (values: CardValue[], metric: Metric): CardValue | null =>
@@ -208,7 +215,9 @@ const clockOf = (seconds: number): string => {
  * one into the other.
  */
 export const lightWindowOf = (device: Device | null, now: DateTime, zone: string | null): LightWindow | null => {
-  if (!device?.configuration || !statesTargets(device.configuration)) return null;
+  if (device?.type === 'light') return lampWindowOf(device, now, zone);
+  // A fan's day is what its light sensor sees; it keeps no light window of its own.
+  if (!device?.configuration || !statesTargets(device.configuration) || device.type === 'fan') return null;
   const draft = draftOf(device.configuration);
   const offset = offsetOf(now, zone);
   const local = (((draft.lightsOn + offset) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
@@ -219,6 +228,24 @@ export const lightWindowOf = (device: Device | null, now: DateTime, zone: string
     on: clockOf(draft.lightsOn + offset),
     off: clockOf(lightsOffOf(draft) + offset),
     limit: draft.lightLimit,
+  };
+};
+
+/** A LIGHT keeps its times and its brightness at the top of its document. */
+const lampWindowOf = (device: Device, now: DateTime, zone: string | null): LightWindow | null => {
+  const document = device.configuration;
+  const on = document?.day;
+  const off = document?.night;
+  if (typeof on !== 'number' || typeof off !== 'number') return null;
+
+  const offset = offsetOf(now, zone);
+  const seconds = (((off - on) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
+  return {
+    start: ((((on + offset) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS) / 3600,
+    hours: seconds / 3600,
+    on: clockOf(on + offset),
+    off: clockOf(off + offset),
+    limit: typeof document?.limit === 'number' ? document.limit : 100,
   };
 };
 

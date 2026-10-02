@@ -222,13 +222,23 @@ beforeEach(() => {
 });
 
 describe('the targets page', () => {
-  it('says so when nothing standing here states a climate, and offers the one thing that helps', () => {
-    draw([device({ id: 'plug-1', type: 'plug', configuration: { workmode: 'heater', 'heater.day.on': 24 } })]);
+  it('says so when nothing standing here states a climate or has settings of its own, and offers the one thing that helps', () => {
+    draw([device({ id: 'cam-hub', type: 'cam', configuration: { anything: 1 } })]);
 
     expect(screen.getByText(/Nothing standing here states a climate/)).toBeInTheDocument();
     expect(screen.queryByRole('slider')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/claim');
     expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
+  });
+
+  /** A smart socket on its own is its owner's whole tent: what it switches by is set here, not asked for a device it has no use for. */
+  it('draws what a smart socket standing here alone switches by, instead of asking for another device', () => {
+    draw([device({ id: 'plug-1', type: 'plug', configuration: { workmode: 'heater', heater: { day: { on: 24, off: 27 } } } })]);
+
+    expect(screen.getByRole('button', { name: 'Heating' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('slider', { name: 'On below – Switch points' })).toHaveValue('24');
+    expect(screen.queryByText(/Nothing standing here states a climate/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Add a device' })).not.toBeInTheDocument();
   });
 
   /**
@@ -252,11 +262,11 @@ describe('the targets page', () => {
     expect(screen.queryByRole('slider')).not.toBeInTheDocument();
   });
 
-  it('keeps asking for a device where the only thing standing here is a plug that has sent nothing', () => {
+  it('says a smart socket that has sent nothing has nothing to change yet, rather than asking for another device', () => {
     draw([device({ id: 'plug-1', type: 'plug', configuration: null })]);
 
-    expect(screen.getByText(/Nothing standing here states a climate/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Add a device' })).toBeInTheDocument();
+    expect(screen.getByText(/has not sent its settings yet, so there is nothing to change here/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Add a device' })).not.toBeInTheDocument();
   });
 
   it('draws the targets the controller is running, with the VPD and when the light comes on and goes off', async () => {

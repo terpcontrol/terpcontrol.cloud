@@ -82,24 +82,27 @@ export const draftOf = (configuration: DeviceConfiguration): TargetsDraft => {
  * The document to send for a draft: the old one, with the figures put into
  * their sections and the flat spelling of each removed where it was used, so
  * one document never states the same figure twice.
+ *
+ * `climateOnly` is an AIR fan's document, which holds a temperature and a
+ * humidity and nothing of a light or of CO2: its day is what its light sensor
+ * sees, so those sections would be keys it never reads.
  */
-export const withDraft = (configuration: DeviceConfiguration, draft: TargetsDraft): DeviceConfiguration => {
+export const withDraft = (configuration: DeviceConfiguration, draft: TargetsDraft, climateOnly = false): DeviceConfiguration => {
   const next: DeviceConfiguration = { ...configuration };
   for (const flat of [
     'day.temperature',
     'day.humidity',
     'night.temperature',
     'night.humidity',
-    'co2.target',
-    'lights.limit',
-    'daynight.day',
-    'daynight.night',
+    ...(climateOnly ? [] : ['co2.target', 'lights.limit', 'daynight.day', 'daynight.night']),
   ]) {
     delete next[flat];
   }
 
   next.day = { ...sectionOf(configuration, 'day'), temperature: draft.dayTemperature, humidity: draft.dayHumidity };
   next.night = { ...sectionOf(configuration, 'night'), temperature: draft.nightTemperature, humidity: draft.nightHumidity };
+  if (climateOnly) return next;
+
   next.co2 = { ...sectionOf(configuration, 'co2'), target: draft.co2 };
   next.lights = { ...sectionOf(configuration, 'lights'), limit: draft.lightLimit };
   next.daynight = { ...sectionOf(configuration, 'daynight'), day: draft.lightsOn, night: lightsOffOf(draft) };
@@ -133,14 +136,15 @@ export const prefilled = (draft: TargetsDraft, preset: ClimatePreset): TargetsDr
  * chip chosen. A tent without a CO2 sensor has no CO2 slider, so its figure is
  * not held against the draft there: the firmware forces it to nothing anyway.
  */
-export const equalsPreset = (draft: TargetsDraft, preset: ClimatePreset, hasCo2: boolean): boolean =>
+export const equalsPreset = (draft: TargetsDraft, preset: ClimatePreset, hasCo2: boolean, climateOnly = false): boolean =>
   draft.dayTemperature === preset.dayTemperature &&
   draft.dayHumidity === preset.dayHumidity &&
   draft.nightTemperature === preset.nightTemperature &&
   draft.nightHumidity === preset.nightHumidity &&
-  draft.lightLimit === preset.lightLimit &&
-  (preset.lightHours === null || draft.lightHours === preset.lightHours) &&
-  (!hasCo2 || draft.co2 === preset.co2);
+  (climateOnly ||
+    (draft.lightLimit === preset.lightLimit &&
+      (preset.lightHours === null || draft.lightHours === preset.lightHours) &&
+      (!hasCo2 || draft.co2 === preset.co2)));
 
 export const sameDraft = (a: TargetsDraft, b: TargetsDraft): boolean => (Object.keys(a) as (keyof TargetsDraft)[]).every(key => a[key] === b[key]);
 

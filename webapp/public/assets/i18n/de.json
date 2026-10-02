@@ -4075,7 +4075,7 @@
       "notReported": "noch nicht gemeldet",
       "cam": "Cam",
       "noCam": "keine",
-      "socketsAtTheDevice": "Eine Steckdose wird am Controller selbst gekoppelt - er sucht sie im Netzwerk - und taucht in dieser Liste auf, sobald er sie meldet. Die App kann sie danach schalten; hinzufügen oder ihr eine Aufgabe geben kann sie nicht.",
+      "socketsAtTheDevice": "Eine Steckdose von Terp Control wird am Controller selbst gekoppelt – er sucht sie im Netzwerk – und taucht in dieser Liste auf, sobald er sie meldet. Eine Tasmota-Steckdose koppelst du später unter Geräte › dein Gerät › Erweitert per IP-Adresse.",
       "pairTheCam": "Terp Cam koppeln",
       "bothCanWait": "Beides hat Zeit: ein Controller misst den Ort, an dem er steht, auch wenn nichts eingesteckt ist."
     },
@@ -4554,7 +4554,7 @@
     },
     "socketRoles": {
       "title": "Steckdosen-Rollen",
-      "text": "Jede smarte Steckdose ist am Gerät einer Rolle zugeordnet und schaltet mit ihr: eine Heizungs-Steckdose mit der Heizung, eine Licht-Steckdose mit der Lampe, Pumpe oder Timer nach eigenem Timer und eine manuelle nur, solange du sie hältst. Eine Abluft läuft ab 0,8 °C über dem Ziel und hört knapp darüber auf, ein Befeuchter ab 5 Punkten Luftfeuchte unter dem Ziel und hört beim Ziel auf. Die Rollen werden am Gerät festgelegt, nicht hier."
+      "text": "Jede smarte Steckdose ist am Gerät einer Rolle zugeordnet und schaltet mit ihr: eine Heizungs-Steckdose mit der Heizung, eine Licht-Steckdose mit der Lampe, Pumpe oder Timer nach eigener Zeitschaltung und eine manuelle nur, solange du sie hältst. Eine Abluft läuft ab 0,8 °C über dem Ziel und hört knapp darüber auf, ein Befeuchter ab 5 Punkten Luftfeuchte unter dem Ziel und hört beim Ziel auf. Die Rolle wird beim Koppeln festgelegt; ändern lässt sie sich unter Erweitert in der Steckdose."
     },
     "socketHold": {
       "title": "Halten",
@@ -4570,7 +4570,7 @@
     },
     "firmwareChannel": {
       "title": "Updates",
-      "text": "Woher das Gerät neue Firmware bekommt. Von Hand: Es bleibt bei der Version, die es hat, und neue Versionen kommen nicht von selbst. Automatisch: Neue Versionen werden installiert, sobald sie erscheinen – stabile, bei Beta und Alpha auch Testversionen. Während eines Updates schalten Controller und Kühlschrankmodul alle Ausgänge und Steckdosen kurz aus und starten neu."
+      "text": "Ob das Gerät neue Firmware selbst installiert. An: Neue stabile Versionen kommen von selbst, mit Fehlerbehebungen; unter Erweitert lassen sich auch Testversionen (Beta, Alpha) wählen. Aus: Es bleibt bei der Version, die es hat. Während eines Updates schalten Controller und Kühlschrankmodul alle Ausgänge und Steckdosen kurz aus und starten neu."
     },
     "stillCadence": {
       "title": "Bild alle",
@@ -4704,7 +4704,83 @@
       "operatingMode": {
         "title": "Betriebsart",
         "text": "Was der Kühlschrank als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂. Gewächshaus regelt nur die Temperatur: Licht und CO₂ laufen weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Keimung hält es dunkel und heizt und kühlt auf die Nachttemperatur. Der Energiespar-Modus gilt nur im Standard. Eine Trocknungsphase geht vor und kehrt danach zur Betriebsart zurück."
+      },
+      "release": {
+        "title": "Gerät abgeben",
+        "text": "Nimmt das Gerät aus deinem Konto, damit jemand anderes es hinzufügen kann – nach einem Verkauf, einem Kontowechsel oder einem Gerätetausch. Sein Grow-Plan, seine Alarme und die Kamera, die über das Gerät verbunden ist, gehen mit. Der Ort und das Tagebuch bleiben, und am Gerät selbst ändert sich nichts."
+      },
+      "updateChannel": {
+        "title": "Update-Kanal",
+        "text": "Von welchem Kanal das Gerät neue Firmware selbst installiert. Stabil bekommt nur freigegebene Versionen. Beta bekommt Testversionen, bevor sie alle bekommen, Alpha noch frühere. Testversionen können Fehler haben, die eine stabile nicht hat."
+      },
+      "firmwarePin": {
+        "title": "Firmware-Version",
+        "text": "Setzt ein einzelnes Gerät auf einen bestimmten Build, etwa um nach einem fehlerhaften Release zurückzurollen oder einem Kunden eine Testversion zu geben. Das Gerät bleibt darauf, bis jemand automatische Updates wieder einschaltet."
+      },
+      "pairSocket": {
+        "title": "Steckdose per IP koppeln",
+        "text": "Koppelt eine Tasmota-Steckdose über ihre Adresse im lokalen Netz an dieses Gerät. Die Rolle sagt, womit sie schaltet: mit der Heizung, dem Entfeuchter, dem CO₂, dem Licht – oder nach eigenem Takt als Pumpe oder eigener Timer. Eine Steckdose von Terp Control koppelst du am Gerät selbst."
+      },
+      "editSocket": {
+        "title": "Steckdose ändern",
+        "text": "Braucht es selten: Das Gerät findet seine Steckdosen an ihrer Hardware-ID wieder, auch wenn der Router ihnen neue Adressen gibt. Ändern lassen sich Adresse, Rolle und Zugangsdaten; leere Zugangsdaten behalten, was die Steckdose hat."
+      },
+      "removeSocket": {
+        "title": "Steckdose entfernen",
+        "text": "Das Gerät vergisst die Steckdose und setzt sie zurück. Sie schaltet dann nicht mehr mit und verschwindet aus der Liste. Geht nur, solange das Gerät verbunden ist."
+      },
+      "co2Dosing": {
+        "title": "CO₂-Dosierung",
+        "text": "Durchgehend öffnet das Ventil, sobald der Wert unter den Einschaltpunkt fällt. In Intervallen dosiert die Steckdose nur in einem Fenster jedes Intervalls – zum Beispiel 10 Minuten jede Stunde –, damit ein Lüfter in dieser Zeit gedrosselt werden kann."
+      },
+      "co2Fan": {
+        "title": "AIR-Lüfter drosseln",
+        "text": "Während die Steckdose in Intervallen dosiert, läuft ein AIR-Lüfter höchstens mit der eingestellten Drehzahl, damit das CO₂ nicht gleich wieder hinausgeblasen wird. Der Lüfter kennt dafür die Dosierfenster der Steckdose; ändert sich ihr Intervall, bekommt er es mit."
+      },
+      "plugProtections": {
+        "title": "Schutzfunktionen",
+        "text": "Schalten die Steckdose ab, egal was sie gerade regelt: über einer Temperatur, unter einer Temperatur, und sie halten Mindestzeiten an und aus ein, damit ein Gerät nicht im Sekundentakt schaltet. Wieder an geht sie erst, wenn der Wert um den eingestellten Abstand zurück ist."
+      },
+      "lightRamp": {
+        "title": "Sonnenauf- und -untergang",
+        "text": "Wie viele Minuten die Lampe nach dem Einschalten hochfährt und vor dem Ausschalten herunterdimmt. 0 schaltet sie hart an und aus."
+      },
+      "lightOverheat": {
+        "title": "Überhitzungsschutz",
+        "text": "Über dieser Temperatur am Lichtmodul dimmt sich die Lampe herunter, bis es wieder kühler ist. Das schützt die Lampe und die Pflanzen direkt darunter."
       }
+    },
+    "socketTimer": {
+      "title": "Zeitschaltung",
+      "text": "Eine Steckdose mit der Rolle Pumpe oder Eigener Timer schaltet nach ihrem eigenen Takt, nicht nach dem Klima: zum Beispiel 2 Minuten an, alle 6 Stunden. Ohne Zeitschaltung bleibt sie aus. Der Takt läuft im Gerät weiter, auch wenn die Verbindung zur Cloud weg ist."
+    },
+    "plugMode": {
+      "title": "Schaltet nach",
+      "text": "Was die Steckdose mit ihrem eigenen Sensor regelt: Heizen, Kühlen, Befeuchten, Entfeuchten oder CO₂ – dann schaltet sie an zwei Schaltpunkten des Messwerts. Mit Zeitschaltung schaltet sie zu festen Uhrzeiten, und Aus hält sie aus."
+    },
+    "plugDayNight": {
+      "title": "Tag und Nacht",
+      "text": "Die Steckdose kennt den Tag nur als Uhrzeit: Er beginnt um „Tag ab“ und endet um „Nacht ab“, auf deiner Uhr. Mit eigenen Schaltpunkten für die Nacht regelt sie nachts auf andere Werte; im CO₂-Modus dosiert sie nachts gar nicht."
+    },
+    "switchPoints": {
+      "title": "Schaltpunkte",
+      "text": "Zwei Werte statt eines Ziels: Bei einem schaltet die Steckdose ein, beim anderen aus. Der Abstand dazwischen verhindert, dass sie bei jedem Messwert hin- und herschaltet – je größer er ist, desto seltener schaltet sie, und desto weiter schwankt der Wert."
+    },
+    "timerWindows": {
+      "title": "Zeitfenster",
+      "text": "Zu welchen Uhrzeiten die Steckdose an ist, jeden Tag gleich: ab einer Uhrzeit für so viele Minuten. Ein Fenster darf über Mitternacht laufen. Die Zeiten gelten auf deiner Uhr und wandern bei der Zeitumstellung mit."
+    },
+    "fanMode": {
+      "title": "Lüfter läuft",
+      "text": "Fest: Der AIR läuft tagsüber und nachts mit je einer eingestellten Drehzahl. Nach Temperatur, Luftfeuchte oder beidem: Er läuft mit der Mindestdrehzahl, solange der Wert unter dem Ziel bleibt, und dreht hoch, je weiter der Wert darüber steigt – bis zur Höchstdrehzahl. Tag ist für den AIR, solange sein Lichtsensor Licht sieht."
+    },
+    "fanSpeeds": {
+      "title": "Drehzahl",
+      "text": "In Prozent der vollen Drehzahl. Mit festem Modus gilt je ein Wert für Tag und Nacht. Geregelt läuft der Lüfter nie langsamer als „Mindestens“ und nie schneller als „Höchstens“ – so bleibt nachts Ruhe, und die Luft wird trotzdem bewegt."
+    },
+    "lightSchedule": {
+      "title": "Licht",
+      "text": "Wann die Lampe an- und ausgeht, auf deiner Uhr: Die Zeiten wandern bei der Zeitumstellung mit. Die Helligkeit ist das Maximum, auf das sie hochfährt. Wie lange sie dabei ein- und ausblendet, steht unter Erweitert am Gerät."
     }
   },
   "place": {
@@ -4926,5 +5002,263 @@
     "greenhouseNote": "Nur die Temperatur: Licht und CO₂ laufen, der Kompressor kühlt nur, die Luftfeuchte wird nicht geregelt.",
     "germination": "Keimung",
     "germinationNote": "Im Dunkeln: kein Licht, kein CO₂. Heizt und kühlt auf die Nachttemperatur."
+  },
+  "release": {
+    "label": "Gerät abgeben",
+    "open": "Aus dem Konto entfernen …",
+    "note": "Nach einem Verkauf, einem Kontowechsel oder einem Tausch: Danach kann jemand anderes es mit dem Code vom Display hinzufügen.",
+    "title": "{{name}} abgeben",
+    "sureTitle": "Wirklich abgeben?",
+    "what": "„{{name}}“ verschwindet aus deinem Konto. Wer das Gerät danach in der Hand hat, fügt es mit dem Code auf seinem Display zum eigenen Konto hinzu.",
+    "goes": "Mit dem Gerät gehen sein Grow-Plan, seine Alarme und die Kamera, die über das Gerät verbunden ist.",
+    "stays": "Der Ort {{place}} und sein Tagebuch bleiben. Am Gerät selbst ändert sich nichts: Es regelt mit seinen letzten Einstellungen weiter, bis jemand anderes es übernimmt.",
+    "staysNowhere": "Am Gerät selbst ändert sich nichts: Es regelt mit seinen letzten Einstellungen weiter, bis jemand anderes es übernimmt.",
+    "next": "Weiter",
+    "sure": "Das lässt sich nicht rückgängig machen. In dein Konto kommt das Gerät nur zurück, wenn du es wieder mit dem Code vom Display hinzufügst – wie beim ersten Mal.",
+    "yes": "Endgültig entfernen",
+    "releasing": "Wird entfernt …",
+    "done": "„{{name}}“ ist aus deinem Konto entfernt und kann jetzt von jemand anderem hinzugefügt werden."
+  },
+  "autoUpdate": {
+    "label": "Automatisch aktualisieren",
+    "note": {
+      "stable": "Neue stabile Firmware wird von selbst installiert.",
+      "beta": "Neue Firmware wird von selbst installiert, auch Testversionen (Beta, unter Erweitert).",
+      "alpha": "Neue Firmware wird von selbst installiert, auch frühe Testversionen (Alpha, unter Erweitert).",
+      "manual": "Aus: Das Gerät bleibt auf seiner Version, auch Fehlerbehebungen kommen nicht von selbst."
+    }
+  },
+  "updateChannel": {
+    "label": "Update-Kanal",
+    "stable": "Stabil",
+    "beta": "Beta",
+    "alpha": "Alpha",
+    "note": {
+      "stable": "Nur Versionen, die freigegeben sind.",
+      "beta": "Auch Testversionen, bevor sie für alle freigegeben werden.",
+      "alpha": "Auch frühe Testversionen – für alle, die Neues zuerst ausprobieren.",
+      "manual": "Automatische Updates sind aus. Ein Kanal hier schaltet sie ein."
+    }
+  },
+  "firmwarePin": {
+    "label": "Firmware-Version",
+    "note": "Nur für Admins: einen bestimmten Build installieren, etwa zum Zurückrollen.",
+    "pick": "Build wählen …",
+    "none": "Keine Builds für diese Geräteklasse",
+    "running": "läuft",
+    "wasStable": "war stabil",
+    "install": "Installieren …",
+    "title": "Firmware für {{name}}",
+    "what": "„{{name}}“ installiert {{build}} und bleibt darauf: Automatische Updates gehen damit aus.",
+    "restart": "Während des Updates schaltet das Gerät seine Ausgänge kurz aus und startet neu. Ob es geklappt hat, steht danach unter Firmware.",
+    "yes": "Installieren",
+    "sent": "„{{name}}“ soll {{build}} installieren. Ist das Gerät verbunden, beginnt es gleich damit."
+  },
+  "socketForm": {
+    "pair": {
+      "label": "Steckdose per IP koppeln",
+      "open": "Koppeln …",
+      "note": "Für eine Tasmota-Steckdose im selben WLAN.",
+      "title": "Steckdose per IP koppeln",
+      "intro": "Für eine Tasmota-Steckdose – etwa von NOUS, Athom oder eine selbst geflashte Shelly – im selben WLAN wie {{device}}. Eine Steckdose von Terp Control koppelst du am Gerät selbst: Einstellungen › Smart Sockets.",
+      "yes": "Koppeln",
+      "sent": "Gesendet. Die Steckdose steht in der Liste, sobald {{device}} sie meldet – meist innerhalb einer halben Minute."
+    },
+    "unheard": "{{device}} hört gerade nicht zu, also wurde nichts geändert. Versuch es wieder, wenn es verbunden ist.",
+    "role": "Rolle",
+    "address": "Adresse",
+    "addressHint": "IP-Adresse oder Name im lokalen Netz.",
+    "username": "Benutzer",
+    "password": "Passwort",
+    "credentialsHint": "Nur nötig, wenn die Steckdose ein Web-Passwort hat.",
+    "credentialsKeep": "Leer lassen behält, was die Steckdose hat.",
+    "reach": "Geschaltet wird im lokalen Netz, vom Gerät aus: Die Steckdose muss nur für das Gerät erreichbar sein, nicht aus dem Internet.",
+    "cycle": {
+      "label": "Zeitschaltung",
+      "on": "an für",
+      "every": "alle",
+      "onLabel": "Wie lange an",
+      "everyLabel": "Wie oft",
+      "unitLabel": "Einheit für „{{what}}“"
+    },
+    "problem": {
+      "role": "Wähle eine Rolle.",
+      "address": "Eine Adresse ohne Leerzeichen, höchstens 40 Zeichen.",
+      "credentials": "Benutzer und Passwort haben höchstens 48 Zeichen.",
+      "timer": "Die Steckdose muss kürzer an sein, als ihr Abstand dauert, und der Abstand höchstens einen Tag.",
+      "timerFirmware": "Diese Firmware kennt keine Zeitschaltung. Sie kommt mit einem Firmware-Update."
+    },
+    "noRoles": "Diese Firmware meldet nicht, welche Rollen sie kennt, also lässt sich hier nichts koppeln. Ein Firmware-Update bringt es; bis dahin koppelst du am Gerät selbst.",
+    "edit": {
+      "label": "Adresse, Rolle, Zugangsdaten",
+      "open": "Ändern …",
+      "title": "{{name}} ändern",
+      "yes": "Senden",
+      "sent": "Gesendet. Die Liste zeigt die Änderung, sobald {{device}} seine Steckdosen meldet.",
+      "noAddress": "Das Gerät meldet für diese Steckdose keine Adresse, also lässt sie sich nur am Gerät selbst ändern."
+    },
+    "remove": {
+      "label": "Steckdose entfernen",
+      "open": "Entfernen …",
+      "title": "{{name}} entfernen?",
+      "text": "Das Gerät vergisst die Steckdose ({{address}}) und setzt sie zurück; sie schaltet dann nicht mehr mit. Eine Steckdose von Terp Control koppelst du danach am Gerät neu, eine Tasmota-Steckdose hier per IP.",
+      "yes": "Entfernen",
+      "sent": "Gesendet. Die Steckdose verschwindet aus der Liste, sobald das Gerät seine Steckdosen meldet."
+    },
+    "timer": {
+      "label": "Zeitschaltung",
+      "missing": "Keine Zeitschaltung eingestellt – ohne sie bleibt die Steckdose aus.",
+      "change": "Ändern",
+      "set": "Einstellen",
+      "save": "Senden",
+      "value": "an für {{on}}, alle {{every}}"
+    }
+  },
+  "ownPanel": {
+    "title": "Einstellungen",
+    "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt, also gibt es hier noch nichts zu ändern. Wird am Gerät selbst eine beliebige Einstellung geändert, schickt es sie; ein neuer Verbindungsaufbau allein tut das nicht.",
+    "sentNote": "Das Gerät bestätigt keine Einstellung; was es wirklich tut, zeigen seine Werte.",
+    "status": "Werte kommen an · Steckdose: {{mode}}",
+    "statusLight": "Werte kommen an · Licht {{on}}–{{off}}",
+    "sentAt": "Um {{time}} ans Gerät geschickt"
+  },
+  "plugSettings": {
+    "mode": {
+      "label": "Schaltet nach",
+      "off": "Aus",
+      "heater": "Heizen",
+      "cooler": "Kühlen",
+      "humidify": "Befeuchten",
+      "dehumidify": "Entfeuchten",
+      "co2": "CO₂",
+      "timer": "Zeitschaltung"
+    },
+    "modeNote": {
+      "off": "Die Steckdose bleibt aus.",
+      "heater": "Für ein Heizgerät: an, sobald es kälter als der Einschaltpunkt ist, aus über dem Ausschaltpunkt.",
+      "cooler": "Für eine Kühlung oder einen Lüfter: an, sobald es wärmer als der Einschaltpunkt ist, aus unter dem Ausschaltpunkt.",
+      "humidify": "Für einen Befeuchter: an, sobald die Luft trockener als der Einschaltpunkt ist, aus über dem Ausschaltpunkt.",
+      "dehumidify": "Für einen Entfeuchter: an, sobald die Luft feuchter als der Einschaltpunkt ist, aus unter dem Ausschaltpunkt.",
+      "co2": "Für ein CO₂-Ventil: an unter dem Einschaltpunkt, aus über dem Ausschaltpunkt. Braucht den CO₂-Sensor, den es als Zubehör gibt; ohne ihn bleibt die Steckdose aus.",
+      "timer": "Die Steckdose schaltet zu festen Uhrzeiten, ohne auf einen Messwert zu schauen."
+    },
+    "dayNight": "Nachts eigene Schaltpunkte",
+    "dayNightOn": "Tagsüber und nachts gelten getrennte Schaltpunkte.",
+    "dayNightOff": "Dieselben Schaltpunkte gelten rund um die Uhr.",
+    "dayOnly": "Nur tagsüber dosieren",
+    "dayOnlyOn": "Nachts bleibt das Ventil zu.",
+    "dayOnlyOff": "Dosiert rund um die Uhr, sobald der Wert unter den Einschaltpunkt fällt.",
+    "dayLabel": "Tag und Nacht",
+    "dayFrom": "Tag ab",
+    "nightFrom": "Nacht ab",
+    "points": "Schaltpunkte",
+    "day": "Tagsüber",
+    "night": "Nachts",
+    "edge": {
+      "rising": {
+        "on": "Ein unter",
+        "off": "Aus über"
+      },
+      "falling": {
+        "on": "Ein über",
+        "off": "Aus unter"
+      }
+    },
+    "pointName": "{{edge}} – {{half}}",
+    "crossed": {
+      "rising": "Der Einschaltpunkt muss unter dem Ausschaltpunkt liegen, sonst schaltet die Steckdose dauernd hin und her.",
+      "falling": "Der Einschaltpunkt muss über dem Ausschaltpunkt liegen, sonst schaltet die Steckdose dauernd hin und her."
+    },
+    "windows": {
+      "label": "Zeitfenster",
+      "none": "Kein Zeitfenster: Die Steckdose bleibt aus.",
+      "add": "+ Zeitfenster",
+      "most": "Höchstens {{count}} Zeitfenster.",
+      "at": "an um",
+      "atLabel": "Zeitfenster {{number}}: an um",
+      "for": "für",
+      "forLabel": "Zeitfenster {{number}}: Minuten",
+      "minutes": "Min",
+      "ends": "bis {{time}}",
+      "remove": "Zeitfenster {{number}} entfernen",
+      "bad": "Jedes Zeitfenster läuft 1 bis 1440 Minuten."
+    },
+    "summary": {
+      "rising": "ein unter {{on}} · aus über {{off}}",
+      "falling": "ein über {{on}} · aus unter {{off}}",
+      "dayOnly": "nur tagsüber",
+      "noWindows": "keine"
+    }
+  },
+  "fanSettings": {
+    "mode": {
+      "label": "Lüfter läuft",
+      "fixed": "Fest",
+      "temperature": "Nach Temperatur",
+      "humidity": "Nach Luftfeuchte",
+      "both": "Nach beidem"
+    },
+    "modeNote": {
+      "fixed": "Läuft tagsüber und nachts mit der eingestellten Drehzahl. Die Zielwerte oben gelten dann nicht.",
+      "temperature": "Dreht hoch, sobald es wärmer als 1 °C unter der Zieltemperatur ist, und läuft 1 °C darüber mit der Höchstdrehzahl. Die Luftfeuchte oben gilt nicht.",
+      "humidity": "Dreht hoch, sobald die Luft feuchter als 5 % unter der Ziel-Luftfeuchte ist, und läuft 5 % darüber mit der Höchstdrehzahl. Die Temperatur oben gilt nicht.",
+      "both": "Folgt dem der beiden Werte, der weiter über seinem Ziel liegt."
+    },
+    "speeds": "Drehzahl",
+    "day": "Tagsüber",
+    "night": "Nachts",
+    "mostDay": "Höchstens tags",
+    "mostNight": "Höchstens nachts",
+    "least": "Mindestens",
+    "aria": {
+      "fixedDay": "Drehzahl tagsüber",
+      "fixedNight": "Drehzahl nachts",
+      "mostDay": "Höchstdrehzahl tagsüber",
+      "mostNight": "Höchstdrehzahl nachts",
+      "least": "Mindestdrehzahl"
+    },
+    "mostBelowLeast": "Die Höchstdrehzahl darf nicht unter der Mindestdrehzahl liegen.",
+    "slowed": "Während {{plug}} CO₂ dosiert, läuft der Lüfter höchstens mit {{speed}} %.",
+    "uncouple": "Nicht mehr drosseln"
+  },
+  "lightSettings": {
+    "title": "Licht",
+    "on": "Licht an um",
+    "off": "Licht aus um",
+    "hours": "{{hours}} Std an"
+  },
+  "plugCo2": {
+    "label": "CO₂-Dosierung",
+    "const": "Durchgehend",
+    "periodic": "In Intervallen",
+    "constNote": "Das Ventil öffnet, sobald der Wert unter den Einschaltpunkt fällt.",
+    "periodicNote": "Dosiert nur in einem Fenster jedes Intervalls, etwa 10 Minuten jede Stunde.",
+    "every": "Intervall",
+    "for": "Davon dosieren",
+    "fan": "AIR-Lüfter drosseln",
+    "noFan": "Keinen",
+    "fanSpeed": "Lüfter während der Dosierung",
+    "fanNone": "Kein Lüfter wird gedrosselt.",
+    "fanNote": "Während der Dosierung läuft der Lüfter höchstens mit {{speed}} %, damit das CO₂ im Zelt bleibt."
+  },
+  "plugProtections": {
+    "overheat": "Aus bei Übertemperatur",
+    "overheatAt": "Aus über",
+    "overheatBack": "Wieder an, wenn so viel kühler",
+    "cold": "Aus bei Untertemperatur",
+    "coldAt": "Aus unter",
+    "coldBack": "Wieder an, wenn so viel wärmer",
+    "least": "Mindestzeiten",
+    "leastOn": "Mindestens an",
+    "leastOff": "Mindestens aus",
+    "needsFirmware": "Diese Firmware hält die Schutzfunktionen nicht ein. Ein Firmware-Update bringt sie; bis dahin lassen sie sich nicht einstellen."
+  },
+  "lightRamp": {
+    "sunrise": "Sonnenaufgang",
+    "sunset": "Sonnenuntergang"
+  },
+  "lightOverheat": {
+    "label": "Dimmen ab",
+    "note": "Gemessen am Lichtmodul selbst. Darüber dimmt es sich, um sich zu schützen."
   }
 }

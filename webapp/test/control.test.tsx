@@ -395,7 +395,7 @@ describe('what the Control tab opens on', () => {
     state.devices = [{ ...device(), id: 'device-2', type: 'light', name: 'Bar light', configuration: { day: 68400, night: 25200, limit: 65 } }];
     drawTab();
 
-    expect(await screen.findByText(/Nothing standing here states a climate/)).toBeInTheDocument();
+    expect(await screen.findByLabelText('Light on at')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^Alarms/ })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /grow plan/i })).not.toBeInTheDocument();
   });

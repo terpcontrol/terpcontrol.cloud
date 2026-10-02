@@ -85,6 +85,14 @@ export const HELP_TOPICS = [
   'lux',
   'climateControl',
   'energySaving',
+  'socketTimer',
+  'plugMode',
+  'plugDayNight',
+  'switchPoints',
+  'timerWindows',
+  'fanMode',
+  'fanSpeeds',
+  'lightSchedule',
 ] as const;
 
 /**

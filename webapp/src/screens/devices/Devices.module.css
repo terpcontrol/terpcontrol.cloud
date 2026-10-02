@@ -211,6 +211,14 @@
 }
 
 /* A window that is standing, in the amber every held thing in the app wears. */
+/* Whether the device updates itself: the one fact of the panel a manager can
+   switch, under the facts and parted from them by their own rule. */
+.autoUpdate {
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
+}
+
 .quiet {
   margin: var(--space-3) 0 0;
   padding: var(--space-2) var(--space-3);

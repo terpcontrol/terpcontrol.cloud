@@ -3,13 +3,13 @@ import { DateTime } from 'luxon';
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { placePath } from '@/app/places';
+import { controlPath, placePath } from '@/app/places';
 import type { ActuatorRuns, Camera, ClimateVerdict, Device, Firmware, OutputMetric, SocketPage, SocketRole, ValueState } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useCameras, useLatestStills } from '@/api/cameras';
 import { fetchedAt, serverNow } from '@/api/clock';
 import { useDeviceFirmwares, useDevices, useLiveReads, useSocketTables } from '@/api/devices';
-import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
+import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces, useSpaceVerdicts } from '@/api/spaces';
 import { ageAttribute, ageLabel, deviceLiveness, heardAt, offlineLabel } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
@@ -21,6 +21,8 @@ import { enough, useMayManage, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay, clock, useZone } from '@/ui/zone';
+import { ownFactOf } from '@/screens/control/devices/own-summary';
+import { offsetOf } from '@/screens/control/targets/targets-draft';
 import { clockLabel } from '@/screens/notifications/settings';
 import { cameraFreshness } from './cameras';
 import { DeviceSettingsSheet } from './DeviceSettingsSheet';
@@ -33,6 +35,9 @@ import { MaintenanceButton, RebootButton } from './Maintenance';
 import { cameraTitle, deviceName, deviceTitle } from './naming';
 import { rowsOf, type SocketRowModel } from './sockets';
 import { SocketRow } from './SocketRow';
+import { PairSocketRow } from './SocketSheets';
+import socketStyles from './Sockets.module.css';
+import { AutoUpdate } from './Updates';
 import settings from './DeviceSettings.module.css';
 import styles from './Devices.module.css';
 
@@ -242,8 +247,20 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
                 mayManage={mayManage}
                 runs={runsOf(verdicts.get(device.spaceId ?? ''), row.role)}
                 now={now}
+                capabilities={table.capabilities}
+                deviceName={deviceTitle(device, t, devices.data!.items)}
               />
             ));
+
+          // Pairing another socket by its address, under the last list of this
+          // device's sockets; a device with none yet has it in its own panel.
+          const pairing =
+            mayManage && SOCKET_HOST_TYPES.includes(device.type) && rows.length > 0 ? (
+              <details className={socketStyles.listAdvanced}>
+                <summary className="label">{t('advanced.title')}</summary>
+                <PairSocketRow deviceId={device.id} deviceName={deviceTitle(device, t, devices.data!.items)} capabilities={table.capabilities} />
+              </details>
+            ) : null;
 
           return (
             <Fragment key={device.id}>
@@ -273,6 +290,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
                     ) : null}
                     {plugs(lamps)}
                   </ul>
+                  {rest.length === 0 ? pairing : null}
                 </section>
               ) : null}
 
@@ -290,6 +308,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
                       ))
                     : null}
                   <ul className={ui.group}>{plugs(rest)}</ul>
+                  {pairing}
                 </section>
               ) : null}
             </Fragment>
@@ -358,10 +377,14 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
   // asked of this device rather than of the screen: the whole-account list
   // draws rows from every place at once, and the same reader owns one tent and
   // only reads the next.
-  const mayCorrect = enough(useMayWith()(device), 'manage');
+  const may = useMayWith()(device);
+  const mayCorrect = enough(may, 'manage');
+  const { user } = useSession();
   // Moving is offered only where there is somewhere to move to.
   const movable = movesAnywhere(useSpaces().data?.items ?? [], device);
 
+  // What a socket, a fan or a lamp is set to, with the way to Steuerung where it is changed.
+  const own = ownFactOf(t, device, offsetOf(now, zone));
   const build = firmwares.data?.items.find(one => one.id === device.state.firmwareId);
   // A build the device has been pinned to and is not running yet. The diary
   // says when it was asked and whether it took; the device's own panel is
@@ -441,6 +464,17 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
                 value={t(`climateControl.state.${device.control.running ? (device.control.drying ? 'drying' : 'on') : 'off'}`)}
               />
             ) : null}
+            {own && device.spaceId ? (
+              <Fact
+                label={own.label}
+                value={
+                  <Link className={styles.placeLink} to={controlPath(device.spaceId)}>
+                    {own.value}
+                    <ChevronRight size={12} strokeWidth={2} aria-hidden />
+                  </Link>
+                }
+              />
+            ) : null}
             <Fact label={t('devices.panel.firmware')} value={firmware} />
             {owedId ? (
               <Fact
@@ -452,15 +486,18 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
                 }
               />
             ) : null}
-            <Fact
-              label={
-                <>
-                  {t('devices.fact.channel')}
-                  <Help topic="firmwareChannel" />
-                </>
-              }
-              value={t(`devices.panel.channel.${device.firmware.channel}`)}
-            />
+            {/* Whoever may change it is given the switch below instead. */}
+            {mayCorrect ? null : (
+              <Fact
+                label={
+                  <>
+                    {t('devices.fact.channel')}
+                    <Help topic="firmwareChannel" />
+                  </>
+                }
+                value={t(`devices.panel.channel.${device.firmware.channel}`)}
+              />
+            )}
             {place && device.spaceId ? (
               <Fact
                 label={t('devices.fact.place')}
@@ -473,6 +510,12 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
               />
             ) : null}
           </Facts>
+
+          {mayCorrect && !device.isDemo ? (
+            <div className={styles.autoUpdate}>
+              <AutoUpdate device={device} />
+            </div>
+          ) : null}
 
           {quiet ? (
             <p className={`mono ${styles.quiet}`} role="status">
@@ -520,7 +563,17 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
 
           {/* What few growers need about this device, beside what only support
               asks for: drawn only where one of its items applies here. */}
-          <AdvancedSection scope="device" context={{ device, mayManage: mayCorrect, offline }} />
+          <AdvancedSection
+            scope="device"
+            context={{
+              device,
+              mayManage: mayCorrect,
+              offline,
+              mayOwn: enough(may, 'own'),
+              isAdmin: user?.isAdmin === true,
+              sockets: drivesSockets ? sockets : undefined,
+            }}
+          />
 
           {/* What only support asks for: the id printed on the hardware, the
               build as its container stamped it, and what that build takes. */}

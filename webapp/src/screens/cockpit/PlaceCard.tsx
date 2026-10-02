@@ -9,6 +9,8 @@ import { serverNow } from '@/api/clock';
 import { ageAttribute, valueAge } from '@/ui/age';
 import { maintenanceQuiet, type Quiet } from '@/ui/maintenance';
 import { useZone } from '@/ui/zone';
+import { ownStatusOf } from '../control/devices/own-summary';
+import { offsetOf } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { LivenessPill } from '../home/LivenessPill';
 import { figure, UNIT } from '../home/units';
@@ -84,7 +86,7 @@ export function PlaceCard({
       </header>
       <p className={styles.cardStatus} data-tone={toneOf(status)}>
         <StatusIcon size={15} strokeWidth={2} aria-hidden />
-        <span>{statusText(t, status, now, zone)}</span>
+        <span>{(status.kind === 'noTargets' ? ownStatusOf(t, device, offsetOf(now, zone)) : null) ?? statusText(t, status, now, zone)}</span>
       </p>
       {shown.length > 0 ? (
         <div className={styles.cardValues}>

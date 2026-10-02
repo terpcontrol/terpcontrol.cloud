@@ -1,5 +1,5 @@
 import type { DateTime } from 'luxon';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 import { controlPath } from '@/app/places';
@@ -20,6 +20,9 @@ import { useNow } from '@/ui/useNow';
 import { nowThere, CLOCK, useZone } from '@/ui/zone';
 import { deviceTitle } from '../../devices/naming';
 import { figure } from '../../home/units';
+import { FanPanel } from '../devices/FanPanel';
+import { LightPanel } from '../devices/LightPanel';
+import { PlugPanel } from '../devices/PlugPanel';
 import { LeaveGuard, type Unsaved } from './LeaveGuard';
 import { LightsOnRow } from './LightsOnRow';
 import { ControlState, EnergySaving } from './Operation';
@@ -94,11 +97,48 @@ export function Targets({
       return next;
     });
   }, []);
+  // A fan's speeds are a second panel of the same device, handed up under a key of their own.
+  const fanReport = useCallback((deviceId: string, entry: Unsaved | null) => report(`${deviceId}:speeds`, entry), [report]);
   const [asking, setAsking] = useState(false);
   // What grows here, for the one line under the chips that says the phase is not theirs to move.
   const home = useHome();
   const diary = useDiaryLayer();
   const grow = diary ? ((home.data?.spaces ?? []).find(card => card.spaceId === spaceId)?.grow ?? null) : null;
+
+  // A smart socket and a lamp hold no climate of their own, but what they are
+  // set to is their owner's whole reason to come here: their own panels stand
+  // under the targets, or in their place.
+  const own = devices.filter(device => OWN_PANEL_TYPES.includes(device.type));
+  const titled = controllers.length + own.length > 1;
+  const panels = own.map(device =>
+    device.configuration ? (
+      <OwnPanelOf
+        key={device.id}
+        device={device}
+        name={deviceName(device, t)}
+        titled={titled}
+        mayManage={mayManage}
+        report={report}
+        asking={asking}
+      />
+    ) : (
+      <p key={device.id} className={`${ui.cardDashed} ${ui.note}`}>
+        {t('ownPanel.waiting', { device: deviceTitle(device, t, all.data?.items) })}
+      </p>
+    ),
+  );
+
+  if (controllers.length === 0 && own.length > 0) {
+    return (
+      <div className={styles.page}>
+        <header className={ui.subhead}>
+          <span className="label">{t('ownPanel.title')}</span>
+        </header>
+        {panels}
+        <LeaveGuard unsaved={unsaved} onAsking={setAsking} />
+      </div>
+    );
+  }
 
   if (controllers.length === 0) {
     return (
@@ -136,21 +176,34 @@ export function Targets({
       </header>
 
       {controllers.map(({ device, configuration }, index) => (
-        <Panel
-          key={device.id}
-          anchor={index === 0}
-          grow={grow}
-          device={device}
-          stored={configuration}
-          mayManage={mayManage}
-          titled={controllers.length > 1}
-          report={report}
-          asking={asking}
-        />
+        <Fragment key={device.id}>
+          <Panel
+            anchor={index === 0}
+            grow={grow}
+            device={device}
+            stored={configuration}
+            mayManage={mayManage}
+            titled={controllers.length > 1}
+            report={report}
+            asking={asking}
+          />
+          {/* An AIR fan's speeds belong with the targets it follows. */}
+          {device.type === 'fan' ? (
+            <FanPanel device={device} name={deviceName(device, t)} titled={false} mayManage={mayManage} report={fanReport} asking={asking} />
+          ) : null}
+        </Fragment>
       ))}
+      {panels}
       <LeaveGuard unsaved={unsaved} onAsking={setAsking} />
     </div>
   );
+}
+
+/** The hardware that has a panel of its own here instead of targets. */
+const OWN_PANEL_TYPES = ['plug', 'light'];
+
+function OwnPanelOf(props: React.ComponentProps<typeof PlugPanel>) {
+  return props.device.type === 'plug' ? <PlugPanel {...props} /> : <LightPanel {...props} />;
 }
 
 /** The state of one panel's editing: what the sliders stand at, and which stored document they were moved against. */
@@ -210,6 +263,9 @@ function Panel({
   const set = (next: TargetsDraft) => setEdit({ draft: next, against: stored });
 
   const hasCo2 = hasCo2Sensor(device);
+  // An AIR fan reads a temperature and a humidity, by its own day: no lamp, no
+  // light hours and no CO2 of its own to set.
+  const climateOnly = device.type === 'fan';
   const status = plan.data?.state.status ?? null;
   const heard = useHeardAt(device);
   const liveness = deviceLiveness(heard, now);
@@ -222,7 +278,7 @@ function Panel({
   const commit = async (): Promise<boolean> => {
     try {
       if (status === 'running') await move.mutateAsync({ kind: 'pause', reason: t('targets.pauseReason') });
-      await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, draft) });
+      await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, draft, climateOnly) });
       setSent({ draft, at: serverNow() });
       return true;
     } catch {
@@ -255,7 +311,7 @@ function Panel({
 
   const chosen = (chip: ClimateChoice): boolean => {
     const preset = presetOf(chip);
-    return preset !== null && equalsPreset(draft, preset, hasCo2);
+    return preset !== null && equalsPreset(draft, preset, hasCo2, climateOnly);
   };
 
   /**
@@ -326,57 +382,61 @@ function Panel({
           disabled={readOnly}
           onChange={dayHumidity => set({ ...draft, dayHumidity })}
         />
-        <TargetRow
-          id={`targets-${device.id}-light`}
-          label={t('targets.light')}
-          name={t('targets.aria.lightLimit')}
-          value={draft.lightLimit}
-          min={0}
-          max={100}
-          step={5}
-          unit={t('targets.unit.percent')}
-          help="lightLimit"
-          disabled={readOnly}
-          onChange={lightLimit => set({ ...draft, lightLimit })}
-        />
-        <LightsOnRow
-          id={`targets-${device.id}-lights-on`}
-          lightsOn={draft.lightsOn}
-          lightsOff={lightsOffOf(draft)}
-          offset={offsetOf(now, zone)}
-          disabled={readOnly}
-          onChange={lightsOn => set({ ...draft, lightsOn })}
-        />
-        <TargetRow
-          id={`targets-${device.id}-light-hours`}
-          label={t('targets.lightHours')}
-          name={t('targets.aria.lightHours')}
-          value={draft.lightHours}
-          min={1}
-          max={24}
-          step={1}
-          unit={t('targets.unit.hours')}
-          disabled={readOnly}
-          onChange={lightHours => set({ ...draft, lightHours })}
-        />
-        {hasCo2 ? (
-          <TargetRow
-            id={`targets-${device.id}-co2`}
-            label={t('targets.co2')}
-            name={t('targets.aria.co2')}
-            value={draft.co2}
-            min={400}
-            max={1500}
-            step={50}
-            unit={t('targets.unit.co2')}
-            disabled={readOnly}
-            onChange={co2 => set({ ...draft, co2 })}
-          />
-        ) : (
-          <div className={styles.row}>
-            <span className={styles.rowLabel}>{t('targets.co2')}</span>
-            <span className={`mono ${styles.needs}`}>{t('targets.needsCo2')}</span>
-          </div>
+        {climateOnly ? null : (
+          <>
+            <TargetRow
+              id={`targets-${device.id}-light`}
+              label={t('targets.light')}
+              name={t('targets.aria.lightLimit')}
+              value={draft.lightLimit}
+              min={0}
+              max={100}
+              step={5}
+              unit={t('targets.unit.percent')}
+              help="lightLimit"
+              disabled={readOnly}
+              onChange={lightLimit => set({ ...draft, lightLimit })}
+            />
+            <LightsOnRow
+              id={`targets-${device.id}-lights-on`}
+              lightsOn={draft.lightsOn}
+              lightsOff={lightsOffOf(draft)}
+              offset={offsetOf(now, zone)}
+              disabled={readOnly}
+              onChange={lightsOn => set({ ...draft, lightsOn })}
+            />
+            <TargetRow
+              id={`targets-${device.id}-light-hours`}
+              label={t('targets.lightHours')}
+              name={t('targets.aria.lightHours')}
+              value={draft.lightHours}
+              min={1}
+              max={24}
+              step={1}
+              unit={t('targets.unit.hours')}
+              disabled={readOnly}
+              onChange={lightHours => set({ ...draft, lightHours })}
+            />
+            {hasCo2 ? (
+              <TargetRow
+                id={`targets-${device.id}-co2`}
+                label={t('targets.co2')}
+                name={t('targets.aria.co2')}
+                value={draft.co2}
+                min={400}
+                max={1500}
+                step={50}
+                unit={t('targets.unit.co2')}
+                disabled={readOnly}
+                onChange={co2 => set({ ...draft, co2 })}
+              />
+            ) : (
+              <div className={styles.row}>
+                <span className={styles.rowLabel}>{t('targets.co2')}</span>
+                <span className={`mono ${styles.needs}`}>{t('targets.needsCo2')}</span>
+              </div>
+            )}
+          </>
         )}
       </Block>
 

@@ -1,6 +1,7 @@
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import { hasFailed, isFirstLoad, useRead } from './read';
 import type {
+  Co2FanCoupling,
   Device,
   DeviceCommand,
   DeviceCommandResult,
@@ -13,6 +14,7 @@ import type {
   FirmwarePage,
   SocketOverrideUpdate,
   SocketPage,
+  SocketUpdate,
   ValueState,
 } from '@fg2/shared-types/v1';
 import { heardAt } from '@/ui/age';
@@ -203,6 +205,66 @@ export const useUpdateDevice = (deviceId: string) => {
       queryClient.setQueryData(['devices', device.id], device);
       for (const key of ['devices', 'spaces', 'home', 'cameras']) void queryClient.invalidateQueries({ queryKey: [key] });
     },
+  });
+};
+
+/**
+ * Giving a device up: it leaves this account and can be claimed by whoever
+ * stands in front of it next, with the code its display shows.
+ *
+ * Nothing is read again here. The panel the question was asked in belongs to
+ * the device that is going, and reading the list again would take it away
+ * before the answer is on it; whoever asked lets go of it with `forget` once
+ * the answer has been read.
+ */
+export const useReleaseDevice = (deviceId: string) => {
+  const queryClient = useQueryClient();
+
+  const release = useMutation({ mutationFn: () => api.delete(`/devices/${deviceId}/claim`) });
+  const forget = () => {
+    for (const key of ['devices', 'spaces', 'home', 'cameras']) void queryClient.invalidateQueries({ queryKey: [key] });
+  };
+
+  return { release, forget };
+};
+
+/**
+ * The AIR fan a stand-alone smart socket slows down while it doses CO2, or
+ * none. Two documents change, so both devices are read again.
+ */
+export const useCo2Fan = (plugId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (coupling: Co2FanCoupling) => api.put<Device>(`/devices/${plugId}/co2-fan`, coupling),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['devices'] }),
+  });
+};
+
+/**
+ * Pairing a socket by its address, changing one's address, role or timer, and
+ * removing one. Each answers a receipt - the device sends the table that shows
+ * what it did within half a minute - and the table is read again.
+ *
+ * `slot` null pairs a socket the table does not hold yet.
+ */
+export const useSetSocket = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ deviceId, slot, socket }: { deviceId: string; slot: number | null; socket: SocketUpdate }) =>
+      api.put<DeviceCommandResult>(`/devices/${deviceId}/sockets/${slot ?? 'new'}`, socket),
+    onSettled: (_result, _error, request) => queryClient.invalidateQueries({ queryKey: socketsKey(request.deviceId) }),
+  });
+};
+
+export const useRemoveSocket = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ deviceId, slot }: { deviceId: string; slot: number }) =>
+      apiRequest<DeviceCommandResult>(`/devices/${deviceId}/sockets/${slot}`, { method: 'DELETE' }),
+    onSettled: (_result, _error, request) => queryClient.invalidateQueries({ queryKey: socketsKey(request.deviceId) }),
   });
 };
 
