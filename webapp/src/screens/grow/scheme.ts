@@ -1,4 +1,5 @@
 import type { GrowListItem, SchemeAmount } from '@fg2/shared-types/v1';
+import { readingFigure } from '@/ui/entries';
 
 /**
  * "Bio·Bloom 2 ml/l": one row of a grid, as it is printed. A week card is
@@ -6,7 +7,8 @@ import type { GrowListItem, SchemeAmount } from '@fg2/shared-types/v1';
  * the grow carries is the scheme as published, and the strength is applied
  * wherever a can is actually dosed.
  */
-export const amountLabel = (amount: SchemeAmount): string => `${amount.name} ${amount.value} ${amount.unit}`;
+export const amountLabel = (amount: SchemeAmount): string =>
+  `${amount.name} ${amount.value === null ? '–' : readingFigure(amount.value)} ${amount.unit}`;
 
 /** "Biobizz Light Mix" for the asset id "biobizz-light-mix": the words of the id, each with its capital, and no slug. */
 export const assetTitle = (assetId: string): string =>

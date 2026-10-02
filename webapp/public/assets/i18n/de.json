@@ -3659,7 +3659,6 @@
     "nothingForYou_other": "Nichts für dich · {{count}} warten auf andere",
     "demoNoList": "Die Demo hat keine Aufgabenliste; öffne einen Ort, um zu sehen, was dort ansteht.",
     "doneAria": "Erledigt: {{label}}",
-    "every": "alle {{count}} T",
     "once": "einmalig",
     "onceOn": "einmalig am {{date}}",
     "rhythmsAside": "alle Erinnerungen, fällig oder nicht",
@@ -3721,7 +3720,9 @@
       "deleteYes": "Ja, löschen",
       "cancel": "Abbrechen",
       "grows": "Grows",
-      "places": "Orte"
+      "places": "Orte",
+      "reaches": "Wenn sie fällig wird, meldet sie sich per {{channels}}.",
+      "reachesNobody": "Fällige Aufgaben erreichen dich noch nicht"
     },
     "confirm": {
       "ask": "Das bestätigt den Schritt und startet {{name}}; es lässt sich nicht zurücknehmen.",
@@ -3730,7 +3731,9 @@
       "yes": "Schritt bestätigen",
       "cancel": "Abbrechen"
     },
-    "stepIsManaged": "Einen Schritt zu bestätigen, rückt den Plan weiter und schickt die Zielwerte des nächsten Schritts an den Controller. Das kann nur, wer den Ort steuert."
+    "stepIsManaged": "Einen Schritt zu bestätigen, rückt den Plan weiter und schickt die Zielwerte des nächsten Schritts an den Controller. Das kann nur, wer den Ort steuert.",
+    "every_one": "jeden Tag",
+    "every_other": "alle {{count}} Tage"
   },
   "targets": {
     "title": "Zielwerte",
@@ -4832,7 +4835,8 @@
       "title": "Grow",
       "due": "Fällig",
       "tasks": "Alle Aufgaben",
-      "lastEntry": "{{what}} · vor {{age}} · {{who}}"
+      "lastEntry": "{{what}} · vor {{age}} · {{who}}",
+      "lastEntryNow": "{{what}} · gerade eben · {{who}}"
     },
     "latest": {
       "title": "Zuletzt",

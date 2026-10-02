@@ -12,8 +12,10 @@
   color: var(--muted);
 }
 
-/* The name gives way before the pill does: which place it is can be truncated, how alive it is cannot. */
-.title > :last-child {
+/* The name gives way before the pill does: which place it is can be truncated, how alive it is cannot.
+   Only the pill is pushed to the end - a place with no pill keeps its name beside the title. */
+.pill {
+  display: inline-flex;
   flex-shrink: 0;
   margin-left: auto;
 }

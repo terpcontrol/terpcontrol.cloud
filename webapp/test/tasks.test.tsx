@@ -195,7 +195,7 @@ const draw = () =>
  */
 const drawLoaded = async () => {
   draw();
-  await screen.findByRole('radiogroup', { name: 'Whose tasks' });
+  await screen.findByRole('heading', { name: 'Tasks', level: 1 });
   if (state.waiting.length > 0) await screen.findAllByText(/Spring run|Tent 1/);
   if (state.rhythms.length > 0) await screen.findByRole('region', { name: 'Rhythms' });
 };
@@ -252,12 +252,13 @@ describe('the groups', () => {
   it('says where each task came from, which place it is about and when it is due', async () => {
     await drawLoaded();
 
-    expect(screen.getByText('every 3 d · Spring run · water · 2 L · today')).toBeInTheDocument();
+    // "Water the seedlings" says what it is already, so the kind is not said a second time.
+    expect(screen.getByText('every 3 days · Spring run · 2 L · today')).toBeInTheDocument();
     // The kind reads as the lowercase word the rest of the line is written in,
     // and a custom reminder, whose label already says everything, names none.
-    expect(screen.getByText('every 30 d · Tent 1 · chore · tomorrow')).toBeInTheDocument();
+    expect(screen.getByText('every 30 days · Tent 1 · chore · tomorrow')).toBeInTheDocument();
     expect(screen.getByText('grow plan · Tent 1 · in 2 d')).toBeInTheDocument();
-    expect(screen.getByText('every 3 d · Spring run · water · 2 L · overdue 2 d')).toBeInTheDocument();
+    expect(screen.getByText('every 3 days · Spring run · 2 L · overdue 2 d')).toBeInTheDocument();
     expect(screen.getByText('you · Spring run · yesterday 19:40')).toBeInTheDocument();
   });
 
@@ -337,7 +338,7 @@ describe('the rhythms', () => {
     await drawLoaded();
 
     const row = section('Rhythms').getByText('Check the inline filter').closest('li')!;
-    expect(within(row).getByText('every 90 d · Tent 1 · chore')).toBeInTheDocument();
+    expect(within(row).getByText('every 90 days · Tent 1 · chore')).toBeInTheDocument();
     // Nothing is due of it, so it is on the screen once and only here.
     expect(screen.getAllByText('Check the inline filter')).toHaveLength(1);
 
@@ -452,6 +453,15 @@ describe('mine and all', () => {
 
     expect(section('Today').getByText('Feed')).toBeInTheDocument();
     expect(localStorage.getItem('terp.tasks.scope')).toBe('all');
+  });
+
+  it('asks nobody to choose while no task carries anybody else´s name, and shows every task', async () => {
+    state.waiting = [water, overdue];
+    state.done = [];
+    await drawLoaded();
+
+    expect(screen.queryByRole('radiogroup', { name: 'Whose tasks' })).not.toBeInTheDocument();
+    expect(section('Today').getByText('Water the seedlings')).toBeInTheDocument();
   });
 
   it('says how much Mine is hiding rather than that nothing is due, and the line switches to All', async () => {
@@ -778,7 +788,7 @@ describe('the sheet', () => {
 
     try {
       draw();
-      await screen.findByRole('radiogroup', { name: 'Whose tasks' });
+      await screen.findByRole('heading', { name: 'Tasks', level: 1 });
       fireEvent.click(await screen.findByRole('button', { name: '+ Reminder' }));
 
       const field = within(screen.getByRole('dialog', { name: 'New reminder' })).getByRole('textbox', { name: 'What to do' });

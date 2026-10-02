@@ -6,6 +6,7 @@ import type { Reminder, SessionUser, Task } from '@fg2/shared-types/v1';
 import { useDevicePlan } from '@/api/plans';
 import { initials } from '@/app/shell/tabs';
 import { nextStepIndex } from '@/screens/control/plan-clock';
+import { readingFigure } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
 import { dayLabel, daysUntil, litresOf, onceLabel, type Translate } from './tasks';
@@ -255,9 +256,11 @@ const metaLine = (t: Translate, task: Task, name: string | null, reminder: Remin
     if (name) parts.push(name);
     // A category of its own only where there is one to name: "custom" is what a
     // reminder is called when its label already says everything about it.
-    if (task.kind !== 'custom') parts.push(t(`tasks.kindMeta.${task.kind}`));
+    // Nor where the label says it already: "Gießen · … · gießen" said it twice.
+    const kind = task.kind === 'custom' ? null : t(`tasks.kindMeta.${task.kind}`);
+    if (kind && !task.label.toLowerCase().includes(kind.toLowerCase())) parts.push(kind);
     const litres = litresOf(task.defaults);
-    if (litres !== null) parts.push(t('log.litres', { litres }));
+    if (litres !== null) parts.push(t('log.litres', { litres: readingFigure(litres) }));
   }
 
   parts.push(dueLabel(t, task, now, zone));

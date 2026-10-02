@@ -2,7 +2,10 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowOrSpaceRef, Reminder, ReminderCreate, ReminderKind, Space } from '@fg2/shared-types/v1';
+import { Link } from 'react-router';
+import { useMe } from '@/api/account';
 import { serverNow } from '@/api/clock';
+import { channelsLabel, isConfigured } from '@/screens/control/alarms/rules';
 import { useCreateReminder, useDeleteReminder, useUpdateReminder } from '@/api/reminders';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
@@ -211,6 +214,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
               </Choice>
             ) : null}
           </Choices>
+          <Reaches />
         </Block>
 
         <Refused error={create.error ?? update.error} />
@@ -364,3 +368,33 @@ const bodyOf = (draft: Draft, onceOn: string, userId: string, assigneeId: string
     defaults: asksForCan && draft.litres !== '' && litres > 0 ? { kind: draft.kind, litres } : null,
   };
 };
+
+/**
+ * Where the reminder will reach whoever it is for, said where it is set:
+ * "bekommt Bescheid, wenn sie fällig wird" promised a message that, with no
+ * channel routed, went nowhere.
+ */
+function Reaches() {
+  const { t } = useTranslation();
+  const me = useMe();
+  const account = me.data;
+  if (!account?.notifications) return null;
+
+  const routed = (account.notifications.routing.tasks ?? []).filter(channel => isConfigured(account, channel));
+  return routed.length > 0 ? (
+    <p className={ui.note}>
+      {t('tasks.sheet.reaches', {
+        channels: channelsLabel(
+          t,
+          routed.map(channel => ({ channel, configured: true })),
+        ),
+      })}
+    </p>
+  ) : (
+    <p className={ui.note}>
+      <Link to="/me/notifications" className={ui.headLink}>
+        {t('tasks.sheet.reachesNobody')} ›
+      </Link>
+    </p>
+  );
+}

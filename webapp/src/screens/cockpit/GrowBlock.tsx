@@ -126,7 +126,8 @@ function GrowRow({
         </span>
         <span className={`mono ${styles.growLine}`}>
           {newest
-            ? t('cockpit.grow.lastEntry', {
+            ? // Under a minute old it was just now, not "vor 0 s".
+              t(now.diff(DateTime.fromISO(newest.occurredAt)).as('seconds') < 60 ? 'cockpit.grow.lastEntryNow' : 'cockpit.grow.lastEntry', {
                 what: headlineOf(t, i18n, newest),
                 age: ageLabel(newest.occurredAt, now),
                 who: authorOf(t, newest, overview.people, user?.id),

@@ -264,7 +264,7 @@ function Figures({ grow, plant, entries, definitions, series }: FiguresProps) {
       {newest && definition ? (
         <Figure value={readingFigure(newest.value)} label={[definition.unit, movement(t, newest, before)].filter(Boolean).join(' · ')} />
       ) : null}
-      {training && trainedOn !== null ? <Figure value={`d${trainedOn}`} label={t('grow.plant.lastTraining')} /> : null}
+      {training && trainedOn !== null ? <Figure value={t('grow.dayShort', { day: trainedOn })} label={t('grow.plant.lastTraining')} /> : null}
       <Figure value={String(entries.length)} label={t('grow.plant.entryCount')} />
       {grow.summary.dayNumber !== null ? (
         <Figure value={t('grow.plant.day', { day: grow.summary.dayNumber })} label={t('grow.plant.withTheGrow')} />

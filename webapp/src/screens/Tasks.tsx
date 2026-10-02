@@ -178,8 +178,11 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
     storeScope(next);
   };
 
-  const shown = scope === 'all' ? tasks : tasks.filter(task => isMine(task, user?.id ?? null));
-  const ticked = newestFirst((done.data?.items ?? []).filter(task => scope === 'all' || isMine(task, user?.id ?? null)));
+  // "Mine" and "all" are the same list until somebody else is given a task:
+  // somebody keeping a diary alone was asked to choose between two answers to one question.
+  const shared = [...tasks, ...(done.data?.items ?? [])].some(task => task.assigneeId !== null && task.assigneeId !== (user?.id ?? null));
+  const shown = scope === 'all' || !shared ? tasks : tasks.filter(task => isMine(task, user?.id ?? null));
+  const ticked = newestFirst((done.data?.items ?? []).filter(task => scope === 'all' || !shared || isMine(task, user?.id ?? null)));
   const nameOf = (task: Task) => subjectName(task.subject, grows.data?.items, spaces.data?.items);
   const openGrows = (grows.data?.items ?? []).filter(grow => grow.endedAt === null);
 
@@ -233,7 +236,10 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
     return grow !== undefined && enough(mayWith({ ownerId: grow.ownerId, spaceId: standsIn(grow) }), 'manage');
   };
 
-  const rhythms = [...(reminders.data?.items ?? [])].sort((one, other) => one.label.localeCompare(other.label));
+  // A rhythm is what repeats; a one-off stands under its day, and here only while that day is beyond the board.
+  const rhythms = [...(reminders.data?.items ?? [])]
+    .filter(reminder => reminder.everyDays !== null || !tasks.some(task => task.id === reminder.id))
+    .sort((one, other) => one.label.localeCompare(other.label));
 
   /**
    * The controller whose plan a step belongs to, so that the card can say what
@@ -272,7 +278,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
 
   return (
     <section className={styles.page}>
-      <Head scope={scope} onScope={pickScope} />
+      <Head scope={shared ? scope : undefined} onScope={pickScope} />
       <RefreshFailed failedAt={failedAt} now={now} />
 
       {shown.length === 0 ? <Nothing demo={user?.isDemo === true} waiting={tasks.length} onAll={() => pickScope('all')} /> : null}

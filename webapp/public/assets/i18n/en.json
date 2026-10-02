@@ -3655,7 +3655,6 @@
     "nothingForYou_other": "Nothing for you · {{count}} waiting for others",
     "demoNoList": "The demo has no task list; open a place to see what is due there.",
     "doneAria": "Done: {{label}}",
-    "every": "every {{count}} d",
     "once": "once",
     "onceOn": "once on {{date}}",
     "rhythmsAside": "every reminder you keep, due or not",
@@ -3717,7 +3716,9 @@
       "deleteYes": "Yes, delete it",
       "cancel": "Cancel",
       "grows": "Grows",
-      "places": "Places"
+      "places": "Places",
+      "reaches": "When it falls due, it says so by {{channels}}.",
+      "reachesNobody": "Due tasks do not reach you yet"
     },
     "confirm": {
       "ask": "This confirms the step and starts {{name}}; it cannot be taken back.",
@@ -3726,7 +3727,9 @@
       "yes": "Confirm the step",
       "cancel": "Cancel"
     },
-    "stepIsManaged": "Confirming a step moves the plan on and sends the next step's targets to the controller. Only whoever steers the place can do that."
+    "stepIsManaged": "Confirming a step moves the plan on and sends the next step's targets to the controller. Only whoever steers the place can do that.",
+    "every_one": "every day",
+    "every_other": "every {{count}} days"
   },
   "targets": {
     "title": "Targets",
@@ -4828,7 +4831,8 @@
       "title": "Grow",
       "due": "Due",
       "tasks": "All tasks",
-      "lastEntry": "{{what}} · {{age}} ago · {{who}}"
+      "lastEntry": "{{what}} · {{age}} ago · {{who}}",
+      "lastEntryNow": "{{what}} · just now · {{who}}"
     },
     "latest": {
       "title": "Latest",

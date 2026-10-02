@@ -48,8 +48,12 @@ export function PlaceHeading({
           </>
         ) : null}
       </span>
-      {/* How alive the place is, read off the home's own card rather than asked for again. */}
-      <LivenessPill liveness={livenessOf(here, now)} measuredAt={measuredAtOf(here.values)} now={now} explain />
+      {/* How alive the place is, read off the home's own card rather than asked for again; a place nothing measures has no pill. */}
+      {livenessOf(here, now) === 'none' ? null : (
+        <span className={styles.pill}>
+          <LivenessPill liveness={livenessOf(here, now)} measuredAt={measuredAtOf(here.values)} now={now} explain />
+        </span>
+      )}
     </h1>
   );
 }

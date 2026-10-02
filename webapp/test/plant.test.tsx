@@ -232,7 +232,7 @@ describe('a plant of a grow', () => {
 
     expect(screen.getByText('58')).toBeInTheDocument();
     expect(screen.getByText('cm · +6 in 3 d')).toBeInTheDocument();
-    expect(screen.getByText('d19')).toBeInTheDocument();
+    expect(screen.getAllByText('D 19')[0]).toHaveClass(/figureValue/);
     expect(screen.getByText('Day 35')).toBeInTheDocument();
   });
 

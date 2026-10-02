@@ -102,7 +102,12 @@ export function PlaceCockpit({
   useRememberPlace(spaceId);
 
   return (
-    <section className={styles.cockpit} aria-label={headed ? undefined : overview.name} aria-labelledby={headed ? `${spaceId}-name` : undefined}>
+    <section
+      className={styles.cockpit}
+      data-single={byHand || undefined}
+      aria-label={headed ? undefined : overview.name}
+      aria-labelledby={headed ? `${spaceId}-name` : undefined}
+    >
       {headed ? (
         <header className={styles.head} data-back={back || undefined}>
           {back ? (
