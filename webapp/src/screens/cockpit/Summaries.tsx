@@ -14,7 +14,7 @@ import { useZone } from '@/ui/zone';
 import { boundsOf, channelsLabel, ruleTitle } from '../control/alarms/rules';
 import { targetFigure, UNIT } from '../home/units';
 import { alarmsReach, reachedBy } from '../notifications/reach';
-import { plugSummaryOf } from '../control/devices/own-summary';
+import { fanSummaryOf, plugSummaryOf } from '../control/devices/own-summary';
 import { offsetOf } from '../control/targets/targets-draft';
 import { darkReasonOf, hoursFigure, lightWindowOf } from './place';
 import { PlanLine } from './PlanLine';
@@ -76,7 +76,7 @@ export function TargetsSummary({
   const light = lightWindowOf(device, now, zone);
   const dark = darkReasonOf(device);
   // A smart socket has no targets but switch points of its own, which are what it is set to.
-  const plug = device ? plugSummaryOf(t, device, offsetOf(now, zone)) : null;
+  const plug = device ? (plugSummaryOf(t, device, offsetOf(now, zone)) ?? fanSummaryOf(t, device)) : null;
   // Drying and germination know no day: what they hold is named by the mode rather than called a night.
   const nightLabel = dark === 'drying' || dark === 'germination' ? t(`cockpit.targets.${dark}`) : t('cockpit.targets.night');
   const rows = plug
@@ -96,7 +96,11 @@ export function TargetsSummary({
   }
 
   return (
-    <Summary title={t('cockpit.targets.title')} change={mayChange ? controlPath(spaceId) : null}>
+    // A socket's or a lamp's are its settings, which is also what the page behind the link is called.
+    <Summary
+      title={t(plug || device?.type === 'light' ? 'ownPanel.title' : 'cockpit.targets.title')}
+      change={mayChange ? controlPath(spaceId) : null}
+    >
       {rows.length > 0 ? (
         <dl className={styles.facts}>
           {rows.map(row => (

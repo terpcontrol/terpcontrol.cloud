@@ -42,6 +42,7 @@ import {
 } from './targets-draft';
 import styles from './Targets.module.css';
 import { deviceName } from '@/screens/devices/naming';
+import { fieldValue } from '@/ui/advanced/field-values';
 
 /**
  * The targets a tent is held at: what the Control tab opens on, unless a plan
@@ -177,20 +178,31 @@ export function Targets({
 
       {controllers.map(({ device, configuration }, index) => (
         <Fragment key={device.id}>
-          <Panel
-            anchor={index === 0}
-            grow={grow}
-            device={device}
-            stored={configuration}
-            mayManage={mayManage}
-            titled={controllers.length > 1}
-            report={report}
-            asking={asking}
-          />
-          {/* An AIR fan's speeds belong with the targets it follows. */}
+          {/* An AIR fan's mode comes first: at a fixed speed it follows no target, and its targets are not offered. */}
           {device.type === 'fan' ? (
-            <FanPanel device={device} name={deviceName(device, t)} titled={false} mayManage={mayManage} report={fanReport} asking={asking} />
+            <FanPanel
+              device={device}
+              name={deviceName(device, t)}
+              titled={controllers.length > 1}
+              mayManage={mayManage}
+              report={fanReport}
+              asking={asking}
+            />
           ) : null}
+          {device.type === 'fan' && fieldValue(device, 'fanMode') === 'fixed' ? (
+            <p className={`${ui.cardDashed} ${ui.note}`}>{t('fanSettings.fixedTargets')}</p>
+          ) : (
+            <Panel
+              anchor={index === 0}
+              grow={grow}
+              device={device}
+              stored={configuration}
+              mayManage={mayManage}
+              titled={controllers.length > 1 && device.type !== 'fan'}
+              report={report}
+              asking={asking}
+            />
+          )}
         </Fragment>
       ))}
       {panels}

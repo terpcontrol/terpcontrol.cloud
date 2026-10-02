@@ -93,6 +93,25 @@ export const plugSummaryOf = (t: Translate, device: Device, offset: number): Sum
 };
 
 /**
+ * What an AIR fan running at a fixed speed is set to, which is all it has: it
+ * follows no target then, and the summary said "no targets yet" over a fan
+ * somebody had set up. Following a reading it has targets, and is summed up by
+ * them.
+ */
+export const fanSummaryOf = (t: Translate, device: Device): SummaryRow[] | null => {
+  if (device.type !== 'fan' || fieldValue(device, 'fanMode') !== 'fixed') return null;
+  const day = number(device, 'fixedDay');
+  const night = number(device, 'fixedNight');
+
+  return [
+    { label: t('fanSettings.mode.label'), parts: [t('fanSettings.mode.fixed')] },
+    ...(day !== null && night !== null
+      ? [{ label: t('fanSettings.speeds'), parts: [`${t('fanSettings.day')} ${day} %`, `${t('fanSettings.night')} ${night} %`] }]
+      : []),
+  ];
+};
+
+/**
  * What the cockpit's first line says where nothing here holds targets but a
  * stand-alone module is set to something of its own: "no targets yet" would
  * send a socket's owner looking for a setting they have already made.
@@ -100,6 +119,8 @@ export const plugSummaryOf = (t: Translate, device: Device, offset: number): Sum
 export const ownStatusOf = (t: Translate, device: Device | null, offset: number): string | null => {
   const mode = plugModeOf(device);
   if (mode) return t('ownPanel.status', { mode: t(`plugSettings.mode.${mode}`) });
+
+  if (device?.type === 'fan' && fieldValue(device, 'fanMode') === 'fixed') return t('ownPanel.statusFan', { mode: t('fanSettings.mode.fixed') });
 
   if (device?.type === 'light' && device.configuration) {
     const on = number(device, 'lightsOn');

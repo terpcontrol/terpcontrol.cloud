@@ -5045,6 +5045,7 @@
       },
       "noTarget": "no target",
       "co2Night": "no target at night",
+      "switches": "switches at {{low}}–{{high}}",
       "high": "{{delta}} too high",
       "low": "{{delta}} too low",
       "vpd": "VPD {{value}}",
@@ -5080,7 +5081,8 @@
       "compressor": "Compressor",
       "heater": "Heater",
       "dehumidifier": "Dehumidifier",
-      "co2": "CO₂ valve"
+      "co2": "CO₂ valve",
+      "socket": "Socket"
     },
     "outputs": {
       "running": "running",
@@ -5514,6 +5516,7 @@
     "sentNote": "The device acknowledges no setting; what it really does shows in its readings.",
     "status": "Readings arrive · socket: {{mode}}",
     "statusLight": "Readings arrive · light {{on}}–{{off}}",
+    "statusFan": "Readings arriving · fan runs: {{mode}}",
     "sentAt": "Sent to the device at {{time}}"
   },
   "plugSettings": {
@@ -5593,9 +5596,9 @@
       "both": "By both"
     },
     "modeNote": {
-      "fixed": "Runs at the set speed by day and at night. The targets above do not apply then.",
-      "temperature": "Speeds up once it is warmer than 1 °C below the target temperature, and runs at its most 1 °C above it. The humidity above does not apply.",
-      "humidity": "Speeds up once the air is more humid than 5 % below the target humidity, and runs at its most 5 % above it. The temperature above does not apply.",
+      "fixed": "Runs at the set speed by day and at night, and follows no target.",
+      "temperature": "Speeds up once it is warmer than 1 °C below the target temperature, and runs at its most 1 °C above it. The humidity below does not apply.",
+      "humidity": "Speeds up once the air is more humid than 5 % below the target humidity, and runs at its most 5 % above it. The temperature below does not apply.",
       "both": "Follows whichever of the two readings is further over its target."
     },
     "speeds": "Speed",
@@ -5613,7 +5616,8 @@
     },
     "mostBelowLeast": "The highest speed cannot be below the lowest.",
     "slowed": "While {{plug}} doses CO₂, the fan runs at {{speed}} % at most.",
-    "uncouple": "Stop slowing it"
+    "uncouple": "Stop slowing it",
+    "fixedTargets": "In “Fixed” mode the fan runs at the speeds above and follows no target. Temperature and humidity are set once it runs by temperature or humidity."
   },
   "lightSettings": {
     "title": "Light",

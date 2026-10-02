@@ -5049,6 +5049,7 @@
       },
       "noTarget": "kein Ziel",
       "co2Night": "nachts kein Ziel",
+      "switches": "schaltet bei {{low}}–{{high}}",
       "high": "{{delta}} zu hoch",
       "low": "{{delta}} zu niedrig",
       "vpd": "VPD {{value}}",
@@ -5084,7 +5085,8 @@
       "compressor": "Kompressor",
       "heater": "Heizung",
       "dehumidifier": "Entfeuchter",
-      "co2": "CO₂-Ventil"
+      "co2": "CO₂-Ventil",
+      "socket": "Steckdose"
     },
     "outputs": {
       "running": "läuft",
@@ -5518,6 +5520,7 @@
     "sentNote": "Das Gerät bestätigt keine Einstellung; was es wirklich tut, zeigen seine Werte.",
     "status": "Werte kommen an · Steckdose: {{mode}}",
     "statusLight": "Werte kommen an · Licht {{on}}–{{off}}",
+    "statusFan": "Werte kommen an · Lüfter läuft: {{mode}}",
     "sentAt": "Um {{time}} ans Gerät geschickt"
   },
   "plugSettings": {
@@ -5597,9 +5600,9 @@
       "both": "Nach beidem"
     },
     "modeNote": {
-      "fixed": "Läuft tagsüber und nachts mit der eingestellten Drehzahl. Die Zielwerte oben gelten dann nicht.",
-      "temperature": "Dreht hoch, sobald es wärmer als 1 °C unter der Zieltemperatur ist, und läuft 1 °C darüber mit der Höchstdrehzahl. Die Luftfeuchte oben gilt nicht.",
-      "humidity": "Dreht hoch, sobald die Luft feuchter als 5 % unter der Ziel-Luftfeuchte ist, und läuft 5 % darüber mit der Höchstdrehzahl. Die Temperatur oben gilt nicht.",
+      "fixed": "Läuft tagsüber und nachts mit der eingestellten Drehzahl und folgt keinem Zielwert.",
+      "temperature": "Dreht hoch, sobald es wärmer als 1 °C unter der Zieltemperatur ist, und läuft 1 °C darüber mit der Höchstdrehzahl. Die Luftfeuchte unten gilt nicht.",
+      "humidity": "Dreht hoch, sobald die Luft feuchter als 5 % unter der Ziel-Luftfeuchte ist, und läuft 5 % darüber mit der Höchstdrehzahl. Die Temperatur unten gilt nicht.",
       "both": "Folgt dem der beiden Werte, der weiter über seinem Ziel liegt."
     },
     "speeds": "Drehzahl",
@@ -5617,7 +5620,8 @@
     },
     "mostBelowLeast": "Die Höchstdrehzahl darf nicht unter der Mindestdrehzahl liegen.",
     "slowed": "Während {{plug}} CO₂ dosiert, läuft der Lüfter höchstens mit {{speed}} %.",
-    "uncouple": "Nicht mehr drosseln"
+    "uncouple": "Nicht mehr drosseln",
+    "fixedTargets": "Im Modus „Fest“ läuft der Lüfter mit den Drehzahlen oben und folgt keinem Zielwert. Temperatur und Luftfeuchte stellst du ein, sobald er nach Temperatur oder Luftfeuchte läuft."
   },
   "lightSettings": {
     "title": "Licht",

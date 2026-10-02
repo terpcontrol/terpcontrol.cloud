@@ -32,7 +32,7 @@ export class SpaceLiveService {
    */
   public async devicesIn(spaceIds: string[]): Promise<StoredDevice[]> {
     return this.devices
-      .find({ spaceId: { $in: spaceIds } }, { id: 1, spaceId: 1, configuration: 1, createdAt: 1, 'state.hardware': 1 })
+      .find({ spaceId: { $in: spaceIds } }, { id: 1, type: 1, spaceId: 1, configuration: 1, createdAt: 1, 'state.hardware': 1 })
       .sort({ createdAt: 1, id: 1 })
       .lean<StoredDevice[]>();
   }

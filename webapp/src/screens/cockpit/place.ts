@@ -18,7 +18,9 @@ import type {
   TimelineSpan,
   TimelineTarget,
 } from '@fg2/shared-types/v1';
+import { switchPointName, type PlugMode, type PlugSwitching } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { timelinePath } from '@/app/places';
+import { fieldValue } from '@/ui/advanced/field-values';
 import { offlineLabel, sinceLabel, valueAge } from '@/ui/age';
 import { statesTargets } from '@/ui/climate-hardware';
 import type { Quiet } from '@/ui/maintenance';
@@ -26,6 +28,7 @@ import { clock } from '@/ui/zone';
 import { draftOf, lightsOffOf, offsetOf } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from '../home/attention';
 import { alertLabel, asWritten, figure, isSilence, UNIT } from '../home/units';
+import { plugModeOf } from '../control/devices/own-summary';
 
 /**
  * What a place's cockpit decides before it draws anything: which device holds
@@ -143,7 +146,64 @@ const MOVERS: Record<string, Partial<Record<Steered, OutputMetric[]>>> = {
 };
 
 /** The catalogue word an output is called by everywhere on the cockpit. */
-export type OutputWord = 'compressor' | 'heater' | 'dehumidifier' | 'co2';
+export type OutputWord = 'compressor' | 'heater' | 'dehumidifier' | 'co2' | 'socket';
+
+/** The reading a stand-alone smart socket switches by, per mode, and the names of its two points. */
+const PLUG_FOLLOWS: Partial<Record<PlugMode, Steered>> = {
+  heater: 'temperature',
+  cooler: 'temperature',
+  humidify: 'humidity',
+  dehumidify: 'humidity',
+  co2: 'co2',
+};
+
+/** Between the two points a socket switches at, which is the range it holds its reading in. */
+export interface SwitchRange {
+  low: number;
+  high: number;
+}
+
+/**
+ * The range a stand-alone smart socket holds a reading in: its switch points
+ * for the half of the day it is in, where it switches by that reading. A
+ * socket has no targets, and its tiles said "kein Ziel" under a temperature it
+ * was heating to all along.
+ */
+export const switchRangeOf = (device: Device | null, metric: Steered, now: DateTime): SwitchRange | null => {
+  const mode = plugModeOf(device);
+  if (!device || !mode || PLUG_FOLLOWS[mode] !== metric) return null;
+
+  const night = fieldValue(device, 'dayNight') === true && mode !== 'co2' && isNightFor(device, now);
+  const point = (edge: 'on' | 'off'): number | null => {
+    const value = fieldValue(
+      device,
+      mode === 'co2' ? `co2${edge === 'on' ? 'On' : 'Off'}` : switchPointName(mode as PlugSwitching, night ? 'night' : 'day', edge),
+    );
+    return typeof value === 'number' ? value : null;
+  };
+  const on = point('on');
+  const off = point('off');
+  return on === null || off === null ? null : { low: Math.min(on, off), high: Math.max(on, off) };
+};
+
+/** Whether a socket that keeps night points of its own is in its night now, by the times of day its document keeps. */
+const isNightFor = (device: Device, now: DateTime): boolean => {
+  const day = fieldValue(device, 'dayFrom');
+  const night = fieldValue(device, 'nightFrom');
+  if (typeof day !== 'number' || typeof night !== 'number' || day === night) return false;
+  const utc = now.toUTC();
+  const second = utc.hour * 3600 + utc.minute * 60 + utc.second;
+  return day < night ? second < day || second >= night : second >= night && second < day;
+};
+
+/** What a tile says about a reading a socket holds between two points: in range, or how far past the nearer one. */
+export const rangeVerdictOf = (value: CardValue | null, range: SwitchRange, now: DateTime): Verdict => {
+  if (!value || value.value === null) return null;
+  if (valueAge(value, now) !== 'live') return { kind: 'last', at: value.measuredAt };
+  if (value.value > range.high) return { kind: 'high', delta: asWritten(value.value - range.high, value.metric) };
+  if (value.value < range.low) return { kind: 'low', delta: asWritten(range.low - value.value, value.metric) };
+  return { kind: 'in' };
+};
 
 const wordOf = (device: Device, output: OutputMetric): OutputWord | null => {
   if (output === 'dehumidifier') return device.type === 'fridge' ? 'compressor' : 'dehumidifier';
@@ -171,6 +231,14 @@ export const outputsFor = (
   metric: Steered,
 ): OutputState[] => {
   if (!device || !live) return [];
+  // A stand-alone socket moves the reading it switches by with its one relay.
+  const mode = plugModeOf(device);
+  if (mode) {
+    const level = live.outputs.relais?.value;
+    if (PLUG_FOLLOWS[mode] !== metric || level === null || level === undefined) return [];
+    const lane = lanes?.find(one => one.output === 'relais' && (one.deviceId === null || one.deviceId === device.id));
+    return [{ output: 'relais', word: 'socket', on: level > 0, since: level > 0 ? runningSince(lane) : null }];
+  }
   return (MOVERS[device.type]?.[metric] ?? []).flatMap(output => {
     const word = wordOf(device, output);
     const level = live.outputs[output]?.value;

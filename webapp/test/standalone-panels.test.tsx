@@ -9,9 +9,9 @@ import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
-import { ownFactOf, ownStatusOf, plugSummaryOf } from '@/screens/control/devices/own-summary';
+import { fanSummaryOf, ownFactOf, ownStatusOf, plugSummaryOf } from '@/screens/control/devices/own-summary';
 import { Targets } from '@/screens/control/targets/Targets';
-import { climateDeviceOf, lightWindowOf } from '@/screens/cockpit/place';
+import { climateDeviceOf, lightWindowOf, rangeVerdictOf, switchRangeOf } from '@/screens/cockpit/place';
 
 /**
  * What a smart socket, an AIR fan and a LIGHT are set to under Steuerung: each
@@ -171,15 +171,21 @@ describe('a smart socket under Steuerung', () => {
 });
 
 describe('an AIR fan under Steuerung', () => {
-  it('sets only the temperature and humidity it reads, and its speeds by what they follow', async () => {
-    draw([device('fan-1', 'fan', FAN)]);
+  it('sets only the temperature and humidity it reads, once it follows them', async () => {
+    draw([device('fan-1', 'fan', { ...FAN, mode: 3 })]);
 
     expect(await screen.findByRole('slider', { name: 'Day temperature' })).toBeInTheDocument();
     // A fan has no lamp and no CO2 of its own.
     expect(screen.queryByLabelText('Light on at')).not.toBeInTheDocument();
     expect(screen.queryByRole('slider', { name: /CO₂/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/The targets above do not apply then/)).toBeInTheDocument();
-    expect(screen.getByRole('slider', { name: 'Speed by day' })).toHaveValue('70');
+  });
+
+  it('starts with what its speed follows, offers no targets at a fixed speed, and sets its speeds by what they follow', async () => {
+    draw([device('fan-1', 'fan', FAN)]);
+
+    expect(await screen.findByRole('slider', { name: 'Speed by day' })).toHaveValue('70');
+    expect(screen.queryByRole('slider', { name: 'Day temperature' })).not.toBeInTheDocument();
+    expect(screen.getByText(/^In “Fixed” mode the fan runs at the speeds above and follows no target/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'By humidity' }));
     expect(screen.getByRole('slider', { name: 'Lowest speed' })).toHaveValue('30');
@@ -222,6 +228,30 @@ describe('what the cockpit and the device panel say about them', () => {
     expect(ownStatusOf(t, plug, 0)).toBe('Readings arrive · socket: Heating');
     expect(ownFactOf(t, device('fan-1', 'fan', FAN), 0)).toEqual({ label: 'The fan runs', value: 'Fixed' });
     expect(ownFactOf(t, device('light-1', 'light', LIGHT), 7200)).toEqual({ label: 'Light', value: '08:00–00:00' });
+  });
+
+  it('judges a socket´s reading by the points it switches at, by its own night where it keeps one', () => {
+    const at = (hour: number) => DateTime.fromISO(`2026-07-01T${String(hour).padStart(2, '0')}:00:00Z`);
+    const reading = (value: number) => ({ metric: 'temperature' as const, value, measuredAt: at(12).toISO()!, state: 'live' as const });
+    const plug = device('plug-1', 'plug', PLUG);
+
+    expect(switchRangeOf(plug, 'temperature', at(12))).toEqual({ low: 22, high: 25 });
+    expect(switchRangeOf(plug, 'humidity', at(12))).toBeNull();
+    expect(switchRangeOf(device('plug-1', 'plug', { ...PLUG, usedaynight: 1 }), 'temperature', at(23))).toEqual({ low: 20, high: 23 });
+    expect(switchRangeOf(device('plug-1', 'plug', { ...PLUG, workmode: 'cooler' }), 'temperature', at(12))).toEqual({ low: 25, high: 28 });
+
+    expect(rangeVerdictOf(reading(23.4), { low: 22, high: 25 }, at(12))).toEqual({ kind: 'in' });
+    expect(rangeVerdictOf(reading(21), { low: 22, high: 25 }, at(12))).toEqual({ kind: 'low', delta: 1 });
+  });
+
+  it('sums a fan at a fixed speed up by its speeds, and says so in the cockpit´s first line', () => {
+    const fan = device('fan-1', 'fan', FAN);
+    expect(fanSummaryOf(t, fan)).toEqual([
+      { label: 'The fan runs', parts: ['Fixed'] },
+      { label: 'Speed', parts: ['By day 70 %', 'At night 40 %'] },
+    ]);
+    expect(fanSummaryOf(t, device('fan-1', 'fan', { ...FAN, mode: 2 }))).toBeNull();
+    expect(ownStatusOf(t, fan, 0)).toMatch(/fan runs: Fixed$/);
   });
 
   it('reads a LIGHT’s window from the top of its document, and none from a fan', () => {

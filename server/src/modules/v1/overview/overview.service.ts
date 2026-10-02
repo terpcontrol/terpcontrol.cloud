@@ -142,6 +142,7 @@ export class OverviewService {
         device.configuration,
         readings.find(one => one.device.id === device.id)?.reading.isDay ?? true,
         device.state?.hardware,
+        device.type,
       );
       return targets ? [{ deviceId: device.id, targets }] : [];
     });

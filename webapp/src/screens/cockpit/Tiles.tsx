@@ -18,6 +18,8 @@ import {
   judgedPanel,
   darkReasonOf,
   lightWindowOf,
+  rangeVerdictOf,
+  switchRangeOf,
   nightsOf,
   outputsFor,
   reports,
@@ -129,7 +131,9 @@ function ClimateTile({
   const { t } = useTranslation();
   const value = valueOf(values, metric);
   const setpoint = setpointOf(setpoints, metric);
-  const verdict = verdictOf(value, setpoint, now);
+  // A smart socket standing alone holds its reading between its switch points rather than at a target.
+  const range = setpoint?.value == null ? switchRangeOf(device, metric, now) : null;
+  const verdict = range ? rangeVerdictOf(value, range, now) : verdictOf(value, setpoint, now);
   const age = value ? valueAge(value, now) : 'offline';
   const vpd = metric === 'humidity' ? valueOf(values, 'vpd') : null;
   const panel = timeline
@@ -150,7 +154,14 @@ function ClimateTile({
           ) : null}
         </div>
         <p className={`mono ${styles.targetLine}`}>
-          <span>{targetLabel(t, metric, setpoint, live)}</span>
+          <span>
+            {range
+              ? t('cockpit.tile.switches', {
+                  low: targetFigure(range.low, metric),
+                  high: `${targetFigure(range.high, metric)} ${UNIT[metric] ?? ''}`.trim(),
+                })
+              : targetLabel(t, metric, setpoint, live)}
+          </span>
           <VerdictWords verdict={verdict} metric={metric} now={now} explain={explainBand} />
         </p>
       </div>

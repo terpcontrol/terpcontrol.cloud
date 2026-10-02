@@ -37,10 +37,11 @@ export const setpointsOf = (
   configuration: Record<string, unknown> | null,
   isDay: boolean | null,
   hardware: Record<string, string> = {},
+  type: string | null = null,
 ): Setpoints | null => {
   if (!configuration || isDay === null) return null;
 
-  const held = HELD[String(configuration.workmode)] ?? null;
+  const held = type === 'fan' ? (FAN_HOLDS[Number(configuration.mode)] ?? null) : (HELD[String(configuration.workmode)] ?? null);
   const setpoints: Setpoints = {
     day: held?.nightOnly ? {} : halfOf(configuration, 'day', hardware, held),
     night: halfOf(configuration, 'night', hardware, held),
@@ -63,6 +64,18 @@ const HELD: Readonly<Record<string, { metrics: readonly Metric[]; nightOnly: boo
   dry: { metrics: ['temperature', 'humidity'], nightOnly: true },
   breed: { metrics: ['temperature'], nightOnly: true },
   temp: { metrics: ['temperature', 'co2'], nightOnly: false },
+};
+
+/**
+ * What an AIR fan holds by its mode, the firmware's number for it: at a fixed
+ * speed (0) it follows no reading at all, and it follows the temperature (1),
+ * the humidity (2) or both (3). Its CO2 is never a target of its own.
+ */
+const FAN_HOLDS: Readonly<Record<number, { metrics: readonly Metric[]; nightOnly: boolean }>> = {
+  0: { metrics: [], nightOnly: false },
+  1: { metrics: ['temperature'], nightOnly: false },
+  2: { metrics: ['humidity'], nightOnly: false },
+  3: { metrics: ['temperature', 'humidity'], nightOnly: false },
 };
 
 const halfOf = (

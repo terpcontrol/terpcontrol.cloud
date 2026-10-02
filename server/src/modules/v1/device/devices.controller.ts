@@ -283,7 +283,7 @@ export class DevicesController {
       deviceId: id,
       metrics: reading.metrics,
       outputs: reading.outputs,
-      setpoints: setpointsOf(device.configuration, reading.isDay, device.state?.hardware),
+      setpoints: setpointsOf(device.configuration, reading.isDay, device.state?.hardware, device.type),
     };
   }
 
