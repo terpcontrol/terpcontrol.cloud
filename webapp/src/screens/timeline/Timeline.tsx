@@ -3,7 +3,9 @@ import { DateTime } from 'luxon';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
-import type { SpaceTimeline, TimelineOutputLane, TimelineRange } from '@fg2/shared-types/v1';
+import type { GrowSeriesRange, MeasurementDefinition, SpaceTimeline, TimelineOutputLane, TimelineRange } from '@fg2/shared-types/v1';
+import { useGrowSeries } from '@/api/charts';
+import { serverNow } from '@/api/clock';
 import { useDevices } from '@/api/devices';
 import { useGrow } from '@/api/grows';
 import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
@@ -16,6 +18,7 @@ import { figure, UNIT } from '../home/units';
 import { CameraFrame, Slider } from './CameraFrame';
 import { Lanes } from './Lanes';
 import { Panel } from './Panel';
+import { ReadingPanel } from './ReadingPanel';
 import { at, pointAt, spans, stampOf } from './window';
 import styles from './Timeline.module.css';
 
@@ -75,6 +78,7 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
   }, [focus, data]);
   const growId = pinned ?? data?.growId ?? null;
   const grow = useGrow(growId);
+  const readings = useReadings(growId, grow.data?.measurements ?? [], range);
 
   const scrub = useScrub(fraction => {
     if (!data) return;
@@ -144,7 +148,8 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
             chosen. With no grow shown there is nothing for it to open on: a
             chart is drawn about a grow, and the panels below already draw the
             place. */}
-        {growId !== null ? (
+        {/* Nor where nothing was ever measured here - by a device or by hand - which is a chart of nothing whatever the window. */}
+        {growId !== null && (!data || data.panels.length > 0 || data.lastReadingAt !== null || readings.length > 0) ? (
           <Link to={`/charts?space=${spaceId}&grow=${growId}`} className={ui.chip}>
             <LineChart size={13} strokeWidth={1.75} aria-hidden />
             {t('charts.title')}
@@ -204,6 +209,9 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
           to={to}
           cursor={here}
           day={data.dayFrom !== null && data.dayFrom === data.dayTo ? data.dayFrom : null}
+          photos={data.events.flatMap(entry =>
+            entry.cameraId === null ? entry.mediaIds.map(mediaId => ({ mediaId, takenAt: entry.occurredAt })) : [],
+          )}
           onScrub={setCursor}
         />
       ) : (
@@ -226,7 +234,7 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
           empty stack means "nothing was heard here" as often as it means
           "nothing measures here". `lastReadingAt` is the last time anything
           standing here measured at all, whenever that was. */}
-      {data.panels.length === 0 ? (
+      {data.panels.length === 0 && readings.length === 0 ? (
         <p className={`${ui.cardDashed} ${ui.note} ${styles.empty}`}>
           {data.lastReadingAt === null ? t('timeline.noPanels') : t('timeline.quietWindow', { age: ageLabel(data.lastReadingAt, now) })}
         </p>
@@ -246,6 +254,18 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
           focused={panel.metric === focus}
         />
       ))}
+      {readings.map(({ definition, points }) => (
+        <ReadingPanel
+          key={definition.key}
+          definition={definition}
+          points={points.filter(point => at(point.measuredAt) >= from && at(point.measuredAt) <= to)}
+          nights={heardNights}
+          from={from}
+          to={to}
+          cursor={here}
+          scrub={scrub}
+        />
+      ))}
 
       <Lanes
         timeline={data}
@@ -260,10 +280,39 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
         events={data.events.length > 0}
         focus={focus}
         nameOf={nameOf}
+        // Where nothing measures, what was written is the whole of the window, so it is listed rather than folded into marks.
+        listAll={data.panels.length === 0 && data.outputs.length === 0 && data.lastReadingAt === null}
       />
     </div>
   );
 }
+
+/** The series range a Timeline window is read as; a month has no chip of the grow's own and is asked for by its two ends. */
+const SERIES_RANGE: Record<TimelineRange, GrowSeriesRange> = { '24h': '24h', '7d': '7d', '30d': 'custom', phase: 'phase', grow: 'grow' };
+
+/**
+ * The grow's own measurements that are charted, with what was read of them
+ * over the window - asked for only where there are any, because the same read
+ * carries the climate the Timeline already has.
+ */
+const useReadings = (growId: string | null, measurements: MeasurementDefinition[], range: TimelineRange) => {
+  const charted = measurements.filter(definition => definition.chart);
+  const [month] = useState(() => {
+    const hour = serverNow().startOf('hour');
+    return { from: hour.minus({ days: 30 }).toUTC().toISO()!, to: hour.plus({ hours: 1 }).toUTC().toISO()! };
+  });
+  const series = useGrowSeries(charted.length > 0 ? growId : null, {
+    range: SERIES_RANGE[range],
+    ...(range === '30d' ? month : {}),
+    measurements: charted.map(definition => definition.key),
+  });
+  const answered = series.data?.measurements ?? [];
+
+  return charted.flatMap(definition => {
+    const points = answered.find(one => one.key === definition.key)?.points ?? [];
+    return points.length > 0 ? [{ definition, points }] : [];
+  });
+};
 
 /** What an output lane is called. */
 export type OutputName = (lane: Pick<TimelineOutputLane, 'output' | 'deviceId'>) => string;

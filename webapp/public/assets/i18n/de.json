@@ -2374,7 +2374,9 @@
         "watering_volume": "Gießmenge",
         "outside_temp": "Außentemperatur",
         "leaf_temp": "Blatttemperatur",
-        "runoff_ec": "Ablauf-EC"
+        "runoff_ec": "Ablauf-EC",
+        "air_temp": "Lufttemperatur",
+        "air_humidity": "Luftfeuchte"
       },
       "templateNote": {
         "runoff_ec": "unter dem EC der Gießlösung plus ein Fünftel"
@@ -3068,7 +3070,12 @@
     "noSpaces": "Noch nichts zu zeichnen. Gerät hinzufügen oder Grow starten auf der",
     "demoNoSpaces": "Die Demo hat nichts zu zeichnen; in dieser wurde nichts zum Anschauen hinterlegt.",
     "leafShort": "Blatt",
-    "noTargetNow": "um diese Zeit kein Ziel"
+    "noTargetNow": "um diese Zeit kein Ziel",
+    "reading": "{{name}} · erfasst",
+    "readAt": "gemessen {{time}}",
+    "camSince": "Kein Cam-Bild um {{time}} – die Cam filmt seit {{since}}",
+    "noFrameAt": "Kein Cam-Bild um {{time}}",
+    "photoAt": "Foto · {{time}}"
   },
   "camera": {
     "never": "nie",

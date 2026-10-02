@@ -22,7 +22,14 @@ export interface MeasurementTemplate {
   chart: boolean;
 }
 
+/**
+ * The air comes first: somebody without a device reads the tent off a
+ * hygrometer, and those two readings are the climate the Timeline draws for
+ * them.
+ */
 export const TEMPLATES: MeasurementTemplate[] = [
+  { key: 'air_temp', unit: '°C', perPlant: false, chart: true },
+  { key: 'air_humidity', unit: '%', perPlant: false, chart: true },
   { key: 'water_temp', unit: '°C', perPlant: false, chart: true },
   { key: 'ppfd', unit: 'µmol', perPlant: false, chart: true },
   { key: 'pot_size', unit: 'L', perPlant: true, chart: false },

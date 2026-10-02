@@ -117,6 +117,15 @@
   box-shadow: var(--shadow);
 }
 
+/* Beside the rail the picture took the whole first screen and pushed the first
+   curve under its edge; it keeps a glance's size there, about two fifths of
+   the height, and the curves start on the first screen. */
+@media (min-width: 900px) {
+  .frame {
+    width: min(100%, calc(40vh * 16 / 9 + 2px));
+  }
+}
+
 .dots {
   position: absolute;
   right: var(--space-2);

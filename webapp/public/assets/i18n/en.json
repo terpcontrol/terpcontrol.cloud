@@ -2370,7 +2370,9 @@
         "watering_volume": "Watering volume",
         "outside_temp": "Outside temp",
         "leaf_temp": "Leaf temp",
-        "runoff_ec": "Runoff EC"
+        "runoff_ec": "Runoff EC",
+        "air_temp": "Air temperature",
+        "air_humidity": "Humidity"
       },
       "templateNote": {
         "runoff_ec": "aim under the input EC plus a fifth"
@@ -3064,7 +3066,12 @@
     "noSpaces": "Nothing to draw yet. Add a device or start a grow on the",
     "demoNoSpaces": "The demo has nothing to draw; nothing has been left in this one to look at.",
     "leafShort": "leaf",
-    "noTargetNow": "no target at this time"
+    "noTargetNow": "no target at this time",
+    "reading": "{{name}} · recorded",
+    "readAt": "read {{time}}",
+    "camSince": "No camera picture at {{time}} – the camera has filmed since {{since}}",
+    "noFrameAt": "No camera picture at {{time}}",
+    "photoAt": "Photo · {{time}}"
   },
   "camera": {
     "never": "never",

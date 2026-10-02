@@ -35,6 +35,8 @@ interface LanesProps {
   focus?: string | null;
   /** What each lane is called, which for a fridge's compressor is not its output's name. */
   nameOf: OutputName;
+  /** Lists every line of the window under the rail while no mark is open, newest first. */
+  listAll?: boolean;
 }
 
 /**
@@ -43,7 +45,21 @@ interface LanesProps {
  * that a line exists there, and tapping it puts the line under the rail and the
  * cursor on its moment - which is the whole reason the two are drawn together.
  */
-export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onScrub, scrub, events = true, focus = null, nameOf }: LanesProps) {
+export function Lanes({
+  timeline,
+  from,
+  to,
+  cursor,
+  now,
+  selected,
+  onSelect,
+  onScrub,
+  scrub,
+  events = true,
+  focus = null,
+  nameOf,
+  listAll = false,
+}: LanesProps) {
   const { t } = useTranslation();
   // A mark tapped open is the one place the rail draws what somebody wrote, so
   // it is also where they can put right what they wrote. The place that decides
@@ -69,6 +85,8 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
 
   const marks = clusterOf(timeline.events, from, to, width);
   const open = marks.find(mark => mark.key === selected) ?? null;
+  // A diary kept by hand: the lines of the window are the window, so they are listed rather than left behind marks.
+  const listed = open ? open.entries : listAll ? [...timeline.events].sort((one, other) => at(other.occurredAt) - at(one.occurredAt)) : [];
   const left = `${fractionOf(cursor, from, to) * 100}%`;
 
   return (
@@ -140,9 +158,9 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
         </p>
       ) : null}
 
-      {open ? (
+      {listed.length > 0 ? (
         <ul className={styles.opened}>
-          {open.entries.map(entry => (
+          {listed.map(entry => (
             <EntryRow
               key={entry.id}
               entry={entry}

@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SpaceTimeline } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
-import { useZone } from '@/ui/zone';
-import { at, captureOf, fractionOf, frameAt, stampOf } from './window';
+import { useCameraCalled } from '@/ui/camera-name';
+import { DATED_CLOCK, useZone, zonedAt } from '@/ui/zone';
+import { at, captureOf, fractionOf, frameNear, stampOf } from './window';
 import styles from './Timeline.module.css';
 import ui from '@/ui/ui.module.css';
 
@@ -22,36 +23,56 @@ interface CameraFrameProps {
   cursor: number;
   /** The one-line caption: which camera, when, and the day where the window is one. */
   day: number | null;
+  /** The photos written in the window, which stand in where the camera took nothing near the cursor. */
+  photos?: { mediaId: string; takenAt: string }[];
   onScrub: (time: number) => void;
 }
+
+/** How far from the cursor a written photo may have been taken to stand in for a camera picture. */
+const PHOTO_REACH = 24 * 60 * 60 * 1000;
 
 /**
  * The picture at the cursor, with the window under it. The slider is the same
  * cursor the panels carry, so a thumb dragging it walks the curves as well as
  * the pictures; play steps through the frames there actually are.
  */
-export function CameraFrame({ cameras, from, to, cursor, day, onScrub }: CameraFrameProps) {
+export function CameraFrame({ cameras, from, to, cursor, day, photos = [], onScrub }: CameraFrameProps) {
   const { t } = useTranslation();
   const zone = useZone();
+  const called = useCameraCalled();
   const [shown, setShown] = useState(0);
   const camera = cameras[Math.min(shown, cameras.length - 1)];
-  const frame = frameAt(camera, cursor);
+  const frame = frameNear(camera, cursor);
+  // No camera picture near the cursor: the photo written nearest it, where one was, rather than a picture of another day.
+  const photo = frame
+    ? null
+    : (photos
+        .filter(one => Math.abs(at(one.takenAt) - cursor) <= PHOTO_REACH)
+        .sort((one, other) => Math.abs(at(one.takenAt) - cursor) - Math.abs(at(other.takenAt) - cursor))[0] ?? null);
   const playing = usePlay(camera.frames, cursor, onScrub);
-  const source = frame ? mediaUrl(frame.mediaId, THUMBNAIL_WIDTH.frame) : null;
+  const source = frame ? mediaUrl(frame.mediaId, THUMBNAIL_WIDTH.frame) : photo ? mediaUrl(photo.mediaId, THUMBNAIL_WIDTH.frame) : null;
   const caption = frame ? captureOf(at(frame.capturedAt), to - from, zone) : null;
+  const first = camera.frames[0] ? at(camera.frames[0].capturedAt) : null;
+  const missing =
+    first !== null && cursor < first
+      ? t('timeline.camSince', { time: stampOf(cursor, to - from, zone), since: zonedAt(first, zone).toFormat(DATED_CLOCK) })
+      : t('timeline.noFrameAt', { time: stampOf(cursor, to - from, zone) });
   useReadAhead(camera.frames, cursor, playing.on);
 
   return (
     <section className={styles.frame}>
       <div className={ui.mat}>
         {source ? (
-          <img src={source} alt={t('timeline.frameAlt', { name: camera.name })} />
+          <img src={source} alt={t('timeline.frameAlt', { name: called(camera.name) })} />
         ) : (
-          <p className={`mono ${ui.matNote}`}>{t('timeline.noFrames')}</p>
+          <p className={`mono ${ui.matNote}`}>{camera.frames.length === 0 ? t('timeline.noFrames') : missing}</p>
         )}
         <span className={ui.photoCaption}>
-          {camera.name}
-          {caption ? ` · ${caption}` : ''}
+          {frame
+            ? `${called(camera.name)} · ${caption}`
+            : photo
+              ? `${t('timeline.photoAt', { time: captureOf(at(photo.takenAt), to - from, zone) })} · ${missing}`
+              : called(camera.name)}
           {day !== null ? ` · ${t('timeline.dayN', { day })}` : ''}
         </span>
         {cameras.length > 1 ? (
@@ -61,7 +82,7 @@ export function CameraFrame({ cameras, from, to, cursor, day, onScrub }: CameraF
                 key={one.cameraId}
                 type="button"
                 className={styles.camDot}
-                aria-label={one.name}
+                aria-label={called(one.name)}
                 aria-current={index === shown}
                 onClick={() => setShown(index)}
               />
