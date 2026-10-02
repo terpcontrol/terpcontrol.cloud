@@ -857,13 +857,29 @@ export interface DeviceConfigurationEnvelope {
   configuration: DeviceConfiguration;
 }
 
+export interface TimerWindow {
+  ontime: number;
+  duration: number;
+}
+
 export interface DeviceConfigurationPatch {
   /**
    * Field name to value, from the fields of this type of device.
    */
   set: {
-    [k: string]: number | boolean | string;
+    [k: string]: number | boolean | string | TimerWindow[];
   };
+}
+
+export interface Co2FanCoupling {
+  /**
+   * An AIR fan of this account; null ends the coupling.
+   */
+  fanId: string | null;
+  /**
+   * Per cent: the most the fan runs at while the socket doses.
+   */
+  speed: number;
 }
 
 export interface DeviceConfigurationReading {

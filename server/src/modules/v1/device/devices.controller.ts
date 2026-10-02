@@ -2,6 +2,7 @@ import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put,
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import {
+  Co2FanCoupling,
   Device,
   DeviceClaimCreate,
   DeviceClaimResult,
@@ -22,6 +23,7 @@ import {
   SocketUpdate,
 } from '@fg2/shared-types/v1';
 import {
+  co2FanCoupling,
   device as deviceShape,
   deviceClaimCreate,
   deviceClaimResult,
@@ -48,7 +50,7 @@ import { AuthGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
-import { badRequest } from '@common/v1/problem';
+import { badRequest, forbidden } from '@common/v1/problem';
 import { PageQuery, V1Query, inOrder, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { demoSockets } from '@utils/demo';
@@ -152,6 +154,12 @@ export class DevicesController {
     // Moving a device is managing two places, and the guard above has only
     // decided about the one it is standing in.
     if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    // Pinning a build - a rollback, a test build for one customer - is the
+    // operator's: a grower picks whether the device updates itself and from
+    // which channel, and re-sends the pin it already has with that choice.
+    if (body.firmware && !ctx.isAdmin && body.firmware.targetId !== (await this.devices.require(id)).firmware.targetId) {
+      throw forbidden('firmware_pin_admin_only', 'Only an administrator puts a device on a particular build.');
+    }
 
     return this.devices.serialise(await this.devices.update(id, body), ctx.isDemo);
   }
@@ -215,6 +223,23 @@ export class DevicesController {
     @V1Body(deviceConfigurationPatch) body: DeviceConfigurationPatch,
   ): Promise<Device> {
     await this.configuration.configure(id, body.set, ctx.userId);
+    return this.devices.serialise(await this.devices.require(id), ctx.isDemo);
+  }
+
+  /**
+   * The AIR fan a stand-alone smart socket slows down while it doses CO2 in
+   * windows. Changing it is managing both devices, and the guard above has only
+   * decided about the socket.
+   */
+  @Put(':id/co2-fan')
+  @UseGuards(AuthGuard, AccessGuard)
+  @Requires('manage', 'device')
+  @ApiOperation({ summary: 'Slow an AIR fan while this smart socket doses CO2, or stop' })
+  @V1Answer(deviceShape)
+  public async coupleCo2Fan(@Caller() ctx: AccessContext, @Param('id') id: string, @V1Body(co2FanCoupling) body: Co2FanCoupling): Promise<Device> {
+    if (body.fanId) await this.access.require(ctx, subjectRef('device', body.fanId), 'manage');
+
+    await this.configuration.coupleCo2Fan(id, body.fanId ? { fanId: body.fanId, speed: body.speed } : null);
     return this.devices.serialise(await this.devices.require(id), ctx.isDemo);
   }
 

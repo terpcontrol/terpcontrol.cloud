@@ -1,4 +1,4 @@
-import { anonymous, createAccount, Session } from '../support/api';
+import { anonymous, createAccount, loginAsAdmin, Session, unique } from '../support/api';
 import { claimCodeOf, DeviceSimulator, provisionDevice, registerDevice, settle, startSimulator } from '../support/device';
 
 /**
@@ -290,6 +290,103 @@ describe('what reaches the hardware', () => {
     expect(series.body.outputs[0].points.filter((point: { value: number | null }) => point.value !== null)).toContainEqual(
       expect.objectContaining({ value: 40 }),
     );
+  });
+});
+
+describe('how a device updates', () => {
+  it('lets its owner choose whether and from which channel, and leaves pinning a build to an administrator', async () => {
+    const device = await provisionDevice(owner, 'plug');
+    const before = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.firmware;
+
+    const on = await owner.client
+      .patch(`/v1/devices/${device.deviceId}`)
+      .send({ firmware: { channel: 'stable', targetId: before.targetId } })
+      .expect(200);
+    expect(on.body.firmware).toEqual({ channel: 'stable', targetId: before.targetId });
+
+    const admin = await loginAsAdmin();
+    const classes = await admin.client.get('/v1/admin/device-classes').expect(200);
+    const plugClass = classes.body.items.find((entry: { name: string }) => entry.name === 'plug');
+    const build = await admin.client
+      .post('/v1/admin/firmwares')
+      .send({ classId: plugClass.id, name: 'plug', version: unique('v') })
+      .expect(201);
+
+    const refused = await owner.client
+      .patch(`/v1/devices/${device.deviceId}`)
+      .send({ firmware: { channel: 'manual', targetId: build.body.id } })
+      .expect(403);
+    expect(refused.body.code).toBe('firmware_pin_admin_only');
+
+    const pinned = await admin.client
+      .patch(`/v1/devices/${device.deviceId}`)
+      .send({ firmware: { channel: 'manual', targetId: build.body.id } })
+      .expect(200);
+    expect(pinned.body.firmware).toEqual({ channel: 'manual', targetId: build.body.id });
+  });
+});
+
+describe('the settings of a stand-alone module', () => {
+  const plugDocument = {
+    workmode: 'co2',
+    usedaynight: 0,
+    daynight: { day: 21600, night: 79200 },
+    co2: { mode: 'periodic', period: 30, duration: 5, on: 600, off: 1000 },
+    fan: '',
+  };
+
+  it('changes a smart socket by name, its timer included, and keeps the rest of its document', async () => {
+    const plug = await provisionDevice(owner, 'plug');
+    await owner.client.put(`/v1/devices/${plug.deviceId}/configuration`).send({ configuration: plugDocument }).expect(200);
+
+    const changed = await owner.client
+      .patch(`/v1/devices/${plug.deviceId}/configuration`)
+      .send({ set: { plugMode: 'timer', timerWindows: [{ ontime: 36000, duration: 15 }] } })
+      .expect(200);
+    expect(changed.body.configuration).toMatchObject({
+      workmode: 'timer',
+      timer: { timeframes: [{ ontime: 36000, duration: 15 }] },
+      co2: { period: 30 },
+    });
+    expect(changed.body.control).toBeNull();
+
+    const refused = await owner.client
+      .patch(`/v1/devices/${plug.deviceId}/configuration`)
+      .send({ set: { timerWindows: [{ ontime: 36000, duration: 0 }] } })
+      .expect(400);
+    expect(refused.body.status).toBe(400);
+  });
+
+  it('slows an AIR fan of the same owner while a socket doses CO2, and no fan of anybody else', async () => {
+    const plug = await provisionDevice(owner, 'plug');
+    const fan = await provisionDevice(owner, 'fan');
+    await owner.client.put(`/v1/devices/${plug.deviceId}/configuration`).send({ configuration: plugDocument }).expect(200);
+    await owner.client
+      .put(`/v1/devices/${fan.deviceId}/configuration`)
+      .send({ configuration: { mode: 0, min_speed: 30 } })
+      .expect(200);
+
+    const coupled = await owner.client.put(`/v1/devices/${plug.deviceId}/co2-fan`).send({ fanId: fan.deviceId, speed: 25 }).expect(200);
+    expect(JSON.parse(coupled.body.configuration.fan)).toEqual({ device_id: fan.deviceId, speed: 25 });
+    const slowed = await owner.client.get(`/v1/devices/${fan.deviceId}`).expect(200);
+    expect(slowed.body.configuration.co2inject).toEqual({
+      device_id: plug.deviceId,
+      speed: 25,
+      usedaynight: 0,
+      day: 21600,
+      night: 79200,
+      period: 30,
+      duration: 5,
+    });
+
+    const stranger = await createAccount('devices-fan-outsider');
+    const theirs = await provisionDevice(stranger, 'fan');
+    await owner.client.put(`/v1/devices/${plug.deviceId}/co2-fan`).send({ fanId: theirs.deviceId, speed: 25 }).expect(404);
+    const notPlug = await owner.client.put(`/v1/devices/${fan.deviceId}/co2-fan`).send({ fanId: fan.deviceId, speed: 25 }).expect(422);
+    expect(notPlug.body.code).toBe('not_a_plug');
+
+    await owner.client.put(`/v1/devices/${plug.deviceId}/co2-fan`).send({ fanId: null, speed: 100 }).expect(200);
+    expect((await owner.client.get(`/v1/devices/${fan.deviceId}`).expect(200)).body.configuration.co2inject).toEqual({});
   });
 });
 

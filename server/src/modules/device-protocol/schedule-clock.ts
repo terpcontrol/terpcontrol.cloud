@@ -29,9 +29,10 @@ const DAY_SECONDS = 24 * 60 * 60;
 /**
  * Every time of day a device keeps, by where it keeps it: the controller's,
  * the fridge's and the socket hub's day and night, the stand-alone lamp's own
- * pair at the top of its document, and the window a fan adds CO2 in. They move
- * together, because a CO2 window left on UTC while the light it belongs to
- * moved would spend an hour of gas in the dark.
+ * pair at the top of its document, and the window a fan adds CO2 in - and,
+ * beside these, the windows of a smart socket's timer (`TIMER_WINDOWS`). They
+ * move together, because a CO2 window left on UTC while the light it belongs
+ * to moved would spend an hour of gas in the dark.
  */
 const CLOCK_TIMES: readonly (readonly string[])[] = [
   ['daynight', 'day'],
@@ -41,6 +42,9 @@ const CLOCK_TIMES: readonly (readonly string[])[] = [
   ['co2inject', 'day'],
   ['co2inject', 'night'],
 ];
+
+/** Where a smart socket keeps its timer: a list of windows, each switched on at `ontime`. */
+const TIMER_WINDOWS = ['timer', 'timeframes'] as const;
 
 /** The clock a schedule written now is kept on, or null where the owner has never picked a zone. */
 export const scheduleClockOf = (preferences: { timezone?: string; timezoneChosen?: boolean } | null | undefined, at: Date): ScheduleClock | null => {
@@ -68,14 +72,27 @@ const timeAt = (configuration: DeviceConfiguration | null, path: readonly string
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 };
 
+const windowsOf = (configuration: DeviceConfiguration | null): unknown[] | null => {
+  const timer = isSection(configuration) ? configuration[TIMER_WINDOWS[0]] : undefined;
+  const windows = isSection(timer) ? timer[TIMER_WINDOWS[1]] : undefined;
+  return Array.isArray(windows) ? windows : null;
+};
+
+const startOf = (window: unknown): number | null =>
+  isSection(window) && typeof window.ontime === 'number' && Number.isFinite(window.ontime) ? window.ontime : null;
+
 /** The times of day a document states, by their dotted path. A section of the same name - a controller's `day` targets - is not one. */
 export const clockTimesOf = (configuration: DeviceConfiguration | null): Record<string, number> =>
-  Object.fromEntries(
-    CLOCK_TIMES.flatMap(path => {
+  Object.fromEntries([
+    ...CLOCK_TIMES.flatMap(path => {
       const seconds = timeAt(configuration, path);
       return seconds === null ? [] : [[path.join('.'), seconds]];
     }),
-  );
+    ...(windowsOf(configuration) ?? []).flatMap((window, index) => {
+      const seconds = startOf(window);
+      return seconds === null ? [] : [[`${TIMER_WINDOWS.join('.')}.${index}.ontime`, seconds]];
+    }),
+  ]);
 
 export const keepsTime = (configuration: DeviceConfiguration | null): boolean => Object.keys(clockTimesOf(configuration)).length > 0;
 
@@ -99,6 +116,18 @@ export const withClockTimesMoved = (configuration: DeviceConfiguration, seconds:
     const [first, second] = path;
     if (second === undefined) next[first] = moved(value);
     else next[first] = { ...(next[first] as Record<string, unknown>), [second]: moved(value) };
+  }
+
+  const windows = windowsOf(configuration);
+  if (windows) {
+    const [section, list] = TIMER_WINDOWS;
+    next[section] = {
+      ...(next[section] as Record<string, unknown>),
+      [list]: windows.map(window => {
+        const start = startOf(window);
+        return start === null ? window : { ...(window as Record<string, unknown>), ontime: moved(start) };
+      }),
+    };
   }
 
   return next;

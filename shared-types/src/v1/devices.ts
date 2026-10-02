@@ -170,6 +170,19 @@ export const deviceConfigurationEnvelope = named(
 );
 
 /**
+ * One window of a smart socket's timer, as the firmware keeps it: switched on
+ * at `ontime`, in seconds past midnight UTC like every time of day a device
+ * keeps, for `duration` minutes. A window may run past midnight.
+ */
+export const timerWindow = named(
+  'TimerWindow',
+  z.object({
+    ontime: z.number().int().min(0).max(86399),
+    duration: z.number().int().min(1).max(24 * 60),
+  }),
+);
+
+/**
  * `PATCH /devices/{id}/configuration`: settings beyond the targets, by the
  * names `CONFIGURATION_FIELDS` gives them for the device's type. The server
  * checks each against that table, merges it into the document the device runs
@@ -179,8 +192,22 @@ export const deviceConfigurationPatch = named(
   'DeviceConfigurationPatch',
   z.object({
     set: z
-      .record(z.string(), z.union([z.number(), z.boolean(), z.string()]))
+      .record(z.string(), z.union([z.number(), z.boolean(), z.string(), z.array(timerWindow)]))
       .describe('Field name to value, from the fields of this type of device.'),
+  }),
+);
+
+/**
+ * `PUT /devices/{id}/co2-fan`: the AIR fan a stand-alone smart socket slows
+ * down while it doses CO2 in windows, or none. Two documents change with it -
+ * the socket names the fan, and the fan is given the socket's windows - and
+ * the server keeps the fan's in step with every later change to the socket.
+ */
+export const co2FanCoupling = named(
+  'Co2FanCoupling',
+  z.object({
+    fanId: id().nullable().describe('An AIR fan of this account; null ends the coupling.'),
+    speed: z.number().int().min(0).max(100).describe('Per cent: the most the fan runs at while the socket doses.'),
   }),
 );
 

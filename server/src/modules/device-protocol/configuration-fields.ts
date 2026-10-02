@@ -1,5 +1,10 @@
 import type { DeviceConfiguration, OperatingMode, ProblemError } from '@fg2/shared-types/v1';
-import { configurationFieldsOf, type ConfigurationField } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import {
+  configurationFieldsOf,
+  type ConfigurationField,
+  type FieldSetting,
+  type TimerWindow,
+} from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { unprocessable } from '@common/v1/problem';
 import type { WriteIntent } from './work-modes';
 
@@ -11,11 +16,11 @@ import type { WriteIntent } from './work-modes';
  */
 
 export interface FieldChanges {
-  figures: [path: string, value: number | string][];
+  figures: [path: string, value: number | string | TimerWindow[]][];
   intent: Extract<WriteIntent, { kind: 'fields' }>;
 }
 
-type Value = number | boolean | string;
+type Value = FieldSetting;
 
 /** Every value that does not fit is named at once, so a form learns all of what it has to correct in one answer. */
 export const fieldChangesOf = (type: string, set: Record<string, Value>): FieldChanges => {
@@ -36,7 +41,7 @@ export const fieldChangesOf = (type: string, set: Record<string, Value>): FieldC
       if (name === 'energySaving') changes.intent.energySaving = value as boolean;
       if (name === 'mode') changes.intent.mode = value as OperatingMode;
     } else {
-      changes.figures.push([field!.path, typeof value === 'boolean' ? (value ? 1 : 0) : value]);
+      changes.figures.push([field!.path, stored(field!, value)]);
     }
   }
 
@@ -56,7 +61,34 @@ const refusalOf = (field: ConfigurationField, value: Value): string | null => {
       return typeof value === 'number' && Number.isFinite(value) && value >= field.min && value <= field.max
         ? null
         : `This setting is a number from ${field.min} to ${field.max}.`;
+    case 'windows':
+      return Array.isArray(value) && value.length <= field.most && value.every(window => fitsWindow(window, field.longest))
+        ? null
+        : `This setting is a list of at most ${field.most} windows, each starting at a second of the day and running from 1 to ${field.longest} minutes.`;
   }
+};
+
+const DAY_SECONDS = 24 * 60 * 60;
+
+const fitsWindow = (window: TimerWindow, longest: number): boolean =>
+  Number.isInteger(window.ontime) &&
+  window.ontime >= 0 &&
+  window.ontime < DAY_SECONDS &&
+  Number.isInteger(window.duration) &&
+  window.duration >= 1 &&
+  window.duration <= longest;
+
+/**
+ * A value as the document keeps it: a switch as 1 or 0, which the firmware
+ * reads as true and false; a choice by its code where the firmware keeps one;
+ * a list of windows as fresh objects of the two keys the firmware reads.
+ */
+const stored = (field: ConfigurationField, value: Value): number | string | TimerWindow[] => {
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  if (Array.isArray(value)) return value.map(({ ontime, duration }) => ({ ontime, duration }));
+  if (field.kind === 'choice' && field.codes) return field.codes[field.options.indexOf(value as string)];
+
+  return value as number | string;
 };
 
 const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);

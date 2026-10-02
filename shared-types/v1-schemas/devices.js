@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.captureStillCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.adminDeviceCreate = exports.deviceConfigurationReading = exports.deviceConfigurationPatch = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.devicePage = exports.device = exports.deviceState = exports.deviceControl = exports.operatingMode = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
-exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = void 0;
+exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.captureStillCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.adminDeviceCreate = exports.deviceConfigurationReading = exports.co2FanCoupling = exports.deviceConfigurationPatch = exports.timerWindow = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.devicePage = exports.device = exports.deviceState = exports.deviceControl = exports.operatingMode = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
+exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = void 0;
+exports.adminLogPage = exports.adminLogLine = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 const configuration_fields_js_1 = require("./configuration-fields.js");
@@ -120,6 +121,15 @@ exports.deviceUpdate = (0, common_js_1.named)('DeviceUpdate', exports.device.pic
  */
 exports.deviceConfigurationEnvelope = (0, common_js_1.named)('DeviceConfigurationEnvelope', zod_1.z.object({ configuration: exports.deviceConfiguration }));
 /**
+ * One window of a smart socket's timer, as the firmware keeps it: switched on
+ * at `ontime`, in seconds past midnight UTC like every time of day a device
+ * keeps, for `duration` minutes. A window may run past midnight.
+ */
+exports.timerWindow = (0, common_js_1.named)('TimerWindow', zod_1.z.object({
+    ontime: zod_1.z.number().int().min(0).max(86399),
+    duration: zod_1.z.number().int().min(1).max(24 * 60),
+}));
+/**
  * `PATCH /devices/{id}/configuration`: settings beyond the targets, by the
  * names `CONFIGURATION_FIELDS` gives them for the device's type. The server
  * checks each against that table, merges it into the document the device runs
@@ -127,8 +137,18 @@ exports.deviceConfigurationEnvelope = (0, common_js_1.named)('DeviceConfiguratio
  */
 exports.deviceConfigurationPatch = (0, common_js_1.named)('DeviceConfigurationPatch', zod_1.z.object({
     set: zod_1.z
-        .record(zod_1.z.string(), zod_1.z.union([zod_1.z.number(), zod_1.z.boolean(), zod_1.z.string()]))
+        .record(zod_1.z.string(), zod_1.z.union([zod_1.z.number(), zod_1.z.boolean(), zod_1.z.string(), zod_1.z.array(exports.timerWindow)]))
         .describe('Field name to value, from the fields of this type of device.'),
+}));
+/**
+ * `PUT /devices/{id}/co2-fan`: the AIR fan a stand-alone smart socket slows
+ * down while it doses CO2 in windows, or none. Two documents change with it -
+ * the socket names the fan, and the fan is given the socket's windows - and
+ * the server keeps the fan's in step with every later change to the socket.
+ */
+exports.co2FanCoupling = (0, common_js_1.named)('Co2FanCoupling', zod_1.z.object({
+    fanId: (0, common_js_1.id)().nullable().describe('An AIR fan of this account; null ends the coupling.'),
+    speed: zod_1.z.number().int().min(0).max(100).describe('Per cent: the most the fan runs at while the socket doses.'),
 }));
 /**
  * `GET /devices/{id}/configuration`: the same envelope, with the document null

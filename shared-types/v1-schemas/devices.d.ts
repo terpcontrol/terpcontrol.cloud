@@ -220,13 +220,35 @@ export declare const deviceConfigurationEnvelope: z.ZodObject<{
     configuration: z.ZodRecord<z.ZodString, z.ZodAny>;
 }, z.core.$strip>;
 /**
+ * One window of a smart socket's timer, as the firmware keeps it: switched on
+ * at `ontime`, in seconds past midnight UTC like every time of day a device
+ * keeps, for `duration` minutes. A window may run past midnight.
+ */
+export declare const timerWindow: z.ZodObject<{
+    ontime: z.ZodNumber;
+    duration: z.ZodNumber;
+}, z.core.$strip>;
+/**
  * `PATCH /devices/{id}/configuration`: settings beyond the targets, by the
  * names `CONFIGURATION_FIELDS` gives them for the device's type. The server
  * checks each against that table, merges it into the document the device runs
  * and keeps every key it was not asked about, and answers the device.
  */
 export declare const deviceConfigurationPatch: z.ZodObject<{
-    set: z.ZodRecord<z.ZodString, z.ZodUnion<readonly [z.ZodNumber, z.ZodBoolean, z.ZodString]>>;
+    set: z.ZodRecord<z.ZodString, z.ZodUnion<readonly [z.ZodNumber, z.ZodBoolean, z.ZodString, z.ZodArray<z.ZodObject<{
+        ontime: z.ZodNumber;
+        duration: z.ZodNumber;
+    }, z.core.$strip>>]>>;
+}, z.core.$strip>;
+/**
+ * `PUT /devices/{id}/co2-fan`: the AIR fan a stand-alone smart socket slows
+ * down while it doses CO2 in windows, or none. Two documents change with it -
+ * the socket names the fan, and the fan is given the socket's windows - and
+ * the server keeps the fan's in step with every later change to the socket.
+ */
+export declare const co2FanCoupling: z.ZodObject<{
+    fanId: z.ZodNullable<z.ZodString>;
+    speed: z.ZodNumber;
 }, z.core.$strip>;
 /**
  * `GET /devices/{id}/configuration`: the same envelope, with the document null

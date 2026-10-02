@@ -2285,6 +2285,25 @@
       "configuration"
     ]
   },
+  "TimerWindow": {
+    "type": "object",
+    "properties": {
+      "ontime": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 86399
+      },
+      "duration": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1440
+      }
+    },
+    "required": [
+      "ontime",
+      "duration"
+    ]
+  },
   "DeviceConfigurationPatch": {
     "type": "object",
     "properties": {
@@ -2294,10 +2313,22 @@
           "type": "string"
         },
         "additionalProperties": {
-          "type": [
-            "number",
-            "boolean",
-            "string"
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/TimerWindow"
+              }
+            }
           ]
         },
         "description": "Field name to value, from the fields of this type of device."
@@ -2305,6 +2336,33 @@
     },
     "required": [
       "set"
+    ]
+  },
+  "Co2FanCoupling": {
+    "type": "object",
+    "properties": {
+      "fanId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "An AIR fan of this account; null ends the coupling."
+      },
+      "speed": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 100,
+        "description": "Per cent: the most the fan runs at while the socket doses."
+      }
+    },
+    "required": [
+      "fanId",
+      "speed"
     ]
   },
   "DeviceConfigurationReading": {

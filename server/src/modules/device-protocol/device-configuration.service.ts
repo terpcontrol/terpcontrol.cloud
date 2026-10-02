@@ -2,6 +2,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
+import { co2FanKey, co2FanOf, co2InjectFor, type Co2Fan, type FieldSetting } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { HttpException } from '@common/http-exception';
 import { unprocessable } from '@common/v1/problem';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
@@ -9,6 +10,7 @@ import { MODEL_V1 } from '@database/models';
 import { ScheduleClock, StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
+import { logger } from '@utils/logger';
 // The plan hands over what its step stored; the port it asks through is the plan's.
 import { DeviceConfigurationWriter } from '../v1/plan/device-configuration.port';
 import { recordTargets } from '../v1/phase/target-record';
@@ -114,7 +116,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * to: what would reach it is the change alone, and the firmware reads every key
    * a document leaves out as its default.
    */
-  public async configure(deviceId: string, set: Record<string, number | boolean | string>, by: string | null = null): Promise<boolean> {
+  public async configure(deviceId: string, set: Record<string, FieldSetting>, by: string | null = null): Promise<boolean> {
     const device = await this.devices
       .findOne({ id: deviceId }, { type: 1, configuration: 1 })
       .lean<Pick<StoredDevice, 'type' | 'configuration'> | null>();
@@ -134,6 +136,30 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     if (written) await this.writeDown(deviceId, written, by);
 
     return written?.changed ?? false;
+  }
+
+  /**
+   * The AIR fan a stand-alone smart socket slows down while it doses CO2 in
+   * windows, or none. The socket names the fan in its own document, and the
+   * write follows it to the fan (`followCo2Fan`) - which is also what keeps the
+   * fan in step whenever the socket's windows change later. A socket that has
+   * never sent its document is refused as `configure` refuses it.
+   */
+  public async coupleCo2Fan(plugId: string, coupling: Co2Fan | null): Promise<void> {
+    const plug = await this.devices
+      .findOne({ id: plugId }, { type: 1, configuration: 1 })
+      .lean<Pick<StoredDevice, 'type' | 'configuration'> | null>();
+    if (!plug) throw new HttpException(404, 'Device not found');
+    if (plug.type !== 'plug') throw unprocessable('not_a_plug', 'Only a stand-alone smart socket slows a fan while it doses CO2.');
+    if (!plug.configuration || Object.keys(plug.configuration).length === 0) {
+      throw unprocessable('device_sent_no_settings', 'This device has not sent its settings, so there is nothing to change them in.');
+    }
+    if (coupling) {
+      const fan = await this.devices.findOne({ id: coupling.fanId }, { type: 1 }).lean<Pick<StoredDevice, 'type'> | null>();
+      if (fan?.type !== 'fan') throw unprocessable('not_a_fan', 'Only an AIR fan can be slowed while a socket doses CO2.');
+    }
+
+    await this.store(plugId, { kind: 'fields' }, current => (current ? { ...current, fan: co2FanKey(coupling) } : null));
   }
 
   /**
@@ -210,8 +236,29 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     this.publisher.configuration(deviceId, configuration);
 
     if (drift !== 0) await this.followers?.onScheduleMoved(deviceId, drift);
+    if (device.type === 'plug') await this.followCo2Fan(deviceId, before, configuration);
 
     return { before, after: configuration, changed: JSON.stringify(before) !== JSON.stringify(configuration) };
+  }
+
+  /**
+   * A fan slowed for a socket's CO2 knows nothing of the socket: it is handed
+   * the socket's dosing windows and runs slower in them. So whenever the
+   * socket's document is written the fan's section is written from it again - a
+   * fan the socket no longer names is told it is slowed for nothing, and while
+   * the socket does not dose in windows its fan is told the same. Neither may
+   * fail the socket's own write: the socket is where the person is.
+   */
+  private async followCo2Fan(plugId: string, before: DeviceConfiguration | null, after: DeviceConfiguration): Promise<void> {
+    const was = co2FanOf(before);
+    const now = co2FanOf(after);
+    const inject = (fanId: string, section: Record<string, unknown>) =>
+      this.store(fanId, { kind: 'fields' }, current =>
+        current && JSON.stringify(current.co2inject ?? {}) !== JSON.stringify(section) ? { ...current, co2inject: section } : null,
+      ).catch(error => logger.error(`Could not tell fan ${fanId} about the CO2 of socket ${plugId}: ${error}`));
+
+    if (was && was.fanId !== now?.fanId) await inject(was.fanId, {});
+    if (now) await inject(now.fanId, co2InjectFor(plugId, after, now.speed));
   }
 
   private async ownersClock(ownerId: string | null, at: Date): Promise<ScheduleClock | null> {

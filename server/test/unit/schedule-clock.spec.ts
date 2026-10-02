@@ -7,7 +7,7 @@ import { DeviceConfigurationService } from '@modules/device-protocol/device-conf
 import { DeviceIngestService } from '@modules/device-protocol/device-ingest.service';
 import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
 import { HardwareReportService } from '@modules/device-protocol/hardware-report.service';
-import { scheduleClockOf, withClockTimesMoved } from '@modules/device-protocol/schedule-clock';
+import { clockTimesOf, keepsTime, sameClockTimes, scheduleClockOf, withClockTimesMoved } from '@modules/device-protocol/schedule-clock';
 import { ScheduleClockService } from '@modules/device-protocol/schedule-clock.service';
 import { MqttClientService } from '@modules/mqtt/mqtt-client.service';
 import { PlanService } from '@modules/v1/plan/plan.service';
@@ -136,6 +136,42 @@ describe('the clock a schedule is kept on', () => {
     });
     // The stand-alone lamp keeps its pair at the top of its document.
     expect(withClockTimesMoved({ day: 6 * HOUR, night: 0, limit: 80 }, -HOUR)).toEqual({ day: 5 * HOUR, night: 23 * HOUR, limit: 80 });
+    // A smart socket's timer moves window by window, each keeping how long it runs.
+    expect(
+      withClockTimesMoved(
+        {
+          workmode: 'timer',
+          daynight: { day: 6 * HOUR, night: 22 * HOUR },
+          timer: {
+            timeframes: [
+              { ontime: 23.5 * HOUR, duration: 60 },
+              { ontime: 10 * HOUR, duration: 15 },
+            ],
+            kept: 1,
+          },
+        },
+        HOUR,
+      ),
+    ).toEqual({
+      workmode: 'timer',
+      daynight: { day: 7 * HOUR, night: 23 * HOUR },
+      timer: {
+        timeframes: [
+          { ontime: 0.5 * HOUR, duration: 60 },
+          { ontime: 11 * HOUR, duration: 15 },
+        ],
+        kept: 1,
+      },
+    });
+  });
+
+  it('counts the windows of a socket’s timer among the times a document keeps', () => {
+    const timer = (ontime: number): DeviceConfiguration => ({ timer: { timeframes: [{ ontime, duration: 10 }] } });
+
+    expect(keepsTime(timer(10 * HOUR))).toBe(true);
+    expect(clockTimesOf(timer(10 * HOUR))).toEqual({ 'timer.timeframes.0.ontime': 10 * HOUR });
+    expect(sameClockTimes(timer(10 * HOUR), timer(11 * HOUR))).toBe(false);
+    expect(keepsTime({ timer: { timeframes: [] } })).toBe(false);
   });
 });
 
