@@ -181,7 +181,7 @@ namespace fg {
 
     Serial.println(output);
 
-    out_relais.set(output);
+    checkLimits(output);
   }
 
   void PlugController::controlHumidifier() {
@@ -205,7 +205,7 @@ namespace fg {
 
     Serial.println(output);
 
-    out_relais.set(output);
+    checkLimits(output);
   }
 
 
@@ -216,7 +216,7 @@ namespace fg {
         cooling = 1;
       }
       else if(state.temperature < settings.cooler.night.off) {
-        cooling = 9;
+        cooling = 0;
       }
     }
     else {
@@ -228,7 +228,7 @@ namespace fg {
       }
     }
 
-    out_relais.set(cooling);
+    checkLimits(cooling);
   }
 
   void PlugController::controlHeater() {
@@ -252,7 +252,7 @@ namespace fg {
 
     Serial.println(heating);
 
-    out_relais.set(heating);
+    checkLimits(heating);
   }
 
   void PlugController::controlCo2() {
@@ -276,7 +276,7 @@ namespace fg {
       else {
         co2 = 0;
       }
-      out_relais.set(co2);
+      checkLimits(co2);
     }
     else {
       out_relais.set(0);
@@ -335,30 +335,33 @@ namespace fg {
       undertemperature_limited = false;
     }
 
-    if(!overtemperature_limited && !undertemperature_limited) {
-      static uint8_t last_output_state = 0;
-      static TickType_t last_turn_on = 0;
-      static TickType_t last_turn_off = 0;
+    // Outside the temperatures it is allowed to switch in, the socket is off
+    // whatever the mode asks for, at once. The least times, in seconds, only
+    // hold back a switch the mode itself asks for.
+    static uint8_t last_output_state = 0;
+    static TickType_t last_turn_on = 0;
+    static TickType_t last_turn_off = 0;
+    const bool limited = overtemperature_limited || undertemperature_limited;
+    const uint8_t wanted = limited ? 0 : output;
 
-      if(settings.limits.time.enabled) {
-        if(output != last_output_state) {
-          if(output != 0 && xTaskGetTickCount() - last_turn_off > settings.limits.time.min_off) {
-            last_turn_on = xTaskGetTickCount();
-            out_relais.set(output);
-            last_output_state = output;
-          }
-          if(output == 0 && xTaskGetTickCount() - last_turn_on > settings.limits.time.min_on) {
-            last_turn_off = xTaskGetTickCount();
-            out_relais.set(output);
-            last_output_state = output;
-          }
-        }
-      }
-      else {
-        out_relais.set(output);
-        last_output_state = output;
+    if(settings.limits.time.enabled && !limited && wanted != last_output_state) {
+      const TickType_t now = xTaskGetTickCount();
+      const TickType_t least = pdMS_TO_TICKS(1000.0f * (wanted != 0 ? settings.limits.time.min_off : settings.limits.time.min_on));
+      if(now - (wanted != 0 ? last_turn_off : last_turn_on) <= least) {
+        return;
       }
     }
+
+    if(wanted != last_output_state) {
+      if(wanted != 0) {
+        last_turn_on = xTaskGetTickCount();
+      }
+      else {
+        last_turn_off = xTaskGetTickCount();
+      }
+    }
+    out_relais.set(wanted);
+    last_output_state = wanted;
   }
 
   PlugController::PlugController(Fridgecloud& cloud) :
@@ -568,6 +571,9 @@ namespace fg {
 
     auto saved_settings = fg::settings().getStr("config");
     loadSettings(saved_settings.c_str());
+
+    // The cloud offers the protections only to a build that keeps to them.
+    cloud.log("hardware-info:protections=on");
 
     cloud.onConfig([&](const String & payload) {
       Serial.println("received new configuration");

@@ -95,23 +95,25 @@ namespace fg {
       float off = 1000;
     } co2;
 
+    // Off unless a document switches them on: a protection read from an
+    // uninitialised member would switch the socket off at random.
     struct {
       struct {
-        bool enabled;
-        float limit;
-        float hysteresis;
+        bool enabled = false;
+        float limit = 30;
+        float hysteresis = 1;
       } overtemperature;
 
       struct {
-        bool enabled;
-        float limit;
-        float hysteresis;
+        bool enabled = false;
+        float limit = 10;
+        float hysteresis = 1;
       } undertemperature;
 
       struct {
-        bool enabled;
-        float min_on;
-        float min_off;
+        bool enabled = false;
+        float min_on = 0;
+        float min_off = 0;
       } time;
     } limits;
 
