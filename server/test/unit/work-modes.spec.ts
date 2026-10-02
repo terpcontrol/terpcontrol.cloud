@@ -115,6 +115,9 @@ describe('the work mode a write leaves', () => {
     expect(decideWorkmode('fridge', 'dry', 'small', { kind: 'fields', energySaving: true })).toEqual({ workmode: 'dry', base: 'full' });
     expect(decideWorkmode('fridge', 'full', null, { kind: 'fields', mode: 'greenhouse' })).toEqual({ workmode: 'temp', base: 'temp' });
     expect(decideWorkmode('fridge', 'temp', 'temp', { kind: 'fields', mode: 'standard' })).toEqual({ workmode: 'small', base: 'small' });
+    // Back from another mode, the energy-saving switch stands where the standard mode last had it.
+    expect(decideWorkmode('fridge', 'breed', 'breed', { kind: 'fields', mode: 'standard' }, 'full')).toEqual({ workmode: 'full', base: 'full' });
+    expect(decideWorkmode('fridge', 'temp', 'temp', { kind: 'fields', mode: 'standard' }, 'small')).toEqual({ workmode: 'small', base: 'small' });
     expect(decideWorkmode('fridge', 'full', null, { kind: 'fields', control: false })).toEqual({ workmode: 'off', base: 'full' });
     expect(decideWorkmode('fridge', 'off', 'breed', { kind: 'fields', control: true })).toEqual({ workmode: 'breed', base: 'breed' });
     expect(decideWorkmode('fridge', 'dry', 'full', { kind: 'fields', drying: false })).toEqual({ workmode: 'full', base: 'full' });
@@ -239,6 +242,18 @@ describe('a setting changed by name', () => {
       { key: 'message-device-configuration-updated', params: ['workmode: full → off'] },
       { key: 'message-device-configuration-updated', params: ['workmode: off → full'] },
     ]);
+  });
+
+  it('keeps the energy-saving switch through a spell in another operating mode', async () => {
+    await device();
+
+    await configuration.configure(DEVICE, { energySaving: true }, OWNER);
+    await configuration.configure(DEVICE, { mode: 'greenhouse' }, OWNER);
+    await configuration.configure(DEVICE, { mode: 'germination' }, OWNER);
+    expect((await stored()).configuration?.workmode).toBe('breed');
+
+    await configuration.configure(DEVICE, { mode: 'standard' }, OWNER);
+    expect((await stored()).configuration?.workmode).toBe('full');
   });
 
   it('refuses a device that has never sent its document', async () => {

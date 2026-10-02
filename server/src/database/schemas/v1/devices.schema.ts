@@ -69,6 +69,12 @@ export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'cont
    * time and the firmware drops a key it does not know; served as `control`.
    */
   baseWorkmode: string | null;
+  /**
+   * The standard mode a fridge last ran - `small`, or `full` with energy
+   * saving - kept for while it runs another: greenhouse or germination says
+   * nothing of the switch, and going back to the standard put it back to off.
+   */
+  standardWorkmode: string | null;
   state: StoredDeviceState;
 }
 
@@ -155,6 +161,7 @@ export const devicesSchema = new Schema<StoredDevice>(
     climateSweptAt: { type: Date, default: null },
     scheduleClock: { type: scheduleClockSchema, default: null },
     baseWorkmode: { type: String, default: null },
+    standardWorkmode: { type: String, default: null },
     firmware: { type: firmwareTargetSchema, required: true, default: () => ({}) },
     // The device's own configuration document, null until it reports one. Its
     // schema belongs to the firmware of that type and is not restated here.

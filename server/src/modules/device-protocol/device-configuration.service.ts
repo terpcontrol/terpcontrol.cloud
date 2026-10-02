@@ -18,7 +18,7 @@ import { HIDDEN_FIGURES, heldTo } from './class-rules';
 import { fieldChangesOf, withFigures } from './configuration-fields';
 import { DevicePublisherService } from './device-publisher.service';
 import { driftBetween, keepsTime, SCHEDULE_FOLLOWER, ScheduleFollower, sameClockTimes, scheduleClockOf, withClockTimesMoved } from './schedule-clock';
-import { decideWorkmode, WriteIntent } from './work-modes';
+import { decideWorkmode, standardOf, WriteIntent } from './work-modes';
 
 /** What a write stored: the document before it and after it. */
 interface Written {
@@ -203,8 +203,8 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     }
 
     const device = await this.devices
-      .findOne({ id: deviceId }, { type: 1, configuration: 1, ownerId: 1, scheduleClock: 1, baseWorkmode: 1 })
-      .lean<Pick<StoredDevice, 'type' | 'configuration' | 'ownerId' | 'scheduleClock' | 'baseWorkmode'> | null>();
+      .findOne({ id: deviceId }, { type: 1, configuration: 1, ownerId: 1, scheduleClock: 1, baseWorkmode: 1, standardWorkmode: 1 })
+      .lean<Pick<StoredDevice, 'type' | 'configuration' | 'ownerId' | 'scheduleClock' | 'baseWorkmode' | 'standardWorkmode'> | null>();
     if (!device) {
       throw new HttpException(404, 'Device not found');
     }
@@ -213,7 +213,8 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     const wanted = next(before);
     if (wanted === null) return null;
 
-    const mode = decideWorkmode(device.type, before?.workmode, device.baseWorkmode, intent);
+    const mode = decideWorkmode(device.type, before?.workmode, device.baseWorkmode, intent, device.standardWorkmode);
+    const standard = standardOf(mode?.base);
     const held = heldTo(device.type, mode ? { ...wanted, workmode: mode.workmode } : wanted);
 
     // Times a write sets are meant on the clock it is made on. Times it leaves
@@ -227,7 +228,14 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
 
     await this.devices.updateOne(
       { id: deviceId },
-      { $set: { configuration, scheduleClock: keepsTime(configuration) ? clock : null, ...(mode ? { baseWorkmode: mode.base } : {}) } },
+      {
+        $set: {
+          configuration,
+          scheduleClock: keepsTime(configuration) ? clock : null,
+          ...(mode ? { baseWorkmode: mode.base } : {}),
+          ...(standard ? { standardWorkmode: standard } : {}),
+        },
+      },
     );
     await recordTargets(this.targetRecord, deviceId, before, configuration, at);
 

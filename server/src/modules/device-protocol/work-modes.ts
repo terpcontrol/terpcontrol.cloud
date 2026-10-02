@@ -84,6 +84,8 @@ export const decideWorkmode = (
   current: unknown,
   base: string | null | undefined,
   intent: WriteIntent,
+  /** The standard mode last run, which a return to the standard comes back to (see `standardOf`). */
+  standard: string | null | undefined = null,
 ): { workmode: string; base: BaseWorkmode } | null => {
   if (!hasWorkModes(type) || typeof current !== 'string') return null;
 
@@ -104,7 +106,9 @@ export const decideWorkmode = (
     }
     case 'fields': {
       const now = controlOf(type, { workmode: current }, base)!;
-      const next = workmodeOf(type, intent.mode ?? now.mode, intent.energySaving ?? now.energySaving);
+      // Back to the standard from another mode, the energy-saving switch stands where it was left.
+      const saving = intent.energySaving ?? (now.mode === 'standard' ? now.energySaving : standard === 'full');
+      const next = workmodeOf(type, intent.mode ?? now.mode, saving);
       // Starting to dry starts the device; ending it goes back to the mode it ran.
       const running = intent.control ?? (intent.drying === true || now.running);
       const drying = intent.drying ?? now.drying;
@@ -116,3 +120,6 @@ export const decideWorkmode = (
 /** What a document the device uploaded says it goes back to, where it says so: the mode it runs, unless that is off or drying. */
 export const baseFromUpload = (type: string, configuration: DeviceConfiguration): BaseWorkmode | null =>
   hasWorkModes(type) && isBase(configuration.workmode) ? configuration.workmode : null;
+
+/** The standard mode a base is, where it is one: what is kept to come back to when another mode ends. */
+export const standardOf = (base: string | null | undefined): 'small' | 'full' | null => (base === 'small' || base === 'full' ? base : null);

@@ -32,7 +32,7 @@ import { DevicePublisherService } from './device-publisher.service';
 import { HardwareReportService } from './hardware-report.service';
 import { heldTo } from './class-rules';
 import { sameClockTimes } from './schedule-clock';
-import { baseFromUpload } from './work-modes';
+import { baseFromUpload, standardOf } from './work-modes';
 import { DEVICE_TOPIC_FILTER, DeviceTopic, parseDeviceTopic } from './topics';
 
 /**
@@ -348,7 +348,14 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     const retimed = !sameClockTimes(device.configuration, configuration);
     await this.devices.updateOne(
       { id: device.id },
-      { $set: { configuration, ...(retimed ? { scheduleClock: null } : {}), ...(base ? { baseWorkmode: base } : {}) } },
+      {
+        $set: {
+          configuration,
+          ...(retimed ? { scheduleClock: null } : {}),
+          ...(base ? { baseWorkmode: base } : {}),
+          ...(standardOf(base) ? { standardWorkmode: standardOf(base) } : {}),
+        },
+      },
     );
     await recordTargets(this.targetRecord, device.id, device.configuration, configuration, new Date());
 
