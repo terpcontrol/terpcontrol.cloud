@@ -38,6 +38,7 @@ export const fieldChangesOf = (type: string, set: Record<string, Value>): FieldC
 
     if (field!.path === null) {
       if (name === 'control') changes.intent.control = value as boolean;
+      if (name === 'drying') changes.intent.drying = value as boolean;
       if (name === 'energySaving') changes.intent.energySaving = value as boolean;
       if (name === 'mode') changes.intent.mode = value as OperatingMode;
     } else {

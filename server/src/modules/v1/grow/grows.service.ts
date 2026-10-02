@@ -519,6 +519,8 @@ export class GrowsService {
   ): Promise<StoredPhase> {
     const writesClimate = request.preset !== null || request.climate === true;
     const applied = writesClimate && spaceId !== null ? ((await this.presets?.applyToSpace(spaceId, request.stage, request.preset)) ?? []) : [];
+    // Without a climate the stage still decides whether the tent dries.
+    if (applied.length === 0 && spaceId !== null) await this.presets?.modeToSpace(spaceId, request.stage);
     const controller = applied.length > 0 ? applied[0] : await this.controllerIn(spaceId);
 
     const phase = await this.phases.setPhase({

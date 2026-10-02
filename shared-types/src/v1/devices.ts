@@ -183,10 +183,14 @@ export const deviceUpdate = named(
  * keys belong to the firmware and this contract does not know them, so one of
  * them could otherwise collide with a key of the envelope the day the envelope
  * gains one.
+ *
+ * `drying` is whether the targets saved are a drying room's: true dries, false
+ * ends a drying spell, and left out a drying device goes on drying. The work
+ * mode in the document is the server's to decide and is not read for it.
  */
 export const deviceConfigurationEnvelope = named(
   'DeviceConfigurationEnvelope',
-  z.object({ configuration: deviceConfiguration }),
+  z.object({ configuration: deviceConfiguration, drying: z.boolean().optional() }),
 );
 
 /**

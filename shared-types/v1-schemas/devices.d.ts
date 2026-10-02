@@ -225,9 +225,14 @@ export declare const deviceUpdate: z.ZodObject<{
  * keys belong to the firmware and this contract does not know them, so one of
  * them could otherwise collide with a key of the envelope the day the envelope
  * gains one.
+ *
+ * `drying` is whether the targets saved are a drying room's: true dries, false
+ * ends a drying spell, and left out a drying device goes on drying. The work
+ * mode in the document is the server's to decide and is not read for it.
  */
 export declare const deviceConfigurationEnvelope: z.ZodObject<{
     configuration: z.ZodRecord<z.ZodString, z.ZodAny>;
+    drying: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 /**
  * One window of a smart socket's timer, as the firmware keeps it: switched on

@@ -23,6 +23,12 @@ export interface AppliedPreset {
 export interface ClimatePresets {
   /** Writes the preset to every controller standing in the space, and answers the ones it reached. */
   applyToSpace(spaceId: string, stage: GrowthStage, preset: string | null): Promise<AppliedPreset[]>;
+  /**
+   * What a stage entered without a climate still decides: drying puts every
+   * device standing in the space on drying, and any other stage ends a drying
+   * spell and switches a device that was off on again. The targets stay.
+   */
+  modeToSpace(spaceId: string, stage: GrowthStage): Promise<void>;
 }
 
 export const CLIMATE_PRESETS = Symbol('ClimatePresets');

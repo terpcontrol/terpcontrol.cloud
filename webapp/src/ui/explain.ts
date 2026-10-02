@@ -101,6 +101,7 @@ export const HELP_TOPICS = [
   'lightSchedule',
   'stepLightHours',
   'readyPlans',
+  'drying',
 ] as const;
 
 /**

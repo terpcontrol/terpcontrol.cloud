@@ -87,6 +87,13 @@ describe('the work mode a write leaves', () => {
     expect(decideWorkmode('fridge', 'exp', null, { kind: 'targets' })).toEqual({ workmode: 'small', base: 'small' });
   });
 
+  it('dries for targets saved as a drying room, and ends a drying spell for targets saved as anything else', () => {
+    expect(decideWorkmode('fridge', 'full', null, { kind: 'targets', drying: true })).toEqual({ workmode: 'dry', base: 'full' });
+    expect(decideWorkmode('fridge', 'off', 'small', { kind: 'targets', drying: true })).toEqual({ workmode: 'dry', base: 'small' });
+    expect(decideWorkmode('fridge', 'dry', 'full', { kind: 'targets', drying: false })).toEqual({ workmode: 'full', base: 'full' });
+    expect(decideWorkmode('controller', 'dry', 'breed', { kind: 'targets', drying: false })).toEqual({ workmode: 'breed', base: 'breed' });
+  });
+
   it('dries for a drying stage, and ends a drying spell or an off for any other', () => {
     expect(decideWorkmode('fridge', 'full', null, { kind: 'climate', stage: 'drying' })).toEqual({ workmode: 'dry', base: 'full' });
     expect(decideWorkmode('fridge', 'dry', 'full', { kind: 'climate', stage: 'vegetative' })).toEqual({ workmode: 'full', base: 'full' });
@@ -110,6 +117,9 @@ describe('the work mode a write leaves', () => {
     expect(decideWorkmode('fridge', 'temp', 'temp', { kind: 'fields', mode: 'standard' })).toEqual({ workmode: 'small', base: 'small' });
     expect(decideWorkmode('fridge', 'full', null, { kind: 'fields', control: false })).toEqual({ workmode: 'off', base: 'full' });
     expect(decideWorkmode('fridge', 'off', 'breed', { kind: 'fields', control: true })).toEqual({ workmode: 'breed', base: 'breed' });
+    expect(decideWorkmode('fridge', 'dry', 'full', { kind: 'fields', drying: false })).toEqual({ workmode: 'full', base: 'full' });
+    expect(decideWorkmode('fridge', 'off', 'temp', { kind: 'fields', drying: true })).toEqual({ workmode: 'dry', base: 'temp' });
+    expect(decideWorkmode('fridge', 'dry', 'small', { kind: 'fields', control: false })).toEqual({ workmode: 'off', base: 'small' });
     // A controller has no back-wall fan; its firmware reads `full` as `small`.
     expect(decideWorkmode('controller', 'small', null, { kind: 'fields', energySaving: true })).toEqual({ workmode: 'small', base: 'small' });
   });

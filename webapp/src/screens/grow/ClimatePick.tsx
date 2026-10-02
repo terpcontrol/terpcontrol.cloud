@@ -78,6 +78,9 @@ export function ClimatePick({
       </Choices>
       <p className={ui.note} role="status">
         {chosen ? t('climatePick.sets', { figures: summary(t, chosen) }) : t('climatePick.keeps', { figures: summary(t, now) })}{' '}
+        {/* The stage decides the drying spell whatever is chosen here: entering drying dries, leaving it ends it. */}
+        {stage === 'drying' && !controller.control?.drying ? `${t('climatePick.dries')} ` : null}
+        {stage !== 'drying' && controller.control?.drying ? `${t('climatePick.endsDrying')} ` : null}
         {t('climatePick.alarms')}
       </p>
     </Block>

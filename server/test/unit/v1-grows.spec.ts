@@ -49,12 +49,16 @@ let access: AccessService;
 let entries: EntryWriterService;
 let grows: GrowsService;
 let applied: { spaceId: string; stage: string; preset: string | null }[];
+let moded: { spaceId: string; stage: string }[];
 
 /** Stands in for the space slice, which owns the preset table and writes it to the controllers of a space. */
 const presets: ClimatePresets = {
   applyToSpace: async (spaceId, stage, preset): Promise<AppliedPreset[]> => {
     applied.push({ spaceId, stage, preset });
     return [{ deviceId: DEVICE, targets: { day: { temperature: 26, humidity: 65 }, night: { temperature: 22, humidity: 70 }, co2: null } }];
+  },
+  modeToSpace: async (spaceId, stage): Promise<void> => {
+    moded.push({ spaceId, stage });
   },
 };
 
@@ -118,6 +122,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await db.reset();
   applied = [];
+  moded = [];
   grows = build(presets);
   await world();
 });
@@ -432,6 +437,22 @@ describe('entering a phase', () => {
     await grows.addPhase(grow.id, { stage: 'flowering', climate: false }, OWNER, NOTHING_HIDDEN);
 
     expect(applied).toEqual([]);
+    expect(moded).toEqual([{ spaceId: TENT, stage: 'flowering' }]);
+  });
+
+  it('still lets a drying stage entered without its climate decide that the tent dries', async () => {
+    const grow = await started();
+    await grows.addPhase(grow.id, { stage: 'drying', climate: false }, OWNER, NOTHING_HIDDEN);
+
+    expect(applied).toEqual([]);
+    expect(moded).toEqual([{ spaceId: TENT, stage: 'drying' }]);
+  });
+
+  it('does not ask for the work mode again where the climate was written', async () => {
+    const grow = await started();
+    await grows.addPhase(grow.id, { stage: 'drying', climate: true }, OWNER, NOTHING_HIDDEN);
+
+    expect(moded).toEqual([]);
   });
 
   it('is set by the person who picked it when no preset came with it', async () => {

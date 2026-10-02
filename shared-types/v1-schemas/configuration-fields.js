@@ -31,8 +31,13 @@ exports.DEVICE_SETTING_RANGES = exports.co2PlugOf = exports.co2InjectFor = expor
  * dark germination held at the night temperature (`breed`).
  */
 exports.OPERATING_MODES = ['standard', 'greenhouse', 'germination'];
-/** Whether the device regulates at all. Off is the firmware's `workmode: off`, which is also how a device leaves the factory. */
-const CONTROL = { control: { kind: 'switch', path: null } };
+/**
+ * Whether the device regulates at all - off is the firmware's `workmode: off`,
+ * which is also how a device leaves the factory - and whether it dries, the
+ * firmware's `dry`: no day and no night, no light and no CO2. Both are said
+ * here and decided by the server, which remembers what the device goes back to.
+ */
+const CONTROL = { control: { kind: 'switch', path: null }, drying: { kind: 'switch', path: null } };
 /** The least the compressor rests between two runs. Below this it is not protected, whatever an older app allowed. */
 exports.MIN_COMPRESSOR_REST_SECONDS = 240;
 /**

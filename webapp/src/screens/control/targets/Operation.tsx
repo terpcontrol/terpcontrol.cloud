@@ -18,7 +18,9 @@ import styles from './Targets.module.css';
  * "Regelung aus" over the sliders, in the amber of a state somebody chose, with
  * the way back on beside it - and the save under the sliders does the same,
  * which is said too: somebody who sets targets wants them held. A drying spell
- * is said in a quiet line, because it is what the grow asked for.
+ * is said in a quiet card, because it is what the grow asked for, with the way
+ * out of it beside: a drying fridge has no light and no CO2, and somebody who
+ * keeps no diary has no phase to end it with.
  */
 export function ControlState({ device, mayManage }: { device: Device; mayManage: boolean }) {
   const { t } = useTranslation();
@@ -28,9 +30,18 @@ export function ControlState({ device, mayManage }: { device: Device; mayManage:
 
   if (control.drying) {
     return (
-      <p className={`${ui.note} ${styles.drying}`} role="status">
-        {t('climateControl.dryingNote')}
-      </p>
+      <div className={`${ui.card} ${styles.planCard}`} data-status="drying" role="status">
+        <p className={`${styles.planText} ${styles.drying}`}>
+          {t('climateControl.dryingNote')}
+          <Help topic="drying" />
+        </p>
+        {mayManage ? (
+          <button type="button" className={ui.button} disabled={configure.isPending} onClick={() => configure.mutate({ drying: false })}>
+            {t(configure.isPending ? 'climateControl.switching' : 'climateControl.endDrying')}
+          </button>
+        ) : null}
+        <Refused error={configure.error} />
+      </div>
     );
   }
 

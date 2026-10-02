@@ -647,11 +647,42 @@ describe('the targets page', () => {
     );
   });
 
-  it('says a drying phase has the device drying', async () => {
+  it('says a drying phase has the device drying, and ends it from there', async () => {
     await drawn([device({ type: 'fridge', control: { running: true, drying: true, mode: 'standard', energySaving: false } })]);
 
     expect(screen.getByText(/^Drying: no day and night, no light, no CO₂/)).toBeInTheDocument();
     expect(screen.queryByText('Control off.')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'End drying' }));
+
+    await waitFor(() =>
+      expect(sent('PATCH')).toEqual([{ method: 'PATCH', path: '/devices/device-1/configuration', body: { set: { drying: false } } }]),
+    );
+  });
+
+  it('starts drying with the drying preset, and says so before it is saved', async () => {
+    await drawn([device({ type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } })]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Drying' }));
+    expect(screen.getByText(/^Saving starts drying/)).toBeInTheDocument();
+    // Tuned after the chip, the targets are still a drying room's.
+    slide('Day temperature', 17);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+    expect(sent('PUT')[0].body).toMatchObject({ drying: true, configuration: { day: { temperature: 17 } } });
+  });
+
+  it('ends a drying spell with any other preset, and leaves it running where only a slider moved', async () => {
+    await drawn([device({ type: 'fridge', control: { running: true, drying: true, mode: 'standard', energySaving: false } })]);
+
+    slide('Day temperature', 17);
+    expect(screen.queryByText(/^Saving ends drying/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Veg' }));
+    expect(screen.getByText(/^Saving ends drying/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+    expect(sent('PUT')[0].body).toMatchObject({ drying: false });
   });
 
   it('heads each panel with the device name when more than one states a climate', async () => {

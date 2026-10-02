@@ -68,10 +68,11 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * much a thing that happened in the tent as a plan step is, and without the
    * line the timeline could not say who moved it or when. A save that changed
    * nothing writes nothing. A device whose control was switched off is switched
-   * on again by it: somebody who sets targets wants them held.
+   * on again by it: somebody who sets targets wants them held. `drying` is
+   * whether they are a drying room's (see `WriteIntent`).
    */
-  public async replace(deviceId: string, configuration: DeviceConfiguration, by: string | null = null): Promise<boolean> {
-    const written = await this.store(deviceId, { kind: 'targets' }, () => configuration);
+  public async replace(deviceId: string, configuration: DeviceConfiguration, by: string | null = null, drying?: boolean): Promise<boolean> {
+    const written = await this.store(deviceId, { kind: 'targets', drying }, () => configuration);
     if (written) await this.writeDown(deviceId, written, by);
 
     return written?.changed ?? false;

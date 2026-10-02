@@ -3869,7 +3869,11 @@
       "discard": "Discard",
       "stay": "Keep editing"
     },
-    "growStays": "This changes the targets only: {{name}} stays in the {{stage}} phase. To move the phase and the climate together, use Phase in the grow."
+    "growStays": "This changes the targets only: {{name}} stays in the {{stage}} phase. To move the phase and the climate together, use Phase in the grow.",
+    "drying": {
+      "starts": "Saving starts drying: no light and no CO₂, the device only dehumidifies and heats.",
+      "ends": "Saving ends drying: the device holds day and night, light and CO₂ again."
+    }
   },
   "notifications": {
     "title": "Notifications",
@@ -4937,6 +4941,10 @@
       "title": "Ready-made plans",
       "text": "Two whole grows for the fridge: photoperiod (about 16 weeks, flower starts with the switch to 12 hours of light) and autoflower (about 11 weeks, the light stays at 18 hours). Every step brings its phase's targets; before flower, before harvest and at the end of drying the plan waits for you. Choosing one opens the plan to look through; nothing is written until “Save plan”."
     },
+    "drying": {
+      "title": "Drying",
+      "text": "While drying the device knows no day and no night: the light stays off, no CO₂ is dosed, it only dehumidifies and heats to the drying targets. Drying starts with the “Drying” preset under Control, with the drying phase in the grow or with a drying plan step. It ends with “End drying”, another preset or another phase; the device then goes back to its operating mode, energy saving included."
+    },
     "socketTimer": {
       "title": "Timer",
       "text": "A socket with the role Pump or Own timer switches by its own cycle, not by the climate: for example on for 2 minutes, every 6 hours. Without a timer it stays off. The cycle keeps running on the device even when the connection to the cloud is gone."
@@ -5130,6 +5138,8 @@
     "sets": "New: {{figures}} – replaces the targets under Control.",
     "figures": "light {{hours}} h · day {{day}} °C · night {{night}} °C · {{humidity}} %",
     "dark": "light off · {{day}} °C · {{humidity}} %",
+    "dries": "The device starts drying: no light and no CO₂.",
+    "endsDrying": "Drying ends, and the device holds day and night again.",
     "alarms": "The alarms Too hot, Too cold and Too humid follow the phase.",
     "noClimate": "{{stage}} has no climate of its own – the targets stay as they are."
   },
@@ -5174,7 +5184,8 @@
     "pauseReason": "Control was switched off.",
     "offTargets": "The device holds no targets. Saving switches control back on.",
     "offTargetsRead": "The device holds no targets right now.",
-    "dryingNote": "Drying: no day and night, no light, no CO₂. The device only dehumidifies and heats. A preset or another phase ends it.",
+    "dryingNote": "Drying: no day and night, no light, no CO₂. The device only dehumidifies and heats.",
+    "endDrying": "End drying",
     "offTitle": "Control off."
   },
   "energySaving": {

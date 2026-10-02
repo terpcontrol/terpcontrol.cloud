@@ -2305,6 +2305,9 @@
     "properties": {
       "configuration": {
         "$ref": "#/components/schemas/DeviceConfiguration"
+      },
+      "drying": {
+        "type": "boolean"
       }
     },
     "required": [

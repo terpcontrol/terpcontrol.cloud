@@ -3873,7 +3873,11 @@
       "discard": "Verwerfen",
       "stay": "Weiter bearbeiten"
     },
-    "growStays": "Das ändert nur die Zielwerte: {{name}} bleibt in der Phase {{stage}}. Phase und Klima zusammen stellst du im Grow unter Phase um."
+    "growStays": "Das ändert nur die Zielwerte: {{name}} bleibt in der Phase {{stage}}. Phase und Klima zusammen stellst du im Grow unter Phase um.",
+    "drying": {
+      "starts": "Speichern schaltet die Trocknung ein: kein Licht und kein CO₂, das Gerät entfeuchtet und heizt nur.",
+      "ends": "Speichern beendet die Trocknung: Das Gerät hält wieder Tag und Nacht, Licht und CO₂."
+    }
   },
   "notifications": {
     "title": "Benachrichtigungen",
@@ -4941,6 +4945,10 @@
       "title": "Fertige Pläne",
       "text": "Zwei ganze Grows für den Kühlschrank: Photoperiodisch (ca. 16 Wochen, die Blüte beginnt mit der Umstellung auf 12 Stunden Licht) und Autoflower (ca. 11 Wochen, das Licht bleibt bei 18 Stunden). Jeder Schritt bringt die Zielwerte seiner Phase mit; vor der Blüte, vor der Ernte und am Ende der Trocknung wartet der Plan auf dich. Auswählen öffnet den Plan zum Durchsehen, gespeichert wird erst mit „Plan speichern“."
     },
+    "drying": {
+      "title": "Trocknung",
+      "text": "In der Trocknung kennt das Gerät keinen Tag und keine Nacht: Das Licht bleibt aus, CO₂ wird nicht dosiert, es wird nur entfeuchtet und geheizt, auf die Zielwerte der Trocknung. Sie beginnt mit dem Preset „Trocknung“ unter Steuerung, mit der Phase Trocknung im Grow oder mit einem Planschritt der Trocknung. Sie endet mit „Trocknung beenden“, einem anderen Preset oder einer anderen Phase; das Gerät kehrt dann zu seiner Betriebsart zurück, Energiespar eingeschlossen."
+    },
     "socketTimer": {
       "title": "Zeitschaltung",
       "text": "Eine Steckdose mit der Rolle Pumpe oder Eigener Timer schaltet nach ihrem eigenen Takt, nicht nach dem Klima: zum Beispiel 2 Minuten an, alle 6 Stunden. Ohne Zeitschaltung bleibt sie aus. Der Takt läuft im Gerät weiter, auch wenn die Verbindung zur Cloud weg ist."
@@ -5134,6 +5142,8 @@
     "sets": "Neu: {{figures}} – ersetzt die Zielwerte unter Steuerung.",
     "figures": "Licht {{hours}} Std · Tag {{day}} °C · Nacht {{night}} °C · {{humidity}} %",
     "dark": "Licht aus · {{day}} °C · {{humidity}} %",
+    "dries": "Das Gerät geht in die Trocknung: kein Licht und kein CO₂.",
+    "endsDrying": "Die Trocknung endet, das Gerät hält wieder Tag und Nacht.",
     "alarms": "Die Alarme „Zu warm“, „Zu kalt“ und „Zu feucht“ richten sich nach der Phase.",
     "noClimate": "{{stage}} hat kein eigenes Klima – die Zielwerte bleiben, wie sie sind."
   },
@@ -5178,7 +5188,8 @@
     "pauseReason": "Die Regelung wurde ausgeschaltet.",
     "offTargets": "Das Gerät hält keine Zielwerte. Speichern schaltet die Regelung wieder ein.",
     "offTargetsRead": "Das Gerät hält gerade keine Zielwerte.",
-    "dryingNote": "Trocknung läuft: kein Tag und keine Nacht, kein Licht, kein CO₂. Das Gerät entfeuchtet und heizt nur. Ein Preset oder eine andere Phase beendet sie.",
+    "dryingNote": "Trocknung läuft: kein Tag und keine Nacht, kein Licht, kein CO₂. Das Gerät entfeuchtet und heizt nur.",
+    "endDrying": "Trocknung beenden",
     "offTitle": "Regelung aus."
   },
   "energySaving": {

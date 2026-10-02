@@ -1,6 +1,6 @@
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { DeviceConfiguration } from '@fg2/shared-types/v1';
+import type { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
 import { AccessGuard } from '@common/v1/access.guard';
 import { AccessService } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
@@ -610,6 +610,38 @@ const aRunningPlan = (stageOfTheNextStep: string | null) =>
     notify: { mode: 'off', email: null, writeEntries: true },
     state: { status: 'running', activeStepIndex: 0, stepStartedAt: A_WHILE_AGO, pausedElapsedMs: 0 },
   });
+
+describe('the work mode of a stage entered without its climate', () => {
+  const modeFor = (stage: GrowthStage) =>
+    new ClimatePresetsService(db.devices, {
+      applyConfiguration: async (deviceId, settings, given) => {
+        configured.push({ deviceId, settings, stage: given });
+        return true;
+      },
+    }).modeToSpace(SPACE, stage);
+
+  it('puts a device into drying with nothing but the stage, and leaves one that dries already alone', async () => {
+    await aController(SPACE, { ...TUNED, workmode: 'small' });
+    await modeFor('drying');
+    expect(configured).toEqual([{ deviceId: CONTROLLER, settings: {}, stage: 'drying' }]);
+
+    configured = [];
+    await db.devices.updateOne({ id: CONTROLLER }, { $set: { 'configuration.workmode': 'dry' } });
+    await modeFor('drying');
+    expect(configured).toEqual([]);
+  });
+
+  it('ends a drying spell or an off for another stage, and writes nothing to a device that already runs', async () => {
+    await aController(SPACE, { ...TUNED, workmode: 'dry' });
+    await modeFor('curing');
+    expect(configured).toEqual([{ deviceId: CONTROLLER, settings: {}, stage: 'curing' }]);
+
+    configured = [];
+    await db.devices.updateOne({ id: CONTROLLER }, { $set: { 'configuration.workmode': 'small' } });
+    await modeFor('flowering');
+    expect(configured).toEqual([]);
+  });
+});
 
 describe('applying a climate preset', () => {
   it('puts the controllers standing here on the stage´s climate', async () => {

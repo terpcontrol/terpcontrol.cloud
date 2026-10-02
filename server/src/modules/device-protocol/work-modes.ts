@@ -29,16 +29,20 @@ const WITH_WORK_MODES: readonly string[] = ['fridge', 'controller'];
 
 /** What a write is, which is what decides the work mode it leaves the device in. */
 export type WriteIntent =
-  /** The targets saved by hand: a device that was switched off is switched on again; a drying one stays drying. */
-  | { kind: 'targets' }
+  /**
+   * The targets saved by hand: a device that was switched off is switched on
+   * again. `drying` says whether they are a drying room's - true dries, false
+   * ends a drying spell - and left out a drying device stays drying.
+   */
+  | { kind: 'targets'; drying?: boolean }
   /**
    * A climate preset, a phase, or a plan step, with the stage it is for. Drying
    * dries; anything else puts the device on its own mode, which switches it on
    * and ends a drying spell. `requested` is what a plan step carries itself.
    */
   | { kind: 'climate'; stage: GrowthStage | null; requested?: unknown }
-  /** The settings a person changed one at a time, of which these three are about the work mode. */
-  | { kind: 'fields'; control?: boolean; mode?: OperatingMode; energySaving?: boolean }
+  /** The settings a person changed one at a time, of which these four are about the work mode. */
+  | { kind: 'fields'; control?: boolean; drying?: boolean; mode?: OperatingMode; energySaving?: boolean }
   /** The times of day moved onto the owner's clock, which decides nothing else. */
   | { kind: 'clock' };
 
@@ -88,6 +92,7 @@ export const decideWorkmode = (
     case 'clock':
       return { workmode: current, base: standing };
     case 'targets':
+      if (intent.drying !== undefined) return { workmode: intent.drying ? 'dry' : standing, base: standing };
       return { workmode: isRunning(current) ? current : standing, base: standing };
     case 'climate': {
       // A plan written before the switch carried the old app's whole document,
@@ -100,8 +105,10 @@ export const decideWorkmode = (
     case 'fields': {
       const now = controlOf(type, { workmode: current }, base)!;
       const next = workmodeOf(type, intent.mode ?? now.mode, intent.energySaving ?? now.energySaving);
-      const running = intent.control ?? now.running;
-      return { workmode: !running ? 'off' : current === 'dry' ? 'dry' : next, base: next };
+      // Starting to dry starts the device; ending it goes back to the mode it ran.
+      const running = intent.control ?? (intent.drying === true || now.running);
+      const drying = intent.drying ?? now.drying;
+      return { workmode: !running ? 'off' : drying ? 'dry' : next, base: next };
     }
   }
 };

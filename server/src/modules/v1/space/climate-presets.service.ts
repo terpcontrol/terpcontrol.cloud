@@ -32,6 +32,25 @@ export class ClimatePresetsService implements ClimatePresets {
     return this.writeTo(spaceId, stage, preset);
   }
 
+  public async modeToSpace(spaceId: string, stage: GrowthStage): Promise<void> {
+    const here = await this.devices
+      .find({ spaceId, type: { $in: WITH_WORK_MODES } }, { id: 1, configuration: 1 })
+      .lean<Pick<StoredDevice, 'id' | 'configuration'>[]>();
+
+    for (const device of here) {
+      const workmode = device.configuration?.workmode;
+      // Only where the stage changes something: a write is a document sent to the device.
+      const changes = stage === 'drying' ? workmode !== 'dry' : workmode === 'dry' || workmode === 'off';
+      if (typeof workmode !== 'string' || !changes) continue;
+
+      try {
+        await this.configuration.applyConfiguration(device.id, {}, stage);
+      } catch (error) {
+        logger.error(`Could not put device ${device.id} into the work mode of the ${stage} stage: ${error}`);
+      }
+    }
+  }
+
   /**
    * Only the devices that state day and night targets at all: a plug, a light
    * and a fan have nothing a climate could be written to. A device the broker
@@ -67,6 +86,9 @@ export class ClimatePresetsService implements ClimatePresets {
     return applied;
   }
 }
+
+/** The hardware whose firmware reads a work mode. */
+const WITH_WORK_MODES = ['fridge', 'controller'];
 
 /**
  * Its own module, so that the write can be bound to `CLIMATE_PRESETS` where the

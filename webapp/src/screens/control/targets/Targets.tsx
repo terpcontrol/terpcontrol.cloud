@@ -206,11 +206,24 @@ function OwnPanelOf(props: React.ComponentProps<typeof PlugPanel>) {
   return props.device.type === 'plug' ? <PlugPanel {...props} /> : <LightPanel {...props} />;
 }
 
-/** The state of one panel's editing: what the sliders stand at, and which stored document they were moved against. */
+/**
+ * The state of one panel's editing: what the sliders stand at, which stored
+ * document they were moved against, and the preset chip tapped last - which
+ * says whether the targets are a drying room's, however the sliders were moved
+ * after it.
+ */
 interface Edit {
   draft: TargetsDraft;
   against: DeviceConfiguration;
+  chip: ClimateChoice | null;
 }
+
+/** Whether saving the edit would start or end a drying spell, which is something to save even where the sliders did not move. */
+const dryingChangeOf = (chip: ClimateChoice | null, device: Device): 'starts' | 'ends' | null => {
+  if (!chip || !device.control) return null;
+  const dries = chip.stage === 'drying';
+  return dries === device.control.drying ? null : dries ? 'starts' : 'ends';
+};
 
 /** What the last save sent, so the sliders stay where they were put until the device's document catches up. */
 interface Sent {
@@ -258,9 +271,15 @@ function Panel({
   // document - the energy-saving switch beside them - leaves the sliders where
   // they were put.
   const baseline = draftOf(stored);
-  const draft = edit && sameDraft(draftOf(edit.against), baseline) ? edit.draft : baseline;
-  const dirty = !sameDraft(draft, baseline) && !(sent !== null && sameDraft(draft, sent.draft));
-  const set = (next: TargetsDraft) => setEdit({ draft: next, against: stored });
+  const live = edit && sameDraft(draftOf(edit.against), baseline) ? edit : null;
+  const draft = live ? live.draft : baseline;
+  const dirty =
+    (!sameDraft(draft, baseline) && !(sent !== null && sameDraft(draft, sent.draft))) || dryingChangeOf(live?.chip ?? null, device) !== null;
+  const tapped = live?.chip ?? null;
+  const set = (next: TargetsDraft, chip: ClimateChoice | null = tapped) => setEdit({ draft: next, against: stored, chip });
+  // A drying chip starts a drying spell and any other chip ends one; moving a slider alone leaves it as it is.
+  const drying = device.control && tapped ? tapped.stage === 'drying' : undefined;
+  const dryingChange = dryingChangeOf(tapped, device);
 
   const hasCo2 = hasCo2Sensor(device);
   // An AIR fan reads a temperature and a humidity, by its own day: no lamp, no
@@ -278,8 +297,10 @@ function Panel({
   const commit = async (): Promise<boolean> => {
     try {
       if (status === 'running') await move.mutateAsync({ kind: 'pause', reason: t('targets.pauseReason') });
-      await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, draft, climateOnly) });
+      await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, draft, climateOnly), drying });
       setSent({ draft, at: serverNow() });
+      // Saved, the chip has said what it had to: the drying spell is the device's now.
+      setEdit(current => (current ? { ...current, chip: null } : current));
       return true;
     } catch {
       // Shown under the bar, from the mutation that refused.
@@ -484,7 +505,7 @@ function Panel({
               disabled={readOnly}
               onChoose={() => {
                 const preset = presetOf(chip);
-                if (preset) set(prefilled(draft, preset));
+                if (preset) set(prefilled(draft, preset), chip);
               }}
             >
               {climateChoiceName(t, chip)}
@@ -493,6 +514,11 @@ function Panel({
         </Choices>
         {/* The chips move the targets and nothing else; the grow's phase is
             moved in the grow, where the climate is offered beside it. */}
+        {dryingChange ? (
+          <p className={ui.note} role="status">
+            {t(`targets.drying.${dryingChange}`)}
+          </p>
+        ) : null}
         {grow?.stage ? <p className={ui.note}>{t('targets.growStays', { name: grow.name, stage: t(`home.stage.${grow.stage}`) })}</p> : null}
       </div>
 
