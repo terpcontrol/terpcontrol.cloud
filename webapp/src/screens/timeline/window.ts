@@ -142,22 +142,26 @@ export const scaleOf = (panel: TimelinePanel, stretches: Stretch[]): Scale =>
   ]);
 
 /** The frame to show at the cursor: the newest picture taken by then, and the oldest there is before the first one was taken. */
-/** How far a picture may stand from the cursor and still be the picture of that moment: a few of the camera's own intervals, never more than half an hour. */
-const FRAME_REACH_MAX = 30 * 60 * 1000;
+/** The least a picture may stand from the cursor and still be the picture of that moment. */
+const FRAME_REACH_MIN = 10 * 60 * 1000;
 
 /**
  * The picture of the moment the cursor is on, or null where the camera took
  * none near it - before it was paired, or in a stretch it could not be read.
  * The nearest picture was shown however far away it was: a cursor on yesterday
- * at 09:52, light off, stood under a lit picture from today at 00:46.
+ * at 09:52, light off, stood under a lit picture from today at 00:46. Near is
+ * twice the camera's usual spacing in the window, so a camera that fires once
+ * an hour is not called absent between two of its pictures.
  */
 export const frameNear = (camera: SpaceTimeline['cameras'][number] | undefined, time: number) => {
   const frame = frameAt(camera, time);
   if (!camera || !frame) return null;
-  const frames = camera.frames;
-  const spacing = frames.length > 1 ? (at(frames[frames.length - 1].capturedAt) - at(frames[0].capturedAt)) / (frames.length - 1) : FRAME_REACH_MAX;
-  const reach = Math.min(FRAME_REACH_MAX, Math.max(5 * 60 * 1000, 3 * spacing));
-  return Math.abs(at(frame.capturedAt) - time) <= reach ? frame : null;
+  const gaps = camera.frames
+    .slice(1)
+    .map((one, index) => at(one.capturedAt) - at(camera.frames[index].capturedAt))
+    .sort((one, other) => one - other);
+  const usual = gaps.length > 0 ? gaps[Math.floor(gaps.length / 2)] : 0;
+  return Math.abs(at(frame.capturedAt) - time) <= Math.max(FRAME_REACH_MIN, 2 * usual) ? frame : null;
 };
 
 export const frameAt = (camera: SpaceTimeline['cameras'][number] | undefined, time: number) => {

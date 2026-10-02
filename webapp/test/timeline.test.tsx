@@ -12,7 +12,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
 import { Timeline } from '@/screens/timeline/Timeline';
 import { figure, targetFigure } from '@/screens/home/units';
-import { scaleOf, stretchesOf } from '@/screens/timeline/window';
+import { frameNear, scaleOf, stretchesOf } from '@/screens/timeline/window';
 
 const state = vi.hoisted(() => ({ answer: null as SpaceTimeline | null, devices: [] as { id: string; type: string }[], asked: [] as string[] }));
 
@@ -674,5 +674,25 @@ describe('what a panel is drawn against', () => {
     expect(figure(-0.04, 'temperature')).toBe('0.0');
     // And a figure that does not round away keeps its sign.
     expect(figure(-0.4, 'temperature')).toBe('-0.4');
+  });
+});
+
+/**
+ * The picture under the cursor is the picture of that moment or none: a
+ * camera paired this morning has no picture of yesterday, and its first
+ * one is not shown as if it were.
+ */
+describe('the picture of a moment', () => {
+  const start = DateTime.fromISO('2026-10-02T00:36:00.000Z');
+  const camera = {
+    cameraId: 'cam-1',
+    name: 'Terp Cam',
+    frames: Array.from({ length: 60 }, (_, index) => ({ mediaId: `m-${index}`, capturedAt: start.plus({ minutes: index }).toISO()! })),
+  };
+
+  it('is the picture taken nearest it, within twice the camera´s spacing, and none before the camera took any', () => {
+    expect(frameNear(camera, start.plus({ minutes: 30, seconds: 20 }).toMillis())?.mediaId).toBe('m-30');
+    expect(frameNear(camera, start.minus({ hours: 15 }).toMillis())).toBeNull();
+    expect(frameNear(camera, start.plus({ hours: 3 }).toMillis())).toBeNull();
   });
 });
