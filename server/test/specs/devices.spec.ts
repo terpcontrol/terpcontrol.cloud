@@ -349,15 +349,16 @@ describe('what reaches the hardware', () => {
 });
 
 describe('how a device updates', () => {
-  it('lets its owner choose whether and from which channel, and leaves pinning a build to an administrator', async () => {
+  it('starts on stable, lets its owner choose whether and from which channel, and leaves pinning a build to an administrator', async () => {
     const device = await provisionDevice(owner, 'plug');
     const before = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.firmware;
+    expect(before.channel).toBe('stable');
 
-    const on = await owner.client
+    const off = await owner.client
       .patch(`/v1/devices/${device.deviceId}`)
-      .send({ firmware: { channel: 'stable', targetId: before.targetId } })
+      .send({ firmware: { channel: 'manual', targetId: before.targetId } })
       .expect(200);
-    expect(on.body.firmware).toEqual({ channel: 'stable', targetId: before.targetId });
+    expect(off.body.firmware).toEqual({ channel: 'manual', targetId: before.targetId });
 
     const admin = await loginAsAdmin();
     const classes = await admin.client.get('/v1/admin/device-classes').expect(200);

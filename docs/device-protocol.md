@@ -129,9 +129,10 @@ Server side: `device-protocol.controller.ts` → `device-registration.service.ts
 where `fw` is the device class's `firmwareIds.stable`, or 401 `{ status: 'unauthorized' }` when self-registration
 is off, `registration_password` does not match `SELF_REGISTRATION_PASSWORD`, no device class is named
 `device_type`, or a device with the same `device_id`, `username` and `device_type` exists and the password does
-not verify. What the device signs in to the broker with is stored as `devices.mqtt`, hashed. Re-registering an
-existing device forces `state.hardware.claimcode_auth` to `'off'`, which is what lets a re-homed device issue a
-claim code again.
+not verify. What the device signs in to the broker with is stored as `devices.mqtt`, hashed. A new device is pinned
+to that build on the `stable` channel, so later releases reach it without anybody switching updates on.
+Re-registering an existing device pins it to the same build and keeps whatever channel it follows; it also forces
+`state.hardware.claimcode_auth` to `'off'`, which is what lets a re-homed device issue a claim code again.
 
 ### 3.2 `POST /device/claimcode`
 

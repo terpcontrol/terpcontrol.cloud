@@ -94,7 +94,8 @@ export class DeviceRegistrationService {
         classId: deviceClass.id,
         serialNumber: await this.nextSerialNumber(),
         mqtt: { username: request.username, passwordHash: await hashDevicePassword(request.password) },
-        firmware: { channel: 'manual', targetId: deviceClass.firmwareIds.stable },
+        // On the schema's default channel, which is stable.
+        firmware: { targetId: deviceClass.firmwareIds.stable },
         // Told at its very first connection, and counted from then: hardware
         // that registers and never comes back running the build it was handed
         // is a failed update like any other.
@@ -110,9 +111,10 @@ export class DeviceRegistrationService {
   }
 
   /**
-   * The same device enrolling again. It is pinned to the build its class runs
-   * rather than to a channel, because whoever is standing in front of it has
-   * just told it which cloud to belong to.
+   * The same device enrolling again. It is pinned to the build its class runs,
+   * because whoever is standing in front of it has just told it which cloud to
+   * belong to, and it keeps the channel it follows: pressing "Change server" a
+   * second time is not a reason to stop taking fixes.
    *
    * `claimcode_auth` goes back to off, which is what lets a re-homed device
    * issue a claim code again: it reports the key as `on` at every boot, and the
@@ -127,16 +129,15 @@ export class DeviceRegistrationService {
 
     const update: Record<string, unknown> = {
       classId,
-      'firmware.channel': 'manual',
       'firmware.targetId': firmwareId || null,
       'state.hardware.claimcode_auth': 'off',
     };
     // Enrolling a device pins it to a build, which is telling it to install
-    // one, so the clock the fleet judges an update by starts here as well.
-    // Every device in the field is on `manual` because of this line, and the
+    // one, so the clock the fleet judges an update by starts here as well. The
     // sweep that used to be the only thing to start that clock never walks
-    // `manual` - so without it a device that is told at enrolment and refuses
-    // the build stays "updating to nothing" for good.
+    // `manual`, where most devices carried over from the old cloud stand - so
+    // without it such a device that is told at enrolment and refuses the build
+    // stays "updating to nothing" for good.
     if (firmwareId && firmwareId !== device.state.firmwareId) Object.assign(update, startedNow());
     // A password stored before hashing was introduced is replaced by a hash the
     // first time it verifies.

@@ -4718,7 +4718,7 @@
     },
     "firmwareChannel": {
       "title": "Updates",
-      "text": "Whether the device installs new firmware by itself. On: new stable versions arrive by themselves, with their fixes; under Advanced test versions (beta, alpha) can be chosen too. Off: it stays on the version it has. While an update installs, a controller or fridge module switches every output and socket off for a moment, then restarts."
+      "text": "Whether the device installs new firmware by itself. A newly added device has it switched on. On: new stable versions arrive by themselves, with their fixes; under Advanced test versions (beta, alpha) can be chosen too. Off: it stays on the version it has. While an update installs, a controller or fridge module switches every output and socket off for a moment, then restarts."
     },
     "stillCadence": {
       "title": "Still every",

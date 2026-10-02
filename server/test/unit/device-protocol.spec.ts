@@ -655,7 +655,22 @@ describe('enrolling and claiming', () => {
     expect(enrolled?.mqtt?.username).toBe('mqtt-user');
     // The password is never stored as it was sent.
     expect(enrolled?.mqtt?.passwordHash).not.toBe('mqtt-password');
-    expect(enrolled?.firmware).toEqual({ channel: 'manual', targetId: 'build-7' });
+    // On the stable channel, so the next released build reaches it by itself.
+    expect(enrolled?.firmware).toEqual({ channel: 'stable', targetId: 'build-7' });
+  });
+
+  it('keeps the channel a device follows when it enrols again', async () => {
+    const channel = async () => (await db.devices.findOne({ id: 'sim-fridge-9' }).lean<StoredDevice>())?.firmware.channel;
+
+    await enrol();
+    await enrol();
+    expect(await channel()).toBe('stable');
+
+    for (const chosen of ['beta', 'manual'] as const) {
+      await db.devices.updateOne({ id: 'sim-fridge-9' }, { $set: { 'firmware.channel': chosen } });
+      await enrol();
+      expect(await channel()).toBe(chosen);
+    }
   });
 
   it('refuses a device whose type this cloud has no class for', async () => {

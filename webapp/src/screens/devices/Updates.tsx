@@ -10,9 +10,9 @@ import { useChannel } from './update-channel';
  * firmware is read: one switch, on the stable channel. Beta and alpha are the
  * same switch on another channel and stand under Erweitert.
  *
- * A device is enrolled without a channel, and one carried over from the old
- * cloud had none that ever worked, so most devices start here switched off -
- * and a fix that is released never reaches them until somebody switches it on.
+ * A new device is enrolled on stable and starts here switched on. One carried
+ * over from the old cloud had no channel that ever worked and stays off - a
+ * fix that is released never reaches it until somebody switches it on.
  */
 export function AutoUpdate({ device }: { device: Device }) {
   const { t } = useTranslation();

@@ -11,9 +11,9 @@
  * That is what this exists to prevent. The stamp used to be written in one
  * place - the sweep over the three release channels - while a build is pinned
  * in three: that sweep, `PATCH /devices/{id}`, and enrolment, which pins every
- * device to its class's stable build on the `manual` channel. Two of the three
- * therefore produced a device that owed an update, was told about it on a
- * doubling backoff for as long as it refused, and could not be counted or
+ * device to its class's stable build whatever channel it follows. Two of the
+ * three therefore produced a device that owed an update, was told about it on
+ * a doubling backoff for as long as it refused, and could not be counted or
  * closed. Each of them now says the same sentence in the same words.
  */
 export const startedNow = (at: Date = new Date()): Record<string, Date | null> => ({

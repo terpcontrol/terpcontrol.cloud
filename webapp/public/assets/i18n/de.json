@@ -4726,7 +4726,7 @@
     },
     "firmwareChannel": {
       "title": "Updates",
-      "text": "Ob das Gerät neue Firmware selbst installiert. An: Neue stabile Versionen kommen von selbst, mit Fehlerbehebungen; unter Erweitert lassen sich auch Testversionen (Beta, Alpha) wählen. Aus: Es bleibt bei der Version, die es hat. Während eines Updates schalten Controller und Kühlschrankmodul alle Ausgänge und Steckdosen kurz aus und starten neu."
+      "text": "Ob das Gerät neue Firmware selbst installiert. Bei einem neu hinzugefügten Gerät ist es eingeschaltet. An: Neue stabile Versionen kommen von selbst, mit Fehlerbehebungen; unter Erweitert lassen sich auch Testversionen (Beta, Alpha) wählen. Aus: Es bleibt bei der Version, die es hat. Während eines Updates schalten Controller und Kühlschrankmodul alle Ausgänge und Steckdosen kurz aus und starten neu."
     },
     "stillCadence": {
       "title": "Bild alle",

@@ -103,9 +103,10 @@ const scheduleClockSchema = new Schema<ScheduleClock>(
 
 const firmwareTargetSchema = new Schema<Device['firmware']>(
   {
-    // A device with no update setting of its own follows no channel and stays
-    // on what an operator picked, which is what one gets today.
-    channel: { type: String, enum: firmwareChannel.options, required: true, default: 'manual' },
+    // A new device takes released fixes by itself until somebody switches that
+    // off. Every stored device carries a channel of its own, so a default never
+    // moves an existing one.
+    channel: { type: String, enum: firmwareChannel.options, required: true, default: 'stable' },
     targetId: { type: String, default: null },
   },
   { _id: false, versionKey: false },
