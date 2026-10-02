@@ -349,10 +349,16 @@ export interface CsvColumn {
   holds?: boolean;
 }
 
-export const csvOf = (columns: readonly CsvColumn[], originAt: number | null, zone: string | null): string => {
+export const csvOf = (
+  columns: readonly CsvColumn[],
+  originAt: number | null,
+  zone: string | null,
+  /** What the first two columns are headed, in the reader's language like the rest of the head. */
+  heads: { time: string; day: string } = { time: 'time', day: 'day' },
+): string => {
   const times = [...new Set(columns.flatMap(column => column.points.map(([time]) => time)))].sort((one, other) => one - other);
   const cells = columns.map(column => (column.holds ? carried(column.points, times) : measured(column.points, times)));
-  const head = ['time', ...(originAt === null ? [] : ['day']), ...columns.map(column => column.label)];
+  const head = [heads.time, ...(originAt === null ? [] : [heads.day]), ...columns.map(column => column.label)];
 
   const rows = times.map((time, row) =>
     [

@@ -542,6 +542,7 @@
     "savedLabel": "Saved",
     "about": {
       "band": "target band follows the phase",
+      "bandTargets": "Target band from the targets",
       "leaf": "leaf {{offset}} °C",
       "leafHalves": "leaf {{day}} °C by day, {{night}} °C at night",
       "pair": "overlaid, two axes",
@@ -619,7 +620,17 @@
     "copyLink": "Copy link",
     "allLinks": "Every shared link",
     "moreWidths": "More …",
-    "fewerWidths": "Fewer"
+    "fewerWidths": "Fewer",
+    "stepUnit": {
+      "d": "d",
+      "h": "h",
+      "min": "min",
+      "s": "s"
+    },
+    "csvHead": {
+      "time": "time",
+      "day": "day"
+    }
   },
   "diagnostics": {
     "serialnumber": "Device serial number",
@@ -1897,6 +1908,8 @@
       },
       "days_one": "{{count}} day",
       "days_other": "{{count}} days",
+      "lasting_one": "for {{count}} day",
+      "lasting_other": "for {{count}} days",
       "permanentLink": "the grow's permanent link",
       "growPrivate": "grow now private · does not open",
       "readOnly": "read-only view",
@@ -1916,12 +1929,16 @@
       "new": "+ New link · grow or place · cams · expiry",
       "noSubjects": "Nothing of your own to share yet",
       "address": "Address",
-      "revokeNote": "Revoking ends the link now. Whoever has it sees from then on exactly what a link nobody made shows: nothing. It stays listed here with the date, and it cannot be started again - handing the grow out once more takes a new link.",
+      "revokeNote": "Revoking ends the link now. Whoever has it sees from then on exactly what a link nobody made shows: nothing. It stays listed here with the date, and it cannot be started again - sharing once more takes a new link.",
       "forgetNote": "Forgetting takes the link off this list. It has already stopped working.",
       "sheet": {
         "title": "New link",
         "subject": "Grow or place",
         "kind": "Kind",
+        "window": "Time span",
+        "wholeWindow": "No limit",
+        "windowNote": "The link shows this time span only: curves, timeline and entries from it.",
+        "wholeWindowNote": "The link shows the place as it is now, and everything before.",
         "publicPage": "Public page",
         "view": "Read-only view",
         "untilPrivate": "Permanent until you make the grow private.",

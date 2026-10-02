@@ -11,7 +11,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { Entry, SpaceSeries, TimelineTargets } from '@fg2/shared-types/v1';
 import { Charts } from '@/screens/charts/Charts';
 import { defaultPick, halfOf } from '@/screens/charts/cards';
-import { categoryOf, columnsOf } from '@/screens/charts/message-columns';
+import { categoryOf, columnsOf, nearestColumn } from '@/screens/charts/message-columns';
 import { rangeOfSpan, stepped, windowOf, WIDTHS, zoomedIn } from '@/screens/charts/span';
 
 /**
@@ -295,7 +295,33 @@ describe('a place charted without a grow', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Create/ }));
 
     await waitFor(() => expect(state.posted[0]).toMatchObject({ path: '/share-links', body: { subject: { type: 'space', id: 'space-2' } } }));
+    expect(state.posted[0].body).not.toHaveProperty('range');
     expect(await screen.findByText(/shared\/tok-9/)).toBeInTheDocument();
+  });
+
+  it('starts a range of one´s own on the days the chart was showing, so the curves stay', async () => {
+    draw();
+    await screen.findByText('Temp + RH');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Custom …' }));
+    expect((screen.getByLabelText('From') as HTMLInputElement).value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect((screen.getByLabelText('To') as HTMLInputElement).value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(screen.queryByText('Pick both ends and the chart is drawn between them.')).not.toBeInTheDocument();
+  });
+
+  it('shares the window somebody picked, unless they take the place as a whole', async () => {
+    draw('/charts?space=space-2&range=custom&from=2026-09-10&to=2026-09-12');
+    await screen.findByText('Temp + RH');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+    expect(await screen.findByRole('button', { name: 'No limit' })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: /Create/ }));
+
+    await waitFor(() =>
+      expect(state.posted[0]?.body).toMatchObject({
+        range: { startsAt: expect.stringMatching(/^2026-09-(09|10)T/), endsAt: expect.stringMatching(/^2026-09-1[23]T/) },
+      }),
+    );
   });
 });
 
@@ -357,6 +383,11 @@ describe('the arithmetic under it', () => {
 
     expect(columns.map(column => column.entries.length)).toEqual([2, 0, 0, 1]);
     expect(columns[0].severity).toBe('warning');
+    // A finger on an empty column takes the nearest one with lines, within reach, and nothing further off.
+    const lane = columnsOf([entry('a', 6.5, {})], Date.parse(at(0)), Date.parse(at(24)), 48);
+    expect(nearestColumn(lane, 70, 200)).toBe(13);
+    expect(nearestColumn(lane, 54, 200)).toBe(13);
+    expect(nearestColumn(lane, 150, 200)).toBeNull();
     expect(categoryOf({ kind: 'plan', source: 'plan' })).toBe('plan');
     expect(categoryOf({ kind: 'water', source: 'human' })).toBe('diary');
     expect(categoryOf({ kind: 'system', source: 'device' })).toBe('device');

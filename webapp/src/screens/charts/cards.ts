@@ -362,7 +362,7 @@ const metricDrawn = (t: Translate, metric: Metric, panel: TimelinePanel, series:
   return {
     key: metric,
     title,
-    about: aboutMetric(t, metric, stretches.length > 0, leaf),
+    about: aboutMetric(t, metric, stretches.length > 0, leaf, series.originAt !== null),
     unit,
     metric,
     values: [
@@ -563,8 +563,11 @@ const joined = (spans: readonly PlotSpan[]): PlotSpan[] =>
     return run;
   }, []);
 
-const aboutMetric = (t: Translate, metric: Metric, steered: boolean, leaf: LeafOffsets | null): string =>
-  [steered ? t('charts.about.band') : null, metric === 'vpd' && leaf ? leafAbout(t, leaf) : null].filter(Boolean).join(' · ');
+/** The band follows a grow's phases where a grow is charted; elsewhere it is the targets the device holds. */
+const aboutMetric = (t: Translate, metric: Metric, steered: boolean, leaf: LeafOffsets | null, grown: boolean): string =>
+  [steered ? t(grown ? 'charts.about.band' : 'charts.about.bandTargets') : null, metric === 'vpd' && leaf ? leafAbout(t, leaf) : null]
+    .filter(Boolean)
+    .join(' · ');
 
 /**
  * What the VPD card takes the leaf to be.
@@ -606,6 +609,7 @@ export const csvForCards = (t: Translate, series: ChartData, input: CardsInput, 
     drawnOf(t, series, input).map(one => one.csv),
     series.originAt === null ? null : at(series.originAt),
     zone,
+    { time: t('charts.csvHead.time'), day: t('charts.csvHead.day') },
   );
 
 /**

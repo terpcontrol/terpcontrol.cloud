@@ -31,7 +31,7 @@ import { useNow } from '@/ui/useNow';
 import { useZone, zonedAt } from '@/ui/zone';
 import { figure } from '../home/units';
 import { CameraFrame } from '../timeline/CameraFrame';
-import { at, stampForEnds, stampOf, stamps } from '../timeline/window';
+import { at, stampFor, stampForEnds, stamps } from '../timeline/window';
 import {
   cardsOf,
   csvForCards,
@@ -304,9 +304,14 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
     setZoom(null);
     setScrubbed(null);
     setLiveNow(serverNow().toMillis());
+    // A range of one's own starts on the days the chart was showing, so the curves stay while the days are changed.
+    const shownDays: Record<string, string | null> =
+      window?.kind === 'span' && !(from && to)
+        ? { from: zonedAt(window.from, zone).toISODate(), to: zonedAt(window.to, zone).toISODate() }
+        : {};
     setQuery({
       range: next,
-      ...(next === 'custom' ? {} : { from: null, to: null }),
+      ...(next === 'custom' ? shownDays : { from: null, to: null }),
       // Where a width was stepped back to stays where it is for another width; a grow's stretch has no such end.
       ...(isWidth(next) ? {} : { at: null }),
       ...(isStretch(next) ? {} : { compare: null }),
@@ -369,6 +374,13 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
     (one, other) => WIDTHS[one] - WIDTHS[other],
   );
   const end = liveEnd(liveNow, endedAt);
+  // The zoom is named the way the axis under it writes its ends.
+  const zoomEdges = zoom ? edgesOf(zoom.from, zoom.to, zone, end) : ['', ''];
+  // A window that does not end now is a stretch somebody went looking for, and is what a link made from here offers to show.
+  const fixed = window?.kind === 'span' && (zoom !== null || range === 'custom' || atParam !== null) ? window : null;
+  const shareWindow = fixed
+    ? { startsAt: instant(fixed.from), endsAt: instant(fixed.to), label: edgesOf(fixed.from, fixed.to, zone, end).join(' – ') }
+    : null;
 
   const chips = (
     <>
@@ -398,9 +410,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
 
       {zoom !== null ? (
         <div className={styles.navRow}>
-          <span className={`mono ${styles.navLabel}`}>
-            {t('charts.zoomed', { from: stampOf(zoom.from, zoom.to - zoom.from, zone), to: stampOf(zoom.to, zoom.to - zoom.from, zone) })}
-          </span>
+          <span className={`mono ${styles.navLabel}`}>{t('charts.zoomed', { from: zoomEdges[0], to: zoomEdges[1] })}</span>
           <button type="button" className={ui.chip} onClick={() => setZoom(null)}>
             {t('charts.resetZoom')}
           </button>
@@ -585,7 +595,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
   const cursor = from_ + (scrubbed ?? 1) * (to_ - from_);
   const cursorTime = day ? left : left + (scrubbed ?? 1) * span;
   const dayOf = (x: number) => t('timeline.dayN', { day: Math.max(1, Math.floor(x)) });
-  const ends: [string, string] = day ? [dayOf(from_), dayOf(to_)] : edgesOf(left, right, zone);
+  const ends: [string, string] = day ? [dayOf(from_), dayOf(to_)] : edgesOf(left, right, zone, end);
   const toCursor = (time: number) => setScrubbed(span > 0 ? Math.min(1, Math.max(0, (time - left) / span)) : null);
 
   return (
@@ -611,7 +621,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
         <CameraFrame cameras={cameras} from={left} to={right} cursor={cursorTime} day={null} onScrub={toCursor} />
       ) : null}
 
-      {cards.length > 0 ? <ScrubHeader cards={cards} cursor={cursor} stamp={day ? dayOf : x => stampOf(x, span, zone)} /> : null}
+      {cards.length > 0 ? <ScrubHeader cards={cards} cursor={cursor} stamp={day ? dayOf : x => momentStamp(x, left, right, zone, end)} /> : null}
 
       {cards.length > 0 && !day ? (
         <div className={styles.zoomRow}>
@@ -674,10 +684,10 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
           the window decided and not at the rate the devices reported at - and
           the sentence goes wherever the table goes. */}
       <p className={`${ui.note} ${styles.csvNote}`}>
-        {cards.length > 0 && data.stepSeconds > 0 ? `${t('charts.csvNote', { step: stepLabel(data.stepSeconds) })} ` : null}
+        {cards.length > 0 && data.stepSeconds > 0 ? `${t('charts.csvNote', { step: stepLabel(data.stepSeconds, t) })} ` : null}
         {grow ? (
           <>
-            {t('charts.exportOn')} <Link to={`/grows/${grow.id}`}>{grow.name}</Link>
+            {t('charts.exportOn')} <Link to={`/grows/${grow.id}`}>{grow.name}</Link>.
           </>
         ) : null}
       </p>
@@ -699,6 +709,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
         <NewLinkSheet
           grows={grow ? [grow] : []}
           spaces={spaceRow ? [spaceRow] : []}
+          window={shareWindow}
           onClose={() => setSharing(false)}
           onCreated={link => {
             setSharing(false);
@@ -735,7 +746,7 @@ function OffsetBar({
   const span = WIDTHS[width];
   const finish = ending ?? end;
   const start = finish - span;
-  const [first, last] = edgesOf(start, finish, zone);
+  const [first, last] = edgesOf(start, finish, zone, end);
   const local = (time: number) => zonedAt(time, zone).toFormat("yyyy-LL-dd'T'HH:mm");
 
   return (
@@ -898,13 +909,25 @@ const dayLabel = (t: Translate, series: ChartData): string => {
  * climbed from the rung the width itself asks for and only then widened until
  * the two differ.
  */
-const edgesOf = (from: number, to: number, zone: string | null): [string, string] => {
+const edgesOf = (from: number, to: number, zone: string | null, now: number): [string, string] => {
   const written = stamps()
-    .slice(stampForEnds(to - from))
+    .slice(Math.max(stampForEnds(to - from), datedFrom(from, now)))
     .map(format => [zonedAt(from, zone).toFormat(format), zonedAt(to, zone).toFormat(format)] as [string, string]);
 
   return written.find(([one, other]) => one !== other) ?? written[written.length - 1];
 };
+
+/**
+ * The rung a window that lies further back than a week is written from at the
+ * least: "Di 08:00 – Mi 08:00" two weeks ago named no week at all, and the old
+ * charts dated every window. A window of this week keeps the weekday, which the
+ * eye places at once.
+ */
+const datedFrom = (from: number, now: number): number => (now - from > 6 * 24 * 60 * 60 * 1000 ? 2 : 0);
+
+/** A moment inside the window, as the cursor writes it: by the window's width, and dated where the window lies past this week. */
+const momentStamp = (time: number, from: number, to: number, zone: string | null, now: number): string =>
+  zonedAt(time, zone).toFormat(stamps()[Math.max(stampFor(to - from), datedFrom(from, now))]);
 
 /** A stretch marked on the plot, as the two instants it covers. */
 const spanOfSelection = (selection: Selection, from: number, to: number): Zoom => ({
@@ -958,6 +981,12 @@ const momentOf = (value: string | null): number | null => {
 const csvName = (name: string, range: ChartRange): string => {
   const slug = name
     .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 

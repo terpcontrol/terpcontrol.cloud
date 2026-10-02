@@ -23,7 +23,7 @@ function Step({ settings, change, answeredStep }: ChartsContext) {
     <SettingRow
       label={t('chartFine.step')}
       help="advanced.chartStep"
-      note={widened ? t('chartFine.widened', { step: stepLabel(answeredStep) }) : asked === null ? t('chartFine.stepAuto') : undefined}
+      note={widened ? t('chartFine.widened', { step: stepLabel(answeredStep, t) }) : asked === null ? t('chartFine.stepAuto') : undefined}
     >
       <select
         className={`mono ${ui.chip}`}
@@ -34,7 +34,7 @@ function Step({ settings, change, answeredStep }: ChartsContext) {
         <option value="">{t('chartFine.auto')}</option>
         {STEPS.map(step => (
           <option key={step} value={step}>
-            {stepLabel(step)}
+            {stepLabel(step, t)}
           </option>
         ))}
       </select>

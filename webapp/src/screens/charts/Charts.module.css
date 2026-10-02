@@ -482,7 +482,7 @@
   cursor: pointer;
 }
 
-.column:disabled {
+span.column {
   cursor: default;
 }
 

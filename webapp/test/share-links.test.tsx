@@ -99,6 +99,8 @@ const server = {
   owns: true,
   failing: [] as string[],
   asked: [] as string[],
+  /** The places a camera of the account stands in. */
+  cameras: ['space-1'] as string[],
 };
 
 /** The server's own paging, reproduced: a page of `pageSize` rows and the cursor for the rest, which is the shape an owner past fifty tents gets. */
@@ -143,6 +145,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   if (path === '/grows') return json(pageOf(server.owns ? grows : [], url));
   if (path === '/spaces') return json(pageOf(server.owns ? spaces : [], url));
   if (path === '/me') return json(me);
+  if (path === '/cameras') return json({ items: server.cameras.map(spaceId => ({ id: `camera-${spaceId}`, spaceId })), nextCursor: null });
   return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
 }) as unknown as typeof fetch;
 
@@ -182,6 +185,7 @@ beforeEach(() => {
   server.owns = true;
   server.failing = [];
   server.asked = [];
+  server.cameras = ['space-1'];
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -253,7 +257,7 @@ describe('the active list', () => {
     expect(page).toHaveTextContent("the grow's permanent link · cams on · weights hidden · 41 opens · last 2 h ago");
     expect(page).not.toHaveAttribute('data-dead');
 
-    const week = card('Tent 1 · timeline · 7 days');
+    const week = card('Tent 1 · timeline · for 7 days');
     expect(week).toHaveTextContent(`read-only view · expires ${dayOf(weekView.expiresAt!)} · cams on · weights hidden · 6 opens · last 5 min ago`);
     expect(within(week).getByRole('button', { name: 'Copy the link' })).toBeInTheDocument();
   });
@@ -291,7 +295,7 @@ describe('links that have stopped', () => {
     expect(within(dead).getAllByRole('listitem')).toHaveLength(2);
     expect(screen.getByText('Expired or revoked').nextElementSibling).toHaveTextContent('2');
 
-    const gone = card('Tent 1 · timeline · 14 days');
+    const gone = card('Tent 1 · timeline · for 14 days');
     expect(gone).toHaveAttribute('data-dead');
     expect(gone).toHaveTextContent(`expired ${dayOf(expired.expiresAt!)} · not opened yet`);
     expect(within(gone).queryByRole('button', { name: 'Copy the link' })).not.toBeInTheDocument();
@@ -323,13 +327,13 @@ describe('links that have stopped', () => {
 describe('a link’s own sheet', () => {
   it('shows the address of a live link and revokes it where it stands', async () => {
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: /^Tent 1 · timeline · 7 days/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Tent 1 · timeline · for 7 days/ }));
 
-    const sheet = screen.getByRole('dialog', { name: 'Tent 1 · timeline · 7 days' });
+    const sheet = screen.getByRole('dialog', { name: 'Tent 1 · timeline · for 7 days' });
     expect(within(sheet).getByText(/\/shared\/tok-week$/)).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Forget' })).not.toBeInTheDocument();
     // What it will do, to whom, and that there is no way back to a live link.
-    expect(within(sheet).getByText(/it cannot be started again - handing the grow out once more takes a new link/)).toBeInTheDocument();
+    expect(within(sheet).getByText(/it cannot be started again - sharing once more takes a new link/)).toBeInTheDocument();
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Revoke' }));
     await waitFor(() => expect(server.revoked).toEqual(['link-week']));
@@ -366,7 +370,7 @@ describe('copying', () => {
     expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\/shared\/tok-page$/));
 
     writeText.mockRejectedValueOnce(new Error('refused'));
-    fireEvent.click(within(card('Tent 1 · timeline · 7 days')).getByRole('button', { name: 'Copy the link' }));
+    fireEvent.click(within(card('Tent 1 · timeline · for 7 days')).getByRole('button', { name: 'Copy the link' }));
     await screen.findByText('Copy it by hand');
   });
 });
@@ -415,14 +419,15 @@ describe('the new-link sheet', () => {
     ).toEqual(['Spring run #3', 'Balcony tomatoes', 'Tent 1']);
     expect(within(sheet).getByRole('button', { name: 'Read-only view' })).toHaveAttribute('aria-pressed', 'true');
     expect(within(sheet).getByRole('button', { name: '7 days' })).toHaveAttribute('aria-pressed', 'true');
-    expect(within(sheet).getByRole('switch', { name: 'Camera pictures' })).toHaveAttribute('aria-checked', 'false');
+    expect(await within(sheet).findByRole('switch', { name: 'Camera pictures' })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('writes exactly the body the contract names, and no range of its own', async () => {
     const sheet = await open();
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Tent 1' }));
-    fireEvent.click(within(sheet).getByRole('switch', { name: 'Camera pictures' }));
+    fireEvent.click(await within(sheet).findByText('Camera pictures'));
+    expect(within(sheet).getByRole('switch', { name: 'Camera pictures' })).toHaveAttribute('aria-checked', 'true');
     fireEvent.click(within(sheet).getByRole('button', { name: '30 days' }));
     fireEvent.click(within(sheet).getByRole('button', { name: 'Create link' }));
 
@@ -432,6 +437,14 @@ describe('the new-link sheet', () => {
     expect(body).toMatchObject({ kind: 'view', subject: { type: 'space', id: 'space-1' }, includeCameras: true });
     expect(Math.abs(DateTime.fromISO(body.expiresAt!).diff(NOW.plus({ days: 30 }), 'minutes').minutes)).toBeLessThan(1);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('offers camera pictures only where a camera stands, and switches them from the words too', async () => {
+    server.cameras = [];
+    const sheet = await open();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Tent 1' }));
+    await waitFor(() => expect(server.asked).toContain('/cameras'));
+    expect(within(sheet).queryByRole('switch', { name: 'Camera pictures' })).not.toBeInTheDocument();
   });
 
   it('makes a public page permanent by sentence rather than by date, and never onto a grow that is private', async () => {

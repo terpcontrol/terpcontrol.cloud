@@ -542,6 +542,7 @@
     "savedLabel": "Gespeichert",
     "about": {
       "band": "Zielband folgt der Phase",
+      "bandTargets": "Zielband aus den Zielwerten",
       "leaf": "Blatt {{offset}} °C",
       "leafHalves": "Blatt tags {{day}} °C, nachts {{night}} °C",
       "pair": "überlagert, zwei Achsen",
@@ -619,7 +620,17 @@
     "copyLink": "Link kopieren",
     "allLinks": "Alle geteilten Links",
     "moreWidths": "Weitere …",
-    "fewerWidths": "Weniger"
+    "fewerWidths": "Weniger",
+    "stepUnit": {
+      "d": "T",
+      "h": "Std",
+      "min": "Min",
+      "s": "s"
+    },
+    "csvHead": {
+      "time": "Zeit",
+      "day": "Tag"
+    }
   },
   "devices": {
     "button-settings": "Einstellungen",
@@ -1901,6 +1912,8 @@
       },
       "days_one": "{{count}} Tag",
       "days_other": "{{count}} Tage",
+      "lasting_one": "gilt {{count}} Tag",
+      "lasting_other": "gilt {{count}} Tage",
       "permanentLink": "der dauerhafte Link des Grows",
       "growPrivate": "Grow jetzt privat · öffnet nicht mehr",
       "readOnly": "nur lesen",
@@ -1920,12 +1933,16 @@
       "new": "+ Neuer Link · Grow oder Ort · Cams · Ablauf",
       "noSubjects": "Noch nichts Eigenes zum Teilen",
       "address": "Adresse",
-      "revokeNote": "Zurückziehen beendet den Link sofort. Wer ihn hat, sieht ab dann genau das, was ein nie vergebener Link zeigt: nichts. Er bleibt hier mit dem Datum stehen und lässt sich nicht wieder aktivieren - wer den Grow noch einmal weitergibt, braucht einen neuen Link.",
+      "revokeNote": "Zurückziehen beendet den Link sofort. Wer ihn hat, sieht ab dann genau das, was ein nie vergebener Link zeigt: nichts. Er bleibt hier mit dem Datum stehen und lässt sich nicht wieder aktivieren – wer noch einmal teilen will, braucht einen neuen Link.",
       "forgetNote": "Löschen nimmt den Link aus dieser Liste. Er hat schon aufgehört zu funktionieren.",
       "sheet": {
         "title": "Neuer Link",
         "subject": "Grow oder Ort",
         "kind": "Art",
+        "window": "Zeitraum",
+        "wholeWindow": "Ohne Grenze",
+        "windowNote": "Der Link zeigt nur diesen Zeitraum: Kurven, Verlauf und Einträge daraus.",
+        "wholeWindowNote": "Der Link zeigt den Ort, wie er jetzt ist, und alles davor.",
         "publicPage": "Öffentliche Seite",
         "view": "Nur-Lesen-Ansicht",
         "untilPrivate": "Dauerhaft, bis du den Grow privat stellst.",

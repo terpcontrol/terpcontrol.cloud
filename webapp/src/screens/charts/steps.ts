@@ -1,13 +1,15 @@
 /** Every step the old charts offered, finest first; "automatic" is the width of the window deciding. */
 export const STEPS = [5, 10, 20, 60, 300, 900, 1800, 3600, 4 * 3600, 24 * 3600, 7 * 24 * 3600];
 
-/** The units a step is written in, widest first. They are not translated, because neither is any other span the app prints. */
+/** The units a step is written in, widest first, by the words the window chips beside them use ("7 T", "24 Std"). */
 const STEP_UNITS = [
   { unit: 'd', seconds: 24 * 60 * 60 },
   { unit: 'h', seconds: 60 * 60 },
   { unit: 'min', seconds: 60 },
   { unit: 's', seconds: 1 },
 ];
+
+type Translate = (key: string) => string;
 
 /**
  * How far apart the points are, in words.
@@ -23,7 +25,8 @@ const STEP_UNITS = [
  * where the step lands on a whole one of the first - which is every rolling
  * window, the two the chips offer included. A week is seven days.
  */
-export const stepLabel = (seconds: number): string => {
+export const stepLabel = (seconds: number, t: Translate | null = null): string => {
+  const word = (unit: string) => (t ? t(`charts.stepUnit.${unit}`) : unit);
   const whole = Math.max(0, Math.round(seconds));
   const index = Math.max(
     0,
@@ -34,7 +37,7 @@ export const stepLabel = (seconds: number): string => {
   const count = Math.floor(whole / big.seconds);
   const rest = small ? Math.round((whole - count * big.seconds) / small.seconds) : 0;
   // A remainder that rounds up to a whole one of the unit above is that unit.
-  if (small && rest * small.seconds >= big.seconds) return `${count + 1} ${big.unit}`;
+  if (small && rest * small.seconds >= big.seconds) return `${count + 1} ${word(big.unit)}`;
 
-  return rest > 0 ? `${count} ${big.unit} ${rest} ${small.unit}` : `${count} ${big.unit}`;
+  return rest > 0 ? `${count} ${word(big.unit)} ${rest} ${word(small.unit)}` : `${count} ${word(big.unit)}`;
 };

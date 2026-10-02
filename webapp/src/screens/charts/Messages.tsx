@@ -8,8 +8,8 @@ import { Help } from '@/ui/Help';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { fractionOf } from '../timeline/window';
-import { categoryOf, columnsOf, MESSAGE_CATEGORIES, type MessageCategory } from './message-columns';
+import { at, fractionOf } from '../timeline/window';
+import { categoryOf, columnsOf, MESSAGE_CATEGORIES, nearestColumn, type MessageCategory } from './message-columns';
 import styles from './Charts.module.css';
 
 /**
@@ -54,6 +54,14 @@ export function Messages({
   const picked = opened === null ? null : columns[opened];
   const listed = foldRepeats(picked ? picked.entries : shown);
 
+  // The cursor goes to when the column's newest line was written, which is what the list under it then starts with.
+  const choose = (index: number) => {
+    const column = columns[index];
+    if (!column || column.entries.length === 0) return;
+    setOpened(opened === index ? null : index);
+    onCursor(Math.max(...column.entries.map(entry => at(entry.occurredAt))));
+  };
+
   const toggle = (category: MessageCategory) => {
     setOpened(null);
     setHidden(current => (current.includes(category) ? current.filter(one => one !== category) : [...current, category]));
@@ -84,24 +92,37 @@ export function Messages({
       ) : null}
 
       <div className={styles.lane} role="group" aria-label={t('chartMessages.lane')}>
-        <div className={styles.columns}>
-          {columns.map((column, index) => (
-            <button
-              key={index}
-              type="button"
-              className={styles.column}
-              data-severity={column.severity ?? undefined}
-              aria-pressed={opened === index}
-              aria-label={t('chartMessages.column', { count: column.entries.length })}
-              disabled={column.entries.length === 0}
-              onClick={() => {
-                setOpened(opened === index ? null : index);
-                onCursor((column.from + column.to) / 2);
-              }}
-            >
-              <span style={{ height: `${(column.entries.length / tallest) * 100}%` }} />
-            </button>
-          ))}
+        {/* A column is a few pixels wide on a phone, so a tap takes the nearest
+            column with lines in it rather than the one under the finger. A key
+            press on a column's button is that column. */}
+        <div
+          className={styles.columns}
+          onClick={event => {
+            const box = event.currentTarget.getBoundingClientRect();
+            const index =
+              event.detail === 0
+                ? Number((event.target as HTMLElement).closest('button')?.dataset.column)
+                : nearestColumn(columns, event.clientX - box.left, box.width);
+            if (index !== null && Number.isInteger(index)) choose(index);
+          }}
+        >
+          {columns.map((column, index) =>
+            column.entries.length === 0 ? (
+              <span key={index} className={styles.column} aria-hidden />
+            ) : (
+              <button
+                key={index}
+                type="button"
+                className={styles.column}
+                data-column={index}
+                data-severity={column.severity ?? undefined}
+                aria-pressed={opened === index}
+                aria-label={t('chartMessages.column', { count: column.entries.length })}
+              >
+                <span style={{ height: `${(column.entries.length / tallest) * 100}%` }} />
+              </button>
+            ),
+          )}
           <span className={styles.cursor} style={{ left: `${fractionOf(cursor, from, to) * 100}%` }} />
         </div>
       </div>

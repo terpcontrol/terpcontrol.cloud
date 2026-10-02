@@ -451,6 +451,7 @@ describe('the Charts view', () => {
   });
 
   it('labels the two ends of a season with dates, and the two ends of a rolling day with weekdays', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: NOW.toMillis() });
     draw();
     await screen.findByText('Temp + RH');
 
@@ -459,6 +460,18 @@ describe('the Charts view', () => {
     for (const hour of [0, 24]) {
       expect(screen.getAllByText(DateTime.fromISO(at(hour)).toFormat('ccc HH:mm')).length).toBeGreaterThan(0);
     }
+    vi.useRealTimers();
+  });
+
+  it('dates a day that lies further back than a week, which a weekday alone would not place', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: NOW.plus({ days: 14 }).toMillis() });
+    draw();
+    await screen.findByText('Temp + RH');
+
+    for (const hour of [0, 24]) {
+      expect(screen.getAllByText(DateTime.fromISO(at(hour)).toFormat('d MMM HH:mm')).length).toBeGreaterThan(0);
+    }
+    vi.useRealTimers();
   });
 
   it.each([

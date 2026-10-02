@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowListItem, GrowOrSpaceRef, ShareKind, ShareLink, Space } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
+import { useCameras } from '@/api/cameras';
 import { useCreateShareLink } from '@/api/sharing';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
@@ -16,11 +17,11 @@ import styles from './sharing.module.css';
  * Making a link: the four things the board's row names - a grow or a tent, the
  * kind, the cams, the expiry - and nothing else.
  *
- * No range is asked for. What a reader sees through the link is clamped by the
- * server to what the grant allows - a grow's own life, a tent as it stands -
- * and a window narrower than that is set from the grow's own page, where the
- * days are in view. The body sent is exactly what the contract names, with the
- * range left out rather than invented.
+ * A range is asked for only where the screen it was opened from was showing
+ * one - the charts, stepped back or zoomed - and is then what the link shows
+ * unless the grower takes it as a whole. Otherwise what a reader sees through
+ * the link is clamped by the server to what the grant allows - a grow's own
+ * life, a tent as it stands - and the range is left out rather than invented.
  *
  * A public page is permanent until the grow is made private, which is a
  * sentence and not a date, so the expiry row gives way to it. It is offered
@@ -32,20 +33,32 @@ import styles from './sharing.module.css';
 /** How long a read-only link lasts, in the round numbers a person means; null is never. */
 const LIFETIMES: (number | null)[] = [7, 30, 90, null];
 
+/** A window the link may be held to: the one the charts were showing, and how they named it. */
+export interface ShareWindow {
+  startsAt: string;
+  endsAt: string;
+  label: string;
+}
+
 export function NewLinkSheet({
   grows,
   spaces,
+  window = null,
   onClose,
   onCreated,
 }: {
   grows: GrowListItem[];
   spaces: Space[];
+  /** The stretch a screen was showing, offered as what the link shows; none shares the subject as it stands. */
+  window?: ShareWindow | null;
   onClose: () => void;
   /** Where the link just made is handed, for a screen that shows it at once rather than in the list of links. */
   onCreated?: (link: ShareLink) => void;
 }) {
   const { t } = useTranslation();
   const create = useCreateShareLink();
+  const cameras = useCameras();
+  const [limited, setLimited] = useState(window !== null);
   const [subject, setSubject] = useState<GrowOrSpaceRef | null>(() =>
     grows[0] ? { type: 'grow', id: grows[0].id } : spaces[0] ? { type: 'space', id: spaces[0].id } : null,
   );
@@ -54,6 +67,8 @@ export function NewLinkSheet({
   const [days, setDays] = useState<number | null>(7);
 
   const grow = subject?.type === 'grow' ? grows.find(row => row.id === subject.id) : undefined;
+  // Pictures are offered only where a camera could have taken any: a place with none has nothing to include.
+  const camerasHere = (cameras.data?.items ?? []).some(camera => subject?.type !== 'space' || camera.spaceId === subject.id);
   const growIsPublic = grow?.visibility === 'public';
   const blocked = kind === 'public_page' && !growIsPublic;
   const ready = subject !== null && !blocked && !create.isPending;
@@ -70,7 +85,8 @@ export function NewLinkSheet({
       {
         kind,
         subject,
-        includeCameras: cams,
+        ...(limited && window && kind === 'view' ? { range: { startsAt: window.startsAt, endsAt: window.endsAt } } : {}),
+        includeCameras: cams && camerasHere,
         expiresAt: kind === 'public_page' || days === null ? null : instantOf(serverNow().plus({ days })),
       },
       { onSuccess: link => (onCreated ? onCreated(link) : onClose()) },
@@ -139,15 +155,32 @@ export function NewLinkSheet({
           )}
         </Block>
 
-        <Block label={t('me.shareLinks.sheet.cams')}>
-          <div className={styles.switchRow}>
-            <div className={styles.switchText}>
-              <span>{t('sharing.cameras')}</span>
-              <span className={ui.note}>{t('sharing.camerasNote')}</span>
+        {window && kind === 'view' ? (
+          <Block label={t('me.shareLinks.sheet.window')}>
+            <Choices label={t('me.shareLinks.sheet.window')}>
+              <Choice chosen={limited} onChoose={() => setLimited(true)}>
+                {window.label}
+              </Choice>
+              <Choice chosen={!limited} onChoose={() => setLimited(false)}>
+                {t('me.shareLinks.sheet.wholeWindow')}
+              </Choice>
+            </Choices>
+            <p className={`${ui.note} ${styles.sentence}`}>{t(limited ? 'me.shareLinks.sheet.windowNote' : 'me.shareLinks.sheet.wholeWindowNote')}</p>
+          </Block>
+        ) : null}
+
+        {camerasHere ? (
+          <Block label={t('me.shareLinks.sheet.cams')}>
+            <div className={styles.switchRow}>
+              {/* The words switch it as well as the switch does. */}
+              <div className={styles.switchText} onClick={() => setCams(!cams)}>
+                <span>{t('sharing.cameras')}</span>
+                <span className={ui.note}>{t('sharing.camerasNote')}</span>
+              </div>
+              <Switch name={t('sharing.cameras')} on={cams} onToggle={() => setCams(!cams)} />
             </div>
-            <Switch name={t('sharing.cameras')} on={cams} onToggle={() => setCams(!cams)} />
-          </div>
-        </Block>
+          </Block>
+        ) : null}
 
         {kind === 'view' ? (
           <Block label={t('me.shareLinks.sheet.expiry')}>

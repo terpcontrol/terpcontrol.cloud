@@ -50,3 +50,17 @@ export const columnsOf = (entries: readonly Entry[], from: number, to: number, c
 
   return columns;
 };
+
+/** How far from a finger a column with lines in it is still the one meant. */
+const REACH_PX = 20;
+
+/** The column with lines in it nearest to where the lane was tapped, within reach; null where none is. */
+export const nearestColumn = (columns: readonly Column[], x: number, width: number): number | null => {
+  if (width <= 0 || columns.length === 0) return null;
+  const tapped = Math.min(columns.length - 1, Math.max(0, Math.floor((x / width) * columns.length)));
+  const reach = Math.max(1, Math.ceil((REACH_PX / width) * columns.length));
+  for (let distance = 0; distance <= reach; distance += 1) {
+    for (const index of [tapped - distance, tapped + distance]) if (columns[index]?.entries.length) return index;
+  }
+  return null;
+};

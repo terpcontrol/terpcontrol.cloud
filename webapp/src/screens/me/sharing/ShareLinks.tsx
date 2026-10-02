@@ -293,12 +293,12 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
-/** "Tent 1 · timeline · 7 days": what it is about, of which kind, and for how long it was made. */
+/** "Tent 1 · timeline · for 7 days": what it is about, of which kind, and for how long it was made. */
 const titleOf = (t: Translate, link: ShareLink, subject: Subject): string => {
   const days = link.kind === 'view' ? lifetimeDays(link) : null;
   const name = subject.known === 'named' ? subject.name : subject.known === 'gone' ? t('me.shareLinks.gone') : subject.word;
 
-  return [name, t(`me.shareLinks.kind.${link.kind}`), days === null ? null : t('me.shareLinks.days', { count: days })].filter(Boolean).join(' · ');
+  return [name, t(`me.shareLinks.kind.${link.kind}`), days === null ? null : t('me.shareLinks.lasting', { count: days })].filter(Boolean).join(' · ');
 };
 
 /** The link's window, in the words the grow's share sheet uses, where it has one. */
