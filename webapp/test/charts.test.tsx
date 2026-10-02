@@ -367,8 +367,8 @@ describe('the Charts view', () => {
     draw();
 
     const reading = await screen.findByRole('status');
-    expect(reading).toHaveTextContent('Temp 26,0 °C');
-    expect(reading).toHaveTextContent('rF 56 %');
+    expect(reading).toHaveTextContent('Temperatur 26,0 °C');
+    expect(reading).toHaveTextContent('Luftfeuchte 56 %');
     expect(reading).toHaveTextContent('VPD 1,34 kPa');
     expect(reading).not.toHaveTextContent('26.0');
   });

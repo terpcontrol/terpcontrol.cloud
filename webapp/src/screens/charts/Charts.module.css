@@ -106,6 +106,36 @@
   flex-basis: 100%;
 }
 
+/* ------------------------------------------- the curves and beside them */
+
+/* On a phone one column: the picture over the curves, the messages under them.
+   The aside is no box of its own there, so its two parts take their places in
+   the column around the curves. */
+.stage,
+.curves {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.curves,
+.picture,
+.written {
+  min-width: 0;
+}
+
+.beside {
+  display: contents;
+}
+
+.picture {
+  order: -1;
+}
+
+.written {
+  order: 1;
+}
+
 /* -------------------------------------------------------------- a card */
 
 .card {
@@ -177,6 +207,25 @@
     linear-gradient(var(--grid), var(--grid)) var(--gutter) 100% / calc(100% - var(--gutter) - var(--gutter-right)) 1px no-repeat;
   /* Three cards and the footer fit a phone without the chips scrolling away. */
   height: 104px;
+  /* The gridlines below are drawn under the curves and over this background. */
+  isolation: isolate;
+}
+
+/* The lines the clock and the calendar turn over at, across the drawn area. */
+.grid {
+  position: absolute;
+  inset: 0 var(--gutter-right) 0 var(--gutter);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--grid);
 }
 
 /* Each scale's two ends, in the gutter the plot leaves for them: the left one
@@ -247,14 +296,30 @@
   pointer-events: none;
 }
 
-/* Both ends of the window under the plot, lined up with the drawn area. */
+/* Both ends of the window under the plot, lined up with the drawn area, and
+   between them what the gridlines stand for where there is room to say it. */
 .axis {
+  position: relative;
   display: flex;
   justify-content: space-between;
   margin: 0;
   padding: 0 var(--gutter-right) 0 var(--gutter);
   font-size: var(--text-xs);
   color: var(--label);
+}
+
+/* The labels of the gridlines, each centred under its line. */
+.tickRow {
+  position: absolute;
+  inset: 0 var(--gutter-right) 0 var(--gutter);
+  pointer-events: none;
+}
+
+.tickLabel {
+  position: absolute;
+  top: 0;
+  translate: -50% 0;
+  white-space: nowrap;
 }
 
 .leftOut {
@@ -566,5 +631,25 @@ span.column {
 
   .plot {
     height: 200px;
+  }
+
+  /* Wide enough for both: the curves keep two thirds, and the picture and the
+     messages stand beside them and stay in view while the page scrolls. */
+  .stage:has(> .beside) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 32%);
+    align-items: start;
+    gap: var(--space-4);
+  }
+
+  .stage > .beside {
+    position: sticky;
+    top: calc(var(--topbar-height) + env(safe-area-inset-top) + var(--space-3));
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-height: calc(100vh - var(--topbar-height) - var(--space-6));
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }

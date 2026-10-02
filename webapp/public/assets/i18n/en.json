@@ -532,7 +532,7 @@
       "temperature": "Temp",
       "humidity": "RH",
       "vpd": "VPD",
-      "co2": "CO2",
+      "co2": "CO₂",
       "leafTemperature": "Leaf",
       "lux": "Lux",
       "ppfd": "PPFD"
@@ -622,9 +622,10 @@
     "moreWidths": "More …",
     "fewerWidths": "Fewer",
     "stepUnit": {
-      "d": "d",
       "h": "h",
       "min": "min",
+      "d_one": "d",
+      "d_other": "d",
       "s": "s"
     },
     "csvHead": {

@@ -1,8 +1,9 @@
-import { Fragment, useMemo } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Chart } from '@/charts/Chart';
 import { AXIS_GUTTER, plotOption, readAt } from '@/charts/series';
 import type { Selection } from '@/charts/scrub';
+import { ticksFor, type Tick } from '@/charts/ticks';
 import type { ChartPalette } from '@/charts/tokens';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
@@ -19,6 +20,8 @@ interface ChartCardProps {
   selection?: Selection | null;
   /** Both ends of the window as they are written under the plot; the screen settles them once so every card says the same. */
   ends: readonly [string, string];
+  /** The gridlines across the window for a plot that has room for at most so many; none where the axis is not a clock's. */
+  ticksOf?: (most: number) => Tick[];
 }
 
 /**
@@ -32,11 +35,13 @@ interface ChartCardProps {
  * without anyone touching it, and the cursor's own values are pinned above the
  * stack where a thumb is not over them.
  */
-export function ChartCard({ card, cursor, scrub, selection = null, ends }: ChartCardProps) {
+export function ChartCard({ card, cursor, scrub, selection = null, ends, ticksOf }: ChartCardProps) {
   const { t } = useTranslation();
   const option = useMemo(() => (palette: ChartPalette) => plotOption(palette, card.plot), [card.plot]);
   const { from, to, scales, lines } = card.plot;
   const left = `${fractionOf(cursor, from, to) * 100}%`;
+  const [plotWidth, axis] = useAxisRoom();
+  const ticks = useMemo(() => (ticksOf ? ticksOf(ticksFor(plotWidth)) : []), [ticksOf, plotWidth]);
 
   return (
     // The same gutter on both sides of every card, whether this one has a
@@ -63,6 +68,14 @@ export function ChartCard({ card, cursor, scrub, selection = null, ends }: Chart
         <span className={`mono ${styles.cardUnit}`}>{card.unit}</span>
       </header>
       <div className={styles.plot}>
+        {/* Behind the curves, so a line is read against the grid rather than crossed by it. */}
+        {ticks.length > 0 ? (
+          <div className={styles.grid} aria-hidden>
+            {ticks.map(tick => (
+              <span key={tick.at} className={styles.tick} style={{ left: `${fractionOf(tick.at, from, to) * 100}%` }} />
+            ))}
+          </div>
+        ) : null}
         <Chart option={option} height="100%" ariaLabel={t('charts.plotAlt', { title: card.title })} />
         {card.scaleEnds.map((scale, index) =>
           scale === null ? null : (
@@ -92,13 +105,56 @@ export function ChartCard({ card, cursor, scrub, selection = null, ends }: Chart
           })}
         </div>
       </div>
-      <p className={`mono ${styles.axis}`}>
-        <span>{ends[0]}</span>
-        <span>{ends[1]}</span>
+      <p ref={axis} className={`mono ${styles.axis}`}>
+        <span data-end>{ends[0]}</span>
+        {ticks.length > 0 ? (
+          <span className={styles.tickRow} aria-hidden>
+            {ticks.map(tick => (
+              <span key={tick.at} className={styles.tickLabel} style={{ left: `${fractionOf(tick.at, from, to) * 100}%` }}>
+                {tick.label}
+              </span>
+            ))}
+          </span>
+        ) : null}
+        <span data-end>{ends[1]}</span>
       </p>
       {card.left.length > 0 ? (
         <p className={`${ui.note} ${styles.leftOut}`}>{t('charts.leftOut', { count: card.left.length, names: card.left.join(', ') })}</p>
       ) : null}
     </section>
   );
+}
+
+/**
+ * The width the axis has to write in, and the element to measure it on; and,
+ * once it is drawn, the labels between the two ends that would stand on one of
+ * them or on each other are hidden, so a phone keeps the lines and loses only
+ * words it has no room for. The ends always stay: they are what dates the card.
+ */
+function useAxisRoom(): [number, React.RefObject<HTMLParagraphElement | null>] {
+  const axis = useRef<HTMLParagraphElement>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const element = axis.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(entries => setWidth(Math.round(entries[0]?.contentRect.width ?? 0)));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useLayoutEffect(() => {
+    const element = axis.current;
+    if (!element) return;
+    const taken = [...element.querySelectorAll<HTMLElement>('[data-end]')].map(end => end.getBoundingClientRect());
+    for (const label of element.querySelectorAll<HTMLElement>(`.${styles.tickLabel}`)) {
+      label.style.visibility = '';
+      const box = label.getBoundingClientRect();
+      const clash = taken.some(other => box.width > 0 && box.left < other.right + 8 && box.right > other.left - 8);
+      label.style.visibility = clash ? 'hidden' : '';
+      if (!clash) taken.push(box);
+    }
+  });
+
+  return [width, axis];
 }

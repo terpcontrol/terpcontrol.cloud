@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import { timelinePath, useCurrentPlace } from '@/app/places';
 import type { ChartView, ChartViewDefinition, GrowListItem, ShareLink } from '@fg2/shared-types/v1';
+import { CHART_METRICS, CHART_OUTPUTS } from '@/api/charts';
 import { useChartViews } from '@/api/chart-views';
 import { serverNow } from '@/api/clock';
 import { useDevices } from '@/api/devices';
@@ -15,6 +16,7 @@ import { useSession } from '@/api/session';
 import { useSpaceOverview, useSpaces } from '@/api/spaces';
 import { useScrub, type Selection } from '@/charts/scrub';
 import { dayOfGrow, downloadCsv, readAt, type PlotLine } from '@/charts/series';
+import { timeTicks } from '@/charts/ticks';
 import { NewLinkSheet } from '@/screens/me/sharing/NewLinkSheet';
 import { linkAddress } from '@/screens/me/sharing/links';
 import { Sheet } from '@/log/Sheet';
@@ -28,7 +30,7 @@ import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState
 import { stoodIn, useMayManage, useVisiting } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { useZone, zonedAt } from '@/ui/zone';
+import { DAY_IN_YEAR, useZone, zonedAt } from '@/ui/zone';
 import { figure } from '../home/units';
 import { CameraFrame } from '../timeline/CameraFrame';
 import { at, stampFor, stampForEnds, stamps } from '../timeline/window';
@@ -237,7 +239,9 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
   const views = useChartViews();
   const plants = useGrowPlants(grow?.id ?? null);
 
-  const [picked, setPicked] = useState<Picked | null>(null);
+  // What is drawn is kept in the address with the window, as the old charts kept it: a reload, a bookmark or
+  // a link sent to somebody in the same place opens on the same curves, the messages and the picture included.
+  const picked = pickedOf(params.get('show'));
   const [asked, setAsked] = useState<Layout>('stacked');
   const [appliedId, setAppliedId] = useState<string | null>(null);
   const [moreOutputs, setMoreOutputs] = useState(false);
@@ -246,8 +250,8 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
   const [sheet, setSheet] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shared, setShared] = useState<ShareLink | null>(null);
-  const [showMessages, setShowMessages] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
+  const showMessages = params.get('msgs') === '1';
+  const showCamera = params.get('cam') === '1';
   /** Where the one cursor of the screen stands across the window, so every card is read at the same instant. */
   const [scrubbed, setScrubbed] = useState<number | null>(null);
 
@@ -331,7 +335,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
 
   /** A chip moved by hand is no longer the saved view it came from, which is what lets Save offer to keep it. */
   const pick = (over: Partial<Picked>) => {
-    setPicked({ ...chosen, ...over });
+    setQuery({ show: showOf({ ...chosen, ...over }) });
     setAppliedId(null);
   };
 
@@ -341,6 +345,15 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
       next = { from: middle - NARROWEST_ZOOM / 2, to: middle + NARROWEST_ZOOM / 2 };
     }
     setZoom(next);
+    setScrubbed(null);
+  };
+
+  /** On or back by the zoom's own width, and never past now. */
+  const panZoom = (direction: -1 | 1) => {
+    if (zoom === null) return;
+    const width = zoom.to - zoom.from;
+    const to = Math.min(liveEnd(liveNow, endedAt), zoom.to + direction * width);
+    setZoom({ from: to - width, to });
     setScrubbed(null);
   };
 
@@ -361,8 +374,13 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
     const span = rangeOfSpan(view.definition.span, zone);
     const fits = !isStretch(span.range) || grow !== null;
     setZoom(null);
-    setQuery({ range: fits ? span.range : '24h', from: span.from ?? null, to: span.to ?? null, at: null });
-    setPicked({ metrics: [...view.definition.metrics], outputs: [...view.definition.outputs], measurements: [...view.definition.measurements] });
+    setQuery({
+      range: fits ? span.range : '24h',
+      from: span.from ?? null,
+      to: span.to ?? null,
+      at: null,
+      show: showOf({ metrics: [...view.definition.metrics], outputs: [...view.definition.outputs], measurements: [...view.definition.measurements] }),
+    });
     setAsked(view.definition.layout);
     setAppliedId(view.id);
   };
@@ -411,8 +429,15 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
       </div>
 
       {zoom !== null ? (
-        <div className={styles.navRow}>
+        // A zoom moves along the window by its own width, as the old charts' navigator dragged it.
+        <div className={styles.navRow} role="group" aria-label={t('charts.offsetLabel')}>
+          <button type="button" className={ui.chip} aria-label={t('charts.earlier')} onClick={() => panZoom(-1)}>
+            <ChevronLeft size={16} strokeWidth={1.75} aria-hidden />
+          </button>
           <span className={`mono ${styles.navLabel}`}>{t('charts.zoomed', { from: zoomEdges[0], to: zoomEdges[1] })}</span>
+          <button type="button" className={ui.chip} aria-label={t('charts.later')} disabled={zoom.to >= end} onClick={() => panZoom(1)}>
+            <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+          </button>
           <button type="button" className={ui.chip} onClick={() => setZoom(null)}>
             {t('charts.resetZoom')}
           </button>
@@ -492,11 +517,11 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
           </button>
         ) : null}
         {/* What was written, and the picture at the cursor: drawn beside the curves rather than as one of them. */}
-        <Pick on={showMessages} onPick={() => setShowMessages(!showMessages)}>
+        <Pick on={showMessages} onPick={() => setQuery({ msgs: showMessages ? null : '1' })}>
           {t('chartMessages.chip')}
         </Pick>
         {cameras.length > 0 && !day ? (
-          <Pick on={showCamera} onPick={() => setShowCamera(!showCamera)}>
+          <Pick on={showCamera} onPick={() => setQuery({ cam: showCamera ? null : '1' })}>
             {t('charts.cameraChip')}
           </Pick>
         ) : null}
@@ -599,6 +624,10 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
   const dayOf = (x: number) => t('timeline.dayN', { day: Math.max(1, Math.floor(x)) });
   const ends: [string, string] = day ? [dayOf(from_), dayOf(to_)] : edgesOf(left, right, zone, end);
   const toCursor = (time: number) => setScrubbed(span > 0 ? Math.min(1, Math.max(0, (time - left) / span)) : null);
+  // Lines where the clock and the calendar turn over; an axis that counts grow days has its own two ends and no clock.
+  const ticksOf = day ? undefined : (most: number) => timeTicks(left, right, zone, most, DAY_IN_YEAR);
+  const pictureOn = showCamera && cameras.length > 0 && !day;
+  const messagesOn = showMessages && !day;
 
   return (
     // Busy while a chip's window is still on its way, or while the one that was
@@ -619,27 +648,44 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
       ) : null}
       {!nothingOffered && isEmpty(chosen) ? <p className={`${ui.cardDashed} ${ui.note} ${styles.empty}`}>{t('charts.nothingPicked')}</p> : null}
 
-      {showCamera && cameras.length > 0 && !day ? (
-        <CameraFrame cameras={cameras} from={left} to={right} cursor={cursorTime} day={null} onScrub={toCursor} />
-      ) : null}
+      {/* The picture and the messages are read beside the curves: above and
+          under them on a phone, and on a wide screen in a column of their own
+          next to them, so the cursor can be dragged with the picture in view -
+          the old charts' half and half, with the curves keeping the room. */}
+      <div className={styles.stage}>
+        <div className={styles.curves}>
+          {cards.length > 0 ? <ScrubHeader cards={cards} cursor={cursor} stamp={day ? dayOf : x => momentStamp(x, left, right, zone, end)} /> : null}
 
-      {cards.length > 0 ? <ScrubHeader cards={cards} cursor={cursor} stamp={day ? dayOf : x => momentStamp(x, left, right, zone, end)} /> : null}
+          {cards.length > 0 && !day ? (
+            <div className={styles.zoomRow}>
+              <button type="button" className={ui.chip} onClick={() => zoomTo(zoomedIn(left, right, cursorTime))} disabled={span <= NARROWEST_ZOOM}>
+                <Plus size={14} strokeWidth={1.75} aria-hidden />
+                {t('charts.zoomIn')}
+              </button>
+              <Help topic="chartZoom" />
+            </div>
+          ) : null}
 
-      {cards.length > 0 && !day ? (
-        <div className={styles.zoomRow}>
-          <button type="button" className={ui.chip} onClick={() => zoomTo(zoomedIn(left, right, cursorTime))} disabled={span <= NARROWEST_ZOOM}>
-            <Plus size={14} strokeWidth={1.75} aria-hidden />
-            {t('charts.zoomIn')}
-          </button>
-          <Help topic="chartZoom" />
+          {cards.map(card => (
+            <ChartCard key={card.key} card={card} cursor={cursor} scrub={scrub.handlers} selection={scrub.selection} ends={ends} ticksOf={ticksOf} />
+          ))}
         </div>
-      ) : null}
 
-      {cards.map(card => (
-        <ChartCard key={card.key} card={card} cursor={cursor} scrub={scrub.handlers} selection={scrub.selection} ends={ends} />
-      ))}
-
-      {showMessages && !day ? <Messages read={entries} from={left} to={right} cursor={cursorTime} onCursor={toCursor} /> : null}
+        {pictureOn || messagesOn ? (
+          <aside className={styles.beside}>
+            {pictureOn ? (
+              <div className={styles.picture}>
+                <CameraFrame cameras={cameras} from={left} to={right} cursor={cursorTime} day={null} onScrub={toCursor} />
+              </div>
+            ) : null}
+            {messagesOn ? (
+              <div className={styles.written}>
+                <Messages read={entries} from={left} to={right} cursor={cursorTime} onCursor={toCursor} />
+              </div>
+            ) : null}
+          </aside>
+        ) : null}
+      </div>
 
       <div className={styles.footer}>
         <div className={ui.segments} role="group" aria-label={t('charts.layoutLabel')}>
@@ -971,6 +1017,27 @@ const settingsOf = (params: URLSearchParams): ChartSettings => {
     live: params.get('live') === '1',
   };
 };
+
+/**
+ * The curves an address names: a metric by its name, an output and a grow's own
+ * measurement each behind a prefix of its own, comma separated. Nothing named is
+ * the board's own pick; named and empty is every curve turned off.
+ */
+const OUTPUT_MARK = 'out.';
+const MEASUREMENT_MARK = 'm.';
+
+const pickedOf = (value: string | null): Picked | null => {
+  if (value === null) return null;
+  const names = value.split(',').filter(Boolean);
+  return {
+    metrics: CHART_METRICS.filter(metric => names.includes(metric)),
+    outputs: CHART_OUTPUTS.filter(output => names.includes(OUTPUT_MARK + output)),
+    measurements: names.filter(name => name.startsWith(MEASUREMENT_MARK)).map(name => name.slice(MEASUREMENT_MARK.length)),
+  };
+};
+
+const showOf = (picked: Picked): string =>
+  [...picked.metrics, ...picked.outputs.map(output => OUTPUT_MARK + output), ...picked.measurements.map(key => MEASUREMENT_MARK + key)].join(',');
 
 /** The instant an address names, or null where it names none or something that is not one. */
 const momentOf = (value: string | null): number | null => {

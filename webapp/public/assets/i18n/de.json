@@ -529,11 +529,11 @@
     },
     "seriesLabel": "Kurven",
     "metric": {
-      "temperature": "Temp",
-      "humidity": "rF",
+      "temperature": "Temperatur",
+      "humidity": "Luftfeuchte",
       "vpd": "VPD",
-      "co2": "CO2",
-      "leafTemperature": "Blatt",
+      "co2": "CO₂",
+      "leafTemperature": "Blatttemperatur",
       "lux": "Lux",
       "ppfd": "PPFD"
     },
@@ -573,7 +573,7 @@
       "newTitle": "Diese Ansicht sichern",
       "editTitle": "Gesicherte Ansicht",
       "name": "Name",
-      "placeholder": "Blütewochen, Temp und rF",
+      "placeholder": "Blütewochen, Temperatur und Luftfeuchte",
       "holdsTheQuestion": "Eine Ansicht merkt sich die Frage und nie die Messwerte; Überschreiben kostet also keinen Messwert.",
       "save": "Sichern",
       "saving": "Wird gesichert…",
@@ -594,12 +594,12 @@
       "6h": "6 Std",
       "12h": "12 Std",
       "24h": "24 Std",
-      "3d": "3 T",
-      "7d": "7 T",
-      "14d": "14 T",
-      "30d": "30 T",
-      "90d": "90 T",
-      "180d": "180 T",
+      "3d": "3 Tage",
+      "7d": "7 Tage",
+      "14d": "14 Tage",
+      "30d": "30 Tage",
+      "90d": "90 Tage",
+      "180d": "180 Tage",
       "1y": "1 Jahr",
       "3y": "3 Jahre"
     },
@@ -622,9 +622,10 @@
     "moreWidths": "Weitere …",
     "fewerWidths": "Weniger",
     "stepUnit": {
-      "d": "T",
       "h": "Std",
       "min": "Min",
+      "d_one": "Tag",
+      "d_other": "Tage",
       "s": "s"
     },
     "csvHead": {
@@ -3088,8 +3089,8 @@
     "rangeLabel": "Zeitraum",
     "range": {
       "24h": "24 Std",
-      "7d": "7 T",
-      "30d": "30 T",
+      "7d": "7 Tage",
+      "30d": "30 Tage",
       "phase": "Phase",
       "grow": "Grow"
     },

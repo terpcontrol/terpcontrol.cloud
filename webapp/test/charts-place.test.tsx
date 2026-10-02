@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -297,6 +297,52 @@ describe('a place charted without a grow', () => {
     await waitFor(() => expect(state.posted[0]).toMatchObject({ path: '/share-links', body: { subject: { type: 'space', id: 'space-2' } } }));
     expect(state.posted[0].body).not.toHaveProperty('range');
     expect(await screen.findByText(/shared\/tok-9/)).toBeInTheDocument();
+  });
+
+  it('moves a zoom along the window by its own width, and never past now', async () => {
+    draw();
+    await screen.findByText('Temp + RH');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    await waitFor(() => expect(widthOf(lastRead())).toBe(WIDTHS['24h'] / 3));
+    const zoomedTo = Date.parse(lastRead().get('to')!);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Earlier' }));
+    await waitFor(() => expect(Date.parse(lastRead().get('to')!)).toBe(zoomedTo - WIDTHS['24h'] / 3));
+    expect(widthOf(lastRead())).toBe(WIDTHS['24h'] / 3);
+    fireEvent.click(screen.getByRole('button', { name: 'Later' }));
+    await waitFor(() => expect(Date.parse(lastRead().get('to')!)).toBe(zoomedTo));
+  });
+
+  it('keeps the curves, the messages and the picture in the address, so a reload opens on the same chart', async () => {
+    draw();
+    await screen.findByText('Temp + RH');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Leaf' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Messages' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Camera picture' }));
+    const address = screen.getByTestId('address').textContent!;
+    const asked = new URLSearchParams(address.split('?')[1]);
+    expect(asked.get('show')!.split(',')).toEqual(expect.arrayContaining(['temperature', 'humidity', 'leafTemperature']));
+    expect(asked.get('msgs')).toBe('1');
+    expect(asked.get('cam')).toBe('1');
+
+    cleanup();
+    draw(address);
+    expect(await screen.findByText('Leaf', { selector: '[class*=cardTitle]' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Messages' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Camera picture' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('draws nothing where the address turned every curve off, and ignores a name it does not know', async () => {
+    draw('/charts?space=space-2&show=');
+    expect(await screen.findByText('Nothing picked yet — tap a series above.')).toBeInTheDocument();
+
+    cleanup();
+    draw('/charts?space=space-2&show=humidity,nonsense');
+    expect(await screen.findByText('RH', { selector: '[class*=cardTitle]' })).toBeInTheDocument();
+    expect(screen.queryByText('Temp', { selector: '[class*=cardTitle]' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/nonsense/, { selector: 'p, span' })).not.toBeInTheDocument();
   });
 
   it('starts a range of one´s own on the days the chart was showing, so the curves stay', async () => {
