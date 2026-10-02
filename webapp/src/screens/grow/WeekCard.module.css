@@ -218,3 +218,17 @@ button.thumb {
   text-decoration: none;
   color: var(--label);
 }
+
+.weekFilm {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 16 / 9;
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card-2);
+}
+
+.weekFilmButton {
+  align-self: flex-start;
+}

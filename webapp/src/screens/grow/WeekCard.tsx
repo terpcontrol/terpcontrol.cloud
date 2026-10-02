@@ -1,4 +1,4 @@
-import { ChevronDown, Leaf } from 'lucide-react';
+import { ChevronDown, Film, Leaf } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -152,6 +152,7 @@ export function WeekCard({ week, grow, people, now, current, explain, onPicture 
 
       {open ? (
         <>
+          {week.timelapseMediaId ? <WeekFilm mediaId={week.timelapseMediaId} /> : null}
           {week.feeding ? (
             <div className={styles.feeding}>
               <Leaf size={14} strokeWidth={1.75} className={styles.feedingIcon} aria-hidden />
@@ -266,3 +267,27 @@ const photoOn = (startsAt: string, entries: { occurredAt: string; mediaIds: stri
 
   return photo?.mediaIds[0] ?? null;
 };
+
+/**
+ * The week's film, where the camera made one. The public diary played it in
+ * its week card and the grower's own card had no place for it, so a stranger
+ * saw more of the week than its owner did. Asked for only when wanted: twenty
+ * weeks would otherwise be twenty players on the page.
+ */
+function WeekFilm({ mediaId }: { mediaId: string }) {
+  const { t } = useTranslation();
+  const [playing, setPlaying] = useState(false);
+  const src = mediaUrl(mediaId);
+
+  if (!src) return null;
+  if (!playing) {
+    return (
+      <button type="button" className={`${ui.chip} ${styles.weekFilmButton}`} onClick={() => setPlaying(true)}>
+        <Film size={13} strokeWidth={1.75} aria-hidden />
+        {t('publicPage.weekFilm')}
+      </button>
+    );
+  }
+
+  return <video className={styles.weekFilm} src={src} controls autoPlay muted playsInline />;
+}
