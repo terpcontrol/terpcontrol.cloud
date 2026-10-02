@@ -401,3 +401,71 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* A device's support view: its facts in a band of label-value pairs, then its
+   settings and its own lines side by side. */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3) var(--space-5);
+  padding: var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.sectionTitle {
+  padding: var(--space-3) var(--space-4) var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  color: var(--heading);
+}
+
+.cardNote {
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-3);
+  list-style: none;
+}
+
+/* A document read as rows of a path and its value: two columns that wrap
+   rather than scroll, so a long list in a hardware report stays in its card. */
+.settings {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-family: var(--font-figure);
+  font-size: var(--text-sm);
+}
+
+.settings td {
+  padding: var(--space-2) var(--space-4);
+  border-bottom: var(--rule-solid);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.settings td:first-child {
+  width: 45%;
+  color: var(--muted);
+}

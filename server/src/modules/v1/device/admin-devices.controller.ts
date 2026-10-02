@@ -20,11 +20,16 @@ import { DevicesService } from './devices.service';
 export class AdminDevicesController {
   constructor(private readonly devices: DevicesService) {}
 
+  /**
+   * Every device on the install, whoever owns it - the fleet, and the support
+   * search over it. `GET /devices` answers an administrator as the person they
+   * are; this is the office.
+   */
   @Get()
   @ApiOperation({ summary: 'Every device' })
   @V1Answer(devicePage)
   public list(@Caller() ctx: AccessContext, @V1Query(pageQuery) query: PageQuery): Promise<DevicePage> {
-    return this.devices.list(ctx, query);
+    return this.devices.list(ctx, query, undefined, true);
   }
 
   @Post()

@@ -51,8 +51,12 @@ export interface FleetRow {
   cams: number | null;
   /** Whether the build it reports is the one its class calls stable; null where the class points nowhere yet. */
   onStable: boolean | null;
-  /** Where the row opens: the place the device stands in, or the camera's own page. */
+  /** The number on the device's type plate, which is what a customer reads out to support; null for a camera. */
+  serialNumber: number | null;
+  /** Where the row opens: a device's support view, or the camera's own page. */
   opens: string | null;
+  /** The place the device stands in, where it stands in one. */
+  place: string | null;
 }
 
 export interface FleetFilter {
@@ -114,7 +118,9 @@ export const fleetRows = ({ devices, cameras, classes, firmwares, people, reader
       sockets: socketsOf(device),
       cams: readerId !== null && device.ownerId === readerId ? camsOf(device.id) : null,
       onStable: calledStable === null ? null : device.state.firmwareId === calledStable,
-      opens: device.spaceId ? placePath(device.spaceId) : null,
+      serialNumber: device.serialNumber,
+      opens: diagnosisPath(device.id),
+      place: device.spaceId ? placePath(device.spaceId) : null,
     };
   });
 
@@ -136,7 +142,9 @@ export const fleetRows = ({ devices, cameras, classes, firmwares, people, reader
       sockets: null,
       cams: null,
       onStable: null,
+      serialNumber: null,
       opens: `/cameras/${camera.id}`,
+      place: camera.spaceId ? placePath(camera.spaceId) : null,
     }));
 
   return [...deviceRows, ...cameraRows].sort((one, other) => heard(other.lastSeenAt) - heard(one.lastSeenAt));
@@ -147,10 +155,14 @@ const heard = (lastSeenAt: string | null): number => (lastSeenAt ? DateTime.from
 /** Every type in the fleet, for the chip that narrows to one. Sorted, so the menu does not move as devices come and go. */
 export const typesOf = (rows: FleetRow[]): string[] => [...new Set(rows.map(row => row.type))].sort();
 
+/** A device's support view: its curves, its settings and what it said, whoever owns it. */
+export const diagnosisPath = (deviceId: string): string => `/admin/devices/${encodeURIComponent(deviceId)}`;
+
 /**
  * The board's four chips, applied together. The search reads what is on the
- * row - its id, its name, its owner's handle - and nothing that is not drawn:
- * an address is on no row here and is searchable on no screen but the accounts.
+ * row - its id, its name, its owner's handle, the serial number off its type
+ * plate - and nothing that is not drawn: an address is on no row here and is
+ * searchable on no screen but the accounts.
  */
 export const filteredRows = (rows: FleetRow[], filter: FleetFilter, now: DateTime): FleetRow[] => {
   const needle = filter.search.trim().toLowerCase().replace(/^@/, '');
@@ -162,9 +174,21 @@ export const filteredRows = (rows: FleetRow[], filter: FleetFilter, now: DateTim
     if (filter.behind && row.onStable !== false) return false;
     if (!needle) return true;
 
+    // A serial is matched whole, as it is read off the plate: "7" is not every device whose number has a seven in it.
+    if (row.serialNumber !== null && needle.replace(/^(sn|#)\s*/, '') === String(row.serialNumber)) return true;
+
     return [row.id, row.name ?? '', row.ownerHandle ?? ''].some(field => field.toLowerCase().includes(needle));
   });
 };
 
 /** Nothing for a day, which includes the hardware that has never said anything at all. */
 const isQuiet = (row: FleetRow, before: DateTime): boolean => row.lastSeenAt === null || DateTime.fromISO(row.lastSeenAt) < before;
+
+/** A document as rows of a path and the value at it, in the order it was written. */
+export const flatten = (document: object, prefix = ''): [string, string][] =>
+  Object.entries(document).flatMap(([key, value]): [string, string][] => {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) return flatten(value as object, path);
+
+    return [[path, Array.isArray(value) ? JSON.stringify(value) : String(value)]];
+  });

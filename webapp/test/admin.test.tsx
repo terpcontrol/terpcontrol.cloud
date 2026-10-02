@@ -7,15 +7,16 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { ReactNode } from 'react';
 import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminStats, Camera, Device, DeviceClass, Firmware, Fleet as FleetAnswer, User } from '@fg2/shared-types/v1';
 import { Rail } from '@/app/shell/Rail';
 import { LogProvider } from '@/log/LogProvider';
 import { AdminOnly } from '@/screens/admin/AdminOnly';
+import { DeviceDiagnosis } from '@/screens/admin/DeviceDiagnosis';
 import { FirmwareScreen } from '@/screens/admin/Firmware';
 import { Fleet } from '@/screens/admin/Fleet';
-import { filteredRows, fleetRows, NO_FILTER } from '@/screens/admin/fleet-rows';
+import { filteredRows, flatten, fleetRows, NO_FILTER } from '@/screens/admin/fleet-rows';
 import { staged } from '@/screens/admin/rollout';
 import { Users } from '@/screens/admin/Users';
 import { ThemeProvider } from '@/theme/ThemeProvider';
@@ -255,6 +256,9 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     return json({ items: server.cameras[at] ?? [], nextCursor: at + 1 < server.cameras.length ? `page-${at + 1}` : null });
   }
   if (path.startsWith('/alerts')) return json({ items: [], nextCursor: null });
+  if (path === '/devices/tc-7f3a') return json({ ...DEVICES[0], configuration: { day: { temperature: 26 }, workmode: 'small' } });
+  if (path.startsWith('/entries')) return json({ items: [], nextCursor: null });
+  if (path === '/spaces/space-1/overview') return json({ spaceId: 'space-1', name: 'Blue Dream tent' });
 
   return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
@@ -484,6 +488,67 @@ describe('the fleet table', () => {
 
     expect(screen.getByText(/24 devices · 11 online/)).toBeInTheDocument();
     expect(screen.getByText(/Staged at 100 %, which is about 24 of 24 devices/)).toBeInTheDocument();
+  });
+});
+
+describe('support for a customer', () => {
+  it('finds a device by the serial number on its type plate, whole, and opens its support view', async () => {
+    wrapped(
+      <AdminOnly>
+        <Fleet />
+      </AdminOnly>,
+    );
+    await screen.findByText('tc-7f3a');
+
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'SN 7' } });
+    const rows = screen.getAllByRole('row');
+    // Every device of the fixture carries serial 7, and the one with no serial is left out.
+    expect(rows.map(row => row.textContent)).toEqual(expect.arrayContaining([expect.stringContaining('tc-7f3a · SN 7')]));
+    expect(screen.getByRole('link', { name: 'Open tc-7f3a' })).toHaveAttribute('href', '/admin/devices/tc-7f3a');
+
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: '77' } });
+    expect(screen.queryByText('tc-7f3a')).not.toBeInTheDocument();
+  });
+
+  it('shows a customer’s device: who has it, where its curves are, every setting it was sent, and what it said', async () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/admin/devices/tc-7f3a']}>
+          <ThemeProvider>
+            <Routes>
+              <Route
+                path="/admin/devices/:deviceId"
+                element={
+                  <AdminOnly>
+                    <DeviceDiagnosis />
+                  </AdminOnly>
+                }
+              />
+            </Routes>
+          </ThemeProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText('day.temperature')).toBeInTheDocument();
+    expect(screen.getByText('26')).toBeInTheDocument();
+    expect(screen.getByText('workmode')).toBeInTheDocument();
+    expect(await screen.findByText('@mo · mo@example.invalid')).toBeInTheDocument();
+    expect(await screen.findByText('Blue Dream tent')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Timeline' })).toHaveAttribute('href', '/timeline?space=space-1');
+    expect(screen.getByRole('link', { name: 'Charts' })).toHaveAttribute('href', '/charts?space=space-1');
+    expect(screen.getByText('The device has reported nothing yet.')).toBeInTheDocument();
+    // It reads and writes nothing.
+    expect(server.wrote).toEqual([]);
+  });
+
+  it('flattens a document into the paths a support reader can search with the eye', () => {
+    expect(flatten({ day: { temperature: 26, humidity: 60 }, sockets: [1, 2], workmode: 'small' })).toEqual([
+      ['day.temperature', '26'],
+      ['day.humidity', '60'],
+      ['sockets', '[1,2]'],
+      ['workmode', 'small'],
+    ]);
   });
 });
 

@@ -12,6 +12,7 @@ import { CameraPage } from '@/screens/camera/CameraPage';
 import { Charts } from '@/screens/charts/Charts';
 import { Claim } from '@/screens/claim/Claim';
 import { Demo } from '@/screens/admin/Demo';
+import { DeviceDiagnosis } from '@/screens/admin/DeviceDiagnosis';
 import { Devices } from '@/screens/devices/Devices';
 import { FirmwareScreen } from '@/screens/admin/Firmware';
 import { Fleet } from '@/screens/admin/Fleet';
@@ -80,6 +81,7 @@ export const screens: RouteObject[] = [
     ),
     children: [
       { path: 'fleet', element: <Fleet /> },
+      { path: 'devices/:deviceId', element: <DeviceDiagnosis /> },
       { path: 'firmware', element: <FirmwareScreen /> },
       { path: 'users', element: <AdminUsers /> },
       { path: 'demo', element: <Demo /> },
@@ -99,6 +101,7 @@ export const screens: RouteObject[] = [
   { path: 'list', element: <Navigate to="/" replace /> },
   { path: 'account', element: <Navigate to="/me/account" replace /> },
   { path: 'shares', element: <Navigate to="/me/share-links" replace /> },
+  { path: 'diagnostics', element: <Navigate to="/admin/fleet" replace /> },
   { path: '*', element: <NotFound /> },
 ];
 

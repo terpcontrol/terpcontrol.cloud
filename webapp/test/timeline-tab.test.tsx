@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -11,11 +11,11 @@ import { Timeline } from '@/screens/Timeline';
 
 // Which of the two sessions is looking, because the tab's empty state is the
 // one thing on it that differs between them.
-const who = vi.hoisted(() => ({ is: 'you' as 'you' | 'demo' }));
+const who = vi.hoisted(() => ({ is: 'you' as 'you' | 'demo' | 'admin' }));
 
 vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN, ON_THE_DEMO } = await import('./session');
-  const of = { you: SIGNED_IN, demo: ON_THE_DEMO };
+  const of = { you: SIGNED_IN, demo: ON_THE_DEMO, admin: { ...SIGNED_IN, user: { ...SIGNED_IN.user!, isAdmin: true } } };
 
   return { ...(await importOriginal<object>()), useSession: () => of[who.is] };
 });
@@ -98,5 +98,42 @@ describe('the timeline tab opened from a place', () => {
     );
 
     expect(screen.getByRole('combobox', { name: 'Switch place' })).toHaveValue('space-2');
+  });
+
+  it('draws a customer’s place for support rather than swapping it for one of the reader’s own', async () => {
+    who.is = 'admin';
+    const asked: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        asked.push(String(input).replace(/^.*\/v1/, ''));
+        return new Response(JSON.stringify({ code: 'not_found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+      }),
+    );
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/timeline?space=customer-9']}>
+          <Timeline />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText("support view of a customer's place")).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Switch place' })).not.toBeInTheDocument();
+    await waitFor(() => expect(asked.some(path => path.startsWith('/spaces/customer-9/timeline'))).toBe(true));
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps an ordinary account on its own places whatever the address names', () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={['/timeline?space=customer-9']}>
+          <Timeline />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.queryByText("support view of a customer's place")).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Switch place' })).toBeInTheDocument();
   });
 });

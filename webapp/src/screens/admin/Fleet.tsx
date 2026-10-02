@@ -252,6 +252,9 @@ function Row({ row, now }: { row: FleetRow; now: DateTime }) {
     <tr>
       <td className={styles.idCell}>
         <span className="mono">{row.id}</span>
+        {row.serialNumber !== null ? (
+          <span className={`mono ${styles.rowName}`}> · {t('admin.fleet.serial', { serial: row.serialNumber })}</span>
+        ) : null}
         {row.name ? <span className={styles.rowName}> · {row.name}</span> : null}
       </td>
       <td>{typeLabel(row.type, t)}</td>

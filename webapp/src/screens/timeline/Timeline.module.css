@@ -636,3 +636,11 @@
     height: 160px;
   }
 }
+
+/* Whose place it is, where support reads a customer's. */
+.visiting {
+  margin-left: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}

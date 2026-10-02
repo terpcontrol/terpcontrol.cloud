@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useCurrentPlace } from '@/app/places';
 import { useSession } from '@/api/session';
+import { useSpaceOverview } from '@/api/spaces';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { PlaceHeading } from './place/PlaceHeading';
@@ -19,9 +20,16 @@ export function Timeline() {
   const { t } = useTranslation();
   const { user } = useSession();
   const { home, places, here, choose } = useCurrentPlace();
+  const [params] = useSearchParams();
+  const asked = params.get('space');
 
   if (home.isPending) return <Waiting lines={3} />;
   if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
+
+  // Support, reading a customer's place from the fleet: an administrator may
+  // read any place, and one that is not among their own is drawn as the place
+  // the address names rather than swapped for one of their own.
+  if (user?.isAdmin === true && asked && !places.some(place => place.spaceId === asked)) return <Visiting spaceId={asked} />;
 
   // A timeline is a place's measurements over a window, so the cards that stand
   // for a grow and no place have nothing to draw here and are not offered.
@@ -50,6 +58,24 @@ export function Timeline() {
     <TimelineScreen
       spaceId={here.spaceId}
       heading={<PlaceHeading title={t('shell.tabs.timeline')} places={places} here={here} onChoose={choose} />}
+    />
+  );
+}
+
+/** A customer's place, read by support: the Timeline of the place the address names, said to be somebody else's. */
+function Visiting({ spaceId }: { spaceId: string }) {
+  const { t } = useTranslation();
+  const overview = useSpaceOverview(spaceId);
+
+  return (
+    <TimelineScreen
+      spaceId={spaceId}
+      heading={
+        <h1 className={heading.title}>
+          {t('shell.tabs.timeline')} · {overview.data?.name ?? '…'}
+          <span className={`mono ${styles.visiting}`}>{t('timeline.visiting')}</span>
+        </h1>
+      }
     />
   );
 }

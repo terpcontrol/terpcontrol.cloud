@@ -3121,7 +3121,8 @@
     "readAt": "gemessen {{time}}",
     "camSince": "Kein Cam-Bild um {{time}} – die Cam filmt seit {{since}}",
     "noFrameAt": "Kein Cam-Bild um {{time}}",
-    "photoAt": "Foto · {{time}}"
+    "photoAt": "Foto · {{time}}",
+    "visiting": "Support-Ansicht eines Kundenorts"
   },
   "camera": {
     "never": "nie",
@@ -4240,7 +4241,7 @@
       "camerasOwn": "Cams und Kamerazeilen sind die, die dieses Konto sehen kann - die Kameraliste antwortet einem Konto, nicht der Installation, deren Zahl auf der Zustandskarte steht",
       "loadMore": "Rest laden",
       "noMatch": "Kein Gerät passt zu diesen Filtern.",
-      "noMatchSearch": "Kein Gerät passt zu „{{search}}“. Die Suche liest die ID eines Geräts, seinen Namen und das Handle des Besitzers, nicht den Ort, an dem es steht.",
+      "noMatchSearch": "Kein Gerät passt zu „{{search}}“. Die Suche liest die ID eines Geräts, seine Seriennummer, seinen Namen und das Handle des Besitzers, nicht den Ort, an dem es steht.",
       "clearFilters": "Alles zeigen",
       "empty": "Auf dieser Installation hat sich noch kein Gerät registriert.",
       "column": {
@@ -4258,9 +4259,10 @@
         "quiet": "Über einen Tag still",
         "behind": "Nicht auf stable",
         "search": "Suchen",
-        "searchReads": "ID, Name oder Besitzer suchen"
+        "searchReads": "ID, Seriennummer, Name oder Besitzer suchen"
       },
-      "camerasPartial": "Kameras jenseits der geladenen Seiten stehen in keiner Zeile und zählen in keiner Cams-Spalte"
+      "camerasPartial": "Kameras jenseits der geladenen Seiten stehen in keiner Zeile und zählen in keiner Cams-Spalte",
+      "serial": "SN {{serial}}"
     },
     "rollout": {
       "title": "Firmware-Ausrollung",
@@ -4413,6 +4415,25 @@
       "open": "Öffnen",
       "notStarted": "nicht gestartet",
       "public": "öffentliche Seite"
+    },
+    "diagnosis": {
+      "title": "Support-Ansicht",
+      "device": "Gerät",
+      "type": "Typ",
+      "serial": "Seriennummer",
+      "owner": "Besitzer",
+      "lastSeen": "Zuletzt gehört",
+      "firmware": "Firmware · Kanal",
+      "place": "Ort",
+      "timeline": "Verlauf",
+      "charts": "Graphen",
+      "cockpit": "Ort öffnen",
+      "settings": "Einstellungen, wie an das Gerät geschickt",
+      "noSettings": "Das Gerät hat noch kein Einstellungsdokument.",
+      "factors": "Faktoren und Regelung",
+      "hardware": "Hardware-Bericht des Geräts",
+      "lines": "Meldungen des Geräts",
+      "noLines": "Das Gerät hat noch nichts gemeldet."
     }
   },
   "units": {

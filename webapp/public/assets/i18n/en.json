@@ -3117,7 +3117,8 @@
     "readAt": "read {{time}}",
     "camSince": "No camera picture at {{time}} – the camera has filmed since {{since}}",
     "noFrameAt": "No camera picture at {{time}}",
-    "photoAt": "Photo · {{time}}"
+    "photoAt": "Photo · {{time}}",
+    "visiting": "support view of a customer's place"
   },
   "camera": {
     "never": "never",
@@ -4236,7 +4237,7 @@
       "camerasOwn": "cams and the camera rows are the ones this account can see - the camera list answers an account, not the install, whose count is on the health card",
       "loadMore": "Load the rest",
       "noMatch": "No device matches these filters.",
-      "noMatchSearch": "No device matches \"{{search}}\". The search reads a device's id, its name and its owner's handle, not the place it stands in.",
+      "noMatchSearch": "No device matches \"{{search}}\". The search reads a device's id, its serial number, its name and its owner's handle, not the place it stands in.",
       "clearFilters": "Show everything",
       "empty": "No device has registered with this install yet.",
       "column": {
@@ -4254,9 +4255,10 @@
         "quiet": "Quiet over a day",
         "behind": "Not on stable",
         "search": "Search",
-        "searchReads": "Search id, name or owner"
+        "searchReads": "Search id, serial number, name or owner"
       },
-      "camerasPartial": "the cameras past the loaded pages are on no row and in no cams count"
+      "camerasPartial": "the cameras past the loaded pages are on no row and in no cams count",
+      "serial": "SN {{serial}}"
     },
     "rollout": {
       "title": "Firmware rollout",
@@ -4409,6 +4411,25 @@
       "open": "Open",
       "notStarted": "not started",
       "public": "public page"
+    },
+    "diagnosis": {
+      "title": "Support view",
+      "device": "Device",
+      "type": "Type",
+      "serial": "Serial number",
+      "owner": "Owner",
+      "lastSeen": "Last heard",
+      "firmware": "Firmware · channel",
+      "place": "Place",
+      "timeline": "Timeline",
+      "charts": "Charts",
+      "cockpit": "Open the place",
+      "settings": "Settings, as sent to the device",
+      "noSettings": "The device has no settings document yet.",
+      "factors": "Factors and control",
+      "hardware": "The device's hardware report",
+      "lines": "The device's messages",
+      "noLines": "The device has reported nothing yet."
     }
   },
   "units": {
