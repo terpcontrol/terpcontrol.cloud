@@ -21,6 +21,7 @@ interface Preset {
 })
 export class FanSettingsComponent implements OnInit {
   @Input() device_id:string = "";
+  @Input() hardwareInfo: Record<string, string> | undefined;
 
   public settings:any = null
   public alarms:any = [];

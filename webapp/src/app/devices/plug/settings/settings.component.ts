@@ -22,6 +22,7 @@ interface Preset {
 })
 export class PlugSettingsComponent implements OnInit {
   @Input() device_id:string = "";
+  @Input() hardwareInfo: Record<string, string> | undefined;
   public settings:any = null
   public alarms:any = [];
   public cloudSettings:any = {};

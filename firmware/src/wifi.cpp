@@ -2570,6 +2570,11 @@ void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {
   smart_socket_cloud_handle = cloud;
   ensureSmartSocketsLoaded();
   reportSocketsHardwareInfo();
+  wifiInitTerpCamCloudReporting(cloud);
+}
+
+void wifiInitTerpCamCloudReporting(fg::Fridgecloud* cloud) {
+  smart_socket_cloud_handle = cloud;
 
   if(cloud != nullptr) {
     // Report the camera state on every boot, INCLUDING when there is none.
@@ -2785,11 +2790,7 @@ bool wifiTestSmartSocket(const std::string& role, int slot) {
   return ok;
 }
 
-bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
-  if(!command["action"]) {
-    return false;
-  }
-
+bool wifiHandleTerpCamCommand(const JsonDocument& command) {
   if(command["action"] == std::string("cam_relay")) {
     // Bridge the camera's P2P to a connection to the cloud (an HTTP upgrade on
     // `url`) so the cloud pulls the full-resolution still itself. Runs in its own
@@ -2799,6 +2800,16 @@ bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
     const std::string token = command["token"] | "";
     const std::string key = command["key"] | "";
     fg::terpCamStartRelay(url, token, key);
+    return true;
+  }
+  return false;
+}
+
+bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
+  if(!command["action"]) {
+    return false;
+  }
+  if(wifiHandleTerpCamCommand(command)) {
     return true;
   }
 
