@@ -25,10 +25,11 @@ const DEVICES: Tab = { path: '/devices', labelKey: 'shell.tabs.devices', Icon: C
  * should it do, and the hardware. "Gerät" becomes "Geräte" once there is more
  * than one thing to list there.
  *
- * Steuerung is there once there is a device to steer. Somebody who keeps a
- * diary without one - or watches a tent through a camera alone - was shown a
- * tab that said only that nothing stood there, so it comes with the first
- * device; Gerät stays, because it is the one door hardware comes in by.
+ * Steuerung is there once there is a device to steer, and Gerät once there is
+ * anything to list. Somebody who keeps a diary without hardware was shown two
+ * tabs that said only that nothing stood there: the diary is their app, and
+ * hardware is offered under the grow and under Ich instead. A camera alone is
+ * listed under Gerät and steers nothing.
  *
  * The diary brings the Log button back into the middle, green and raised -
  * and only the diary, so somebody who keeps none is not offered a button for
@@ -40,7 +41,7 @@ export const tabsOf = (shape: Pick<Shape, 'diary' | 'devices'> & Partial<Pick<Sh
   TIMELINE,
   ...(shape.diary && mayLog ? [LOG] : []),
   ...(shape.steering === false ? [] : [CONTROL]),
-  shape.devices > 1 ? DEVICES : { ...DEVICES, labelKey: 'shell.tabs.device' },
+  ...(shape.steering === false && shape.devices === 0 ? [] : [shape.devices > 1 ? DEVICES : { ...DEVICES, labelKey: 'shell.tabs.device' }]),
 ];
 
 export const useTabs = (): Tab[] => tabsOf(useShape(), useMayLog());

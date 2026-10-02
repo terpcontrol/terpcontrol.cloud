@@ -1,6 +1,7 @@
 import { ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useShape } from '@/app/shell/shape';
 import { Link, useNavigate } from 'react-router';
 import { useMe } from '@/api/account';
 import { useCameras } from '@/api/cameras';
@@ -86,6 +87,7 @@ function AccountDoors({ handle }: { handle: string }) {
   const follows = useFollows(true);
   const links = useShareLinks();
   const cameras = useCameras();
+  const { devices, ready } = useShape();
   const shipped = useSchemes();
   const own = useOwnSchemes();
   // Feeding schemes are what a grow's feed lines are dosed from, so they are a door of the diary's - kept for whoever wrote one of their own.
@@ -141,6 +143,8 @@ function AccountDoors({ handle }: { handle: string }) {
             line={line([grows, shipped, own], () => schemesLine(t, grows.data!.items, shipped.data!, own.data!.items))}
           />
         ) : null}
+        {/* Without any hardware there is no Gerät tab; this is where it comes in. */}
+        {ready && devices === 0 ? <Door to="/devices" title={t('me.door.addDevice.title')} line={t('me.door.addDevice.line')} /> : null}
         <Door to="/me/account" title={t('me.account.title')} line={t('me.door.account')} />
       </div>
     </>

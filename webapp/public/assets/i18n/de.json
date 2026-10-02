@@ -1763,7 +1763,11 @@
         "noOwn": "noch kein eigenes"
       },
       "account": "E-Mail · Passwort · Sitzungen · Export · Löschen",
-      "about": "v{{version}} · {{build}}"
+      "about": "v{{version}} · {{build}}",
+      "addDevice": {
+        "title": "Gerät oder Kamera hinzufügen",
+        "line": "Ein Controller misst und regelt das Klima, eine Kamera macht Bilder fürs Tagebuch"
+      }
     },
     "privacy": {
       "title": "Privatsphäre",
@@ -4690,7 +4694,7 @@
     },
     "deviceOffer": {
       "title": "Gerät oder Kamera",
-      "text": "Ein Controller oder ein Kühlschrankmodul misst Temperatur und Luftfeuchte von selbst, regelt Heizung, Licht und Lüfter und meldet sich, wenn etwas nicht stimmt. Eine Kamera macht Bilder für Tagebuch und Zeitraffer. Beides fügst du im Tab Gerät hinzu. „Nein danke“ blendet diese Zeile auf all deinen Geräten aus."
+      "text": "Ein Controller oder ein Kühlschrankmodul misst Temperatur und Luftfeuchte von selbst, regelt Heizung, Licht und Lüfter und meldet sich, wenn etwas nicht stimmt. Eine Kamera macht Bilder für Tagebuch und Zeitraffer. Beides fügst du über diese Zeile hinzu oder unter Ich › Gerät oder Kamera hinzufügen. „Nein danke“ blendet diese Zeile auf all deinen Geräten aus."
     },
     "schemeWeek": {
       "title": "Schema-Woche",

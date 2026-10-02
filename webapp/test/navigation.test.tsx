@@ -227,15 +227,20 @@ describe('the bar', () => {
     expect(tabsOf({ diary: false, devices: 2 }, true).at(-1)?.labelKey).toBe('shell.tabs.devices');
   });
 
-  it('leaves Steuerung out until there is a device to steer, and keeps Gerät as the way one comes in', () => {
+  it('leaves Steuerung out until there is a device to steer, and Gerät until there is anything to list', () => {
+    // A diary kept without hardware is the whole app: hardware is offered under the grow and under Ich.
     expect(tabsOf({ diary: true, devices: 0, steering: false }, true).map(tab => tab.labelKey)).toEqual([
+      'shell.tabs.home',
+      'shell.tabs.timeline',
+      'shell.tabs.log',
+    ]);
+    // A camera alone is listed under Gerät and steers nothing.
+    expect(tabsOf({ diary: true, devices: 1, steering: false }, true).map(tab => tab.labelKey)).toEqual([
       'shell.tabs.home',
       'shell.tabs.timeline',
       'shell.tabs.log',
       'shell.tabs.device',
     ]);
-    // A camera alone steers nothing either.
-    expect(tabsOf({ diary: true, devices: 1, steering: false }, true).some(tab => tab.labelKey === 'shell.tabs.control')).toBe(false);
   });
 
   it('draws the four places of an account with one device, and no Tasks', async () => {

@@ -1759,7 +1759,11 @@
         "noOwn": "no own yet"
       },
       "account": "e-mail · password · sessions · export · delete",
-      "about": "v{{version}} · {{build}}"
+      "about": "v{{version}} · {{build}}",
+      "addDevice": {
+        "title": "Add a device or a camera",
+        "line": "A controller measures and steers the climate, a camera takes pictures for the diary"
+      }
     },
     "privacy": {
       "title": "Privacy",
@@ -4686,7 +4690,7 @@
     },
     "deviceOffer": {
       "title": "Device or camera",
-      "text": "A controller or a fridge module measures temperature and humidity by itself, steers heating, light and fans, and tells you when something is wrong. A camera takes pictures for the diary and for timelapses. You add either on the Device tab. “No thanks” hides this line on all your devices."
+      "text": "A controller or a fridge module measures temperature and humidity by itself, steers heating, light and fans, and tells you when something is wrong. A camera takes pictures for the diary and for timelapses. You add either through this line or under Me › Add a device or a camera. “No thanks” hides this line on all your devices."
     },
     "schemeWeek": {
       "title": "Scheme week",
