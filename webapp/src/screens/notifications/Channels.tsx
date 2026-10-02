@@ -2,10 +2,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { Me, NotificationCategory, NotificationChannel, TelegramLink, WebhookMethod } from '@fg2/shared-types/v1';
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { useMe, useSubscribePush, useTelegramLink, useUnsubscribePush } from '@/api/account';
 import { ApiError } from '@/api/problem';
+import { isIos, isStandalone } from '@/app/install';
+import { INSTALL_ANCHOR } from '@/screens/me/appearance/InstallRow';
 import { Refused } from '@/ui/PageState';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -100,7 +103,10 @@ export function PushCard({ me, held }: CardProps) {
   const [fault, setFault] = useState<{ key: string } | { error: unknown } | null>(null);
   const [asking, setAsking] = useState(false);
 
-  const cannot = !me.pushPublicKey ? 'noKey' : !pushSupported() ? 'unsupported' : null;
+  // Safari on an iPhone pushes only to the app on the home screen, so there it
+  // is not the browser that cannot but the place it was opened from - which is
+  // said, with the way to the other one.
+  const cannot = !me.pushPublicKey ? 'noKey' : !pushSupported() ? (isIos() && !isStandalone() ? 'iosInstall' : 'unsupported') : null;
   const on = subscription.data != null;
 
   const switchOn = async () => {
@@ -146,7 +152,14 @@ export function PushCard({ me, held }: CardProps) {
     <ChannelCard
       title={t('notifications.channel.push')}
       line={
-        cannot ? (
+        cannot === 'iosInstall' ? (
+          <>
+            {t('notifications.push.iosInstall')}{' '}
+            <Link to={`/me/appearance#${INSTALL_ANCHOR}`} className={ui.headLink}>
+              {t('notifications.push.iosHow')} ›
+            </Link>
+          </>
+        ) : cannot ? (
           t(`notifications.push.${cannot}`)
         ) : on ? (
           <>

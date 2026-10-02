@@ -74,6 +74,7 @@ export const HELP_TOPICS = [
   'publicProfile',
   'deleteAccount',
   'passwordChange',
+  'installApp',
   'memberRole',
   'invite',
   'diaryLayer',

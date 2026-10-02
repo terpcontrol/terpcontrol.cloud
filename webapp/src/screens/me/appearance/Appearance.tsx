@@ -12,6 +12,7 @@ import { useNow } from '@/ui/useNow';
 import { browserZone, zoneNames } from '@/ui/zone';
 import { languageName } from '../doors';
 import { MePage, Menu, Row } from '../parts';
+import { InstallRow } from './InstallRow';
 import styles from './Appearance.module.css';
 
 const THEMES: ThemeChoice[] = ['system', 'light', 'dark'];
@@ -31,7 +32,8 @@ const UNITS: { kind: keyof UnitPreference; choices: string[] }[] = [
 ];
 
 /**
- * Me › Appearance: the theme, the language, and the units.
+ * Me › Appearance: the theme, the language, the app on the home screen, and
+ * the units.
  *
  * The first two are the browser's and stay where they have always lived - the
  * theme is one attribute on <html> and the language one key in local storage -
@@ -77,6 +79,8 @@ export function Appearance() {
           ))}
         </Menu>
       </Row>
+
+      <InstallRow />
 
       {isDemo ? (
         <>

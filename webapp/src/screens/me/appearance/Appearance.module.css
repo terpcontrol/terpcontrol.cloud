@@ -10,3 +10,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* The steps that put the app on the home screen, under their row. */
+.install {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.steps {
+  margin: 0;
+  padding-left: 1.4em;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}
+
+/* Safari's share symbol, drawn where the step names it. */
+.shareIcon {
+  vertical-align: -2px;
+}

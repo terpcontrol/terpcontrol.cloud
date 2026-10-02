@@ -1424,7 +1424,15 @@
     "androidIntro": "Installiere Terp Control als App auf deinem Startbildschirm:",
     "androidStep1": "Öffne das Browser-Menü",
     "androidStep2": "Wähle „App installieren“ bzw. „Zum Startbildschirm hinzufügen“.",
-    "note": "Danach startet Terp Control mit eigenem Symbol im Vollbild — wie eine normale App."
+    "note": "Danach startet Terp Control mit eigenem Symbol im Vollbild — wie eine normale App.",
+    "title": "Auf den Home-Bildschirm",
+    "line": "Terp Control öffnet sich dann über ein eigenes Symbol im Vollbild, wie eine App.",
+    "lineIos": "Über ein eigenes Symbol im Vollbild - und auf dem iPhone der einzige Weg zu Push-Nachrichten.",
+    "running": "Terp Control läuft hier schon als App vom Home-Bildschirm.",
+    "now": "Installieren",
+    "how": "So geht's",
+    "hide": "Ausblenden",
+    "iosPush": "Öffne Terp Control danach über das neue Symbol und schalte unter Ich › Benachrichtigungen die Push-Nachrichten ein."
   },
   "shell": {
     "navigation": "Hauptnavigation",
@@ -3873,7 +3881,9 @@
       "unsupported": "dieser Browser kann keine Push-Nachrichten empfangen",
       "denied": "Die Erlaubnis wurde nicht erteilt, also bekommt dieser Browser keine Push-Nachrichten.",
       "asking": "Der Browser wird gefragt…",
-      "otherDevice": "auf einem anderen Gerät angemeldet"
+      "otherDevice": "auf einem anderen Gerät angemeldet",
+      "iosInstall": "auf dem iPhone nur in der App vom Home-Bildschirm.",
+      "iosHow": "So legst du sie dort ab"
     },
     "telegram": {
       "linked": "verknüpft {{date}}",
@@ -4833,6 +4843,10 @@
         "title": "Überhitzungsschutz",
         "text": "Über dieser Temperatur am Lichtmodul dimmt sich die Lampe herunter, bis es wieder kühler ist. Das schützt die Lampe und die Pflanzen direkt darunter."
       }
+    },
+    "installApp": {
+      "title": "App auf dem Home-Bildschirm",
+      "text": "Terp Control braucht keinen App Store: Der Browser legt die Seite als App mit eigenem Symbol auf den Home-Bildschirm. Sie öffnet sich dann im Vollbild ohne Adressleiste, und du bleibst angemeldet. Auf dem iPhone ist das außerdem der einzige Weg zu Push-Nachrichten, denn Safari stellt sie nur Apps vom Home-Bildschirm zu."
     },
     "streamAddress": {
       "title": "Stream-Adresse",
