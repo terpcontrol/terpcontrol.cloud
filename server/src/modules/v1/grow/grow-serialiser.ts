@@ -312,6 +312,7 @@ export const serialiseGrow = (grow: GrowDocument, plants: PlantDocument[], hide:
   scheme: grow.scheme,
   measurements: grow.measurements,
   visibility: grow.visibility,
+  publicCameras: grow.publicCameras !== false,
   slug: grow.slug,
   coverMediaId: grow.coverMediaId,
   filmMediaId: grow.filmMediaId,

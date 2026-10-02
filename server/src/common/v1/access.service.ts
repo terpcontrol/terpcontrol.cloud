@@ -116,7 +116,7 @@ export class AccessService {
       range: link ? { startsAt: link.range.startsAt, endsAt: link.range.endsAt } : (this.rangeOf(subject, grantee) ?? OPEN),
       privacyOwnerId: subject.ownerId,
       redacted: !full,
-      includeCameras: link ? link.includeCameras : true,
+      includeCameras: link ? link.includeCameras : grantee === 'public' ? subject.publicCameras : true,
     };
   }
 
@@ -291,7 +291,9 @@ export class AccessService {
    * stands there now, and may still read the one that stood there in spring.
    */
   private async ofGrow(ref: SubjectRef, id: string, need: Need): Promise<ResolvedSubject | null> {
-    const grow = await this.grows.findOne({ id }, { id: 1, ownerId: 1, isDemo: 1, visibility: 1, placements: 1, startedAt: 1, endedAt: 1 }).lean();
+    const grow = await this.grows
+      .findOne({ id }, { id: 1, ownerId: 1, isDemo: 1, visibility: 1, publicCameras: 1, placements: 1, startedAt: 1, endedAt: 1 })
+      .lean();
     if (!grow) return null;
 
     const placements = (need === 'view' ? grow.placements : grow.placements.filter(placement => placement.endedAt === null)).flatMap(placement =>
@@ -313,6 +315,7 @@ export class AccessService {
         endedAt: placement.endedAt,
       })),
       publicRange: isPublic ? { startsAt: grow.startedAt, endsAt: grow.endedAt ?? new Date() } : null,
+      publicCameras: grow.publicCameras !== false,
     };
   }
 
@@ -366,6 +369,7 @@ export class AccessService {
       spaceIds: [],
       growIds: [],
       publicRange: null,
+      publicCameras: true,
       stays: null,
       ofACamera: false,
       authorId: null,

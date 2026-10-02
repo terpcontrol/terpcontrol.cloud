@@ -11,6 +11,7 @@ import { CamerasService } from '@modules/v1/camera/cameras.service';
 import { EntitlementService } from '@modules/v1/camera/entitlement.service';
 import { MediaService } from '@modules/v1/camera/media.service';
 import { OverlayFrame, composeFrame, overlayLayer, sizeFor, wasDark } from '@modules/v1/camera/timelapse-overlays';
+import { TimelapseContextService } from '@modules/v1/camera/timelapse-context.service';
 import { whyNoFilm } from '@modules/v1/camera/timelapse.service';
 import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
 
@@ -298,6 +299,28 @@ describe('asking twice', () => {
     expect(composed.queued).toBe(true);
     expect(composed.media.window).toBe('custom');
     expect(await db.media.countDocuments()).toBe(2);
+  });
+});
+
+describe('a film of a whole grow', () => {
+  it('becomes the film of the grow that stood in front of the camera, which the public diary plays', async () => {
+    const startedAt = new Date('2026-08-01T00:00:00.000Z');
+    await db.grows.create({
+      id: 'grow-1',
+      ownerId: OWNER,
+      name: 'Autumn',
+      type: 'photoperiod',
+      slug: 'autumn',
+      startedAt,
+      phases: [],
+      placements: [{ id: 'placement-1', spaceId: TENT, startedAt, endedAt: null, plantIds: null }],
+    });
+    const context = new TimelapseContextService(db.grows, db.entries, db.devices, null);
+
+    await context.attachGrowFilm({ spaceId: TENT }, { startsAt: startedAt, endsAt: new Date('2026-09-01T00:00:00.000Z') }, 'film-1');
+    await context.attachGrowFilm({ spaceId: BALCONY }, { startsAt: startedAt, endsAt: new Date('2026-09-01T00:00:00.000Z') }, 'film-2');
+
+    expect((await db.grows.findOne({ id: 'grow-1' }).lean())?.filmMediaId).toBe('film-1');
   });
 });
 

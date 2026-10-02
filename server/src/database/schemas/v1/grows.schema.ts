@@ -146,6 +146,8 @@ export const growsSchema = new Schema<GrowDocument>(
     scheme: { type: growSchemeSchema, default: null },
     measurements: { type: [measurementSchema], required: true, default: [] },
     visibility: { type: String, enum: growVisibility.options, required: true, default: 'private' },
+    // Whether the public page shows the camera's pictures; a grow made public before this had them shown.
+    publicCameras: { type: Boolean, default: true },
     slug: { type: String, required: true },
     coverMediaId: { type: String, default: null },
     filmMediaId: { type: String, default: null },

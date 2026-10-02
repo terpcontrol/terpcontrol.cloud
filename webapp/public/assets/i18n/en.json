@@ -2142,7 +2142,8 @@
         "queued": "queued",
         "rendering": "building the file…",
         "download": "Download · {{size}}",
-        "failedPlain": "The file could not be built."
+        "failedPlain": "The file could not be built.",
+        "noteNoClimate": "Everything about this grow in one zip: the diary and the readings as CSV, and every photo of it."
       }
     },
     "dayN": "day {{day}}",
@@ -2795,7 +2796,8 @@
       "roleShort": {
         "owner": "owner",
         "can_log": "log",
-        "can_manage": "manage"
+        "can_manage": "manage",
+        "can_manageDiary": "manage"
       },
       "can": {
         "see": "See the place and its readings",
@@ -2808,7 +2810,8 @@
         "seeRoom": "See every place in the room and its readings",
         "seeRoomCams": "See every place in the room, its readings and cams",
         "seeRoomGrows": "See every place in the room, its readings and grows",
-        "seeRoomAll": "See every place in the room, its grows and cams"
+        "seeRoomAll": "See every place in the room, its grows and cams",
+        "manageDiary": "Grows, phases and reminders"
       },
       "mark": {
         "yes": "yes",
@@ -3431,7 +3434,11 @@
       "until": "up to {{to}}",
       "since": "from {{from}}",
       "between": "{{from}} → {{to}}"
-    }
+    },
+    "publicPageNoteCameras": "The diary gets an address of its own that anybody can open – with its photos and the camera's pictures. Harvest weights and plant counts follow your privacy settings.",
+    "linksNoteNoCamera": "A key for one person, for a stretch of days.",
+    "publicCameras": "Camera pictures on the public page",
+    "publicCamerasNote": "The camera's pictures on the week cards and in the report. Switched off, the page shows only the diary's photos."
   },
   "maintenance": {
     "and": "and",
@@ -3955,7 +3962,7 @@
     "bellMore_one": "Alerts · more than {{count}} open",
     "bellMore_other": "Alerts · more than {{count}} open",
     "earlier": "Earlier",
-    "nothingWatching": "Nothing is watching yet. Alerts come from a controller's alarm rules and from a cam.",
+    "nothingWatching": "Alarms land here once a device measures or a cam films. What is due in the diary is under Tasks.",
     "demoNoInbox": "The demo has no inbox; open a place to see its alarms.",
     "severity": {
       "critical": "critical",

@@ -2146,7 +2146,8 @@
         "queued": "in der Warteschlange",
         "rendering": "Datei wird erstellt …",
         "download": "Herunterladen · {{size}}",
-        "failedPlain": "Die Datei konnte nicht erstellt werden."
+        "failedPlain": "Die Datei konnte nicht erstellt werden.",
+        "noteNoClimate": "Alles über diesen Grow in einem Zip: das Tagebuch und die Messwerte als CSV, und jedes Foto davon."
       }
     },
     "dayN": "Tag {{day}}",
@@ -2799,7 +2800,8 @@
       "roleShort": {
         "owner": "Besitzer:in",
         "can_log": "eintragen",
-        "can_manage": "steuern"
+        "can_manage": "steuern",
+        "can_manageDiary": "verwalten"
       },
       "can": {
         "see": "Den Ort und seine Werte sehen",
@@ -2812,7 +2814,8 @@
         "seeRoom": "Jeden Ort im Raum und seine Werte sehen",
         "seeRoomCams": "Jeden Ort im Raum, seine Werte und Kameras sehen",
         "seeRoomGrows": "Jeden Ort im Raum, seine Werte und Grows sehen",
-        "seeRoomAll": "Jeden Ort im Raum, seine Grows und Kameras sehen"
+        "seeRoomAll": "Jeden Ort im Raum, seine Grows und Kameras sehen",
+        "manageDiary": "Grows, Phasen und Erinnerungen"
       },
       "mark": {
         "yes": "ja",
@@ -3435,7 +3438,11 @@
       "until": "bis {{to}}",
       "since": "ab {{from}}",
       "between": "{{from}} → {{to}}"
-    }
+    },
+    "publicPageNoteCameras": "Das Tagebuch bekommt eine eigene Adresse, die jeder öffnen kann – mit den Fotos und den Bildern der Kamera. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen.",
+    "linksNoteNoCamera": "Ein Schlüssel für eine Person, für einen Zeitraum.",
+    "publicCameras": "Kamerabilder auf der öffentlichen Seite",
+    "publicCamerasNote": "Die Bilder der Cam in den Wochenkarten und im Bericht. Ausgeschaltet zeigt die Seite nur die Fotos aus dem Tagebuch."
   },
   "maintenance": {
     "and": "und",
@@ -3959,7 +3966,7 @@
     "bellMore_one": "Meldungen · mehr als {{count}} offen",
     "bellMore_other": "Meldungen · mehr als {{count}} offen",
     "earlier": "Früher",
-    "nothingWatching": "Noch schaut nichts hin. Meldungen kommen aus den Alarmregeln eines Controllers und von einer Cam.",
+    "nothingWatching": "Hier landen Alarme, sobald ein Gerät misst oder eine Cam filmt. Was im Tagebuch fällig ist, steht unter Aufgaben.",
     "demoNoInbox": "Die Demo hat keinen Posteingang; öffne einen Ort, um seine Alarme zu sehen.",
     "severity": {
       "critical": "Kritisch",

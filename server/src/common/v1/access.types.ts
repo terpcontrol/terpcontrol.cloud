@@ -95,6 +95,8 @@ export interface ResolvedSubject {
   growIds: string[];
   /** The life of the public grow it belongs to: what a public read is clamped to. */
   publicRange: AccessRange | null;
+  /** Whether a public read of it carries the camera's pictures, as its grow's owner chose. */
+  publicCameras: boolean;
   /**
    * When a grow stood where, for a grow or a plant read by itself: a link on a
    * space covers the grows that stood there inside its window, not every grow

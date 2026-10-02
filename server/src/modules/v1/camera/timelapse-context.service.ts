@@ -84,6 +84,16 @@ export class TimelapseContextService {
   }
 
   /** The grow that stood in this space while the frames were taken. */
+  /**
+   * A film of a whole grow becomes that grow's film: the public diary shows
+   * "Der ganze Grow als Film" from `filmMediaId`, and nothing ever set it, so a
+   * grower who rendered one in HD found it only on the camera page.
+   */
+  public async attachGrowFilm(camera: Pick<CameraDocument, 'spaceId'>, span: TimelapseSpan, mediaId: string): Promise<void> {
+    const grow = await this.growIn(camera.spaceId, span);
+    if (grow) await this.grows.updateOne({ id: grow.id }, { $set: { filmMediaId: mediaId } });
+  }
+
   private async growIn(spaceId: string | null, span: TimelapseSpan): Promise<GrowDocument | null> {
     if (spaceId === null) return null;
 

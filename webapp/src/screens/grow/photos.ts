@@ -49,10 +49,6 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** "Tag 15 · 26. Sep · Nach dem Toppen …": which day, which date, and what was written with it. */
 export const pictureCaption = (t: Translate, picture: GrowPicture, zone: string | null): string =>
-  [
-    picture.day !== null ? t('home.card.dayN', { day: picture.day }) : null,
-    zoned(picture.takenAt, zone).toFormat(DAY_IN_YEAR),
-    picture.text,
-  ]
+  [picture.day !== null ? t('home.card.dayN', { day: picture.day }) : null, zoned(picture.takenAt, zone).toFormat(DAY_IN_YEAR), picture.text]
     .filter(Boolean)
     .join(' · ');

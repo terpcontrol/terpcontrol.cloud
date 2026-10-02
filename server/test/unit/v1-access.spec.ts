@@ -289,6 +289,18 @@ describe('what rides back with a yes', () => {
     expect(grant?.privacyOwnerId).toBe(OWNER);
   });
 
+  /** The public page carries the camera's pictures unless the grow's owner switched them off for it. */
+  it('carries the camera on a public read as the grow says, which is yes until somebody says no', async () => {
+    expect((await access.access(anonymous, SUBJECTS.grow, 'view'))?.includeCameras).toBe(true);
+
+    await db.grows.updateOne({ id: GROW }, { $set: { publicCameras: false } });
+    const without = await access.access(anonymous, SUBJECTS.grow, 'view');
+    expect(without?.grantee).toBe('public');
+    expect(without?.includeCameras).toBe(false);
+    // The owner still sees their own cameras.
+    expect((await access.access(session(OWNER), SUBJECTS.grow, 'view'))?.includeCameras).toBe(true);
+  });
+
   it('says a link without cameras carries no pictures, so a read model does not go looking', async () => {
     const grant = await access.access(link(SPACE_LINK), SUBJECTS.space, 'view');
 

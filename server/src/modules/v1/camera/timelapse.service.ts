@@ -320,6 +320,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
         endedAt: new Date(),
         error: built ? null : whyNoFilm(all.length, frames.length),
       });
+      if (built && job.window === 'grow') await this.context.attachGrowFilm(camera, span, job.id);
     } catch (e) {
       await this.media.setRender(job.id, { ...render, status: 'failed', endedAt: new Date(), error: String((e as Error)?.message ?? e) });
     }

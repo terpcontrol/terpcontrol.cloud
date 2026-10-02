@@ -185,6 +185,10 @@ exports.grow = (0, common_js_1.named)('Grow', zod_1.z.object({
     scheme: exports.growScheme.nullable(),
     measurements: zod_1.z.array(exports.measurementDefinition),
     visibility: exports.growVisibility,
+    publicCameras: zod_1.z
+        .boolean()
+        .optional()
+        .describe('Whether the public page carries the camera stills of the places the grow stood in. Absent is true, which is what a public page always did.'),
     slug: zod_1.z.string().describe('Unique and stable, assigned at creation, so making a grow public never changes its address.'),
     coverMediaId: (0, common_js_1.id)().nullable(),
     filmMediaId: (0, common_js_1.id)().nullable().describe('The whole-grow timelapse, once it has been rendered.'),
@@ -534,6 +538,7 @@ exports.growUpdate = (0, common_js_1.named)('GrowUpdate', exports.grow
     scheme: true,
     measurements: true,
     visibility: true,
+    publicCameras: true,
     coverMediaId: true,
     startedAt: true,
     endedAt: true,

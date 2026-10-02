@@ -40,9 +40,22 @@ const seeKey = (kind: SpaceKind, diary: boolean, cameras: boolean): string =>
  * row of entries, tasks and photos is the diary's, and stands only where the
  * diary does: without it, the difference a role makes is steering.
  */
-export function Permissions({ kind, diary, cameras }: { kind: SpaceKind; diary: boolean; cameras: boolean }) {
+export function Permissions({
+  kind,
+  diary,
+  cameras,
+  steering = true,
+}: {
+  kind: SpaceKind;
+  diary: boolean;
+  cameras: boolean;
+  /** Whether a device stands anywhere to be steered; until the answer is in, it is assumed. */
+  steering?: boolean;
+}) {
   const { t } = useTranslation();
   const rows = ROWS.filter(row => row !== 'log' || diary);
+  // Without a device there are no targets, plan, alarms or maintenance to steer:
+  // what the second role adds is the diary's own running of things.
 
   return (
     <section className={styles.permissions}>
@@ -55,7 +68,7 @@ export function Permissions({ kind, diary, cameras }: { kind: SpaceKind; diary: 
                 {t('space.members.roleShort.owner')}
               </th>
               <th scope="col" className={`mono ${styles.column}`}>
-                {t('space.members.roleShort.can_manage')}
+                {t(steering ? 'space.members.roleShort.can_manage' : 'space.members.roleShort.can_manageDiary')}
               </th>
               <th scope="col" className={`mono ${styles.column}`}>
                 {t('space.members.roleShort.can_log')}
@@ -66,7 +79,13 @@ export function Permissions({ kind, diary, cameras }: { kind: SpaceKind; diary: 
             {rows.map(row => (
               <tr key={row}>
                 <th scope="row" className={styles.can}>
-                  {t(row === 'see' ? seeKey(kind, diary, cameras) : `space.members.can.${row}`)}
+                  {t(
+                    row === 'see'
+                      ? seeKey(kind, diary, cameras)
+                      : row === 'steer' && !steering
+                        ? 'space.members.can.manageDiary'
+                        : `space.members.can.${row}`,
+                  )}
                 </th>
                 <Mark yes />
                 <Mark yes={MAY[row].manage} />

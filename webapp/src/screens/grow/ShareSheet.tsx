@@ -3,6 +3,7 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, ShareLink, TimeRange } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
+import { useShape } from '@/app/shell/shape';
 import { useCreateShareLink, useDeleteShareLink, useRevokeShareLink, useShareLinks, useUpdateShareLink } from '@/api/sharing';
 import { Sheet } from '@/log/Sheet';
 import { ageLabel } from '@/ui/age';
@@ -42,6 +43,8 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   const [drafting, setDrafting] = useState(false);
 
   const isPublic = grow.visibility === 'public';
+  // The camera's pictures are part of what is shared only where there is a camera: without one, the sentences and the switch about them speak of nothing.
+  const cameras = useShape().cameras > 0;
   const mine = (links.data?.items ?? []).filter(link => link.subject.type === 'grow' && link.subject.id === grow.id);
 
   return (
@@ -54,7 +57,9 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
                 {t('sharing.publicPage')}
                 <Help topic="publicPage" />
               </span>
-              <span className={ui.note}>{t('sharing.publicPageNote')}</span>
+              <span className={ui.note}>
+                {t(cameras && grow.publicCameras !== false ? 'sharing.publicPageNoteCameras' : 'sharing.publicPageNote')}
+              </span>
             </div>
             <button
               type="button"
@@ -68,6 +73,27 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
               <span className={ui.knob} aria-hidden />
             </button>
           </div>
+
+          {/* The camera's pictures are the most private thing a public page carries, so whether it does is said and switched here, as a link's is. */}
+          {isPublic && cameras ? (
+            <div className={styles.switchRow}>
+              <div className={styles.switchText}>
+                <span>{t('sharing.cameras')}</span>
+                <span className={ui.note}>{t('sharing.publicCamerasNote')}</span>
+              </div>
+              <button
+                type="button"
+                className={ui.switch}
+                role="switch"
+                aria-checked={grow.publicCameras !== false}
+                aria-label={t('sharing.publicCameras')}
+                disabled={update.isPending}
+                onClick={() => update.mutate({ publicCameras: grow.publicCameras === false })}
+              >
+                <span className={ui.knob} aria-hidden />
+              </button>
+            </div>
+          ) : null}
 
           {isPublic ? (
             <div className={styles.addressRow}>
@@ -86,7 +112,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
                 {t('sharing.links')}
                 <Help topic="linkActions" />
               </span>
-              <span className={ui.note}>{t('sharing.linksNote')}</span>
+              <span className={ui.note}>{t(cameras ? 'sharing.linksNote' : 'sharing.linksNoteNoCamera')}</span>
             </div>
             {drafting ? null : (
               <button type="button" className={`${ui.button} ${ui.primary}`} onClick={() => setDrafting(true)}>
@@ -97,6 +123,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
 
           {drafting ? (
             <Editor
+              cameras={cameras}
               busy={create.isPending}
               error={create.error}
               submitLabel={t('sharing.createLink')}
@@ -219,6 +246,7 @@ const EMPTY: Draft = { from: '', to: '', expires: '', includeCameras: false };
  */
 function Editor({
   initial = EMPTY,
+  cameras = true,
   submitLabel,
   busy,
   error,
@@ -226,6 +254,8 @@ function Editor({
   onCancel,
 }: {
   initial?: Draft;
+  /** Whether the account has a camera whose pictures the link could carry. */
+  cameras?: boolean;
   submitLabel: string;
   busy: boolean;
   error: unknown;
@@ -244,22 +274,24 @@ function Editor({
         <Field label={t('sharing.expires')} value={draft.expires} hint={t('sharing.never')} onChange={value => set('expires', value)} />
       </div>
 
-      <div className={styles.switchRow}>
-        <div className={styles.switchText}>
-          <span>{t('sharing.cameras')}</span>
-          <span className={ui.note}>{t('sharing.camerasNote')}</span>
+      {cameras ? (
+        <div className={styles.switchRow}>
+          <div className={styles.switchText}>
+            <span>{t('sharing.cameras')}</span>
+            <span className={ui.note}>{t('sharing.camerasNote')}</span>
+          </div>
+          <button
+            type="button"
+            className={ui.switch}
+            role="switch"
+            aria-checked={draft.includeCameras}
+            aria-label={t('sharing.cameras')}
+            onClick={() => set('includeCameras', !draft.includeCameras)}
+          >
+            <span className={ui.knob} aria-hidden />
+          </button>
         </div>
-        <button
-          type="button"
-          className={ui.switch}
-          role="switch"
-          aria-checked={draft.includeCameras}
-          aria-label={t('sharing.cameras')}
-          onClick={() => set('includeCameras', !draft.includeCameras)}
-        >
-          <span className={ui.knob} aria-hidden />
-        </button>
-      </div>
+      ) : null}
 
       {error ? <Refused error={error} /> : null}
 

@@ -1877,6 +1877,10 @@ export interface Grow {
   measurements: MeasurementDefinition[];
   visibility: GrowVisibility;
   /**
+   * Whether the public page carries the camera stills of the places the grow stood in. Absent is true, which is what a public page always did.
+   */
+  publicCameras?: boolean;
+  /**
    * Unique and stable, assigned at creation, so making a grow public never changes its address.
    */
   slug: string;
@@ -2028,6 +2032,10 @@ export interface GrowListItem {
   scheme: GrowScheme | null;
   measurements: MeasurementDefinition[];
   visibility: GrowVisibility;
+  /**
+   * Whether the public page carries the camera stills of the places the grow stood in. Absent is true, which is what a public page always did.
+   */
+  publicCameras?: boolean;
   /**
    * Unique and stable, assigned at creation, so making a grow public never changes its address.
    */
@@ -2244,6 +2252,10 @@ export interface GrowUpdate {
   scheme?: GrowScheme | null;
   measurements?: MeasurementDefinition[];
   visibility?: GrowVisibility;
+  /**
+   * Whether the public page carries the camera stills of the places the grow stood in. Absent is true, which is what a public page always did.
+   */
+  publicCameras?: boolean;
   coverMediaId?: string | null;
   startedAt?: string;
   endedAt?: string | null;

@@ -251,6 +251,10 @@ export const grow = named(
     scheme: growScheme.nullable(),
     measurements: z.array(measurementDefinition),
     visibility: growVisibility,
+    publicCameras: z
+      .boolean()
+      .optional()
+      .describe('Whether the public page carries the camera stills of the places the grow stood in. Absent is true, which is what a public page always did.'),
     slug: z.string().describe('Unique and stable, assigned at creation, so making a grow public never changes its address.'),
     coverMediaId: id().nullable(),
     filmMediaId: id().nullable().describe('The whole-grow timelapse, once it has been rendered.'),
@@ -709,6 +713,7 @@ export const growUpdate = named(
       scheme: true,
       measurements: true,
       visibility: true,
+      publicCameras: true,
       coverMediaId: true,
       startedAt: true,
       endedAt: true,

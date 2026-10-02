@@ -16,6 +16,7 @@ import { useMayIn } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { ownsCamera } from '@/screens/devices/cameras';
+import { useDevices } from '@/api/devices';
 import { InviteBlock } from './InviteBlock';
 import { guestsOf, lastLoggedOf, peopleCount, personOf, viaRoomCount } from './people';
 import { Permissions } from './Permissions';
@@ -68,6 +69,8 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
   const diary = useDiaryLayer();
   const cameras = useCameras();
   const hasCamera = cameras.data !== undefined && ownsCamera(cameras.data.items);
+  const devices = useDevices();
+  const steering = devices.data?.items === undefined || devices.data.items.length > 0;
 
   if (isDemo) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.members.demo')}</p>;
   if (members.isPending) return <Waiting lines={4} />;
@@ -176,7 +179,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
         ))}
       </ul>
 
-      <Permissions kind={kind} diary={diary} cameras={hasCamera} />
+      <Permissions kind={kind} diary={diary} cameras={hasCamera} steering={steering} />
 
       {leaving ? (
         <RemoveSheet

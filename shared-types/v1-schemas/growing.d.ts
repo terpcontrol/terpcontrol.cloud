@@ -351,6 +351,7 @@ export declare const grow: z.ZodObject<{
         private: "private";
         public: "public";
     }>;
+    publicCameras: z.ZodOptional<z.ZodBoolean>;
     slug: z.ZodString;
     coverMediaId: z.ZodNullable<z.ZodString>;
     filmMediaId: z.ZodNullable<z.ZodString>;
@@ -638,6 +639,7 @@ export declare const growListItem: z.ZodObject<{
         private: "private";
         public: "public";
     }>;
+    publicCameras: z.ZodOptional<z.ZodBoolean>;
     slug: z.ZodString;
     coverMediaId: z.ZodNullable<z.ZodString>;
     filmMediaId: z.ZodNullable<z.ZodString>;
@@ -1184,6 +1186,7 @@ export declare const growUpdate: z.ZodObject<{
         targetMax: z.ZodNullable<z.ZodNumber>;
         chart: z.ZodBoolean;
     }, z.core.$strip>>>;
+    publicCameras: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
     coverMediaId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 /**
@@ -1497,6 +1500,7 @@ export declare const growPage: z.ZodObject<{
             private: "private";
             public: "public";
         }>;
+        publicCameras: z.ZodOptional<z.ZodBoolean>;
         slug: z.ZodString;
         coverMediaId: z.ZodNullable<z.ZodString>;
         filmMediaId: z.ZodNullable<z.ZodString>;

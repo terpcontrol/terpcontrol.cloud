@@ -5766,6 +5766,10 @@
       "visibility": {
         "$ref": "#/components/schemas/GrowVisibility"
       },
+      "publicCameras": {
+        "description": "Whether the public page carries the camera stills of the places the grow stood in. Absent is true, which is what a public page always did.",
+        "type": "boolean"
+      },
       "slug": {
         "type": "string",
         "description": "Unique and stable, assigned at creation, so making a grow public never changes its address."
@@ -6367,6 +6371,10 @@
       },
       "visibility": {
         "$ref": "#/components/schemas/GrowVisibility"
+      },
+      "publicCameras": {
+        "description": "Whether the public page carries the camera stills of the places the grow stood in. Absent is true, which is what a public page always did.",
+        "type": "boolean"
       },
       "slug": {
         "type": "string",
@@ -7119,6 +7127,10 @@
       },
       "visibility": {
         "$ref": "#/components/schemas/GrowVisibility"
+      },
+      "publicCameras": {
+        "description": "Whether the public page carries the camera stills of the places the grow stood in. Absent is true, which is what a public page always did.",
+        "type": "boolean"
       },
       "coverMediaId": {
         "anyOf": [

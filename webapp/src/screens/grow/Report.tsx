@@ -16,6 +16,7 @@ import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { PictureViewer } from '@/ui/PictureViewer';
 import { useZone } from '@/ui/zone';
 import { pictureCaption, picturesOf, useGrowPhotoLines } from './photos';
+import { useShape } from '@/app/shell/shape';
 import { standsIn } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import styles from './Report.module.css';
@@ -102,6 +103,7 @@ export function Report({ grow, spaces, mayOwn, now }: { grow: GrowListItem; spac
  * refuses it - a button that would be refused is not a button.
  */
 function Export({ growId, mayOwn }: { growId: string; mayOwn: boolean }) {
+  const { steering } = useShape();
   const { t } = useTranslation();
   const ask = useAskExport(growId);
   const [mediaId, setMediaId] = useState<string | null>(null);
@@ -118,7 +120,8 @@ function Export({ growId, mayOwn }: { growId: string; mayOwn: boolean }) {
     <section className={`${ui.card} ${styles.export}`} data-print="omit">
       <div className={styles.exportText}>
         <span className="label">{t('grow.report.export.title')}</span>
-        <p className={ui.note}>{t('grow.report.export.note')}</p>
+        {/* The climate is in it only where a device measured one. */}
+        <p className={ui.note}>{t(steering ? 'grow.report.export.note' : 'grow.report.export.noteNoClimate')}</p>
         {status === 'queued' || status === 'rendering' ? (
           <p className={`mono ${styles.exportStatus}`} role="status">
             {t(`grow.report.export.${status}`)}
