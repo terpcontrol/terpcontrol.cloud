@@ -275,7 +275,7 @@
     "demoFailed": "The demo could not be opened.",
     "noAccount": "No account yet?",
     "signUp": {
-      "intro": "An e-mail address, a username and a password. Nothing else is asked.",
+      "intro": "An e-mail address, a username, a password and your agreement to the privacy statement.",
       "forInvitation": "An invitation to {{name}} is waiting. To take it up you need an account of your own: an e-mail address, a username and a password.",
       "forInvitationUnnamed": "An invitation is waiting. To take it up you need an account of your own: an e-mail address, a username and a password.",
       "handle": "Username",
@@ -5708,5 +5708,37 @@
       "energySavingOff": "Energy saving off",
       "mode": "Operating mode: {{mode}}"
     }
+  },
+  "privacyPage": {
+    "title": "Privacy",
+    "intro": "What this app keeps about you, and what for.",
+    "kept": {
+      "account": {
+        "title": "Account:",
+        "text": "your e-mail address, your username and your password, the latter only encrypted. The address is for signing in and for the messages you switch on yourself."
+      },
+      "devices": {
+        "title": "Devices:",
+        "text": "what your devices measure and switch, their settings and messages – so that you can see and control them here."
+      },
+      "diary": {
+        "title": "Diary and pictures:",
+        "text": "what you enter and upload yourself, and the pictures of your cameras."
+      },
+      "notifications": {
+        "title": "Notifications:",
+        "text": "the ways you set up – e-mail, push, Telegram or a webhook."
+      },
+      "sharing": {
+        "title": "Sharing:",
+        "text": "Others see only what you share or make public on purpose."
+      },
+      "deleting": {
+        "title": "Deleting:",
+        "text": "Under Me › Delete account you remove your account with everything that belongs to it."
+      }
+    },
+    "operator": "Whoever runs this installation is responsible for this data.",
+    "back": "Back to sign-up"
   }
 }

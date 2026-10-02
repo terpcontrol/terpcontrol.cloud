@@ -45,6 +45,7 @@ import { PublicProfileRoute } from '@/screens/public/PublicProfileRoute';
 import { Recover } from '@/screens/Recover';
 import { SharedRoute } from '@/screens/public/SharedRoute';
 import { SignIn } from '@/screens/SignIn';
+import { PrivacyStatement } from '@/screens/PrivacyStatement';
 import { SignUp } from '@/screens/SignUp';
 import { Tasks } from '@/screens/Tasks';
 import { Timeline } from '@/screens/Timeline';
@@ -191,6 +192,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/sign-in', element: <SignIn /> },
       { path: '/sign-up', element: <SignUp /> },
+      { path: '/privacy', element: <PrivacyStatement /> },
       { path: '/recover', element: <Recover /> },
       { path: '/recover/:token', element: <Recover /> },
       { path: '/activate', element: <Activate /> },

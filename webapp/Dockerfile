@@ -27,8 +27,8 @@ ENV VITE_API_URL=${API_URL_EXTERNAL}
 # An install's own links below the sign-in form (imprint, terms). Whoever builds
 # the image writes it, which is why it may be markup.
 ENV VITE_CUSTOM_LINKS_HTML=${CUSTOM_LINKS_HTML}
-# The privacy statement a sign-up agrees to; without one the sign-up asks for no
-# agreement, because there is nothing to agree to.
+# The privacy statement a sign-up agrees to; without one the sign-up links the
+# app's own page of what the software keeps.
 ENV VITE_PRIVACY_URL=${PRIVACY_URL}
 RUN npm run build
 

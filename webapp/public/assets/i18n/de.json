@@ -275,7 +275,7 @@
     "demoFailed": "Die Demo konnte nicht geöffnet werden.",
     "noAccount": "Noch kein Konto?",
     "signUp": {
-      "intro": "Eine E-Mail-Adresse, ein Benutzername und ein Passwort. Mehr wird nicht gefragt.",
+      "intro": "Eine E-Mail-Adresse, ein Benutzername, ein Passwort und dein Einverständnis zum Datenschutz.",
       "forInvitation": "Eine Einladung in {{name}} wartet. Um sie anzunehmen, brauchst du ein eigenes Konto: eine E-Mail-Adresse, einen Benutzernamen und ein Passwort.",
       "forInvitationUnnamed": "Eine Einladung wartet. Um sie anzunehmen, brauchst du ein eigenes Konto: eine E-Mail-Adresse, einen Benutzernamen und ein Passwort.",
       "handle": "Benutzername",
@@ -5712,5 +5712,37 @@
       "energySavingOff": "Energiespar-Modus aus",
       "mode": "Betriebsart: {{mode}}"
     }
+  },
+  "privacyPage": {
+    "title": "Datenschutz",
+    "intro": "Was diese App über dich speichert, und wofür.",
+    "kept": {
+      "account": {
+        "title": "Konto:",
+        "text": "deine E-Mail-Adresse, dein Benutzername und dein Passwort, dieses nur verschlüsselt. Die Adresse dient der Anmeldung und den Nachrichten, die du selbst einschaltest."
+      },
+      "devices": {
+        "title": "Geräte:",
+        "text": "was deine Geräte messen und schalten, ihre Einstellungen und Meldungen – damit du sie hier siehst und steuerst."
+      },
+      "diary": {
+        "title": "Tagebuch und Bilder:",
+        "text": "was du selbst einträgst und hochlädst, und die Bilder deiner Kameras."
+      },
+      "notifications": {
+        "title": "Benachrichtigungen:",
+        "text": "die Wege, die du einrichtest – E-Mail, Push, Telegram oder ein Webhook."
+      },
+      "sharing": {
+        "title": "Teilen:",
+        "text": "Andere sehen nur, was du ausdrücklich teilst oder öffentlich machst."
+      },
+      "deleting": {
+        "title": "Löschen:",
+        "text": "Unter Ich › Konto löschen entfernst du dein Konto mit allem, was dazu gehört."
+      }
+    },
+    "operator": "Verantwortlich für diese Daten ist, wer diese Installation betreibt.",
+    "back": "Zurück zur Registrierung"
   }
 }

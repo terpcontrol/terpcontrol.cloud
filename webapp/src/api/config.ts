@@ -26,9 +26,9 @@ export const v1 = (path: string): string => `${API_URL}/v1${path}`;
 export const CUSTOM_LINKS_HTML: string = (import.meta.env.VITE_CUSTOM_LINKS_HTML as string | undefined) ?? '';
 
 /**
- * Where this install's privacy statement is published. Signing up asks for
- * agreement to it with a link that opens it, and only where there is one: an
- * install that publishes none has nothing to agree to.
+ * Where this install's privacy statement is published. Signing up always asks
+ * for agreement to it, with a link that opens it; an install that publishes
+ * none links the app's own page of what the software keeps (`/privacy`).
  */
 export const PRIVACY_URL: string = (import.meta.env.VITE_PRIVACY_URL as string | undefined)?.trim() ?? '';
 

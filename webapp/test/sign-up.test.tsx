@@ -12,6 +12,7 @@ import type { InvitePreview, Problem, SessionResult, UserCreate } from '@fg2/sha
 import { session } from '@/api/session';
 import { JoinRoute } from '@/screens/join/JoinRoute';
 import { SignIn } from '@/screens/SignIn';
+import { PrivacyStatement } from '@/screens/PrivacyStatement';
 import { SignUp } from '@/screens/SignUp';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 
@@ -90,6 +91,7 @@ const draw = (at: string) =>
             <Route path="/join" element={<JoinRoute />} />
             <Route path="/join/:code" element={<JoinRoute />} />
             <Route path="/sign-up" element={<SignUp />} />
+            <Route path="/privacy" element={<PrivacyStatement />} />
             <Route path="/sign-in" element={<SignIn />} />
             <Route path="/spaces/:spaceId" element={<Landed />} />
           </Routes>
@@ -120,6 +122,29 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
+describe('the privacy agreement on an install that publishes no statement of its own', () => {
+  it('is asked all the same, and links the app´s own page of what it keeps', async () => {
+    draw('/sign-up');
+
+    const link = screen.getByRole('link', { name: 'privacy policy' });
+    expect(link).toHaveAttribute('href', '/privacy');
+    fillIn('Email', 'mara@example.com');
+    fillIn('Username', 'mara');
+    fillIn('Password', 'a long enough secret');
+    fireEvent.click(screen.getByRole('button', { name: 'Create the account' }));
+    expect(await screen.findByText('Please accept the privacy policy to create an account.')).toBeInTheDocument();
+    expect(server.wrote).toEqual([]);
+  });
+
+  it('says on that page what the app keeps and who answers for it', () => {
+    draw('/privacy');
+
+    expect(screen.getByRole('heading', { name: 'Privacy' })).toBeInTheDocument();
+    expect(screen.getByText(/your e-mail address, your username and your password/)).toBeInTheDocument();
+    expect(screen.getByText('Whoever runs this installation is responsible for this data.')).toBeInTheDocument();
+  });
+});
+
 describe('the stranger an invitation was sent to', () => {
   it('is offered an account before a sign-in, and told in the invitation’s words what one takes', async () => {
     draw('/join/K7QZ4M2P');
@@ -138,6 +163,7 @@ describe('the stranger an invitation was sent to', () => {
     fillIn('Email', 'mara@example.com');
     fillIn('Username', '@mara');
     fillIn('Password', 'a long enough secret');
+    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Create the account' }));
 
     expect(await screen.findByText('Landed in space-9')).toBeInTheDocument();
@@ -158,6 +184,7 @@ describe('the stranger an invitation was sent to', () => {
     fillIn('Email', 'mara@example.com');
     fillIn('Username', 'mara');
     fillIn('Password', 'a long enough secret');
+    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Create the account' }));
 
     expect(await screen.findByText('One more step: activation')).toBeInTheDocument();
@@ -187,6 +214,7 @@ describe('the stranger an invitation was sent to', () => {
     fillIn('Email', 'mara@example.com');
     fillIn('Username', 'mara');
     fillIn('Password', 'a long enough secret');
+    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Create the account' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('There is already an account with that address.');

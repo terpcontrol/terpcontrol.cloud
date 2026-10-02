@@ -74,7 +74,7 @@ export function SignUp() {
 
   const submit = form.handleSubmit(async body => {
     setProblem(null);
-    if (PRIVACY_URL && !agreed) {
+    if (!agreed) {
       setUnagreed(true);
       return;
     }
@@ -217,30 +217,28 @@ export function SignUp() {
         />
         <FieldProblem message={errors.password?.message} />
 
-        {PRIVACY_URL ? (
-          <>
-            <label className={styles.agree}>
-              <input
-                type="checkbox"
-                checked={agreed}
-                disabled={busy}
-                aria-invalid={unagreed && !agreed}
-                onChange={event => {
-                  setAgreed(event.target.checked);
-                  setUnagreed(false);
-                }}
-              />
-              <span>
-                {t('login.acceptPrivacyBefore')}{' '}
-                <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer">
-                  {t('login.acceptPrivacyLink')}
-                </a>
-                {t('login.acceptPrivacyAfter')}
-              </span>
-            </label>
-            <FieldProblem message={unagreed && !agreed ? t('login.acceptPrivacyNeeded') : undefined} />
-          </>
-        ) : null}
+        <>
+          <label className={styles.agree}>
+            <input
+              type="checkbox"
+              checked={agreed}
+              disabled={busy}
+              aria-invalid={unagreed && !agreed}
+              onChange={event => {
+                setAgreed(event.target.checked);
+                setUnagreed(false);
+              }}
+            />
+            <span>
+              {t('login.acceptPrivacyBefore')}{' '}
+              <a href={PRIVACY_URL || '/privacy'} target="_blank" rel="noopener noreferrer">
+                {t('login.acceptPrivacyLink')}
+              </a>
+              {t('login.acceptPrivacyAfter')}
+            </span>
+          </label>
+          <FieldProblem message={unagreed && !agreed ? t('login.acceptPrivacyNeeded') : undefined} />
+        </>
 
         {problem ? (
           <p className={`${ui.problem} ${styles.problem}`} role="alert">
