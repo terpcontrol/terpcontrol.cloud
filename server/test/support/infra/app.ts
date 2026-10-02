@@ -62,6 +62,9 @@ export const buildEnv = (environment: AppEnvironment): NodeJS.ProcessEnv => {
 
     MQTT_URL: environment.mqttHost,
     MQTT_PORT: String(environment.mqttPort),
+    // Where controllers are told to open a Terp Cam relay. Nothing dials in, so
+    // a capture fails, but only after the server has asked the device for one.
+    TERPCAM_RELAY_URL: `http://127.0.0.1:${environment.port}/terpcam/relay`,
 
     SECRET_KEY: 'integration-test-secret-key',
     AUTOMATION_TOKEN: environment.automationToken,

@@ -13,6 +13,7 @@ import { MODEL } from '../../database/models.module';
 import { TerpCamDirectService } from '../camera/terpcam-direct.service';
 import { terpCamLabel } from '../camera/terpcam-stream';
 import { DeviceLogService } from '../device/device-log.service';
+import { ONLINE_TIMEOUT } from '../device/device.queries';
 import { TunnelService } from '../tunnel/tunnel.service';
 
 const READ_IMAGE_CHECK_INTERVAL_MS = 5_000;
@@ -54,6 +55,11 @@ const FFMPEG_MISSING_CODEC_PARAMS_PATTERN = /Could not find codec parameters/i;
 function readKey(settings: Pick<CloudSettings, 'rtspStream' | 'rtspStreamTransport' | 'tunnelRtspStream'>): string {
   if (terpCamLabel(settings.rtspStream)) return 'terpcam';
   return JSON.stringify([settings.rtspStream, settings.rtspStreamTransport ?? 'tcp', !!settings.tunnelRtspStream]);
+}
+
+/** Whether reading the camera goes through the device, so it only works while the device is online. */
+function readsThroughDevice(settings: Pick<CloudSettings, 'rtspStream' | 'tunnelRtspStream'>): boolean {
+  return !!terpCamLabel(settings.rtspStream) || !!settings.tunnelRtspStream;
 }
 
 /**
@@ -148,6 +154,15 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
           if (isInMaintenanceMode || isWorkmodeOff) {
             continue;
           }
+        }
+
+        // A camera read through the device - a Terp Cam over its controller's
+        // relay, or a stream tunnelled through it - needs the device to answer,
+        // and an offline one cannot: each try would only wait out its timeouts
+        // (three relay dial-ins of 45s for a Terp Cam). A camera the server
+        // reaches on its own is still read, whatever the device is doing.
+        if (readsThroughDevice(device.cloudSettings) && !((device.lastseen ?? 0) >= Date.now() - ONLINE_TIMEOUT)) {
+          continue;
         }
 
         const state = this.deviceIdToLastRtspState.get(device.device_id);
