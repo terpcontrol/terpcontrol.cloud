@@ -246,7 +246,10 @@ export class HomeService {
 
     const newestOf = (lit: boolean) =>
       this.media
-        .findOne({ cameraId: { $in: cameraIds }, kind: 'still', ...(lit ? { lit: { $ne: false } } : {}) }, { id: 1, cameraId: 1, capturedAt: 1, lit: 1 })
+        .findOne(
+          { cameraId: { $in: cameraIds }, kind: 'still', ...(lit ? { lit: { $ne: false } } : {}) },
+          { id: 1, cameraId: 1, capturedAt: 1, lit: 1 },
+        )
         .sort({ capturedAt: -1 })
         .lean<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt' | 'lit'> | null>();
 

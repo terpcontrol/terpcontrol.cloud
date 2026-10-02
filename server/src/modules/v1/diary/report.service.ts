@@ -356,6 +356,8 @@ const photoOf = (entries: EntryDocument[], middle: Date, grant: Grant): string |
     .filter(entry => entry.mediaIds.length > 0 && (grant.includeCameras || entry.cameraId === null))
     .reduce<EntryDocument | null>(
       (best, entry) =>
-        best === null || Math.abs(entry.occurredAt.getTime() - middle.getTime()) < Math.abs(best.occurredAt.getTime() - middle.getTime()) ? entry : best,
+        best === null || Math.abs(entry.occurredAt.getTime() - middle.getTime()) < Math.abs(best.occurredAt.getTime() - middle.getTime())
+          ? entry
+          : best,
       null,
     )?.mediaIds[0] ?? null;

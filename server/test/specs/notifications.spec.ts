@@ -129,7 +129,10 @@ describe('critical alarms by mail to the login address', () => {
   it('routes the rows a body names, such as the reminders of somebody without a device', async () => {
     const tapper = await createAccount('notify-rows');
 
-    const tapped = await tapper.client.post('/v1/me/email-alarms').send({ categories: ['tasks', 'warnings'] }).expect(200);
+    const tapped = await tapper.client
+      .post('/v1/me/email-alarms')
+      .send({ categories: ['tasks', 'warnings'] })
+      .expect(200);
     expect(tapped.body.notifications.channels.email).toBe(tapper.username);
     expect(tapped.body.notifications.routing).toMatchObject({ alerts: [], warnings: ['email'], tasks: ['email'] });
 

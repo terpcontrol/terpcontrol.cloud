@@ -159,7 +159,16 @@ beforeEach(async () => {
     startMaintenance: async (deviceId, forSeconds) => void quietened.push({ deviceId, forSeconds }),
   };
 
-  entries = new EntryWritesService(db.entries, db.grows, db.plants, db.devices, db.reminders, access, new EntryWriterService(db.entries), maintenance);
+  entries = new EntryWritesService(
+    db.entries,
+    db.grows,
+    db.plants,
+    db.devices,
+    db.reminders,
+    access,
+    new EntryWriterService(db.entries),
+    maintenance,
+  );
 
   const alarms: StageAlarms = { applyStage: async () => undefined };
   const mail = { send: async () => undefined } as unknown as MailService;

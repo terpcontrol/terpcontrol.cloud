@@ -70,18 +70,29 @@ beforeEach(() => {
 
 describe('what Erweitert offers a device', () => {
   it('offers a fridge its ramps, its maintenance light, its fans, its compressor rest and its leaf offsets', () => {
-    expect(ids(device())).toEqual(['operating-mode', 'light-ramps', 'maintenance-light', 'fans', 'compressor-rest', 'continue-plan', 'leaf-offsets']);
+    expect(ids(device())).toEqual([
+      'operating-mode',
+      'light-ramps',
+      'maintenance-light',
+      'fans',
+      'compressor-rest',
+      'continue-plan',
+      'leaf-offsets',
+      'update-channel',
+    ]);
   });
 
   it('offers a tent controller the ramps its lamp runs on, and the lux factor only where it measures light', () => {
-    expect(ids(device('controller'))).toEqual(['light-ramps', 'continue-plan', 'leaf-offsets']);
+    expect(ids(device('controller'))).toEqual(['light-ramps', 'continue-plan', 'leaf-offsets', 'update-channel']);
     expect(ids(device('controller', { ppfd: 'on' }))).toContain('lux-factor');
   });
 
-  it('offers nothing to tune before the device has sent its document, and nothing at all to a lamp or a plug', () => {
+  it('offers nothing to tune before the device has sent its document, and none of this to a lamp or a plug', () => {
     expect(ids(device('fridge', {}, { configuration: null }))).not.toContain('light-ramps');
-    expect(ids(device('light'))).toEqual([]);
-    expect(ids(device('plug'))).toEqual([]);
+    // A LIGHT and a smart socket have fine settings of their own, which stand
+    // under Erweitert in their own panels; a fridge's are not among them.
+    expect(ids(device('light'))).toEqual(['light-ramp', 'light-overheat', 'update-channel']);
+    expect(ids(device('plug'))).toEqual(['plug-protections', 'update-channel']);
   });
 });
 
