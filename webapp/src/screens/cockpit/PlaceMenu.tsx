@@ -41,6 +41,7 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
   // A place with nothing standing in it has no document a preset could be written into.
   const hasDevice = (overview.deviceIds?.length ?? 0) > 0;
   const grow = diary ? (overview.grows[0] ?? null) : null;
+  const mayOwnGrow = mayManage && user !== null && user.isDemo !== true;
   // Somebody who said no to the diary is not offered a grow through the back door; the answer can be changed under Me.
   const mayStartGrow = mayManage && grow === null && (diary || (me.data !== undefined && me.data.preferences.diary !== 'off'));
   const growLine = [diary ? null : t('cockpit.menu.growTurnsOn'), hasDevice ? t('cockpit.menu.growWrites') : null].filter(Boolean).join(' · ');
@@ -91,6 +92,12 @@ export function PlaceMenu({ overview }: { overview: SpaceOverview }) {
           {mayManage && hasDevice ? (
             <Link to={controlPath(overview.spaceId, null, {}, 'presets')} onClick={() => setOpen(false)}>
               {t('cockpit.menu.preset')} <span className={styles.menuLine}>{t('cockpit.menu.presetLine')}</span>
+            </Link>
+          ) : null}
+          {/* Showing somebody the diary is a grow's, and was the seventh chip of the grow page, off the screen's edge. */}
+          {grow && mayOwnGrow ? (
+            <Link to={`/grows/${grow.growId}?share=1`} onClick={() => setOpen(false)}>
+              {t('cockpit.menu.shareGrow')}
             </Link>
           ) : null}
           {grow ? (

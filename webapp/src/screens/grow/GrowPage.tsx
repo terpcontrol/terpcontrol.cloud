@@ -1,14 +1,12 @@
 import { ChevronLeft, CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, Navigate, useParams } from 'react-router';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import { placePath, useBackToPlace } from '@/app/places';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
-import { fetchedAt } from '@/api/clock';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
-import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, standsIn, useMayWith } from '@/ui/session-access';
 import { Tabs } from '@/ui/Tabs';
@@ -51,14 +49,9 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
   const plants = useGrowPlants(growId);
   const spaces = useSpaces();
   const mayWith = useMayWith();
-  const [sharing, setSharing] = useState(false);
-
-  // The instant this read answered is a millisecond this browser noted, so it
-  // is restated on the server's clock before the shell ages it: the line under
-  // the wordmark subtracts it from the server's now, and a browser three
-  // quarters of an hour out otherwise has that gap read back to it as the age
-  // of a read that had just landed.
-  useReportFreshness(grow.dataUpdatedAt ? fetchedAt(grow.dataUpdatedAt) : null);
+  // "Grow teilen" in a place's ⋯ menu opens the grow on its share sheet.
+  const [params] = useSearchParams();
+  const [sharing, setSharing] = useState(params.get('share') === '1');
 
   if (grow.isPending) {
     return (
@@ -95,7 +88,7 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
       {tab === 'plants' ? <Plants grow={grow.data} plants={plants} spaces={spaces.data?.items ?? []} /> : null}
       {tab === 'feeding' ? <Feeding grow={grow.data} mayManage={mayManage} /> : null}
       {tab === 'report' ? <Report grow={grow.data} spaces={spaces.data?.items ?? []} mayOwn={mayOwn} now={now} /> : null}
-      {sharing ? <ShareSheet grow={grow.data} onClose={() => setSharing(false)} /> : null}
+      {sharing && mayOwn ? <ShareSheet grow={grow.data} onClose={() => setSharing(false)} /> : null}
     </section>
   );
 }

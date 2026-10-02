@@ -4719,13 +4719,14 @@
       "preset": "Choose a climate preset",
       "newGrow": "Start a grow",
       "moveGrow": "Move a grow here",
-      "members": "Members & sharing",
+      "members": "Invite members",
       "rename": "Rename",
       "presetLine": "under Control · applies once saved",
       "openGrow": "Open the grow",
       "growDay": "{{name}} · day {{day}}",
       "growTurnsOn": "turns the grow diary on",
-      "growWrites": "puts the targets on the stage"
+      "growWrites": "puts the targets on the stage",
+      "shareGrow": "Share the grow"
     },
     "status": {
       "good": "All on target",

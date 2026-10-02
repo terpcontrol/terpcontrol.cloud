@@ -489,7 +489,7 @@ describe('the place menu', () => {
     open('/');
 
     fireEvent.click(await screen.findByRole('button', { name: 'More about Fridge 1' }));
-    expect(await screen.findByRole('link', { name: 'Members & sharing' })).toHaveAttribute('href', '/spaces/space-1/members');
+    expect(await screen.findByRole('link', { name: 'Invite members' })).toHaveAttribute('href', '/spaces/space-1/members');
     expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Choose a climate preset/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Start a grow/ })).not.toBeInTheDocument();

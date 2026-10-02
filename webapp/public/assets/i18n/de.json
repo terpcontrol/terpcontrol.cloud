@@ -4723,13 +4723,14 @@
       "preset": "Klima-Preset wählen",
       "newGrow": "Grow starten",
       "moveGrow": "Grow hierher holen",
-      "members": "Mitglieder & Teilen",
+      "members": "Mitglieder einladen",
       "rename": "Umbenennen",
       "presetLine": "unter Steuerung · gilt erst nach Speichern",
       "openGrow": "Grow öffnen",
       "growDay": "{{name}} · Tag {{day}}",
       "growTurnsOn": "schaltet das Tagebuch ein",
-      "growWrites": "setzt die Zielwerte der Phase"
+      "growWrites": "setzt die Zielwerte der Phase",
+      "shareGrow": "Grow teilen"
     },
     "status": {
       "good": "Alles im Ziel",

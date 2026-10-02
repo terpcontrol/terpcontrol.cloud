@@ -638,7 +638,7 @@ describe('the place menu', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'More about Fridge 1' }));
     expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Members & sharing' })).toHaveAttribute('href', '/spaces/space-1/members');
+    expect(screen.getByRole('link', { name: 'Invite members' })).toHaveAttribute('href', '/spaces/space-1/members');
     // The climate preset is the one list of chips under the targets, which the item opens rather than a second list of its own.
     expect(screen.getByRole('link', { name: 'Choose a climate preset under Control · applies once saved' })).toHaveAttribute(
       'href',
@@ -686,6 +686,8 @@ describe('the place menu', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'More about Fridge 1' }));
     expect(await screen.findByRole('link', { name: 'Open the grow Spring run · day 34' })).toHaveAttribute('href', '/grows/grow-1');
+    // Showing the diary to somebody is the grow's, and a tap from here rather than the seventh chip of the grow page.
+    expect(screen.getByRole('link', { name: 'Share the grow' })).toHaveAttribute('href', '/grows/grow-1?share=1');
     expect(screen.queryByRole('link', { name: /Start a grow/ })).not.toBeInTheDocument();
   });
 
@@ -694,7 +696,7 @@ describe('the place menu', () => {
     draw(<PlaceCockpit overview={overviewOf()} headed />);
 
     fireEvent.click(screen.getByRole('button', { name: 'More about Fridge 1' }));
-    expect(await screen.findByRole('link', { name: 'Members & sharing' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Invite members' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Choose a climate preset/ })).not.toBeInTheDocument();
     expect(screen.queryAllByRole('link', { name: 'Change' })).toHaveLength(0);

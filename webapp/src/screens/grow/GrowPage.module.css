@@ -286,10 +286,13 @@
    says the diary already has an address of its own and leads to it. */
 .share {
   flex-shrink: 0;
+  /* First in the row on a phone, where the rest scrolls off its edge; at the far end of it beside the rail. */
+  order: -1;
 }
 
 @media (min-width: 900px) {
   .share {
+    order: 99;
     margin-left: auto;
   }
 }
