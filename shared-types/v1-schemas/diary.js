@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.exportAccepted = exports.media = exports.mediaExportJob = exports.exportScope = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.growReadingNames = exports.readingName = exports.entryReading = void 0;
 exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputLevel = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -1154,7 +1154,23 @@ exports.timelinePanel = (0, common_js_1.named)('TimelinePanel', zod_1.z.object({
     points: zod_1.z.array(common_js_1.seriesPoint),
     targets: zod_1.z.array(exports.timelineTargets).describe('In order, each ending where the next begins; empty where nothing held a target over the window.'),
 }));
-/** One output over the window, as the lanes under the panels draw it: when it was on, not what it measured. */
+/**
+ * How hard an output was driven while it ran, window by window, for an output
+ * the device drives at a level rather than only on and off: a dimmed lamp, a
+ * fan's speed, the heater's demand, and the CO2 valve's dosing.
+ *
+ * `percent` is the share of full output, averaged over the stretches of each
+ * window the output ran in - so a lamp dimmed to 60 % reads 60 % however many
+ * hours of the window it was dark, and the lane's spans say when it was. `count`
+ * is the CO2 valve: what the device counted while the valve was open, summed
+ * over each window, which is how much was dosed there and not a share of
+ * anything. A window the output did not run in has no point.
+ */
+exports.timelineOutputLevel = (0, common_js_1.named)('TimelineOutputLevel', zod_1.z.object({
+    unit: zod_1.z.enum(['percent', 'count']),
+    points: zod_1.z.array(common_js_1.seriesPoint).describe('Stamped like the climate points: each closes the window it stands for.'),
+}));
+/** One output over the window, as the lanes under the panels draw it: when it was on, and on the charts how hard it ran. */
 exports.timelineOutputLane = (0, common_js_1.named)('TimelineOutputLane', zod_1.z.object({
     output: common_js_1.outputMetric,
     deviceId: (0, common_js_1.id)()
@@ -1162,6 +1178,13 @@ exports.timelineOutputLane = (0, common_js_1.named)('TimelineOutputLane', zod_1.
         .describe('Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.'),
     spans: zod_1.z.array(exports.timelineSpan),
     heardUntil: (0, common_js_1.instant)().describe('How far anything is known about this output: the last instant the device was heard from inside the window, or the window\'s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.'),
+    fridge: zod_1.z
+        .literal(true)
+        .optional()
+        .describe('Set where a fridge module drives the output, whose dehumidifier output is the compressor that cools and dries at once and is called that. Told to a link too, which is not told the device: the name of a lane is not the hardware behind it.'),
+    level: exports.timelineOutputLevel
+        .optional()
+        .describe('Only on a charts read, and only for an output the device drives at a level; absent where the output is a switch and nothing more.'),
 }));
 /**
  * One alarm as a span of the window. `endedAt` is null for an alert that is

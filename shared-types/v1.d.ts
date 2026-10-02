@@ -3682,6 +3682,14 @@ export interface TimelinePanel {
   targets: TimelineTargets[];
 }
 
+export interface TimelineOutputLevel {
+  unit: 'percent' | 'count';
+  /**
+   * Stamped like the climate points: each closes the window it stands for.
+   */
+  points: SeriesPoint[];
+}
+
 export interface TimelineOutputLane {
   output: OutputMetric;
   /**
@@ -3693,6 +3701,23 @@ export interface TimelineOutputLane {
    * How far anything is known about this output: the last instant the device was heard from inside the window, or the window's own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.
    */
   heardUntil: string;
+  /**
+   * Set where a fridge module drives the output, whose dehumidifier output is the compressor that cools and dries at once and is called that. Told to a link too, which is not told the device: the name of a lane is not the hardware behind it.
+   */
+  fridge?: true;
+  level?: TimelineOutputLevel1;
+}
+
+/**
+ * Only on a charts read, and only for an output the device drives at a level; absent where the output is a switch and nothing more.
+ */
+
+export interface TimelineOutputLevel1 {
+  unit: 'percent' | 'count';
+  /**
+   * Stamped like the climate points: each closes the window it stands for.
+   */
+  points: SeriesPoint[];
 }
 
 export interface TimelineAlarm {

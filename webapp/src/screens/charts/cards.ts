@@ -1,12 +1,35 @@
-import type { MeasurementDefinition, Metric, OutputMetric, TimelinePanel, TimelineSpan, TimelineTarget, TimelineTargets } from '@fg2/shared-types/v1';
+import type {
+  MeasurementDefinition,
+  Metric,
+  OutputMetric,
+  TimelineOutputLane,
+  TimelinePanel,
+  TimelineSpan,
+  TimelineTarget,
+  TimelineTargets,
+} from '@fg2/shared-types/v1';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { CHART_METRICS, CHART_OUTPUTS } from '@/api/charts';
-import { csvOf, dayOfGrow, niceScale, setpointPoints, stepPoints, type CsvColumn, type Plot, type PlotLine, type PlotSpan } from '@/charts/series';
+import {
+  csvOf,
+  dayOfGrow,
+  levelPoints,
+  niceScale,
+  setpointPoints,
+  stepPoints,
+  type CsvColumn,
+  type Plot,
+  type PlotLine,
+  type PlotScale,
+  type PlotSpan,
+} from '@/charts/series';
 import type { ChartToken } from '@/charts/tokens';
+import type { HelpTopic } from '@/ui/explain';
 import { looseFigure } from '@/ui/figures';
 import { targetFigure, UNIT } from '../home/units';
 import { at, spans, stretchesOf } from '../timeline/window';
 import type { ChartData } from './data';
+import { stepLabel } from './steps';
 
 /**
  * Which lines the answer can offer, which of them are ticked, and what that
@@ -72,6 +95,19 @@ export interface Offered {
   measurements: MeasurementDefinition[];
 }
 
+/**
+ * What an output is called on the charts. A fridge module drives one compressor
+ * that cools and dries at once, and its dehumidifier output is that compressor:
+ * the cockpit, the alarms and the device panel call it so, and a chip or a card
+ * calling the same machine "Entfeuchter" would be a second name for it.
+ */
+export const outputTitle = (t: Translate, output: OutputMetric, lanes: readonly Pick<TimelineOutputLane, 'output' | 'fridge'>[]): string => {
+  const own = lanes.filter(lane => lane.output === output);
+  const word = output === 'dehumidifier' && own.length > 0 && own.every(lane => lane.fridge === true) ? 'compressor' : output;
+
+  return t(`timeline.output.${word}`, { defaultValue: output });
+};
+
 export const offeredBy = (series: ChartData | undefined, definitions: readonly MeasurementDefinition[]): Offered => ({
   metrics: CHART_METRICS.filter(metric => (series?.climate ?? []).some(panel => panel.metric === metric && panel.points.length > 0)),
   outputs: CHART_OUTPUTS.filter(output => (series?.outputs ?? []).some(lane => lane.output === output && lane.spans.length > 0)),
@@ -98,7 +134,7 @@ export const droppedBy = (t: Translate, picked: Picked, offered: Offered, define
   ...picked.measurements
     .filter(key => !offered.measurements.some(one => one.key === key))
     .map(key => defined.find(one => one.key === key)?.name ?? key),
-  ...picked.outputs.filter(output => !offered.outputs.includes(output)).map(output => t(`timeline.output.${output}`, { defaultValue: output })),
+  ...picked.outputs.filter(output => !offered.outputs.includes(output)).map(output => outputTitle(t, output, [])),
 ];
 
 /** The climate a grower reads first; the rest - CO2, the leaf, the light - is a tap away. */
@@ -127,6 +163,8 @@ export interface Card {
   plot: Plot;
   /** What the card could not take, named rather than dropped in silence. */
   left: string[];
+  /** The (i) beside the title, where what the card draws needs more than its title to be read. */
+  help?: HelpTopic;
 }
 
 /** One line before it is put on a card: what it is drawn from, what it is called and what it is measured in. */
@@ -140,7 +178,10 @@ interface Drawn {
   lines: PlotLine[];
   /** Everything the scale of this line's unit has to hold: what was measured, and what was aimed at. */
   values: number[];
+  /** A scale that is the same whatever was drawn: a share of full output runs from none of it to all of it. */
+  scale?: PlotScale;
   csv: CsvColumn;
+  help?: HelpTopic;
 }
 
 /** Which half of the cycle the VPD line keeps: both, or only the lit or only the dark one. */
@@ -180,7 +221,7 @@ const stacked = (t: Translate, drawn: Drawn[]): Card[] => {
     : null;
   const cards = drawn
     .filter(one => !pair || !TOGETHER.includes(one.key as Metric))
-    .map(one => cardOf(one.key, one.title, one.about, one.unit, [one], []));
+    .map(one => ({ ...cardOf(one.key, one.title, one.about, one.unit, [one], []), ...(one.help ? { help: one.help } : {}) }));
 
   if (pair) cards.unshift(cardOf(pair.map(one => one.key).join('+'), pair.map(one => one.title).join(' + '), t('charts.about.pair'), '', pair, []));
 
@@ -221,7 +262,12 @@ const cardOf = (key: string, title: string, about: string, unit: string, drawn: 
   const units = [...new Set(drawn.map(one => one.unit))];
   const lines = drawn.flatMap(one => one.lines.map(line => ({ ...line, axis: (units.indexOf(one.unit) === 1 ? 1 : 0) as 0 | 1 })));
   const on = units.map(name => drawn.filter(one => one.unit === name));
-  const scales = on.map(here => niceScale(here.flatMap(one => one.values)));
+  // A share of full output keeps its nought to a hundred, and so does a humidity laid over it, which is a share of a hundred too.
+  const scales = on.map(here => {
+    const fixed = here.find(one => one.scale)?.scale;
+    const values = here.flatMap(one => one.values);
+    return fixed && values.every(value => value >= fixed.low && value <= fixed.high) ? fixed : niceScale(values);
+  });
 
   return {
     key,
@@ -346,7 +392,7 @@ const drawnOf = (t: Translate, series: ChartData, input: CardsInput): Drawn[] =>
     .flatMap(output => {
       const lanes = series.outputs.filter(one => one.output === output);
 
-      return lanes.length > 0 ? [outputDrawn(t, output, lanes, at(series.startsAt), at(series.endsAt))] : [];
+      return lanes.length > 0 ? [outputDrawn(t, output, lanes, at(series.startsAt), at(series.endsAt), series.stepSeconds)] : [];
     }),
 ];
 
@@ -512,7 +558,7 @@ const plantLabel = (name: string, plantId: string | null, plants: readonly Plant
 };
 
 /**
- * An output as the square wave its spans describe.
+ * An output as the line its spans and its level describe together.
  *
  * Two controllers in one tent each drive their own light and answer their own
  * lane, and the line is when any of them ran: overlapping spans are joined
@@ -520,37 +566,99 @@ const plantLabel = (name: string, plantId: string | null, plants: readonly Plant
  * moment one machine's window begins inside another's. The card says how many
  * were pooled rather than passing off two machines as one.
  *
- * The wave is drawn as far as the last of them was heard from, and no further.
+ * The line is drawn as far as the last of them was heard from, and no further.
  * It is the latest and not the earliest of the lanes on purpose: where one
  * controller of a tent has gone quiet and another is still reporting, the tent's
  * lamp is still known about, and cutting at the first silence would erase what
  * the second machine is saying.
+ *
+ * An output driven at a level is drawn at that level: the lamp at the share of
+ * full light it was dimmed to, ramps and all, a fan at its speed, the heater at
+ * its demand - from nothing to all of it, on a scale that is always the same.
+ * The CO2 valve is drawn as what it dosed in each window. Where a device says
+ * nothing about how hard - a dehumidifier, a socket's relay - the line is the
+ * square wave of when it ran, and the card says that is all it is.
  */
 const outputDrawn = (
   t: Translate,
   output: OutputMetric,
-  lanes: readonly { deviceId: string | null; spans: readonly { startsAt: string; endsAt: string }[]; heardUntil: string }[],
+  lanes: readonly Pick<TimelineOutputLane, 'deviceId' | 'spans' | 'heardUntil' | 'level' | 'output' | 'fridge'>[],
   from: number,
   to: number,
+  stepSeconds: number,
 ): Drawn => {
   const spans = joined(
     lanes.flatMap(lane => lane.spans.map(span => ({ from: at(span.startsAt), to: at(span.endsAt) }))).sort((one, other) => one.from - other.from),
   );
-  const points = stepPoints(spans, from, to, Math.max(...lanes.map(lane => at(lane.heardUntil))));
-  const title = t(`timeline.output.${output}`, { defaultValue: output });
+  const heard = Math.max(...lanes.map(lane => at(lane.heardUntil)));
+  const title = outputTitle(t, output, lanes);
   // A reader who is not told the hardware gets no ids, and each lane is then a device of its own.
   const devices = new Set(lanes.map((lane, index) => lane.deviceId ?? index)).size;
+  const level = pooledLevel(lanes);
+  const key = `out-${output}`;
+
+  if (level === null || stepSeconds <= 0) {
+    const points = stepPoints(spans, from, to, heard);
+
+    return {
+      key,
+      title,
+      about: devices > 1 ? t('charts.about.outputPooled', { count: devices }) : t('charts.about.output'),
+      unit: '',
+      values: [0, 1],
+      lines: [{ key, label: title, shape: 'step', colour: 'output', axis: 0, points }],
+      // A state stands until it switches, so the column reads across the rows the climate put in the table.
+      csv: { label: t('charts.csvOutput', { output: title }), points, holds: true },
+    };
+  }
+
+  const step = stepSeconds * 1000;
+  const percent = level.unit === 'percent';
+  const unit = percent ? '%' : t('charts.ticks', { count: 2 });
+  const points = levelPoints(level.points, step, from, to, heard, percent ? spans : undefined);
+  const about = percent
+    ? t(devices > 1 ? 'charts.about.levelPooled' : 'charts.about.level', { count: devices })
+    : t(devices > 1 ? 'charts.about.dosePooled' : 'charts.about.dose', { count: devices, step: stepLabel(stepSeconds, t) });
 
   return {
-    key: `out-${output}`,
+    key,
     title,
-    about: devices > 1 ? t('charts.about.outputPooled', { count: devices }) : t('charts.about.output'),
-    unit: '',
-    values: [0, 1],
-    lines: [{ key: `out-${output}`, label: title, shape: 'step', colour: 'output', axis: 0, points }],
-    // A state stands until it switches, so the column reads across the rows the climate put in the table.
-    csv: { label: t('charts.csvOutput', { output: title }), points, holds: true },
+    about,
+    unit,
+    values: [0, ...(percent ? [100] : level.points.map(([, value]) => value))],
+    ...(percent ? { scale: { low: 0, high: 100 } } : {}),
+    lines: [
+      { key, label: title, unit, ...(percent ? {} : { unitOne: t('charts.ticks', { count: 1 }) }), shape: 'line', colour: 'output', axis: 0, points },
+    ],
+    // A level holds until the next window says otherwise; a dose is what one window held and is written where it was counted.
+    csv: percent
+      ? { label: `${title} (%)`, points, holds: true }
+      : { label: t('charts.csvDose', { output: title, step: stepLabel(stepSeconds, t) }), points: level.points },
+    help: 'chartOutputs',
   };
+};
+
+/**
+ * The level of one output across the devices that drive it: the strongest of
+ * them at each window for a share of full output, and all of it added up for a
+ * dose. Null where none of them said how hard, which leaves the square wave.
+ */
+const pooledLevel = (lanes: readonly Pick<TimelineOutputLane, 'level'>[]): { unit: 'percent' | 'count'; points: [number, number][] } | null => {
+  const levelled = lanes.flatMap(lane => (lane.level ? [lane.level] : []));
+  if (levelled.length === 0) return null;
+  const unit = levelled[0].unit;
+  const windows = new Map<number, number>();
+
+  for (const level of levelled) {
+    for (const point of level.points) {
+      if (point.value === null) continue;
+      const time = at(point.measuredAt);
+      const known = windows.get(time);
+      windows.set(time, known === undefined ? point.value : unit === 'count' ? known + point.value : Math.max(known, point.value));
+    }
+  }
+
+  return { unit, points: [...windows].sort(([one], [other]) => one - other) };
 };
 
 /** Spans sorted by start, run together where they touch or overlap, so the wave only ever steps forwards. */

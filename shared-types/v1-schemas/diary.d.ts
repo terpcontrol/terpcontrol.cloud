@@ -3931,7 +3931,29 @@ export declare const timelinePanel: z.ZodObject<{
         }, z.core.$strip>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
-/** One output over the window, as the lanes under the panels draw it: when it was on, not what it measured. */
+/**
+ * How hard an output was driven while it ran, window by window, for an output
+ * the device drives at a level rather than only on and off: a dimmed lamp, a
+ * fan's speed, the heater's demand, and the CO2 valve's dosing.
+ *
+ * `percent` is the share of full output, averaged over the stretches of each
+ * window the output ran in - so a lamp dimmed to 60 % reads 60 % however many
+ * hours of the window it was dark, and the lane's spans say when it was. `count`
+ * is the CO2 valve: what the device counted while the valve was open, summed
+ * over each window, which is how much was dosed there and not a share of
+ * anything. A window the output did not run in has no point.
+ */
+export declare const timelineOutputLevel: z.ZodObject<{
+    unit: z.ZodEnum<{
+        percent: "percent";
+        count: "count";
+    }>;
+    points: z.ZodArray<z.ZodObject<{
+        measuredAt: z.ZodISODateTime;
+        value: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/** One output over the window, as the lanes under the panels draw it: when it was on, and on the charts how hard it ran. */
 export declare const timelineOutputLane: z.ZodObject<{
     output: z.ZodEnum<{
         dehumidifier: "dehumidifier";
@@ -3950,6 +3972,17 @@ export declare const timelineOutputLane: z.ZodObject<{
         endsAt: z.ZodISODateTime;
     }, z.core.$strip>>;
     heardUntil: z.ZodISODateTime;
+    fridge: z.ZodOptional<z.ZodLiteral<true>>;
+    level: z.ZodOptional<z.ZodObject<{
+        unit: z.ZodEnum<{
+            percent: "percent";
+            count: "count";
+        }>;
+        points: z.ZodArray<z.ZodObject<{
+            measuredAt: z.ZodISODateTime;
+            value: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
  * One alarm as a span of the window. `endedAt` is null for an alert that is
@@ -4146,6 +4179,17 @@ export declare const spaceTimeline: z.ZodObject<{
             endsAt: z.ZodISODateTime;
         }, z.core.$strip>>;
         heardUntil: z.ZodISODateTime;
+        fridge: z.ZodOptional<z.ZodLiteral<true>>;
+        level: z.ZodOptional<z.ZodObject<{
+            unit: z.ZodEnum<{
+                percent: "percent";
+                count: "count";
+            }>;
+            points: z.ZodArray<z.ZodObject<{
+                measuredAt: z.ZodISODateTime;
+                value: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>;
     events: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -5298,6 +5342,17 @@ export declare const growSeries: z.ZodObject<{
             endsAt: z.ZodISODateTime;
         }, z.core.$strip>>;
         heardUntil: z.ZodISODateTime;
+        fridge: z.ZodOptional<z.ZodLiteral<true>>;
+        level: z.ZodOptional<z.ZodObject<{
+            unit: z.ZodEnum<{
+                percent: "percent";
+                count: "count";
+            }>;
+            points: z.ZodArray<z.ZodObject<{
+                measuredAt: z.ZodISODateTime;
+                value: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>;
     nights: z.ZodArray<z.ZodObject<{
         startsAt: z.ZodISODateTime;
@@ -5399,6 +5454,17 @@ export declare const spaceSeries: z.ZodObject<{
             endsAt: z.ZodISODateTime;
         }, z.core.$strip>>;
         heardUntil: z.ZodISODateTime;
+        fridge: z.ZodOptional<z.ZodLiteral<true>>;
+        level: z.ZodOptional<z.ZodObject<{
+            unit: z.ZodEnum<{
+                percent: "percent";
+                count: "count";
+            }>;
+            points: z.ZodArray<z.ZodObject<{
+                measuredAt: z.ZodISODateTime;
+                value: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>;
     nights: z.ZodArray<z.ZodObject<{
         startsAt: z.ZodISODateTime;

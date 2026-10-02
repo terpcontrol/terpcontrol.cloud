@@ -1221,6 +1221,68 @@ describe('the night and the lanes over a window wider than the cycle', () => {
       { output: 'light', deviceId: CONTROLLER, spans: stretches(true), heardUntil: CLOSES.toISOString() },
     ]);
   });
+
+  it('says how hard each output ran where the read asked for it: a share of full output, or what the valve dosed', () => {
+    const lamp = history();
+    const at = (minutes: number) => new Date(OPENS.getTime() + minutes * 60_000).toISOString();
+    const read: DeviceHistory = {
+      ...lamp,
+      outputs: [
+        {
+          ...lamp.outputs[0],
+          levels: [
+            { measuredAt: at(10), value: 62.4 },
+            { measuredAt: at(20), value: 100 },
+          ],
+        },
+        {
+          output: 'heater',
+          switchings: lamp.outputs[0].switchings,
+          levels: [
+            { measuredAt: at(10), value: 0.355 },
+            { measuredAt: at(20), value: 1.2 },
+          ],
+        },
+        { output: 'co2', switchings: lamp.outputs[0].switchings, levels: [{ measuredAt: at(10), value: 3500 }] },
+        // A switch has no level, whatever the read asked.
+        { output: 'dehumidifier', switchings: lamp.outputs[0].switchings },
+      ],
+    };
+
+    const lanes = lanesOf([read], WINDOW);
+
+    expect(lanes.map(lane => [lane.output, lane.level])).toEqual([
+      [
+        'light',
+        {
+          unit: 'percent',
+          points: [
+            { measuredAt: at(10), value: 62 },
+            { measuredAt: at(20), value: 100 },
+          ],
+        },
+      ],
+      // The heater's demand is a fraction of one, and never more than all of it.
+      [
+        'heater',
+        {
+          unit: 'percent',
+          points: [
+            { measuredAt: at(10), value: 36 },
+            { measuredAt: at(20), value: 100 },
+          ],
+        },
+      ],
+      ['co2', { unit: 'count', points: [{ measuredAt: at(10), value: 3500 }] }],
+      ['dehumidifier', undefined],
+    ]);
+    expect('level' in lanes[3]).toBe(false);
+  });
+
+  it('says a lane is a fridge module´s, to a link as well, so its dehumidifier can be called the compressor', () => {
+    expect(lanesOf([history()], WINDOW, true, new Set([CONTROLLER]))[0]).toMatchObject({ output: 'light', deviceId: null, fridge: true });
+    expect('fridge' in lanesOf([history()], WINDOW, true, new Set(['another-device']))[0]).toBe(false);
+  });
 });
 
 /**

@@ -55,9 +55,12 @@ const fakeSwitchings = (request: SeriesRequest): OutputHistory[] =>
 const VALUES: Partial<Record<Metric, number>> = { temperature: 24, humidity: 55, vpd: 1.1, leafTemperature: 22, lux: 30000, ppfd: 450 };
 
 const fakeData = {
-  history: async (deviceId: string, request: SeriesRequest): Promise<DeviceHistory> => {
+  history: async (deviceId: string, request: SeriesRequest, levels = false): Promise<DeviceHistory> => {
     const series = await fakeData.series(deviceId, request);
-    return { series, outputs: fakeSwitchings(request), lastSampleAt: request.endsAt.toISOString() };
+    const outputs = fakeSwitchings(request).map(one =>
+      levels && one.output === 'light' ? { ...one, levels: [{ measuredAt: request.endsAt.toISOString(), value: 70 }] } : one,
+    );
+    return { series, outputs, lastSampleAt: request.endsAt.toISOString() };
   },
   series: async (deviceId: string, request: SeriesRequest): Promise<DeviceSeries> => {
     reads.push(request);
@@ -152,6 +155,8 @@ describe('a place charted without a grow', () => {
     expect(answer.climate[0].targets[0].day).toEqual({ setpoint: 25, band: { low: 24, high: 26 } });
     expect(answer.outputs.map(lane => lane.output)).toEqual(['light']);
     expect(answer.deviceIds).toEqual([CONTROLLER]);
+    // The charts draw how hard the lamp ran, not only when: the read asks for its level.
+    expect(answer.outputs[0].level).toEqual({ unit: 'percent', points: [{ measuredAt: NOW.toISOString(), value: 70 }] });
   });
 
   it('keeps a step somebody chose and decides one from the width where nobody did', async () => {

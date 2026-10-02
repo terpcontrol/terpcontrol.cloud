@@ -549,8 +549,12 @@
       "overlay": "overlaid",
       "measured": "measured",
       "perPlant": "per plant",
-      "output": "when it ran",
-      "outputPooled": "when any of {{count}} controllers ran"
+      "output": "when on",
+      "outputPooled": "when on, at any of {{count}} devices",
+      "level": "level in % of full output",
+      "levelPooled": "highest level of {{count}} devices, in %",
+      "dose": "dosed per {{step}}",
+      "dosePooled": "dosed per {{step}}, {{count}} devices added up"
     },
     "leftOut_one": "{{names}} is left out: two units on one panel only when they belong together.",
     "leftOut_other": "{{names}} are left out: two units on one panel only when they belong together.",
@@ -631,7 +635,10 @@
     "csvHead": {
       "time": "time",
       "day": "day"
-    }
+    },
+    "csvDose": "{{output}} (ticks per {{step}})",
+    "ticks_one": "tick",
+    "ticks_other": "ticks"
   },
   "devices": {
     "button-settings": "Settings",
@@ -5002,6 +5009,10 @@
     "lightSchedule": {
       "title": "Light",
       "text": "When the lamp comes on and goes off, on your clock: the times move with daylight saving time. The brightness is the most it ramps up to. How long it fades in and out is under Advanced at the device."
+    },
+    "chartOutputs": {
+      "title": "Outputs on the chart",
+      "text": "Light, fans and heater show how hard they ran: 0 % is off, 100 % full output, and the light shows its dimming, sunrise and sunset. The CO₂ valve shows how much it dosed: the device counts how long the valve was open, in ticks of its clock, and the line shows the sum per interval. Higher means more CO₂ – it is not grams. Dehumidifiers and sockets only know on and off."
     }
   },
   "place": {

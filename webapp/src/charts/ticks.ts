@@ -39,11 +39,29 @@ const STEPS: Step[] = [
   { unit: 'year', count: 1, ms: 365 * DAY },
 ];
 
-/** How much room a label wants, which is what decides how many of them fit across a plot. */
+/** How much room a label wants beside the window's two ends, which is what decides how many of them fit across a plot. */
 export const TICK_ROOM_PX = 72;
 
-/** How many lines a plot of this width carries at most: never fewer than two, and never so many that the plot turns into a grid. */
-export const ticksFor = (widthPx: number): number => Math.min(10, Math.max(2, Math.floor(widthPx / TICK_ROOM_PX)));
+/**
+ * And on a row of its own. A phone's plot is a quarter of a metre of glass
+ * with the two ends of the window written under it, and between "25. Sep 16:04"
+ * and "2. Okt 16:04" there was no room left for a single date: a week and a
+ * month were read without one. There the gridlines are named on a row of their
+ * own, where a date needs only its own width and a little air.
+ */
+export const NARROW_TICK_ROOM_PX = 52;
+
+/** Below this width a plot's gridlines are named on that row of their own. */
+export const NARROW_PLOT_PX = 480;
+
+/**
+ * How many lines a plot of this width carries at most: never fewer than two,
+ * and never so many that the plot turns into a grid. Not rounded down, because
+ * what has to fit is the room between two lines: four weeks of a month are 58
+ * pixels apart on a phone, and a fifth of a line short of five is still room
+ * for every one of them.
+ */
+export const ticksFor = (widthPx: number, room = TICK_ROOM_PX): number => Math.min(10, Math.max(2, widthPx / room));
 
 /** The first instant at or after `from` that a step of this kind starts on, in the account's zone. */
 const firstOn = (from: number, step: Step, zone: string | null): DateTime => {

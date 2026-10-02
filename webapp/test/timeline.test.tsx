@@ -14,7 +14,7 @@ import { Timeline } from '@/screens/timeline/Timeline';
 import { figure, targetFigure } from '@/screens/home/units';
 import { frameNear, scaleOf, stretchesOf } from '@/screens/timeline/window';
 
-const state = vi.hoisted(() => ({ answer: null as SpaceTimeline | null, devices: [] as { id: string; type: string }[], asked: [] as string[] }));
+const state = vi.hoisted(() => ({ answer: null as SpaceTimeline | null, asked: [] as string[] }));
 
 // The one read the screen is made of, and the grow the subject line names.
 vi.mock('@/api/timeline', async importOriginal => ({
@@ -26,12 +26,6 @@ vi.mock('@/api/timeline', async importOriginal => ({
 }));
 
 vi.mock('@/api/grows', () => ({ useGrow: () => ({ data: { id: 'grow-1', name: 'Spring run' } }) }));
-
-// The account's devices, which say whether a lane's dehumidifier is a fridge's compressor.
-vi.mock('@/api/devices', async importOriginal => ({
-  ...(await importOriginal<object>()),
-  useDevices: () => ({ data: { items: state.devices } }),
-}));
 
 // A chart is a canvas, which jsdom has not got. What it draws is checked by the
 // unit tests below; what the screen does with the cursor is checked around it.
@@ -183,7 +177,6 @@ beforeAll(async () => {
 
 beforeEach(() => {
   state.answer = answer;
-  state.devices = [];
 });
 
 describe('the timeline', () => {
@@ -329,19 +322,31 @@ describe('the timeline', () => {
     state.answer = {
       ...answer,
       outputs: [
-        { ...dehumidifier, deviceId: 'fridge-1' },
+        { ...dehumidifier, deviceId: 'fridge-1', fridge: true },
         { ...dehumidifier, deviceId: 'tent-1' },
       ],
     };
-    state.devices = [
-      { id: 'fridge-1', type: 'fridge' },
-      { id: 'tent-1', type: 'controller' },
-    ];
     draw();
 
     expect(screen.getByText('Compressor')).toBeInTheDocument();
     expect(screen.getByText('Dehumidifier')).toBeInTheDocument();
     expect(header()).toHaveTextContent('Compressor on · Dehumidifier on');
+  });
+
+  /** A link is told no device, and the lane still says it is a fridge's: the shared page calls the compressor what the owner's screens call it. */
+  it('calls it the compressor on a lane a link is told without the device', () => {
+    const lane = {
+      output: 'dehumidifier' as const,
+      deviceId: null,
+      fridge: true as const,
+      spans: [{ startsAt: at(0), endsAt: at(24) }],
+      heardUntil: at(24),
+    };
+    state.answer = { ...answer, outputs: [lane] };
+    draw();
+
+    expect(screen.getByText('Compressor')).toBeInTheDocument();
+    expect(screen.queryByText('Dehumidifier')).not.toBeInTheDocument();
   });
 
   /** The other way round: a device still reporting whose outputs have all been off for hours has been heard, and "off" is the truth about it. */

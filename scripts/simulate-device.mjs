@@ -448,7 +448,8 @@ const step = (state, config, at, stepSeconds, random) => {
       dehumidifier,
       co2: co2Valve,
       light: round(light, 1),
-      fan: round(internal),
+      // An AIR writes its speed in percent, where a fridge writes its fans as a fraction of one.
+      fan: round(configValue(config, isDay ? 'day.fixed_speed' : 'night.fixed_speed', 60), 0),
       relais: heater > 0.1 ? 1 : 0,
       'fan-internal': round(internal),
       'fan-external': round(external),

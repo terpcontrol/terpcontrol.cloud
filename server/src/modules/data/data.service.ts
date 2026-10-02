@@ -5,7 +5,15 @@ import { ConfigType } from '@nestjs/config';
 import { InfluxDB, Point } from '@influxdata/influxdb-client';
 import { DeviceLive, DeviceSeries, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { logger } from '@utils/logger';
-import { fieldOfMetric, fieldOfOutputMetric, metricOfField, outputMetricOfField, OUTPUT_FIELDS, STORED_FIELDS } from '@common/v1/metrics';
+import {
+  fieldOfMetric,
+  fieldOfOutputMetric,
+  metricOfField,
+  outputMetricOfField,
+  OUTPUT_FIELDS,
+  OUTPUT_LEVEL,
+  STORED_FIELDS,
+} from '@common/v1/metrics';
 import { reportsNoSensor } from '@common/v1/sentinels';
 import { metricValueOf } from '@common/v1/value-age';
 import { LightStateReader } from '@modules/v1/camera/light-state';
@@ -24,6 +32,8 @@ import {
   FluxWindow,
   gridOf,
   latestByField,
+  levelsByField,
+  levelsQuery,
   liveQuery,
   newestSampleQuery,
   newestSampleSinceQuery,
@@ -146,6 +156,11 @@ export interface OutputHistory {
   output: OutputMetric;
   /** In order: the state the window is found in, then every switching after it. Empty where the device reported that output not at all. */
   switchings: OutputSwitching[];
+  /**
+   * How hard it ran, window by window, as the device wrote it: only where the
+   * read asked for levels and the output is driven at one (`OUTPUT_LEVEL`).
+   */
+  levels?: SeriesPoint[];
 }
 
 /**
@@ -358,23 +373,39 @@ export class DataService implements LightStateReader {
    * beside it is a few hundred windows - the promise that a long range costs
    * what a short one costs still holds.
    */
-  public async history(deviceId: string, request: SeriesRequest): Promise<DeviceHistory> {
+  public async history(deviceId: string, request: SeriesRequest, levels = false): Promise<DeviceHistory> {
     const outputs = request.outputs ?? [];
     // The fan's own day is read in the same scan as its output, so a chart of an AIR is shaded by its night.
     const extra = outputs.includes('fan') ? [DAY_FIELD] : [];
-    const [series, switchings, lastSampleAt] = await Promise.all([
+    // At the step the series settles on, so a level stands under the reading of the same window.
+    const stepSeconds = stepFor(request.startsAt, request.endsAt, request.stepSeconds);
+    const [series, switchings, lastSampleAt, levelled] = await Promise.all([
       this.series(deviceId, request),
       this.switchingsOf(deviceId, outputs, request, extra),
       this.newestSampleIn(deviceId, outputs, request),
+      levels ? this.levelsOf(deviceId, outputs, { startsAt: request.startsAt, endsAt: request.endsAt, stepSeconds }) : null,
     ]);
     const days = switchings.get(DAY_FIELD) ?? [];
 
     return {
       series,
-      outputs: outputs.map(output => ({ output, switchings: switchings.get(fieldOfOutputMetric(output)) ?? [] })),
+      outputs: outputs.map(output => ({
+        output,
+        switchings: switchings.get(fieldOfOutputMetric(output)) ?? [],
+        ...(levelled && OUTPUT_LEVEL[output] ? { levels: levelled.get(fieldOfOutputMetric(output)) ?? [] } : {}),
+      })),
       lastSampleAt,
       ...(days.length > 0 ? { days } : {}),
     };
+  }
+
+  /** How hard each output that has a level was driven, by the field it is stored under. A window of no width holds none. */
+  private async levelsOf(deviceId: string, outputs: readonly OutputMetric[], window: FluxWindow): Promise<Map<string, SeriesPoint[]>> {
+    const driven = outputs.filter(output => OUTPUT_LEVEL[output] !== undefined);
+    if (driven.length === 0 || window.endsAt <= window.startsAt || window.stepSeconds <= 0) return new Map();
+
+    const fieldsOf = (unit: 'percent' | 'count') => driven.filter(output => OUTPUT_LEVEL[output]?.unit === unit).map(fieldOfOutputMetric);
+    return levelsByField(await this.read(levelsQuery(this.bucket, deviceId, fieldsOf('percent'), fieldsOf('count'), window)));
   }
 
   /**

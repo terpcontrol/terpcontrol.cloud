@@ -9,6 +9,7 @@ import { PublicShell } from '@/screens/public/PublicShell';
 import { Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import styles from '@/screens/SignIn.module.css';
+import { chartsAddressOf } from './old-charts';
 import { controlPath, devicesPath, placePath, timelinePath } from './places';
 import { RequireSession } from './RequireSession';
 
@@ -77,9 +78,9 @@ export function OpenDemo() {
   );
 }
 
-/** What the old app's device pages are now, page by page. */
-const OLD_DEVICE_PAGES: Record<string, (spaceId: string) => string> = {
-  charts: spaceId => `/charts?space=${encodeURIComponent(spaceId)}`,
+/** What the old app's device pages are now, page by page, with what the old address asked for where the page now reads it. */
+const OLD_DEVICE_PAGES: Record<string, (spaceId: string, params: URLSearchParams) => string> = {
+  charts: chartsAddressOf,
   diary: spaceId => timelinePath(spaceId),
   settings: spaceId => controlPath(spaceId),
   testmode: spaceId => devicesPath(spaceId),
@@ -100,6 +101,7 @@ export function OldDevice() {
 
 function OldDeviceLink() {
   const { deviceId = '', page = '' } = useParams();
+  const [params] = useSearchParams();
   const devices = useDevices();
 
   if (devices.isPending) return <Waiting lines={3} />;
@@ -109,7 +111,7 @@ function OldDeviceLink() {
   // place to land on; the list of devices is where it would be.
   if (!spaceId) return <Navigate to={devicesPath()} replace />;
 
-  return <Navigate to={(OLD_DEVICE_PAGES[page] ?? placePath)(spaceId)} replace />;
+  return <Navigate to={(OLD_DEVICE_PAGES[page] ?? placePath)(spaceId, params)} replace />;
 }
 
 /** A link shared from the old app, or its old "link expired" page. */

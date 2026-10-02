@@ -34,6 +34,7 @@ export const HELP_TOPICS = [
   'chartLayout',
   'chartLayoutPlace',
   'chartZoom',
+  'chartOutputs',
   'chartMessages',
   'muteAll',
   'silence',

@@ -24,7 +24,7 @@ import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { framesOf } from './frames';
 import { lastReadingOf } from './last-reading';
-import { PANEL_METRICS, lanesOf, nightsOf, panelsOf } from './timeline-series';
+import { PANEL_METRICS, fridgesOf, lanesOf, nightsOf, panelsOf } from './timeline-series';
 import { TimelineWindow, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
 /**
@@ -173,7 +173,7 @@ export class TimelineService {
       lastReadingAt: panels.length > 0 ? null : await lastReadingOf(this.data, devices),
       nights: nightsOf(series, window),
       alarms: alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
-      outputs: lanesOf(series, window, grant.redacted),
+      outputs: lanesOf(series, window, grant.redacted, fridgesOf(devices)),
       events: told,
       machineEvents: recorded.machine,
       // A reader who is shown one grow's week is not shown what else has stood

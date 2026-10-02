@@ -1521,7 +1521,27 @@ export const timelinePanel = named(
   }),
 );
 
-/** One output over the window, as the lanes under the panels draw it: when it was on, not what it measured. */
+/**
+ * How hard an output was driven while it ran, window by window, for an output
+ * the device drives at a level rather than only on and off: a dimmed lamp, a
+ * fan's speed, the heater's demand, and the CO2 valve's dosing.
+ *
+ * `percent` is the share of full output, averaged over the stretches of each
+ * window the output ran in - so a lamp dimmed to 60 % reads 60 % however many
+ * hours of the window it was dark, and the lane's spans say when it was. `count`
+ * is the CO2 valve: what the device counted while the valve was open, summed
+ * over each window, which is how much was dosed there and not a share of
+ * anything. A window the output did not run in has no point.
+ */
+export const timelineOutputLevel = named(
+  'TimelineOutputLevel',
+  z.object({
+    unit: z.enum(['percent', 'count']),
+    points: z.array(seriesPoint).describe('Stamped like the climate points: each closes the window it stands for.'),
+  }),
+);
+
+/** One output over the window, as the lanes under the panels draw it: when it was on, and on the charts how hard it ran. */
 export const timelineOutputLane = named(
   'TimelineOutputLane',
   z.object({
@@ -1535,6 +1555,15 @@ export const timelineOutputLane = named(
     heardUntil: instant().describe(
       'How far anything is known about this output: the last instant the device was heard from inside the window, or the window\'s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.',
     ),
+    fridge: z
+      .literal(true)
+      .optional()
+      .describe(
+        'Set where a fridge module drives the output, whose dehumidifier output is the compressor that cools and dries at once and is called that. Told to a link too, which is not told the device: the name of a lane is not the hardware behind it.',
+      ),
+    level: timelineOutputLevel
+      .optional()
+      .describe('Only on a charts read, and only for an output the device drives at a level; absent where the output is a switch and nothing more.'),
   }),
 );
 

@@ -34,16 +34,20 @@ export function Messages({
   to,
   cursor,
   onCursor,
+  hidden,
+  onHidden,
 }: {
   read: { data: WindowEntries | undefined; isPending: boolean; isError: boolean };
   from: number;
   to: number;
   cursor: number;
   onCursor: (time: number) => void;
+  /** The kinds of line left out, which the screen keeps in the address with the rest of the view. */
+  hidden: readonly MessageCategory[];
+  onHidden: (hidden: MessageCategory[]) => void;
 }) {
   const { t } = useTranslation();
   const now = useNow();
-  const [hidden, setHidden] = useState<MessageCategory[]>([]);
   const [opened, setOpened] = useState<number | null>(null);
 
   const all = read.data?.items ?? [];
@@ -64,7 +68,7 @@ export function Messages({
 
   const toggle = (category: MessageCategory) => {
     setOpened(null);
-    setHidden(current => (current.includes(category) ? current.filter(one => one !== category) : [...current, category]));
+    onHidden(hidden.includes(category) ? hidden.filter(one => one !== category) : [...hidden, category]);
   };
 
   return (

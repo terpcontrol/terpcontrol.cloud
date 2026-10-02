@@ -6,6 +6,8 @@ import {
   FluxRow,
   gridOf,
   latestByField,
+  levelsByField,
+  levelsQuery,
   liveQuery,
   OutputSwitching,
   readingsOf,
@@ -79,6 +81,53 @@ describe('the switchings query', () => {
     expect(query).toContain('r["_field"] != "out_co2" or (r["_value"] >= 0.0 and r["_value"] != 4294967295.0)');
     expect(excluded).toBeGreaterThan(-1);
     expect(excluded).toBeLessThan(reduced);
+  });
+});
+
+describe('the levels query', () => {
+  it('averages a level over the samples it was running in, and sums what the valve dosed', () => {
+    const query = levelsQuery(BUCKET, DEVICE, ['out_light', 'out_fan-internal'], ['out_co2'], window(60 * 24, 87));
+    const [level, dose] = query.split('yield(name: "level")');
+
+    // A dark sample is not averaged in: the lane's spans say when, the level how hard.
+    expect(level).toContain('r["_field"] == "out_light" or r["_field"] == "out_fan-internal"');
+    expect(level).toContain('r._value > 0.0');
+    expect(level).toContain('aggregateWindow(every: 87s, fn: mean, createEmpty: false)');
+    // The valve's "there is none" is left out before it is summed, or a sum would swallow it.
+    expect(dose).toContain('r["_field"] == "out_co2"');
+    expect(dose).toContain('r._value >= 0.0 and r._value != 4294967295.0');
+    expect(dose).toContain('aggregateWindow(every: 87s, fn: sum, createEmpty: false)');
+    expect(dose).toContain('yield(name: "dose")');
+  });
+
+  it('asks only for what has a level, and refuses anything that is not a name', () => {
+    expect(levelsQuery(BUCKET, DEVICE, ['out_light'], [], window(60, 60))).not.toContain('dose');
+    expect(levelsQuery(BUCKET, DEVICE, [], ['out_co2'], window(60, 60))).not.toContain('"level"');
+    expect(() => levelsQuery(BUCKET, DEVICE, ['x" or r["device_id"] == "other'], [], window(60, 60))).toThrow();
+  });
+
+  it('reads the rows back per field in order, adding up a dose answered twice and keeping the higher level', () => {
+    const rows = [
+      { result: 'level', _field: 'out_light', _time: '2026-01-20T10:10:00Z', _value: 80 },
+      { result: 'level', _field: 'out_light', _time: '2026-01-20T10:05:00Z', _value: 40 },
+      { result: 'level', _field: 'out_light', _time: '2026-01-20T10:10:00Z', _value: 60 },
+      { result: 'dose', _field: 'out_co2', _time: '2026-01-20T10:05:00Z', _value: 2000 },
+      { result: 'dose', _field: 'out_co2', _time: '2026-01-20T10:05:00Z', _value: 1500 },
+      { result: 'dose', _field: 'out_co2', _time: '2026-01-20T10:10:00Z', _value: null },
+    ];
+
+    expect(levelsByField(rows)).toEqual(
+      new Map([
+        [
+          'out_light',
+          [
+            { measuredAt: '2026-01-20T10:05:00Z', value: 40 },
+            { measuredAt: '2026-01-20T10:10:00Z', value: 80 },
+          ],
+        ],
+        ['out_co2', [{ measuredAt: '2026-01-20T10:05:00Z', value: 3500 }]],
+      ]),
+    );
   });
 });
 

@@ -183,6 +183,64 @@ export const valveOpeningsQuery = (bucket: string, deviceId: string, window: Omi
     |> filter(fn: (r) => r["_value"] >= 0.0 and r["_value"] != ${NO_CO2_VALVE}.0)
     |> sum()`;
 
+/** The two answers `levelsQuery` yields: a share of full output, and what the CO2 valve dosed. */
+export const LEVEL_RESULT = { level: 'level', dose: 'dose' } as const;
+
+/**
+ * How hard each output was driven, window by window, at the step the curves
+ * beside it are drawn at.
+ *
+ * A level is averaged over the samples the output was running in and over no
+ * others. Averaged with the dark ones, a lamp dimmed to 60 % that came on half
+ * way through a window read 30 %, and a whole season read as the duty cycle;
+ * the lane's spans already say when it ran, so the level only has to say how
+ * hard. The valve's ticks are summed instead, because each sample counts the
+ * ticks since the one before it and a window's dose is all of them together.
+ * Only raw samples are read: a day summarised into its mean has kept neither.
+ */
+export const levelsQuery = (bucket: string, deviceId: string, levels: readonly string[], doses: readonly string[], window: FluxWindow): string => {
+  const of = (fields: readonly string[]) => fields.map(field => `r["_field"] == "${safe(field, FIELD_NAME, 'field name')}"`).join(' or ');
+  const every = `${Math.max(1, Math.trunc(window.stepSeconds))}s`;
+  const read = (fields: readonly string[], keep: string, fn: string, name: string) => `${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => ${of(fields)})
+    |> filter(fn: (r) => ${keep})
+    |> aggregateWindow(every: ${every}, fn: ${fn}, createEmpty: false)
+    |> limit(n: ${MAX_POINTS})
+    |> yield(name: "${name}")`;
+
+  return [
+    levels.length > 0 ? read(levels, 'r._value > 0.0', 'mean', LEVEL_RESULT.level) : null,
+    doses.length > 0 ? read(doses, `r._value >= 0.0 and r._value != ${NO_CO2_VALVE}.0`, 'sum', LEVEL_RESULT.dose) : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+};
+
+/**
+ * The rows of that read, per field and in order. A device whose points were
+ * once tagged with an owner answers one table per tag, so two rows can name the
+ * same window: a dose is the two added up, a level the higher of the two.
+ */
+export const levelsByField = (rows: (FluxRow & { result?: string })[]): Map<string, SeriesPoint[]> => {
+  const byField = new Map<string, Map<string, number>>();
+
+  for (const row of rows) {
+    const value = numberOf(row._value);
+    if (!row._field || !row._time || value === null) continue;
+    const windows = byField.get(row._field) ?? new Map<string, number>();
+    const known = windows.get(row._time);
+    windows.set(row._time, known === undefined ? value : row.result === LEVEL_RESULT.dose ? known + value : Math.max(known, value));
+    byField.set(row._field, windows);
+  }
+
+  return new Map(
+    [...byField].map(([field, windows]) => [
+      field,
+      [...windows].sort(([one], [other]) => one.localeCompare(other)).map(([measuredAt, value]) => ({ measuredAt, value })),
+    ]),
+  );
+};
+
 /** The two answers `switchingsQuery` yields, which is what tells the state a window opens in from a switching inside it. */
 export const SWITCHING_RESULT = { opening: 'opening', switching: 'switching' } as const;
 

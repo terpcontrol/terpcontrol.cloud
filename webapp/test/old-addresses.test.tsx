@@ -102,6 +102,36 @@ describe('an old device page', () => {
     expect(await screen.findByText(`Landed on ${landing}`)).toBeInTheDocument();
   });
 
+  /** A bookmark of the old charts page kept the whole view in its address, and opens on the same view rather than on the default day. */
+  it('keeps what an old charts bookmark asked for', async () => {
+    draw(
+      '/device/sim-fridge-1/charts?measures=temperature,out_light,out_fan-internal,logs,image,day&timespan=1w&interval=15m&vpdMode=night&autoUpdate=true&logs=x',
+    );
+    const landed = new URL((await screen.findByText(/Landed on/)).textContent!.replace('Landed on ', ''), 'http://app');
+
+    expect(landed.pathname).toBe('/charts');
+    expect(Object.fromEntries(landed.searchParams)).toEqual({
+      space: 'space-9',
+      range: '7d',
+      show: 'temperature,out.light,out.fanInternal',
+      msgs: '1',
+      cam: '1',
+      vpd: 'night',
+      live: '1',
+      step: '900',
+    });
+  });
+
+  it('opens a stretch the old page was dated to: two dates as the zoom, one as where the timespan started', async () => {
+    draw('/device/sim-fridge-1/charts?timespan=1d&date=2026-09-20T10:00:00.000Z&dateEnd=2026-09-21T16:00:00.000Z');
+    expect(await screen.findByText(/zoom=2026-09-20T10%3A00%3A00.000Z%7E2026-09-21T16%3A00%3A00.000Z/)).toBeInTheDocument();
+  });
+
+  it('ends a window the old page dated by its start where that timespan ran out', async () => {
+    draw('/device/sim-fridge-1/charts?timespan=1d&date=2026-09-20T10:00:00.000Z');
+    expect(await screen.findByText('Landed on /charts?space=space-9&range=24h&at=2026-09-21T10%3A00%3A00.000Z')).toBeInTheDocument();
+  });
+
   it('lands on the device list for a device the account cannot see', async () => {
     draw('/device/somebody-elses/charts');
     expect(await screen.findByText('Landed on /devices')).toBeInTheDocument();

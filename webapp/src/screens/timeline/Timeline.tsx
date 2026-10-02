@@ -6,7 +6,6 @@ import { Link, useSearchParams } from 'react-router';
 import type { GrowSeriesRange, MeasurementDefinition, SpaceTimeline, TimelineOutputLane, TimelineRange } from '@fg2/shared-types/v1';
 import { useGrowSeries } from '@/api/charts';
 import { serverNow } from '@/api/clock';
-import { useDevices } from '@/api/devices';
 import { useGrow } from '@/api/grows';
 import type { Picture } from '@/api/public';
 import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
@@ -92,7 +91,7 @@ function TimelineFor({ spaceId, heading, shared }: TimelineProps & { shared: Sha
 
   const timeline = useTimeline(spaceId, range, pinned, shared?.token ?? null);
   const data = timeline.data;
-  const nameOf = useOutputName(shared === null);
+  const nameOf = useOutputName();
 
   // Once per focus, when what it names has been drawn: scrolling again on every refresh would take the page from under a thumb.
   useEffect(() => {
@@ -346,25 +345,21 @@ const useReadings = (growId: string | null, measurements: MeasurementDefinition[
 };
 
 /** What an output lane is called. */
-export type OutputName = (lane: Pick<TimelineOutputLane, 'output' | 'deviceId'>) => string;
+export type OutputName = (lane: Pick<TimelineOutputLane, 'output' | 'fridge'>) => string;
 
 /**
  * The catalogue's name for each output, except that a fridge module's
  * dehumidifier output is its compressor, which cools and dries at once: the
  * name the cockpit's tiles give it, so a tap on "Kompressor läuft seit 12 Min"
  * lands on a lane of the same name rather than on an "Entfeuchter" the cabinet
- * does not have. The device list is the one every tab already holds.
+ * does not have. The lane says whose it is, a link's included, which is told
+ * no device to look up.
  */
-const useOutputName = (signedIn: boolean): OutputName => {
+const useOutputName = (): OutputName => {
   const { t } = useTranslation();
-  // A link is not told the hardware, so its lanes carry no device to look up.
-  const devices = useDevices(signedIn);
-  const fridges = new Set((devices.data?.items ?? []).filter(device => device.type === 'fridge').map(device => device.id));
 
-  return lane => {
-    const word = lane.output === 'dehumidifier' && lane.deviceId !== null && fridges.has(lane.deviceId) ? 'compressor' : lane.output;
-    return t(`timeline.output.${word}`, { defaultValue: lane.output });
-  };
+  return lane =>
+    t(`timeline.output.${lane.output === 'dehumidifier' && lane.fridge === true ? 'compressor' : lane.output}`, { defaultValue: lane.output });
 };
 
 /**

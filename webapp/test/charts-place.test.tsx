@@ -334,6 +334,41 @@ describe('a place charted without a grow', () => {
     expect(screen.getByRole('button', { name: 'Camera picture' })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  /** A reload after zooming landed on the whole window again, and the layout and the message filter were forgotten too. */
+  it('keeps the zoom, the layout and the kinds of message left out in the address as well', async () => {
+    state.entries = [
+      entry('boot', 23, {}),
+      entry('note', 22, { kind: 'note', source: 'human', text: 'Topped the tent', severity: null, message: null, values: { kind: 'note' } }),
+    ];
+    draw('/charts?space=space-2&msgs=1');
+    await screen.findByText('Temp + RH');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    await waitFor(() => expect(widthOf(lastRead())).toBe(WIDTHS['24h'] / 3));
+    const zoomed = { from: lastRead().get('from'), to: lastRead().get('to') };
+    fireEvent.click(screen.getByRole('button', { name: 'Overlay' }));
+    fireEvent.click(within(await screen.findByRole('group', { name: 'Which messages' })).getByRole('button', { name: 'Diary' }));
+    const address = screen.getByTestId('address').textContent!;
+    const asked = new URLSearchParams(address.split('?')[1]);
+    expect(asked.get('zoom')).toBe(`${zoomed.from}~${zoomed.to}`);
+    expect(asked.get('layout')).toBe('overlay');
+    expect(asked.get('hide')).toBe('diary');
+
+    cleanup();
+    state.asked = [];
+    draw(address);
+    expect(await screen.findByText(/^Zoom:/)).toBeInTheDocument();
+    await waitFor(() => expect({ from: lastRead().get('from'), to: lastRead().get('to') }).toEqual(zoomed));
+    expect(screen.getByRole('button', { name: 'Overlay' })).toHaveAttribute('aria-pressed', 'true');
+    expect(await screen.findByText('· 1 in the window')).toBeInTheDocument();
+    expect(screen.queryByText('Topped the tent')).not.toBeInTheDocument();
+
+    // Back to the whole window, which the address says by no longer naming a zoom.
+    fireEvent.click(screen.getByRole('button', { name: 'Reset zoom' }));
+    await waitFor(() => expect(widthOf(lastRead())).toBe(WIDTHS['24h']));
+    expect(new URLSearchParams(screen.getByTestId('address').textContent!.split('?')[1]).has('zoom')).toBe(false);
+  });
+
   it('draws nothing where the address turned every curve off, and ignores a name it does not know', async () => {
     draw('/charts?space=space-2&show=');
     expect(await screen.findByText('Nothing picked yet — tap a series above.')).toBeInTheDocument();

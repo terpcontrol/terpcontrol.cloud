@@ -549,8 +549,12 @@
       "overlay": "überlagert",
       "measured": "erfasst",
       "perPlant": "je Pflanze",
-      "output": "wann er lief",
-      "outputPooled": "wann einer von {{count}} Controllern lief"
+      "output": "wann an",
+      "outputPooled": "wann an, bei einem von {{count}} Geräten",
+      "level": "Stufe in % der vollen Leistung",
+      "levelPooled": "höchste Stufe von {{count}} Geräten, in %",
+      "dose": "dosiert je {{step}}",
+      "dosePooled": "dosiert je {{step}}, {{count}} Geräte zusammen"
     },
     "leftOut_one": "{{names}} bleibt weg: zwei Einheiten in einem Feld nur, wenn sie zusammengehören.",
     "leftOut_other": "{{names}} bleiben weg: zwei Einheiten in einem Feld nur, wenn sie zusammengehören.",
@@ -631,7 +635,10 @@
     "csvHead": {
       "time": "Zeit",
       "day": "Tag"
-    }
+    },
+    "csvDose": "{{output}} (Takte je {{step}})",
+    "ticks_one": "Takt",
+    "ticks_other": "Takte"
   },
   "devices": {
     "button-settings": "Einstellungen",
@@ -945,7 +952,7 @@
     },
     "type": {
       "controller": "Controller",
-      "fridge": "Kühlschrank\u00admodul",
+      "fridge": "Kühlschrank­modul",
       "plug": "Steckdose",
       "fan": "Lüfter",
       "light": "Licht"
@@ -3129,7 +3136,7 @@
       "relais": "Relais",
       "fanInternal": "Innenlüfter",
       "fanExternal": "Klemmlüfter",
-      "fanBackwall": "Rückwand\u00adlüfter"
+      "fanBackwall": "Rückwand­lüfter"
     },
     "events": "Einträge",
     "noEvents": "Nichts geschrieben in diesem Zeitraum",
@@ -3324,7 +3331,7 @@
         },
         "watching": "Noch nichts Neues. Diese Liste füllt sich von selbst, solange sie offen ist.",
         "at": {
-          "fridge": "Am Kühlschrank\u00admodul",
+          "fridge": "Am Kühlschrank­modul",
           "controller": "Am Controller",
           "device": "Am Gerät"
         },
@@ -5010,6 +5017,10 @@
     "lightSchedule": {
       "title": "Licht",
       "text": "Wann die Lampe an- und ausgeht, auf deiner Uhr: Die Zeiten wandern bei der Zeitumstellung mit. Die Helligkeit ist das Maximum, auf das sie hochfährt. Wie lange sie dabei ein- und ausblendet, steht unter Erweitert am Gerät."
+    },
+    "chartOutputs": {
+      "title": "Ausgänge im Graphen",
+      "text": "Licht, Lüfter und Heizung zeigen, wie stark sie liefen: 0 % ist aus, 100 % volle Leistung, und beim Licht sieht man Dimmung, Sonnenauf- und -untergang. Das CO₂-Ventil zeigt, wie viel es dosiert hat: Das Gerät zählt, wie lange das Ventil offen war, in Takten seiner Uhr, und die Linie zeigt die Summe je Intervall. Je höher, desto mehr CO₂ – Gramm sind das nicht. Entfeuchter und Steckdosen kennen nur an und aus."
     }
   },
   "place": {

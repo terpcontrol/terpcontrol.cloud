@@ -1,6 +1,6 @@
 import { DateTime, Settings } from 'luxon';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { ticksFor, timeTicks } from '@/charts/ticks';
+import { NARROW_TICK_ROOM_PX, ticksFor, timeTicks } from '@/charts/ticks';
 
 const ZONE = 'Europe/Berlin';
 const DAY_DE = "d'.' LLL";
@@ -40,7 +40,20 @@ describe('the gridlines of a chart over time', () => {
     expect(labels('2026-10-02T11:59', '2026-10-02T13:01', 3)).toEqual(['12:30']);
     expect(labels('2026-10-02T11:40', '2026-10-02T13:20', 2)).toEqual(['12:00', '13:00']);
     expect(ticksFor(0)).toBe(2);
-    expect(ticksFor(320)).toBe(4);
+    expect(ticksFor(360)).toBe(5);
     expect(ticksFor(5000)).toBe(10);
+  });
+
+  /**
+   * A phone's plot is 248 pixels wide, and with "25. Sep 16:04" and "2. Okt
+   * 16:04" under it a week and a month had no date between their ends. On a
+   * row of their own the dates need only their own width: every other day of a
+   * week, and every Monday of a month.
+   */
+  it('dates a week and a month on a phone, on a row of their own', () => {
+    const phone = ticksFor(248, NARROW_TICK_ROOM_PX);
+
+    expect(labels('2026-09-25T16:04', '2026-10-02T16:04', phone)).toEqual(['26. Sep', '28. Sep', '30. Sep', '2. Okt']);
+    expect(labels('2026-09-02T16:04', '2026-10-02T16:04', phone)).toEqual(['7. Sep', '14. Sep', '21. Sep', '28. Sep']);
   });
 });

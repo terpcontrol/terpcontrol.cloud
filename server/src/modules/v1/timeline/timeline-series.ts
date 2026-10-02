@@ -12,6 +12,7 @@ import type {
   TimelineTargets,
 } from '@fg2/shared-types/v1';
 import { METRIC_DECIMALS, TARGET_BAND, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { OUTPUT_LEVEL } from '@common/v1/metrics';
 import { DAY_ONLY } from '@common/v1/steering';
 import type { DeviceHistory, OutputHistory } from '@modules/data/data.service';
 import type { OutputSwitching } from '@modules/data/flux';
@@ -128,8 +129,18 @@ export const nightsOf = (histories: readonly DeviceHistory[], window: SeriesWind
  * because the output was switched off, and a client drawing a square wave has
  * to be able to tell them apart: three days of silence are not three days of
  * "off".
+ *
+ * Where the read asked how hard the outputs ran, a lane that has a level says
+ * so too, in percent of full output or, for the valve, as the ticks it dosed.
+ * A lane of a fridge module says so, because its dehumidifier output is the
+ * compressor and every screen calls it that - a link included.
  */
-export const lanesOf = (histories: readonly DeviceHistory[], window: SeriesWindow, redacted = false): TimelineOutputLane[] =>
+export const lanesOf = (
+  histories: readonly DeviceHistory[],
+  window: SeriesWindow,
+  redacted = false,
+  fridges: ReadonlySet<string> = new Set(),
+): TimelineOutputLane[] =>
   histories.flatMap(one =>
     one.outputs.flatMap(output =>
       output.switchings.length > 0
@@ -137,13 +148,36 @@ export const lanesOf = (histories: readonly DeviceHistory[], window: SeriesWindo
             {
               output: output.output,
               deviceId: redacted ? null : one.series.deviceId,
+              ...(fridges.has(one.series.deviceId) ? { fridge: true as const } : {}),
               spans: spansOf(output, true, one.series, window, heardAt(one)),
               heardUntil: heardUntilOf(output, one.series, window, heardAt(one)),
+              ...levelOf(output),
             },
           ]
         : [],
     ),
   );
+
+/** The devices of a read that are fridge modules, which is what names a lane's compressor. */
+export const fridgesOf = (devices: readonly { id: string; type: string }[]): ReadonlySet<string> =>
+  new Set(devices.filter(device => device.type === 'fridge').map(device => device.id));
+
+/** The level of one output in the contract's unit, where it has one and the read asked for it. */
+const levelOf = (output: OutputHistory): Pick<TimelineOutputLane, 'level'> => {
+  const kind = OUTPUT_LEVEL[output.output];
+  if (!kind || !output.levels) return {};
+
+  return {
+    level: {
+      unit: kind.unit,
+      points: output.levels.map(point => ({
+        measuredAt: point.measuredAt,
+        // A share of full output is a whole percent; a dose is whole ticks.
+        value: point.value === null ? null : Math.round(Math.min(kind.unit === 'percent' ? 100 : Infinity, point.value * kind.scale)),
+      })),
+    },
+  };
+};
 
 /** The last instant the device was heard about one output, which is the window's own end while it is still reporting. */
 const heardUntilOf = (output: OutputHistory, series: DeviceSeries, window: SeriesWindow, sampled: number | null): string => {

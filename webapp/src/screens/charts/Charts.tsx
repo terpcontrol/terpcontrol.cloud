@@ -42,6 +42,7 @@ import {
   isEmpty,
   metricColour,
   offeredBy,
+  outputTitle,
   prunedTo,
   type Card,
   type Layout,
@@ -50,6 +51,7 @@ import {
 } from './cards';
 import { ChartCard } from './ChartCard';
 import { useChartData, type ChartData } from './data';
+import { MESSAGE_CATEGORIES } from './message-columns';
 import { Messages } from './Messages';
 import { SaveViewSheet } from './SaveViewSheet';
 import {
@@ -197,7 +199,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
   const settings = settingsOf(params);
 
   const [liveNow, setLiveNow] = useState(() => serverNow().toMillis());
-  const [zoom, setZoom] = useState<Zoom | null>(null);
+  const zoom = zoomOf(params.get('zoom'));
   const endedAt = grow?.endedAt ? at(grow.endedAt) : null;
   const rolling = isWidth(range) && atParam === null && zoom === null;
   const endsNow = endedAt === null && zoom === null && (rolling || isStretch(range));
@@ -240,9 +242,11 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
   const plants = useGrowPlants(grow?.id ?? null);
 
   // What is drawn is kept in the address with the window, as the old charts kept it: a reload, a bookmark or
-  // a link sent to somebody in the same place opens on the same curves, the messages and the picture included.
+  // a link sent to somebody in the same place opens on the same curves, laid out the same way and zoomed
+  // into the same stretch, the messages with the same kinds of line left out and the picture included.
   const picked = pickedOf(params.get('show'));
-  const [asked, setAsked] = useState<Layout>('stacked');
+  const asked = LAYOUTS.find(one => one === params.get('layout')) ?? 'stacked';
+  const hiddenMessages = MESSAGE_CATEGORIES.filter(category => (params.get('hide') ?? '').split(',').includes(category));
   const [appliedId, setAppliedId] = useState<string | null>(null);
   const [moreOutputs, setMoreOutputs] = useState(false);
   const [moreWidths, setMoreWidths] = useState(RARE.includes(range as Width));
@@ -310,14 +314,17 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
     setParams(kept, { replace: true });
   };
 
+  /** A zoom is two instants on the chart, and goes into the address with the rest of the window. */
+  const zoomParam = (next: Zoom | null): Record<string, string | null> => ({ zoom: next ? `${instant(next.from)}~${instant(next.to)}` : null });
+
   const setRange = (next: ChartRange) => {
-    setZoom(null);
     setScrubbed(null);
     setLiveNow(serverNow().toMillis());
     // A range of one's own starts on the days the chart was showing, so the curves stay while the days are changed.
     const shownDays: Record<string, string | null> =
       window?.kind === 'span' && !(from && to) ? { from: zonedAt(window.from, zone).toISODate(), to: zonedAt(window.to, zone).toISODate() } : {};
     setQuery({
+      ...zoomParam(null),
       range: next,
       ...(next === 'custom' ? shownDays : { from: null, to: null }),
       // Where a width was stepped back to stays where it is for another width; a grow's stretch has no such end.
@@ -346,7 +353,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
       const middle = (next.from + next.to) / 2;
       next = { from: middle - NARROWEST_ZOOM / 2, to: middle + NARROWEST_ZOOM / 2 };
     }
-    setZoom(next);
+    setQuery(zoomParam(next));
     setScrubbed(null);
   };
 
@@ -355,7 +362,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
     if (zoom === null) return;
     const width = zoom.to - zoom.from;
     const to = Math.min(liveEnd(liveNow, endedAt), zoom.to + direction * width);
-    setZoom({ from: to - width, to });
+    setQuery(zoomParam({ from: to - width, to }));
     setScrubbed(null);
   };
 
@@ -375,15 +382,15 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
   const apply = (view: ChartView) => {
     const span = rangeOfSpan(view.definition.span, zone);
     const fits = !isStretch(span.range) || grow !== null;
-    setZoom(null);
     setQuery({
+      ...zoomParam(null),
+      layout: view.definition.layout === 'stacked' ? null : view.definition.layout,
       range: fits ? span.range : '24h',
       from: span.from ?? null,
       to: span.to ?? null,
       at: null,
       show: showOf({ metrics: [...view.definition.metrics], outputs: [...view.definition.outputs], measurements: [...view.definition.measurements] }),
     });
-    setAsked(view.definition.layout);
     setAppliedId(view.id);
   };
 
@@ -440,7 +447,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
           <button type="button" className={ui.chip} aria-label={t('charts.later')} disabled={zoom.to >= end} onClick={() => panZoom(1)}>
             <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
           </button>
-          <button type="button" className={ui.chip} onClick={() => setZoom(null)}>
+          <button type="button" className={ui.chip} onClick={() => setQuery(zoomParam(null))}>
             {t('charts.resetZoom')}
           </button>
         </div>
@@ -510,7 +517,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
         ))}
         {(moreOutputs ? offered.outputs : offered.outputs.slice(0, OUTPUTS_SHOWN)).map(output => (
           <Pick key={output} on={chosen.outputs.includes(output)} colour="output" onPick={() => pick({ outputs: toggle(chosen.outputs, output) })}>
-            {t(`timeline.output.${output}`, { defaultValue: output })}
+            {outputTitle(t, output, data?.outputs ?? [])}
           </Pick>
         ))}
         {offered.outputs.length > OUTPUTS_SHOWN ? (
@@ -650,10 +657,12 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
       ) : null}
       {!nothingOffered && isEmpty(chosen) ? <p className={`${ui.cardDashed} ${ui.note} ${styles.empty}`}>{t('charts.nothingPicked')}</p> : null}
 
-      {/* The picture and the messages are read beside the curves: above and
-          under them on a phone, and on a wide screen in a column of their own
-          next to them, so the cursor can be dragged with the picture in view -
-          the old charts' half and half, with the curves keeping the room. */}
+      {/* The picture is read beside the curves: above them on a phone, and on
+          a wide screen in a column of its own next to them, so the cursor can
+          be dragged with the picture in view - the old charts' half and half,
+          with the curves keeping the room. The messages are on the curves'
+          own time axis, under the last card at every width, so a column stands
+          under the swing in the curve it belongs to. */}
       <div className={styles.stage}>
         <div className={styles.curves}>
           {cards.length > 0 ? <ScrubHeader cards={cards} cursor={cursor} stamp={day ? dayOf : x => momentStamp(x, left, right, zone, end)} /> : null}
@@ -671,20 +680,27 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
           {cards.map(card => (
             <ChartCard key={card.key} card={card} cursor={cursor} scrub={scrub.handlers} selection={scrub.selection} ends={ends} ticksOf={ticksOf} />
           ))}
+
+          {messagesOn ? (
+            <div className={styles.written}>
+              <Messages
+                read={entries}
+                from={left}
+                to={right}
+                cursor={cursorTime}
+                onCursor={toCursor}
+                hidden={hiddenMessages}
+                onHidden={next => setQuery({ hide: next.length > 0 ? next.join(',') : null })}
+              />
+            </div>
+          ) : null}
         </div>
 
-        {pictureOn || messagesOn ? (
+        {pictureOn ? (
           <aside className={styles.beside}>
-            {pictureOn ? (
-              <div className={styles.picture}>
-                <CameraFrame cameras={cameras} from={left} to={right} cursor={cursorTime} day={null} onScrub={toCursor} />
-              </div>
-            ) : null}
-            {messagesOn ? (
-              <div className={styles.written}>
-                <Messages read={entries} from={left} to={right} cursor={cursorTime} onCursor={toCursor} />
-              </div>
-            ) : null}
+            <div className={styles.picture}>
+              <CameraFrame cameras={cameras} from={left} to={right} cursor={cursorTime} day={null} onScrub={toCursor} />
+            </div>
           </aside>
         ) : null}
       </div>
@@ -698,7 +714,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
               className={ui.segment}
               aria-pressed={one === layout}
               disabled={one === 'day_of_grow' && !dayAxis}
-              onClick={() => setAsked(one)}
+              onClick={() => setQuery({ layout: one === 'stacked' ? null : one })}
             >
               {t(`charts.layout.${one}`)}
             </button>
@@ -910,7 +926,9 @@ const readingOf = (t: Translate, line: PlotLine, cursor: number, span: number): 
   if (value === null) return '—';
   if (line.shape === 'step') return t(value > 0 ? 'charts.on' : 'charts.off');
 
-  return [line.metric ? figure(value, line.metric) : looseFigure(value), line.unit].filter(Boolean).join(' ');
+  return [line.metric ? figure(value, line.metric) : looseFigure(value), value === 1 && line.unitOne ? line.unitOne : line.unit]
+    .filter(Boolean)
+    .join(' ');
 };
 
 /** The title, and in the corner the place and the grow it is about. */
@@ -1041,6 +1059,12 @@ const pickedOf = (value: string | null): Picked | null => {
 
 const showOf = (picked: Picked): string =>
   [...picked.metrics, ...picked.outputs.map(output => OUTPUT_MARK + output), ...picked.measurements.map(key => MEASUREMENT_MARK + key)].join(',');
+
+/** The zoom an address names, as two instants, or null where it names none or two that are not a stretch. */
+const zoomOf = (value: string | null): Zoom | null => {
+  const [from, to] = (value ?? '').split('~').map(momentOf);
+  return from != null && to != null && from < to ? { from, to } : null;
+};
 
 /** The instant an address names, or null where it names none or something that is not one. */
 const momentOf = (value: string | null): number | null => {

@@ -19,7 +19,7 @@ import { spacesDuring } from '../diary/grow-places';
 import { recordOf } from '../phase/target-record';
 import { CHART_FRAME_SLOTS, framesOf } from '../timeline/frames';
 import { lastReadingOf } from '../timeline/last-reading';
-import { lanesOf, nightsOf, panelsOf } from '../timeline/timeline-series';
+import { fridgesOf, lanesOf, nightsOf, panelsOf } from '../timeline/timeline-series';
 import { TimelineWindow, narrowedTo, steeringOf, stretchesOf, windowOf } from '../timeline/timeline-window';
 import { Redaction } from './grow-serialiser';
 import { GrowsService } from './grows.service';
@@ -93,13 +93,17 @@ export class GrowSeriesService {
     const [series, readings, aimed, cameras] = await Promise.all([
       Promise.all(
         devices.map(device =>
-          this.data.history(device.id, {
-            startsAt: window.startsAt,
-            endsAt: window.endsAt,
-            stepSeconds: window.stepSeconds,
-            metrics: asked.metrics ?? [],
-            outputs: asked.outputs ?? [],
-          }),
+          this.data.history(
+            device.id,
+            {
+              startsAt: window.startsAt,
+              endsAt: window.endsAt,
+              stepSeconds: window.stepSeconds,
+              metrics: asked.metrics ?? [],
+              outputs: asked.outputs ?? [],
+            },
+            true,
+          ),
         ),
       ),
       keys.length > 0 ? this.readingsIn(grow.id, window) : Promise.resolve([] as EntryDocument[]),
@@ -132,7 +136,7 @@ export class GrowSeriesService {
       // curve has the question to answer, and only a caller that asked about
       // the climate at all can have been wondering.
       lastReadingAt: climate.length === 0 && asked.metrics?.length ? await lastReadingOf(this.data, devices) : null,
-      outputs: lanesOf(series, window, grant.redacted),
+      outputs: lanesOf(series, window, grant.redacted, fridgesOf(devices)),
       nights: nightsOf(series, window),
       measurements: measurementsOf(keys, readings, hide),
       cameras: cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: frames.get(camera.id) ?? [] })),

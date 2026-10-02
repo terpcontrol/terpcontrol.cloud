@@ -33,3 +33,22 @@ export const DERIVED_METRICS: readonly Metric[] = metric.options.filter(name => 
 export const STORED_FIELDS: readonly string[] = STORED_METRICS.map(name => METRIC_FIELD[name] as string);
 
 export const OUTPUT_FIELDS: readonly string[] = outputMetric.options.map(name => OUTPUT_METRIC_FIELD[name]);
+
+/**
+ * The outputs a device drives at a level rather than only on and off, and what
+ * the figure it writes has to be multiplied by to be the share of full output.
+ * The firmware writes the lamp and an AIR's fan in percent, and the heater's
+ * demand and a fridge's three fans as a fraction of one. The CO2 valve is a
+ * count of open ticks rather than a share of anything, and is summed instead.
+ * A dehumidifier and a socket's relay are switches: their lanes say when, and
+ * that is all there is to say.
+ */
+export const OUTPUT_LEVEL: Readonly<Partial<Record<OutputMetric, { unit: 'percent' | 'count'; scale: number }>>> = {
+  light: { unit: 'percent', scale: 1 },
+  fan: { unit: 'percent', scale: 1 },
+  heater: { unit: 'percent', scale: 100 },
+  fanInternal: { unit: 'percent', scale: 100 },
+  fanExternal: { unit: 'percent', scale: 100 },
+  fanBackwall: { unit: 'percent', scale: 100 },
+  co2: { unit: 'count', scale: 1 },
+};

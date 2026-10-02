@@ -12,7 +12,7 @@ import type { ChartViewSpan, GrowListItem, GrowSeries, TimelineTargets } from '@
 import { chartViewCreate } from '@fg2/shared-types/v1-schemas/diary.js';
 import { Charts } from '@/screens/charts/Charts';
 import { cardsOf, csvForCards, offeredBy, type Offered } from '@/screens/charts/cards';
-import { csvOf, DAY_MS, niceScale, plotOption, readAt, stepPoints } from '@/charts/series';
+import { csvOf, DAY_MS, levelPoints, niceScale, plotOption, readAt, stepPoints } from '@/charts/series';
 
 const state = vi.hoisted(() => ({
   series: null as GrowSeries | null,
@@ -949,6 +949,174 @@ describe('what a plot is made of', () => {
     expect(times).toEqual([...times].sort((one, other) => one - other));
     // A switch has no scale worth printing: it ran or it did not.
     expect(card.scaleEnds).toEqual([null]);
+  });
+
+  /**
+   * The old charts drew the lamp from nought to a hundred per cent, an AIR's
+   * fan at its speed and the CO2 valve as what it dosed; the rewrite drew all
+   * of them as on and off, and a lamp dimmed to 60 % with its sunrise ramp
+   * read as a block of "on".
+   */
+  it('draws a dimmed lamp at its level inside the stretches it ran, and nought outside them', () => {
+    // Windows of 10 closing at 10, 20, 30: the lamp ran from 15 to 28, at 40 % in its first window and 60 % in the next.
+    const points = levelPoints(
+      [
+        [20, 40],
+        [30, 60],
+      ],
+      10,
+      0,
+      30,
+      30,
+      [{ from: 15, to: 28 }],
+    );
+
+    expect(points).toEqual([
+      [0, 0],
+      [15, 0],
+      [15, 40],
+      [20, 40],
+      [20, 60],
+      [28, 60],
+      [28, 0],
+      [30, 0],
+    ]);
+    expect(readAt({ shape: 'line', points }, 17, 30)).toBe(40);
+    expect(readAt({ shape: 'line', points }, 25, 30)).toBe(60);
+    expect(readAt({ shape: 'line', points }, 29, 30)).toBe(0);
+  });
+
+  it('draws what the valve dosed window by window, and stops where the device was last heard', () => {
+    expect(levelPoints([[20, 3500]], 10, 0, 30, 25)).toEqual([
+      [0, 0],
+      [10, 0],
+      [10, 3500],
+      [20, 3500],
+      [20, 0],
+      [25, 0],
+      [26, null],
+    ]);
+  });
+
+  it('puts a lamp with a level on a card of its own from 0 to 100 %, and writes it to the table in percent', () => {
+    const dimmed: GrowSeries = {
+      ...series,
+      outputs: [
+        {
+          output: 'light',
+          deviceId: 'device-1',
+          spans: [{ startsAt: at(6), endsAt: at(18) }],
+          heardUntil: at(24),
+          // A window of five minutes each, closing every five minutes from 06:05 to 18:00.
+          level: {
+            unit: 'percent',
+            points: Array.from({ length: 144 }, (_, index) => 6 + (index + 1) / 12).map(hour => ({
+              measuredAt: at(hour),
+              value: hour <= 8 ? 30 : 75,
+            })),
+          },
+        },
+      ],
+    };
+    const input = {
+      picked: { metrics: [], outputs: ['light' as const], measurements: [] },
+      layout: 'stacked' as const,
+      offered: offeredBy(dimmed, []),
+      leaf: null,
+      plants: [],
+    };
+    const [card] = cardsOf(key => key, dimmed, input);
+
+    expect(card.unit).toBe('%');
+    expect(card.about).toBe('charts.about.level');
+    expect(card.help).toBe('chartOutputs');
+    expect(card.plot.scales).toEqual([{ low: 0, high: 100 }]);
+    expect(card.scaleEnds).toEqual([{ low: '0', high: '100' }]);
+    const line = card.plot.lines[0];
+    expect(readAt(line, DateTime.fromISO(at(6.5)).toMillis(), 1)).toBe(30);
+    expect(readAt(line, DateTime.fromISO(at(12)).toMillis(), 1)).toBe(75);
+    expect(readAt(line, DateTime.fromISO(at(20)).toMillis(), 1)).toBe(0);
+
+    const head = csvForCards(key => key, dimmed, input, null).split('\n')[0];
+    expect(head).toContain('"timeline.output.light (%)"');
+  });
+
+  it('keeps nought to a hundred where a humidity is laid over a lamp´s level, both being shares of a hundred', () => {
+    const dimmed: GrowSeries = {
+      ...series,
+      outputs: [
+        {
+          output: 'light',
+          deviceId: 'device-1',
+          spans: [{ startsAt: at(6), endsAt: at(18) }],
+          heardUntil: at(24),
+          level: { unit: 'percent', points: [{ measuredAt: at(12), value: 80 }] },
+        },
+      ],
+    };
+    const [card] = cardsOf(key => key, dimmed, {
+      picked: { metrics: ['humidity'], outputs: ['light'], measurements: [] },
+      layout: 'overlay',
+      offered: offeredBy(dimmed, []),
+      leaf: null,
+      plants: [],
+    });
+
+    expect(card.plot.scales).toEqual([{ low: 0, high: 100 }]);
+  });
+
+  it('reads the level and the dose out at the cursor, and leaves a switch a switch', async () => {
+    state.series = {
+      ...series,
+      outputs: [
+        {
+          output: 'light',
+          deviceId: 'device-1',
+          spans: [{ startsAt: at(6), endsAt: at(24) }],
+          heardUntil: at(24),
+          level: { unit: 'percent', points: [{ measuredAt: at(24), value: 62 }] },
+        },
+        {
+          output: 'co2',
+          deviceId: 'device-1',
+          spans: [{ startsAt: at(23), endsAt: at(24) }],
+          heardUntil: at(24),
+          level: { unit: 'count', points: [{ measuredAt: at(24), value: 4200 }] },
+        },
+        { output: 'dehumidifier', deviceId: 'device-1', spans: [{ startsAt: at(8), endsAt: at(24) }], heardUntil: at(24) },
+      ],
+    };
+    drawAt('/charts?grow=grow-1&show=out.light,out.co2,out.dehumidifier');
+
+    const reading = await screen.findByRole('status');
+    expect(reading).toHaveTextContent('Light 62 %');
+    expect(reading).toHaveTextContent('CO₂ valve 4200 ticks');
+    // And one tick is one: "1 ticks" was the readout of a quiet window.
+    const counted = cardsOf(key => i18next.t(key, { count: 1 }), state.series!, {
+      picked: { metrics: [], outputs: ['co2'], measurements: [] },
+      layout: 'stacked',
+      offered: offeredBy(state.series!, []),
+      leaf: null,
+      plants: [],
+    })[0].plot.lines[0];
+    expect(counted.unitOne).toBe('tick');
+    expect(reading).toHaveTextContent('Dehumidifier on');
+    expect(screen.getByText(/dosed per 5 min/)).toBeInTheDocument();
+    expect(screen.getByText(/when on$/)).toBeInTheDocument();
+  });
+
+  /** One machine, one name: the cockpit, the alarms and the device panel call a fridge's dehumidifier output its compressor. */
+  it('calls a fridge module´s dehumidifier output the compressor, on its chip and its card', async () => {
+    state.series = {
+      ...series,
+      outputs: [{ output: 'dehumidifier', deviceId: 'device-1', fridge: true, spans: [{ startsAt: at(8), endsAt: at(9) }], heardUntil: at(24) }],
+    };
+    await i18next.changeLanguage('de');
+    drawAt('/charts?grow=grow-1&show=out.dehumidifier');
+
+    expect(await screen.findByRole('button', { name: 'Kompressor' })).toBeInTheDocument();
+    expect((await screen.findByRole('status')).textContent).toContain('Kompressor');
+    expect(screen.queryByText('Entfeuchter')).not.toBeInTheDocument();
   });
 
   it('gives a concentration no room below zero, and a fridge the cold half it really ran in', () => {

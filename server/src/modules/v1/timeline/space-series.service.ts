@@ -14,7 +14,7 @@ import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { CHART_FRAME_SLOTS, framesOf } from './frames';
 import { lastReadingOf } from './last-reading';
-import { lanesOf, nightsOf, panelsOf } from './timeline-series';
+import { fridgesOf, lanesOf, nightsOf, panelsOf } from './timeline-series';
 import { narrowedTo, steeringOf, stretchesOf } from './timeline-window';
 
 /** What the route was asked for, after the query string has been checked against the contract. */
@@ -70,7 +70,7 @@ export class SpaceSeriesService {
     const [series, aimed, cameras] = await Promise.all([
       Promise.all(
         (read ? devices : []).map(device =>
-          this.data.history(device.id, { startsAt: window.startsAt, endsAt: window.endsAt, stepSeconds: window.stepSeconds, metrics, outputs }),
+          this.data.history(device.id, { startsAt: window.startsAt, endsAt: window.endsAt, stepSeconds: window.stepSeconds, metrics, outputs }, true),
         ),
       ),
       recordOf(this.targetRecord, steeringOf(devices)?.id ?? null, window),
@@ -93,7 +93,7 @@ export class SpaceSeriesService {
       deviceIds: grant.redacted ? null : devices.map(device => device.id),
       climate,
       lastReadingAt: climate.length === 0 && metrics.length > 0 ? await lastReadingOf(this.data, devices) : null,
-      outputs: lanesOf(series, window, grant.redacted),
+      outputs: lanesOf(series, window, grant.redacted, fridgesOf(devices)),
       nights: nightsOf(series, window),
       cameras: cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: frames.get(camera.id) ?? [] })),
     };

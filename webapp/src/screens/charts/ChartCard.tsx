@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Chart } from '@/charts/Chart';
 import { AXIS_GUTTER, plotOption, readAt } from '@/charts/series';
 import type { Selection } from '@/charts/scrub';
-import { ticksFor, type Tick } from '@/charts/ticks';
+import { NARROW_PLOT_PX, NARROW_TICK_ROOM_PX, TICK_ROOM_PX, ticksFor, type Tick } from '@/charts/ticks';
 import type { ChartPalette } from '@/charts/tokens';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
@@ -41,7 +41,11 @@ export function ChartCard({ card, cursor, scrub, selection = null, ends, ticksOf
   const { from, to, scales, lines } = card.plot;
   const left = `${fractionOf(cursor, from, to) * 100}%`;
   const [plotWidth, axis] = useAxisRoom();
-  const ticks = useMemo(() => (ticksOf ? ticksOf(ticksFor(plotWidth)) : []), [ticksOf, plotWidth]);
+  const narrow = plotWidth > 0 && plotWidth < NARROW_PLOT_PX;
+  const ticks = useMemo(
+    () => (ticksOf ? ticksOf(ticksFor(plotWidth, narrow ? NARROW_TICK_ROOM_PX : TICK_ROOM_PX)) : []),
+    [ticksOf, plotWidth, narrow],
+  );
 
   return (
     // The same gutter on both sides of every card, whether this one has a
@@ -62,7 +66,7 @@ export function ChartCard({ card, cursor, scrub, selection = null, ends, ticksOf
         <span className={styles.cardTitle}>
           {card.title}
           {/* An (i) rather than the word as a term: the chip that turns the line on is already a button called VPD. */}
-          {card.key === 'vpd' ? <Help topic="vpd" /> : null}
+          {card.key === 'vpd' ? <Help topic="vpd" /> : card.help ? <Help topic={card.help} /> : null}
         </span>
         {card.about ? <span className={styles.cardAbout}>· {card.about}</span> : null}
         <span className={`mono ${styles.cardUnit}`}>{card.unit}</span>
@@ -105,7 +109,7 @@ export function ChartCard({ card, cursor, scrub, selection = null, ends, ticksOf
           })}
         </div>
       </div>
-      <p ref={axis} className={`mono ${styles.axis}`}>
+      <p ref={axis} className={`mono ${styles.axis}`} data-narrow={narrow || undefined}>
         <span data-end>{ends[0]}</span>
         {ticks.length > 0 ? (
           <span className={styles.tickRow} aria-hidden>
@@ -130,6 +134,8 @@ export function ChartCard({ card, cursor, scrub, selection = null, ends, ticksOf
  * once it is drawn, the labels between the two ends that would stand on one of
  * them or on each other are hidden, so a phone keeps the lines and loses only
  * words it has no room for. The ends always stay: they are what dates the card.
+ * An end on a row of its own stands on no label, so only what shares a row is
+ * held against it.
  */
 function useAxisRoom(): [number, React.RefObject<HTMLParagraphElement | null>] {
   const axis = useRef<HTMLParagraphElement>(null);
@@ -150,7 +156,9 @@ function useAxisRoom(): [number, React.RefObject<HTMLParagraphElement | null>] {
     for (const label of element.querySelectorAll<HTMLElement>(`.${styles.tickLabel}`)) {
       label.style.visibility = '';
       const box = label.getBoundingClientRect();
-      const clash = taken.some(other => box.width > 0 && box.left < other.right + 8 && box.right > other.left - 8);
+      const clash = taken.some(
+        other => box.width > 0 && box.top < other.bottom && box.bottom > other.top && box.left < other.right + 8 && box.right > other.left - 8,
+      );
       label.style.visibility = clash ? 'hidden' : '';
       if (!clash) taken.push(box);
     }

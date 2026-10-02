@@ -40,6 +40,8 @@ export interface PlotLine {
   /** What the pinned readout calls this line. A line without one is drawn and never read out, which is what a setpoint is. */
   label?: string;
   unit?: string;
+  /** The unit after a count of one, where a language says it differently: "1 Takt", "8 Takte". */
+  unitOne?: string;
   /**
    * Which of the contract's metrics the line is a reading of, where it is one of
    * them at all. It decides nothing about the picture and everything about the
@@ -237,6 +239,75 @@ export const stepPoints = (spans: readonly PlotSpan[], from: number, to: number,
     if (!running) points.push([right, 0]);
   }
   points.push([known, running ? 1 : 0]);
+  if (known < to) points.push([known + 1, null]);
+
+  return points;
+};
+
+/**
+ * An output driven at a level, as the line its windows describe: each window's
+ * figure held across the window it stands for, which closes at the instant it
+ * is stamped with, and nought between the windows nothing was counted in.
+ *
+ * Given the spans it ran for, the figure is drawn only inside them and the line
+ * lies at nought outside them: a level is averaged over the stretches the output
+ * ran in, so it says how hard and the spans say when - a lamp that came on half
+ * way through a window is dark for the first half of it and at its level for the
+ * second, at any width of window. Inside a span the window has nothing to say
+ * about, the level before it carries on, and full output where there is none.
+ *
+ * Like the square wave, the line ends where the device was last heard from.
+ */
+export const levelPoints = (
+  windows: readonly (readonly [number, number])[],
+  step: number,
+  from: number,
+  to: number,
+  heardUntil = to,
+  on?: readonly PlotSpan[],
+): [number, number | null][] => {
+  const known = Math.max(from, Math.min(to, heardUntil));
+  const cuts = new Set([from, known]);
+  const cut = (time: number) => {
+    if (time > from && time < known) cuts.add(time);
+  };
+  for (const [end] of windows) {
+    cut(end - step);
+    cut(end);
+  }
+  for (const span of on ?? []) {
+    cut(span.from);
+    cut(span.to);
+  }
+
+  const edges = [...cuts].sort((one, other) => one - other);
+  const points: [number, number | null][] = [];
+  const hold = (time: number, value: number) => {
+    const last = points[points.length - 1];
+    const before = points[points.length - 2];
+    if (last && before && last[1] === value && before[1] === value) last[0] = time;
+    else points.push([time, value]);
+  };
+  let window = 0;
+  let span = 0;
+  let carried: number | null = null;
+
+  for (let index = 0; index + 1 < edges.length; index += 1) {
+    const middle = (edges[index] + edges[index + 1]) / 2;
+    while (window < windows.length && windows[window][0] < middle) window += 1;
+    const counted = window < windows.length && windows[window][0] - step < middle ? windows[window][1] : null;
+
+    let value = counted ?? 0;
+    if (on) {
+      while (span < on.length && on[span].to <= middle) span += 1;
+      const running = span < on.length && on[span].from <= middle;
+      value = running ? (counted ?? carried ?? 100) : 0;
+      if (running) carried = value;
+    }
+    hold(edges[index], value);
+    hold(edges[index + 1], value);
+  }
+  if (points.length === 0) points.push([from, 0]);
   if (known < to) points.push([known + 1, null]);
 
   return points;

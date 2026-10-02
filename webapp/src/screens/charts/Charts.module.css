@@ -322,6 +322,20 @@
   white-space: nowrap;
 }
 
+/* On a narrow plot the ends take most of the row, so the gridlines are named
+   on a row of their own, straight under the lines they name. */
+.axis[data-narrow] {
+  flex-wrap: wrap;
+}
+
+.axis[data-narrow] .tickRow {
+  position: relative;
+  inset: auto;
+  flex: 0 0 100%;
+  order: -1;
+  height: 1.5em;
+}
+
 .leftOut {
   margin: 0;
 }
