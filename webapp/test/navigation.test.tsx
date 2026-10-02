@@ -142,7 +142,8 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   server.sent.push({ method, path, body });
 
   if (path === '/me' && method === 'PATCH') {
-    server.me = { ...server.me, preferences: (body as Me).preferences };
+    // The preferences are written field by field: what a body leaves out is kept.
+    server.me = { ...server.me, preferences: { ...server.me.preferences, ...(body as Me).preferences } };
     return json(server.me);
   }
   if (path === '/me') return json(server.me);
@@ -224,6 +225,17 @@ describe('the bar', () => {
     ]);
     expect(tabsOf({ ...one, diary: true }, false).some(tab => tab.raised)).toBe(false);
     expect(tabsOf({ diary: false, devices: 2 }, true).at(-1)?.labelKey).toBe('shell.tabs.devices');
+  });
+
+  it('leaves Steuerung out until there is a device to steer, and keeps Gerät as the way one comes in', () => {
+    expect(tabsOf({ diary: true, devices: 0, steering: false }, true).map(tab => tab.labelKey)).toEqual([
+      'shell.tabs.home',
+      'shell.tabs.timeline',
+      'shell.tabs.log',
+      'shell.tabs.device',
+    ]);
+    // A camera alone steers nothing either.
+    expect(tabsOf({ diary: true, devices: 1, steering: false }, true).some(tab => tab.labelKey === 'shell.tabs.control')).toBe(false);
   });
 
   it('draws the four places of an account with one device, and no Tasks', async () => {

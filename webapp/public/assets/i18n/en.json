@@ -979,7 +979,9 @@
       "openRename": "Rename"
     },
     "unnamed": "{{type}} · {{tag}}",
-    "youMayLog": "What the devices here are doing is shown. A socket or the lamp is switched by whoever steers this place."
+    "youMayLog": "What the devices here are doing is shown. A socket or the lamp is switched by whoever steers this place.",
+    "noneYet": "No device here yet. A controller or a fridge module measures and steers the climate and comes in with the code on its display; a camera takes pictures for the diary and for timelapses.",
+    "addController": "Add a controller or a fridge module"
   },
   "diary": {
     "title": "Diary",
@@ -1503,14 +1505,15 @@
     },
     "addDevice": {
       "title": "Add a device",
-      "text": "Controller, Fridge Modul, Terp Cam or an RTSP camera. Claim code is on the display or the box.",
+      "text": "A controller or a fridge module, with a Terp Cam too. The claim code is on the display or the box.",
       "scan": "scan QR",
       "code": "Claim code",
       "orScan": "or scan",
       "scanUnavailable": "This browser cannot read QR codes; type the code instead.",
       "scanDenied": "The camera was not allowed — type the code instead, or allow the camera for this site.",
       "scanHint": "Point the camera at the QR code on the box.",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "camera": "Add a camera without a controller (RTSP)"
     },
     "demo": {
       "title": "Try the demo",
@@ -1629,6 +1632,9 @@
       "following": "Following",
       "inDays": "in {{count}} d",
       "dueSince": "due since {{time}}"
+    },
+    "device": {
+      "offer": "With a sensor, this place measures itself"
     }
   },
   "me": {
@@ -4626,6 +4632,10 @@
     "lux": {
       "title": "Light intensity",
       "text": "How bright it is at the light sensor, in lux. The curve shows when and how strongly the lamp shines. How much of it the plant can use is the PPFD, which is estimated from the lux."
+    },
+    "deviceOffer": {
+      "title": "Device or camera",
+      "text": "A controller or a fridge module measures temperature and humidity by itself, steers heating, light and fans, and tells you when something is wrong. A camera takes pictures for the diary and for timelapses. You add either on the Device tab. “No thanks” hides this line on all your devices."
     }
   },
   "place": {
@@ -4734,8 +4744,12 @@
     "camera": {
       "open": "Open the camera",
       "title": "Camera",
-      "caption": "Camera · {{time}} · {{age}} ago",
-      "none": "No picture yet"
+      "caption": "{{name}} · {{time}} · {{age}} ago",
+      "none": "No picture yet",
+      "lightOff": "{{name}} · light off · picture from {{time}}",
+      "delivers": "{{name}} delivers · picture {{age}} ago",
+      "quietSince": "{{name}} not delivering · since {{time}}",
+      "nothingYet": "{{name}} has not delivered a picture yet"
     },
     "targets": {
       "title": "Targets",

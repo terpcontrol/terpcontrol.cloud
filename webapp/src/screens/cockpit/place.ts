@@ -9,6 +9,7 @@ import type {
   Metric,
   OpenAlert,
   OutputMetric,
+  OverviewCamera,
   OverviewTargets,
   SeriesPoint,
   SpaceKind,
@@ -286,7 +287,11 @@ const STEERED: Steered[] = ['temperature', 'humidity', 'co2'];
 
 export const statusOf = (place: StatusInput, now: DateTime): Status => {
   const liveness: Liveness = livenessOf(place, now);
-  if (liveness === 'none') return { kind: 'none' };
+  // A place with no sensor can still have something open: a camera that stopped delivering is its one way to go wrong.
+  if (liveness === 'none') {
+    const alert = worstAlertOf({ openAlerts: place.openAlerts.filter(one => !isSilence(one)) });
+    return alert ? { kind: 'alert', alert } : { kind: 'none' };
+  }
   if (liveness === 'offline') return place.values.length === 0 ? { kind: 'waiting' } : { kind: 'offline', since: measuredAtOf(place.values) };
   if (place.quiet) return { kind: 'maintenance', quiet: place.quiet };
 
@@ -360,4 +365,17 @@ export const statusText = (t: Translate, status: Status, now: DateTime, zone: st
     default:
       return t(`cockpit.status.${status.kind}`);
   }
+};
+
+/* ------------------------------------------------------------ the picture */
+
+/**
+ * The picture a place is shown by: the newest one taken in the light. A tent
+ * lit by night is dark in every hour somebody looks by day, so where the
+ * newest picture is dark the newest lit one stands in, and says so.
+ */
+export const shownStill = (camera: OverviewCamera): { mediaId: string; capturedAt: string; dark: boolean } | null => {
+  if (camera.litStill) return { ...camera.litStill, dark: true };
+  const newest = camera.stills.at(-1);
+  return newest ? { ...newest, dark: false } : null;
 };

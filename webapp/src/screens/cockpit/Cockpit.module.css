@@ -160,6 +160,14 @@
     align-items: start;
     gap: var(--space-5);
   }
+
+  /* A diary kept by hand has one column's worth of page: the grow, its lines
+     and the offer under them, at a width a line still reads at - rather than
+     an empty left column beside a half-width card. */
+  .columns[data-single] {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 720px;
+  }
 }
 
 /* ----------------------------------------------------------- the status */
@@ -535,13 +543,23 @@
   box-shadow: var(--shadow);
 }
 
-/* Beside the rail the left column is twice a phone's width, and the picture
-   filled it: half a screen of a dark tent at night, with Wartung pushed under
-   its edge. It is a glance at the tent, so it keeps a glance's size there. */
-@media (min-width: 900px) {
-  .camera {
-    max-width: 520px;
-  }
+/* Under the grow block's own corners the picture is the top of the card. */
+.grow[data-pictured] > .camera {
+  margin: calc(-1 * var(--card-padding)) calc(-1 * var(--card-padding)) 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  box-shadow: none;
+}
+
+.cameraLabel {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--overlay);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--on-overlay);
 }
 
 .camera img {

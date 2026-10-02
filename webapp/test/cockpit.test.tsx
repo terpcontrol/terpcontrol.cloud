@@ -529,7 +529,7 @@ describe('what a place reports decides its tiles', () => {
 
   it('shows the newest still a tap from the camera´s page, and no camera where there is none', async () => {
     const withCamera = overviewOf({
-      cameras: [{ cameraId: 'cam-1', name: 'Cam 1', lastStillAt: ago(1), stills: [{ mediaId: 'media-1', capturedAt: ago(1) }] }],
+      cameras: [{ cameraId: 'cam-1', name: 'Cam 1', lastStillAt: ago(1), stills: [{ mediaId: 'media-1', capturedAt: ago(1) }], litStill: null }],
     });
     const { unmount } = draw(<PlaceCockpit overview={withCamera} />);
 
@@ -584,6 +584,43 @@ describe('the diary on a place', () => {
     expect(link).toHaveTextContent('Defoliated');
     expect(within(grow).getByText('Water')).toBeInTheDocument();
     expect(within(grow).getByRole('button', { name: 'Done' })).toBeInTheDocument();
+  });
+
+  /**
+   * A diary kept without any hardware: the grow is the page. Nothing said
+   * "Kein Sensor · Gerät hinzufügen" over it any more, and a sensor is offered
+   * in one quiet line at the end, leading to the Gerät tab rather than into
+   * the claim.
+   */
+  it('makes the grow the page of a diary kept by hand, and offers a sensor in a quiet line under it', async () => {
+    server.me = me(true);
+    draw(<PlaceCockpit overview={{ ...growing, deviceIds: [], values: [], setpoints: [], targets: null }} />);
+
+    expect(await screen.findByRole('region', { name: 'Grow' })).toBeInTheDocument();
+    expect(screen.queryByText('No sensor')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Add a device/ })).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /measures itself/ })).toHaveAttribute('href', '/devices');
+    expect(screen.getByRole('button', { name: 'No thanks' })).toBeInTheDocument();
+  });
+
+  /** With a camera, its picture heads the grow block, with the day and the stage on it, and is not drawn a second time. */
+  it('heads the grow block with the camera´s picture where a camera watches the place', async () => {
+    server.me = me(true);
+    const camera = { cameraId: 'cam-1', name: 'Terp Cam · B07171', lastStillAt: ago(1), stills: [{ mediaId: 'media-1', capturedAt: ago(1) }], litStill: null };
+    draw(<PlaceCockpit overview={{ ...growing, cameras: [camera] }} />);
+
+    const grow = await screen.findByRole('region', { name: 'Grow' });
+    expect(within(grow).getByRole('link', { name: 'Open the camera' })).toHaveTextContent('Day 34 · Flower wk 2');
+    expect(screen.getAllByRole('link', { name: 'Open the camera' })).toHaveLength(1);
+  });
+
+  it('says a camera alone is delivering, or since when it is not, where nothing measures the place', async () => {
+    server.me = me(false);
+    const quiet = { cameraId: 'cam-1', name: 'Growbox-Cam', lastStillAt: ago(180), stills: [], litStill: null };
+    draw(<PlaceCockpit overview={{ ...overviewOf({ deviceIds: [], values: [], setpoints: [], targets: null }), cameras: [quiet] }} />);
+
+    expect(await screen.findByRole('link', { name: /Growbox-Cam not delivering · since/ })).toHaveAttribute('href', '/cameras/cam-1');
+    expect(screen.queryByText('No sensor')).not.toBeInTheDocument();
   });
 
   it('leaves the grow out for an account without the diary, and offers it once in a quiet line', async () => {
@@ -739,6 +776,8 @@ describe('what the cockpit decides', () => {
     expect(statusOf(place, now).kind).toBe('good');
     expect(statusOf({ ...place, setpoints: [] }, now).kind).toBe('noTargets');
     expect(statusOf({ ...place, deviceIds: [] }, now).kind).toBe('none');
+    // A camera that stopped is the one thing a place without a sensor has to report.
+    expect(statusOf({ ...place, deviceIds: [], openAlerts: [{ ...alert, kind: 'camera_stale' as never, severity: 'warning' as const }] }, now).kind).toBe('alert');
     expect(statusOf({ ...place, values: [] }, now).kind).toBe('waiting');
   });
 

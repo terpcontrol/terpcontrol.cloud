@@ -158,7 +158,7 @@ const overview: SpaceOverview = {
       placedOnDay: 22,
     },
   ],
-  cameras: [{ cameraId: 'cam-1', name: 'Cam 1', lastStillAt: at(20), stills: [{ mediaId: 'media-1', capturedAt: at(7200) }] }],
+  cameras: [{ cameraId: 'cam-1', name: 'Cam 1', lastStillAt: at(20), stills: [{ mediaId: 'media-1', capturedAt: at(7200) }], litStill: null }],
   entries: [
     {
       id: 'e1',

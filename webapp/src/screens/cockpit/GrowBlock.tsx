@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { OverviewGrow, OverviewTask, SpaceOverview } from '@fg2/shared-types/v1';
+import type { OverviewCamera, OverviewGrow, OverviewTask, SpaceOverview } from '@fg2/shared-types/v1';
 import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
 import { useLog, useMayLog } from '@/log/log-context';
 import { ageLabel } from '@/ui/age';
@@ -13,6 +13,7 @@ import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
 import { MoveHereSheet } from '../space/MoveHereSheet';
 import { daysUntil } from '../tasks/tasks';
+import { CameraPicture } from './CameraPicture';
 import styles from './Cockpit.module.css';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -22,16 +23,54 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * with its day and phase, the last line written about it, and what is due -
  * each with the Done that writes it. Where nothing grows here, the two ways to
  * change that, offered to somebody who may.
+ *
+ * Where a camera watches the place, its picture heads the block, large, with
+ * the grow's day and phase on it: the tent and what grows in it are one thing
+ * to look at, and the page shows the picture once rather than as a camera, a
+ * grow's thumbnail and a photo line under each other.
+ *
+ * Without one, a grow is shown by the newest photo written into its diary.
  */
-export function GrowBlock({ overview, still, now }: { overview: SpaceOverview; still: string | null; now: DateTime }) {
+export function GrowBlock({
+  overview,
+  camera = null,
+  still,
+  now,
+}: {
+  overview: SpaceOverview;
+  camera?: OverviewCamera | null;
+  still: string | null;
+  now: DateTime;
+}) {
   const { t } = useTranslation();
+  const first = overview.grows[0] ?? null;
+  const label = first
+    ? [
+        first.dayNumber !== null ? t('home.card.dayN', { day: first.dayNumber }) : null,
+        first.stage
+          ? `${t(`home.stage.${first.stage}`)}${first.stageWeek !== null ? ` ${t('home.card.week', { week: first.stageWeek })}` : ''}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : null;
 
   return (
-    <section className={`${ui.card} ${styles.grow}`} aria-label={t('cockpit.grow.title')}>
+    <section className={`${ui.card} ${styles.grow}`} aria-label={t('cockpit.grow.title')} data-pictured={camera ? true : undefined}>
+      {camera ? <CameraPicture overview={overview} camera={camera} now={now} label={label} /> : null}
       {overview.grows.length === 0 ? (
         <NothingGrows overview={overview} />
       ) : (
-        overview.grows.map(grow => <GrowRow key={grow.growId} grow={grow} overview={overview} still={still} now={now} />)
+        overview.grows.map(grow => (
+          <GrowRow
+            key={grow.growId}
+            grow={grow}
+            overview={overview}
+            still={camera ? null : (still ?? photoOf(overview, grow.growId))}
+            bare={camera !== null}
+            now={now}
+          />
+        ))
       )}
       {overview.dueTasks.length > 0 ? (
         <ul className={styles.due} aria-label={t('cockpit.grow.due')}>
@@ -48,7 +87,20 @@ export function GrowBlock({ overview, still, now }: { overview: SpaceOverview; s
   );
 }
 
-function GrowRow({ grow, overview, still, now }: { grow: OverviewGrow; overview: SpaceOverview; still: string | null; now: DateTime }) {
+function GrowRow({
+  grow,
+  overview,
+  still,
+  bare,
+  now,
+}: {
+  grow: OverviewGrow;
+  overview: SpaceOverview;
+  still: string | null;
+  /** Under the camera's picture the grow needs no thumbnail of its own. */
+  bare: boolean;
+  now: DateTime;
+}) {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
   const coverId = grow.coverMediaId ?? still;
@@ -62,7 +114,7 @@ function GrowRow({ grow, overview, still, now }: { grow: OverviewGrow; overview:
 
   return (
     <Link to={`/grows/${grow.growId}`} className={styles.growRow}>
-      <span className={styles.cover}>{cover ? <img src={cover} alt="" /> : <Leaf size={20} strokeWidth={1.5} aria-hidden />}</span>
+      {bare ? null : <span className={styles.cover}>{cover ? <img src={cover} alt="" /> : <Leaf size={20} strokeWidth={1.5} aria-hidden />}</span>}
       <span className={styles.growText}>
         <span className={styles.growName}>
           {grow.name}
@@ -86,6 +138,10 @@ function GrowRow({ grow, overview, still, now }: { grow: OverviewGrow; overview:
     </Link>
   );
 }
+
+/** The newest photo written into a grow's diary that the page has, which a grow with no camera is shown by. */
+const photoOf = (overview: SpaceOverview, growId: string): string | null =>
+  overview.entries.find(entry => entry.growId === growId && entry.cameraId === null && entry.mediaIds.length > 0)?.mediaIds[0] ?? null;
 
 /** Nothing grows here: the two ways to change that, to somebody who may put a grow into this place. */
 function NothingGrows({ overview }: { overview: SpaceOverview }) {

@@ -21,32 +21,46 @@ const CONTROL: Tab = { path: '/control', labelKey: 'shell.tabs.control', Icon: S
 const DEVICES: Tab = { path: '/devices', labelKey: 'shell.tabs.devices', Icon: Cpu, owns: ['/cameras/', '/claim'] };
 
 /**
- * Start · Verlauf · Steuerung · Gerät, the same four for every account: what
- * is it doing, what did it do, what should it do, and the hardware. "Gerät"
- * becomes "Geräte" once there is more than one thing to list there.
+ * Start · Verlauf · Steuerung · Gerät: what is it doing, what did it do, what
+ * should it do, and the hardware. "Gerät" becomes "Geräte" once there is more
+ * than one thing to list there.
+ *
+ * Steuerung is there once there is a device to steer. Somebody who keeps a
+ * diary without one - or watches a tent through a camera alone - was shown a
+ * tab that said only that nothing stood there, so it comes with the first
+ * device; Gerät stays, because it is the one door hardware comes in by.
  *
  * The diary brings the Log button back into the middle, green and raised -
  * and only the diary, so somebody who keeps none is not offered a button for
  * writing one. Its tasks are reached from the grow block and the bell rather
  * than a tab of their own. A session that may not write is never offered it.
  */
-export const tabsOf = (shape: Pick<Shape, 'diary' | 'devices'>, mayLog: boolean): Tab[] => [
+export const tabsOf = (shape: Pick<Shape, 'diary' | 'devices'> & Partial<Pick<Shape, 'steering'>>, mayLog: boolean): Tab[] => [
   HOME,
   TIMELINE,
   ...(shape.diary && mayLog ? [LOG] : []),
-  CONTROL,
+  ...(shape.steering === false ? [] : [CONTROL]),
   shape.devices > 1 ? DEVICES : { ...DEVICES, labelKey: 'shell.tabs.device' },
 ];
 
 export const useTabs = (): Tab[] => tabsOf(useShape(), useMayLog());
 
-/** Whether a tab is the one the address is on: its own path, or one of the pages it owns. */
+/**
+ * Whether a tab is the one the address is on: its own path, or one of the pages
+ * it owns. A camera opened from a place's picture is that place's, so Start
+ * stays marked on it rather than the bar jumping to Gerät.
+ */
 export const useIsOn = (): ((tab: Tab) => boolean) => {
-  const { pathname } = useLocation();
+  const { pathname, state } = useLocation();
+  const fromPlace = pathname.startsWith('/cameras/') && (state as { from?: string } | null)?.from === 'place';
 
-  return tab =>
-    (tab.path === '/' ? pathname === '/' : pathname === tab.path || pathname.startsWith(`${tab.path}/`)) ||
-    (tab.owns ?? []).some(prefix => pathname.startsWith(prefix));
+  return tab => {
+    if (fromPlace) return tab.path === '/';
+    return (
+      (tab.path === '/' ? pathname === '/' : pathname === tab.path || pathname.startsWith(`${tab.path}/`)) ||
+      (tab.owns ?? []).some(prefix => pathname.startsWith(prefix))
+    );
+  };
 };
 
 /** Two letters of the handle, which is the only name anyone is shown. */

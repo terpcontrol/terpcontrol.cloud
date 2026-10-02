@@ -113,34 +113,40 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
       {/* What the account has, and what those things drive: two columns on a
           wide Devices tab, one run of sections everywhere else. */}
       <div className={styles.column}>
-        <Section
-          label={t('devices.controllers', { count: mine.length })}
-          empty={mine.length === 0 ? t(maySetUp ? 'devices.noDevices' : 'devices.noDevicesHere') : null}
-        >
-          {mine.map((device, index) => (
-            <DeviceRow
-              key={device.id}
-              explain={index === 0}
-              device={device}
-              among={devices.data!.items}
-              place={placeOf(device.spaceId)}
-              sockets={tables.tables.get(device.id)}
-              cameras={shown.filter(camera => camera.deviceId === device.id).length}
-              startOpen={opened !== null && device.spaceId === opened}
-              spokeAt={spokeAt(device)}
-              now={now}
-            />
-          ))}
-        </Section>
+        {/* Without a device the tab is the door hardware comes in by, not a list
+            with nothing in it: what is there - a camera - comes first, and the
+            two ways in follow as rows of the same weight. */}
+        {mine.length === 0 && maySetUp ? null : (
+          <Section
+            label={t('devices.controllers', { count: mine.length })}
+            empty={mine.length === 0 ? t(maySetUp ? 'devices.noDevices' : 'devices.noDevicesHere') : null}
+          >
+            {mine.map((device, index) => (
+              <DeviceRow
+                key={device.id}
+                explain={index === 0}
+                device={device}
+                among={devices.data!.items}
+                place={placeOf(device.spaceId)}
+                sockets={tables.tables.get(device.id)}
+                cameras={shown.filter(camera => camera.deviceId === device.id).length}
+                startOpen={opened !== null && device.spaceId === opened}
+                spokeAt={spokeAt(device)}
+                now={now}
+              />
+            ))}
+          </Section>
+        )}
 
         {/* A claim always makes a place of its own, so this is offered on the tab
           that shows everything and not on a tent's list, where it would read as
           adding a device to that tent. */}
-        {maySetUp ? (
+        {maySetUp && mine.length > 0 ? (
           <Link className={ui.addRow} to="/claim">
             + {t('claim.addDevice')}
           </Link>
         ) : null}
+        {maySetUp && mine.length === 0 && shown.length === 0 ? <p className={ui.note}>{t('devices.noneYet')}</p> : null}
 
         {/* No camera, no section: an empty box between the device and its light
             said nothing to somebody who never had one, and read as something
@@ -164,7 +170,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
             and the screen behind this asks which place a camera is for rather
             than taking the one it was opened from. */}
         {maySetUp ? (
-          shown.length > 0 ? (
+          shown.length > 0 || mine.length === 0 ? (
             <Link className={ui.addRow} to="/cameras/add">
               + {t('cameras.add.title')}
             </Link>
@@ -173,6 +179,11 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
               + {t('cameras.add.title')}
             </Link>
           )
+        ) : null}
+        {maySetUp && mine.length === 0 ? (
+          <Link className={ui.addRow} to="/claim">
+            + {t('devices.addController')}
+          </Link>
         ) : null}
       </div>
 

@@ -975,7 +975,9 @@
       "openRename": "Umbenennen"
     },
     "unnamed": "{{type}} · {{tag}}",
-    "youMayLog": "Was die Geräte hier tun, steht hier. Eine Steckdose oder die Lampe schaltet nur, wer diesen Ort steuert."
+    "youMayLog": "Was die Geräte hier tun, steht hier. Eine Steckdose oder die Lampe schaltet nur, wer diesen Ort steuert.",
+    "noneYet": "Hier steht noch kein Gerät. Ein Controller oder Kühlschrankmodul misst und regelt das Klima und kommt mit dem Code auf seinem Display dazu; eine Kamera macht Bilder für Tagebuch und Zeitraffer.",
+    "addController": "Controller oder Kühlschrankmodul hinzufügen"
   },
   "diary": {
     "title": "Tagebuch",
@@ -1499,14 +1501,15 @@
     },
     "addDevice": {
       "title": "Gerät hinzufügen",
-      "text": "Controller, Fridge Modul, Terp Cam oder eine RTSP-Kamera. Der Claim-Code steht auf dem Display oder der Verpackung.",
+      "text": "Controller oder Kühlschrankmodul, auch mit Terp Cam. Der Claim-Code steht auf dem Display oder der Verpackung.",
       "scan": "QR scannen",
       "code": "Claim-Code",
       "orScan": "oder scannen",
       "scanUnavailable": "Dieser Browser kann keine QR-Codes lesen; tipp den Code ein.",
       "scanDenied": "Die Kamera wurde nicht freigegeben — tipp den Code ein oder erlaube der Seite die Kamera.",
       "scanHint": "Halte die Kamera auf den QR-Code auf der Verpackung.",
-      "cancel": "Abbrechen"
+      "cancel": "Abbrechen",
+      "camera": "Eine Kamera ohne Controller (RTSP) hinzufügen"
     },
     "demo": {
       "title": "Demo ausprobieren",
@@ -1633,6 +1636,9 @@
       "following": "Folge ich",
       "inDays": "in {{count}} T",
       "dueSince": "seit {{time}} fällig"
+    },
+    "device": {
+      "offer": "Mit einem Sensor misst es hier von selbst"
     }
   },
   "me": {
@@ -4630,6 +4636,10 @@
     "lux": {
       "title": "Lichtstärke",
       "text": "Wie hell es am Lichtsensor ist, in Lux. Die Kurve zeigt, wann und wie stark die Lampe leuchtet. Wie viel davon die Pflanze nutzen kann, sagt der PPFD-Wert, der aus den Lux geschätzt wird."
+    },
+    "deviceOffer": {
+      "title": "Gerät oder Kamera",
+      "text": "Ein Controller oder ein Kühlschrankmodul misst Temperatur und Luftfeuchte von selbst, regelt Heizung, Licht und Lüfter und meldet sich, wenn etwas nicht stimmt. Eine Kamera macht Bilder für Tagebuch und Zeitraffer. Beides fügst du im Tab Gerät hinzu. „Nein danke“ blendet diese Zeile auf all deinen Geräten aus."
     }
   },
   "place": {
@@ -4738,8 +4748,12 @@
     "camera": {
       "open": "Kamera öffnen",
       "title": "Kamera",
-      "caption": "Kamera · {{time}} · vor {{age}}",
-      "none": "Noch kein Bild"
+      "caption": "{{name}} · {{time}} · vor {{age}}",
+      "none": "Noch kein Bild",
+      "lightOff": "{{name}} · Licht aus · Bild von {{time}}",
+      "delivers": "{{name}} liefert · Bild vor {{age}}",
+      "quietSince": "{{name}} liefert nicht · seit {{time}}",
+      "nothingYet": "{{name}} hat noch kein Bild geliefert"
     },
     "targets": {
       "title": "Zielwerte",

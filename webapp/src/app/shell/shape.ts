@@ -9,7 +9,8 @@ import { isPlace } from '@/app/places';
 
 /**
  * What the navigation is drawn from: whether the diary is laid over the
- * climate, how many places Start lists, and how many devices the account has.
+ * climate, how many places Start lists, how many devices and cameras the
+ * account has, and whether any of them is a device something can be steered on.
  *
  * Each of these is somebody else's read, followed rather than polled - the
  * navigation needs the count and not the figures - and none of them is there
@@ -20,11 +21,15 @@ import { isPlace } from '@/app/places';
 export interface Shape {
   diary: boolean;
   places: number;
+  /** Devices and cameras together: everything the Gerät tab lists. */
   devices: number;
+  /** Whether there is a device at all - a controller, a fridge module, a plug - rather than only cameras or nothing. */
+  steering: boolean;
+  cameras: number;
 }
 
 /** What an account nothing is known about yet is drawn as: one device, no diary - the customer the app is designed for. */
-const FIRST: Shape = { diary: false, places: 1, devices: 1 };
+const FIRST: Shape = { diary: false, places: 1, devices: 1, steering: true, cameras: 0 };
 
 const QUIET = { refetchInterval: false, staleTime: 5 * 60_000 } as const;
 
@@ -67,8 +72,14 @@ export const useShape = (): Shape & { ready: boolean } => {
   });
 
   const known: Shape | null =
-    home.data && diary !== undefined && devices.data && cameras.data
-      ? { diary, places: home.data.spaces.filter(isPlace).length, devices: devices.data.items.length + cameras.data.items.length }
+    home.data?.spaces && diary !== undefined && devices.data?.items && cameras.data?.items
+      ? {
+          diary,
+          places: home.data.spaces.filter(isPlace).length,
+          devices: devices.data.items.length + cameras.data.items.length,
+          steering: devices.data.items.length > 0,
+          cameras: cameras.data.items.length,
+        }
       : null;
   const userId = user?.id ?? null;
   const written = known ? JSON.stringify(known) : null;

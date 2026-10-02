@@ -1,19 +1,19 @@
-import { Camera, ChevronLeft, ChevronRight, CircleCheck, Clock, Info, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CircleCheck, Clock, Info, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { controlPath, devicesPath, timelinePath, useRememberPlace } from '@/app/places';
-import type { Device, SpaceOverview } from '@fg2/shared-types/v1';
+import type { Device, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
-import { useLatestStills } from '@/api/cameras';
 import { serverNow } from '@/api/clock';
 import { useDevices } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
-import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
+import { useSession } from '@/api/session';
 import { useTimeline } from '@/api/timeline';
 import { useCorrecting } from '@/log/corrections';
-import { ageLabel } from '@/ui/age';
+import { ageLabel, sinceLabel } from '@/ui/age';
+import { useCameraCalled } from '@/ui/camera-name';
 import { EntryRow } from '@/ui/EntryRow';
 import { foldRepeats, readingNamesOf } from '@/ui/entries';
 import { maintenanceQuiet, parksAnything, type Quiet } from '@/ui/maintenance';
@@ -21,15 +21,17 @@ import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { clock, useZone } from '@/ui/zone';
+import { useZone } from '@/ui/zone';
 import { MaintenanceButton } from '../devices/Maintenance';
 import { livenessOf, measuredAtOf } from '../home/attention';
+import { DeviceOffer } from '../home/DeviceOffer';
 import { DiaryOffer } from '../home/DiaryOffer';
 import { LivenessPill } from '../home/LivenessPill';
 import { OfflineHelp } from '../home/OfflineHelp';
 import { NotifyNotice } from '../notifications/NotifyNotice';
+import { CameraPicture } from './CameraPicture';
 import { GrowBlock } from './GrowBlock';
-import { climateDeviceOf, focusLink, KIND_ICON, statusOf, statusText, toneOf, type Status } from './place';
+import { climateDeviceOf, focusLink, KIND_ICON, shownStill, statusOf, statusText, toneOf, type Status } from './place';
 import { PlaceMenu } from './PlaceMenu';
 import { usePlace, useDeviceLive } from './reads';
 import { AlarmsSummary, TargetsSummary } from './Summaries';
@@ -83,6 +85,18 @@ export function PlaceCockpit({
   // Offered once the account has been read, and only where nobody said no; the demo has no account to keep an answer with.
   const offerDiary = me.data !== undefined && !me.data.layers.diary && me.data.preferences.diary !== 'off';
   const Icon = KIND_ICON[overview.kind];
+  const camera = newestCamera(overview);
+  // A diary kept by hand, with nothing here that measures or watches: the grow
+  // is the page, in one column, and hardware is a quiet offer under it rather
+  // than the first line over it.
+  const byHand = !hasDevice && camera === null && diary;
+  const offerDevice = byHand && mayManage && me.data !== undefined && me.data.preferences.deviceOfferDeclined !== true;
+  // The grow block carries the camera's picture where both are here, right
+  // under the readings: one picture of the tent rather than the same one three
+  // times, and the grow a thumb away rather than under the summaries.
+  const growUp = diary && camera !== null;
+  const shown = growUp || camera === null ? null : shownStill(camera);
+  const pictured = camera ? shownStill(camera) : null;
 
   // Verlauf and Steuerung land on the place last looked at, and looking at one here is what makes it that place.
   useRememberPlace(spaceId);
@@ -102,47 +116,59 @@ export function PlaceCockpit({
           </h1>
           {/* The pill and the ⋯ go together: where the name leaves them no room, both move to the row under it. */}
           <div className={styles.headEnd}>
-            <LivenessPill liveness={liveness} measuredAt={measuredAtOf(overview.values)} now={now} explain />
+            {hasDevice ? <LivenessPill liveness={liveness} measuredAt={measuredAtOf(overview.values)} now={now} explain /> : null}
             <PlaceMenu overview={overview} />
           </div>
         </header>
       ) : null}
       {headed ? <RefreshFailed failedAt={failedAt} now={now} /> : null}
 
-      <div className={styles.columns}>
-        <div className={styles.column}>
-          <StatusLine status={status} overview={overview} now={now} zone={zone} mayManage={mayManage} />
-          {hasDevice ? <NotifyNotice later /> : null}
-          {hasDevice ? (
-            <Tiles
-              spaceId={spaceId}
-              values={overview.values}
-              setpoints={overview.setpoints}
-              targets={overview.targets}
-              device={device}
-              live={live}
-              timeline={timeline}
-              now={now}
-              offline={offline}
-            />
-          ) : null}
-          {overview.cameras.length > 0 ? <CameraBlock overview={overview} now={now} zone={zone} /> : null}
-          {/* Offered only where it can do what it says: an offline device would not hear it, and a plug parks nothing. */}
-          {mayManage && !offline && here.some(parksAnything) ? (
-            <div className={styles.actions}>
-              <MaintenanceButton devices={here} now={now} className={ui.quiet} />
-            </div>
-          ) : null}
+      {byHand ? (
+        <div className={styles.columns} data-single>
+          <div className={styles.column}>
+            <NotifyNotice later />
+            <GrowBlock overview={overview} still={null} now={now} />
+            <Latest overview={overview} now={now} count={LATEST_BY_HAND} />
+            {offerDevice ? <DeviceOffer /> : null}
+          </div>
         </div>
+      ) : (
+        <div className={styles.columns}>
+          <div className={styles.column}>
+            <StatusLine status={status} overview={overview} camera={camera} diary={diary} now={now} zone={zone} mayManage={mayManage} />
+            <NotifyNotice later />
+            {hasDevice ? (
+              <Tiles
+                spaceId={spaceId}
+                values={overview.values}
+                setpoints={overview.setpoints}
+                targets={overview.targets}
+                device={device}
+                live={live}
+                timeline={timeline}
+                now={now}
+                offline={offline}
+              />
+            ) : null}
+            {growUp && camera ? <GrowBlock overview={overview} camera={camera} still={pictured?.mediaId ?? null} now={now} /> : null}
+            {camera && !growUp ? <CameraPicture overview={overview} camera={camera} now={now} /> : null}
+            {/* Offered only where it can do what it says: an offline device would not hear it, and a plug parks nothing. */}
+            {mayManage && !offline && here.some(parksAnything) ? (
+              <div className={styles.actions}>
+                <MaintenanceButton devices={here} now={now} className={ui.quiet} />
+              </div>
+            ) : null}
+          </div>
 
-        <div className={styles.column}>
-          {hasDevice ? <TargetsSummary spaceId={spaceId} targets={overview.targets} device={device} now={now} mayChange={mayManage} /> : null}
-          {hasDevice && here.length > 0 ? <AlarmsSummary spaceId={spaceId} devices={here} me={me.data} mayChange={mayManage} /> : null}
-          {diary ? <GrowBlock overview={overview} still={newestStill(overview)} now={now} /> : null}
-          <Latest overview={overview} now={now} />
-          {offerDiary ? <DiaryOffer /> : null}
+          <div className={styles.column}>
+            {hasDevice ? <TargetsSummary spaceId={spaceId} targets={overview.targets} device={device} now={now} mayChange={mayManage} /> : null}
+            {hasDevice && here.length > 0 ? <AlarmsSummary spaceId={spaceId} devices={here} me={me.data} mayChange={mayManage} /> : null}
+            {diary && !growUp ? <GrowBlock overview={overview} still={shown?.mediaId ?? null} now={now} /> : null}
+            <Latest overview={overview} now={now} pictured={growUp ? (pictured?.mediaId ?? null) : null} />
+            {offerDiary ? <DiaryOffer /> : null}
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }
@@ -189,16 +215,26 @@ const STATUS_ICON: Record<Status['kind'], LucideIcon> = {
  * The one sentence the page opens with. Gone quiet, it is the box that says
  * since when and what to try instead - in the moment somebody reads every word,
  * the steps are open from the start.
+ *
+ * A place with no sensor has no reading to judge. Where a camera watches it,
+ * the sentence is about the camera - whether it is delivering, and since when
+ * not - because that is the one thing here that can stop working. Where nothing
+ * does and a diary is kept, there is no sentence at all: the grow is the page,
+ * and hardware is offered under it rather than missed over it.
  */
 function StatusLine({
   status,
   overview,
+  camera,
+  diary,
   now,
   zone,
   mayManage,
 }: {
   status: Status;
   overview: SpaceOverview;
+  camera: OverviewCamera | null;
+  diary: boolean;
   now: DateTime;
   zone: string | null;
   mayManage: boolean;
@@ -210,12 +246,14 @@ function StatusLine({
       <OfflineHelp since={measuredAtOf(overview.values)} now={now} devicesLink={overview.deviceIds === null ? null : devicesPath(overview.spaceId)} />
     );
   }
+  if (status.kind === 'none' && camera) return <CameraLine camera={camera} now={now} zone={zone} />;
   if (status.kind === 'none') {
+    if (diary) return null;
     return (
       <p className={styles.status} data-tone="quiet">
         <Info size={18} strokeWidth={2} aria-hidden />
         <span>{t('home.invite.noSensor')}</span>
-        <Link to="/claim" className={ui.headLink}>
+        <Link to="/devices" className={ui.headLink}>
           {t('home.invite.addDevice')} ›
         </Link>
       </p>
@@ -226,7 +264,9 @@ function StatusLine({
   const text = statusText(t, status, now, zone);
   const to =
     status.kind === 'alert'
-      ? '/alerts'
+      ? status.alert.kind === 'camera_stale' && camera
+        ? `/cameras/${camera.cameraId}`
+        : '/alerts'
       : status.kind === 'off'
         ? focusLink(overview.spaceId, status.metric)
         : status.kind === 'noTargets' && mayManage
@@ -253,44 +293,61 @@ function StatusLine({
   );
 }
 
-/** The newest picture any camera here took, which a grow without a cover of its own is shown by. */
-const newestStill = (overview: SpaceOverview): string | null =>
-  [...overview.cameras].sort((one, other) => (other.lastStillAt ?? '').localeCompare(one.lastStillAt ?? ''))[0]?.stills.at(-1)?.mediaId ?? null;
+/** How long a camera may be silent before the line says it stopped, where no alarm has said so yet. */
+const CAMERA_QUIET_MS = 30 * 60_000;
 
-/** The newest picture of the place, a tap from the camera's own page. */
-function CameraBlock({ overview, now, zone }: { overview: SpaceOverview; now: DateTime; zone: string | null }) {
+/** "Terp Cam liefert · Bild vor 16 s", or since when it has not: the status of a place a camera alone watches. */
+function CameraLine({ camera, now, zone }: { camera: OverviewCamera; now: DateTime; zone: string | null }) {
   const { t } = useTranslation();
-  const camera = [...overview.cameras].sort((one, other) => (other.lastStillAt ?? '').localeCompare(one.lastStillAt ?? ''))[0];
-  // Today's strip is empty before the first picture of the day; the camera's newest frame is then the one from yesterday.
-  const latest = useLatestStills(camera.lastStillAt && camera.stills.length === 0 ? [camera.cameraId] : []);
-  const mediaId = camera.stills.at(-1)?.mediaId ?? latest.get(camera.cameraId) ?? null;
-  const src = mediaId ? mediaUrl(mediaId, THUMBNAIL_WIDTH.frame) : null;
-  const takenAt = camera.stills.at(-1)?.capturedAt ?? camera.lastStillAt;
+  const called = useCameraCalled();
+  const last = camera.lastStillAt;
+  const quiet = last === null || now.toMillis() - DateTime.fromISO(last).toMillis() > CAMERA_QUIET_MS;
+  const text = quiet
+    ? last
+      ? t('cockpit.camera.quietSince', { name: called(camera.name), time: sinceLabel(last, now, zone) })
+      : t('cockpit.camera.nothingYet', { name: called(camera.name) })
+    : t('cockpit.camera.delivers', { name: called(camera.name), age: ageLabel(last, now) });
+  const Icon = quiet ? TriangleAlert : CircleCheck;
 
   return (
-    <Link to={`/cameras/${camera.cameraId}`} className={styles.camera} aria-label={t('cockpit.camera.open')}>
-      {src ? (
-        <img src={src} alt={t('home.card.stillAlt', { name: overview.name })} loading="lazy" />
-      ) : (
-        <span className={styles.cameraEmpty}>{t('cockpit.camera.none')}</span>
-      )}
-      <span className={`mono ${styles.cameraCaption}`}>
-        <Camera size={14} strokeWidth={1.75} aria-hidden />
-        <span>{takenAt ? t('cockpit.camera.caption', { time: clock(takenAt, zone), age: ageLabel(takenAt, now) }) : t('cockpit.camera.title')}</span>
-        <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
-      </span>
-    </Link>
+    <div role="status">
+      <Link to={`/cameras/${camera.cameraId}`} className={styles.status} data-tone={quiet ? 'warn' : 'good'}>
+        <Icon size={18} strokeWidth={2} aria-hidden />
+        <span className={styles.statusText}>{text}</span>
+        <ChevronRight size={16} strokeWidth={2} aria-hidden />
+      </Link>
+    </div>
   );
 }
+
+/** The camera here that delivered last, which is the one the place is shown by. */
+const newestCamera = (overview: SpaceOverview): OverviewCamera | null =>
+  [...overview.cameras].sort((one, other) => (other.lastStillAt ?? '').localeCompare(one.lastStillAt ?? ''))[0] ?? null;
 
 /** How many of the newest lines the cockpit names; the Timeline has the rest. */
 const LATEST = 3;
 
-/** The last three things that happened here, each in one plain line. */
-function Latest({ overview, now }: { overview: SpaceOverview; now: DateTime }) {
+/** A diary kept by hand is what its place page is made of, so more of it is shown. */
+const LATEST_BY_HAND = 6;
+
+/**
+ * The newest things that happened here, each in one plain line. A photo line
+ * whose picture already heads the page is named without it.
+ */
+function Latest({
+  overview,
+  now,
+  count = LATEST,
+  pictured = null,
+}: {
+  overview: SpaceOverview;
+  now: DateTime;
+  count?: number;
+  pictured?: string | null;
+}) {
   const { t } = useTranslation();
   const correcting = useCorrecting();
-  const folded = foldRepeats(overview.entries).slice(0, LATEST);
+  const folded = foldRepeats(overview.entries).slice(0, count);
 
   return (
     <section className={styles.latest} aria-label={t('cockpit.latest.title')}>
@@ -305,11 +362,11 @@ function Latest({ overview, now }: { overview: SpaceOverview; now: DateTime }) {
         <p className={ui.note}>{t('cockpit.latest.none')}</p>
       ) : (
         <ul className={`${ui.card} ${styles.entries}`}>
-          {folded.map(({ entry, count, since }) => (
+          {folded.map(({ entry, count: repeats, since }) => (
             <EntryRow
               key={entry.id}
-              entry={entry}
-              repeats={{ count, since }}
+              entry={pictured && entry.mediaIds.includes(pictured) ? { ...entry, mediaIds: entry.mediaIds.filter(id => id !== pictured) } : entry}
+              repeats={{ count: repeats, since }}
               people={overview.people}
               measurements={readingNamesOf(overview.readingNames, entry.growId)}
               now={now}

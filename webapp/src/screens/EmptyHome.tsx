@@ -1,7 +1,7 @@
 import { ChevronRight } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { claimCodeOf } from '@/api/claims';
 import { session, useSession } from '@/api/session';
 import { canScan } from '@/ui/barcode';
@@ -217,6 +217,13 @@ function ClaimCode() {
           </p>
         ) : null}
       </form>
+
+      {/* A camera of its own - an RTSP stream - has no claim code, so it has its own way in. */}
+      <p className={ui.note}>
+        <Link to="/cameras/add" className={ui.headLink}>
+          {t('home.addDevice.camera')} ›
+        </Link>
+      </p>
 
       {scanning ? <QrScanner onCode={onCode} onClose={closeScanner} onFailed={onFailed} /> : null}
     </article>
