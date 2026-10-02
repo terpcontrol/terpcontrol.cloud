@@ -39,7 +39,13 @@ export interface WebhookTemplate {
   read: (draft: Pick<RuleDraft, 'url' | 'triggeredPayload'>) => TemplateValues | null;
 }
 
-const message = (emoji: string, event: string) => `${emoji} ${event}: {{alarmName}} · {{sensorType}} {{value}} ({{deviceName}})`;
+/**
+ * What a person reads in a chat. `{{sensorType}}` is left out of it: it is the
+ * machine's word for what is watched ("temperature"), kept as it always was for
+ * the home automations that read it, and it stood English in the middle of a
+ * German sentence. The rule's own name already says what it watches.
+ */
+const message = (emoji: string, event: string) => `${emoji} ${event}: {{alarmName}} · {{value}} ({{deviceName}})`;
 
 const jsonOf = (payload: string): Record<string, unknown> => {
   try {
@@ -155,13 +161,13 @@ export const WEBHOOK_TEMPLATES: WebhookTemplate[] = [
         triggeredPayload: JSON.stringify({
           topic,
           title: title('🚨', t('webhookTargets.msgTriggered')),
-          message: '{{sensorType}} = {{value}}',
+          message: `${t('webhookTargets.msgValue')} {{value}}`,
           priority: 4,
         }),
         resolvedPayload: JSON.stringify({
           topic,
           title: title('✅', t('webhookTargets.msgResolved')),
-          message: '{{sensorType}} = {{value}}',
+          message: `${t('webhookTargets.msgValue')} {{value}}`,
           priority: 3,
         }),
         tunnel: false,

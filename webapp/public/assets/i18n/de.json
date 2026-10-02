@@ -1433,6 +1433,7 @@
   "webhookTargets": {
     "msgTriggered": "Alarm",
     "msgResolved": "Wieder ok",
+    "msgValue": "Wert:",
     "discord": {
       "name": "Discord",
       "url": "Discord Webhook-URL",
@@ -4286,7 +4287,7 @@
         "quiet": "Über einen Tag still",
         "behind": "Nicht auf stable",
         "search": "Suchen",
-        "searchReads": "ID, Seriennummer, Name oder Besitzer suchen"
+        "searchReads": "ID, Seriennummer, Name, Besitzer"
       },
       "camerasPartial": "Kameras jenseits der geladenen Seiten stehen in keiner Zeile und zählen in keiner Cams-Spalte",
       "serial": "SN {{serial}}"

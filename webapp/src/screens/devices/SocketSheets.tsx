@@ -221,11 +221,16 @@ export function CycleFields({
   const set = (key: 'on' | 'every', span: Span) => onChange({ ...(draft as SocketDraft), [key]: span });
 
   return (
+    // Two phrases that break between each other and never inside one: "an für [2] [Min]" / "alle [6] [Std]".
     <div className={styles.cycle}>
-      <span>{t('socketForm.cycle.on')}</span>
-      <SpanField label={t('socketForm.cycle.onLabel')} span={draft.on} disabled={disabled} onChange={span => set('on', span)} />
-      <span>{t('socketForm.cycle.every')}</span>
-      <SpanField label={t('socketForm.cycle.everyLabel')} span={draft.every} disabled={disabled} onChange={span => set('every', span)} />
+      <span className={styles.phrase}>
+        <span>{t('socketForm.cycle.on')}</span>
+        <SpanField label={t('socketForm.cycle.onLabel')} span={draft.on} disabled={disabled} onChange={span => set('on', span)} />
+      </span>
+      <span className={styles.phrase}>
+        <span>{t('socketForm.cycle.every')}</span>
+        <SpanField label={t('socketForm.cycle.everyLabel')} span={draft.every} disabled={disabled} onChange={span => set('every', span)} />
+      </span>
     </div>
   );
 }

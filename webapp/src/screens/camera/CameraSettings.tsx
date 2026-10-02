@@ -297,9 +297,10 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
           {!mayOwn ? null : unpairing ? (
             <>
               <span className={ui.note}>{t('camera.unpairSure')}</span>
+              {/* The one of the two that cannot be taken back is drawn in the alarm's colour, so it is not mistaken for keeping. */}
               <button
                 type="button"
-                className={ui.button}
+                className={`${ui.button} ${styles.unpairYes}`}
                 disabled={remove.isPending}
                 onClick={() => remove.mutate(undefined, { onSuccess: () => void navigate('/devices') })}
               >

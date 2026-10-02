@@ -6,7 +6,8 @@ import { isComplete, isLocalAddress, templateOf, WEBHOOK_TEMPLATES } from '@/scr
  * from one is recognised again and opened with its answers.
  */
 
-const t = (key: string) => ({ 'webhookTargets.msgTriggered': 'Alarm', 'webhookTargets.msgResolved': 'Wieder ok' })[key] ?? key;
+const t = (key: string) =>
+  ({ 'webhookTargets.msgTriggered': 'Alarm', 'webhookTargets.msgResolved': 'Wieder ok', 'webhookTargets.msgValue': 'Wert:' })[key] ?? key;
 const template = (id: string) => WEBHOOK_TEMPLATES.find(one => one.id === id)!;
 
 describe('a webhook template', () => {
@@ -24,7 +25,7 @@ describe('a webhook template', () => {
     expect(filled.url).toBe('https://api.telegram.org/bot123:ABC/sendMessage');
     expect(JSON.parse(filled.triggeredPayload)).toEqual({
       chat_id: '-100',
-      text: '🚨 Alarm: {{alarmName}} · {{sensorType}} {{value}} ({{deviceName}})',
+      text: '🚨 Alarm: {{alarmName}} · {{value}} ({{deviceName}})',
     });
     expect(JSON.parse(filled.resolvedPayload).text).toMatch(/^✅ Wieder ok:/);
   });
@@ -33,7 +34,7 @@ describe('a webhook template', () => {
     const filled = template('ntfy').fill({ topic: 'my-grow', server: '' }, t);
 
     expect(filled.url).toBe('https://ntfy.sh');
-    expect(JSON.parse(filled.triggeredPayload)).toMatchObject({ topic: 'my-grow', priority: 4 });
+    expect(JSON.parse(filled.triggeredPayload)).toMatchObject({ topic: 'my-grow', priority: 4, message: 'Wert: {{value}}' });
     expect(isComplete(template('ntfy'), { topic: 'my-grow' })).toBe(true);
     expect(isComplete(template('ntfy'), { topic: ' ' })).toBe(false);
   });
