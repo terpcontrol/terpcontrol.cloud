@@ -1,7 +1,7 @@
 /* The stacked timeline. Every plot and every lane leaves the same gutter on the
    left - set once here as `--gutter`, which the canvas of each plot is moved
    over by - so one cursor runs straight down through the whole stack. It holds
-   a lane's name written out ("Entfeuchter", "Lüfter innen") without cutting
+   a lane's name written out ("Entfeuchter", "Rückwandlüfter") without cutting
    it, and widens where the screen does. */
 
 .screen {

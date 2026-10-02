@@ -4056,9 +4056,9 @@
       "light": "light",
       "fan": "fan",
       "relais": "relay",
-      "fanInternal": "fan in",
+      "fanInternal": "internal fan",
       "fanExternal": "clip fan",
-      "fanBackwall": "back fan",
+      "fanBackwall": "back-wall fan",
       "compressor": "compressor"
     },
     "metric": {

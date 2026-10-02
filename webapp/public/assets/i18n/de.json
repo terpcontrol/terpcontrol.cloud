@@ -3125,7 +3125,7 @@
       "light": "Licht",
       "fan": "Lüfter",
       "relais": "Relais",
-      "fanInternal": "Lüfter innen",
+      "fanInternal": "Innenlüfter",
       "fanExternal": "Klemmlüfter",
       "fanBackwall": "Rückwand\u00adlüfter"
     },
@@ -3640,7 +3640,7 @@
       "light": "Licht",
       "fan": "Lüfter",
       "relais": "Relais",
-      "fanInternal": "Lüfter innen",
+      "fanInternal": "Innenlüfter",
       "fanExternal": "Klemmlüfter",
       "fanBackwall": "Rückwandlüfter",
       "compressor": "Kompressor"
@@ -4064,7 +4064,7 @@
       "light": "Licht",
       "fan": "Lüfter",
       "relais": "Relais",
-      "fanInternal": "Lüfter innen",
+      "fanInternal": "Innenlüfter",
       "fanExternal": "Klemmlüfter",
       "fanBackwall": "Rückwandlüfter",
       "compressor": "Kompressor"
