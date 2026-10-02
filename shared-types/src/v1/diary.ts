@@ -1945,6 +1945,42 @@ export const growSeries = named(
     outputs: z.array(timelineOutputLane),
     nights: z.array(timelineSpan).describe('When the light was off, which is what every panel is shaded by.'),
     measurements: z.array(growMeasurementSeries),
+    cameras: z
+      .array(timelineCamera)
+      .describe(
+        'The cameras of the places the grow stood in, with their stills over the window thinned to a few hundred: the picture at the cursor. Empty for a reader who is not shown cameras.',
+      ),
+  }),
+);
+
+/**
+ * `GET /spaces/{id}/series`: the Charts view of a place, which is how a place
+ * without a grow - and a window no chip of a grow's can name - is charted.
+ *
+ * The same panels, lanes and nights as a grow's answer, read from whatever
+ * stands in the place, over the two instants asked for and at the step asked
+ * for where one is: a day at twenty seconds or three years at a week. What
+ * belongs to a grow alone - its day counter and its own measurements - is not
+ * here.
+ */
+export const spaceSeries = named(
+  'SpaceSeries',
+  z.object({
+    spaceId: id(),
+    startsAt: instant(),
+    endsAt: instant(),
+    stepSeconds: z.number().int().describe('The window each point summarises, as the server settled it; 0 where no device was read at all.'),
+    deviceIds: z
+      .array(id())
+      .nullable()
+      .describe('The devices standing in the place. Null on a shared read: what a reader is shown is the tent, not the hardware in it.'),
+    climate: z.array(timelinePanel),
+    lastReadingAt: instant()
+      .nullable()
+      .describe('When something standing here last measured, answered only where `climate` is empty - as on the grow\'s answer and the Timeline.'),
+    outputs: z.array(timelineOutputLane),
+    nights: z.array(timelineSpan),
+    cameras: z.array(timelineCamera).describe('The cameras of the place with their stills over the window, thinned; empty for a reader who is not shown cameras.'),
   }),
 );
 

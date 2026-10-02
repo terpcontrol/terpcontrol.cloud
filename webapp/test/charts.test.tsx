@@ -40,7 +40,8 @@ vi.mock('@/api/client', async () => {
     api: {
       get: (path: string, query?: Record<string, unknown>) => {
         state.asked.push({ path, query });
-        if (path.startsWith('/grows/grow-1/series')) {
+        // A rolling window is the place's and a stretch of the grow is the grow's; both answer the one fixture.
+        if (path.startsWith('/grows/grow-1/series') || path.startsWith('/spaces/space-1/series')) {
           return state.breaks
             ? Promise.reject(new ApiError({ status: 503, code: 'unavailable', title: 'Nope', detail: 'The store said no.', errors: [] }))
             : Promise.resolve(state.series);
@@ -171,6 +172,7 @@ const series: GrowSeries = {
     { output: 'heater', deviceId: 'device-1', spans: [{ startsAt: at(2), endsAt: at(3) }], heardUntil: at(24) },
   ],
   nights: [{ startsAt: at(0), endsAt: at(6) }],
+  cameras: [],
   measurements: [
     {
       key: 'height',
@@ -252,8 +254,12 @@ describe('the Charts view', () => {
     expect(await screen.findByRole('heading', { name: 'Charts' })).toBeInTheDocument();
     expect(await screen.findByText('Tent 1 · Spring run')).toBeInTheDocument();
 
-    // The five range chips, with the window the answer covers beside them.
-    for (const label of ['24 h', '7 d', 'Phase', 'Grow', 'Custom …']) expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    // The everyday widths, the rest behind a chip of their own, the grow's two
+    // stretches and a range of one's own, with the window the answer covers beside them.
+    for (const label of ['1 h', '24 h', '7 d', '30 d', 'More …', 'Phase', 'Grow', 'Custom …']) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('button', { name: '1 year' })).not.toBeInTheDocument();
     expect(screen.getByText('day 35')).toBeInTheDocument();
 
     // CO2 is not offered: no controller reported it. Nor is EC, which the grow
@@ -543,7 +549,7 @@ describe('the Charts view', () => {
   it('offers the account´s grows when the address names neither a grow nor a tent', async () => {
     drawAt('/charts');
 
-    expect(await screen.findByText('Charts show a grow – pick which one.')).toBeInTheDocument();
+    expect(await screen.findByText('No device stands anywhere yet. Pick a grow whose measurements are drawn.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Spring run' })).toHaveAttribute('href', '/charts?grow=grow-1');
     expect(screen.getByRole('link', { name: 'Autumn run' })).toHaveAttribute('href', '/charts?grow=grow-2');
     expect(screen.queryByText(/Nothing grows here yet/)).not.toBeInTheDocument();
@@ -553,7 +559,7 @@ describe('the Charts view', () => {
     state.grows = [];
     drawAt('/charts');
 
-    expect(await screen.findByText('Charts show a grow – nothing grows here yet. This place’s readings are in the Timeline.')).toBeInTheDocument();
+    expect(await screen.findByText("Nothing to draw yet: charts show a device's readings or a grow's measurements.")).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Spring run' })).not.toBeInTheDocument();
   });
 
@@ -568,7 +574,8 @@ describe('the Charts view', () => {
   it('says a custom range whose ends are the wrong way round, and takes the chart of the other range down', async () => {
     drawAt('/charts?grow=grow-1&range=custom&from=2026-09-20&to=2026-09-22');
     await screen.findByText('Temp + RH');
-    expect(state.asked.filter(read => read.path.includes('/series'))).toHaveLength(1);
+    // The place's curves and the grow's own readings beside them.
+    expect(state.asked.filter(read => read.path.includes('/series'))).toHaveLength(2);
 
     // A From typed after the To, which is what the fields allow: `max` on a
     // date field raises a validity flag and refuses nothing.
@@ -579,7 +586,7 @@ describe('the Charts view', () => {
     expect(screen.queryByText(/Could not refresh/)).not.toBeInTheDocument();
     // Nor the days of the window that is no longer being asked about.
     expect(screen.queryByText('day 35')).not.toBeInTheDocument();
-    expect(state.asked.filter(read => read.path.includes('/series'))).toHaveLength(1);
+    expect(state.asked.filter(read => read.path.includes('/series'))).toHaveLength(2);
   });
 
   it('says the same of an inverted range that arrives in the address, and asks nothing of the route', async () => {

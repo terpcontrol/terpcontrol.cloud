@@ -6,15 +6,18 @@ import { Grant } from '@common/v1/access.types';
 import { badRequest } from '@common/v1/problem';
 import { withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
+import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { DataService } from '@modules/data/data.service';
 import { READING_KINDS } from '../diary/diary-entries';
 import { horizonOf, originOf } from '../diary/grow-calendar';
 import { spacesDuring } from '../diary/grow-places';
 import { recordOf } from '../phase/target-record';
+import { CHART_FRAME_SLOTS, framesOf } from '../timeline/frames';
 import { lastReadingOf } from '../timeline/last-reading';
 import { lanesOf, nightsOf, panelsOf } from '../timeline/timeline-series';
 import { TimelineWindow, narrowedTo, steeringOf, stretchesOf, windowOf } from '../timeline/timeline-window';
@@ -64,6 +67,8 @@ export interface GrowSeriesQuery {
   /** The two ends of a `custom` range, and what a rolling range counts back from. */
   from?: Date;
   to?: Date;
+  /** The step somebody chose; left out, the width of the window decides it. */
+  stepSeconds?: number;
 }
 
 @Injectable()
@@ -72,6 +77,8 @@ export class GrowSeriesService {
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @InjectModel(MODEL_V1.entry) private readonly entries: Model<EntryDocument>,
     @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange>,
+    @InjectModel(MODEL_V1.camera) private readonly cameras: Model<CameraDocument>,
+    @InjectModel(MODEL_V1.media) private readonly media: Model<MediaDocument>,
     private readonly grows: GrowsService,
     private readonly data: DataService,
   ) {}
@@ -83,7 +90,7 @@ export class GrowSeriesService {
 
     const devices = asked.metrics?.length || asked.outputs?.length ? await this.devicesWhereItStood(grow, window) : ([] as StoredDevice[]);
 
-    const [series, readings, aimed] = await Promise.all([
+    const [series, readings, aimed, cameras] = await Promise.all([
       Promise.all(
         devices.map(device =>
           this.data.history(device.id, {
@@ -97,7 +104,9 @@ export class GrowSeriesService {
       ),
       keys.length > 0 ? this.readingsIn(grow.id, window) : Promise.resolve([] as EntryDocument[]),
       recordOf(this.targetRecord, steeringOf(devices)?.id ?? null, window),
+      grant.includeCameras ? this.camerasWhereItStood(grow, window) : Promise.resolve([] as CameraDocument[]),
     ]);
+    const frames = await framesOf(this.media, cameras, window, CHART_FRAME_SLOTS);
 
     const climate = panelsOf(
       series.map(one => one.series),
@@ -126,6 +135,7 @@ export class GrowSeriesService {
       outputs: lanesOf(series, window, grant.redacted),
       nights: nightsOf(series, window),
       measurements: measurementsOf(keys, readings, hide),
+      cameras: cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: frames.get(camera.id) ?? [] })),
     };
   }
 
@@ -146,7 +156,7 @@ export class GrowSeriesService {
    */
   private windowFor(grow: GrowDocument, grant: Grant, asked: GrowSeriesQuery, now: Date): TimelineWindow {
     if (asked.range !== 'custom') {
-      return windowOf(asked.range, grant, grow, asked.to ?? new Date(Math.min(horizonOf(grow, now).getTime(), now.getTime())));
+      return windowOf(asked.range, grant, grow, asked.to ?? new Date(Math.min(horizonOf(grow, now).getTime(), now.getTime())), asked.stepSeconds);
     }
 
     // A range whose end comes before its start never gets here: the query is
@@ -166,7 +176,7 @@ export class GrowSeriesService {
       ]);
     }
 
-    return narrowedTo({ startsAt: asked.from, endsAt: asked.to }, grant, grow, now);
+    return narrowedTo({ startsAt: asked.from, endsAt: asked.to }, grant, grow, now, asked.stepSeconds);
   }
 
   /**
@@ -204,6 +214,17 @@ export class GrowSeriesService {
       .find({ spaceId: { $in: spaceIds } })
       .sort({ createdAt: 1, id: 1 })
       .lean<StoredDevice[]>();
+  }
+
+  /** The cameras standing in the places the grow stood in over the window. */
+  private camerasWhereItStood(grow: GrowDocument, window: TimelineWindow): Promise<CameraDocument[]> {
+    const spaceIds = spacesDuring(grow, window.startsAt, window.endsAt).filter((id): id is string => id !== null);
+    if (spaceIds.length === 0) return Promise.resolve([]);
+
+    return this.cameras
+      .find({ spaceId: { $in: spaceIds }, removedAt: null })
+      .sort({ createdAt: 1, id: 1 })
+      .lean<CameraDocument[]>();
   }
 
   /**

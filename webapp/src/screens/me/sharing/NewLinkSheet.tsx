@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { GrowListItem, GrowOrSpaceRef, ShareKind, Space } from '@fg2/shared-types/v1';
+import type { GrowListItem, GrowOrSpaceRef, ShareKind, ShareLink, Space } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useCreateShareLink } from '@/api/sharing';
 import { Sheet } from '@/log/Sheet';
@@ -32,7 +32,18 @@ import styles from './sharing.module.css';
 /** How long a read-only link lasts, in the round numbers a person means; null is never. */
 const LIFETIMES: (number | null)[] = [7, 30, 90, null];
 
-export function NewLinkSheet({ grows, spaces, onClose }: { grows: GrowListItem[]; spaces: Space[]; onClose: () => void }) {
+export function NewLinkSheet({
+  grows,
+  spaces,
+  onClose,
+  onCreated,
+}: {
+  grows: GrowListItem[];
+  spaces: Space[];
+  onClose: () => void;
+  /** Where the link just made is handed, for a screen that shows it at once rather than in the list of links. */
+  onCreated?: (link: ShareLink) => void;
+}) {
   const { t } = useTranslation();
   const create = useCreateShareLink();
   const [subject, setSubject] = useState<GrowOrSpaceRef | null>(() =>
@@ -62,7 +73,7 @@ export function NewLinkSheet({ grows, spaces, onClose }: { grows: GrowListItem[]
         includeCameras: cams,
         expiresAt: kind === 'public_page' || days === null ? null : instantOf(serverNow().plus({ days })),
       },
-      { onSuccess: onClose },
+      { onSuccess: link => (onCreated ? onCreated(link) : onClose()) },
     );
   };
 

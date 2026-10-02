@@ -144,13 +144,12 @@ function TimelineFor({ spaceId, heading }: TimelineProps) {
           </span>
         ) : null}
         {/* The way into the Charts view. It is not a tab of its own - it opens
-            on the grow this row shows, and this row is where the window is
-            chosen. With no grow shown there is nothing for it to open on: a
-            chart is drawn about a grow, and the panels below already draw the
-            place. */}
-        {/* Nor where nothing was ever measured here - by a device or by hand - which is a chart of nothing whatever the window. */}
-        {growId !== null && (!data || data.panels.length > 0 || data.lastReadingAt !== null || readings.length > 0) ? (
-          <Link to={`/charts?space=${spaceId}&grow=${growId}`} className={ui.chip}>
+            on the place this row shows, and on the grow it shows where one is,
+            with any window, any step and every line the place has. Not where
+            nothing was ever measured here - by a device or by hand - which is
+            a chart of nothing whatever the window. */}
+        {!data || data.panels.length > 0 || data.lastReadingAt !== null || readings.length > 0 ? (
+          <Link to={growId !== null ? `/charts?space=${spaceId}&grow=${growId}` : `/charts?space=${spaceId}`} className={ui.chip}>
             <LineChart size={13} strokeWidth={1.75} aria-hidden />
             {t('charts.title')}
           </Link>

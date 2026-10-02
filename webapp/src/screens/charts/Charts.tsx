@@ -1,29 +1,36 @@
-import { ChevronLeft } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { DateTime } from 'luxon';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useSearchParams } from 'react-router';
-import { timelinePath } from '@/app/places';
-import type { ChartView, ChartViewDefinition, ChartViewSpan, GrowListItem, GrowSeries, GrowSeriesRange } from '@fg2/shared-types/v1';
+import { Link, Navigate, useSearchParams } from 'react-router';
+import { timelinePath, useCurrentPlace } from '@/app/places';
+import type { ChartView, ChartViewDefinition, GrowListItem, ShareLink } from '@fg2/shared-types/v1';
 import { useChartViews } from '@/api/chart-views';
-import { askable, useGrowSeries } from '@/api/charts';
+import { serverNow } from '@/api/clock';
 import { useDevices } from '@/api/devices';
+import { useWindowEntries } from '@/api/entries';
 import { useGrow, useGrowPlants, useGrows, useGrowsEverIn, useSpaceGrows } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
+import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
-import { useScrub } from '@/charts/scrub';
+import { useScrub, type Selection } from '@/charts/scrub';
 import { dayOfGrow, downloadCsv, readAt, type PlotLine } from '@/charts/series';
+import { NewLinkSheet } from '@/screens/me/sharing/NewLinkSheet';
+import { linkAddress } from '@/screens/me/sharing/links';
+import { Sheet } from '@/log/Sheet';
 import { AdvancedSection } from '@/ui/advanced/Advanced';
+import type { ChartSettings } from '@/ui/advanced/item';
 import { ageLabel } from '@/ui/age';
+import { CopyButton } from '@/ui/CopyButton';
 import { looseFigure } from '@/ui/figures';
 import { Help } from '@/ui/Help';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { stoodIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { useZone, zoned, zonedAt } from '@/ui/zone';
+import { useZone, zonedAt } from '@/ui/zone';
 import { figure } from '../home/units';
-import { MoveHereSheet } from '../space/MoveHereSheet';
+import { CameraFrame } from '../timeline/CameraFrame';
 import { at, stampForEnds, stampOf, stamps } from '../timeline/window';
 import {
   cardsOf,
@@ -40,14 +47,33 @@ import {
   type Picked,
 } from './cards';
 import { ChartCard } from './ChartCard';
+import { useChartData, type ChartData } from './data';
+import { Messages } from './Messages';
 import { SaveViewSheet } from './SaveViewSheet';
+import {
+  dayBounds,
+  EVERYDAY,
+  instant,
+  isStretch,
+  isWidth,
+  liveEnd,
+  NARROWEST_ZOOM,
+  RARE,
+  rangeFrom,
+  rangeOfSpan,
+  spanOf,
+  stepped,
+  WIDTHS,
+  windowOf,
+  zoomedIn,
+  type ChartRange,
+  type Width,
+  type Zoom,
+} from './span';
+import { stepLabel, STEPS } from './steps';
 import styles from './Charts.module.css';
 
-const RANGES: GrowSeriesRange[] = ['24h', '7d', 'phase', 'grow', 'custom'];
 const LAYOUTS: Layout[] = ['stacked', 'overlay', 'day_of_grow'];
-
-/** Counting in days says something only over a stretch a grow's own calendar can name; a rolling day of dates cannot. */
-const DAY_RANGES: GrowSeriesRange[] = ['phase', 'grow'];
 
 /** How many output chips stand in the bar before the rest go behind "+ more". */
 const OUTPUTS_SHOWN = 2;
@@ -55,7 +81,10 @@ const OUTPUTS_SHOWN = 2;
 /** And how many earlier runs of the same tent, which an account that has grown in it for years has plenty of. */
 const RUNS_SHOWN = 3;
 
-const DAY_SECONDS = 24 * 60 * 60;
+/** How often a chart that follows now asks again, which is about as often as a device reports something new. */
+const LIVE_MS = 30_000;
+
+const VPD_HALVES = ['all', 'day', 'night'] as const;
 
 /**
  * The Charts view: the nerd's room.
@@ -63,95 +92,62 @@ const DAY_SECONDS = 24 * 60 * 60;
  * Everything else in the app decides for the grower what is worth drawing - the
  * home its four tiles, the Timeline its three panels - and this is the one
  * screen that does not. Any series the account has, over any stretch, laid out
- * three ways, kept as a view to come back to and taken away as a table.
+ * three ways, kept as a view to come back to and taken away as a table - and,
+ * beside the curves, what was written over the window and what the camera saw
+ * at the cursor.
  *
- * It is about a grow rather than about a tent, because the day counter and the
- * band that moves with the phase belong to a grow; a tent named in the query is
- * answered by whatever is growing in it. One read answers the whole screen, so
- * the chips, the panels and the table cannot disagree about the window.
+ * It is about a place, and about the grow standing in it where there is one:
+ * the stretches a grow names - its phase, the whole of it - are drawn from the
+ * grow, every other window from the place, so a place with no grow is charted
+ * like any other and a year back is a year of the place. A grow named in the
+ * address is charted where it stood last. The bare address opens on the place
+ * the tabs are showing.
  */
 export function Charts() {
   const [params] = useSearchParams();
   const spaceId = params.get('space');
   const named = params.get('grow');
+  const { home, here } = useCurrentPlace();
 
-  // A tent is answered by what grows in it; a grow names itself and needs no lookup.
-  const here = useSpaceGrows(named ? null : spaceId);
-  const growId = named ?? here.data?.items[0]?.id ?? null;
+  // A place is answered by what grows in it; a grow names itself and needs no lookup.
+  const growsHere = useSpaceGrows(named ? null : spaceId);
+  const growId = named ?? growsHere.data?.items[0]?.id ?? null;
   const grow = useGrow(growId);
 
-  if ((!named && spaceId !== null && here.isPending) || (growId !== null && grow.isPending)) {
-    return (
-      <div className={styles.screen}>
-        <Header spaceId={spaceId} growId={growId} subject="" />
-        <Waiting lines={3} />
-        <Waiting lines={3} />
-      </div>
-    );
+  if (!named && spaceId === null) {
+    if (home.isPending) return <Pending />;
+    if (!here) return <PickGrow />;
+    // What else the address asked - a range, a step - goes along to the place it is about.
+    const kept = new URLSearchParams(params);
+    kept.set('space', here.spaceId);
+    return <Navigate to={`/charts?${kept.toString()}`} replace />;
   }
 
-  // Nothing named at all is a different absence from a tent with nothing in it:
-  // the screen has not been told which grow rather than been told about a place
-  // that has none, and the account's own grows are the answer to that.
-  if (growId === null) {
-    if (spaceId !== null && noLongerThere(here.error)) return <NoLongerHere what="space" />;
-    return spaceId === null ? <PickGrow /> : <NoGrow spaceId={spaceId} />;
-  }
+  if ((!named && spaceId !== null && growsHere.isPending) || (growId !== null && grow.isPending))
+    return <Pending spaceId={spaceId} growId={growId} />;
+  if (!named && spaceId !== null && noLongerThere(growsHere.error)) return <NoLongerHere what="space" />;
+  if (growId !== null && !grow.data)
+    return noLongerThere(grow.error) ? <NoLongerHere what="grow" /> : <LoadFailed retry={() => void grow.refetch()} />;
 
-  if (!grow.data) return noLongerThere(grow.error) ? <NoLongerHere what="grow" /> : <LoadFailed retry={() => void grow.refetch()} />;
+  const place = spaceId ?? (grow.data ? stoodIn(grow.data) : null);
 
-  return <ChartsFor key={growId} grow={grow.data} spaceId={spaceId} />;
+  return <ChartsFor key={`${growId ?? ''}:${place ?? ''}`} grow={grow.data ?? null} spaceId={place} />;
 }
 
-/**
- * A tent with nothing growing in it. The app draws no link here - the Overview
- * and the Timeline offer Charts only while a grow is shown - but an address
- * kept from when one stood here still arrives, and it is a sentence and not a
- * wall: the tent's Timeline, which draws its climate, and the two ways of
- * putting a grow in stand here.
- */
-function NoGrow({ spaceId }: { spaceId: string }) {
-  const { t } = useTranslation();
-  // Both ways on put a grow into this place, which is managing it - so the
-  // question is about the tent named in the query rather than about the session.
-  const mayManage = useMayManage(spaceId);
-  const spaces = useSpaces();
-  const [moving, setMoving] = useState(false);
-  const space = spaces.data?.items.find(one => one.id === spaceId) ?? null;
-
+function Pending({ spaceId = null, growId = null }: { spaceId?: string | null; growId?: string | null }) {
   return (
     <div className={styles.screen}>
-      <Header spaceId={spaceId} growId={null} subject={space?.name ?? ''} />
-      <p className={`${ui.cardDashed} ${ui.note}`}>{t('charts.noGrow')}</p>
-      <div className={styles.chips}>
-        {/* The place's climate without a grow is what its Timeline draws. */}
-        <Link to={timelinePath(spaceId)} className={ui.chip}>
-          {t('shell.tabs.timeline')}
-        </Link>
-        {mayManage ? (
-          <Link to={`/log?kind=phase&space=${spaceId}`} className={ui.chip}>
-            + {t('space.newGrow')}
-          </Link>
-        ) : null}
-        {mayManage && space ? (
-          <button type="button" className={ui.chip} onClick={() => setMoving(true)}>
-            {t('space.moveHere')}
-          </button>
-        ) : null}
-      </div>
-      {moving && space ? <MoveHereSheet spaceId={space.id} spaceName={space.name} onClose={() => setMoving(false)} /> : null}
+      <Header spaceId={spaceId} growId={growId} subject="" />
+      <Waiting lines={3} />
+      <Waiting lines={3} />
     </div>
   );
 }
 
 /**
- * The bare address, which is where a bookmark on this screen and a link that
- * lost its query both land. It knows nothing about a tent, so the sentence the
- * tent's own empty state carries would be about a place nobody named - and it
- * would stand there alone, since both ways on need an id this screen has not
- * got. What it does have is the account's grows, and a chart is drawn about
- * one, so they are the way on: whichever is picked, the screen is the same
- * screen the link would have opened.
+ * The bare address on an account with no place at all: a diary kept without
+ * hardware charts its grows' own measurements, so they are the way on; with
+ * none either, there is nothing to draw yet and the sentence says so.
  */
 function PickGrow() {
   const { t } = useTranslation();
@@ -167,7 +163,7 @@ function PickGrow() {
         <LoadFailed retry={() => void grows.refetch()} />
       ) : (
         <>
-          <p className={`${ui.cardDashed} ${ui.note}`}>{t(items.length > 0 ? 'charts.whichGrow' : 'charts.noGrow')}</p>
+          <p className={`${ui.cardDashed} ${ui.note}`}>{t(items.length > 0 ? 'charts.whichGrow' : 'charts.nothingYet')}</p>
           <div className={styles.chips}>
             {items.map(one => (
               <Link key={one.id} to={`/charts?grow=${one.id}`} className={ui.chip}>
@@ -181,95 +177,119 @@ function PickGrow() {
   );
 }
 
-function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | null }) {
+function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: string | null }) {
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
+  const { user } = useSession();
   const mayManage = useMayManage();
+  const mayShare = useMayManage(spaceId) && user?.isDemo !== true;
   const [params, setParams] = useSearchParams();
 
-  const range = RANGES.find(one => one === params.get('range')) ?? '24h';
+  const range = rangeFrom(params.get('range'), grow !== null);
   const from = params.get('from') ?? '';
   const to = params.get('to') ?? '';
+  const atParam = momentOf(params.get('at'));
+  const settings = settingsOf(params);
 
-  const definitions = useMemo(() => grow.measurements.filter(definition => definition.chart), [grow.measurements]);
-  const keys = useMemo(() => definitions.map(definition => definition.key), [definitions]);
-  // The zone is in the list because it arrives after the first draw - the
-  // account is a read of its own - and the two ends of a custom range are cut
-  // at midnight where the account is. Left out, the window would stay frozen at
-  // the midnight the browser happened to be on when the screen first drew.
-  const bounds = useMemo(() => dayBounds(range, from, to, zone), [range, from, to, zone]);
-  const window = useMemo(() => ({ range, ...bounds, measurements: keys }), [range, bounds, keys]);
+  const [liveNow, setLiveNow] = useState(() => serverNow().toMillis());
+  const [zoom, setZoom] = useState<Zoom | null>(null);
+  const endedAt = grow?.endedAt ? at(grow.endedAt) : null;
+  const rolling = isWidth(range) && atParam === null && zoom === null;
+  const endsNow = endedAt === null && zoom === null && (rolling || isStretch(range));
+  const following = settings.live && rolling && endedAt === null;
+
+  // A rolling window that follows now is moved on by the clock; nothing else moves it.
+  useEffect(() => {
+    if (!following) return;
+    const timer = setInterval(() => setLiveNow(serverNow().toMillis()), LIVE_MS);
+    return () => clearInterval(timer);
+  }, [following]);
+
+  const window = windowOf({ range, from, to, at: atParam, zoom, now: liveNow, endedAt, zone });
   // Whether the question has been finished is decided on the window that came
-  // out of the two fields and not on the two strings that went in. A range
-  // typed into the address rather than picked in the fields can name a day
-  // nothing can read, and that leaves a truthy string in front of an empty
-  // window: judged by the string the question looked asked, while the read
-  // stayed disabled behind it and the screen waited on nothing for ever. Two
-  // ends given and still no window is the way that shows itself, and it is a
-  // different sentence from an end nobody has picked yet.
-  const incomplete = range === 'custom' && !(bounds.from && bounds.to);
+  // out of the two fields and not on the two strings that went in: a range
+  // typed into the address can name a day nothing can read, and two ends given
+  // and still no window is a different sentence from an end nobody has picked.
+  const days = range === 'custom' && zoom === null ? dayBounds(from, to, zone) : null;
+  const incomplete = range === 'custom' && zoom === null && days === null;
   const unreadable = incomplete && !!from && !!to;
   // Two ends that read perfectly well and still name no stretch of time,
-  // because the later of the two was put in the earlier field. The route
-  // refuses that pair for good - a custom range names both of its ends, and
-  // ends after it begins - so asking it turns a sentence this screen could
-  // write itself into a read that failed, reported as a window that could not
-  // be refreshed and offered with a Try again there is nothing to try. The
-  // `max` and `min` on the two fields do not prevent it: on a date field those
-  // raise a validity flag and refuse no input at all.
-  const backwards = range === 'custom' && !incomplete && !askable(window);
-  /** Either way, a question nobody has finished asking: no read goes out, and the fields say which of the three it is. */
+  // because the later of the two was put in the earlier field. Asking the
+  // route would turn a sentence this screen can write itself into a read that
+  // failed, so it is not asked.
+  const backwards = days !== null && days.from >= days.to;
   const unasked = incomplete || backwards;
-  const series = useGrowSeries(grow.id, window);
+
+  const definitions = useMemo(() => (grow?.measurements ?? []).filter(definition => definition.chart), [grow]);
+  const keys = useMemo(() => definitions.map(definition => definition.key), [definitions]);
+  const series = useChartData(
+    { growId: grow?.id ?? null, spaceId, keys },
+    unasked ? null : window,
+    settings.stepSeconds ?? undefined,
+    settings.live && window?.kind === 'grow' && endedAt === null ? LIVE_MS : false,
+  );
 
   const spaces = useSpaces();
   const devices = useDevices();
   const views = useChartViews();
-  const plants = useGrowPlants(grow.id);
+  const plants = useGrowPlants(grow?.id ?? null);
 
   const [picked, setPicked] = useState<Picked | null>(null);
   const [asked, setAsked] = useState<Layout>('stacked');
   const [appliedId, setAppliedId] = useState<string | null>(null);
   const [moreOutputs, setMoreOutputs] = useState(false);
+  const [moreWidths, setMoreWidths] = useState(RARE.includes(range as Width));
   const [moreRuns, setMoreRuns] = useState(false);
   const [sheet, setSheet] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shared, setShared] = useState<ShareLink | null>(null);
+  const [showMessages, setShowMessages] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   /** Where the one cursor of the screen stands across the window, so every card is read at the same instant. */
   const [scrubbed, setScrubbed] = useState<number | null>(null);
-  const scrub = useScrub(setScrubbed);
 
   // The day counter is the axis of a stretch a grow can name, so the layout is
   // out of reach under a rolling window rather than repainting the same picture.
-  const dayAxis = DAY_RANGES.includes(range);
+  const dayAxis = isStretch(range) && zoom === null && window?.kind === 'grow';
   const layout = asked === 'day_of_grow' && !dayAxis ? 'stacked' : asked;
+  const day = layout === 'day_of_grow';
 
   // The place the grow last stood in and not only the one it stands in today:
   // a finished run has no open placement at all, and it is exactly the run
   // somebody wants to lay under this one.
-  const place = stoodIn(grow);
+  const place = grow ? stoodIn(grow) : spaceId;
   const siblings = useGrowsEverIn(layout === 'day_of_grow' ? place : null);
-  const others = (siblings.data?.items ?? []).filter(one => one.id !== grow.id);
+  const others = (siblings.data?.items ?? []).filter(one => one.id !== grow?.id);
   const comparedId = params.get('compare');
   const comparedName = others.find(one => one.id === comparedId)?.name ?? null;
-  const comparedWindow = useMemo(() => ({ range: 'grow' as const, measurements: keys }), [keys]);
-  const comparedSeries = useGrowSeries(layout === 'day_of_grow' && comparedName ? comparedId : null, comparedWindow);
+  const comparedSeries = useChartData(
+    { growId: day && comparedName ? comparedId : null, spaceId: null, keys },
+    day && comparedName ? { kind: 'grow', range: 'grow' } : null,
+    undefined,
+    false,
+  );
 
   // A window whose read failed leaves the one already drawn where it is, dimmed
-  // and dated, rather than wiping the chart a chip was tapped from. Everything
-  // below is read off that answer and not off the query, so a failed read never
-  // empties the chip bar over a chart that is still on the screen.
-  const data = series.data ?? series.held?.data;
+  // and dated, rather than wiping the chart a chip was tapped from.
+  const data = series.data;
+  const left = data ? at(data.startsAt) : 0;
+  const right = data ? at(data.endsAt) : 0;
+  const entries = useWindowEntries({ growId: grow?.id ?? null, spaceId }, showMessages && data ? { from: data.startsAt, to: data.endsAt } : null);
 
   const offered = useMemo(() => offeredBy(data, definitions), [data, definitions]);
   const chosen = picked === null ? defaultPick(offered) : prunedTo(picked, offered);
   const leaf = leafOffsetsOf(devices.data?.items ?? [], data);
   const named = useMemo(() => (plants.data?.items ?? []).map(plant => ({ id: plant.id, label: plant.label })), [plants.data]);
+  const vpdHalf = chosen.metrics.includes('vpd') ? settings.vpdHalf : 'all';
 
   const compared = comparedSeries.data && comparedName ? { series: comparedSeries.data, name: comparedName } : undefined;
-  const cards = data ? cardsOf(t, data, { picked: chosen, layout, offered, leaf, plants: named, compared }) : [];
+  const input = { picked: chosen, layout, offered, leaf, plants: named, compared, vpdMode: vpdHalf };
+  const cards = data ? cardsOf(t, data, input) : [];
+  const cameras = (data?.cameras ?? []).filter(camera => camera.frames.length > 0);
 
-  const spaceName = spaces.data?.items.find(space => space.id === place)?.name ?? null;
-  const subject = [spaceName, grow.name].filter(Boolean).join(' · ');
+  const spaceRow = spaces.data?.items.find(space => space.id === place) ?? null;
+  const subject = [spaceRow?.name ?? null, grow?.name ?? null].filter(Boolean).join(' · ');
 
   const setQuery = (over: Record<string, string | null>) => {
     const kept = new URLSearchParams(params);
@@ -280,20 +300,48 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
     setParams(kept, { replace: true });
   };
 
-  const setRange = (next: GrowSeriesRange) =>
-    setQuery({ range: next, ...(next === 'custom' ? {} : { from: null, to: null }), ...(DAY_RANGES.includes(next) ? {} : { compare: null }) });
+  const setRange = (next: ChartRange) => {
+    setZoom(null);
+    setScrubbed(null);
+    setLiveNow(serverNow().toMillis());
+    setQuery({
+      range: next,
+      ...(next === 'custom' ? {} : { from: null, to: null }),
+      // Where a width was stepped back to stays where it is for another width; a grow's stretch has no such end.
+      ...(isWidth(next) ? {} : { at: null }),
+      ...(isStretch(next) ? {} : { compare: null }),
+    });
+  };
+
+  const change = (over: Partial<ChartSettings>) =>
+    setQuery({
+      ...('stepSeconds' in over ? { step: over.stepSeconds ? String(over.stepSeconds) : null } : {}),
+      ...('vpdHalf' in over ? { vpd: over.vpdHalf && over.vpdHalf !== 'all' ? over.vpdHalf : null } : {}),
+      ...('live' in over ? { live: over.live ? '1' : null } : {}),
+    });
 
   const toggle = <T extends string>(list: T[], one: T): T[] => (list.includes(one) ? list.filter(other => other !== one) : [...list, one]);
 
   /** A chip moved by hand is no longer the saved view it came from, which is what lets Save offer to keep it. */
-  const change = (over: Partial<Picked>) => {
+  const pick = (over: Partial<Picked>) => {
     setPicked({ ...chosen, ...over });
     setAppliedId(null);
   };
 
+  const zoomTo = (next: Zoom) => {
+    if (next.to - next.from < NARROWEST_ZOOM) {
+      const middle = (next.from + next.to) / 2;
+      next = { from: middle - NARROWEST_ZOOM / 2, to: middle + NARROWEST_ZOOM / 2 };
+    }
+    setZoom(next);
+    setScrubbed(null);
+  };
+
+  const scrub = useScrub(setScrubbed, day ? undefined : (selection: Selection) => zoomTo(spanOfSelection(selection, left, right)));
+
   const definition: ChartViewDefinition = {
     deviceIds: data?.deviceIds ?? [],
-    growId: grow.id,
+    growId: grow?.id ?? null,
     metrics: chosen.metrics,
     outputs: chosen.outputs,
     measurements: chosen.measurements,
@@ -303,8 +351,10 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
   };
 
   const apply = (view: ChartView) => {
-    const span = rangeOf(view.definition.span, zone);
-    setQuery({ range: span.range, from: span.from ?? null, to: span.to ?? null });
+    const span = rangeOfSpan(view.definition.span, zone);
+    const fits = !isStretch(span.range) || grow !== null;
+    setZoom(null);
+    setQuery({ range: fits ? span.range : '24h', from: span.from ?? null, to: span.to ?? null, at: null });
     setPicked({ metrics: [...view.definition.metrics], outputs: [...view.definition.outputs], measurements: [...view.definition.measurements] });
     setAsked(view.definition.layout);
     setAppliedId(view.id);
@@ -313,26 +363,62 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
   const saved = views.data?.items ?? [];
   const applied = saved.find(view => view.id === appliedId) ?? null;
   // A view holds a question and not a grow's readings, so one saved over another
-  // run is offered here too; what this grow cannot draw is named under the bar.
+  // run is offered here too; what this window cannot draw is named under the bar.
   const dropped = picked === null ? [] : droppedBy(t, picked, offered, definitions);
+  const shownWidths: Width[] = [...EVERYDAY, ...(moreWidths ? RARE : RARE.filter(one => one === range))].sort(
+    (one, other) => WIDTHS[one] - WIDTHS[other],
+  );
+  const end = liveEnd(liveNow, endedAt);
 
   const chips = (
     <>
       <div className={styles.chips} role="group" aria-label={t('charts.rangeLabel')}>
-        {RANGES.map(one => (
-          <button key={one} type="button" className={ui.chip} aria-pressed={one === range} onClick={() => setRange(one)}>
-            {one === 'custom' ? t('charts.range.custom') : t(`timeline.range.${one}`)}
+        {shownWidths.map(one => (
+          <button key={one} type="button" className={ui.chip} aria-pressed={zoom === null && one === range} onClick={() => setRange(one)}>
+            {t(`charts.width.${one}`)}
           </button>
         ))}
-        {/* Which days the chart covers, and it covers none while the question
-            is unfinished: the answer still in hand is of the window before the
-            fields were touched, and naming its days beside two fields that no
-            longer describe it is the last thing on the screen still claiming
-            the old range is what is being looked at. */}
+        <button type="button" className={`${ui.chip} ${styles.more}`} aria-expanded={moreWidths} onClick={() => setMoreWidths(!moreWidths)}>
+          {t(moreWidths ? 'charts.fewerWidths' : 'charts.moreWidths')}
+        </button>
+        {/* The stretches a grow names are offered where a grow is, and nowhere else. */}
+        {grow
+          ? (['phase', 'grow'] as const).map(one => (
+              <button key={one} type="button" className={ui.chip} aria-pressed={zoom === null && one === range} onClick={() => setRange(one)}>
+                {t(`timeline.range.${one}`)}
+              </button>
+            ))
+          : null}
+        <button type="button" className={ui.chip} aria-pressed={zoom === null && range === 'custom'} onClick={() => setRange('custom')}>
+          {t('charts.range.custom')}
+        </button>
+        {/* Which days the chart covers, and it covers none while the question is unfinished. */}
         {!unasked && data ? <span className={`mono ${styles.days}`}>{dayLabel(t, data)}</span> : null}
       </div>
 
-      {range === 'custom' ? (
+      {zoom !== null ? (
+        <div className={styles.navRow}>
+          <span className={`mono ${styles.navLabel}`}>
+            {t('charts.zoomed', { from: stampOf(zoom.from, zoom.to - zoom.from, zone), to: stampOf(zoom.to, zoom.to - zoom.from, zone) })}
+          </span>
+          <button type="button" className={ui.chip} onClick={() => setZoom(null)}>
+            {t('charts.resetZoom')}
+          </button>
+        </div>
+      ) : isWidth(range) ? (
+        <OffsetBar
+          width={range}
+          at={atParam}
+          end={end}
+          zone={zone}
+          onAt={next => {
+            setScrubbed(null);
+            setQuery({ at: next === null ? null : instant(next) });
+          }}
+        />
+      ) : null}
+
+      {range === 'custom' && zoom === null ? (
         <div className={`${ui.card} ${styles.custom}`}>
           <label className={styles.customField}>
             <span className="label">{t('charts.custom.from')}</span>
@@ -368,7 +454,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
             key={metric}
             on={chosen.metrics.includes(metric)}
             colour={metricColour(metric)}
-            onPick={() => change({ metrics: toggle(chosen.metrics, metric) })}
+            onPick={() => pick({ metrics: toggle(chosen.metrics, metric) })}
           >
             {t(`charts.metric.${metric}`, { defaultValue: metric })}
           </Pick>
@@ -378,13 +464,13 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
             key={measurement.key}
             on={chosen.measurements.includes(measurement.key)}
             dot
-            onPick={() => change({ measurements: toggle(chosen.measurements, measurement.key) })}
+            onPick={() => pick({ measurements: toggle(chosen.measurements, measurement.key) })}
           >
             {measurement.name}
           </Pick>
         ))}
         {(moreOutputs ? offered.outputs : offered.outputs.slice(0, OUTPUTS_SHOWN)).map(output => (
-          <Pick key={output} on={chosen.outputs.includes(output)} colour="output" onPick={() => change({ outputs: toggle(chosen.outputs, output) })}>
+          <Pick key={output} on={chosen.outputs.includes(output)} colour="output" onPick={() => pick({ outputs: toggle(chosen.outputs, output) })}>
             {t(`timeline.output.${output}`, { defaultValue: output })}
           </Pick>
         ))}
@@ -393,12 +479,19 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
             {t(moreOutputs ? 'charts.less' : 'charts.more')}
           </button>
         ) : null}
+        {/* What was written, and the picture at the cursor: drawn beside the curves rather than as one of them. */}
+        <Pick on={showMessages} onPick={() => setShowMessages(!showMessages)}>
+          {t('chartMessages.chip')}
+        </Pick>
+        {cameras.length > 0 && !day ? (
+          <Pick on={showCamera} onPick={() => setShowCamera(!showCamera)}>
+            {t('charts.cameraChip')}
+          </Pick>
+        ) : null}
       </div>
 
-      {/* Two runs of one tent lie over each other only where the axis counts days
-          rather than dates. A tent with eight seasons behind it would otherwise
-          draw seven chips, so the older ones fold away the way the outputs do. */}
-      {layout === 'day_of_grow' && others.length > 0 ? (
+      {/* Two runs of one tent lie over each other only where the axis counts days rather than dates. */}
+      {day && others.length > 0 ? (
         <div className={styles.chips} role="group" aria-label={t('charts.compareLabel')}>
           <span className="label">{t('charts.compareLabel')}</span>
           {(moreRuns ? others : others.slice(0, RUNS_SHOWN)).map(one => (
@@ -437,14 +530,26 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
     </>
   );
 
-  const head = <Header spaceId={spaceId} growId={grow.id} subject={subject} />;
+  const head = <Header spaceId={spaceId} growId={grow?.id ?? null} subject={subject} />;
+  const advanced = (
+    <AdvancedSection
+      scope="charts"
+      context={{
+        growId: grow?.id ?? null,
+        spaceId,
+        settings,
+        change,
+        answeredStep: data && data.stepSeconds > 0 ? data.stepSeconds : null,
+        vpdDrawn: chosen.metrics.includes('vpd'),
+        endsNow,
+      }}
+    />
+  );
 
   // A custom range with an end still to be picked, or with its two ends the
   // wrong way round, is not a read that is on its way: it is a question nobody
   // has finished asking, and the fields say so. The chart drawn before it goes
-  // with it, because it is of a window the two fields no longer show - left up
-  // under a sentence about the network, it was the strongest thing on the
-  // screen saying the old range was still what was being looked at.
+  // with it, because it is of a window the two fields no longer show.
   if (unasked) {
     return (
       <div className={styles.screen}>
@@ -465,39 +570,36 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
             <Waiting lines={3} />
           </>
         ) : (
-          <LoadFailed retry={() => void series.refetch()} />
+          <LoadFailed retry={series.refetch} />
         )}
       </div>
     );
   }
 
   const nothingOffered = offered.metrics.length === 0 && offered.outputs.length === 0 && offered.measurements.length === 0;
-  const origin = at(data.originAt);
-  const day = layout === 'day_of_grow';
-  const span = at(data.endsAt) - at(data.startsAt);
+  const origin = data.originAt === null ? left : at(data.originAt);
+  const span = right - left;
   const edge = (time: number) => (day ? dayOfGrow(time, origin) : time);
-  const left = edge(at(data.startsAt));
-  const right = edge(at(data.endsAt));
-  const cursor = left + (scrubbed ?? 1) * (right - left);
+  const from_ = edge(left);
+  const to_ = edge(right);
+  const cursor = from_ + (scrubbed ?? 1) * (to_ - from_);
+  const cursorTime = day ? left : left + (scrubbed ?? 1) * span;
   const dayOf = (x: number) => t('timeline.dayN', { day: Math.max(1, Math.floor(x)) });
-  const ends: [string, string] = day ? [dayOf(left), dayOf(right)] : edgesOf(at(data.startsAt), at(data.endsAt), zone);
+  const ends: [string, string] = day ? [dayOf(from_), dayOf(to_)] : edgesOf(left, right, zone);
+  const toCursor = (time: number) => setScrubbed(span > 0 ? Math.min(1, Math.max(0, (time - left) / span)) : null);
 
   return (
     // Busy while a chip's window is still on its way, or while the one that was
     // asked for failed: what is drawn is the window before it, dimmed and dated
     // rather than taken off the screen.
-    <div className={styles.screen} aria-busy={series.isPlaceholderData || (series.isError && !series.data)}>
+    <div className={styles.screen} aria-busy={series.isPlaceholderData || (series.isError && series.heldAt !== null)}>
       {head}
       {chips}
-      <RefreshFailed failedAt={series.isError ? series.dataUpdatedAt || (series.held?.at ?? null) : null} now={now} />
+      <RefreshFailed failedAt={series.isError ? series.dataUpdatedAt || series.heldAt : null} now={now} />
 
-      {/* Two silences, told apart by the one fact the window cannot hold. A
-          grow whose places hold only a plug, a light or a fan has never
-          measured anything, and telling its grower the hardware went quiet
-          would be a fault invented out of nothing; a tent that measured until
-          Saturday and has said nothing since is dated, the way the tent's own
-          Timeline dates it one tap away. The advice stays in both: on the very
-          tent this was found on the next chip along does draw. */}
+      {/* Two silences, told apart by the one fact the window cannot hold: a
+          place that has never measured anything, and one that measured until
+          Saturday and has said nothing since, which is dated. */}
       {nothingOffered ? (
         <p className={`${ui.cardDashed} ${ui.note} ${styles.empty}`}>
           {data.lastReadingAt === null ? t('charts.noData') : t('charts.quietWindow', { age: ageLabel(data.lastReadingAt, now) })}
@@ -505,14 +607,31 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
       ) : null}
       {!nothingOffered && isEmpty(chosen) ? <p className={`${ui.cardDashed} ${ui.note} ${styles.empty}`}>{t('charts.nothingPicked')}</p> : null}
 
+      {showCamera && cameras.length > 0 && !day ? (
+        <CameraFrame cameras={cameras} from={left} to={right} cursor={cursorTime} day={null} onScrub={toCursor} />
+      ) : null}
+
       {cards.length > 0 ? <ScrubHeader cards={cards} cursor={cursor} stamp={day ? dayOf : x => stampOf(x, span, zone)} /> : null}
+
+      {cards.length > 0 && !day ? (
+        <div className={styles.zoomRow}>
+          <button type="button" className={ui.chip} onClick={() => zoomTo(zoomedIn(left, right, cursorTime))} disabled={span <= NARROWEST_ZOOM}>
+            <Plus size={14} strokeWidth={1.75} aria-hidden />
+            {t('charts.zoomIn')}
+          </button>
+          <Help topic="chartZoom" />
+        </div>
+      ) : null}
+
       {cards.map(card => (
-        <ChartCard key={card.key} card={card} cursor={cursor} scrub={scrub} ends={ends} />
+        <ChartCard key={card.key} card={card} cursor={cursor} scrub={scrub.handlers} selection={scrub.selection} ends={ends} />
       ))}
+
+      {showMessages && !day ? <Messages read={entries} from={left} to={right} cursor={cursorTime} onCursor={toCursor} /> : null}
 
       <div className={styles.footer}>
         <div className={ui.segments} role="group" aria-label={t('charts.layoutLabel')}>
-          {LAYOUTS.map(one => (
+          {LAYOUTS.filter(one => one !== 'day_of_grow' || grow !== null).map(one => (
             <button
               key={one}
               type="button"
@@ -533,37 +652,34 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
               {t('charts.saveView')}
             </button>
           ) : null}
+          {mayShare && (spaceRow || grow) ? (
+            <button type="button" className={ui.chip} onClick={() => setSharing(true)}>
+              {t('charts.share')}
+            </button>
+          ) : null}
           <button
             type="button"
             className={ui.chip}
             disabled={cards.length === 0}
-            onClick={() =>
-              downloadCsv(csvName(grow.name, range), csvForCards(t, data, { picked: chosen, layout, offered, leaf, plants: named }, zone))
-            }
+            onClick={() => downloadCsv(csvName(grow?.name ?? spaceRow?.name ?? '', range), csvForCards(t, data, input, zone))}
           >
             {t('charts.csv')}
           </button>
         </div>
       </div>
 
-      {/* The finer settings of the drawing, for the few who want them. */}
-      <AdvancedSection scope="charts" context={{ growId: grow.id, spaceId }} />
+      {advanced}
 
       {/* The table is the answer already in hand, so it is written at the step
-          the window decided and not at the rate the devices reported at. That
-          step is on the wire, so the note says it rather than leaving somebody
-          to work out why their million readings came back as four hundred.
-
-          The sentence belongs to the table and goes wherever the table goes, so
-          it is drawn on exactly the condition the CSV button is enabled on.
-          Naming a rate under a screen that drew nothing, beside a button that
-          refuses to be pressed, describes a file nobody can have: the step is
-          answered as zero only where no device was read at all, and a tent that
-          was read and had nothing to say is the commoner of the two empty
-          screens by far. The way on to the whole grow stays where it was. */}
+          the window decided and not at the rate the devices reported at - and
+          the sentence goes wherever the table goes. */}
       <p className={`${ui.note} ${styles.csvNote}`}>
         {cards.length > 0 && data.stepSeconds > 0 ? `${t('charts.csvNote', { step: stepLabel(data.stepSeconds) })} ` : null}
-        {t('charts.exportOn')} <Link to={`/grows/${grow.id}`}>{grow.name}</Link>
+        {grow ? (
+          <>
+            {t('charts.exportOn')} <Link to={`/grows/${grow.id}`}>{grow.name}</Link>
+          </>
+        ) : null}
       </p>
       <p className={`${ui.note} ${styles.note}`}>{t('charts.note')}</p>
 
@@ -578,7 +694,114 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
           onClose={() => setSheet(false)}
         />
       ) : null}
+
+      {sharing ? (
+        <NewLinkSheet
+          grows={grow ? [grow] : []}
+          spaces={spaceRow ? [spaceRow] : []}
+          onClose={() => setSharing(false)}
+          onCreated={link => {
+            setSharing(false);
+            setShared(link);
+          }}
+        />
+      ) : null}
+      {shared ? <SharedSheet link={shared} onClose={() => setShared(null)} /> : null}
     </div>
+  );
+}
+
+/**
+ * Back and on by the window's own width, and where it starts, picked: the old
+ * charts' date and arrows. Stepped back, the window stays there - a live chart
+ * stops following now - until "up to now" brings it back. The window is named
+ * between the arrows, and tapping it opens the field its start is picked in.
+ */
+function OffsetBar({
+  width,
+  at: ending,
+  end,
+  zone,
+  onAt,
+}: {
+  width: Width;
+  at: number | null;
+  end: number;
+  zone: string | null;
+  onAt: (at: number | null) => void;
+}) {
+  const { t } = useTranslation();
+  const [picking, setPicking] = useState(false);
+  const span = WIDTHS[width];
+  const finish = ending ?? end;
+  const start = finish - span;
+  const [first, last] = edgesOf(start, finish, zone);
+  const local = (time: number) => zonedAt(time, zone).toFormat("yyyy-LL-dd'T'HH:mm");
+
+  return (
+    <>
+      <div className={styles.navRow} role="group" aria-label={t('charts.offsetLabel')}>
+        <button type="button" className={ui.chip} aria-label={t('charts.earlier')} onClick={() => onAt(stepped(width, ending, end, -1))}>
+          <ChevronLeft size={16} strokeWidth={1.75} aria-hidden />
+        </button>
+        <button type="button" className={`${ui.chip} ${styles.navLabel}`} aria-expanded={picking} onClick={() => setPicking(!picking)}>
+          <CalendarDays size={14} strokeWidth={1.75} aria-hidden />
+          <span className="mono">
+            {first} – {ending === null ? t('charts.now') : last}
+          </span>
+        </button>
+        <button
+          type="button"
+          className={ui.chip}
+          aria-label={t('charts.later')}
+          disabled={ending === null}
+          onClick={() => onAt(stepped(width, ending, end, 1))}
+        >
+          <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+        </button>
+        {ending !== null ? (
+          <button type="button" className={ui.chip} onClick={() => onAt(null)}>
+            {t('charts.backToNow')}
+          </button>
+        ) : null}
+      </div>
+      {picking ? (
+        <label className={styles.navPick}>
+          <span className="label">{t('charts.from')}</span>
+          <input
+            className={`mono ${ui.input}`}
+            type="datetime-local"
+            value={local(start)}
+            max={local(end - span)}
+            onChange={event => {
+              const chosen = DateTime.fromISO(event.target.value, { zone: zone ?? undefined });
+              if (!chosen.isValid) return;
+              const next = chosen.toMillis() + span;
+              onAt(next >= end ? null : next);
+            }}
+          />
+        </label>
+      ) : null}
+    </>
+  );
+}
+
+/** The link a chart was just shared by, to copy, with where it can be found and taken back later. */
+function SharedSheet({ link, onClose }: { link: ShareLink; onClose: () => void }) {
+  const { t } = useTranslation();
+  const address = linkAddress(link);
+
+  return (
+    <Sheet title={t('charts.sharedTitle')} onClose={onClose}>
+      <div className={styles.shared}>
+        <p className={ui.note}>{t(link.subject.type === 'space' ? 'charts.sharedSpace' : 'charts.sharedGrow')}</p>
+        <code className={`mono ${styles.address}`}>{address}</code>
+        <CopyButton value={address} label={t('charts.copyLink')} />
+        <Link to="/me/share-links" className={`mono ${ui.headLink}`}>
+          {t('charts.allLinks')} ›
+        </Link>
+      </div>
+    </Sheet>
   );
 }
 
@@ -615,28 +838,10 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * What one line says at the cursor: a figure and its unit, on or off for an
- * output, and a dash where it says nothing.
- *
- * The figure is written the way the rest of the app writes that same reading,
- * which is the claim the header above makes about itself. It used to be written
- * the way a corner of a scale is - rounded to two decimals and stripped of the
- * noughts a round number does not need - and a corner is the one place that is
- * right, because a corner is a round number and reads as one. A reading is not:
- * the same line said "Temp 23 °C" at one position of the cursor and "Temp
- * 23.1 °C" at the next, so the figure changed width as the thumb moved and the
- * column under it could not be read down at all. A metric is written to the
- * decimals that metric is written to everywhere else instead - a temperature
- * always carries its tenth, a humidity never carries one - which is also how
- * the Timeline's own pinned reading is written, one tap away.
- *
- * That writer knows what language it is being read in and the old one knew
- * nothing about it, so the German screen wrote "VPD 0.75 kPa" beside a date it
- * had just written "29 Aug." - the app's own tent read back in somebody else's
- * numbers.
- *
- * A line a grower measured by hand is none of the contract's metrics and has no
- * such rule to follow: it is written as exactly as it was taken, which is how
- * the diary writes the very same reading.
+ * output, and a dash where it says nothing. A metric is written to the
+ * decimals it is written to everywhere else in the app, so the column under the
+ * thumb keeps its width; a grower's own measurement is written as exactly as it
+ * was taken.
  */
 const readingOf = (t: Translate, line: PlotLine, cursor: number, span: number): string => {
   const value = readAt(line, cursor, span);
@@ -678,7 +883,7 @@ function Pick({ on, dot, colour, onPick, children }: { on: boolean; dot?: boolea
 }
 
 /** "day 34" over one day of a grow, "day 33–34" where the window straddles the turn, nothing at all without one. */
-const dayLabel = (t: Translate, series: GrowSeries): string => {
+const dayLabel = (t: Translate, series: ChartData): string => {
   if (series.dayFrom === null || series.dayTo === null) return '';
 
   return series.dayFrom === series.dayTo
@@ -687,20 +892,11 @@ const dayLabel = (t: Translate, series: GrowSeries): string => {
 };
 
 /**
- * Both ends of the window as the axis writes them, in the account's zone.
- *
- * Two things have to be true of them and only one used to be. They have to
- * differ - a rolling window begins and ends at the same time of day, and a week
- * of one on the same weekday as well, so a clock at either end would label the
- * chart identically and say nothing about how wide it is. But they also have to
- * say which moment they are, and widening from the clock until the strings
- * happened to differ stopped at the first rung on every window that does not
- * begin and end at the same minute: a 218-day grow was labelled "14:39" and
- * "17:31", and five days of September as "00:00" and "23:59".
- *
- * So the ladder is climbed from the rung the width itself asks for - the same
- * ladder the pinned reading above the cards is written from, so the axis and
- * the header cannot drift apart - and only then widened until the two differ.
+ * Both ends of the window as the axis writes them, in the account's zone. They
+ * have to differ - a rolling window begins and ends at the same time of day -
+ * and they have to say which moment they are, so the ladder of formats is
+ * climbed from the rung the width itself asks for and only then widened until
+ * the two differ.
  */
 const edgesOf = (from: number, to: number, zone: string | null): [string, string] => {
   const written = stamps()
@@ -710,80 +906,21 @@ const edgesOf = (from: number, to: number, zone: string | null): [string, string
   return written.find(([one, other]) => one !== other) ?? written[written.length - 1];
 };
 
-/**
- * The two date fields are days and the route takes instants, so a custom range
- * runs from the first moment of one day to the last of the other, in the zone
- * the account names: a day chosen at either end is a day a grower means whole,
- * and whole where their tent stands rather than where they happen to be
- * reading. A browser two hours ahead of the account cut 20 August from 19 Aug
- * 22:00Z and fetched a different twenty-four hours from the one the axis
- * underneath went on labelling 00:00 to 23:59.
- *
- * Those two instants are then written the one way the contract spells an
- * instant, which is UTC. The moment is not changed by that and the fields read
- * back the same, since `rangeOf` reads a Z instant back where the account is -
- * but the local offset Luxon writes by default is a string `instant()` refuses,
- * and it is the same pair of instants that goes into a saved view. So a window
- * somebody picked by hand was the one window the server would not keep, and it
- * is the only one that cannot be asked for again by tapping a chip.
- */
-const dayBounds = (range: GrowSeriesRange, from: string, to: string, zone: string | null): { from?: string; to?: string } => {
-  if (range !== 'custom' || !from || !to) return {};
-
-  return {
-    from:
-      DateTime.fromISO(from, { zone: zone ?? undefined })
-        .startOf('day')
-        .toUTC()
-        .toISO() ?? undefined,
-    to:
-      DateTime.fromISO(to, { zone: zone ?? undefined })
-        .endOf('day')
-        .toUTC()
-        .toISO() ?? undefined,
-  };
-};
-
-/** What a saved view keeps instead of the chip: a rolling width, two instants, or a stretch read off the grow. */
-const spanOf = (range: GrowSeriesRange, from: string, to: string, zone: string | null): ChartViewSpan => {
-  if (range === 'phase' || range === 'grow') return { kind: range };
-  if (range === 'custom') {
-    const bounds = dayBounds(range, from, to, zone);
-
-    return { kind: 'fixed', range: { startsAt: bounds.from ?? null, endsAt: bounds.to ?? null } };
-  }
-
-  return { kind: 'last', forSeconds: range === '24h' ? DAY_SECONDS : 7 * DAY_SECONDS };
-};
-
-/**
- * The chip a saved span comes back as. A width the chips cannot name is read as
- * the nearest one that can, and the two instants of a fixed one are read back
- * into date fields where the account is, because they were cut there: read in
- * the browser's zone instead, a view saved on the 20th reopens on the 19th for
- * anybody sitting behind their own account.
- */
-const rangeOf = (span: ChartViewSpan, zone: string | null): { range: GrowSeriesRange; from?: string; to?: string } => {
-  if (span.kind === 'phase' || span.kind === 'grow') return { range: span.kind };
-  if (span.kind === 'last') return { range: span.forSeconds <= DAY_SECONDS ? '24h' : '7d' };
-
-  return {
-    range: 'custom',
-    from: span.range.startsAt ? (zoned(span.range.startsAt, zone).toISODate() ?? undefined) : undefined,
-    to: span.range.endsAt ? (zoned(span.range.endsAt, zone).toISODate() ?? undefined) : undefined,
-  };
-};
+/** A stretch marked on the plot, as the two instants it covers. */
+const spanOfSelection = (selection: Selection, from: number, to: number): Zoom => ({
+  from: from + selection.from * (to - from),
+  to: from + selection.to * (to - from),
+});
 
 /**
  * What the VPD panel takes the leaf to be, and what its band is worked out
- * from. A tent with two controllers set up differently draws a curve that is
- * the mean of two computations, and printing either one's offset as the panel's
- * would be a claim about the other's readings too - so where they disagree the
- * panel says nothing rather than something it cannot stand behind.
+ * from. A place with two controllers set up differently draws a curve that is
+ * the mean of two computations, so where they disagree the panel says nothing
+ * rather than something it cannot stand behind.
  */
 const leafOffsetsOf = (
   devices: readonly { id: string; settings: { vpdLeafOffsetDay: number; vpdLeafOffsetNight: number } }[],
-  series: GrowSeries | undefined,
+  series: ChartData | undefined,
 ): LeafOffsets | null => {
   const here = devices.filter(device => (series?.deviceIds ?? []).includes(device.id));
   const first = here[0];
@@ -798,50 +935,31 @@ const leafOffsetsOf = (
     : null;
 };
 
-/** The units a step is written in, widest first. They are not translated, because neither is any other span the app prints. */
-const STEP_UNITS = [
-  { unit: 'd', seconds: 24 * 60 * 60 },
-  { unit: 'h', seconds: 60 * 60 },
-  { unit: 'min', seconds: 60 },
-  { unit: 's', seconds: 1 },
-];
+/** The fine settings as the address carries them; anything it does not recognise is the default. */
+const settingsOf = (params: URLSearchParams): ChartSettings => {
+  const step = Number(params.get('step'));
+  const half = params.get('vpd');
 
-/**
- * How far apart the rows of the table are, in words.
- *
- * Not `spanLabel`, which floors to a single unit. That is right for an age - a
- * value an hour and a half old is "1 h ago", and saying "1 h 30 min ago" of it
- * would be precision nobody asked for - and wrong for a figure somebody is
- * about to count rows by: the step of a whole grow is whatever the window
- * divided by the number of panels comes to, 1 h 29 min on one of the restored
- * seasons, and floored to "1 h" the note was a third short of the truth.
- *
- * So the next unit down is named where there is one worth naming, and left off
- * where the step lands on a whole one of the first - which is every rolling
- * window, the two the chips offer included.
- */
-const stepLabel = (seconds: number): string => {
-  const whole = Math.max(0, Math.round(seconds));
-  const index = Math.max(
-    0,
-    STEP_UNITS.findIndex(one => whole >= one.seconds),
-  );
-  const big = STEP_UNITS[index];
-  const small = STEP_UNITS[index + 1];
-  const count = Math.floor(whole / big.seconds);
-  const rest = small ? Math.round((whole - count * big.seconds) / small.seconds) : 0;
-  // A remainder that rounds up to a whole one of the unit above is that unit.
-  if (small && rest * small.seconds >= big.seconds) return `${count + 1} ${big.unit}`;
+  return {
+    stepSeconds: STEPS.includes(step) ? step : null,
+    vpdHalf: VPD_HALVES.find(one => one === half) ?? 'all',
+    live: params.get('live') === '1',
+  };
+};
 
-  return rest > 0 ? `${count} ${big.unit} ${rest} ${small.unit}` : `${count} ${big.unit}`;
+/** The instant an address names, or null where it names none or something that is not one. */
+const momentOf = (value: string | null): number | null => {
+  if (!value) return null;
+  const moment = DateTime.fromISO(value);
+  return moment.isValid ? moment.toMillis() : null;
 };
 
 /** A file a grower can find again: what it is of, and over what. */
-const csvName = (growName: string, range: GrowSeriesRange): string => {
-  const slug = growName
+const csvName = (name: string, range: ChartRange): string => {
+  const slug = name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 
-  return `${slug || 'grow'}-${range}.csv`;
+  return `${slug || 'chart'}-${range}.csv`;
 };

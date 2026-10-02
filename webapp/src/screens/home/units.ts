@@ -4,9 +4,17 @@ import { offlineLabel, silentSince } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 
 /** How a card writes a figure: the unit beside it, and as many decimals as the sensor is good for. */
-export const UNIT: Partial<Record<Metric, string>> = { temperature: '°C', humidity: '%', co2: 'ppm', vpd: 'kPa', leafTemperature: '°C', lux: 'lx' };
+export const UNIT: Partial<Record<Metric, string>> = {
+  temperature: '°C',
+  humidity: '%',
+  co2: 'ppm',
+  vpd: 'kPa',
+  leafTemperature: '°C',
+  lux: 'lx',
+  ppfd: 'µmol/m²/s',
+};
 
-const DECIMALS: Partial<Record<Metric, number>> = { temperature: 1, humidity: 0, co2: 0, vpd: 2, leafTemperature: 1, lux: 0 };
+const DECIMALS: Partial<Record<Metric, number>> = { temperature: 1, humidity: 0, co2: 0, vpd: 2, leafTemperature: 1, lux: 0, ppfd: 0 };
 
 /**
  * Lux runs to five digits, which unbroken read as a lump. The thousands are set

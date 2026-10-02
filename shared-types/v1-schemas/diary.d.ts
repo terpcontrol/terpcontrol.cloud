@@ -5312,6 +5312,106 @@ export declare const growSeries: z.ZodObject<{
             entryId: z.ZodString;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    cameras: z.ZodArray<z.ZodObject<{
+        cameraId: z.ZodString;
+        name: z.ZodString;
+        frames: z.ZodArray<z.ZodObject<{
+            mediaId: z.ZodString;
+            capturedAt: z.ZodISODateTime;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/**
+ * `GET /spaces/{id}/series`: the Charts view of a place, which is how a place
+ * without a grow - and a window no chip of a grow's can name - is charted.
+ *
+ * The same panels, lanes and nights as a grow's answer, read from whatever
+ * stands in the place, over the two instants asked for and at the step asked
+ * for where one is: a day at twenty seconds or three years at a week. What
+ * belongs to a grow alone - its day counter and its own measurements - is not
+ * here.
+ */
+export declare const spaceSeries: z.ZodObject<{
+    spaceId: z.ZodString;
+    startsAt: z.ZodISODateTime;
+    endsAt: z.ZodISODateTime;
+    stepSeconds: z.ZodNumber;
+    deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
+    climate: z.ZodArray<z.ZodObject<{
+        metric: z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>;
+        points: z.ZodArray<z.ZodObject<{
+            measuredAt: z.ZodISODateTime;
+            value: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>;
+        targets: z.ZodArray<z.ZodObject<{
+            startsAt: z.ZodISODateTime;
+            endsAt: z.ZodISODateTime;
+            phaseId: z.ZodNullable<z.ZodString>;
+            stage: z.ZodNullable<z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>>;
+            day: z.ZodNullable<z.ZodObject<{
+                setpoint: z.ZodNumber;
+                band: z.ZodObject<{
+                    low: z.ZodNumber;
+                    high: z.ZodNumber;
+                }, z.core.$strip>;
+            }, z.core.$strip>>;
+            night: z.ZodNullable<z.ZodObject<{
+                setpoint: z.ZodNumber;
+                band: z.ZodObject<{
+                    low: z.ZodNumber;
+                    high: z.ZodNumber;
+                }, z.core.$strip>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    lastReadingAt: z.ZodNullable<z.ZodISODateTime>;
+    outputs: z.ZodArray<z.ZodObject<{
+        output: z.ZodEnum<{
+            dehumidifier: "dehumidifier";
+            heater: "heater";
+            light: "light";
+            co2: "co2";
+            fan: "fan";
+            relais: "relais";
+            fanInternal: "fanInternal";
+            fanExternal: "fanExternal";
+            fanBackwall: "fanBackwall";
+        }>;
+        deviceId: z.ZodNullable<z.ZodString>;
+        spans: z.ZodArray<z.ZodObject<{
+            startsAt: z.ZodISODateTime;
+            endsAt: z.ZodISODateTime;
+        }, z.core.$strip>>;
+        heardUntil: z.ZodISODateTime;
+    }, z.core.$strip>>;
+    nights: z.ZodArray<z.ZodObject<{
+        startsAt: z.ZodISODateTime;
+        endsAt: z.ZodISODateTime;
+    }, z.core.$strip>>;
+    cameras: z.ZodArray<z.ZodObject<{
+        cameraId: z.ZodString;
+        name: z.ZodString;
+        frames: z.ZodArray<z.ZodObject<{
+            mediaId: z.ZodString;
+            capturedAt: z.ZodISODateTime;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 /** Who a public page is by. A handle, a line of text and a picture - never a real name. */
 export declare const publicAuthor: z.ZodObject<{

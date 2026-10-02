@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
-import type { Metric, SpaceTimeline, TimelineAlarm, TimelineCamera, TimelineGrow, TimelineRange } from '@fg2/shared-types/v1';
+import type { Metric, SpaceTimeline, TimelineAlarm, TimelineGrow, TimelineRange } from '@fg2/shared-types/v1';
 import { outputMetric } from '@fg2/shared-types/v1-schemas';
 import { Grant } from '@common/v1/access.types';
 import { badRequest, notFound } from '@common/v1/problem';
@@ -22,6 +22,7 @@ import { NOTHING_HIDDEN, Redaction, redactionOf } from '../grow/grow-serialiser'
 import { recordOf } from '../phase/target-record';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
+import { framesOf } from './frames';
 import { lastReadingOf } from './last-reading';
 import { PANEL_METRICS, lanesOf, nightsOf, panelsOf } from './timeline-series';
 import { TimelineWindow, steeringOf, stretchesOf, windowOf } from './timeline-window';
@@ -144,7 +145,11 @@ export class TimelineService {
       recordOf(this.targetRecord, steeringOf(devices)?.id ?? null, window),
     ]);
 
-    const [watched, frames, hide] = await Promise.all([this.metricsOf(alerts), this.framesOf(cameras, window), this.redactionFor(grant)]);
+    const [watched, frames, hide] = await Promise.all([
+      this.metricsOf(alerts),
+      framesOf(this.media, cameras, window, FRAME_SLOTS),
+      this.redactionFor(grant),
+    ]);
     const told = recorded.entries.map(entry => serialiseDiaryEntry(entry, hide, grant.includeCameras));
     const people = await this.users.find({ id: { $in: authorIdsOf(told) } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
     const panels = panelsOf(
@@ -267,53 +272,6 @@ export class TimelineService {
 
     const rules = await this.rules.find({ id: { $in: ruleIds } }, { id: 1, watch: 1 }).lean<Pick<StoredAlarmRule, 'id' | 'watch'>[]>();
     return new Map(rules.flatMap(rule => (rule.watch.kind === 'reading' ? [[rule.id, rule.watch.metric] as [string, Metric]] : [])));
-  }
-
-  /**
-   * The frames the slider steps through: at most one per step, per camera, and
-   * all of them in one aggregation. The slot a picture falls in is grouped in
-   * the database, because the alternative is reading a day of stills out to keep
-   * a hundred of them.
-   *
-   * The one a slot answers with is its newest, which is the picture the app
-   * promises: the rail draws the newest still taken by the cursor, and the
-   * cursor at rest sits at the end of the window. Taking the oldest of each slot
-   * instead left the last one - the slot the camera is still filling - answering
-   * with a picture up to a whole slot old, so the tent's rail and the same
-   * tent's overview strip named two different newest pictures, twelve minutes
-   * apart over a day and eighty-four over a week. Every frame still carries the
-   * instant of the picture it actually is, so nothing is dated by its slot.
-   */
-  private async framesOf(cameras: CameraDocument[], window: TimelineWindow): Promise<Map<string, TimelineCamera['frames']>> {
-    if (cameras.length === 0) return new Map();
-
-    const slotMs = Math.max(1, Math.floor((window.endsAt.getTime() - window.startsAt.getTime()) / FRAME_SLOTS));
-    const rows = await this.media.aggregate<{ _id: { cameraId: string }; mediaId: string; capturedAt: Date }>([
-      {
-        $match: {
-          cameraId: { $in: cameras.map(camera => camera.id) },
-          kind: 'still',
-          capturedAt: { $gte: window.startsAt, $lte: window.endsAt },
-        },
-      },
-      { $sort: { capturedAt: 1 } },
-      {
-        $group: {
-          _id: { cameraId: '$cameraId', slot: { $floor: { $divide: [{ $subtract: ['$capturedAt', window.startsAt] }, slotMs] } } },
-          mediaId: { $last: '$id' },
-          capturedAt: { $last: '$capturedAt' },
-        },
-      },
-      { $sort: { capturedAt: 1 } },
-    ]);
-
-    const frames = new Map<string, TimelineCamera['frames']>();
-    for (const row of rows) {
-      const own = frames.get(row._id.cameraId) ?? [];
-      frames.set(row._id.cameraId, [...own, { mediaId: row.mediaId, capturedAt: row.capturedAt.toISOString() }]);
-    }
-
-    return frames;
   }
 
   /** Whose privacy applies to what the rail says; nothing is hidden from an owner or a member. */

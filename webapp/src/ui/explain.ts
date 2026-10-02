@@ -32,6 +32,8 @@ export const HELP_TOPICS = [
   'waterEc',
   'feedFlip',
   'chartLayout',
+  'chartZoom',
+  'chartMessages',
   'muteAll',
   'silence',
   'maintenance',

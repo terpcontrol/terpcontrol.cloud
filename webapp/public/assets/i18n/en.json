@@ -530,7 +530,10 @@
       "temperature": "Temp",
       "humidity": "RH",
       "vpd": "VPD",
-      "co2": "CO2"
+      "co2": "CO2",
+      "leafTemperature": "Leaf",
+      "lux": "Lux",
+      "ppfd": "PPFD"
     },
     "more": "+ more",
     "less": "− less",
@@ -562,8 +565,7 @@
     "exportOn": "The whole grow, pictures and diary included, is under Export on",
     "note": "Put together any curves over any span, save views and export them as CSV.",
     "nothingPicked": "Nothing picked yet — tap a series above.",
-    "noGrow": "Charts show a grow – nothing grows here yet. This place’s readings are in the Timeline.",
-    "whichGrow": "Charts show a grow – pick which one.",
+    "whichGrow": "No device stands anywhere yet. Pick a grow whose measurements are drawn.",
     "views": {
       "newTitle": "Save this view",
       "editTitle": "Saved view",
@@ -582,7 +584,40 @@
     "on": "on",
     "off": "off",
     "notHere_one": "{{names}} has nothing in this period, so it is not drawn.",
-    "notHere_other": "{{names}} have nothing in this period, so they are not drawn."
+    "notHere_other": "{{names}} have nothing in this period, so they are not drawn.",
+    "width": {
+      "20m": "20 min",
+      "1h": "1 h",
+      "6h": "6 h",
+      "12h": "12 h",
+      "24h": "24 h",
+      "3d": "3 d",
+      "7d": "7 d",
+      "14d": "14 d",
+      "30d": "30 d",
+      "90d": "90 d",
+      "180d": "180 d",
+      "1y": "1 year",
+      "3y": "3 years"
+    },
+    "nothingYet": "Nothing to draw yet: charts show a device's readings or a grow's measurements.",
+    "zoomed": "Zoom: {{from}} – {{to}}",
+    "zoomIn": "Zoom in",
+    "offsetLabel": "Move the window",
+    "earlier": "Earlier",
+    "later": "Later",
+    "from": "From",
+    "now": "now",
+    "backToNow": "Up to now",
+    "cameraChip": "Camera picture",
+    "share": "Share",
+    "sharedTitle": "Link to share",
+    "sharedSpace": "Whoever opens this link sees this place without an account - the readings and the timeline over 24 hours, 7 or 30 days, read only.",
+    "sharedGrow": "Whoever opens this link sees this grow without an account, read only.",
+    "copyLink": "Copy link",
+    "allLinks": "Every shared link",
+    "moreWidths": "More …",
+    "fewerWidths": "Fewer"
   },
   "diagnostics": {
     "serialnumber": "Device serial number",
@@ -3423,7 +3458,8 @@
     "noPage": {
       "title": "Nothing at this address",
       "body": "The app has no page here."
-    }
+    },
+    "timeline": "Timeline"
   },
   "sharing": {
     "title": "Share · {{name}}",
@@ -4755,6 +4791,18 @@
         "title": "Operating mode",
         "text": "What the fridge does as a whole while control is on. Standard holds temperature, humidity, light and CO₂. Greenhouse holds the temperature only: light and CO₂ keep running, the compressor only cools and does not dehumidify on purpose. Germination keeps it dark and heats and cools to the night temperature. Energy saving applies to standard only. A drying phase takes precedence and returns to the operating mode afterwards."
       },
+      "chartStep": {
+        "title": "Interval",
+        "text": "Each point of a curve is the mean over this interval. Automatic fits it to the window. Shorter intervals show more detail, longer ones smooth. An interval too short for the window is drawn at the shortest that fits - at most 5000 points a curve."
+      },
+      "chartVpdHalf": {
+        "title": "VPD by day or night",
+        "text": "Day and night are steered to different VPD values, so one line across both looks like a saw. Here you draw only the day or only the night values. What counts as day is what the light says, as for the shading of the curves."
+      },
+      "chartLive": {
+        "title": "Update automatically",
+        "text": "The charts reload every 30 seconds and move on with the time - handy with the page open beside the device. A window stepped back, zoomed or picked by hand stands still."
+      },
       "cameraTunnel": {
         "title": "Pull through the device",
         "text": "On, the cloud pulls the stream from your home network over the connection of the device in this place, so the camera needs no port forwarding and no dynamic DNS. Turn it off only for a camera reachable from the internet: the cloud then opens the stream itself, and the device's connection is left alone."
@@ -4847,6 +4895,14 @@
     "webhookTemplate": {
       "title": "Webhook template",
       "text": "For Home Assistant, Discord, Telegram and ntfy the template fills in the URL, method and messages from the few answers the service needs. What is saved is an ordinary webhook, which you can still change by hand. A Home Assistant address on the local network is called through the device's tunnel automatically."
+    },
+    "chartZoom": {
+      "title": "Zoom",
+      "text": "“Zoom in” shows a third of the window around the cursor, at finer points. On a computer you can also mark a stretch across the curves with the mouse button held down. “Reset zoom” shows the whole window again."
+    },
+    "chartMessages": {
+      "title": "Messages",
+      "text": "What was written over the window: the devices' messages, alarms, the grow plan and the diary. Each column stands for a stretch of the window and is as tall as the messages in it - yellow with a warning, red with something critical. Tap a column to read its messages alone; the cursor moves there too."
     },
     "streamAddress": {
       "title": "Stream address",
@@ -5157,6 +5213,46 @@
     "update": "Wait until the firmware update has finished and the module has restarted.",
     "failed": "If it says “Connection failed”, restart the module - otherwise you cannot leave the menu.",
     "portal": "Now open “Connect to portal”. The module then shows the code you enter here."
+  },
+  "chartMessages": {
+    "title": "Messages",
+    "chip": "Messages",
+    "count_one": "{{count}} in the window",
+    "count_other": "{{count}} in the window",
+    "filter": "Which messages",
+    "lane": "Messages over the window",
+    "column_one": "{{count}} message",
+    "column_other": "{{count}} messages",
+    "failed": "The messages could not be loaded just now.",
+    "none": "Nothing was reported in this window.",
+    "noneShown": "No messages of the kinds chosen.",
+    "all": "Show all",
+    "more": "There are more messages - tap a column or pick a shorter window.",
+    "category": {
+      "device": "Device",
+      "alarm": "Alarms",
+      "plan": "Grow plan",
+      "diary": "Diary"
+    }
+  },
+  "chartFine": {
+    "step": "Interval",
+    "auto": "Automatic",
+    "stepAuto": "Fitted to the window: short for hours, long for months.",
+    "widened": "Too fine for this window - drawn at {{step}}.",
+    "vpdHalf": "Show VPD for",
+    "half": {
+      "all": "Day and night",
+      "day": "Day only",
+      "night": "Night only"
+    },
+    "vpdHalfNote": {
+      "all": "One line across both halves of the day.",
+      "day": "Only the points with the light on - the night is left as a gap.",
+      "night": "Only the points with the light off - the day is left as a gap."
+    },
+    "live": "Update automatically",
+    "liveHeld": "Follows only a window that ends now - stepped back or zoomed, it stands still."
   },
   "planLight": {
     "label": "Light on for",

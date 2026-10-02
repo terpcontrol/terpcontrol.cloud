@@ -103,7 +103,12 @@ describe('the step of a series', () => {
 
   it('widens a step that would build more points than a series may hold', () => {
     expect(stepFor(...rangeOf(60), 60)).toBe(60);
-    expect(stepFor(...rangeOf(60 * 24 * 30), 60)).toBe(2592);
+    expect(stepFor(...rangeOf(60 * 24 * 30), 60)).toBe(519);
+  });
+
+  it('draws a day at twenty seconds where that is asked for, and nothing finer than a device reports', () => {
+    expect(stepFor(...rangeOf(60 * 24), 20)).toBe(20);
+    expect(stepFor(...rangeOf(20), 1)).toBe(5);
   });
 });
 

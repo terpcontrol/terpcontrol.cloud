@@ -4000,6 +4000,35 @@ export interface GrowSeries {
    */
   nights: TimelineSpan[];
   measurements: GrowMeasurementSeries[];
+  /**
+   * The cameras of the places the grow stood in, with their stills over the window thinned to a few hundred: the picture at the cursor. Empty for a reader who is not shown cameras.
+   */
+  cameras: TimelineCamera[];
+}
+
+export interface SpaceSeries {
+  spaceId: string;
+  startsAt: string;
+  endsAt: string;
+  /**
+   * The window each point summarises, as the server settled it; 0 where no device was read at all.
+   */
+  stepSeconds: number;
+  /**
+   * The devices standing in the place. Null on a shared read: what a reader is shown is the tent, not the hardware in it.
+   */
+  deviceIds: string[] | null;
+  climate: TimelinePanel[];
+  /**
+   * When something standing here last measured, answered only where `climate` is empty - as on the grow's answer and the Timeline.
+   */
+  lastReadingAt: string | null;
+  outputs: TimelineOutputLane[];
+  nights: TimelineSpan[];
+  /**
+   * The cameras of the place with their stills over the window, thinned; empty for a reader who is not shown cameras.
+   */
+  cameras: TimelineCamera[];
 }
 
 export interface PublicAuthor {

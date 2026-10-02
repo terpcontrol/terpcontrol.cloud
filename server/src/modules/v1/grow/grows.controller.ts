@@ -86,9 +86,9 @@ const many = <T>(value: T | T[]): T[] => (Array.isArray(value) ? value : [value]
 /**
  * What the Charts view asks for. Which lines it wants it names, one parameter
  * per kind, because a client draws what was ticked and a series asked for and
- * thrown away is a read of the store nobody looks at. The step is not among
- * them: the range decides it, and a client that could ask for seconds over a
- * season would only be answered a coarser one anyway.
+ * thrown away is a read of the store nobody looks at. The step is the range's
+ * to decide unless somebody chose one, and one too fine for the range is
+ * widened rather than refused.
  */
 const growSeriesQuery = inOrder(
   z.object({
@@ -108,6 +108,14 @@ const growSeriesQuery = inOrder(
       .describe("Keys of the grow's own `measurements[]`."),
     from: instantQuery().optional().describe('The start of a `custom` range.'),
     to: instantQuery().optional().describe('The end of a `custom` range, and the instant a rolling one counts back from.'),
+    stepSeconds: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe(
+        'The window each point summarises, where somebody chose one; left out, the width of the range decides it. Widened where it would build more points than one read holds.',
+      ),
   }),
   'from',
   'to',

@@ -42,10 +42,30 @@ export interface PlaceContext {
   mayManage: boolean;
 }
 
+/** The fine settings of the charts page, which its items read and change; they travel in the page's address. */
+export interface ChartSettings {
+  /** The window each point summarises; null leaves it to the width of the window. */
+  stepSeconds: number | null;
+  /** Which half of the cycle the VPD line keeps. */
+  vpdHalf: 'all' | 'day' | 'night';
+  /** Whether a window that ends now follows it. */
+  live: boolean;
+}
+
 /** What an item on the charts page is drawn with. */
 export interface ChartsContext {
-  growId: string;
+  /** The grow charted, where one is. */
+  growId: string | null;
+  /** The place charted, where one is. */
   spaceId: string | null;
+  settings: ChartSettings;
+  change: (over: Partial<ChartSettings>) => void;
+  /** The step the answer was drawn at, which a step asked for may have been widened to; null until one has arrived. */
+  answeredStep: number | null;
+  /** Whether a VPD line is drawn, which is the only time its half matters. */
+  vpdDrawn: boolean;
+  /** Whether the window ends now, which is the only kind that can follow it. */
+  endsNow: boolean;
 }
 
 /** What an item about one camera is drawn with, on its page. */

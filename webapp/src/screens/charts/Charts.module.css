@@ -405,6 +405,136 @@
   color: var(--alarm);
 }
 
+/* Back and on by the window's width, with where it starts picked in between:
+   one row that wraps on a phone rather than scrolling sideways. */
+.navRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The window between the arrows, which opens the field its start is picked in. */
+.navLabel {
+  gap: 6px;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.navPick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.navPick input {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
+  padding-block: 6px;
+  font-size: var(--text-sm);
+}
+
+/* Zooming lives beside the cards it narrows. */
+.zoomRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The stretch a mouse is marking to zoom into. */
+.selection {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--brand);
+  opacity: 0.14;
+  pointer-events: none;
+}
+
+/* What was written over the window, as a lane of columns lined up with the
+   plots above: the same gutters, so a column stands under the instant its
+   lines were written at. */
+.lane {
+  padding: 0 var(--gutter-right) 0 var(--gutter);
+}
+
+.columns {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 44px;
+  border-bottom: var(--rule-solid);
+}
+
+.column {
+  display: flex;
+  flex: 1 1 0;
+  align-items: flex-end;
+  height: 100%;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.column:disabled {
+  cursor: default;
+}
+
+.column > span {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  background: var(--muted);
+  border-radius: 2px 2px 0 0;
+  opacity: 0.7;
+}
+
+.column[data-severity='warning'] > span {
+  background: var(--warning);
+}
+
+.column[data-severity='critical'] > span {
+  background: var(--alarm);
+}
+
+.column[aria-pressed='true'] > span {
+  opacity: 1;
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.messageList {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.messageList > :not(button) {
+  align-self: stretch;
+}
+
+/* The link a chart was shared by: whole and selectable, wrapped anywhere rather than off the edge. */
+.shared {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.address {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: var(--text-sm);
+}
+
 @media (min-width: 900px) {
   .screen {
     max-width: var(--reading-width);

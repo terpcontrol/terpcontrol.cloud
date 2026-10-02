@@ -116,6 +116,38 @@ describe('GET /v1/grows/{id}/series', () => {
   });
 });
 
+describe('GET /v1/spaces/{id}/series', () => {
+  const from = () => new Date(Date.now() - 6 * 3600_000).toISOString();
+  const to = () => new Date().toISOString();
+
+  it('charts a place over two instants at the step asked for, the lines it names arriving as lists', async () => {
+    const answer = (
+      await owner.client
+        .get(`/v1/spaces/${tent}/series?from=${from()}&to=${to()}&stepSeconds=20&metrics=temperature&metrics=leafTemperature&outputs=light`)
+        .expect(200)
+    ).body;
+
+    expect(answer).toMatchObject({ spaceId: tent, stepSeconds: 20, cameras: [] });
+    expect(answer.deviceIds).toHaveLength(1);
+  });
+
+  it('takes a grow´s step on its own route as well', async () => {
+    const answer = (await owner.client.get(`/v1/grows/${grow.id}/series?range=24h&metrics=temperature&stepSeconds=30`).expect(200)).body;
+
+    expect(answer.stepSeconds).toBe(30);
+    expect(answer.cameras).toEqual([]);
+  });
+
+  it('refuses a range that ends before it begins, and one missing an end', async () => {
+    await owner.client.get(`/v1/spaces/${tent}/series?from=${to()}&to=${from()}&metrics=temperature`).expect(400);
+    await owner.client.get(`/v1/spaces/${tent}/series?from=${from()}&metrics=temperature`).expect(400);
+  });
+
+  it('is not there for a stranger', async () => {
+    await stranger.client.get(`/v1/spaces/${tent}/series?from=${from()}&to=${to()}&metrics=temperature`).expect(404);
+  });
+});
+
 describe('GET /v1/grows/{id}/export', () => {
   it('answers a job, builds the zip, and serves it as any other file', async () => {
     const accepted = await owner.client.get(`/v1/grows/${grow.id}/export`).expect(202);

@@ -1,13 +1,14 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import type { SpaceTimeline } from '@fg2/shared-types/v1';
-import { spaceTimeline, timelineRange } from '@fg2/shared-types/v1-schemas';
+import type { SpaceSeries, SpaceTimeline } from '@fg2/shared-types/v1';
+import { metric, outputMetric, spaceSeries, spaceTimeline, timelineRange } from '@fg2/shared-types/v1-schemas';
 import { AccessGuard, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { Grant } from '@common/v1/access.types';
-import { V1Query, instantQuery } from '@common/v1/validation';
+import { V1Query, inOrder, instantQuery } from '@common/v1/validation';
 import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { V1Answer } from '../answer-shape';
+import { SpaceSeriesService } from './space-series.service';
 import { TimelineService } from './timeline.service';
 import { SHARED_READ_OPERATION } from '../../../openapi';
 
@@ -25,10 +26,60 @@ const timelineQuery = z.object({
   at: instantQuery().optional().describe('The instant the window ends at; now by default, and earlier when somebody has scrubbed back.'),
 });
 
+/** A repeated query parameter arrives as one value or as many; the shape below wants a list either way. */
+const many = <T>(value: T | T[]): T[] => (Array.isArray(value) ? value : [value]);
+
+/**
+ * What the charts page of a place asks for: two instants, the lines it wants,
+ * and the step where somebody chose one.
+ */
+const seriesQuery = inOrder(
+  z.object({
+    from: instantQuery().describe('Where the window begins.'),
+    to: instantQuery().describe('Where it ends.'),
+    stepSeconds: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe('The window each point summarises, where somebody chose one; widened where it would build more points than one read holds.'),
+    metrics: z
+      .union([metric, z.array(metric)])
+      .transform(many)
+      .optional(),
+    outputs: z
+      .union([outputMetric, z.array(outputMetric)])
+      .transform(many)
+      .optional(),
+  }),
+  'from',
+  'to',
+);
+
 @ApiTags('spaces')
 @Controller('v1/spaces')
 export class TimelineController {
-  constructor(private readonly timeline: TimelineService) {}
+  constructor(
+    private readonly timeline: TimelineService,
+    private readonly series: SpaceSeriesService,
+  ) {}
+
+  /**
+   * Every line the charts page draws of a place, over two instants. It reaches
+   * whoever may see the place, a share link clamped to its own window included.
+   */
+  @Get(':id/series')
+  @UseGuards(OptionalSessionGuard, AccessGuard)
+  @Requires('view', 'space')
+  @ApiOperation({ summary: 'Climate and outputs of a place over any window, at the step asked for', ...SHARED_READ_OPERATION })
+  @V1Answer(spaceSeries)
+  public seriesOf(
+    @CurrentGrant() grant: Grant,
+    @Param('id') id: string,
+    @V1Query(seriesQuery) query: z.infer<typeof seriesQuery>,
+  ): Promise<SpaceSeries> {
+    return this.series.read(grant, id, query);
+  }
 
   @Get(':id/timeline')
   @UseGuards(OptionalSessionGuard, AccessGuard)

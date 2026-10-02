@@ -1,11 +1,12 @@
-import type { GrowSeries, MeasurementDefinition, Metric, OutputMetric, TimelinePanel, TimelineTarget, TimelineTargets } from '@fg2/shared-types/v1';
+import type { MeasurementDefinition, Metric, OutputMetric, TimelinePanel, TimelineSpan, TimelineTarget, TimelineTargets } from '@fg2/shared-types/v1';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { CHART_METRICS, CHART_OUTPUTS } from '@/api/charts';
 import { csvOf, dayOfGrow, niceScale, setpointPoints, stepPoints, type CsvColumn, type Plot, type PlotLine, type PlotSpan } from '@/charts/series';
 import type { ChartToken } from '@/charts/tokens';
 import { looseFigure } from '@/ui/figures';
 import { targetFigure, UNIT } from '../home/units';
-import { at, stretchesOf } from '../timeline/window';
+import { at, spans, stretchesOf } from '../timeline/window';
+import type { ChartData } from './data';
 
 /**
  * Which lines the answer can offer, which of them are ticked, and what that
@@ -60,7 +61,7 @@ export interface PlantName {
 
 /** The earlier run laid over this one, which is what the day-of-grow layout exists for. */
 export interface Compared {
-  series: GrowSeries;
+  series: ChartData;
   name: string;
 }
 
@@ -71,7 +72,7 @@ export interface Offered {
   measurements: MeasurementDefinition[];
 }
 
-export const offeredBy = (series: GrowSeries | undefined, definitions: readonly MeasurementDefinition[]): Offered => ({
+export const offeredBy = (series: ChartData | undefined, definitions: readonly MeasurementDefinition[]): Offered => ({
   metrics: CHART_METRICS.filter(metric => (series?.climate ?? []).some(panel => panel.metric === metric && panel.points.length > 0)),
   outputs: CHART_OUTPUTS.filter(output => (series?.outputs ?? []).some(lane => lane.output === output && lane.spans.length > 0)),
   measurements: definitions.filter(definition => (series?.measurements ?? []).some(one => one.key === definition.key && one.points.length > 0)),
@@ -100,9 +101,12 @@ export const droppedBy = (t: Translate, picked: Picked, offered: Offered, define
   ...picked.outputs.filter(output => !offered.outputs.includes(output)).map(output => t(`timeline.output.${output}`, { defaultValue: output })),
 ];
 
+/** The climate a grower reads first; the rest - CO2, the leaf, the light - is a tap away. */
+const FIRST_READ: Metric[] = ['temperature', 'humidity', 'vpd'];
+
 /** What the screen opens on: the climate a grower reads first, and nothing the account has not got. */
 export const defaultPick = (offered: Offered): Picked => ({
-  metrics: offered.metrics.filter(metric => metric !== 'co2'),
+  metrics: offered.metrics.filter(metric => FIRST_READ.includes(metric)),
   outputs: [],
   measurements: [],
 });
@@ -135,6 +139,9 @@ interface Drawn {
   csv: CsvColumn;
 }
 
+/** Which half of the cycle the VPD line keeps: both, or only the lit or only the dark one. */
+export type VpdMode = 'all' | 'day' | 'night';
+
 export interface CardsInput {
   picked: Picked;
   layout: Layout;
@@ -143,17 +150,19 @@ export interface CardsInput {
   plants: readonly PlantName[];
   /** Set only in the day-of-grow layout, which is the one thing two runs can share an axis in. */
   compared?: Compared;
+  vpdMode?: VpdMode;
 }
 
-export const cardsOf = (t: Translate, series: GrowSeries, input: CardsInput): Card[] => {
+/** Day 1 of the grow, or the start of the window where no grow is charted: what the day-of-grow axis counts from. */
+const originOf = (series: ChartData): number => at(series.originAt ?? series.startsAt);
+
+export const cardsOf = (t: Translate, series: ChartData, input: CardsInput): Card[] => {
   const drawn = alongside(t, drawnOf(t, series, input), series, input);
   if (drawn.length === 0) return [];
 
   const cards = input.layout === 'overlay' ? [overlaid(t, drawn)] : stacked(t, drawn);
 
-  return cards
-    .map(card => (input.layout === 'day_of_grow' ? rebased(card, at(series.originAt)) : card))
-    .map(card => framed(card, series, input.layout));
+  return cards.map(card => (input.layout === 'day_of_grow' ? rebased(card, originOf(series)) : card)).map(card => framed(card, series, input.layout));
 };
 
 /**
@@ -242,8 +251,8 @@ const cardOf = (key: string, title: string, about: string, unit: string, drawn: 
 const cornerFigure = (value: number, metric: Metric | undefined): string => (metric === undefined ? looseFigure(value) : targetFigure(value, metric));
 
 /** The window, the nights and the axis, which are the same for every card on the screen. */
-const framed = (card: Card, series: GrowSeries, layout: Layout): Card => {
-  const origin = at(series.originAt);
+const framed = (card: Card, series: ChartData, layout: Layout): Card => {
+  const origin = originOf(series);
   const day = layout === 'day_of_grow';
   const stamp = (time: number) => (day ? dayOfGrow(time, origin) : time);
 
@@ -283,13 +292,13 @@ const rebased = (card: Card, originAt: number): Card => ({
  * and no setpoint: what the earlier run was aimed at is not what this one is,
  * and two greens on one card cannot be told apart anyway.
  */
-const alongside = (t: Translate, drawn: Drawn[], series: GrowSeries, input: CardsInput): Drawn[] => {
+const alongside = (t: Translate, drawn: Drawn[], series: ChartData, input: CardsInput): Drawn[] => {
   const compared = input.compared;
   if (!compared || input.layout !== 'day_of_grow') return drawn;
 
   const other = drawnOf(t, compared.series, { ...input, compared: undefined, leaf: null });
-  const origin = at(series.originAt);
-  const theirs = at(compared.series.originAt);
+  const origin = originOf(series);
+  const theirs = originOf(compared.series);
 
   return drawn.map(one => {
     const mine = other.find(two => two.key === one.key);
@@ -313,13 +322,13 @@ const alongside = (t: Translate, drawn: Drawn[], series: GrowSeries, input: Card
 const valuesOf = (line: PlotLine): number[] => line.points.flatMap(([, value]) => (value === null ? [] : [value]));
 
 /** Every ticked line, in the order the chips stand in, as something that can be put on a card. */
-const drawnOf = (t: Translate, series: GrowSeries, input: CardsInput): Drawn[] => [
+const drawnOf = (t: Translate, series: ChartData, input: CardsInput): Drawn[] => [
   ...input.offered.metrics
     .filter(metric => input.picked.metrics.includes(metric))
     .flatMap(metric => {
       const panel = series.climate.find(one => one.metric === metric);
 
-      return panel ? [metricDrawn(t, metric, panel, series, input.leaf)] : [];
+      return panel ? [metricDrawn(t, metric, metric === 'vpd' ? halfOf(panel, series.nights, input.vpdMode) : panel, series, input.leaf)] : [];
     }),
   ...input.offered.measurements
     .filter(definition => input.picked.measurements.includes(definition.key))
@@ -337,7 +346,7 @@ const drawnOf = (t: Translate, series: GrowSeries, input: CardsInput): Drawn[] =
     }),
 ];
 
-const metricDrawn = (t: Translate, metric: Metric, panel: TimelinePanel, series: GrowSeries, leaf: LeafOffsets | null): Drawn => {
+const metricDrawn = (t: Translate, metric: Metric, panel: TimelinePanel, series: ChartData, leaf: LeafOffsets | null): Drawn => {
   const from = at(series.startsAt);
   const to = at(series.endsAt);
   const aimed = metric === 'vpd' && panel.targets.length === 0 && leaf ? { ...panel, targets: vpdTargetsOf(series, leaf) } : panel;
@@ -401,7 +410,7 @@ const metricDrawn = (t: Translate, metric: Metric, panel: TimelinePanel, series:
  * and warm and dry its high one - and each half of the cycle uses the leaf
  * offset the device holds for that half.
  */
-const vpdTargetsOf = (series: GrowSeries, leaf: LeafOffsets): TimelineTargets[] => {
+const vpdTargetsOf = (series: ChartData, leaf: LeafOffsets): TimelineTargets[] => {
   const warm = series.climate.find(one => one.metric === 'temperature');
   const damp = series.climate.find(one => one.metric === 'humidity');
   if (!warm || !damp) return [];
@@ -588,9 +597,27 @@ const signed = (value: number): string => (value === 0 ? '0' : value < 0 ? `−$
  * the screen above the button is, and a row a grower reads back against the
  * chart has to be the same moment as the one they read off it.
  */
-export const csvForCards = (t: Translate, series: GrowSeries, input: CardsInput, zone: string | null): string =>
+export const csvForCards = (t: Translate, series: ChartData, input: CardsInput, zone: string | null): string =>
   csvOf(
     drawnOf(t, series, input).map(one => one.csv),
-    at(series.originAt),
+    series.originAt === null ? null : at(series.originAt),
     zone,
   );
+
+/**
+ * The VPD of one half of the cycle: by day it is what the plant transpires
+ * against with the lamp on, at night with it off, and the two are steered to
+ * different values - so one line across both reads as a sawtooth nobody can
+ * judge. Each point is kept where it falls in the half asked for and left out
+ * of the other, which breaks the line rather than joining across the gap.
+ * The night is the one the light says it was, the same the panels are shaded
+ * by; a window with no light to read it from has no night, and its every point
+ * counts as day.
+ */
+export const halfOf = (panel: TimelinePanel, nights: TimelineSpan[], mode: VpdMode = 'all'): TimelinePanel =>
+  mode === 'all'
+    ? panel
+    : {
+        ...panel,
+        points: panel.points.map(point => (spans(nights, at(point.measuredAt)) === (mode === 'night') ? point : { ...point, value: null })),
+      };

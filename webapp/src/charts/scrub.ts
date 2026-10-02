@@ -1,4 +1,13 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+
+/** A stretch of the plot, as fractions of its width. */
+export interface Selection {
+  from: number;
+  to: number;
+}
+
+/** A drag narrower than this is a click that wobbled, not a stretch somebody meant. */
+const LEAST_SELECTION = 0.02;
 
 /**
  * Dragging across a plot moves the cursor.
@@ -12,29 +21,55 @@ import { useRef } from 'react';
  * The surface claims horizontal gestures only, so a thumb still scrolls the
  * page vertically over it, and the pointer is captured on the way down so a
  * drag that wanders off the plot keeps scrubbing.
+ *
+ * With a mouse, pressing and dragging also marks a stretch, and letting go
+ * zooms the chart into it - what the old charts did. A thumb's drag is the
+ * cursor and nothing else, so a phone zooms with the button beside the cards.
  */
-export const useScrub = (onFraction: (fraction: number) => void): React.HTMLAttributes<HTMLDivElement> => {
+export const useScrub = (
+  onFraction: (fraction: number) => void,
+  onSelect?: (selection: Selection) => void,
+): { handlers: React.HTMLAttributes<HTMLDivElement>; selection: Selection | null } => {
   const dragging = useRef(false);
-  const report = (event: React.PointerEvent<HTMLDivElement>) => {
+  const start = useRef<number | null>(null);
+  const [selection, setSelection] = useState<Selection | null>(null);
+
+  const fractionOf = (event: React.PointerEvent<HTMLDivElement>): number | null => {
     const box = event.currentTarget.getBoundingClientRect();
-    if (box.width > 0) onFraction(Math.min(1, Math.max(0, (event.clientX - box.left) / box.width)));
+    return box.width > 0 ? Math.min(1, Math.max(0, (event.clientX - box.left) / box.width)) : null;
+  };
+
+  const end = () => {
+    dragging.current = false;
+    start.current = null;
+    setSelection(null);
   };
 
   return {
-    onPointerDown: event => {
-      dragging.current = true;
-      event.currentTarget.setPointerCapture(event.pointerId);
-      report(event);
-    },
-    onPointerMove: event => {
-      if (dragging.current || event.pointerType === 'mouse') report(event);
-    },
-    onPointerUp: event => {
-      dragging.current = false;
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    },
-    onPointerCancel: () => {
-      dragging.current = false;
+    selection,
+    handlers: {
+      onPointerDown: event => {
+        dragging.current = true;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        const fraction = fractionOf(event);
+        if (fraction === null) return;
+        onFraction(fraction);
+        if (onSelect && event.pointerType === 'mouse') start.current = fraction;
+      },
+      onPointerMove: event => {
+        if (!dragging.current && event.pointerType !== 'mouse') return;
+        const fraction = fractionOf(event);
+        if (fraction === null) return;
+        onFraction(fraction);
+        if (dragging.current && start.current !== null)
+          setSelection({ from: Math.min(start.current, fraction), to: Math.max(start.current, fraction) });
+      },
+      onPointerUp: event => {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+        if (onSelect && selection && selection.to - selection.from >= LEAST_SELECTION) onSelect(selection);
+        end();
+      },
+      onPointerCancel: end,
     },
   };
 };

@@ -282,8 +282,51 @@ beforeEach(async () => {
   silent = false;
   lastReading = {};
   access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-  series = new GrowSeriesService(db.devices, db.entries, db.targetChanges, growsService(), fakeData);
+  series = new GrowSeriesService(db.devices, db.entries, db.targetChanges, db.cameras, db.media, growsService(), fakeData);
   await world();
+});
+
+describe('the step and the pictures', () => {
+  it('keeps a step somebody chose, down to five seconds, and widens it only past five thousand windows', async () => {
+    const day = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'], stepSeconds: 20 });
+    const fine = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'], stepSeconds: 1 });
+    const chosen = await readAs(session(OWNER), { range: '7d', metrics: ['temperature'], stepSeconds: 60 });
+
+    expect(day.stepSeconds).toBe(20);
+    expect(fine.stepSeconds).toBe(18);
+    expect(chosen.stepSeconds).toBe(121);
+    expect((await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] })).stepSeconds).toBe(180);
+  });
+
+  it('carries the stills of the tent´s camera over the window, and none to a link that leaves cameras out', async () => {
+    await db.cameras.create({ id: 'camera-1', ownerId: OWNER, kind: 'terpcam_controller', name: 'Tent cam', deviceId: CONTROLLER, spaceId: TENT });
+    await db.media.create(
+      [0, 1, 2].map(hour => ({
+        id: `still-${hour}`,
+        kind: 'still',
+        mime: 'image/jpeg',
+        bytes: 1,
+        cameraId: 'camera-1',
+        capturedAt: new Date(NOW.getTime() - (hour + 1) * 3600 * 1000),
+      })),
+    );
+
+    const answer = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] });
+    const shared = await readAs(visitor('a-week-of-it'), { range: 'grow', metrics: ['temperature'] });
+
+    expect(growSeries.parse(answer)).toBeTruthy();
+    expect(answer.cameras).toEqual([
+      {
+        cameraId: 'camera-1',
+        name: 'Tent cam',
+        frames: ['still-2', 'still-1', 'still-0'].map((mediaId, index) => ({
+          mediaId,
+          capturedAt: new Date(NOW.getTime() - (3 - index) * 3600 * 1000).toISOString(),
+        })),
+      },
+    ]);
+    expect(shared.cameras).toEqual([]);
+  });
 });
 
 describe('what a chart is drawn from', () => {

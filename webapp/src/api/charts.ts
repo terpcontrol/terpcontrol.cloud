@@ -1,6 +1,6 @@
 import { keepPreviousData, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
-import type { GrowSeries, GrowSeriesRange, Metric, OutputMetric } from '@fg2/shared-types/v1';
+import type { GrowSeries, GrowSeriesRange, Metric, OutputMetric, SpaceSeries } from '@fg2/shared-types/v1';
 import { api } from './client';
 
 /**
@@ -25,8 +25,12 @@ import { api } from './client';
  * is where it belongs: it is about this grow and not about what is drawn of it.
  */
 
-/** The climate a chart can draw. The other metrics of the contract are states and offsets rather than curves. */
-export const CHART_METRICS: Metric[] = ['temperature', 'humidity', 'vpd', 'co2'];
+/**
+ * The climate a chart can draw: everything a device measures or is worked out
+ * from what it measures - the leaf, the light as lux and as PPFD among them.
+ * `offline` is a state rather than a curve and is not one of them.
+ */
+export const CHART_METRICS: Metric[] = ['temperature', 'humidity', 'vpd', 'co2', 'leafTemperature', 'lux', 'ppfd'];
 
 /** In the order the board puts them: what a grower steers first stands first, and the rest live behind "+ more". */
 export const CHART_OUTPUTS: OutputMetric[] = ['light', 'dehumidifier', 'heater', 'co2', 'fan', 'fanInternal', 'fanExternal', 'fanBackwall', 'relais'];
@@ -38,6 +42,12 @@ export interface SeriesWindow {
   to?: string;
   /** The keys of the grow's own measurements worth asking about, which is the ones it charts. */
   measurements: string[];
+  /** The step somebody chose; left out, the width of the window decides it. */
+  stepSeconds?: number;
+  /** False asks for the grow's own measurements and its day counter alone, and reads no climate at all. */
+  lines?: boolean;
+  /** How often to ask again while somebody watches the chart live; off by default. */
+  refetchMs?: number | false;
 }
 
 /**
@@ -54,25 +64,57 @@ export const askable = (window: SeriesWindow): boolean => window.range !== 'cust
 
 export const useGrowSeries = (growId: string | null, window: SeriesWindow) => {
   const client = useQueryClient();
+  const { refetchMs = false, ...asked } = window;
   const query = useRead({
-    queryKey: ['grow', growId, 'series', window],
-    queryFn: ({ signal }) => api.get<GrowSeries>(`/grows/${growId}/series?${queryOf(window)}`, undefined, signal),
-    enabled: growId !== null && askable(window),
+    queryKey: ['grow', growId, 'series', asked],
+    queryFn: ({ signal }) => api.get<GrowSeries>(`/grows/${growId}/series?${queryOf(asked)}`, undefined, signal),
+    enabled: growId !== null && askable(asked),
     placeholderData: keepPreviousData,
+    refetchInterval: refetchMs,
   });
 
-  return { ...query, held: query.data ? null : lastOf(client, growId) };
+  return { ...query, held: query.data ? null : lastOf<GrowSeries>(client, ['grow', growId, 'series'], growId) };
 };
 
-/** The freshest answer about this grow that really arrived, whichever window asked for it, and when it did. */
-const lastOf = (client: QueryClient, growId: string | null): { data: GrowSeries; at: number } | null => {
-  if (growId === null) return null;
+/** The window of a place: two instants, and the step where somebody chose one. */
+export interface SpanWindow {
+  from: string;
+  to: string;
+  stepSeconds?: number;
+  refetchMs?: number | false;
+}
+
+/**
+ * Everything the Charts view draws of a place, over any two instants - which
+ * is how a place with no grow is charted at all, and how any window that is
+ * not a stretch of a grow is read: a year back, the last twenty minutes, a
+ * fortnight a month ago. Like a grow's, the answer in hand stays drawn until
+ * the next one arrives, and the last that did arrive is handed back beside a
+ * read that failed.
+ */
+export const useSpaceSeries = (spaceId: string | null, window: SpanWindow | null) => {
+  const client = useQueryClient();
+  const { refetchMs = false, ...asked } = window ?? { from: '', to: '' };
+  const query = useRead({
+    queryKey: ['space', spaceId, 'series', asked],
+    queryFn: ({ signal }) => api.get<SpaceSeries>(`/spaces/${spaceId}/series?${spanQueryOf(asked)}`, undefined, signal),
+    enabled: spaceId !== null && window !== null && asked.from < asked.to,
+    placeholderData: keepPreviousData,
+    refetchInterval: refetchMs,
+  });
+
+  return { ...query, held: query.data ? null : lastOf<SpaceSeries>(client, ['space', spaceId, 'series'], spaceId) };
+};
+
+/** The freshest answer about this grow or place that really arrived, whichever window asked for it, and when it did. */
+const lastOf = <T>(client: QueryClient, queryKey: unknown[], id: string | null): { data: T; at: number } | null => {
+  if (id === null) return null;
 
   return client
     .getQueryCache()
-    .findAll({ queryKey: ['grow', growId, 'series'] })
-    .reduce<{ data: GrowSeries; at: number } | null>((found, one) => {
-      const state = one.state as { data?: GrowSeries; dataUpdatedAt: number };
+    .findAll({ queryKey })
+    .reduce<{ data: T; at: number } | null>((found, one) => {
+      const state = one.state as { data?: T; dataUpdatedAt: number };
 
       return state.data && (!found || state.dataUpdatedAt > found.at) ? { data: state.data, at: state.dataUpdatedAt } : found;
     }, null);
@@ -89,9 +131,22 @@ const queryOf = (window: SeriesWindow): string => {
     parameters.set('from', window.from);
     parameters.set('to', window.to);
   }
-  for (const metric of CHART_METRICS) parameters.append('metrics', metric);
-  for (const output of CHART_OUTPUTS) parameters.append('outputs', output);
+  if (window.stepSeconds) parameters.set('stepSeconds', String(window.stepSeconds));
+  if (window.lines !== false) appendLines(parameters);
   for (const key of window.measurements) parameters.append('measurements', key);
 
   return parameters.toString();
+};
+
+const spanQueryOf = (window: Omit<SpanWindow, 'refetchMs'>): string => {
+  const parameters = new URLSearchParams({ from: window.from, to: window.to });
+  if (window.stepSeconds) parameters.set('stepSeconds', String(window.stepSeconds));
+  appendLines(parameters);
+
+  return parameters.toString();
+};
+
+const appendLines = (parameters: URLSearchParams) => {
+  for (const metric of CHART_METRICS) parameters.append('metrics', metric);
+  for (const output of CHART_OUTPUTS) parameters.append('outputs', output);
 };

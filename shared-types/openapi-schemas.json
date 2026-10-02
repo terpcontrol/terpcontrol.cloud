@@ -13528,6 +13528,13 @@
         "items": {
           "$ref": "#/components/schemas/GrowMeasurementSeries"
         }
+      },
+      "cameras": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineCamera"
+        },
+        "description": "The cameras of the places the grow stood in, with their stills over the window thinned to a few hundred: the picture at the cursor. Empty for a reader who is not shown cameras."
       }
     },
     "required": [
@@ -13544,7 +13551,98 @@
       "lastReadingAt",
       "outputs",
       "nights",
-      "measurements"
+      "measurements",
+      "cameras"
+    ]
+  },
+  "SpaceSeries": {
+    "type": "object",
+    "properties": {
+      "spaceId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "startsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "endsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "stepSeconds": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991,
+        "description": "The window each point summarises, as the server settled it; 0 where no device was read at all."
+      },
+      "deviceIds": {
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The devices standing in the place. Null on a shared read: what a reader is shown is the tent, not the hardware in it."
+      },
+      "climate": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelinePanel"
+        }
+      },
+      "lastReadingAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "When something standing here last measured, answered only where `climate` is empty - as on the grow's answer and the Timeline."
+      },
+      "outputs": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineOutputLane"
+        }
+      },
+      "nights": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineSpan"
+        }
+      },
+      "cameras": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineCamera"
+        },
+        "description": "The cameras of the place with their stills over the window, thinned; empty for a reader who is not shown cameras."
+      }
+    },
+    "required": [
+      "spaceId",
+      "startsAt",
+      "endsAt",
+      "stepSeconds",
+      "deviceIds",
+      "climate",
+      "lastReadingAt",
+      "outputs",
+      "nights",
+      "cameras"
     ]
   },
   "PublicAuthor": {

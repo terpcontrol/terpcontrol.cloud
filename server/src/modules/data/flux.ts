@@ -47,11 +47,18 @@ export const DEFAULT_PPFD_LUX_FACTOR = 0.015;
 const SAFE_NAME = /^[A-Za-z0-9_.:-]{1,128}$/;
 const FIELD_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 
-/** Points per series a read is allowed to build, which decides how far a step is widened. */
+/** Points per series a read builds where the caller names no step. */
 const MAX_WINDOWS = 1000;
 
-/** The narrowest step the server ever picks for itself. */
-const MIN_STEP_SECONDS = 5;
+/**
+ * And where it names one: somebody looking closely - a day at twenty seconds,
+ * which is what the charts page offers - is drawn the points they asked for, up
+ * to this many, and only a step finer than that is widened.
+ */
+export const MAX_ASKED_WINDOWS = 5000;
+
+/** The narrowest step there is, picked or asked for: what a device reports at. */
+export const MIN_STEP_SECONDS = 5;
 
 /** No range answers more points than this per series, whatever the caller asked for. */
 const MAX_POINTS = 50000;
@@ -102,9 +109,9 @@ export const liveQuery = (bucket: string, deviceId: string): string => `${head(b
  */
 export const stepFor = (startsAt: Date, endsAt: Date, asked?: number): number => {
   const seconds = Math.max(1, Math.round((endsAt.getTime() - startsAt.getTime()) / 1000));
-  const widest = Math.max(MIN_STEP_SECONDS, Math.ceil(seconds / MAX_WINDOWS));
+  if (asked && asked > 0) return Math.max(Math.trunc(asked), MIN_STEP_SECONDS, Math.ceil(seconds / MAX_ASKED_WINDOWS));
 
-  return asked && asked > 0 ? Math.max(Math.trunc(asked), widest) : widest;
+  return Math.max(MIN_STEP_SECONDS, Math.ceil(seconds / MAX_WINDOWS));
 };
 
 export interface FluxWindow {

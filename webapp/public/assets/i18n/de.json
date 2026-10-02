@@ -530,7 +530,10 @@
       "temperature": "Temp",
       "humidity": "rF",
       "vpd": "VPD",
-      "co2": "CO2"
+      "co2": "CO2",
+      "leafTemperature": "Blatt",
+      "lux": "Lux",
+      "ppfd": "PPFD"
     },
     "more": "+ mehr",
     "less": "− weniger",
@@ -562,8 +565,7 @@
     "exportOn": "Den ganzen Grow mit Bildern und Tagebuch gibt es unter Export bei",
     "note": "Stell dir beliebige Kurven über beliebige Zeiträume zusammen, speichere Ansichten und exportiere sie als CSV.",
     "nothingPicked": "Noch nichts gewählt — oben eine Kurve antippen.",
-    "noGrow": "Graphen zeigen einen Grow – hier wächst noch keiner. Die Werte dieses Orts stehen im Verlauf.",
-    "whichGrow": "Graphen zeigen einen Grow – wähle, welchen.",
+    "whichGrow": "Hier steht noch kein Gerät. Wähle einen Grow, dessen Messungen gezeichnet werden.",
     "views": {
       "newTitle": "Diese Ansicht sichern",
       "editTitle": "Gesicherte Ansicht",
@@ -582,7 +584,40 @@
     "on": "an",
     "off": "aus",
     "notHere_one": "Für {{names}} ist in diesem Zeitraum nichts erfasst, deshalb wird nichts gezeichnet.",
-    "notHere_other": "Für {{names}} ist in diesem Zeitraum nichts erfasst, deshalb wird nichts gezeichnet."
+    "notHere_other": "Für {{names}} ist in diesem Zeitraum nichts erfasst, deshalb wird nichts gezeichnet.",
+    "width": {
+      "20m": "20 Min",
+      "1h": "1 Std",
+      "6h": "6 Std",
+      "12h": "12 Std",
+      "24h": "24 Std",
+      "3d": "3 T",
+      "7d": "7 T",
+      "14d": "14 T",
+      "30d": "30 T",
+      "90d": "90 T",
+      "180d": "180 T",
+      "1y": "1 Jahr",
+      "3y": "3 Jahre"
+    },
+    "nothingYet": "Noch nichts zu zeichnen: Graphen zeigen die Werte eines Geräts oder die Messungen eines Grows.",
+    "zoomed": "Zoom: {{from}} – {{to}}",
+    "zoomIn": "Hineinzoomen",
+    "offsetLabel": "Zeitraum verschieben",
+    "earlier": "Früher",
+    "later": "Später",
+    "from": "Ab",
+    "now": "jetzt",
+    "backToNow": "Bis jetzt",
+    "cameraChip": "Kamerabild",
+    "share": "Teilen",
+    "sharedTitle": "Link zum Teilen",
+    "sharedSpace": "Wer diesen Link öffnet, sieht diesen Ort ohne Konto - die Werte und den Verlauf über 24 Stunden, 7 oder 30 Tage, nur zum Ansehen.",
+    "sharedGrow": "Wer diesen Link öffnet, sieht diesen Grow ohne Konto, nur zum Ansehen.",
+    "copyLink": "Link kopieren",
+    "allLinks": "Alle geteilten Links",
+    "moreWidths": "Weitere …",
+    "fewerWidths": "Weniger"
   },
   "devices": {
     "button-settings": "Einstellungen",
@@ -3427,7 +3462,8 @@
     "noPage": {
       "title": "Unter dieser Adresse liegt nichts",
       "body": "Die App hat hier keine Seite."
-    }
+    },
+    "timeline": "Verlauf"
   },
   "sharing": {
     "title": "Teilen · {{name}}",
@@ -4759,6 +4795,18 @@
         "title": "Betriebsart",
         "text": "Was der Kühlschrank als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂. Gewächshaus regelt nur die Temperatur: Licht und CO₂ laufen weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Keimung hält es dunkel und heizt und kühlt auf die Nachttemperatur. Der Energiespar-Modus gilt nur im Standard. Eine Trocknungsphase geht vor und kehrt danach zur Betriebsart zurück."
       },
+      "chartStep": {
+        "title": "Intervall",
+        "text": "Jeder Punkt einer Kurve ist der Mittelwert über dieses Intervall. Automatisch passt es zum Zeitraum. Kürzere Intervalle zeigen mehr Einzelheiten, längere glätten. Ist ein Intervall für den Zeitraum zu kurz, wird das kürzeste gezeichnet, das passt - höchstens 5000 Punkte je Kurve."
+      },
+      "chartVpdHalf": {
+        "title": "VPD für Tag oder Nacht",
+        "text": "Tag und Nacht werden auf verschiedene VPD-Werte geregelt, deshalb sieht eine Linie über beide aus wie eine Säge. Hier lässt du nur die Tag- oder nur die Nachtwerte zeichnen. Was Tag ist, sagt das Licht, wie bei der Schattierung der Kurven."
+      },
+      "chartLive": {
+        "title": "Automatisch aktualisieren",
+        "text": "Die Graphen laden alle 30 Sekunden neu und laufen mit der Zeit mit - praktisch, wenn die Seite offen neben dem Gerät liegt. Ein zurückgeblätterter, gezoomter oder eigener Zeitraum bleibt stehen."
+      },
       "cameraTunnel": {
         "title": "Über das Gerät holen",
         "text": "Eingeschaltet holt die Cloud den Stream über die Verbindung des Geräts an diesem Ort aus deinem Heimnetz, so braucht die Kamera weder Portfreigabe noch DynDNS. Ausschalten nur für eine Kamera, die aus dem Internet erreichbar ist: dann öffnet die Cloud den Stream selbst, und die Verbindung des Geräts wird nicht belastet."
@@ -4851,6 +4899,14 @@
     "webhookTemplate": {
       "title": "Vorlage für den Webhook",
       "text": "Für Home Assistant, Discord, Telegram und ntfy füllt die Vorlage URL, Methode und Nachrichten aus den wenigen Angaben, die der Dienst braucht. Gespeichert wird ein ganz normaler Webhook, den du danach noch von Hand ändern kannst. Eine Home-Assistant-Adresse im lokalen Netz wird automatisch über den Tunnel des Geräts aufgerufen."
+    },
+    "chartZoom": {
+      "title": "Zoom",
+      "text": "„Hineinzoomen“ zeigt ein Drittel des Zeitraums um den Cursor herum, mit feineren Punkten. Am Computer kannst du auch mit gedrückter Maustaste einen Bereich über den Kurven markieren. „Zoom zurücksetzen“ zeigt wieder den ganzen Zeitraum."
+    },
+    "chartMessages": {
+      "title": "Meldungen",
+      "text": "Was über den Zeitraum geschrieben wurde: Meldungen der Geräte, Alarme, der Grow-Plan und das Tagebuch. Jede Säule steht für ein Stück des Zeitraums und ist so hoch, wie dort Meldungen sind - gelb mit einer Warnung, rot mit etwas Kritischem. Tippe eine Säule an, um nur ihre Meldungen zu lesen; der Cursor springt mit."
     },
     "streamAddress": {
       "title": "Stream-Adresse",
@@ -5161,6 +5217,46 @@
     "update": "Warte, bis das Firmware-Update durch ist und das Modul neu gestartet hat.",
     "failed": "Steht dort „Connection failed“, starte das Modul neu - sonst kommst du aus dem Menü nicht mehr heraus.",
     "portal": "Rufe jetzt „Connect to portal“ auf. Das Modul zeigt dann den Code, den du hier eingibst."
+  },
+  "chartMessages": {
+    "title": "Meldungen",
+    "chip": "Meldungen",
+    "count_one": "{{count}} im Zeitraum",
+    "count_other": "{{count}} im Zeitraum",
+    "filter": "Welche Meldungen",
+    "lane": "Meldungen über den Zeitraum",
+    "column_one": "{{count}} Meldung",
+    "column_other": "{{count}} Meldungen",
+    "failed": "Die Meldungen ließen sich gerade nicht laden.",
+    "none": "In diesem Zeitraum wurde nichts gemeldet.",
+    "noneShown": "Keine Meldungen der gewählten Arten.",
+    "all": "Alle zeigen",
+    "more": "Es gibt weitere Meldungen - tippe eine Säule an oder wähle einen kürzeren Zeitraum.",
+    "category": {
+      "device": "Gerät",
+      "alarm": "Alarme",
+      "plan": "Grow-Plan",
+      "diary": "Tagebuch"
+    }
+  },
+  "chartFine": {
+    "step": "Intervall",
+    "auto": "Automatisch",
+    "stepAuto": "Passend zum Zeitraum: kurz für Stunden, lang für Monate.",
+    "widened": "Für diesen Zeitraum zu fein - gezeichnet mit {{step}}.",
+    "vpdHalf": "VPD zeigen für",
+    "half": {
+      "all": "Tag und Nacht",
+      "day": "nur Tag",
+      "night": "nur Nacht"
+    },
+    "vpdHalfNote": {
+      "all": "Eine Linie über beide Hälften des Tages.",
+      "day": "Nur die Punkte bei Licht an - die Nacht bleibt eine Lücke.",
+      "night": "Nur die Punkte bei Licht aus - der Tag bleibt eine Lücke."
+    },
+    "live": "Automatisch aktualisieren",
+    "liveHeld": "Folgt nur einem Zeitraum, der jetzt endet - zurückgeblättert oder gezoomt bleibt er stehen."
   },
   "planLight": {
     "label": "Licht an für",

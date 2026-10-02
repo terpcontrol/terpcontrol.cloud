@@ -2,6 +2,7 @@ import { Fragment, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Chart } from '@/charts/Chart';
 import { AXIS_GUTTER, plotOption, readAt } from '@/charts/series';
+import type { Selection } from '@/charts/scrub';
 import type { ChartPalette } from '@/charts/tokens';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
@@ -14,6 +15,8 @@ interface ChartCardProps {
   /** Where the one cursor of the screen stands, on this card's own axis; the end of the window until it is moved. */
   cursor: number;
   scrub: React.HTMLAttributes<HTMLDivElement>;
+  /** A stretch being marked with the mouse to zoom into, as fractions of the plot. */
+  selection?: Selection | null;
   /** Both ends of the window as they are written under the plot; the screen settles them once so every card says the same. */
   ends: readonly [string, string];
 }
@@ -29,7 +32,7 @@ interface ChartCardProps {
  * without anyone touching it, and the cursor's own values are pinned above the
  * stack where a thumb is not over them.
  */
-export function ChartCard({ card, cursor, scrub, ends }: ChartCardProps) {
+export function ChartCard({ card, cursor, scrub, selection = null, ends }: ChartCardProps) {
   const { t } = useTranslation();
   const option = useMemo(() => (palette: ChartPalette) => plotOption(palette, card.plot), [card.plot]);
   const { from, to, scales, lines } = card.plot;
@@ -74,6 +77,9 @@ export function ChartCard({ card, cursor, scrub, ends }: ChartCardProps) {
           ),
         )}
         <div className={styles.overlay} {...scrub}>
+          {selection ? (
+            <span className={styles.selection} style={{ left: `${selection.from * 100}%`, width: `${(selection.to - selection.from) * 100}%` }} />
+          ) : null}
           <span className={styles.cursor} style={{ left }} />
           {lines.map(line => {
             const value = line.label === undefined ? null : readAt(line, cursor, to - from);

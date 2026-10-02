@@ -1,6 +1,7 @@
 import type { TimelineRange } from '@fg2/shared-types/v1';
 import { Grant } from '@common/v1/access.types';
 import { clampRange } from '@common/v1/range';
+import { MAX_ASKED_WINDOWS, MIN_STEP_SECONDS as FINEST_STEP_SECONDS } from '@modules/data/flux';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
@@ -70,11 +71,11 @@ export const spineOf = (grow: GrowDocument): GrowDocument['phases'] =>
  * a link that closed last week is the last day of that week and not the last day
  * of this one, which would be a window the clamp leaves nothing of at all.
  */
-export const windowOf = (range: TimelineRange, grant: Grant, grow: GrowDocument | null, asOf: Date): TimelineWindow => {
+export const windowOf = (range: TimelineRange, grant: Grant, grow: GrowDocument | null, asOf: Date, askedStep?: number): TimelineWindow => {
   const granted = grant.range.endsAt;
   const at = granted && granted < asOf ? granted : asOf;
 
-  return narrowedTo(grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at), grant, grow, at);
+  return narrowedTo(grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at), grant, grow, at, askedStep);
 };
 
 /**
@@ -82,12 +83,18 @@ export const windowOf = (range: TimelineRange, grant: Grant, grow: GrowDocument 
  * chip. The two instants of a custom range are as much subject to the clamp as
  * a chip's are, and the day counter is counted across them the same way.
  */
-export const narrowedTo = (asked: { startsAt: Date; endsAt: Date }, grant: Grant, grow: GrowDocument | null, asOf: Date): TimelineWindow => {
+export const narrowedTo = (
+  asked: { startsAt: Date; endsAt: Date },
+  grant: Grant,
+  grow: GrowDocument | null,
+  asOf: Date,
+  askedStep?: number,
+): TimelineWindow => {
   const clamped = clampRange(grant, asked);
   const startsAt = clamped.startsAt ?? asked.startsAt;
   const endsAt = new Date(Math.max(startsAt.getTime(), (clamped.endsAt ?? asked.endsAt).getTime()));
 
-  return { startsAt, endsAt, stepSeconds: stepFor(startsAt, endsAt), ...daysOf(grow, asOf, startsAt, endsAt) };
+  return { startsAt, endsAt, stepSeconds: stepFor(startsAt, endsAt, askedStep), ...daysOf(grow, asOf, startsAt, endsAt) };
 };
 
 /**
@@ -132,8 +139,12 @@ const stretchOf = (range: 'phase' | 'grow', grow: GrowDocument, at: Date): { sta
   return { startsAt: phase.startedAt, endsAt: ends && ends < horizon ? ends : horizon };
 };
 
-const stepFor = (startsAt: Date, endsAt: Date): number => {
+const stepFor = (startsAt: Date, endsAt: Date, asked?: number): number => {
   const seconds = Math.max(1, Math.round((endsAt.getTime() - startsAt.getTime()) / 1000));
+  // A step somebody chose - the charts page offers five seconds to a week - is
+  // kept down to what the store answers at, and widened only where the window
+  // would hold more windows than one read builds.
+  if (asked && asked > 0) return Math.max(Math.trunc(asked), FINEST_STEP_SECONDS, Math.ceil(seconds / MAX_ASKED_WINDOWS));
 
   return Math.max(MIN_STEP_SECONDS, Math.ceil(seconds / PANEL_WINDOWS));
 };

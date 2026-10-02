@@ -1,4 +1,4 @@
-import { type QueryClient } from '@tanstack/react-query';
+import { keepPreviousData, type QueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
 import type { Entry, EntryCreate, EntryPage, EntryUpdate, Media, Phase, PhaseCreate, TaskCompletionCreate } from '@fg2/shared-types/v1';
 import { api } from './client';
@@ -29,6 +29,53 @@ export const useRecentEntries = (growId: string | null, spaceId: string | null) 
         signal,
       ),
     enabled: Boolean(growId ?? spaceId),
+  });
+
+/** The most a window's lines are read in pages of the route's largest, before the rest is only counted as more. */
+const WINDOW_PAGES = 5;
+const WINDOW_PAGE = 200;
+
+/** What happened in a window, newest first, and whether there was more than was read. */
+export interface WindowEntries {
+  items: Entry[];
+  more: boolean;
+}
+
+/**
+ * Everything written about a place - or a grow with no place - over one
+ * window: its devices' own lines, the alarms, the plan and the diary. The
+ * charts page draws them under its curves, so a window of a busy month is read
+ * a few pages deep and the rest is said rather than read.
+ */
+export const useWindowEntries = (about: { growId: string | null; spaceId: string | null }, window: { from: string; to: string } | null) =>
+  useRead({
+    queryKey: ['entries', 'window', about.spaceId ?? about.growId, window],
+    queryFn: async ({ signal }): Promise<WindowEntries> => {
+      const items: Entry[] = [];
+      let cursor: string | null = null;
+
+      for (let page = 0; page < WINDOW_PAGES; page += 1) {
+        const answer: EntryPage = await api.get<EntryPage>(
+          '/entries',
+          {
+            spaceId: about.spaceId ?? undefined,
+            growId: about.spaceId ? undefined : (about.growId ?? undefined),
+            startsAt: window?.from,
+            endsAt: window?.to,
+            limit: WINDOW_PAGE,
+            cursor,
+          },
+          signal,
+        );
+        items.push(...answer.items);
+        cursor = answer.nextCursor;
+        if (!cursor) break;
+      }
+
+      return { items, more: cursor !== null };
+    },
+    enabled: window !== null && Boolean(about.spaceId ?? about.growId),
+    placeholderData: keepPreviousData,
   });
 
 export const writeEntry = (body: EntryCreate): Promise<Entry> => api.post<Entry>('/entries', body);
