@@ -335,6 +335,10 @@ void FanController::saveAnduploadSettings() {
         });
       });
     }
+    menu->addOption("Terp Cam", ICON_SETTINGS, [ui, this](){
+      showTerpCamUi(ui, &cloud);
+    });
+
     menu->addOption("WiFi Connection", ICON_WIFI_FULL, [ui, this](){
       showWifiUi(ui, &cloud);
     });
@@ -387,7 +391,12 @@ void FanController::saveAnduploadSettings() {
       else if(command["action"] && command["action"] == std::string("stoptest")) {
         testmode_duration = 0;
       }
+      else {
+        wifiHandleTerpCamCommand(command);
+      }
     });
+
+    wifiInitTerpCamCloudReporting(&cloud);
 
 
     cloud.onControl([&](std::pair<std::string, std::string> output) {

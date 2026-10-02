@@ -179,7 +179,7 @@
     </ion-card-content>
   </ion-card>
 
-  <aux-devices [deviceId]="device_id" [deviceType]="'fan'" [cloudSettings]="cloudSettings"></aux-devices>
+  <aux-devices [deviceId]="device_id" [deviceType]="'fan'" [cloudSettings]="cloudSettings" [hardwareInfo]="hardwareInfo"></aux-devices>
 
   <cloud-settings [(cloudSettings)]="cloudSettings" [deviceId]="device_id" />
   <delete-device-row [deviceId]="device_id"></delete-device-row>
