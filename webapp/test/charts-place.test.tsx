@@ -10,7 +10,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, SpaceSeries, TimelineTargets } from '@fg2/shared-types/v1';
 import { Charts } from '@/screens/charts/Charts';
-import { halfOf } from '@/screens/charts/cards';
+import { defaultPick, halfOf } from '@/screens/charts/cards';
 import { categoryOf, columnsOf } from '@/screens/charts/message-columns';
 import { rangeOfSpan, stepped, windowOf, WIDTHS, zoomedIn } from '@/screens/charts/span';
 
@@ -334,6 +334,17 @@ describe('the arithmetic under it', () => {
 
     expect(night).toEqual([1, 1, null, null, null]);
     expect(day).toEqual([null, null, 1, 1, 1]);
+  });
+
+  it('opens a diary kept without hardware on what was measured by hand, and a place on its climate', () => {
+    const height = { key: 'height', name: 'Height', unit: 'cm', perPlant: false, targetMin: null, targetMax: null, chart: true };
+
+    expect(defaultPick({ metrics: [], outputs: [], measurements: [height] })).toEqual({ metrics: [], outputs: [], measurements: ['height'] });
+    expect(defaultPick({ metrics: ['temperature', 'co2', 'lux'], outputs: ['light'], measurements: [height] })).toEqual({
+      metrics: ['temperature'],
+      outputs: [],
+      measurements: [],
+    });
   });
 
   it('cuts the window into columns and tells the kinds of line apart', () => {

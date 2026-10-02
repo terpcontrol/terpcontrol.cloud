@@ -104,12 +104,16 @@ export const droppedBy = (t: Translate, picked: Picked, offered: Offered, define
 /** The climate a grower reads first; the rest - CO2, the leaf, the light - is a tap away. */
 const FIRST_READ: Metric[] = ['temperature', 'humidity', 'vpd'];
 
-/** What the screen opens on: the climate a grower reads first, and nothing the account has not got. */
-export const defaultPick = (offered: Offered): Picked => ({
-  metrics: offered.metrics.filter(metric => FIRST_READ.includes(metric)),
-  outputs: [],
-  measurements: [],
-});
+/**
+ * What the screen opens on: the climate a grower reads first, and nothing the
+ * account has not got. A diary kept without hardware has no climate to open on,
+ * so it opens on what was measured by hand instead of on an empty page.
+ */
+export const defaultPick = (offered: Offered): Picked => {
+  const metrics = offered.metrics.filter(metric => FIRST_READ.includes(metric));
+
+  return { metrics, outputs: [], measurements: metrics.length === 0 ? offered.measurements.map(definition => definition.key) : [] };
+};
 
 export interface Card {
   key: string;
