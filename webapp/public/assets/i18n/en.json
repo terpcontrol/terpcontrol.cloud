@@ -4616,6 +4616,10 @@
       "title": "Layout",
       "text": "Stacked gives each measure a chart of its own; Overlay lays them on one chart and names any whose scale does not fit. Day-of-grow counts the axis in grow days instead of dates – with the Phase or Grow range – so an earlier grow of the same place can be laid over it."
     },
+    "chartLayoutPlace": {
+      "title": "Layout",
+      "text": "Stacked gives each measure a chart of its own; Overlay lays them on one chart and names any whose scale does not fit."
+    },
     "muteAll": {
       "title": "Mute all",
       "text": "For an hour nothing is sent to you, critical alarms included, and alarm messages from that hour are not sent later. Only you are muted: the others you share your places with are still told, and a rule with its own e-mail or webhook still sends."

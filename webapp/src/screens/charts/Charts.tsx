@@ -8,7 +8,7 @@ import type { ChartView, ChartViewDefinition, GrowListItem, ShareLink } from '@f
 import { CHART_METRICS, CHART_OUTPUTS } from '@/api/charts';
 import { useChartViews } from '@/api/chart-views';
 import { serverNow } from '@/api/clock';
-import { useDevices } from '@/api/devices';
+import { useDevices, useDevicesById } from '@/api/devices';
 import { useWindowEntries } from '@/api/entries';
 import { useGrow, useGrowPlants, useGrows, useGrowsEverIn, useSpaceGrows } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
@@ -285,7 +285,9 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
 
   const offered = useMemo(() => offeredBy(data, definitions), [data, definitions]);
   const chosen = picked === null ? defaultPick(offered) : prunedTo(picked, offered);
-  const leaf = leafOffsetsOf(devices.data?.items ?? [], data);
+  // Support reading a customer's place has none of its devices in its own list, so they are read one by one.
+  const visited = useDevicesById(data?.deviceIds ?? [], visiting);
+  const leaf = leafOffsetsOf(visiting ? visited.flatMap(one => (one.data ? [one.data] : [])) : (devices.data?.items ?? []), data);
   const named = useMemo(() => (plants.data?.items ?? []).map(plant => ({ id: plant.id, label: plant.label })), [plants.data]);
   const vpdHalf = chosen.metrics.includes('vpd') ? settings.vpdHalf : 'all';
 
@@ -702,7 +704,8 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
             </button>
           ))}
         </div>
-        <Help topic="chartLayout" />
+        {/* Counting in grow days is explained only where a grow offers it. */}
+        <Help topic={grow ? 'chartLayout' : 'chartLayoutPlace'} />
         <div className={styles.footerActions}>
           {/* The demo may look at every chart and keep none: a view is written to an account, and it has not got one. */}
           {mayManage ? (

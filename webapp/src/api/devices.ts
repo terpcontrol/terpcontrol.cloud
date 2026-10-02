@@ -44,6 +44,20 @@ export const useDevices = (enabled = true) =>
     enabled,
   });
 
+/**
+ * Devices read one at a time, for a reader they do not belong to: support
+ * reading a customer's place has none of them in its own list, and the charts
+ * still need each one's leaf offsets to draw the VPD band the customer sees.
+ */
+export const useDevicesById = (deviceIds: readonly string[], enabled = true) =>
+  useQueries({
+    queries: deviceIds.map(deviceId => ({
+      queryKey: ['devices', deviceId],
+      queryFn: ({ signal }: { signal: AbortSignal }) => api.get<Device>(`/devices/${deviceId}`, undefined, signal),
+      enabled,
+    })),
+  });
+
 export const socketsKey = (deviceId: string) => ['devices', deviceId, 'sockets'];
 
 /**
