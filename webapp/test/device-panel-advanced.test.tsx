@@ -11,7 +11,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceCapabilities, Socket, SocketPage } from '@fg2/shared-types/v1';
 import { api, apiRequest } from '@/api/client';
 import { DeviceList } from '@/screens/devices/DeviceList';
-import { draftFor, problemOf, secondsOfSpan, spanOf, updateOf } from '@/screens/devices/socket-form';
+import { draftFor, problemOf, rolesFor, secondsOfSpan, spanOf, updateOf } from '@/screens/devices/socket-form';
 import { SocketRow } from '@/screens/devices/SocketRow';
 import { rowsOf } from '@/screens/devices/sockets';
 import { SIGNED_IN, spaceWhere } from './session';
@@ -209,12 +209,12 @@ describe('pairing a socket by its address', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pair …' }));
 
     const sheet = await screen.findByRole('dialog', { name: 'Pair a socket by IP' });
-    // The roles the controller always had and the two timed ones; the others wait for a test in a real tent.
+    // The roles the controller always had, the humidifier this build announces and the two timed ones; the others wait for a test in a real tent.
     expect(
       within(sheet)
         .getAllByRole('button', { pressed: false })
         .map(button => button.textContent),
-    ).toEqual(['Heater', 'Dehumidifier', 'CO₂', 'Light', 'Second light', 'Pump', 'Custom timer']);
+    ).toEqual(['Heater', 'Dehumidifier', 'Humidifier', 'CO₂', 'Light', 'Second light', 'Pump', 'Custom timer']);
     fireEvent.click(within(sheet).getByRole('button', { name: 'Pump' }));
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'Address' }), { target: { value: ' 192.168.1.57 ' } });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Pair' }));
@@ -353,9 +353,41 @@ describe('a socket’s timer and its Advanced', () => {
       expect(api.put).toHaveBeenCalledWith('/devices/device-1/sockets/2', { role: 'heater', address: '10.0.0.64', credentials: null, timer: null }),
     );
   });
+
+  /**
+   * A fridge's exhaust socket opened its Change sheet with no role chosen, and
+   * offered neither the exhaust nor the humidifier: whoever only wanted a new
+   * address had to make the exhaust a heater first.
+   */
+  it('changes an exhaust socket as an exhaust, where the build announces one', async () => {
+    drawRow(socket({ slot: 1, role: 'exhaust', address: '10.0.0.70' }), { ...CAPABILITIES, roles: [...CAPABILITIES.roles, 'exhaust'] });
+    fireEvent.click(screen.getByText('Advanced', { selector: 'summary' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change …' }));
+
+    const sheet = await screen.findByRole('dialog', { name: 'Change Exhaust' });
+    expect(within(sheet).getByRole('button', { name: 'Exhaust' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sheet).getByRole('button', { name: 'Humidifier' })).toBeInTheDocument();
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Address' }), { target: { value: '10.0.0.71' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Send' }));
+
+    await waitFor(() =>
+      expect(api.put).toHaveBeenCalledWith('/devices/device-1/sockets/1', { role: 'exhaust', address: '10.0.0.71', credentials: null, timer: null }),
+    );
+  });
 });
 
 describe('the socket form', () => {
+  it('offers the exhaust and the humidifier where the build announces them, and a socket´s own role whatever it is', () => {
+    const all: DeviceCapabilities = { ...CAPABILITIES, roles: [...CAPABILITIES.roles, 'exhaust', 'circulation'] };
+
+    expect(rolesFor(all)).toEqual(['heater', 'dehumidifier', 'humidifier', 'exhaust', 'co2', 'light', 'secondary_light', 'pump', 'custom_timer']);
+    expect(rolesFor(CAPABILITIES)).not.toContain('exhaust');
+    // A circulation fan is not offered for a new socket, and stays what it is when only its address changes.
+    expect(rolesFor(all, 'circulation')).toContain('circulation');
+    expect(draftFor({ role: 'circulation', address: '10.0.0.5', timer: null }).role).toBe('circulation');
+    expect(draftFor({ role: '', address: '10.0.0.5', timer: null }).role).toBeNull();
+  });
+
   it('reads a span in the coarsest whole unit and back, and sends only what makes sense for the role', () => {
     expect(spanOf(21600)).toEqual({ value: '6', unit: 'h' });
     expect(spanOf(90)).toEqual({ value: '90', unit: 's' });

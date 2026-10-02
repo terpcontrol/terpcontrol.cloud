@@ -230,6 +230,17 @@ describe('the CO2 cylinder at the place', () => {
     expect(screen.getByText(/400 g used · 5.0 openings a g/)).toBeInTheDocument();
   });
 
+  /** An estimate at nothing read "About 0 g left (0 %) · lasts about 0 days" while the valve held its target. */
+  it('says an estimate run down to nothing is a guess that the cylinder is empty, to be checked', async () => {
+    vi.mocked(api.get).mockResolvedValue({ ...REPORT, restGrams: 0.2 } as never);
+    wrap(<Card {...place([device()])} />);
+
+    expect(await screen.findByText('By the estimate it should be empty – check the cylinder.')).toBeInTheDocument();
+    expect(screen.getByText(/^Worked out from what the empty cylinder used/)).toBeInTheDocument();
+    expect(screen.queryByText(/About 0 g left/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/lasts about 0/)).not.toBeInTheDocument();
+  });
+
   it('notes a cylinder going in as a measurement of the place, with what was left in the old one', async () => {
     vi.mocked(api.get).mockResolvedValue(REPORT as never);
     vi.mocked(api.post).mockResolvedValue({} as never);

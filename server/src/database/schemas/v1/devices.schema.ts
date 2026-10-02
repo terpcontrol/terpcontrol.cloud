@@ -75,6 +75,13 @@ export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'cont
    * nothing of the switch, and going back to the standard put it back to off.
    */
   standardWorkmode: string | null;
+  /**
+   * The targets a drying spell put aside, by their paths in the document, kept
+   * from the write that began it until the write that ends it: ending a spell
+   * by itself brings them back rather than leaving the device in the dark at
+   * the drying room's 18 °C. Null while not drying.
+   */
+  beforeDrying: Record<string, number> | null;
   state: StoredDeviceState;
 }
 
@@ -162,6 +169,7 @@ export const devicesSchema = new Schema<StoredDevice>(
     scheduleClock: { type: scheduleClockSchema, default: null },
     baseWorkmode: { type: String, default: null },
     standardWorkmode: { type: String, default: null },
+    beforeDrying: { type: Schema.Types.Mixed, default: null },
     firmware: { type: firmwareTargetSchema, required: true, default: () => ({}) },
     // The device's own configuration document, null until it reports one. Its
     // schema belongs to the firmware of that type and is not restated here.

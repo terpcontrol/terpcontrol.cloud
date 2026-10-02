@@ -18,6 +18,8 @@ import { HIDDEN_FIGURES, heldTo } from './class-rules';
 import { fieldChangesOf, withFigures } from './configuration-fields';
 import { DevicePublisherService } from './device-publisher.service';
 import { driftBetween, keepsTime, SCHEDULE_FOLLOWER, ScheduleFollower, sameClockTimes, scheduleClockOf, withClockTimesMoved } from './schedule-clock';
+import { targetsOf } from '../v1/phase/phase-targets';
+import { keptForDrying, recordedReturn } from './drying-return';
 import { decideWorkmode, standardOf, WriteIntent } from './work-modes';
 
 /** What a write stored: the document before it and after it. */
@@ -203,18 +205,30 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     }
 
     const device = await this.devices
-      .findOne({ id: deviceId }, { type: 1, configuration: 1, ownerId: 1, scheduleClock: 1, baseWorkmode: 1, standardWorkmode: 1 })
-      .lean<Pick<StoredDevice, 'type' | 'configuration' | 'ownerId' | 'scheduleClock' | 'baseWorkmode' | 'standardWorkmode'> | null>();
+      .findOne({ id: deviceId }, { type: 1, configuration: 1, ownerId: 1, scheduleClock: 1, baseWorkmode: 1, standardWorkmode: 1, beforeDrying: 1 })
+      .lean<Pick<
+        StoredDevice,
+        'type' | 'configuration' | 'ownerId' | 'scheduleClock' | 'baseWorkmode' | 'standardWorkmode' | 'beforeDrying'
+      > | null>();
     if (!device) {
       throw new HttpException(404, 'Device not found');
     }
 
     const before = device.configuration ?? null;
-    const wanted = next(before);
-    if (wanted === null) return null;
+    const asked = next(before);
+    if (asked === null) return null;
 
     const mode = decideWorkmode(device.type, before?.workmode, device.baseWorkmode, intent, device.standardWorkmode);
     const standard = standardOf(mode?.base);
+    // A spell that begins keeps what it writes over; one ended by itself - its
+    // own button, or control switched off - brings that back, since nothing else
+    // that ends it brings a climate with it. A preset, a phase or a step does.
+    const dried = before?.workmode === 'dry';
+    const dries = mode?.workmode === 'dry';
+    const wanted =
+      dried && !dries && intent.kind === 'fields'
+        ? withFigures(asked, Object.entries(await this.keptFor(deviceId, device.beforeDrying, before)))
+        : asked;
     const held = heldTo(device.type, mode ? { ...wanted, workmode: mode.workmode } : wanted);
 
     // Times a write sets are meant on the clock it is made on. Times it leaves
@@ -234,6 +248,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
           scheduleClock: keepsTime(configuration) ? clock : null,
           ...(mode ? { baseWorkmode: mode.base } : {}),
           ...(standard ? { standardWorkmode: standard } : {}),
+          ...(dries && !dried ? { beforeDrying: keptForDrying(before) } : !dries && dried ? { beforeDrying: null } : {}),
         },
       },
     );
@@ -248,6 +263,19 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     if (device.type === 'plug') await this.followCo2Fan(deviceId, before, configuration);
 
     return { before, after: configuration, changed: JSON.stringify(before) !== JSON.stringify(configuration) };
+  }
+
+  /**
+   * What a drying spell ended by itself brings back: what it kept when it
+   * began, or - for a spell begun before anything was kept - the targets the
+   * record holds from before it, the newest row that is not the drying room's.
+   */
+  private async keptFor(deviceId: string, kept: Record<string, number> | null, current: DeviceConfiguration | null): Promise<Record<string, number>> {
+    if (kept && Object.keys(kept).length > 0) return kept;
+
+    const now = JSON.stringify(targetsOf(current as Record<string, unknown> | null));
+    const rows = await this.targetRecord.find({ deviceId }).sort({ at: -1, _id: -1 }).limit(50).lean<StoredTargetChange[]>();
+    return recordedReturn(rows.find(row => row.targets !== null && JSON.stringify(row.targets) !== now)?.targets ?? null, current);
   }
 
   /**

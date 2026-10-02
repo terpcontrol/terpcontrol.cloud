@@ -650,16 +650,38 @@ describe('the targets page', () => {
     );
   });
 
-  it('says a drying phase has the device drying, and ends it from there', async () => {
-    await drawn([device({ type: 'fridge', control: { running: true, drying: true, mode: 'standard', energySaving: false } })]);
+  /**
+   * "End drying" wrote at once and left the drying room's 18 °C and the lamp at
+   * 0 % standing. It asks first now, and says which targets come back.
+   */
+  it('says a drying phase has the device drying, and ends it from there once asked, naming the targets that come back', async () => {
+    const afterDrying = { dayTemperature: 26, dayHumidity: 62, nightTemperature: 22, nightHumidity: 58, co2: 900, lightLimit: 80 };
+    await drawn([device({ type: 'fridge', control: { running: true, drying: true, mode: 'standard', energySaving: false, afterDrying } })]);
 
     expect(screen.getByText(/^Drying: no day and night, no light, no CO₂/)).toBeInTheDocument();
     expect(screen.queryByText('Control off.')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'End drying' }));
+    fireEvent.click(screen.getByRole('button', { name: 'End drying …' }));
+
+    const asked = await screen.findByRole('dialog', { name: 'End drying?' });
+    expect(
+      within(asked).getByText('The targets from before drying apply again: day 26 °C · 62 %, night 22 °C · 58 %, light 80 %, CO₂ 900 ppm.'),
+    ).toBeInTheDocument();
+    expect(sent('PATCH')).toEqual([]);
+    fireEvent.click(within(asked).getByRole('button', { name: 'End drying' }));
 
     await waitFor(() =>
       expect(sent('PATCH')).toEqual([{ method: 'PATCH', path: '/devices/device-1/configuration', body: { set: { drying: false } } }]),
     );
+    // The card it was asked from goes with the spell; the answer stays to be read.
+    expect(await within(asked).findByText(/^Drying has ended/)).toBeInTheDocument();
+  });
+
+  it('says where the targets come from when the ones from before drying were never kept', async () => {
+    await drawn([device({ type: 'fridge', control: { running: true, drying: true, mode: 'standard', energySaving: false } })]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'End drying …' }));
+    const asked = await screen.findByRole('dialog', { name: 'End drying?' });
+    expect(within(asked).getByText(/^The targets last saved before drying apply again/)).toBeInTheDocument();
   });
 
   it('starts drying with the drying preset, and says so before it is saved', async () => {

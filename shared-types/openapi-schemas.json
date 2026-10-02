@@ -1939,6 +1939,55 @@
       "germination"
     ]
   },
+  "DryingReturn": {
+    "type": "object",
+    "properties": {
+      "dayTemperature": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "dayHumidity": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "nightTemperature": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "nightHumidity": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "co2": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "lightLimit": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "dayTemperature",
+      "dayHumidity",
+      "nightTemperature",
+      "nightHumidity",
+      "co2",
+      "lightLimit"
+    ]
+  },
   "DeviceControl": {
     "type": "object",
     "properties": {
@@ -1957,6 +2006,10 @@
       "energySaving": {
         "type": "boolean",
         "description": "The back-wall fan rests while the compressor does. Applies to the standard mode of a fridge only."
+      },
+      "afterDrying": {
+        "description": "While drying: the targets that held before the spell began, which ending it by itself (`drying: false`, or control switched off) puts back. Absent where they are not known - a spell begun before they were kept - and the targets recorded before it are put back instead.",
+        "$ref": "#/components/schemas/DryingReturn"
       }
     },
     "required": [

@@ -67,7 +67,7 @@ export function SocketSheet({
   const send = useSetSocket();
   const [draft, setDraft] = useState<SocketDraft>(() => draftFor(socket));
   const [tried, setTried] = useState(false);
-  const roles = rolesFor(capabilities);
+  const roles = rolesFor(capabilities, socket?.role ?? null);
   // A row an old table names by its role alone, or a socket the device keeps no address for, has nothing a change could be sent to.
   const slot = socket ? (socket.slot >= 0 ? socket.slot : null) : null;
   const unreachable = socket !== null && (slot === null || socket.address === '');

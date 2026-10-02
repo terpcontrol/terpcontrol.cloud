@@ -532,6 +532,22 @@ describe('a place in another work mode', () => {
     expect(screen.queryByText('No target at night')).not.toBeInTheDocument();
   });
 
+  /** A drying room has no day and no night, and the tiles said "Night target 18.0 °C" under a line saying so. */
+  it('calls a drying fridge´s targets the drying targets, not the night´s', async () => {
+    server.devices = [fridge({ control: { running: true, drying: true, mode: 'standard', energySaving: false } })];
+    server.live = {
+      ...deviceLive(),
+      setpoints: { day: { temperature: 18, humidity: 58 }, night: { temperature: 18, humidity: 58 }, active: 'night' },
+    };
+    const drying = setpoints.map(one => (one.metric === 'co2' ? { ...one, value: null } : { ...one, value: one.metric === 'temperature' ? 18 : 58 }));
+    draw(<PlaceCockpit overview={overviewOf({ setpoints: drying })} />);
+
+    const temperature = await tile('Temperature');
+    await waitFor(() => expect(temperature).toHaveTextContent('Drying target 18 °C'));
+    expect(await tile('Humidity')).toHaveTextContent('Drying target 58 %');
+    expect(document.body).not.toHaveTextContent(/Night target/);
+  });
+
   it('says nothing of a mode where the fridge runs its standard one', async () => {
     server.devices = [fridge({ control: { running: true, drying: false, mode: 'standard', energySaving: true } })];
     draw(<PlaceCockpit overview={overviewOf()} />);

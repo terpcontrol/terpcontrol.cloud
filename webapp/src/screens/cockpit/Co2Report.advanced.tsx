@@ -66,11 +66,18 @@ function Co2Report({ spaceId, devices, mayManage }: PlaceContext) {
     return (
       <>
         <p className={styles.current}>{t('co2Report.inUse', { day: calendarDay(current.since, zone), grams: grams(current.filledGrams) })}</p>
-        {restGrams !== null ? (
+        {restGrams !== null && Math.round(restGrams) <= 0 ? (
+          // An estimate run down to nothing is a guess that the cylinder is empty, not a reading of an empty one:
+          // "about 0 g, lasts about 0 days" beside a valve still holding its target said the opposite of the tent.
+          <>
+            <p className={styles.rest}>{t('co2Report.likelyEmpty')}</p>
+            <p className={ui.note}>{t('co2Report.likelyEmptyNote', { count: finished.length })}</p>
+          </>
+        ) : restGrams !== null ? (
           <>
             <p className={styles.rest}>
               {t('co2Report.rest', { grams: grams(restGrams), percent: Math.round((restGrams / current.filledGrams) * 100) })}
-              {days !== null ? ` · ${t('co2Report.lasts', { count: days })}` : ''}
+              {days === null ? '' : ` · ${days >= 1 ? t('co2Report.lasts', { count: days }) : t('co2Report.lastsUnderDay')}`}
             </p>
             <span className={styles.track} aria-hidden>
               <span className={styles.fill} style={{ width: `${Math.min(100, Math.round((restGrams / current.filledGrams) * 100))}%` }} />

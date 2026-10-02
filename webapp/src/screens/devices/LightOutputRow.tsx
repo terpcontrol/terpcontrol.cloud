@@ -59,7 +59,7 @@ interface LightOutputRowProps {
  * be the shortcut that costs the grower their setting.
  */
 export function LightOutputRow({ output, spaceId = null, unheard, mayManage, runs, now, explain }: LightOutputRowProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const zone = useZone();
   const [open, setOpen] = useState(false);
   const override = useSetOverride();
@@ -134,6 +134,13 @@ export function LightOutputRow({ output, spaceId = null, unheard, mayManage, run
   // failure.
   const planStatus = plan.data?.state.status ?? null;
   const planUnread = plan.isPending || (!plan.data && !isMissing(plan.error));
+  // Paused by a limit set on this row, in whichever language it was set in. A plan
+  // paused for anything else - control switched off, targets set by hand - says
+  // its own reason and is resumed where that was decided, not from the lamp.
+  const pauseReason = plan.data?.state.pauseReason ?? null;
+  const pausedHere =
+    pauseReason !== null &&
+    Object.keys(i18n.store?.data ?? {}).some(language => i18n.getFixedT(language)('devices.lightOutput.pauseReason') === pauseReason);
 
   // Saving over a running plan pauses it first, exactly as the Manual targets
   // page does, because the engine would otherwise put the step's own brightness
@@ -284,10 +291,18 @@ export function LightOutputRow({ output, spaceId = null, unheard, mayManage, run
       ) : null}
       {mayManage && !cannotSetLevel && planStatus === 'paused' ? (
         <div className={`${ui.card} ${styles.planCard}`} data-status="paused" role="status">
-          <p className={styles.planText}>{t('devices.lightOutput.planPaused')}</p>
-          <button type="button" className={ui.button} disabled={move.isPending} onClick={() => move.mutate({ kind: 'resume' })}>
-            {t('devices.lightOutput.resume')}
-          </button>
+          <p className={styles.planText}>
+            {pausedHere
+              ? t('devices.lightOutput.planPaused')
+              : pauseReason
+                ? t('devices.lightOutput.planPausedFor', { reason: pauseReason.replace(/\.\s*$/, '') })
+                : t('devices.lightOutput.planPausedElsewhere')}
+          </p>
+          {pausedHere ? (
+            <button type="button" className={ui.button} disabled={move.isPending} onClick={() => move.mutate({ kind: 'resume' })}>
+              {t('devices.lightOutput.resume')}
+            </button>
+          ) : null}
         </div>
       ) : null}
 

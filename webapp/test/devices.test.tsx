@@ -75,7 +75,7 @@ vi.mock('@/api/devices', async importOriginal => ({
  * device nothing is steering.
  */
 const moves: PlanTransition[] = [];
-const planState = vi.hoisted(() => ({ status: null as string | null }));
+const planState = vi.hoisted(() => ({ status: null as string | null, pauseReason: null as string | null }));
 
 vi.mock('@/api/plans', async importOriginal => {
   const { ApiError } = await import('@/api/problem');
@@ -84,7 +84,7 @@ vi.mock('@/api/plans', async importOriginal => {
   return {
     ...(await importOriginal<object>()),
     useDevicePlan: () => ({
-      data: planState.status === null ? undefined : { state: { status: planState.status } },
+      data: planState.status === null ? undefined : { state: { status: planState.status, pauseReason: planState.pauseReason } },
       isPending: false,
       isError: planState.status === null,
       error: planState.status === null ? missing : null,
@@ -176,6 +176,7 @@ beforeEach(() => {
   saved.length = 0;
   moves.length = 0;
   planState.status = null;
+  planState.pauseReason = null;
   state.answer = { deviceOnline: true };
   localStorage.clear();
 });
@@ -370,12 +371,24 @@ describe("the controller's own light output", () => {
 
   it('says a plan it paused is paused, and offers the way back out of it', () => {
     planState.status = 'paused';
+    planState.pauseReason = 'Light limit by hand';
     drawOutput();
 
     expect(screen.getByText(/The plan is paused while this light limit is set by hand/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Resume plan' }));
 
     expect(moves).toEqual([{ kind: 'resume' }]);
+  });
+
+  /** Switching control off paused the plan, and the lamp's card blamed a light limit nobody had set. */
+  it('gives a plan paused for something else its own reason, and leaves resuming it to where that was decided', () => {
+    planState.status = 'paused';
+    planState.pauseReason = 'Control was switched off.';
+    drawOutput();
+
+    expect(screen.getByText('The plan is paused: Control was switched off. It is resumed under Control.')).toBeInTheDocument();
+    expect(screen.queryByText(/while this light limit is set by hand/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Resume plan' })).not.toBeInTheDocument();
   });
 
   it('pauses nothing where no plan is running, which is every device nothing is steering', () => {

@@ -880,7 +880,9 @@
         "on": "an bis {{until}}",
         "off": "aus bis {{until}}"
       },
-      "holdWaits": "Offline: Licht an oder aus halten geht erst wieder, wenn das Gerät verbunden ist."
+      "holdWaits": "Offline: Licht an oder aus halten geht erst wieder, wenn das Gerät verbunden ist.",
+      "planPausedFor": "Der Plan ist pausiert: {{reason}}. Fortsetzen lässt er sich unter Steuerung.",
+      "planPausedElsewhere": "Der Plan ist pausiert. Fortsetzen lässt er sich unter Steuerung."
     },
     "noDevices": "Hier steht noch kein Gerät. Ein Controller kommt mit dem Code auf seinem Display dazu.",
     "readingSockets": "Steckdosen werden gelesen…",
@@ -4984,7 +4986,7 @@
     },
     "drying": {
       "title": "Trocknung",
-      "text": "In der Trocknung kennt das Gerät keinen Tag und keine Nacht: Das Licht bleibt aus, CO₂ wird nicht dosiert, es wird nur entfeuchtet und geheizt, auf die Zielwerte der Trocknung. Sie beginnt mit dem Preset „Trocknung“ unter Steuerung, mit der Phase Trocknung im Grow oder mit einem Planschritt der Trocknung. Sie endet mit „Trocknung beenden“, einem anderen Preset oder einer anderen Phase; das Gerät kehrt dann zu seiner Betriebsart zurück, Energiespar eingeschlossen."
+      "text": "In der Trocknung kennt das Gerät keinen Tag und keine Nacht: Das Licht bleibt aus, CO₂ wird nicht dosiert, es wird nur entfeuchtet und geheizt, auf die Zielwerte der Trocknung. Sie beginnt mit dem Preset „Trocknung“ unter Steuerung, mit der Phase Trocknung im Grow oder mit einem Planschritt der Trocknung. Ein anderes Preset, eine andere Phase oder ein Planschritt beenden sie mit ihren eigenen Zielwerten. „Trocknung beenden“ und „Regelung aus“ bringen die Zielwerte von vor der Trocknung zurück, und das Gerät kehrt zu seiner Betriebsart zurück, Energiespar eingeschlossen."
     },
     "socketTimer": {
       "title": "Zeitschaltung",
@@ -5085,7 +5087,8 @@
       "target": {
         "day": "Tagesziel {{target}}",
         "night": "Nachtziel {{target}}",
-        "any": "Ziel {{target}}"
+        "any": "Ziel {{target}}",
+        "drying": "Trocknungsziel {{target}}"
       },
       "noTarget": "kein Ziel",
       "co2Night": "nachts kein Ziel",
@@ -5262,7 +5265,19 @@
       "germination": "Betriebsart Keimung: dunkel, ohne CO₂. Das Gerät heizt und kühlt auf die Nachttemperatur; Tagwerte, Luftfeuchte, Licht und CO₂ unten gelten nicht."
     },
     "modeChange": "Betriebsart ändern",
-    "offTitle": "Regelung aus."
+    "offTitle": "Regelung aus.",
+    "endDryingAsk": "Trocknung beenden …",
+    "endDryingTitle": "Trocknung beenden?",
+    "endDryingDoes": "Das Gerät hält wieder Tag und Nacht, schaltet das Licht nach seinem Zeitplan und dosiert CO₂.",
+    "endDryingBack": "Es gelten wieder die Zielwerte von vor der Trocknung: {{targets}}.",
+    "endDryingRecord": "Es gelten wieder die Zielwerte, die zuletzt vor der Trocknung gespeichert waren; war das Licht aus, leuchtet es wieder mit 100 %. Prüf sie danach unter Zielwerte oder wähl ein Preset.",
+    "endDryingDone": "Die Trocknung ist beendet. Das Gerät bekommt die Zielwerte, sobald es verbunden ist.",
+    "returns": {
+      "day": "Tag {{values}}",
+      "night": "Nacht {{values}}",
+      "light": "Licht {{percent}} %",
+      "co2": "CO₂ {{value}}"
+    }
   },
   "energySaving": {
     "label": "Energiespar-Modus",
@@ -5447,7 +5462,11 @@
     "leftOver": "In der alten war noch",
     "empty": "leer",
     "leftOverNote": "Leer gelassen zählt die alte Flasche als leer.",
-    "save": "Eintragen"
+    "save": "Eintragen",
+    "likelyEmpty": "Nach der Schätzung dürfte sie leer sein – prüf die Flasche.",
+    "likelyEmptyNote_one": "Geschätzt aus dem, was die leere Flasche verbraucht hat. Dosiert das Gerät noch und hält sein CO₂-Ziel, ist noch etwas drin. Setzt du eine neue ein, trag sie ein.",
+    "likelyEmptyNote_other": "Geschätzt aus dem, was die {{count}} leeren Flaschen verbraucht haben. Dosiert das Gerät noch und hält sein CO₂-Ziel, ist noch etwas drin. Setzt du eine neue ein, trag sie ein.",
+    "lastsUnderDay": "reicht geschätzt keinen Tag mehr"
   },
   "ownReading": {
     "co2FillingInitial": "Neue CO₂-Flasche",

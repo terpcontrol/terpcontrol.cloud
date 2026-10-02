@@ -1,4 +1,5 @@
 import type { DeviceConfiguration, DeviceControl, GrowthStage, OperatingMode } from '@fg2/shared-types/v1';
+import { dryingReturnOf } from './drying-return';
 
 /**
  * The work mode: the one key of a fridge's or a controller's document that says
@@ -65,12 +66,24 @@ const workmodeOf = (type: string, mode: OperatingMode, energySaving: boolean): B
   mode === 'greenhouse' ? 'temp' : mode === 'germination' ? 'breed' : energySaving && type === 'fridge' ? 'full' : 'small';
 
 /** How the device stands, in the words the screens read. Null for hardware with no work mode, or no document yet. */
-export const controlOf = (type: string, configuration: DeviceConfiguration | null, base: string | null | undefined): DeviceControl | null => {
+export const controlOf = (
+  type: string,
+  configuration: DeviceConfiguration | null,
+  base: string | null | undefined,
+  /** What a drying spell put aside (`drying-return.ts`), which is told while it lasts. */
+  beforeDrying: Record<string, number> | null = null,
+): DeviceControl | null => {
   const current = configuration?.workmode;
   if (!hasWorkModes(type) || typeof current !== 'string') return null;
 
   const standing = standingOf(current, base);
-  return { running: isRunning(current), drying: current === 'dry', mode: modeOf(standing), energySaving: type === 'fridge' && standing === 'full' };
+  return {
+    running: isRunning(current),
+    drying: current === 'dry',
+    mode: modeOf(standing),
+    energySaving: type === 'fridge' && standing === 'full',
+    ...(current === 'dry' && beforeDrying && Object.keys(beforeDrying).length > 0 ? { afterDrying: dryingReturnOf(beforeDrying) } : {}),
+  };
 };
 
 /**

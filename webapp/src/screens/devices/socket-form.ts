@@ -11,14 +11,34 @@ import {
  * it switches with, where the device reaches it, its web credentials if it has
  * any, and - for a pump or a timer of one's own - the cycle it repeats.
  *
- * The roles offered are the ones the controller always had plus the two that
- * run on a timer; the others the contract knows wait until they have been
- * tried in a real tent. Of those, only what the device's build announced is
- * offered, because a role it does not know is dropped when its table is loaded.
+ * The roles offered are the ones the controller always had, the exhaust that
+ * runs on over-temperature and the humidifier that runs under the humidity
+ * target, and the two that run on a timer; the others the contract knows wait
+ * until they have been tried in a real tent. Of those, only what the device's
+ * build announced is offered, because a role it does not know is dropped when
+ * its table is loaded.
  */
-export const OFFERED_ROLES: readonly SocketRole[] = ['heater', 'dehumidifier', 'co2', 'light', 'secondary_light', 'pump', 'custom_timer'];
+export const OFFERED_ROLES: readonly SocketRole[] = [
+  'heater',
+  'dehumidifier',
+  'humidifier',
+  'exhaust',
+  'co2',
+  'light',
+  'secondary_light',
+  'pump',
+  'custom_timer',
+];
 
-export const rolesFor = (capabilities: DeviceCapabilities): SocketRole[] => OFFERED_ROLES.filter(role => capabilities.roles.includes(role));
+/**
+ * The roles a socket can be given at this device. A socket being changed keeps
+ * its own role on offer even where it is none of the above: whoever only wants
+ * to give it a new address or password must not have to make it something else.
+ */
+export const rolesFor = (capabilities: DeviceCapabilities, current: SocketRole | null = null): SocketRole[] => {
+  const offered = OFFERED_ROLES.filter(role => capabilities.roles.includes(role));
+  return current && !offered.includes(current) && capabilities.roles.includes(current) ? [...offered, current] : offered;
+};
 
 export const isTimed = (role: SocketRole): boolean => TIMED_SOCKET_ROLES.includes(role);
 
@@ -67,7 +87,7 @@ export interface SocketDraft {
 export const draftFor = (socket: { role: SocketRole; address: string; timer: SocketTimer | null } | null): SocketDraft => {
   const timer = socket?.timer ?? DEFAULT_TIMER;
   return {
-    role: socket && OFFERED_ROLES.includes(socket.role) ? socket.role : null,
+    role: socket && socket.role !== '' ? socket.role : null,
     address: socket?.address ?? '',
     username: '',
     password: '',

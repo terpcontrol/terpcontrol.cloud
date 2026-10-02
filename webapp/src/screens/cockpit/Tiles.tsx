@@ -194,7 +194,7 @@ const unheldBy = (device: Device | null): 'off' | 'drying' | 'germination' | 'gr
  * "Tagesziel 25 °C": the target of the half of the cycle the device says it is
  * in, which is the target the verdict beside it is judged by. CO2 is raised
  * only while the lamp is on, so at night it says it has none rather than
- * looking unset.
+ * looking unset. A drying fridge's is the drying target.
  */
 const targetLabel = (t: Translate, metric: Steered, setpoint: CardSetpoint | null, live: DeviceLive | undefined, device: Device | null): string => {
   const half = live?.setpoints?.active ?? null;
@@ -204,6 +204,8 @@ const targetLabel = (t: Translate, metric: Steered, setpoint: CardSetpoint | nul
   if (setpoint?.value == null && by) return t('cockpit.tile.noTargetBy', { mode: t(`cockpit.tile.mode.${by}`) });
   if (setpoint?.value == null) return t(metric === 'co2' && half === 'night' ? 'cockpit.tile.co2Night' : 'cockpit.tile.noTarget');
   const target = `${targetFigure(setpoint.value, metric)} ${UNIT[metric] ?? ''}`.trim();
+  // A drying room has no day and no night: the device holds one climate, whatever half its clock says it is in.
+  if (device?.control?.drying) return t('cockpit.tile.target.drying', { target });
   return t(half ? `cockpit.tile.target.${half}` : 'cockpit.tile.target.any', { target });
 };
 

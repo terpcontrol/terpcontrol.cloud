@@ -759,6 +759,15 @@ export interface DeviceSettings {
   ppfdLuxFactor: number;
 }
 
+export interface DryingReturn {
+  dayTemperature: number | null;
+  dayHumidity: number | null;
+  nightTemperature: number | null;
+  nightHumidity: number | null;
+  co2: number | null;
+  lightLimit: number | null;
+}
+
 export interface DeviceControl {
   /**
    * Whether the device regulates at all. False is `workmode: off`, which is also how a device leaves the factory.
@@ -776,6 +785,20 @@ export interface DeviceControl {
    * The back-wall fan rests while the compressor does. Applies to the standard mode of a fridge only.
    */
   energySaving: boolean;
+  afterDrying?: DryingReturn1;
+}
+
+/**
+ * While drying: the targets that held before the spell began, which ending it by itself (`drying: false`, or control switched off) puts back. Absent where they are not known - a spell begun before they were kept - and the targets recorded before it are put back instead.
+ */
+
+export interface DryingReturn1 {
+  dayTemperature: number | null;
+  dayHumidity: number | null;
+  nightTemperature: number | null;
+  nightHumidity: number | null;
+  co2: number | null;
+  lightLimit: number | null;
 }
 
 export interface DeviceState {

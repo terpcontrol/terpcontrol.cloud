@@ -288,6 +288,79 @@ describe('every other way a document is written', () => {
     expect((await stored()).configuration?.workmode).toBe('full');
   });
 
+  /**
+   * "Trocknung beenden" put the work mode back and left the drying room's
+   * figures standing: the fridge went on regulating its day and night at 18 °C
+   * and 58 %, with the lamp at 0 % and CO2 at 400.
+   */
+  it('brings back the targets a drying spell put aside when the spell is ended by itself', async () => {
+    await device();
+    const drying = { day: { temperature: 18, humidity: 58 }, night: { temperature: 18, humidity: 58 }, co2: { target: 400 }, lights: { limit: 0 } };
+
+    await configuration.replace(DEVICE, fridgeDocument(drying), OWNER, true);
+    const dried = await stored();
+    expect(dried.configuration?.workmode).toBe('dry');
+    expect(controlOf('fridge', dried.configuration, dried.baseWorkmode, dried.beforeDrying)?.afterDrying).toEqual({
+      dayTemperature: 25,
+      dayHumidity: 60,
+      nightTemperature: 20,
+      nightHumidity: 55,
+      co2: 900,
+      lightLimit: 80,
+    });
+
+    await configuration.configure(DEVICE, { drying: false }, OWNER);
+
+    const after = await stored();
+    expect(after.configuration).toMatchObject({
+      workmode: 'small',
+      day: { temperature: 25, humidity: 60 },
+      night: { temperature: 20, humidity: 55 },
+      co2: { target: 900 },
+      lights: { limit: 80 },
+    });
+    // Tuned from the day humidity it came back to, as every write is.
+    expect(after.configuration?.daynight).toMatchObject({ maxDehumidifySeconds: 2700, targetHumidityDiff: 5 });
+    expect(after.beforeDrying).toBeNull();
+    expect(controlOf('fridge', after.configuration, after.baseWorkmode, after.beforeDrying)?.afterDrying).toBeUndefined();
+  });
+
+  it('brings them back where control is switched off during a spell, and leaves a preset´s own figures where a preset ends it', async () => {
+    await device();
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 18, humidity: 58 }, lights: { limit: 0 } }, 'drying');
+
+    await configuration.configure(DEVICE, { control: false }, OWNER);
+    expect((await stored()).configuration).toMatchObject({ workmode: 'off', day: { temperature: 25, humidity: 60 }, lights: { limit: 80 } });
+
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 18, humidity: 58 }, lights: { limit: 0 } }, 'drying');
+    await configuration.replace(DEVICE, fridgeDocument({ day: { temperature: 24, humidity: 70 }, lights: { limit: 40 } }), OWNER, false);
+    expect((await stored()).configuration).toMatchObject({ workmode: 'small', day: { temperature: 24, humidity: 70 }, lights: { limit: 40 } });
+    expect((await stored()).beforeDrying).toBeNull();
+  });
+
+  it('brings back what the record holds from before a spell nothing was kept for, and lights a lamp it left dark', async () => {
+    const drying = { day: { temperature: 18, humidity: 58 }, night: { temperature: 18, humidity: 58 }, co2: { target: 400 }, lights: { limit: 0 } };
+    await device({ configuration: fridgeDocument({ ...drying, workmode: 'dry' }), baseWorkmode: 'small' });
+    const row = (at: string, day: number, humidity: number, co2: number) => ({
+      id: `row-${at}`,
+      deviceId: DEVICE,
+      at: new Date(at),
+      targets: { day: { temperature: day, humidity }, night: { temperature: day - 4, humidity: humidity - 5 }, co2 },
+    });
+    await db.targetChanges.create([row('2026-09-01T10:00:00Z', 26, 62, 900), row('2026-09-20T10:00:00Z', 18, 58, 400)]);
+    await db.targetChanges.updateOne({ id: 'row-2026-09-20T10:00:00Z' }, { $set: { 'targets.night': { temperature: 18, humidity: 58 } } });
+
+    await configuration.configure(DEVICE, { drying: false }, OWNER);
+
+    expect((await stored()).configuration).toMatchObject({
+      workmode: 'small',
+      day: { temperature: 26, humidity: 62 },
+      night: { temperature: 22, humidity: 57 },
+      co2: { target: 900 },
+      lights: { limit: 100 },
+    });
+  });
+
   it('dries for a drying step that carries no figures at all', async () => {
     await device();
 

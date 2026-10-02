@@ -79,6 +79,19 @@ export const operatingMode = named('OperatingMode', z.enum(OPERATING_MODES));
  * on. The screens read this rather than the firmware's word for it, and change
  * it through `PATCH /devices/{id}/configuration`.
  */
+/** The targets a drying spell put aside, which ending it by itself puts back. A figure the document did not state is null. */
+export const dryingReturn = named(
+  'DryingReturn',
+  z.object({
+    dayTemperature: z.number().nullable(),
+    dayHumidity: z.number().nullable(),
+    nightTemperature: z.number().nullable(),
+    nightHumidity: z.number().nullable(),
+    co2: z.number().nullable(),
+    lightLimit: z.number().nullable(),
+  }),
+);
+
 export const deviceControl = named(
   'DeviceControl',
   z.object({
@@ -86,6 +99,11 @@ export const deviceControl = named(
     drying: z.boolean().describe('Held in the drying work mode by a drying phase: no day and night, no light, no CO2; it dehumidifies and heats.'),
     mode: operatingMode.describe('What it runs while control is on and it is not drying.'),
     energySaving: z.boolean().describe('The back-wall fan rests while the compressor does. Applies to the standard mode of a fridge only.'),
+    afterDrying: dryingReturn
+      .optional()
+      .describe(
+        'While drying: the targets that held before the spell began, which ending it by itself (`drying: false`, or control switched off) puts back. Absent where they are not known - a spell begun before they were kept - and the targets recorded before it are put back instead.',
+      ),
   }),
 );
 

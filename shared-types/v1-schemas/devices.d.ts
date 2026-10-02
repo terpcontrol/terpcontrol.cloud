@@ -57,6 +57,15 @@ export declare const operatingMode: z.ZodEnum<{
  * on. The screens read this rather than the firmware's word for it, and change
  * it through `PATCH /devices/{id}/configuration`.
  */
+/** The targets a drying spell put aside, which ending it by itself puts back. A figure the document did not state is null. */
+export declare const dryingReturn: z.ZodObject<{
+    dayTemperature: z.ZodNullable<z.ZodNumber>;
+    dayHumidity: z.ZodNullable<z.ZodNumber>;
+    nightTemperature: z.ZodNullable<z.ZodNumber>;
+    nightHumidity: z.ZodNullable<z.ZodNumber>;
+    co2: z.ZodNullable<z.ZodNumber>;
+    lightLimit: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>;
 export declare const deviceControl: z.ZodObject<{
     running: z.ZodBoolean;
     drying: z.ZodBoolean;
@@ -66,6 +75,14 @@ export declare const deviceControl: z.ZodObject<{
         greenhouse: "greenhouse";
     }>;
     energySaving: z.ZodBoolean;
+    afterDrying: z.ZodOptional<z.ZodObject<{
+        dayTemperature: z.ZodNullable<z.ZodNumber>;
+        dayHumidity: z.ZodNullable<z.ZodNumber>;
+        nightTemperature: z.ZodNullable<z.ZodNumber>;
+        nightHumidity: z.ZodNullable<z.ZodNumber>;
+        co2: z.ZodNullable<z.ZodNumber>;
+        lightLimit: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const deviceState: z.ZodObject<{
     lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
@@ -117,6 +134,14 @@ export declare const device: z.ZodObject<{
             greenhouse: "greenhouse";
         }>;
         energySaving: z.ZodBoolean;
+        afterDrying: z.ZodOptional<z.ZodObject<{
+            dayTemperature: z.ZodNullable<z.ZodNumber>;
+            dayHumidity: z.ZodNullable<z.ZodNumber>;
+            nightTemperature: z.ZodNullable<z.ZodNumber>;
+            nightHumidity: z.ZodNullable<z.ZodNumber>;
+            co2: z.ZodNullable<z.ZodNumber>;
+            lightLimit: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>;
     isDemo: z.ZodBoolean;
     state: z.ZodObject<{
@@ -166,6 +191,14 @@ export declare const devicePage: z.ZodObject<{
                 greenhouse: "greenhouse";
             }>;
             energySaving: z.ZodBoolean;
+            afterDrying: z.ZodOptional<z.ZodObject<{
+                dayTemperature: z.ZodNullable<z.ZodNumber>;
+                dayHumidity: z.ZodNullable<z.ZodNumber>;
+                nightTemperature: z.ZodNullable<z.ZodNumber>;
+                nightHumidity: z.ZodNullable<z.ZodNumber>;
+                co2: z.ZodNullable<z.ZodNumber>;
+                lightLimit: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>;
         }, z.core.$strip>>;
         isDemo: z.ZodBoolean;
         state: z.ZodObject<{
@@ -483,6 +516,14 @@ export declare const deviceClaimResult: z.ZodObject<{
                 greenhouse: "greenhouse";
             }>;
             energySaving: z.ZodBoolean;
+            afterDrying: z.ZodOptional<z.ZodObject<{
+                dayTemperature: z.ZodNullable<z.ZodNumber>;
+                dayHumidity: z.ZodNullable<z.ZodNumber>;
+                nightTemperature: z.ZodNullable<z.ZodNumber>;
+                nightHumidity: z.ZodNullable<z.ZodNumber>;
+                co2: z.ZodNullable<z.ZodNumber>;
+                lightLimit: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>;
         }, z.core.$strip>>;
         isDemo: z.ZodBoolean;
         state: z.ZodObject<{
