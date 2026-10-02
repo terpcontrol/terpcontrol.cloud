@@ -639,11 +639,21 @@ describe('signing in', () => {
       { ...notifications },
       { ...retention },
     );
-    sessions = new SessionsService(database.sessions, accounts, { ...auth });
+    sessions = new SessionsService(database.sessions, accounts, { ...auth }, new AccountMailService(mail as never, app as never));
 
     const user = await signUp('inactive');
+    mailed.length = 0;
 
     expect((await refusal(() => sessions.logIn(user.email, PASSWORD, false, null))).problem.code).toBe('account_not_activated');
+    // The right password is proof enough to be sent the code again; a second try at once sends nothing more.
+    expect(mailed).toHaveLength(1);
+    expect(mailed[0]).toMatchObject({ to: user.email });
+    expect(mailed[0].text).toContain(`/activate/${user.activationCode}`);
+    await refusal(() => sessions.logIn(user.email, PASSWORD, false, null));
+    expect(mailed).toHaveLength(1);
+    // A wrong password learns nothing and is sent nothing.
+    expect((await refusal(() => sessions.logIn(user.email, 'not the password', false, null))).problem.code).toBe('credentials_wrong');
+    expect(mailed).toHaveLength(1);
   });
 
   it('writes a row that can be listed, and three tokens that say the same about who is asking', async () => {

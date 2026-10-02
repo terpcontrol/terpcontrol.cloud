@@ -66,7 +66,7 @@ export const activationMail = (appUrl: string | null, code: string): AccountMail
       'Willkommen bei Terp Control!',
       '',
       url
-        ? `Ein Klick auf diesen Link aktiviert dein Konto:\n${url}\n\nOder gib diesen Code in der App ein, wenn sie danach fragt:`
+        ? `Öffne diesen Link und tippe dort auf „Konto aktivieren“:\n${url}\n\nOder gib diesen Code in der App ein, wenn sie danach fragt:`
         : 'Gib diesen Code in der App ein, wenn sie danach fragt, um dein Konto zu aktivieren:',
       code,
       '',
@@ -77,7 +77,7 @@ export const activationMail = (appUrl: string | null, code: string): AccountMail
       'Welcome to Terp Control!',
       '',
       url
-        ? `Open this link to activate your account:\n${url}\n\nOr enter this code in the app when it asks for it:`
+        ? `Open this link and tap “Activate account” there:\n${url}\n\nOr enter this code in the app when it asks for it:`
         : 'Enter this code in the app when it asks for it to activate your account:',
       code,
       '',

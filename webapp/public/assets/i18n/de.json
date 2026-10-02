@@ -289,13 +289,15 @@
         "body": "Das Konto für {{email}} gibt es jetzt, aber diese Installation aktiviert ein Konto, bevor es sich anmelden darf. Der Code dafür geht an {{email}}; gib ihn hier ein, sobald er da ist.",
         "code": "Aktivierungscode",
         "submit": "Aktivieren und weiter",
-        "later": "Du kannst auch später wiederkommen: Sobald das Konto aktiv ist, melde dich an und öffne die Einladung noch einmal."
+        "later": "Du kannst auch später wiederkommen: Melde dich an, sobald das Konto aktiv ist.",
+        "laterInvited": "Du kannst auch später wiederkommen: Sobald das Konto aktiv ist, melde dich an und öffne die Einladung noch einmal."
       }
     },
     "acceptPrivacyAfter": ".",
     "acceptPrivacyNeeded": "Bitte akzeptiere die Datenschutzbedingungen, um ein Konto anzulegen.",
     "recovered": "Dein Passwort ist geändert. Melde dich jetzt damit an.",
-    "activated": "Dein Konto ist aktiv. Melde dich jetzt an."
+    "activated": "Dein Konto ist aktiv. Melde dich jetzt an.",
+    "notActivated": "Dieses Konto ist noch nicht aktiviert. Der Code ist eben noch einmal an {{email}} gegangen – öffne den Link in der Mail oder gib den Code ein."
   },
   "growPresets": {
     "seedling": {

@@ -58,7 +58,7 @@ export function SignIn() {
       if (error instanceof ApiError) {
         for (const [field, detail] of Object.entries(error.fieldErrors)) form.setError(field as keyof SessionCreate, { message: detail });
       }
-      setProblem(refusalOf(error, t));
+      setProblem(refusalOf(error, t, credentials.email));
       setInactive(error instanceof ApiError && error.problem.code === 'account_not_activated');
     }
   });
@@ -161,9 +161,10 @@ export function SignIn() {
  *
  * The stock sentence names the two fields, which is the truth for the refusal
  * that is about them and a lie for the ones that are not. Two are not. An
- * account still waiting for its activation is refused in the server's own
- * words, which name the address the code went to and say more than this screen
- * could without them. And the server counts sign-in attempts per address and
+ * account still waiting for its activation is told so, and that the code has
+ * just gone to the address typed above again - the server sends it once more
+ * on a sign-in with the right password, because a lost activation mail could
+ * otherwise never be replaced. And the server counts sign-in attempts per address and
  * refuses the eleventh within a minute with 429 whoever it came from, so a
  * household, an office or a phone on a carrier's shared address can be turned
  * away while the password in the field is correct - and telling that person to
@@ -177,9 +178,9 @@ export function SignIn() {
  * a server or a connection that failed, whose own words are written for
  * whoever runs the install rather than for whoever is standing at the form.
  */
-const refusalOf = (error: unknown, t: TFunction): string => {
+const refusalOf = (error: unknown, t: TFunction, email: string): string => {
   if (!(error instanceof ApiError)) return t('shell.signInFailed');
-  if (error.problem.code === 'account_not_activated') return error.problem.detail || error.problem.title;
+  if (error.problem.code === 'account_not_activated') return t('login.notActivated', { email: email.trim() });
 
   return error.status === 429 ? t('shell.signInTooMany') : t('shell.signInFailed');
 };

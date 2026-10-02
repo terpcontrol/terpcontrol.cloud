@@ -289,13 +289,15 @@
         "body": "The account for {{email}} exists, but this install activates an account before it may sign in. The code for that is sent to {{email}}; enter it here once it arrives.",
         "code": "Activation code",
         "submit": "Activate and continue",
-        "later": "You can also come back later: once the account is active, sign in and open the invitation again."
+        "later": "You can also come back later: sign in once the account is active.",
+        "laterInvited": "You can also come back later: once the account is active, sign in and open the invitation again."
       }
     },
     "acceptPrivacyAfter": ".",
     "acceptPrivacyNeeded": "Please accept the privacy policy to create an account.",
     "recovered": "Your password has been changed. Sign in with it now.",
-    "activated": "Your account is active. Sign in now."
+    "activated": "Your account is active. Sign in now.",
+    "notActivated": "This account is not activated yet. The code has just been sent to {{email}} again – open the link in the mail or enter the code."
   },
   "growPresets": {
     "seedling": {

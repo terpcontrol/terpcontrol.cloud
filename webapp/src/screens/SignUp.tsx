@@ -151,7 +151,7 @@ export function SignUp() {
           </button>
 
           <p className={styles.links}>
-            {t('login.signUp.activation.later')}{' '}
+            {t(invitation ? 'login.signUp.activation.laterInvited' : 'login.signUp.activation.later')}{' '}
             <Link to="/sign-in" state={{ from: destination }}>
               {t('login.signIn')}
             </Link>

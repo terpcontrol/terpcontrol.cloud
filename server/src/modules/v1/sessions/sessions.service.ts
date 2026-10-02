@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 // A default import, not named ones: the package is CommonJS and exports its
@@ -17,6 +17,7 @@ import { StoredSession } from '@database/schemas/v1/sessions.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { authConfig } from '@config/configuration';
 import { DEMO_USER_ID } from '@utils/demo';
+import { AccountMailService } from '../account/account-mail.service';
 import { AccountsService } from '../account/accounts.service';
 
 /**
@@ -61,6 +62,9 @@ interface Principal {
 }
 
 /** The tour that needs no account: nobody's owner, nobody's member, and never privileged. */
+/** How long a code sent again on a sign-in stands before another sign-in sends it once more. */
+const RESEND_AFTER_MS = 10 * 60 * 1000;
+
 const DEMO_USER: SessionUser = { id: DEMO_USER_ID, handle: 'demo', isAdmin: false, isDemo: true };
 
 @Injectable()
@@ -69,7 +73,11 @@ export class SessionsService {
     @InjectModel(MODEL_V1.session) private readonly sessions: Model<StoredSession>,
     private readonly accounts: AccountsService,
     @Inject(authConfig.KEY) private readonly auth: ConfigType<typeof authConfig>,
+    @Optional() private readonly mails: AccountMailService | null = null,
   ) {}
+
+  /** When each account waiting for its code was last sent it again, so a sign-in tried twice is not two mails. */
+  private readonly resent = new Map<string, number>();
 
   // ---------------------------------------------------------------------------
   // Opening one
@@ -84,9 +92,27 @@ export class SessionsService {
   public async logIn(email: string, password: string, stayLoggedIn: boolean, userAgent: string | null): Promise<SessionResult> {
     const user = await this.accounts.verify(email, password);
     if (!user) throw unauthenticated('credentials_wrong', 'That is not an address and password of an account here.');
-    if (!user.isActive) throw forbidden('account_not_activated', 'This account still has to be activated with the code it was sent.');
+    if (!user.isActive) {
+      await this.resendActivation(user);
+      throw forbidden('account_not_activated', 'This account still has to be activated: its code has been sent to its address again.');
+    }
 
     return this.open(user, stayLoggedIn, userAgent);
+  }
+
+  /**
+   * A mail that never arrived, or was deleted, left an account nobody could
+   * activate: there was no way to ask for the code again. Signing in with the
+   * right password is proof enough of whose account it is, so that is when the
+   * code goes out again - to the account's own address, and not more than once
+   * every few minutes.
+   */
+  private async resendActivation(user: StoredUser): Promise<void> {
+    const last = this.resent.get(user.id) ?? 0;
+    if (!user.activationCode || !this.mails || Date.now() - last < RESEND_AFTER_MS) return;
+
+    this.resent.set(user.id, Date.now());
+    await this.mails.activation(user.email, user.activationCode);
   }
 
   public async open(user: StoredUser, stayLoggedIn: boolean, userAgent: string | null): Promise<SessionResult> {

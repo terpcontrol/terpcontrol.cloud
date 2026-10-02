@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -130,12 +130,14 @@ describe('a sign-in the server refuses', () => {
     expect(screen.queryByText(/not an address and password of an account here/)).not.toBeInTheDocument();
   });
 
-  it('hands an account that is not activated the server’s own sentence, which names the address', async () => {
-    refusal.body = problem(403, 'account_not_activated', 'This account is not activated yet. The code was sent to you@example.com.');
+  it('tells an account that is not activated so in the reader´s words, that the code went out again, and where to enter it', async () => {
+    refusal.body = problem(403, 'account_not_activated', 'This account still has to be activated: its code has been sent to its address again.');
     draw();
 
     signIn();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('The code was sent to you@example.com.');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/^This account is not activated yet\. The code has just been sent to you@example\.com again/);
+    expect(within(alert).getByRole('link', { name: 'Enter the activation code' })).toHaveAttribute('href', '/activate');
   });
 });
