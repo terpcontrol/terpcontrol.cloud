@@ -231,8 +231,8 @@ describe('the bar', () => {
     // A diary kept without hardware is the whole app: hardware is offered under the grow and under Ich.
     expect(tabsOf({ diary: true, devices: 0, steering: false }, true).map(tab => tab.labelKey)).toEqual([
       'shell.tabs.home',
-      'shell.tabs.timeline',
       'shell.tabs.log',
+      'shell.tabs.timeline',
     ]);
     // A camera alone is listed under Gerät and steers nothing.
     expect(tabsOf({ diary: true, devices: 1, steering: false }, true).map(tab => tab.labelKey)).toEqual([

@@ -36,13 +36,19 @@ const DEVICES: Tab = { path: '/devices', labelKey: 'shell.tabs.devices', Icon: C
  * writing one. Its tasks are reached from the grow block and the bell rather
  * than a tab of their own. A session that may not write is never offered it.
  */
-export const tabsOf = (shape: Pick<Shape, 'diary' | 'devices'> & Partial<Pick<Shape, 'steering'>>, mayLog: boolean): Tab[] => [
-  HOME,
-  TIMELINE,
-  ...(shape.diary && mayLog ? [LOG] : []),
-  ...(shape.steering === false ? [] : [CONTROL]),
-  ...(shape.steering === false && shape.devices === 0 ? [] : [shape.devices > 1 ? DEVICES : { ...DEVICES, labelKey: 'shell.tabs.device' }]),
-];
+export const tabsOf = (shape: Pick<Shape, 'diary' | 'devices'> & Partial<Pick<Shape, 'steering'>>, mayLog: boolean): Tab[] => {
+  const others = [
+    HOME,
+    TIMELINE,
+    ...(shape.steering === false ? [] : [CONTROL]),
+    ...(shape.steering === false && shape.devices === 0 ? [] : [shape.devices > 1 ? DEVICES : { ...DEVICES, labelKey: 'shell.tabs.device' }]),
+  ];
+  if (!shape.diary || !mayLog) return others;
+
+  // In the middle of however many there are: with only Start and Verlauf beside it, between them.
+  const middle = Math.ceil(others.length / 2);
+  return [...others.slice(0, middle), LOG, ...others.slice(middle)];
+};
 
 export const useTabs = (): Tab[] => tabsOf(useShape(), useMayLog());
 
