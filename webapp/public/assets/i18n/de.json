@@ -4171,9 +4171,9 @@
       "notReported": "noch nicht gemeldet",
       "cam": "Cam",
       "noCam": "keine",
-      "socketsAtTheDevice": "Eine Steckdose von Terp Control wird am Controller selbst gekoppelt – er sucht sie im Netzwerk – und taucht in dieser Liste auf, sobald er sie meldet. Eine Tasmota-Steckdose koppelst du später unter Geräte › dein Gerät › Erweitert per IP-Adresse.",
+      "socketsAtTheDevice": "Eine Steckdose von Terp Control koppelst du am Gerät selbst – Knopf drücken, dann Smart Sockets –, und sie taucht in dieser Liste auf, sobald das Gerät sie meldet. Eine Tasmota-Steckdose koppelst du später unter Geräte › dein Gerät › Erweitert per IP-Adresse.",
       "pairTheCam": "Terp Cam koppeln",
-      "bothCanWait": "Beides hat Zeit: ein Controller misst den Ort, an dem er steht, auch wenn nichts eingesteckt ist."
+      "bothCanWait": "Beides hat Zeit: Das Gerät misst den Ort, an dem es steht, auch wenn nichts eingesteckt ist."
     },
     "notify": {
       "next": "Benachrichtigung",
@@ -5460,7 +5460,7 @@
       "open": "Koppeln …",
       "note": "Für eine Tasmota-Steckdose im selben WLAN.",
       "title": "Steckdose per IP koppeln",
-      "intro": "Für eine Tasmota-Steckdose – etwa von NOUS, Athom oder eine selbst geflashte Shelly – im selben WLAN wie {{device}}. Eine Steckdose von Terp Control koppelst du am Gerät selbst: Einstellungen › Smart Sockets.",
+      "intro": "Für eine Tasmota-Steckdose – etwa von NOUS, Athom oder eine selbst geflashte Shelly – im selben WLAN wie {{device}}. Eine Steckdose von Terp Control koppelst du am Gerät selbst: Knopf drücken, dann Smart Sockets.",
       "yes": "Koppeln",
       "sent": "Gesendet. Die Steckdose steht in der Liste, sobald {{device}} sie meldet – meist innerhalb einer halben Minute."
     },

@@ -114,6 +114,8 @@ const state = { spaces: [] as Space[], grows: [] as GrowListItem[], me: meWith(U
 
 const answers = (path: string) => {
   if (path === '/devices/sim-controller-7f3a') return device;
+  if (path === '/devices/sim-plug-1') return { ...device, id: 'sim-plug-1', type: 'plug' };
+  if (path === '/devices/sim-plug-1/sockets') return { items: [], nextCursor: null, capabilities: CAPABILITIES };
   if (path === '/devices/sim-controller-7f3a/sockets') return { items: [], nextCursor: null, capabilities: CAPABILITIES };
   if (path === '/devices/sim-controller-7f3a/firmwares') return { items: [BUILD], nextCursor: null };
   if (path === '/spaces') return { items: state.spaces, nextCursor: null };
@@ -259,9 +261,17 @@ describe('adding a device', () => {
     draw('/claim?device=sim-controller-7f3a&at=3');
 
     expect(await screen.findByRole('link', { name: 'Pair a Terp Cam' })).toHaveAttribute('href', '/cameras/add');
-    expect(screen.getByText(/A Terp Control socket is paired on the controller itself/)).toBeInTheDocument();
+    expect(screen.getByText(/A Terp Control socket is paired on the device itself – press the button, then Smart Sockets/)).toBeInTheDocument();
     expect(screen.getByText(/A Tasmota socket you pair later under Devices › your device › Advanced/)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Devices tab/ })).not.toBeInTheDocument();
+  });
+
+  it('asks a smart socket nothing about sockets and a cam it cannot have, and counts four steps', async () => {
+    draw('/claim?device=sim-plug-1&at=2');
+
+    expect(await screen.findByRole('button', { name: 'Next · notifications' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Sockets and cam' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('3 of 4');
   });
 
   /**

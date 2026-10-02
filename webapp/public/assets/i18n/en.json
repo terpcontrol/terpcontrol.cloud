@@ -4167,9 +4167,9 @@
       "notReported": "not reported yet",
       "cam": "Cam",
       "noCam": "none",
-      "socketsAtTheDevice": "A Terp Control socket is paired on the controller itself – it looks for it on the network – and shows up in this list once it reports it. A Tasmota socket you pair later under Devices › your device › Advanced, by its IP address.",
+      "socketsAtTheDevice": "A Terp Control socket is paired on the device itself – press the button, then Smart Sockets – and shows up in this list once the device reports it. A Tasmota socket you pair later under Devices › your device › Advanced, by its IP address.",
       "pairTheCam": "Pair a Terp Cam",
-      "bothCanWait": "Both can wait: a controller with nothing plugged into it still measures the place it stands in."
+      "bothCanWait": "Both can wait: the device measures the place it stands in even with nothing plugged into it."
     },
     "notify": {
       "next": "notifications",
@@ -5456,7 +5456,7 @@
       "open": "Pair …",
       "note": "For a Tasmota socket on the same Wi-Fi.",
       "title": "Pair a socket by IP",
-      "intro": "For a Tasmota socket – NOUS, Athom or a Shelly you flashed yourself – on the same Wi-Fi as {{device}}. A Terp Control socket is paired on the device itself: Settings › Smart Sockets.",
+      "intro": "For a Tasmota socket – NOUS, Athom or a Shelly you flashed yourself – on the same Wi-Fi as {{device}}. A Terp Control socket is paired on the device itself: press the button, then Smart Sockets.",
       "yes": "Pair",
       "sent": "Sent. The socket appears in the list once {{device}} reports it, usually within half a minute."
     },

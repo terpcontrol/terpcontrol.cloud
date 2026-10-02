@@ -26,6 +26,9 @@ import styles from './Claim.module.css';
 /** The steps, in order, so the bottom button can carry the next one's name. */
 const STEPS = ['code', 'place', 'doing', 'hardware', 'notify'] as const;
 
+/** The hardware that pairs smart sockets and a Terp Cam of its own, which is what the fourth step is about. */
+const WITH_HARDWARE: readonly string[] = ['fridge', 'controller'];
+
 /**
  * Which step the address says was open, kept inside the five. Without a device
  * there is nothing to resume and the first question is the only one that can be
@@ -105,8 +108,14 @@ export function Claim() {
   // the field again. A server that could not be reached at all is a different
   // thing and keeps its retry.
   const lost = device.error instanceof ApiError && !device.data;
-  const at = lost ? 0 : step;
+  // Sockets and a cam are paired at a fridge module or a controller; a smart
+  // socket, an AIR fan and a LIGHT have neither, and are not asked about them.
+  const shown = STEPS.flatMap((name, index) => (name === 'hardware' && claimed && !WITH_HARDWARE.includes(claimed.type) ? [] : [index]));
+  const hidden = (index: number) => !shown.includes(index);
+  const at = lost ? 0 : hidden(step) ? step + 1 : step;
   const seen = lost ? 0 : furthest;
+  const position = shown.indexOf(at) + 1;
+  const after = shown[shown.indexOf(at) + 1] ?? null;
 
   // Where the keyboard and the screen reader are put when a step settles: the
   // heading of the question that just opened, which without this is nowhere at
@@ -152,7 +161,7 @@ export function Claim() {
   const pending = at === 2 && doing.chosen !== null && doing.chosen !== MEASURE && doing.applied === null ? doing.chosen : null;
   const onward = () => {
     if (!pending || !spaceId) {
-      if (at + 1 < STEPS.length) go(at + 1);
+      if (after !== null) go(after);
       else leave();
       return;
     }
@@ -164,7 +173,7 @@ export function Claim() {
           setDoing({ chosen: pending, applied: result });
           // What to do about the grow is the server's own question and it has
           // only just been asked, so the step stays open to be answered.
-          if (!result.growDecisionNeeded) go(at + 1);
+          if (!result.growDecisionNeeded && after !== null) go(after);
         },
       },
     );
@@ -173,7 +182,7 @@ export function Claim() {
   return (
     <section className={styles.screen}>
       <header className={styles.head}>
-        <h1 className={styles.title}>{stepped(t('claim.title', { step: at + 1, of: STEPS.length }))}</h1>
+        <h1 className={styles.title}>{stepped(t('claim.title', { step: position, of: shown.length }))}</h1>
         <button type="button" className={styles.skip} onClick={leave}>
           {t('claim.skip')}
         </button>
@@ -183,12 +192,12 @@ export function Claim() {
           `aria-current` moves, neither of which is read out. This says what has
           just opened, and stays empty until something has. */}
       <p className={styles.announce} role="status">
-        {at > 0 ? t('claim.opened', { title: t(`claim.${STEPS[at]}.title`), step: at + 1, of: STEPS.length }) : ''}
+        {at > 0 ? t('claim.opened', { title: t(`claim.${STEPS[at]}.title`), step: position, of: shown.length }) : ''}
       </p>
 
       <div className={styles.progress} aria-hidden>
-        {STEPS.map((step, index) => (
-          <span key={step} className={styles.segment} data-filled={index <= at} />
+        {shown.map(index => (
+          <span key={STEPS[index]} className={styles.segment} data-filled={index <= at} />
         ))}
       </div>
 
@@ -242,22 +251,24 @@ export function Claim() {
         <DoingStep spaceId={spaceId} doing={doing} onDoing={setDoing} apply={apply} />
       </Step>
 
-      <Step
-        number={4}
-        state={stateOf(3)}
-        onOpen={() => go(3)}
-        headingRef={hardwareHeading}
-        title={t('claim.hardware.title')}
-        text={said(3, hardwareSummary(claimed, sockets, t), t('claim.hardware.text'))}
-      >
-        <HardwareStep device={claimed} sockets={sockets} />
-      </Step>
+      {hidden(3) ? null : (
+        <Step
+          number={4}
+          state={stateOf(3)}
+          onOpen={() => go(3)}
+          headingRef={hardwareHeading}
+          title={t('claim.hardware.title')}
+          text={said(3, hardwareSummary(claimed, sockets, t), t('claim.hardware.text'))}
+        >
+          <HardwareStep device={claimed} sockets={sockets} />
+        </Step>
+      )}
 
       {/* Last, because it is about every device rather than this one, and
           because an alarm nobody hears is the one thing a new device cannot
           be left with: the device-offline rule is armed from the claim on. */}
       <Step
-        number={5}
+        number={shown.indexOf(4) + 1}
         state={stateOf(4)}
         onOpen={() => go(4)}
         headingRef={notifyHeading}
@@ -274,7 +285,7 @@ export function Claim() {
           disabled={deviceId === null || lost || apply.isPending}
           onClick={onward}
         >
-          {at + 1 < STEPS.length ? t('claim.next', { what: t(`claim.${STEPS[at + 1]}.next`) }) : t('claim.finish')}
+          {after !== null ? t('claim.next', { what: t(`claim.${STEPS[after]}.next`) }) : t('claim.finish')}
         </button>
         <p className={`${ui.note} ${styles.laterNote}`}>{t('claim.later')}</p>
       </footer>
