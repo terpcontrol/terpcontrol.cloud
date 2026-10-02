@@ -2936,9 +2936,9 @@
   "log": {
     "title": "Eintrag",
     "close": "Schließen",
-    "longPress": "gedrückt halten oder Rechtsklick: Details",
+    "longPress": "gedrückt halten: Details",
     "targetLabel": "Worum es in dem Eintrag geht",
-    "oneTap": "Ein Tipp trägt sofort ein und lässt sich 5 Sekunden lang zurücknehmen. Wartung fragt vorher, weil sie die Regelung pausiert.",
+    "oneTap": "Ein Tipp trägt sofort ein und lässt sich 5 Sekunden lang zurücknehmen.",
     "nowhere": "Noch nichts da, wofür sich ein Eintrag lohnt · zuerst einen Grow starten oder ein Gerät hinzufügen",
     "notHere": "Der Grow oder Ort aus diesem Link steht nicht auf deiner Startseite · vielleicht ist er zu Ende, vielleicht darfst du dort nicht schreiben · wähle, wohin der Eintrag gehört",
     "litres": "{{litres}} l",
@@ -2952,9 +2952,10 @@
       "training": "Training",
       "phase": "Phase",
       "visit": "Wartung · {{minutes}} Min",
-      "photoCaption": "Cam-Bild oder Kamera",
+      "photoCaption": "Cam-Bild oder Handyfoto",
       "photoCaptionPhone": "mit dem Handy",
-      "visitCaption": "Regelung und Alarme pausieren"
+      "visitCaption": "Regelung und Alarme pausieren",
+      "schemeWeek": "Schema-Wo {{week}}"
     },
     "visit": {
       "hereFallback": "diesem Ort",
@@ -2998,7 +2999,7 @@
     "pictureAlt": "Das Bild zu diesem Eintrag",
     "noCam": "Hier steht keine Kamera",
     "choosePicture": "Foto machen oder auswählen",
-    "camAge": "Cam · vor {{age}}",
+    "camAge": "{{name}} · vor {{age}}",
     "tagWhatYouDid": "Was hast du gemacht?",
     "tags": {
       "watered": "Gegossen",
@@ -3016,7 +3017,10 @@
     "dismiss": "Schließen",
     "takingBack": "wird widerrufen",
     "undoFailed": "Der Eintrag konnte nicht widerrufen werden",
-    "taskClosed": "Aufgabe erledigt"
+    "taskClosed": "Aufgabe erledigt",
+    "rightClick": "Rechtsklick oder Umschalt-Klick: Details",
+    "oneTapVisit": "Ein Tipp trägt sofort ein und lässt sich 5 Sekunden lang zurücknehmen. Wartung fragt vorher, weil sie die Regelung pausiert.",
+    "camLightOff": "{{name}} · Licht aus · Bild von {{time}}"
   },
   "timeline": {
     "rangeLabel": "Zeitraum",

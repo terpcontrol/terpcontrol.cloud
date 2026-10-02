@@ -2932,9 +2932,9 @@
   "log": {
     "title": "Log",
     "close": "Close",
-    "longPress": "hold or right-click a tile for details",
+    "longPress": "hold a tile for details",
     "targetLabel": "What the line is about",
-    "oneTap": "One tap logs it right away, with 5 seconds to undo. Maintenance asks first, because it pauses the control.",
+    "oneTap": "One tap logs it right away, with 5 seconds to undo.",
     "nowhere": "Nothing to log against yet · start a grow or add a device first",
     "notHere": "The grow or place this link names is not on your home · it may have finished, or it may not be yours to write in · pick where the line should go",
     "litres": "{{litres}} L",
@@ -2948,9 +2948,10 @@
       "training": "Training",
       "phase": "Phase",
       "visit": "Maintenance · {{minutes}} min",
-      "photoCaption": "cam still or camera",
+      "photoCaption": "cam still or phone photo",
       "photoCaptionPhone": "with your phone",
-      "visitCaption": "pause control and alarms"
+      "visitCaption": "pause control and alarms",
+      "schemeWeek": "scheme wk {{week}}"
     },
     "visit": {
       "hereFallback": "this place",
@@ -2994,7 +2995,7 @@
     "pictureAlt": "The picture this line will carry",
     "noCam": "No camera where this stands",
     "choosePicture": "Take or choose a picture",
-    "camAge": "Cam · {{age}} ago",
+    "camAge": "{{name}} · {{age}} ago",
     "tagWhatYouDid": "Tag what you did",
     "tags": {
       "watered": "Watered",
@@ -3012,7 +3013,10 @@
     "dismiss": "Dismiss",
     "takingBack": "taking it back",
     "undoFailed": "Could not take that line back",
-    "taskClosed": "Task done"
+    "taskClosed": "Task done",
+    "rightClick": "right-click or shift-click a tile for details",
+    "oneTapVisit": "One tap logs it right away, with 5 seconds to undo. Maintenance asks first, because it pauses the control.",
+    "camLightOff": "{{name}} · light off · picture from {{time}}"
   },
   "timeline": {
     "rangeLabel": "Range",

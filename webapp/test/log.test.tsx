@@ -281,7 +281,7 @@ describe('the log sheet', () => {
 
     // The captions: the last can, the scheme's week, the grow's own measurements, the phase after this one.
     expect(within(sheet).getByText('2 L · last 3 d')).toBeInTheDocument();
-    expect(within(sheet).getByText('Bio·Bloom · wk 5')).toBeInTheDocument();
+    expect(within(sheet).getByText('scheme wk 5 · Bio·Bloom')).toBeInTheDocument();
     expect(within(sheet).getByText('Height · pH')).toBeInTheDocument();
     expect(within(sheet).getByText('→ Drying')).toBeInTheDocument();
   });

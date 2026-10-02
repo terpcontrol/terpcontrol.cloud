@@ -5,6 +5,8 @@ import { uploadPhoto, writeEntry } from '@/api/entries';
 import { useHome } from '@/api/home';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { ageLabel } from '@/ui/age';
+import { useCameraNamed } from '@/ui/camera-name';
+import { clock, useZone } from '@/ui/zone';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
 import { about, lineLabel } from './lines';
@@ -31,8 +33,12 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
   const now = useNow();
   const { log } = useLog();
   const { data: home } = useHome();
+  const zone = useZone();
+  const named = useCameraNamed();
 
+  // The newest picture taken in the light: a tent lit by night is dark in the hours a diary is written in.
   const still = home?.spaces.find(card => card.spaceId === target.standsIn)?.latestStill ?? null;
+  const camName = named(still?.cameraId);
   const [taken, setTaken] = useState<{ file: File; url: string } | null>(null);
   // The cam still costs nothing, so it is the side the sheet opens on wherever
   // there is one - and where there is none, the camera in the pocket is, rather
@@ -113,7 +119,13 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
             <span className={ui.note}>{fromCam ? t('log.noCam') : t('log.choosePicture')}</span>
           </button>
         )}
-        {fromCam && still ? <span className={ui.photoCaption}>{t('log.camAge', { age: ageLabel(still.capturedAt, now) })}</span> : null}
+        {fromCam && still ? (
+          <span className={ui.photoCaption}>
+            {still.lightOff
+              ? t('log.camLightOff', { name: camName, time: clock(still.capturedAt, zone) })
+              : t('log.camAge', { name: camName, age: ageLabel(still.capturedAt, now) })}
+          </span>
+        ) : null}
       </div>
 
       <input

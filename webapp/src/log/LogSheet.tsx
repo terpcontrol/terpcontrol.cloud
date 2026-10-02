@@ -46,9 +46,9 @@ const TILES: { kind: TileKind; Icon: LucideIcon }[] = [
 /**
  * The tiles a tap does not write on its own.
  *
- * Four of them are there because nothing can be guessed for them - a picture,
- * words, a reading, a phase - and writing one on a tap would file a line nobody
- * filled in. The fifth is there for the opposite reason: maintenance is the one
+ * Five of them are there because nothing can be guessed for them - a picture,
+ * words, a reading, a phase, what was trained on which plant - and writing one
+ * on a tap would file a line nobody filled in. The fifth is there for the opposite reason: maintenance is the one
  * tile whose line is not the whole of what it does. The server puts every device
  * standing in the place into maintenance mode for a quarter of an hour, which
  * stops the heater, the dehumidifier and the CO2 valve and holds the alarms, and
@@ -56,7 +56,7 @@ const TILES: { kind: TileKind; Icon: LucideIcon }[] = [
  * A consequence that reaches hardware and cannot be undone is one a person says
  * yes to, so the tile opens the panel that names what it is about to quieten.
  */
-const ASKS_FIRST = new Set<TileKind>(['photo', 'note', 'measurement', 'phase', 'visit']);
+const ASKS_FIRST = new Set<TileKind>(['photo', 'note', 'measurement', 'phase', 'visit', 'training']);
 
 /** The tiles a written line can still be corrected in, which is what the toast's Details opens. */
 const HAS_DETAILS = new Set<TileKind>(['water', 'feed', 'note', 'measurement', 'training']);
@@ -187,7 +187,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   };
 
   return (
-    <Sheet title={t('log.title')} aside={t('log.longPress')} onClose={onClose}>
+    <Sheet title={t('log.title')} aside={t(touch() ? 'log.longPress' : 'log.rightClick')} onClose={onClose}>
       {places.length === 0 ? (
         <p className={ui.note}>{isPending ? t('home.waiting') : t('log.nowhere')}</p>
       ) : (
@@ -249,7 +249,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
             ))}
           </div>
 
-          <p className={ui.note}>{t('log.oneTap')}</p>
+          <p className={ui.note}>{t(tiles.some(tile => tile.kind === 'visit') ? 'log.oneTapVisit' : 'log.oneTap')}</p>
         </>
       )}
     </Sheet>
@@ -267,15 +267,18 @@ function TargetChip({ target, chosen, onChoose }: { target: LogTarget; chosen: b
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
+/** Whether this is a screen that is touched rather than pointed at, which decides how a tile's details are reached. */
+const touch = (): boolean => typeof window !== 'undefined' && window.matchMedia?.('(hover: none)').matches === true;
+
 const lastAgo = (t: Translate, entry: { occurredAt: string } | null, now: DateTime): string =>
   entry ? t('log.lastAgo', { age: ageLabel(entry.occurredAt, now) }) : '';
 
-/** "Bio·Bloom · wk 5": what the grid says for the week the grow is in. */
+/** "Schema-Wo 5 · Bio·Bloom": what the grid says for the week the grow is in, the week first so a narrow tile keeps it. */
 const feedCaption = (t: Translate, grow: GrowListItem | undefined, now: DateTime): string => {
   const step = schemeStep(grow, now.toJSDate());
   const first = step?.amounts.find(amount => amount.value !== null);
 
-  return step && first ? `${first.name} · ${t('home.card.week', { week: step.week })}` : '';
+  return step && first ? `${t('log.tile.schemeWeek', { week: step.week })} · ${first.name}` : '';
 };
 
 /** The measurements this grow takes, which is what the Measure tile would ask for. */
