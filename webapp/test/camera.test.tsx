@@ -340,7 +340,7 @@ describe('the camera page, by who is reading', () => {
     state.lastError = 'rtsp://192.168.1.40/stream1 refused';
     drawPage();
 
-    expect(screen.getByRole('button', { name: 'Test image' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Take a picture now' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Put together your own timelapse/ })).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Unpair' })).toBeInTheDocument();
@@ -358,7 +358,7 @@ describe('the camera page, by who is reading', () => {
     const { unmount } = drawPage();
 
     expect(screen.getByRole('button', { name: /^Film of today/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Film of the week/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Week film/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Film of the phase/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Film of the grow/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Nothing grows here/)).not.toBeInTheDocument();
@@ -375,7 +375,7 @@ describe('the camera page, by who is reading', () => {
     state.lastError = 'rtsp://192.168.1.40/stream1 refused';
     drawPage();
 
-    expect(screen.queryByRole('button', { name: 'Test image' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Take a picture now' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Put together your own timelapse/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Name' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Unpair' })).not.toBeInTheDocument();
@@ -465,7 +465,7 @@ describe('the camera page, by who is reading', () => {
     drawPage();
 
     expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Test image' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Take a picture now' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Unpair' })).not.toBeInTheDocument();
   });
 });
@@ -684,7 +684,7 @@ describe('the films and the pictures behind the first page', () => {
   it('asks for a week the server has already finished rather than the one that opened today', () => {
     drawPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /Film of the week/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Week film/ }));
 
     expect(state.asked).toHaveLength(1);
     expect(state.asked[0].window).toBe('week');
@@ -712,12 +712,37 @@ describe('the films and the pictures behind the first page', () => {
 
     const recent = drawDarkFor(5);
     expect(screen.getByRole('button', { name: /Film of today/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Film of the week/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Week film/ })).toBeEnabled();
     recent.unmount();
 
     const gone = drawDarkFor(20);
-    expect(screen.getByRole('button', { name: /Film of the week/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Week film/ })).toBeDisabled();
     expect(gone.container.textContent).toContain('The camera took no picture in the week this would film.');
+  });
+
+  /**
+   * The week filmed is the last complete one, and a camera paired this week
+   * has no picture in it: Paul tapped it an hour after pairing and was told
+   * only that the server would not take it.
+   */
+  it('refuses the week film of a camera paired since the last complete week began, and says when its first one ends', () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <CameraScreen
+            camera={{
+              ...camera,
+              ownerId: YOU,
+              createdAt: serverNow().minus({ hours: 1 }).toISO()!,
+              state: { ...camera.state, lastStillAt: serverNow().toISO()! },
+            }}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: /Week film/ })).toBeDisabled();
+    expect(screen.getByText(/This camera's first complete week ends on/)).toBeInTheDocument();
   });
 
   /**

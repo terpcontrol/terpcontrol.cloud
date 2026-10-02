@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Media } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
@@ -31,6 +32,8 @@ export function Film({ mediaId, collapsed, mayOwn = false }: { mediaId: string; 
   const { user } = useSession();
   const me = useMe(false, user?.isDemo !== true);
   const media = useMedia(mediaId);
+  // A film plays where it is listed: opening the file in a tab of its own left the app, with the media token in its address.
+  const [playing, setPlaying] = useState(false);
 
   if (!media.data) {
     return (
@@ -47,16 +50,22 @@ export function Film({ mediaId, collapsed, mayOwn = false }: { mediaId: string; 
   return (
     <div className={`${ui.card} ${styles.film}`}>
       <div className={styles.filmHead}>
-        <span className={styles.filmTitle}>{spanLabel(film, zoneOf(me.data))}</span>
+        {/* Named after what it is a film of, with the span under it: two films
+            of one day - the day's own and one composed in HD with the day
+            counter on it - were two rows reading the same two clock times. */}
+        <span className={styles.filmTitle}>
+          {t(`camera.film.kind.${film.window ?? 'custom'}`)} · {spanLabel(film, zoneOf(me.data))}
+        </span>
         <span className={`mono ${styles.filmStatus}`} data-status={status}>
           {t(`camera.film.${status}`)}
           {film.lengthSeconds ? ` · ${lengthLabel(film.lengthSeconds)}` : ''}
           {film.quality ? ` · ${film.quality.toUpperCase()}` : ''}
+          {composedOf(film) ? ` · ${t('camera.film.overlaid')}` : ''}
         </span>
         {source && collapsed ? (
-          <a className={`mono ${styles.filmLink}`} href={source} target="_blank" rel="noreferrer">
-            {t('camera.film.open')}
-          </a>
+          <button type="button" className={`mono ${styles.filmLink}`} aria-expanded={playing} onClick={() => setPlaying(on => !on)}>
+            {t(playing ? 'camera.film.close' : 'camera.film.play')}
+          </button>
         ) : null}
       </div>
 
@@ -78,7 +87,9 @@ export function Film({ mediaId, collapsed, mayOwn = false }: { mediaId: string; 
         </>
       ) : null}
 
-      {source && !collapsed ? <video className={styles.video} src={source} controls playsInline preload="metadata" /> : null}
+      {source && (!collapsed || playing) ? (
+        <video className={styles.video} src={source} controls playsInline preload="metadata" autoPlay={playing} />
+      ) : null}
     </div>
   );
 }
@@ -117,6 +128,12 @@ const spanLabel = (film: Media, zone: string | null): string => {
   const format = from.hasSame(to ?? from, 'day') ? DATED_CLOCK : DAY_IN_YEAR;
 
   return to ? `${from.toFormat(format)} → ${to.toFormat(format)}` : from.toFormat(format);
+};
+
+/** Whether something was drawn over the frames - the day, the climate, what was written. */
+const composedOf = (film: Media): boolean => {
+  const overlays = film.render?.overlays;
+  return overlays ? overlays.dayCounter || overlays.climate || overlays.entries : false;
 };
 
 /** "0:14": a film is always under an hour, and a grower reads it off a play button. */

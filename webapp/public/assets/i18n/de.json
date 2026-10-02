@@ -3127,7 +3127,7 @@
     "reduced": "{{width}} px breit ausgeliefert",
     "makeOne": "Eigenen Zeitraffer zusammenstellen",
     "askFailed": "Dieser Film wurde nicht angefordert.",
-    "testImage": "Testbild",
+    "testImage": "Jetzt ein Bild",
     "testing": "Wird gelesen…",
     "testWorked": "Aufgenommen. Es ist das neueste Bild des Tages.",
     "testFailed": "Das hat die Kamera nicht erreicht.",
@@ -3172,7 +3172,6 @@
       "failed": "nicht erstellt",
       "failedPlain": "Der Film ließ sich nicht erstellen.",
       "lost": "Dieser Film ließ sich nicht lesen.",
-      "open": "Film öffnen",
       "queuedNote": "Wartet, bis er an der Reihe ist. Du kannst die Seite verlassen – der Film erscheint dann hier.",
       "whatItSaid": "Technische Meldung",
       "failure": {
@@ -3181,7 +3180,18 @@
         "cameraGone": "Die Kamera, von der dieser Film angefordert wurde, gibt es nicht mehr.",
         "encodeFailed": "Aus den Bildern dieses Zeitraums ließ sich kein Film erstellen.",
         "unknown": "Der Film ließ sich nicht erstellen."
-      }
+      },
+      "kind": {
+        "day": "Tagesfilm",
+        "week": "Wochenfilm",
+        "month": "Monatsfilm",
+        "phase": "Film der Phase",
+        "grow": "Film des Grows",
+        "custom": "Eigener Film"
+      },
+      "overlaid": "mit Einblendungen",
+      "play": "Abspielen",
+      "close": "Schließen"
     },
     "noFilms": "Von dieser Kamera gibt es noch keinen Film.",
     "moreFilms": "Weitere Filme",
@@ -3189,11 +3199,18 @@
     "liveAge": "live · {{age}}",
     "quick": {
       "day": "Film von heute",
-      "week": "Film der Woche",
+      "week": "Wochenfilm",
       "phase": "Film der Phase",
       "grow": "Film des Grows"
     },
-    "quickNote": "Ein Tipp erstellt den Zeitraffer; nach ein paar Minuten steht er unten in der Liste."
+    "quickNote": "Ein Tipp erstellt den Zeitraffer; nach ein paar Minuten steht er unten in der Liste.",
+    "firstWeekEnds": "Der Wochenfilm zeigt die letzte volle Woche. Die erste volle Woche dieser Cam endet am {{date}}.",
+    "picturesSince": "Diese Cam macht erst seit {{date}} Bilder: Film der Phase und Film des Grows beginnen dort.",
+    "weekFilmByMail": "Wochenfilm jeden Montag per E-Mail",
+    "inTimeline": "Im Verlauf ansehen",
+    "address": "Adresse",
+    "changeAddress": "Adresse ändern",
+    "addressChangeNote": "Die ganze Adresse, mit Benutzer und Passwort, falls die Kamera eines braucht: rtsp://benutzer:passwort@192.168.1.20:554/stream. Bilder und Filme bleiben bei dieser Kamera. Nach dem Speichern prüft „Jetzt ein Bild“, ob sie erreichbar ist."
   },
   "cameras": {
     "add": {
@@ -3787,14 +3804,14 @@
       "warnings": "Warnungen",
       "tasks": "Fällige Aufgaben",
       "plan": "Fragen des Grow-Plans",
-      "weekly_timelapse": "Video der Woche"
+      "weekly_timelapse": "Wochenfilm"
     },
     "short": {
       "alerts": "kritische Alarme",
       "warnings": "Warnungen",
       "tasks": "fällige Aufgaben",
       "plan": "Fragen des Grow-Plans",
-      "weekly_timelapse": "Wochenrückblick"
+      "weekly_timelapse": "Wochenfilm"
     },
     "push": {
       "thisBrowser": "dieser Browser",

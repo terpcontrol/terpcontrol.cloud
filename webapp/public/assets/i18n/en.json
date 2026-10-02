@@ -3123,7 +3123,7 @@
     "reduced": "served {{width}} px wide",
     "makeOne": "Put together your own timelapse",
     "askFailed": "That film was not asked for.",
-    "testImage": "Test image",
+    "testImage": "Take a picture now",
     "testing": "Reading…",
     "testWorked": "Taken. It is the newest picture of the day.",
     "testFailed": "That did not reach the camera.",
@@ -3168,7 +3168,6 @@
       "failed": "not made",
       "failedPlain": "The film could not be made.",
       "lost": "That film could not be read.",
-      "open": "Open the film",
       "queuedNote": "Waiting its turn. You can leave the page – the film appears here when it is done.",
       "whatItSaid": "Technical message",
       "failure": {
@@ -3177,7 +3176,18 @@
         "cameraGone": "The camera this film was asked of is no longer there.",
         "encodeFailed": "No film could be made from the pictures of that span.",
         "unknown": "The film could not be made."
-      }
+      },
+      "kind": {
+        "day": "Day film",
+        "week": "Week film",
+        "month": "Month film",
+        "phase": "Phase film",
+        "grow": "Grow film",
+        "custom": "Own film"
+      },
+      "overlaid": "with overlays",
+      "play": "Play",
+      "close": "Close"
     },
     "noFilms": "No film of this camera yet.",
     "moreFilms": "More films",
@@ -3185,11 +3195,18 @@
     "liveAge": "live · {{age}}",
     "quick": {
       "day": "Film of today",
-      "week": "Film of the week",
+      "week": "Week film",
       "phase": "Film of the phase",
       "grow": "Film of the grow"
     },
-    "quickNote": "A tap makes the timelapse; it appears in the list below after a few minutes."
+    "quickNote": "A tap makes the timelapse; it appears in the list below after a few minutes.",
+    "firstWeekEnds": "The week film shows the last complete week. This camera's first complete week ends on {{date}}.",
+    "picturesSince": "This camera has only taken pictures since {{date}}: the phase film and the grow film start there.",
+    "weekFilmByMail": "The week film every Monday by e-mail",
+    "inTimeline": "See it in the Timeline",
+    "address": "Address",
+    "changeAddress": "Change the address",
+    "addressChangeNote": "The whole address, with user and password if the camera needs one: rtsp://user:password@192.168.1.20:554/stream. Pictures and films stay with this camera. After saving, “Take a picture now” checks that it is reachable."
   },
   "cameras": {
     "add": {
@@ -3783,14 +3800,14 @@
       "warnings": "Warnings",
       "tasks": "Tasks due",
       "plan": "Plan asks",
-      "weekly_timelapse": "Weekly recap video"
+      "weekly_timelapse": "Week film"
     },
     "short": {
       "alerts": "critical",
       "warnings": "warnings",
       "tasks": "tasks due",
       "plan": "plan asks",
-      "weekly_timelapse": "weekly recap"
+      "weekly_timelapse": "week film"
     },
     "push": {
       "thisBrowser": "this browser",

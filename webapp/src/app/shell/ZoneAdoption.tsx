@@ -46,10 +46,7 @@ export function ZoneAdoption() {
     if (kept.timezoneChosen === true || kept.timezone === here) return;
 
     asked.current = true;
-    update.mutate(
-      { preferences: { timezone: here, timezoneChosen: true } },
-      { onSuccess: () => setAdopted({ from: kept.timezone, zone: here }) },
-    );
+    update.mutate({ preferences: { timezone: here, timezoneChosen: true } }, { onSuccess: () => setAdopted({ from: kept.timezone, zone: here }) });
   }, [account, mayManage, here, update]);
 
   // The language is the browser's to choose, but what the server writes itself -

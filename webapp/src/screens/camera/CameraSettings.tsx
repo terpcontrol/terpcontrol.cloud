@@ -61,6 +61,11 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
   const remove = useRemoveCamera(camera.id);
   const [draft, setDraft] = useState<CameraUpdate>({});
   const [unpairing, setUnpairing] = useState(false);
+  const [readdressing, setReaddressing] = useState(false);
+  // Leaving it out when the light goes off or the tent is worked in is a
+  // controller's to decide: without one, neither switch does anything - and
+  // "night off" took the camera's only warning with it.
+  const steered = camera.deviceId !== null;
 
   const value = <K extends keyof CameraUpdate>(key: K): CameraUpdate[K] =>
     key in draft ? draft[key] : (camera[key as keyof Camera] as CameraUpdate[K]);
@@ -77,7 +82,10 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
 
   const save = () =>
     update.mutate(draft, {
-      onSuccess: () => setDraft({}),
+      onSuccess: () => {
+        setDraft({});
+        setReaddressing(false);
+      },
     });
 
   return (
@@ -96,10 +104,29 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
             else, so a co-manager or a guest is shown no row at all rather than
             a row of dashes. */}
         {reachedAt(t, camera) ? (
-          <Row label={t('camera.reachedAt')}>
+          <Row label={t(camera.kind === 'rtsp' ? 'camera.address' : 'camera.reachedAt')}>
             <span className={styles.settingStack}>
-              <span className={`mono ${styles.settingValue}`}>{reachedAt(t, camera)}</span>
-              {camera.kind === 'rtsp' ? <span className={`${ui.note} ${styles.settingNote}`}>{t('camera.addressNote')}</span> : null}
+              {/* A stream's address is the one thing a router changes under it, so it is changed here rather than by unpairing. */}
+              {camera.kind === 'rtsp' && mayManage && readdressing ? (
+                <input
+                  className={`mono ${ui.input} ${styles.settingInput}`}
+                  value={(value('url') as string | undefined) ?? camera.url ?? ''}
+                  onChange={event => set('url', event.target.value)}
+                  aria-label={t('camera.address')}
+                  autoCapitalize="none"
+                  spellCheck={false}
+                />
+              ) : (
+                <span className={`mono ${styles.settingValue}`}>{reachedAt(t, camera)}</span>
+              )}
+              {camera.kind === 'rtsp' ? (
+                <span className={`${ui.note} ${styles.settingNote}`}>{t(readdressing ? 'camera.addressChangeNote' : 'camera.addressNote')}</span>
+              ) : null}
+              {camera.kind === 'rtsp' && mayManage && !readdressing ? (
+                <button type="button" className={`mono ${styles.settingLink} ${styles.linkButton}`} onClick={() => setReaddressing(true)}>
+                  {t('camera.changeAddress')} ›
+                </button>
+              ) : null}
             </span>
           </Row>
         ) : null}
@@ -163,20 +190,24 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
                 aria-label={t('camera.stillEvery')}
               />
               <span className="mono">s</span>
-              <Check label={t('camera.nightOff')} on={flag('nightOff')} onChange={next => set('nightOff', next)} />
-              <Check
-                label={t('camera.maintenanceOff')}
-                help="cameraPauses"
-                on={flag('maintenanceOff')}
-                onChange={next => set('maintenanceOff', next)}
-              />
+              {steered ? (
+                <>
+                  <Check label={t('camera.nightOff')} on={flag('nightOff')} onChange={next => set('nightOff', next)} />
+                  <Check
+                    label={t('camera.maintenanceOff')}
+                    help="cameraPauses"
+                    on={flag('maintenanceOff')}
+                    onChange={next => set('maintenanceOff', next)}
+                  />
+                </>
+              ) : null}
             </span>
           ) : (
             <span className={`mono ${styles.settingValue}`}>
               {[
                 `${camera.stillIntervalSeconds} s`,
-                camera.nightOff ? t('camera.nightOff') : null,
-                camera.maintenanceOff ? t('camera.maintenanceOff') : null,
+                steered && camera.nightOff ? t('camera.nightOff') : null,
+                steered && camera.maintenanceOff ? t('camera.maintenanceOff') : null,
               ]
                 .filter(Boolean)
                 .join(' · ')}

@@ -91,7 +91,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     server.patched.push(body);
     if (server.hold) await server.hold;
     if (server.refuse) return json(server.refuse, server.refuse.status);
-    server.me = { ...server.me, ...body } as Me;
+    server.me = { ...server.me, ...body, preferences: { ...server.me.preferences, ...body.preferences } } as Me;
     return json(server.me);
   }
   if (url.endsWith('/v1/me/email-alarms') && method === 'POST') {
@@ -163,12 +163,12 @@ describe('an account with nothing configured', () => {
     const first = draw();
     await screen.findByRole('switch', { name: 'Push' });
     expect(await screen.findByRole('rowheader', { name: 'Critical alarms' })).toBeInTheDocument();
-    await expect(screen.findByRole('rowheader', { name: 'Weekly recap video' }, { timeout: 400 })).rejects.toThrow();
+    await expect(screen.findByRole('rowheader', { name: 'Week film' }, { timeout: 400 })).rejects.toThrow();
     first.unmount();
 
     server.cameras = [{ id: 'camera-1', removedAt: null, isDemo: false }];
     await drawLoaded();
-    expect(await screen.findByRole('rowheader', { name: 'Weekly recap video' })).toBeInTheDocument();
+    expect(await screen.findByRole('rowheader', { name: 'Week film' })).toBeInTheDocument();
   });
 
   /** Due tasks are the diary's reminders; an account that keeps no diary has nothing that could fall due. */
@@ -407,7 +407,7 @@ describe('the notice that alarms reach nobody', () => {
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
     const preferences = server.patched[0].preferences!;
-    expect(preferences.timezone).toBe('Europe/Berlin');
+    expect(Object.keys(preferences)).toEqual(['notifyLaterUntil']);
     const days = DateTime.fromISO(preferences.notifyLaterUntil!).diff(DateTime.now(), 'days').days;
     expect(days).toBeGreaterThan(6.9);
     expect(days).toBeLessThan(7.1);
@@ -628,7 +628,7 @@ describe('linking Telegram', () => {
     });
     await drawLoaded();
 
-    expect(screen.getByText(/^linked .* · critical and weekly recap · a reply to an alarm or a task goes into the diary$/)).toBeInTheDocument();
+    expect(screen.getByText(/^linked .* · critical and week film · a reply to an alarm or a task goes into the diary$/)).toBeInTheDocument();
   });
 
   it('promises no logging by reply where nothing sent there can take one', async () => {

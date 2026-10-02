@@ -10,6 +10,10 @@ import { useSpaceGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
+import { useSpaces } from '@/api/spaces';
+import { placePath, timelinePath } from '@/app/places';
+import { rowReaches } from '@/screens/notifications/reach';
+import { useCameraCalled } from '@/ui/camera-name';
 import { ageLabel, instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
@@ -17,7 +21,7 @@ import { enough, useMayWith } from '@/ui/session-access';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { CLOCK, DATED_CLOCK, zonedAt, zoneOf } from '@/ui/zone';
+import { CLOCK, DATED_CLOCK, WEEKDAY_DAY, zoned, zonedAt, zoneOf } from '@/ui/zone';
 import { cameraFreshness } from '../devices/cameras';
 import { causeOf } from './capture-failure';
 import { at, stamps, stampFor } from '../timeline/window';
@@ -100,6 +104,9 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   const mayOwn = enough(youMay, 'own');
   const [composing, setComposing] = useState(false);
   const [job, setJob] = useState<Media | null>(null);
+  const called = useCameraCalled();
+  const spaces = useSpaces();
+  const place = spaces.data?.items.find(space => space.id === camera.spaceId) ?? null;
 
   // The day the scrubber walks, which is the account's day and not the
   // browser's: a grower in Berlin reading a UTC account is two hours into
@@ -165,10 +172,11 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   return (
     <section className={styles.page}>
       <header className={styles.header}>
-        <Link to="/devices" className={ui.back} aria-label={t('shell.tabs.devices')}>
+        {/* The camera belongs to the place it watches: the way back leads there, as the cockpit's picture led here. */}
+        <Link to={place ? placePath(place.id) : '/devices'} className={ui.back} aria-label={place?.name ?? t('shell.tabs.devices')}>
           <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
         </Link>
-        <h1 className={styles.name}>{camera.name}</h1>
+        <h1 className={styles.name}>{called(camera.name)}</h1>
         <span className={ui.live} data-liveness={liveness}>
           <span className={ui.liveDot} aria-hidden />
           {camera.state.lastStillAt
@@ -178,6 +186,21 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
             : t('camera.never')}
         </span>
       </header>
+
+      {place ? (
+        <p className={`mono ${styles.where}`}>
+          <Link to={placePath(place.id)} className={ui.headLink}>
+            {[place.name, grow && grow.endedAt === null ? `${grow.name} · ${t('home.card.dayN', { day: grow.summary.dayNumber ?? 1 })}` : null]
+              .filter(Boolean)
+              .join(' · ')}{' '}
+            ›
+          </Link>
+          {' · '}
+          <Link to={timelinePath(place.id)} className={ui.headLink}>
+            {t('camera.inTimeline')} ›
+          </Link>
+        </p>
+      ) : null}
 
       {refetching ? (
         <p className={`mono ${ui.note}`} role="status">
@@ -315,7 +338,8 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
             {t('camera.timelapses')}
             <Help topic="timelapses" />
           </span>
-          {mayManage ? <Quick buttons={quickFilms(t, camera, grow, now, growFilms)} onPick={request} /> : null}
+          {mayManage ? <Quick buttons={quickFilms(t, camera, grow, now, growFilms, zone)} onPick={request} /> : null}
+          {mayManage ? <YoungerThan camera={camera} grow={grow} zone={zone} /> : null}
           {mayManage ? (
             <button type="button" className={`${ui.button} ${styles.compose}`} onClick={() => setComposing(true)}>
               {t('camera.makeOne')}
@@ -342,6 +366,12 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
             </button>
           ) : null}
           {!mayManage && made.length === 0 && !job ? <p className={ui.note}>{t('camera.noFilms')}</p> : null}
+          {/* The week's film can come by itself every Monday; said here, where films are, rather than only in a grid under Me. */}
+          {mayOwn && me.data?.notifications && !rowReaches(me.data, 'weekly_timelapse') ? (
+            <Link to="/me/notifications" className={`mono ${styles.seePremium}`}>
+              {t('camera.weekFilmByMail')} ›
+            </Link>
+          ) : null}
         </section>
       </div>
 
@@ -441,7 +471,7 @@ function Quick({ buttons, onPick }: { buttons: QuickFilm[]; onPick: (body: Timel
  * of today's pictures is the wrong test, because that is the account's day and
  * the bucket is the server's.
  */
-const quickFilms = (t: Translate, camera: Camera, grow: GrowListItem | null, now: DateTime, growFilms: boolean): QuickFilm[] => {
+const quickFilms = (t: Translate, camera: Camera, grow: GrowListItem | null, now: DateTime, growFilms: boolean, zone: string | null): QuickFilm[] => {
   const free = camera.entitlement.tier === 'free';
   const noGrow = grow ? null : t('camera.noGrowHere');
   const empty = (window: 'day' | 'week'): string | null => {
@@ -449,7 +479,14 @@ const quickFilms = (t: Translate, camera: Camera, grow: GrowListItem | null, now
     return reason ? t(reason) : null;
   };
   const nothingToFilm = empty('day');
-  const nothingThatWeek = empty('week');
+  // The week filmed is the last complete one, and a camera paired since it
+  // began has no picture in it: said with the day it first has one, rather
+  // than offered and failed.
+  const firstWeekEnds = firstFullWeekEnd(camera, zone);
+  const nothingThatWeek =
+    firstWeekEnds !== null && firstWeekEnds.toMillis() > now.toMillis()
+      ? t('camera.firstWeekEnds', { date: firstWeekEnds.toFormat(WEEKDAY_DAY) })
+      : empty('week');
 
   const rolling: QuickFilm[] = [
     { label: t('camera.quick.day'), body: { window: 'day', startsAt: instantOf(now) }, reason: nothingToFilm, premium: false },
@@ -565,6 +602,31 @@ const spanOf = (film: Media): string => `${film.capturedAt}|${film.endsAt ?? ''}
 
 /** The grow this camera films: the one still standing in its space, else the last one that did. */
 const growOf = (grows: GrowListItem[]): GrowListItem | null => grows.find(grow => grow.endedAt === null) ?? grows[0] ?? null;
+
+/**
+ * The end of the first whole week this camera took pictures in, in the
+ * account's calendar - Monday to Sunday, as the server cuts it - or null where
+ * that week is long over.
+ */
+const firstFullWeekEnd = (camera: Camera, zone: string | null): DateTime | null => {
+  const paired = zoned(camera.createdAt, zone);
+  const weekStart = paired.startOf('week');
+  const first = paired.toMillis() === weekStart.toMillis() ? weekStart : weekStart.plus({ weeks: 1 });
+  return first.plus({ weeks: 1 }).minus({ milliseconds: 1 });
+};
+
+/**
+ * Where the camera is younger than the phase or the grow it would film, the
+ * films of those spans begin where its pictures do - which a grower expecting
+ * five weeks of growth in one film should know before tapping.
+ */
+function YoungerThan({ camera, grow, zone }: { camera: Camera; grow: GrowListItem | null; zone: string | null }) {
+  const { t } = useTranslation();
+  const begun = phaseStart(grow) ?? grow?.startedAt ?? null;
+  if (!grow || !begun || camera.createdAt <= begun) return null;
+
+  return <p className={ui.note}>{t('camera.picturesSince', { date: zoned(camera.createdAt, zone).toFormat(DATED_CLOCK) })}</p>;
+}
 
 /** Where the phase being filmed began, which is the grow's own record and never a day counter read backwards. */
 const phaseStart = (grow: GrowListItem | null): string | null => grow?.phases.at(-1)?.startedAt ?? null;

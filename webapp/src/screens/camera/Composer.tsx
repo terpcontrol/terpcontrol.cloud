@@ -5,6 +5,7 @@ import type { Camera, GrowListItem, MediaAspect, MediaOverlays, MediaQuality, Me
 import { useMe } from '@/api/account';
 import { useCameras, useLatestStills } from '@/api/cameras';
 import { serverNow } from '@/api/clock';
+import { useDevices } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { Sheet } from '@/log/Sheet';
 import { ageLabel, instantOf } from '@/ui/age';
@@ -54,7 +55,13 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
   const [from, setFrom] = useState(today(zone, 7));
   const [to, setTo] = useState(today(zone, 0));
   const [secondCameraId, setSecondCameraId] = useState<string | null>(null);
+  // A climate curve and the frames taken in the dark are read off a device
+  // standing where the camera does; without one there is nothing to draw and
+  // no light to tell the dark by, so neither is offered.
+  const devices = useDevices();
+  const measured = !devices.data?.items || devices.data.items.some(device => device.spaceId !== null && device.spaceId === camera.spaceId);
   const [overlays, setOverlays] = useState<MediaOverlays>({ dayCounter: true, climate: true, entries: true });
+  const drawn = { ...overlays, climate: overlays.climate && measured };
   const [includeLightsOff, setIncludeLightsOff] = useState(false);
   const [aspect, setAspect] = useState<MediaAspect>('16_9');
 
@@ -79,8 +86,8 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
       ...(span.endsAt ? { endsAt: span.endsAt } : {}),
       quality,
       secondCameraId: secondCameraId ?? undefined,
-      overlays,
-      includeLightsOff,
+      overlays: drawn,
+      includeLightsOff: includeLightsOff && measured,
       aspect,
     });
 
@@ -145,14 +152,16 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
           </span>
           <div className={ui.group}>
             <Toggle label={t('composer.dayCounter')} on={overlays.dayCounter} onToggle={value => setOverlays({ ...overlays, dayCounter: value })} />
-            <Toggle label={t('composer.climate')} on={overlays.climate} onToggle={value => setOverlays({ ...overlays, climate: value })} />
+            {measured ? (
+              <Toggle label={t('composer.climate')} on={overlays.climate} onToggle={value => setOverlays({ ...overlays, climate: value })} />
+            ) : null}
             <Toggle
               label={t('composer.entries')}
               hint={t('composer.entriesHint')}
               on={overlays.entries}
               onToggle={value => setOverlays({ ...overlays, entries: value })}
             />
-            <Toggle label={t('composer.lightsOff')} help="lightsOffFrames" on={includeLightsOff} onToggle={setIncludeLightsOff} />
+            {measured ? <Toggle label={t('composer.lightsOff')} help="lightsOffFrames" on={includeLightsOff} onToggle={setIncludeLightsOff} /> : null}
           </div>
         </div>
 
