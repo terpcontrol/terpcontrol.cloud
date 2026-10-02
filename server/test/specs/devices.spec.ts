@@ -177,6 +177,56 @@ describe('what reaches the hardware', () => {
     expect(read.body.configuration).toEqual(configuration);
   });
 
+  it('changes a setting by name, decides the work mode from it, and holds a fridge to what the server tunes itself', async () => {
+    const fridge = await provisionDevice(owner);
+    const listening = await startSimulator(fridge);
+    try {
+      await settle();
+      const configuration = {
+        workmode: 'off',
+        day: { temperature: 24, humidity: 50 },
+        daynight: { day: 21600, night: 64800, maxDehumidifySeconds: 60 },
+      };
+      await owner.client.put(`/v1/devices/${fridge.deviceId}/configuration`).send({ configuration }).expect(200);
+
+      const off = await owner.client.get(`/v1/devices/${fridge.deviceId}`).expect(200);
+      expect(off.body.control).toEqual({ running: false, drying: false, mode: 'standard', energySaving: false });
+      // A dry day target dehumidifies from the target itself, in short runs on the long average.
+      expect(off.body.configuration.daynight).toEqual({
+        day: 21600,
+        night: 64800,
+        maxDehumidifySeconds: 900,
+        targetHumidityDiff: 0,
+        useLongHumidityAvg: 1,
+        linearChange: 1,
+      });
+
+      listening.clear();
+      const on = await owner.client
+        .patch(`/v1/devices/${fridge.deviceId}/configuration`)
+        .send({ set: { control: true, energySaving: true } })
+        .expect(200);
+      expect(on.body.control).toEqual({ running: true, drying: false, mode: 'standard', energySaving: true });
+      expect(on.body.configuration.workmode).toBe('full');
+      expect(JSON.parse((await listening.waitFor('configuration')).payload).workmode).toBe('full');
+
+      const refused = await owner.client
+        .patch(`/v1/devices/${fridge.deviceId}/configuration`)
+        .send({ set: { fanSpeed: 3, compressorRest: 30 } })
+        .expect(422);
+      expect(refused.body.code).toBe('setting_refused');
+      expect(refused.body.errors.map((error: { field: string }) => error.field)).toEqual(['set.fanSpeed', 'set.compressorRest']);
+
+      const stranger = await createAccount('devices-settings-outsider');
+      await stranger.client
+        .patch(`/v1/devices/${fridge.deviceId}/configuration`)
+        .send({ set: { control: false } })
+        .expect(404);
+    } finally {
+      await listening.close();
+    }
+  });
+
   it('says of a device that never reported its configuration that it has none, on both routes alike', async () => {
     const silent = await provisionDevice(owner, 'controller');
 

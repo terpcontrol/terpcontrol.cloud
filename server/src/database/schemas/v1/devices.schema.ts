@@ -44,7 +44,7 @@ export interface StoredDeviceState extends Omit<
   socketsReportedAt: Date | null;
 }
 
-export interface StoredDevice extends Omit<Device, 'createdAt' | 'state'> {
+export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'control'> {
   createdAt: Date;
   mqtt: StoredDeviceMqtt | null;
   /**
@@ -61,6 +61,14 @@ export interface StoredDevice extends Omit<Device, 'createdAt' | 'state'> {
    * and has no use for the bookkeeping that keeps them there.
    */
   scheduleClock: ScheduleClock | null;
+  /**
+   * The work mode a fridge or a controller goes back to when its control is
+   * switched on again or a drying spell ends: what it last ran while it was
+   * regulating on its own mode. Null where none is known, which is the
+   * standard. Kept here because the document can say only one work mode at a
+   * time and the firmware drops a key it does not know; served as `control`.
+   */
+  baseWorkmode: string | null;
   state: StoredDeviceState;
 }
 
@@ -146,6 +154,7 @@ export const devicesSchema = new Schema<StoredDevice>(
     // device that has never been swept sorts to the front because null does.
     climateSweptAt: { type: Date, default: null },
     scheduleClock: { type: scheduleClockSchema, default: null },
+    baseWorkmode: { type: String, default: null },
     firmware: { type: firmwareTargetSchema, required: true, default: () => ({}) },
     // The device's own configuration document, null until it reports one. Its
     // schema belongs to the firmware of that type and is not restated here.

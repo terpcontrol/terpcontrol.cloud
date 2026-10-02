@@ -44,6 +44,7 @@ let transitions: PlanService;
 let engineWith: (announcer: PlanAnnouncer) => PlanEngineService;
 
 let applied: { deviceId: string; settings: DeviceConfiguration }[];
+let appliedFor: (string | null | undefined)[];
 let mailed: { to: string; subject: string; text: string }[];
 let stages: { deviceId: string; stage: string; preset: string | null }[];
 
@@ -128,12 +129,14 @@ afterAll(async () => {
 beforeEach(async () => {
   await db.reset();
   applied = [];
+  appliedFor = [];
   mailed = [];
   stages = [];
 
   const configuration: DeviceConfigurationWriter = {
-    applyConfiguration: async (deviceId, settings) => {
+    applyConfiguration: async (deviceId, settings, stage) => {
       applied.push({ deviceId, settings });
+      appliedFor.push(stage);
       return true;
     },
   };
@@ -225,6 +228,25 @@ describe('the pass over the running plans', () => {
 });
 
 describe('what the step is applied to', () => {
+  it('says which stage the step is for, which is what puts a device into its drying mode', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Dry', stage: 'drying', settings: { day: { temperature: 18 } } })]);
+
+    await engine.run(NOW);
+
+    expect(appliedFor).toEqual(['drying']);
+  });
+
+  it('sends a step that names only a stage, because the stage decides the work mode', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Dry', stage: 'drying' })]);
+
+    await engine.run(NOW);
+
+    expect(applied).toEqual([{ deviceId: DEVICE, settings: {} }]);
+    expect(appliedFor).toEqual(['drying']);
+  });
+
   it('re-sends the running step at most once an hour', async () => {
     await aDevice();
     await aPlan([step({ id: 'a', name: 'Veg', settings: { workmode: 'small' } })]);

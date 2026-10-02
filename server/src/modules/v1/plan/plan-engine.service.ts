@@ -106,13 +106,17 @@ export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
 
     const device = await this.deviceFor(plan.deviceId);
     if (!this.isAnswering(device, now)) return;
-    const writes = Object.keys(step.settings ?? {}).length > 0;
+    // A step that names a stage writes even with no figures of its own: the
+    // stage decides the work mode, and a drying step dries.
+    const writes = Object.keys(step.settings ?? {}).length > 0 || step.stage !== null;
     if (writes && Object.keys(device?.configuration ?? {}).length === 0) return;
 
     try {
       // A step that writes nothing is sent nothing: an empty document is not an
       // empty change to the firmware, which rebuilds its whole settings from it.
-      if (writes && (await this.configuration.applyConfiguration(plan.deviceId, step.settings))) {
+      // One that only names a stage sends the document the device already runs,
+      // with the work mode that stage asks for.
+      if (writes && (await this.configuration.applyConfiguration(plan.deviceId, step.settings, step.stage))) {
         logger.info(`Applied recipe step ${plan.state.activeStepIndex} to device ${plan.deviceId}`);
       }
 

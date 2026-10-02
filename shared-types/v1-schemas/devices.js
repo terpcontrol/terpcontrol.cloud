@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.planState = exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.captureStillCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.adminDeviceCreate = exports.deviceConfigurationReading = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.devicePage = exports.device = exports.deviceState = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
-exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = void 0;
+exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.captureStillCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.adminDeviceCreate = exports.deviceConfigurationReading = exports.deviceConfigurationPatch = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.devicePage = exports.device = exports.deviceState = exports.deviceControl = exports.operatingMode = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
+exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
+const configuration_fields_js_1 = require("./configuration-fields.js");
 const socket_report_js_1 = require("./socket-report.js");
 /**
  * The device half of the `/v1` contract: what a device is, what it runs and what
@@ -41,6 +42,19 @@ exports.deviceSettings = (0, common_js_1.named)('DeviceSettings', zod_1.z.object
     vpdLeafOffsetDay: zod_1.z.number(),
     vpdLeafOffsetNight: zod_1.z.number(),
     ppfdLuxFactor: zod_1.z.number(),
+}));
+exports.operatingMode = (0, common_js_1.named)('OperatingMode', zod_1.z.enum(configuration_fields_js_1.OPERATING_MODES));
+/**
+ * What a fridge or a controller is doing as a whole, read out of the work mode
+ * its document carries and the one the server keeps for when control comes back
+ * on. The screens read this rather than the firmware's word for it, and change
+ * it through `PATCH /devices/{id}/configuration`.
+ */
+exports.deviceControl = (0, common_js_1.named)('DeviceControl', zod_1.z.object({
+    running: zod_1.z.boolean().describe('Whether the device regulates at all. False is `workmode: off`, which is also how a device leaves the factory.'),
+    drying: zod_1.z.boolean().describe('Held in the drying work mode by a drying phase: no day and night, no light, no CO2; it dehumidifies and heats.'),
+    mode: exports.operatingMode.describe('What it runs while control is on and it is not drying.'),
+    energySaving: zod_1.z.boolean().describe('The back-wall fan rests while the compressor does. Applies to the standard mode of a fridge only.'),
 }));
 exports.deviceState = (0, common_js_1.named)('DeviceState', zod_1.z.object({
     lastSeenAt: (0, common_js_1.instant)().nullable().describe('Last sample or status; what `offline` is decided from.'),
@@ -81,6 +95,9 @@ exports.device = (0, common_js_1.named)('Device', zod_1.z.object({
     firmware: exports.deviceFirmwareTarget,
     configuration: exports.deviceConfiguration.nullable().describe('null before the device has reported one.'),
     settings: exports.deviceSettings,
+    control: exports.deviceControl
+        .nullable()
+        .describe('null for hardware with no work mode - a plug, a light, a fan - and before the document has arrived.'),
     isDemo: zod_1.z.boolean(),
     state: exports.deviceState,
 }));
@@ -88,8 +105,8 @@ exports.devicePage = (0, common_js_1.named)('DevicePage', (0, common_js_1.page)(
 /**
  * `PATCH /devices/{id}`: what a person decides about a device. What it is, who
  * owns it and everything under `state` are not a client's to write, and the
- * configuration document is replaced whole by its own route rather than patched
- * here, because the server does not read enough of it to merge one.
+ * configuration document has routes of its own: replaced whole with the
+ * targets, or changed a named setting at a time.
  */
 exports.deviceUpdate = (0, common_js_1.named)('DeviceUpdate', exports.device.pick({ name: true, spaceId: true, firmware: true, settings: true }).partial());
 /**
@@ -102,6 +119,17 @@ exports.deviceUpdate = (0, common_js_1.named)('DeviceUpdate', exports.device.pic
  * gains one.
  */
 exports.deviceConfigurationEnvelope = (0, common_js_1.named)('DeviceConfigurationEnvelope', zod_1.z.object({ configuration: exports.deviceConfiguration }));
+/**
+ * `PATCH /devices/{id}/configuration`: settings beyond the targets, by the
+ * names `CONFIGURATION_FIELDS` gives them for the device's type. The server
+ * checks each against that table, merges it into the document the device runs
+ * and keeps every key it was not asked about, and answers the device.
+ */
+exports.deviceConfigurationPatch = (0, common_js_1.named)('DeviceConfigurationPatch', zod_1.z.object({
+    set: zod_1.z
+        .record(zod_1.z.string(), zod_1.z.union([zod_1.z.number(), zod_1.z.boolean(), zod_1.z.string()]))
+        .describe('Field name to value, from the fields of this type of device.'),
+}));
 /**
  * `GET /devices/{id}/configuration`: the same envelope, with the document null
  * where the device has never reported one - exactly as `Device.configuration`

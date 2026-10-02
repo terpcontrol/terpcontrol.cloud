@@ -19,6 +19,7 @@ import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { demoDevice } from '@utils/demo';
 import { logger } from '@utils/logger';
+import { controlOf } from '@modules/device-protocol/work-modes';
 import { DEVICE_PLACEMENT, DevicePlacement } from './placement.port';
 
 /**
@@ -288,6 +289,7 @@ export class DevicesService {
         vpdLeafOffsetNight: device.settings.vpdLeafOffsetNight,
         ppfdLuxFactor: device.settings.ppfdLuxFactor,
       },
+      control: controlOf(device.type, device.configuration, device.baseWorkmode),
       isDemo: device.isDemo,
       state: {
         lastSeenAt: device.state.lastSeenAt?.toISOString() ?? null,

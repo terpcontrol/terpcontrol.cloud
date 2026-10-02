@@ -1,8 +1,9 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { DeviceConfiguration } from '@fg2/shared-types/v1';
+import { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
 import { HttpException } from '@common/http-exception';
+import { unprocessable } from '@common/v1/problem';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { MODEL_V1 } from '@database/models';
 import { ScheduleClock, StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -11,17 +12,33 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 // The plan hands over what its step stored; the port it asks through is the plan's.
 import { DeviceConfigurationWriter } from '../v1/plan/device-configuration.port';
 import { recordTargets } from '../v1/phase/target-record';
+import { HIDDEN_FIGURES, heldTo } from './class-rules';
+import { fieldChangesOf, withFigures } from './configuration-fields';
 import { DevicePublisherService } from './device-publisher.service';
 import { driftBetween, keepsTime, SCHEDULE_FOLLOWER, ScheduleFollower, sameClockTimes, scheduleClockOf, withClockTimesMoved } from './schedule-clock';
+import { decideWorkmode, WriteIntent } from './work-modes';
+
+/** What a write stored: the document before it and after it. */
+interface Written {
+  before: DeviceConfiguration | null;
+  after: DeviceConfiguration;
+  changed: boolean;
+}
 
 /**
  * The configuration document, which is the device's own.
  *
  * The cloud stores a copy and hands it back; the device decides what it means
- * and which keys exist, and the server never validates or interprets one. A key
- * the device does not know is ignored, and disappears the next time the device
- * uploads its settings - which is why nothing here adds anything to what it is
- * given.
+ * and which keys exist. A key the device does not know is ignored, and
+ * disappears the next time the device uploads its settings - which is why
+ * nothing here adds a key of its own to what it is given.
+ *
+ * Three things are read and decided here all the same, on every write, because
+ * every write is a whole document the firmware loads: the work mode, which says
+ * whether and how the hardware regulates and is the server's to decide
+ * (`work-modes.ts`); the figures a type's document is held to whoever wrote it
+ * (`class-rules.ts`); and the settings a person changes one at a time, which are
+ * checked against what the type offers (`configuration-fields.ts`).
  *
  * The device sends no acknowledgement and no echo, so a save is what was stored
  * and sent, never what the device is now running: it reports that itself, when a
@@ -44,34 +61,18 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
   ) {}
 
   /**
-   * The whole document, as a client writes it, and a line in the diary naming
-   * what moved and who moved it. A target changed by hand is as much a thing
-   * that happened in the tent as a plan step is, and without the line the
-   * timeline could not say who moved it or when. A save that changed nothing
-   * writes nothing.
+   * The whole document, as a client writes it with the targets, and a line in
+   * the diary naming what moved and who moved it. A target changed by hand is as
+   * much a thing that happened in the tent as a plan step is, and without the
+   * line the timeline could not say who moved it or when. A save that changed
+   * nothing writes nothing. A device whose control was switched off is switched
+   * on again by it: somebody who sets targets wants them held.
    */
   public async replace(deviceId: string, configuration: DeviceConfiguration, by: string | null = null): Promise<boolean> {
-    let before: DeviceConfiguration | null = null;
-    const changed = await this.store(deviceId, current => {
-      before = current;
-      return configuration;
-    });
+    const written = await this.store(deviceId, { kind: 'targets' }, () => configuration);
+    if (written) await this.writeDown(deviceId, written, by);
 
-    const moved = changedFigures(before, configuration);
-    if (changed && moved.length > 0) {
-      const device = await this.devices.findOne({ id: deviceId }, { spaceId: 1 }).lean<Pick<StoredDevice, 'spaceId'> | null>();
-      await this.entries.write({
-        source: 'device',
-        authorId: by,
-        values: { kind: 'system' },
-        spaceId: device?.spaceId ?? null,
-        deviceId,
-        severity: 'info',
-        message: { key: 'message-device-configuration-updated', params: [moved.join('\n')] },
-      });
-    }
-
-    return changed;
+    return written?.changed ?? false;
   }
 
   /**
@@ -85,14 +86,54 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * screen shows as empty, "not written", reached the tent as a factory value.
    * A key whose value is not a section on both sides - a lamp's plain `day`
    * seconds, a list - is replaced as it always was.
+   *
+   * `stage` is the stage the climate is for, which decides the work mode: a
+   * drying stage dries, and anything else puts a device that was off or drying
+   * back on its own mode.
    */
-  public applyConfiguration(deviceId: string, settings: DeviceConfiguration): Promise<boolean> {
+  public async applyConfiguration(deviceId: string, settings: DeviceConfiguration, stage: GrowthStage | null = null): Promise<boolean> {
     // Nothing to merge, or nothing to merge into, is no write: the firmware reads
     // every key a document leaves out as its compile-time default, so sending
-    // either would reset tuning the cloud has no copy of.
-    return this.store(deviceId, current =>
-      !current || Object.keys(current).length === 0 || Object.keys(settings).length === 0 ? null : mergeSections(current, settings),
+    // either would reset tuning the cloud has no copy of. A stage with no
+    // figures still decides the work mode, so it writes what the device runs.
+    const written = await this.store(deviceId, { kind: 'climate', stage, requested: settings.workmode }, current =>
+      !current || Object.keys(current).length === 0 || (Object.keys(settings).length === 0 && stage === null)
+        ? null
+        : mergeSections(current, settings),
     );
+
+    return written?.changed ?? false;
+  }
+
+  /**
+   * Settings beyond the targets, by the names the device's type gives them
+   * (`CONFIGURATION_FIELDS`), merged into the document it runs with every other
+   * key kept, and written down in the diary like the targets are.
+   *
+   * A device that has never sent its document is refused rather than written
+   * to: what would reach it is the change alone, and the firmware reads every key
+   * a document leaves out as its default.
+   */
+  public async configure(deviceId: string, set: Record<string, number | boolean | string>, by: string | null = null): Promise<boolean> {
+    const device = await this.devices
+      .findOne({ id: deviceId }, { type: 1, configuration: 1 })
+      .lean<Pick<StoredDevice, 'type' | 'configuration'> | null>();
+    if (!device) throw new HttpException(404, 'Device not found');
+    if (!device.configuration || Object.keys(device.configuration).length === 0) {
+      throw unprocessable('device_sent_no_settings', 'This device has not sent its settings, so there is nothing to change them in.', [
+        {
+          field: 'set',
+          code: 'no_settings_yet',
+          detail: 'The device sends its settings once one is changed on the device itself while it is online.',
+        },
+      ]);
+    }
+
+    const changes = fieldChangesOf(device.type, set);
+    const written = await this.store(deviceId, changes.intent, current => (current ? withFigures(current, changes.figures) : null));
+    if (written) await this.writeDown(deviceId, written, by);
+
+    return written?.changed ?? false;
   }
 
   /**
@@ -100,15 +141,33 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * now puts them - after summer time began or ended, or the owner named
    * another zone. What the schedule loop calls when it finds a clock has moved.
    */
-  public keepOnClock(deviceId: string, at: Date = new Date()): Promise<boolean> {
-    return this.store(deviceId, current => current, at);
+  public async keepOnClock(deviceId: string, at: Date = new Date()): Promise<boolean> {
+    return (await this.store(deviceId, { kind: 'clock' }, current => current, at))?.changed ?? false;
+  }
+
+  /** The diary line of a write somebody made, naming the figures that moved; nothing for a write that moved none. */
+  private async writeDown(deviceId: string, written: Written, by: string | null): Promise<void> {
+    const moved = changedFigures(written.before, written.after, HIDDEN_FIGURES);
+    if (!written.changed || moved.length === 0) return;
+
+    const device = await this.devices.findOne({ id: deviceId }, { spaceId: 1 }).lean<Pick<StoredDevice, 'spaceId'> | null>();
+    await this.entries.write({
+      source: 'device',
+      authorId: by,
+      values: { kind: 'system' },
+      spaceId: device?.spaceId ?? null,
+      deviceId,
+      severity: 'info',
+      message: { key: 'message-device-configuration-updated', params: [moved.join('\n')] },
+    });
   }
 
   private async store(
     deviceId: string,
+    intent: WriteIntent,
     next: (current: DeviceConfiguration | null) => DeviceConfiguration | null,
     at: Date = new Date(),
-  ): Promise<boolean> {
+  ): Promise<Written | null> {
     // Asked before anything is written: a caller that cannot be served should
     // find nothing changed, rather than a stored configuration it was told had
     // failed and a device that goes on running the old one.
@@ -117,15 +176,18 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     }
 
     const device = await this.devices
-      .findOne({ id: deviceId }, { configuration: 1, ownerId: 1, scheduleClock: 1 })
-      .lean<Pick<StoredDevice, 'configuration' | 'ownerId' | 'scheduleClock'> | null>();
+      .findOne({ id: deviceId }, { type: 1, configuration: 1, ownerId: 1, scheduleClock: 1, baseWorkmode: 1 })
+      .lean<Pick<StoredDevice, 'type' | 'configuration' | 'ownerId' | 'scheduleClock' | 'baseWorkmode'> | null>();
     if (!device) {
       throw new HttpException(404, 'Device not found');
     }
 
     const before = device.configuration ?? null;
     const wanted = next(before);
-    if (wanted === null) return false;
+    if (wanted === null) return null;
+
+    const mode = decideWorkmode(device.type, before?.workmode, device.baseWorkmode, intent);
+    const held = heldTo(device.type, mode ? { ...wanted, workmode: mode.workmode } : wanted);
 
     // Times a write sets are meant on the clock it is made on. Times it leaves
     // as they were are meant on the clock they were kept on, which may have
@@ -134,9 +196,12 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // along rather than taken as new.
     const clock = await this.ownersClock(device.ownerId, at);
     const drift = driftBetween(device.scheduleClock ?? null, clock);
-    const configuration = drift !== 0 && sameClockTimes(before, wanted) ? withClockTimesMoved(wanted, drift) : wanted;
+    const configuration = drift !== 0 && sameClockTimes(before, held) ? withClockTimesMoved(held, drift) : held;
 
-    await this.devices.updateOne({ id: deviceId }, { $set: { configuration, scheduleClock: keepsTime(configuration) ? clock : null } });
+    await this.devices.updateOne(
+      { id: deviceId },
+      { $set: { configuration, scheduleClock: keepsTime(configuration) ? clock : null, ...(mode ? { baseWorkmode: mode.base } : {}) } },
+    );
     await recordTargets(this.targetRecord, deviceId, before, configuration, at);
 
     // Not required after the write: the device asks for its configuration when
@@ -146,7 +211,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
 
     if (drift !== 0) await this.followers?.onScheduleMoved(deviceId, drift);
 
-    return JSON.stringify(before) !== JSON.stringify(configuration);
+    return { before, after: configuration, changed: JSON.stringify(before) !== JSON.stringify(configuration) };
   }
 
   private async ownersClock(ownerId: string | null, at: Date): Promise<ScheduleClock | null> {
@@ -166,17 +231,17 @@ const MOST_FIGURES = 12;
  * "day.temperature: 24 → 25", one line per figure that moved, in the dotted
  * names the firmware's own diff has always written into these lines.
  */
-export const changedFigures = (before: unknown, after: unknown): string[] => {
-  const lines = figuresMoved(before, after, '');
+export const changedFigures = (before: unknown, after: unknown, hidden: ReadonlySet<string> = new Set()): string[] => {
+  const lines = figuresMoved(before, after, '', hidden);
   return lines.length > MOST_FIGURES ? [...lines.slice(0, MOST_FIGURES), `… ${lines.length - MOST_FIGURES} more`] : lines;
 };
 
-const figuresMoved = (before: unknown, after: unknown, path: string): string[] => {
+const figuresMoved = (before: unknown, after: unknown, path: string, hidden: ReadonlySet<string>): string[] => {
   if (isSection(before) && isSection(after)) {
     const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
-    return keys.flatMap(key => figuresMoved(before[key], after[key], path ? `${path}.${key}` : key));
+    return keys.flatMap(key => figuresMoved(before[key], after[key], path ? `${path}.${key}` : key, hidden));
   }
-  if (JSON.stringify(before) === JSON.stringify(after)) return [];
+  if (hidden.has(path) || JSON.stringify(before) === JSON.stringify(after)) return [];
 
   return [`${path || 'configuration'}: ${figureOf(before)} → ${figureOf(after)}`];
 };

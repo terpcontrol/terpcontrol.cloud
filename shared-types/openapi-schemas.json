@@ -1930,6 +1930,41 @@
       "ppfdLuxFactor"
     ]
   },
+  "OperatingMode": {
+    "type": "string",
+    "enum": [
+      "standard",
+      "greenhouse",
+      "germination"
+    ]
+  },
+  "DeviceControl": {
+    "type": "object",
+    "properties": {
+      "running": {
+        "type": "boolean",
+        "description": "Whether the device regulates at all. False is `workmode: off`, which is also how a device leaves the factory."
+      },
+      "drying": {
+        "type": "boolean",
+        "description": "Held in the drying work mode by a drying phase: no day and night, no light, no CO2; it dehumidifies and heats."
+      },
+      "mode": {
+        "description": "What it runs while control is on and it is not drying.",
+        "$ref": "#/components/schemas/OperatingMode"
+      },
+      "energySaving": {
+        "type": "boolean",
+        "description": "The back-wall fan rests while the compressor does. Applies to the standard mode of a fridge only."
+      }
+    },
+    "required": [
+      "running",
+      "drying",
+      "mode",
+      "energySaving"
+    ]
+  },
   "DeviceState": {
     "type": "object",
     "properties": {
@@ -2154,6 +2189,17 @@
       "settings": {
         "$ref": "#/components/schemas/DeviceSettings"
       },
+      "control": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/DeviceControl"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "null for hardware with no work mode - a plug, a light, a fan - and before the document has arrived."
+      },
       "isDemo": {
         "type": "boolean"
       },
@@ -2173,6 +2219,7 @@
       "firmware",
       "configuration",
       "settings",
+      "control",
       "isDemo",
       "state"
     ]
@@ -2236,6 +2283,28 @@
     },
     "required": [
       "configuration"
+    ]
+  },
+  "DeviceConfigurationPatch": {
+    "type": "object",
+    "properties": {
+      "set": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": [
+            "number",
+            "boolean",
+            "string"
+          ]
+        },
+        "description": "Field name to value, from the fields of this type of device."
+      }
+    },
+    "required": [
+      "set"
     ]
   },
   "DeviceConfigurationReading": {

@@ -20,7 +20,9 @@ export * from './diary.js';
 // and weeks a stage covers that the phase bar, the week cards and the report's
 // chapters all state, the curve the charts and the targets screen both work a
 // VPD out along, and the span the alarm engine holds a worked-on device's alarms
-// for that the screens offering a maintenance window have to promise.
+// for that the screens offering a maintenance window have to promise. And the
+// settings beyond the targets a device's type offers, which the server checks a
+// change against and the screens draw their controls from.
 export * from './socket-report.js';
 export * from './feeding.js';
 export * from './grow-days.js';
@@ -28,3 +30,4 @@ export * from './climate-presets.js';
 export * from './alert-routing.js';
 export * from './vpd.js';
 export * from './maintenance.js';
+export * from './configuration-fields.js';

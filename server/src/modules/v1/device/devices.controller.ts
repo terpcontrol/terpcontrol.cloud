@@ -8,6 +8,7 @@ import {
   DeviceCommand,
   DeviceCommandResult,
   DeviceConfigurationEnvelope,
+  DeviceConfigurationPatch,
   DeviceConfigurationReading,
   DeviceLive,
   DevicePage,
@@ -27,6 +28,7 @@ import {
   deviceCommand,
   deviceCommandResult,
   deviceConfigurationEnvelope,
+  deviceConfigurationPatch,
   deviceConfigurationReading,
   deviceLive,
   devicePage,
@@ -194,6 +196,26 @@ export class DevicesController {
   ): Promise<DeviceConfigurationEnvelope> {
     await this.configuration.replace(id, body.configuration, ctx.userId);
     return { configuration: body.configuration };
+  }
+
+  /**
+   * Settings beyond the targets, a named one at a time: the ones the device's
+   * type offers, merged into the document it runs with every other key kept.
+   * The answer is the device, because what was asked for is not always what is
+   * stored - the work mode is the server's to decide from it.
+   */
+  @Patch(':id/configuration')
+  @UseGuards(AuthGuard, AccessGuard)
+  @Requires('manage', 'device')
+  @ApiOperation({ summary: "Change settings of the device's configuration document by name" })
+  @V1Answer(deviceShape)
+  public async configure(
+    @Caller() ctx: AccessContext,
+    @Param('id') id: string,
+    @V1Body(deviceConfigurationPatch) body: DeviceConfigurationPatch,
+  ): Promise<Device> {
+    await this.configuration.configure(id, body.set, ctx.userId);
+    return this.devices.serialise(await this.devices.require(id), ctx.isDemo);
   }
 
   /**

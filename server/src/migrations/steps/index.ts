@@ -17,6 +17,7 @@ import { warningsRouting } from './015-warnings-routing';
 import { measurementBand } from './016-measurement-band';
 import { entryCredentials } from './017-entry-credentials';
 import { targetRecord } from './018-target-record';
+import { workModes } from './019-work-modes';
 
 /**
  * In order, and the order matters in five places:
@@ -31,7 +32,8 @@ import { targetRecord } from './018-target-record';
  *   that a database being migrated for the first time and one migrated a
  *   release ago are left in the same state by the same step;
  * - the target record is opened from the devices' configuration, which is
- *   only in the new shape once the devices have been migrated.
+ *   only in the new shape once the devices have been migrated, and the work
+ *   modes are decided over the devices, plans and templates in that shape too.
  *
  * Everything else is independent, and every step is a no-op on a database that
  * does not have the collection it reads - which is what a fresh install is.
@@ -55,4 +57,5 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   measurementBand,
   entryCredentials,
   targetRecord,
+  workModes,
 ];

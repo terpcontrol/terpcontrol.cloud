@@ -60,7 +60,7 @@ let controller: SpacesController;
 let guard: AccessGuard;
 
 /** What was sent to a device, since a unit suite has no broker to send it over. */
-let configured: { deviceId: string; settings: DeviceConfiguration }[];
+let configured: { deviceId: string; settings: DeviceConfiguration; stage?: string | null }[];
 
 const seed = async (): Promise<void> => {
   await db.spaces.create([
@@ -109,8 +109,8 @@ const presetsOf = (): PresetApplicationsService => {
   const written = new EntryWriterService(db.entries);
   const phases = new PhaseWriterService(db.grows, written, db.entries, db.devices);
   const configuration: DeviceConfigurationWriter = {
-    applyConfiguration: async (deviceId, settings) => {
-      configured.push({ deviceId, settings });
+    applyConfiguration: async (deviceId, settings, stage) => {
+      configured.push({ deviceId, settings, stage });
       return true;
     },
   };
@@ -664,6 +664,13 @@ describe('applying a climate preset', () => {
     // Eighteen hours from 06:00 is midnight, written as the second past it.
     expect(configured[0].settings).toMatchObject({ daynight: { day: 21600, night: (21600 + 18 * 60 * 60) % 86400 }, day: { temperature: 25 } });
     expect(configured[0].settings.daynight).not.toMatchObject({ night: 21600 + 12 * 60 * 60 });
+  });
+
+  it('names the stage it writes for, which is what puts the device into its drying mode', async () => {
+    await aController();
+    await presets.apply(session(OWNER), SPACE, { stage: 'drying' });
+
+    expect(configured[0].stage).toBe('drying');
   });
 
   it('falls back to the stage itself for a preset the table has never heard of', async () => {

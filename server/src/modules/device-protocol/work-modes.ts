@@ -1,0 +1,111 @@
+import type { DeviceConfiguration, DeviceControl, GrowthStage, OperatingMode } from '@fg2/shared-types/v1';
+
+/**
+ * The work mode: the one key of a fridge's or a controller's document that says
+ * what the hardware does as a whole, and the one the server decides rather than
+ * passes on.
+ *
+ * The firmware knows `off`, `small`, `full`, `temp`, `breed` and `dry`, and
+ * treats any other word as off. A person decides three things about it
+ * separately - whether the device regulates at all, which operating mode it
+ * runs, and (a fridge's standard mode only) whether the back-wall fan rests with
+ * the compressor - and a drying phase decides a fourth. One key cannot remember
+ * the rest while it says `off` or `dry`, and the firmware drops a key it does
+ * not know the next time it uploads its document, so what the device goes back
+ * to is kept on the device row as `baseWorkmode`.
+ *
+ * Only a document that already carries a work mode is touched: a light, a plug
+ * and a fan have none, and a document that never stated one is not given one
+ * the device did not ask for.
+ */
+
+export type BaseWorkmode = 'small' | 'full' | 'temp' | 'breed';
+
+const BASE_MODES: readonly string[] = ['small', 'full', 'temp', 'breed'];
+const RUNNING_MODES: readonly string[] = [...BASE_MODES, 'dry'];
+
+/** The hardware whose firmware reads a work mode. */
+const WITH_WORK_MODES: readonly string[] = ['fridge', 'controller'];
+
+/** What a write is, which is what decides the work mode it leaves the device in. */
+export type WriteIntent =
+  /** The targets saved by hand: a device that was switched off is switched on again; a drying one stays drying. */
+  | { kind: 'targets' }
+  /**
+   * A climate preset, a phase, or a plan step, with the stage it is for. Drying
+   * dries; anything else puts the device on its own mode, which switches it on
+   * and ends a drying spell. `requested` is what a plan step carries itself.
+   */
+  | { kind: 'climate'; stage: GrowthStage | null; requested?: unknown }
+  /** The settings a person changed one at a time, of which these three are about the work mode. */
+  | { kind: 'fields'; control?: boolean; mode?: OperatingMode; energySaving?: boolean }
+  /** The times of day moved onto the owner's clock, which decides nothing else. */
+  | { kind: 'clock' };
+
+export const hasWorkModes = (type: string): boolean => WITH_WORK_MODES.includes(type);
+
+const isBase = (value: unknown): value is BaseWorkmode => typeof value === 'string' && BASE_MODES.includes(value);
+
+const isRunning = (value: unknown): boolean => typeof value === 'string' && RUNNING_MODES.includes(value);
+
+/** What the device goes back to: what it runs where that is its own mode, else what it was last running, else the standard. */
+const standingOf = (current: unknown, base: string | null | undefined): BaseWorkmode => (isBase(current) ? current : isBase(base) ? base : 'small');
+
+const modeOf = (workmode: BaseWorkmode): OperatingMode => (workmode === 'temp' ? 'greenhouse' : workmode === 'breed' ? 'germination' : 'standard');
+
+/**
+ * The work mode an operating mode is run in. A controller has no back-wall fan
+ * and its firmware reads `full` as `small`, so energy saving is a fridge's.
+ */
+const workmodeOf = (type: string, mode: OperatingMode, energySaving: boolean): BaseWorkmode =>
+  mode === 'greenhouse' ? 'temp' : mode === 'germination' ? 'breed' : energySaving && type === 'fridge' ? 'full' : 'small';
+
+/** How the device stands, in the words the screens read. Null for hardware with no work mode, or no document yet. */
+export const controlOf = (type: string, configuration: DeviceConfiguration | null, base: string | null | undefined): DeviceControl | null => {
+  const current = configuration?.workmode;
+  if (!hasWorkModes(type) || typeof current !== 'string') return null;
+
+  const standing = standingOf(current, base);
+  return { running: isRunning(current), drying: current === 'dry', mode: modeOf(standing), energySaving: type === 'fridge' && standing === 'full' };
+};
+
+/**
+ * The work mode a write leaves the device in, and the one it goes back to
+ * afterwards. `current` is what the stored document says now; `wanted` is the
+ * document the write would store, whose own work mode is what a client sent and
+ * is not believed - a page drawn a minute ago sends the mode it was drawn with.
+ */
+export const decideWorkmode = (
+  type: string,
+  current: unknown,
+  base: string | null | undefined,
+  intent: WriteIntent,
+): { workmode: string; base: BaseWorkmode } | null => {
+  if (!hasWorkModes(type) || typeof current !== 'string') return null;
+
+  const standing = standingOf(current, base);
+  switch (intent.kind) {
+    case 'clock':
+      return { workmode: current, base: standing };
+    case 'targets':
+      return { workmode: isRunning(current) ? current : standing, base: standing };
+    case 'climate': {
+      // A plan written before the switch carried the old app's whole document,
+      // `small` or `full` included, and would put the switch back every hour; a
+      // step that turns the device off, dries or runs another mode still does.
+      const asked = intent.requested;
+      if (typeof asked === 'string' && asked !== 'small' && asked !== 'full') return { workmode: asked, base: isBase(asked) ? asked : standing };
+      return { workmode: intent.stage === 'drying' ? 'dry' : standing, base: standing };
+    }
+    case 'fields': {
+      const now = controlOf(type, { workmode: current }, base)!;
+      const next = workmodeOf(type, intent.mode ?? now.mode, intent.energySaving ?? now.energySaving);
+      const running = intent.control ?? now.running;
+      return { workmode: !running ? 'off' : current === 'dry' ? 'dry' : next, base: next };
+    }
+  }
+};
+
+/** What a document the device uploaded says it goes back to, where it says so: the mode it runs, unless that is off or drying. */
+export const baseFromUpload = (type: string, configuration: DeviceConfiguration): BaseWorkmode | null =>
+  hasWorkModes(type) && isBase(configuration.workmode) ? configuration.workmode : null;

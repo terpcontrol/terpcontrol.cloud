@@ -30,7 +30,9 @@ import {
 } from './device-sinks';
 import { DevicePublisherService } from './device-publisher.service';
 import { HardwareReportService } from './hardware-report.service';
+import { heldTo } from './class-rules';
 import { sameClockTimes } from './schedule-clock';
+import { baseFromUpload } from './work-modes';
 import { DEVICE_TOPIC_FILTER, DeviceTopic, parseDeviceTopic } from './topics';
 
 /**
@@ -323,7 +325,14 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
   /**
    * The device's own configuration, as it has it. It publishes the whole
    * document when a setting is changed on the device itself; the server
-   * overwrites its copy and echoes nothing.
+   * overwrites its copy.
+   *
+   * What the server holds the type's document to is held here too, because
+   * the device's own menu - and an older app before it - can set any figure;
+   * a document that differs from what it is held to is sent back, and the echo
+   * of that send is held already and goes no further. The work mode is the
+   * device's to change from its menu and is kept as it came, and one it runs on
+   * its own is remembered as the one to go back to.
    *
    * Times of day set on the device were set by today's clock, so the clock the
    * old ones were kept on is let go and the schedule loop anchors the new ones
@@ -331,12 +340,19 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
    * sends arrive here too, and leave the times as they were.
    */
   private async configuration(device: StoredDevice, payload: string): Promise<void> {
-    const configuration = asRecord(parsed(payload));
-    if (!configuration) return;
+    const reported = asRecord(parsed(payload));
+    if (!reported) return;
 
+    const configuration = heldTo(device.type, reported);
+    const base = baseFromUpload(device.type, configuration);
     const retimed = !sameClockTimes(device.configuration, configuration);
-    await this.devices.updateOne({ id: device.id }, { $set: { configuration, ...(retimed ? { scheduleClock: null } : {}) } });
+    await this.devices.updateOne(
+      { id: device.id },
+      { $set: { configuration, ...(retimed ? { scheduleClock: null } : {}), ...(base ? { baseWorkmode: base } : {}) } },
+    );
     await recordTargets(this.targetRecord, device.id, device.configuration, configuration, new Date());
+
+    if (JSON.stringify(configuration) !== JSON.stringify(reported)) this.publisher.configuration(device.id, configuration);
   }
 }
 

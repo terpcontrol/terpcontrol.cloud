@@ -27,6 +27,7 @@ import { warningsRouting } from '@/migrations/steps/015-warnings-routing';
 import { measurementBand } from '@/migrations/steps/016-measurement-band';
 import { entryCredentials } from '@/migrations/steps/017-entry-credentials';
 import { targetRecord } from '@/migrations/steps/018-target-record';
+import { workModes } from '@/migrations/steps/019-work-modes';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -587,6 +588,68 @@ describe('the record of what a device aims at', () => {
     expect(context.stats).toMatchObject({ 'targetChanges.written': 1 });
     const fridge = (await recordOf()).find(row => row.deviceId === LEGACY_DEVICE_IDS.fridge);
     expect(fridge?.at).toEqual(new Date(AT + DAY));
+  });
+});
+
+describe('the work modes', () => {
+  it('holds a fridge to the figures the server decides, and remembers what every device goes back to', async () => {
+    await migrate();
+
+    const fridge = await one<Record<string, any>>('devices', { id: LEGACY_DEVICE_IDS.fridge });
+    // A day humidity of 60 % is a humid target: long runs, a band of five points, the short average.
+    expect(fridge?.configuration.daynight).toEqual({
+      day: 21600,
+      night: 64800,
+      maxDehumidifySeconds: 2700,
+      targetHumidityDiff: 5,
+      useLongHumidityAvg: 0,
+      linearChange: 1,
+    });
+    expect(fridge?.configuration.co2).toEqual({ target: 900, sunsetOff: 1 });
+    expect(fridge?.configuration.workmode).toBe('small');
+    expect(fridge?.baseWorkmode).toBe('small');
+
+    // A controller keeps its own tuning; only the mode it goes back to is written.
+    const tent = await one<Record<string, any>>('devices', { id: LEGACY_DEVICE_IDS.controller });
+    expect(tent?.configuration.co2).toEqual({ target: 900, sunsetOff: true });
+    expect(tent?.baseWorkmode).toBe('small');
+    expect((await one<Record<string, any>>('devices', { id: LEGACY_DEVICE_IDS.plug }))?.baseWorkmode).toBeNull();
+  });
+
+  it('clears the work mode and the server’s own figures out of a fridge’s steps, and the work mode out of a controller’s', async () => {
+    await migrate();
+
+    const fridge = await one<Record<string, any>>('plans', { deviceId: LEGACY_DEVICE_IDS.fridge });
+    expect(fridge?.steps[0].settings.workmode).toBeUndefined();
+    expect(fridge?.steps[0].settings.co2).toEqual({ target: 900 });
+    expect(fridge?.steps[0].settings.daynight).toEqual({ day: 21600, night: 64800 });
+
+    const tent = await one<Record<string, any>>('plans', { deviceId: LEGACY_DEVICE_IDS.controller });
+    expect(tent?.steps.every((step: { settings: Document }) => step.settings.workmode === undefined)).toBe(true);
+    expect(tent?.steps[2].settings.co2).toEqual({ target: 900, sunsetOff: true });
+
+    const template = await one<Record<string, any>>('planTemplates', { ownerId: LEGACY_USER_IDS.ben, name: fixture.templates.duplicateName });
+    expect(template?.steps[0].settings).toEqual({ day: { temperature: 26, humidity: 55 } });
+  });
+
+  it('writes nothing in a rehearsal, and nothing the second time', async () => {
+    await migrate();
+    await collection('devices').updateOne({ id: LEGACY_DEVICE_IDS.fridge }, { $set: { 'configuration.daynight.minimalDehumidifierOffTime': 60 } });
+
+    await workModes.run(new MigrationContext(db(), true, new Date(AT + DAY)));
+    expect((await one<Record<string, any>>('devices', { id: LEGACY_DEVICE_IDS.fridge }))?.configuration.daynight.minimalDehumidifierOffTime).toBe(60);
+
+    const context = new MigrationContext(db(), false, new Date(AT + DAY));
+    await workModes.run(context);
+    expect(context.stats).toMatchObject({ 'devices.written': 1, 'devices.heldTo': 1 });
+    expect((await one<Record<string, any>>('devices', { id: LEGACY_DEVICE_IDS.fridge }))?.configuration.daynight.minimalDehumidifierOffTime).toBe(
+      240,
+    );
+
+    const again = new MigrationContext(db(), false, new Date(AT + DAY));
+    await workModes.run(again);
+    expect(again.stats['devices.written'] ?? 0).toBe(0);
+    expect(again.stats['plans.written'] ?? 0).toBe(0);
   });
 });
 

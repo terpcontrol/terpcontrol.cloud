@@ -20,6 +20,7 @@ import {
   subjectRef,
   webhookMethod,
 } from './common.js';
+import { OPERATING_MODES } from './configuration-fields.js';
 import { SOCKET_ADDRESS_MAX_LEN, SOCKET_CREDENTIAL_MAX_LEN, SOCKET_HOLD_MAX_SECONDS } from './socket-report.js';
 
 /**
@@ -70,6 +71,24 @@ export const deviceSettings = named(
   }),
 );
 
+export const operatingMode = named('OperatingMode', z.enum(OPERATING_MODES));
+
+/**
+ * What a fridge or a controller is doing as a whole, read out of the work mode
+ * its document carries and the one the server keeps for when control comes back
+ * on. The screens read this rather than the firmware's word for it, and change
+ * it through `PATCH /devices/{id}/configuration`.
+ */
+export const deviceControl = named(
+  'DeviceControl',
+  z.object({
+    running: z.boolean().describe('Whether the device regulates at all. False is `workmode: off`, which is also how a device leaves the factory.'),
+    drying: z.boolean().describe('Held in the drying work mode by a drying phase: no day and night, no light, no CO2; it dehumidifies and heats.'),
+    mode: operatingMode.describe('What it runs while control is on and it is not drying.'),
+    energySaving: z.boolean().describe('The back-wall fan rests while the compressor does. Applies to the standard mode of a fridge only.'),
+  }),
+);
+
 export const deviceState = named(
   'DeviceState',
   z.object({
@@ -115,6 +134,9 @@ export const device = named(
     firmware: deviceFirmwareTarget,
     configuration: deviceConfiguration.nullable().describe('null before the device has reported one.'),
     settings: deviceSettings,
+    control: deviceControl
+      .nullable()
+      .describe('null for hardware with no work mode - a plug, a light, a fan - and before the document has arrived.'),
     isDemo: z.boolean(),
     state: deviceState,
   }),
@@ -125,8 +147,8 @@ export const devicePage = named('DevicePage', page(device));
 /**
  * `PATCH /devices/{id}`: what a person decides about a device. What it is, who
  * owns it and everything under `state` are not a client's to write, and the
- * configuration document is replaced whole by its own route rather than patched
- * here, because the server does not read enough of it to merge one.
+ * configuration document has routes of its own: replaced whole with the
+ * targets, or changed a named setting at a time.
  */
 export const deviceUpdate = named(
   'DeviceUpdate',
@@ -145,6 +167,21 @@ export const deviceUpdate = named(
 export const deviceConfigurationEnvelope = named(
   'DeviceConfigurationEnvelope',
   z.object({ configuration: deviceConfiguration }),
+);
+
+/**
+ * `PATCH /devices/{id}/configuration`: settings beyond the targets, by the
+ * names `CONFIGURATION_FIELDS` gives them for the device's type. The server
+ * checks each against that table, merges it into the document the device runs
+ * and keeps every key it was not asked about, and answers the device.
+ */
+export const deviceConfigurationPatch = named(
+  'DeviceConfigurationPatch',
+  z.object({
+    set: z
+      .record(z.string(), z.union([z.number(), z.boolean(), z.string()]))
+      .describe('Field name to value, from the fields of this type of device.'),
+  }),
 );
 
 /**

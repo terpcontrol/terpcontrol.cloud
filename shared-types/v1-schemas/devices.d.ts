@@ -46,6 +46,27 @@ export declare const deviceSettings: z.ZodObject<{
     vpdLeafOffsetNight: z.ZodNumber;
     ppfdLuxFactor: z.ZodNumber;
 }, z.core.$strip>;
+export declare const operatingMode: z.ZodEnum<{
+    standard: "standard";
+    germination: "germination";
+    greenhouse: "greenhouse";
+}>;
+/**
+ * What a fridge or a controller is doing as a whole, read out of the work mode
+ * its document carries and the one the server keeps for when control comes back
+ * on. The screens read this rather than the firmware's word for it, and change
+ * it through `PATCH /devices/{id}/configuration`.
+ */
+export declare const deviceControl: z.ZodObject<{
+    running: z.ZodBoolean;
+    drying: z.ZodBoolean;
+    mode: z.ZodEnum<{
+        standard: "standard";
+        germination: "germination";
+        greenhouse: "greenhouse";
+    }>;
+    energySaving: z.ZodBoolean;
+}, z.core.$strip>;
 export declare const deviceState: z.ZodObject<{
     lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
     claimedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -87,6 +108,16 @@ export declare const device: z.ZodObject<{
         vpdLeafOffsetNight: z.ZodNumber;
         ppfdLuxFactor: z.ZodNumber;
     }, z.core.$strip>;
+    control: z.ZodNullable<z.ZodObject<{
+        running: z.ZodBoolean;
+        drying: z.ZodBoolean;
+        mode: z.ZodEnum<{
+            standard: "standard";
+            germination: "germination";
+            greenhouse: "greenhouse";
+        }>;
+        energySaving: z.ZodBoolean;
+    }, z.core.$strip>>;
     isDemo: z.ZodBoolean;
     state: z.ZodObject<{
         lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
@@ -126,6 +157,16 @@ export declare const devicePage: z.ZodObject<{
             vpdLeafOffsetNight: z.ZodNumber;
             ppfdLuxFactor: z.ZodNumber;
         }, z.core.$strip>;
+        control: z.ZodNullable<z.ZodObject<{
+            running: z.ZodBoolean;
+            drying: z.ZodBoolean;
+            mode: z.ZodEnum<{
+                standard: "standard";
+                germination: "germination";
+                greenhouse: "greenhouse";
+            }>;
+            energySaving: z.ZodBoolean;
+        }, z.core.$strip>>;
         isDemo: z.ZodBoolean;
         state: z.ZodObject<{
             lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
@@ -145,8 +186,8 @@ export declare const devicePage: z.ZodObject<{
 /**
  * `PATCH /devices/{id}`: what a person decides about a device. What it is, who
  * owns it and everything under `state` are not a client's to write, and the
- * configuration document is replaced whole by its own route rather than patched
- * here, because the server does not read enough of it to merge one.
+ * configuration document has routes of its own: replaced whole with the
+ * targets, or changed a named setting at a time.
  */
 export declare const deviceUpdate: z.ZodObject<{
     name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -177,6 +218,15 @@ export declare const deviceUpdate: z.ZodObject<{
  */
 export declare const deviceConfigurationEnvelope: z.ZodObject<{
     configuration: z.ZodRecord<z.ZodString, z.ZodAny>;
+}, z.core.$strip>;
+/**
+ * `PATCH /devices/{id}/configuration`: settings beyond the targets, by the
+ * names `CONFIGURATION_FIELDS` gives them for the device's type. The server
+ * checks each against that table, merges it into the document the device runs
+ * and keeps every key it was not asked about, and answers the device.
+ */
+export declare const deviceConfigurationPatch: z.ZodObject<{
+    set: z.ZodRecord<z.ZodString, z.ZodUnion<readonly [z.ZodNumber, z.ZodBoolean, z.ZodString]>>;
 }, z.core.$strip>;
 /**
  * `GET /devices/{id}/configuration`: the same envelope, with the document null
@@ -387,6 +437,16 @@ export declare const deviceClaimResult: z.ZodObject<{
             vpdLeafOffsetNight: z.ZodNumber;
             ppfdLuxFactor: z.ZodNumber;
         }, z.core.$strip>;
+        control: z.ZodNullable<z.ZodObject<{
+            running: z.ZodBoolean;
+            drying: z.ZodBoolean;
+            mode: z.ZodEnum<{
+                standard: "standard";
+                germination: "germination";
+                greenhouse: "greenhouse";
+            }>;
+            energySaving: z.ZodBoolean;
+        }, z.core.$strip>>;
         isDemo: z.ZodBoolean;
         state: z.ZodObject<{
             lastSeenAt: z.ZodNullable<z.ZodISODateTime>;

@@ -75,6 +75,8 @@ export type ExportStatus = 'queued' | 'running' | 'ready' | 'failed';
 
 export type FirmwareChannel = 'stable' | 'beta' | 'alpha' | 'manual';
 
+export type OperatingMode = 'standard' | 'greenhouse' | 'germination';
+
 export type SocketState = 'on' | 'off' | 'unknown';
 
 export type SocketOverrideState = 'on' | 'off' | 'auto';
@@ -750,6 +752,25 @@ export interface DeviceSettings {
   ppfdLuxFactor: number;
 }
 
+export interface DeviceControl {
+  /**
+   * Whether the device regulates at all. False is `workmode: off`, which is also how a device leaves the factory.
+   */
+  running: boolean;
+  /**
+   * Held in the drying work mode by a drying phase: no day and night, no light, no CO2; it dehumidifies and heats.
+   */
+  drying: boolean;
+  /**
+   * What it runs while control is on and it is not drying.
+   */
+  mode: 'standard' | 'greenhouse' | 'germination';
+  /**
+   * The back-wall fan rests while the compressor does. Applies to the standard mode of a fridge only.
+   */
+  energySaving: boolean;
+}
+
 export interface DeviceState {
   /**
    * Last sample or status; what `offline` is decided from.
@@ -809,6 +830,10 @@ export interface Device {
    */
   configuration: DeviceConfiguration | null;
   settings: DeviceSettings;
+  /**
+   * null for hardware with no work mode - a plug, a light, a fan - and before the document has arrived.
+   */
+  control: DeviceControl | null;
   isDemo: boolean;
   state: DeviceState;
 }
@@ -830,6 +855,15 @@ export interface DeviceUpdate {
 
 export interface DeviceConfigurationEnvelope {
   configuration: DeviceConfiguration;
+}
+
+export interface DeviceConfigurationPatch {
+  /**
+   * Field name to value, from the fields of this type of device.
+   */
+  set: {
+    [k: string]: number | boolean | string;
+  };
 }
 
 export interface DeviceConfigurationReading {
