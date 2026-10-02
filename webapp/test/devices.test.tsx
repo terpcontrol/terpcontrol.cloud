@@ -591,7 +591,7 @@ describe("the controller's own light output", () => {
     wrap(<LightOutputRow output={lightOutputOf(light, CAPABILITIES, null)!} unheard={null} mayManage runs={null} now={NOW} />);
     // No Light build takes a hold, so it is not told to wait for one.
     expect(screen.queryByRole('button', { name: 'on' })).not.toBeInTheDocument();
-    expect(screen.getByText(/This kind of device cannot be told to hold its light output, in any build/)).toBeInTheDocument();
+    expect(screen.getByText(/This kind of device cannot be told to hold its light output\./)).toBeInTheDocument();
     expect(screen.queryByText(/This build/)).not.toBeInTheDocument();
     const slider = screen.getByRole('slider', { name: 'Light limit' });
     expect(slider).toHaveValue('0');

@@ -134,7 +134,7 @@ function Protections({ device, mayManage }: DeviceContext) {
           <FieldNumber device={device} name="overheatBack" label={t('plugProtections.overheatBack')} unit={degrees} disabled={disabled} />
         </>
       ) : null}
-      <FieldSwitch device={device} name="coldOff" label={t('plugProtections.cold')} disabled={disabled} />
+      <FieldSwitch device={device} name="coldOff" label={t('plugProtections.cold')} help="advanced.plugProtections" disabled={disabled} />
       {on('coldOff') ? (
         <>
           <FieldNumber device={device} name="coldAt" label={t('plugProtections.coldAt')} unit={degrees} disabled={disabled} />
@@ -145,6 +145,7 @@ function Protections({ device, mayManage }: DeviceContext) {
         device={device}
         name="leastTimes"
         label={t('plugProtections.least')}
+        help="advanced.plugProtections"
         disabled={disabled}
         note={() => (kept ? null : t('plugProtections.needsFirmware'))}
       />

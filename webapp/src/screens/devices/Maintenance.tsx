@@ -179,7 +179,11 @@ function WhatPauses({ devices, spans }: { devices: Device[]; spans: ReturnType<t
   return (
     <>
       {only ? (
-        <p>{parksAnything(only) ? t('maintenance.pauses', { ...spans, outputs: parkedLabel(t, only) }) : t('maintenance.pausesNothing', spans)}</p>
+        <p>
+          {parksAnything(only) ? t('maintenance.pauses', { ...spans, outputs: parkedLabel(t, only) }) : t('maintenance.pausesNothing', spans)}
+          {/* The lamp is dimmed to a working brightness rather than stopped, which is what Erweitert's "light on in maintenance" builds on. */}
+          {parksAnything(only) ? ` ${t('maintenance.dims')}` : null}
+        </p>
       ) : (
         <>
           <p>{t('maintenance.pausesEach', { ...spans, count: devices.length })}</p>

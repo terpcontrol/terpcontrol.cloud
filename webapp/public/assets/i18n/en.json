@@ -632,10 +632,6 @@
       "day": "day"
     }
   },
-  "diagnostics": {
-    "serialnumber": "Device serial number",
-    "show": "Show data"
-  },
   "devices": {
     "button-settings": "Settings",
     "button-maintenance-mode": "Maintenance mode",
@@ -866,8 +862,8 @@
       "noSettings": "This device has not sent its settings yet, so there is nothing to write a brightness into. Changing any setting on the device itself sends them; connecting alone does not.",
       "needsFirmware": "This build cannot be told to hold its light output. The brightness still reaches it — that is a setting and not a command.",
       "needsFirmwareAlone": "This build cannot be told to hold its light output.",
-      "neverHolds": "This kind of device cannot be told to hold its light output, in any build. The brightness still reaches it — that is a setting and not a command.",
-      "neverHoldsAlone": "This kind of device cannot be told to hold its light output, in any build.",
+      "neverHolds": "This kind of device cannot be told to hold its light output. The brightness still reaches it — that is a setting and not a command.",
+      "neverHoldsAlone": "This kind of device cannot be told to hold its light output.",
       "keptForLater": "Nothing is listening, so the buttons reach nobody — a brightness is stored all the same, and the device is handed it when it connects again.",
       "explained": "The device dims this output itself and ramps it through sunrise and sunset; the brightness is the most it gives. A smart socket with a light role has no level of its own — it follows this output on or off, unless it is being held. Hours of light count every hour the lamp is above zero, so dimming changes how bright the day is and not how long it is.",
       "now": "now {{percent}} · {{age}} ago",
@@ -2594,7 +2590,7 @@
       "noClimate": "Nothing here runs on a plan.",
       "noClimateNote": "A plan step writes a climate — day and night targets, the CO₂ target, the light's limit — and this device states none of them. Its sockets and its output are on the Devices tab.",
       "noClimateHasPlan": "This device states no climate, so what these steps write lands in a document that has nowhere for it. A step whose settings are emptied sends nothing at all, and a stopped plan sends nothing until it is started again.",
-      "waitingHasPlan": "This controller has not sent its settings yet, so these steps are held back rather than sent. What a step carries would not be added to the controller's own tuning but put in place of it: the work mode, the light schedule, the dehumidifier's timings and the dimming ramps would all be back at a factory value, and none of them has ever reached the cloud to be put back. A step whose settings are emptied sends nothing at all, and a stopped plan sends nothing until it is started again.",
+      "waitingHasPlan": "This device has not sent its settings yet, so these steps are held back rather than sent. What a step carries would not be added to the device's own tuning but put in place of it: the work mode, the light schedule, the dehumidifier's timings and the dimming ramps would all be back at a factory value, and none of them has ever reached the cloud to be put back. A step whose settings are emptied sends nothing at all, and a stopped plan sends nothing until it is started again.",
       "write": "Write a plan",
       "edit": "Edit the plan",
       "keepAsTemplate": "Keep as a template",
@@ -2630,9 +2626,9 @@
         "completed": "Every step has run. Starting it again begins at step 1."
       },
       "applied": {
-        "at": "Step sent to the controller {{age}} ago",
-        "never": "This step's settings go to the controller within the minute",
-        "atRest": "This plan is writing nothing: the controller keeps whatever it was last set to",
+        "at": "Step sent to the device {{age}} ago",
+        "never": "This step's settings go to the device within the minute",
+        "atRest": "This plan is writing nothing: the device keeps whatever it was last set to",
         "quiet": "{{offline}} · what the device is really running may be older than this"
       },
       "move": {
@@ -2650,11 +2646,11 @@
         "extendYes": "Add {{length}}",
         "skip": "The plan moves on to step {{number}}, {{name}}, and starts its clock. What this step still had to run is not kept.",
         "skipPaused": "The plan moves on to step {{number}}, {{name}}, and stays paused: that step's clock starts when the plan is resumed. What this step still had to run is not kept.",
-        "skipEnds": "This is the last step, so skipping it completes the plan. The controller keeps the settings this step gave it.",
+        "skipEnds": "This is the last step, so skipping it completes the plan. The device keeps the settings this step gave it.",
         "skipYes": "Skip the step",
-        "stop": "The plan keeps its steps and stands at the first one again, ready to be started. The controller keeps the settings the last step gave it: stopping says nothing about what the place should be doing instead.",
+        "stop": "The plan keeps its steps and stands at the first one again, ready to be started. The device keeps the settings the last step gave it: stopping says nothing about what the place should be doing instead.",
         "stopYes": "Stop the plan",
-        "remove": "The plan and its steps are taken off this controller. The controller keeps whatever it was last set to, and what the plan wrote stays in the diary. Keep it as a template first to start from it again.",
+        "remove": "The plan and its steps are taken off this device. The device keeps whatever it was last set to, and what the plan wrote stays in the diary. Keep it as a template first to start from it again.",
         "removeYes": "Remove the plan"
       },
       "unit": {
@@ -2696,14 +2692,14 @@
         "durationValue": "How long, as a number",
         "durationUnit": "How long, the unit",
         "openEndedNote": "A step of no length runs until somebody moves it on by hand.",
-        "settings": "What the controller holds",
-        "writesNothing": "This step writes nothing: the controller keeps whatever it was running when the step began.",
+        "settings": "What the device holds",
+        "writesNothing": "This step writes nothing: the device keeps whatever it was running when the step began.",
         "writesNothingShort": "writes nothing",
-        "writesSections": "A step writes the figures it is given into the controller's settings: the day and night targets, the CO₂ target and the light's limit. A figure left empty stays what the controller has, and so does everything else in the controller's settings.",
-        "writesSectionsNoCo2": "A step writes the figures it is given into the controller's settings: the day and night targets and the light's limit. This controller reports no CO₂ sensor, so no CO₂ target is written — its firmware holds one at zero whatever it is told. A figure left empty stays what the controller has, and so does everything else in the controller's settings.",
-        "writesNowhere": "This controller has not sent its settings yet, so this step is not sent to it. What it carries would be put in place of the controller's own tuning rather than added to it, and every setting this step does not name would be back at a factory value. Clearing these figures is how the step is taken off.",
+        "writesSections": "A step writes the figures it is given into the device's settings: the day and night targets, the CO₂ target, the light's limit and how long it is on. A figure left empty stays what the device has, and so does everything else in its settings.",
+        "writesSectionsNoCo2": "A step writes the figures it is given into the device's settings: the day and night targets, the light's limit and how long it is on. This device reports no CO₂ sensor, so no CO₂ target is written — its firmware holds one at zero whatever it is told. A figure left empty stays what the device has, and so does everything else in its settings.",
+        "writesNowhere": "This device has not sent its settings yet, so this step is not sent. What it carries would be put in place of the device's own tuning rather than added to it, and every setting this step does not name would be back at a factory value. Clearing these figures is how the step is taken off.",
         "alsoWrites": "This step also carries settings this screen does not edit ({{sections}}); they are kept as they are.",
-        "takeFromController": "Take what the controller holds now",
+        "takeFromController": "Take what the device holds now",
         "waits": "Wait to be confirmed",
         "waitsNote": "When its time is up the plan stands still and asks, rather than moving on by itself.",
         "message": "What to say when it asks",
@@ -2745,20 +2741,20 @@
         "writeEntriesNote": "A step change leaves a line on the place's timeline, whether or not a mail goes out."
       },
       "effect": {
-        "newPlan": "This controller is being run by nothing, so the plan is saved at rest. Starting it is a separate tap.",
+        "newPlan": "This device is being run by nothing, so the plan is saved at rest. Starting it is a separate tap.",
         "atRest": "This plan is not running, so saving moves nothing: starting it begins at step 1.",
-        "empties": "A plan without steps has nothing to run, so it stops and the controller keeps what the last step gave it.",
+        "empties": "A plan without steps has nothing to run, so it stops and the device keeps what the last step gave it.",
         "stays": "The place goes on running {{name}} as step {{number}}, with the time it has already served.",
         "moves": "{{name}} is the step the place is on: it moves from {{from}} to {{to}} and keeps the time it has already served.",
         "relength": "Its new length is measured against that time, so a step that has already served longer than it now lasts is over at once.",
         "restarts": "{{gone}} is the step the place is on and it is gone from the list, so {{starts}} takes its place as step {{number}} and starts from zero. A confirmation it was waiting for is forgotten.",
-        "resends": "The step's settings are sent to the controller again within the next minute rather than at the next hour."
+        "resends": "The step's settings are sent to the device again within the next minute rather than at the next hour."
       },
       "refused": {
         "nothing_to_confirm": "This step is not waiting to be confirmed: it has been answered already, or its time is not up yet.",
         "plan_not_running": "This plan is not running any more, so it has no step to move.",
         "plan_already_running": "This plan is already running.",
-        "plan_not_found": "This controller is not being run by a plan any more.",
+        "plan_not_found": "This device is not being run by a plan any more.",
         "plan_has_no_steps": "A plan without steps has nothing to run. Write a step first.",
         "invalid_duration": "A step is extended by a length greater than zero.",
         "duplicate_step_id": "Two steps of this plan carry the same id, so nothing was saved. Close the sheet and open it again.",
@@ -3129,7 +3125,7 @@
     "machineCapped": "The newest {{shown}} of {{total}} lines the devices and the plan wrote",
     "noPanels": "Nothing measures here, so there are no curves to draw",
     "quietWindow": "Nothing heard in this window · last measured {{age}} ago",
-    "noSpaces": "Nothing to draw yet. Add a device or start a grow on the",
+    "noSpaces": "Nothing to draw yet. Add a device or start a grow – both on the page",
     "demoNoSpaces": "The demo has nothing to draw; nothing has been left in this one to look at.",
     "leafShort": "leaf",
     "noTargetNow": "no target at this time",
@@ -3205,7 +3201,7 @@
     "saving": "Saving…",
     "saveFailed": "That was not saved.",
     "unpair": "Unpair",
-    "unpairSure": "Its pictures stay where they are.",
+    "unpairSure": "This camera's pictures stay where they are.",
     "unpairYes": "Unpair it",
     "keep": "Keep it",
     "unpairNote": "Unpairing stops this camera being read. Every picture and film it has delivered keeps its link to it.",
@@ -3353,7 +3349,7 @@
         "where": "Where does it look?",
         "nowhere": "There is no place to put a camera in yet. Name the one it looks at and it is made here.",
         "name": "Name",
-        "nameHint": "Tent camera",
+        "nameHint": "Camera",
         "test": "Test",
         "testing": "Taking a picture…",
         "save": "Add camera",
@@ -3542,6 +3538,7 @@
     "runningNote": "Control and alarms paused",
     "title": "Maintenance",
     "pauses": "For {{minutes}} minutes the device stops {{outputs}}, so you can work in peace.",
+    "dims": "The light is dimmed to 15 %.",
     "pausesNothing": "This device takes no maintenance command and stops nothing. Only its alarms stay off.",
     "pausesEach_one": "For {{minutes}} minutes this pauses the device here:",
     "pausesEach_other": "For {{minutes}} minutes this pauses all {{count}} devices here:",
@@ -5348,7 +5345,6 @@
   "message-recipe-step-chosen-title": "Plan continued at a step",
   "message-recipe-step-chosen-text": "The plan carries on at step {{value}}.",
   "tuning": {
-    "minutes": "min",
     "seconds": "s",
     "sunrise": "Sunrise",
     "sunset": "Sunset",
@@ -5429,6 +5425,7 @@
     "sureTitle": "Really give it up?",
     "what": "“{{name}}” leaves your account. Whoever holds the device next adds it to their own account with the code on its display.",
     "goes": "Its grow plan, its alarms and the camera connected through it go with the device.",
+    "goesAlarms": "Its alarms go with the device.",
     "stays": "The place {{place}} and its diary stay. Nothing changes on the device itself: it keeps regulating with its last settings until someone else takes it over.",
     "staysNowhere": "Nothing changes on the device itself: it keeps regulating with its last settings until someone else takes it over.",
     "next": "Continue",
@@ -5476,6 +5473,7 @@
     "pair": {
       "label": "Pair a socket by IP",
       "open": "Pair …",
+      "another": "Pair another socket",
       "note": "For a Tasmota socket on the same Wi-Fi.",
       "title": "Pair a socket by IP",
       "intro": "For a Tasmota socket – NOUS, Athom or a Shelly you flashed yourself – on the same Wi-Fi as {{device}}. A Terp Control socket is paired on the device itself: press the button, then Smart Sockets.",

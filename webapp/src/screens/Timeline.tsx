@@ -46,7 +46,7 @@ export function Timeline() {
             t('timeline.demoNoSpaces')
           ) : (
             <>
-              {t('timeline.noSpaces')} <Link to="/">{t('shell.tabs.home')}</Link>
+              {t('timeline.noSpaces')} <Link to="/">{t('shell.tabs.home')}</Link>.
             </>
           )}
         </p>

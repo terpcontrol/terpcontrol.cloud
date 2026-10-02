@@ -193,7 +193,7 @@ describe('light hours in a step', () => {
     wrap(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
 
     // The device's light comes on at 06:00 UTC and goes off at midnight: eighteen hours.
-    fireEvent.click(screen.getByRole('button', { name: 'Take what the controller holds now' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Take what the device holds now' }));
     expect(screen.getByRole('spinbutton', { name: 'Light on for' })).toHaveValue(18);
   });
 });

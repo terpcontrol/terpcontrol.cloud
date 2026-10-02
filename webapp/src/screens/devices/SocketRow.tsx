@@ -96,7 +96,8 @@ export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, no
     <li className={`${ui.card} ${styles.socket}`}>
       <div className={styles.socketHead}>
         <Plug className={styles.socketIcon} size={18} strokeWidth={1.75} aria-hidden />
-        <div className={styles.rowText}>
+        {/* The name opens the row as the arrow does, as a whole device row does; the arrow is the one a keyboard reaches. */}
+        <div className={styles.rowText} data-opens onClick={() => setOpen(!open)}>
           <span className={styles.rowTitle}>{name}</span>
           <span className={styles.rowNote}>{subtitle(t, row, now)}</span>
         </div>
@@ -132,7 +133,7 @@ export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, no
       {open ? (
         <div className={styles.socketPanel}>
           <Facts>
-            <Fact label={t('devices.socket.slot')} value={row.slot < 0 ? t('devices.socket.byRole') : String(row.slot)} />
+            <Fact label={t('devices.socket.slot')} value={row.slot < 0 ? t('devices.socket.byRole') : String(row.slot + 1)} />
             {row.address ? <Fact label={t('devices.socket.address')} value={row.address} /> : null}
             {row.hardwareId ? <Fact label={t('devices.socket.hardwareId')} value={row.hardwareId} /> : null}
             {row.stateChangedAt ? (

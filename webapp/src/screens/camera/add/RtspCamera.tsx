@@ -81,9 +81,11 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   // only writes lines in is not among the answers: offering it would end in a
   // refusal after the address and the name had already been typed.
   const places = spaces.data.items.filter(space => enough(space.youMay, 'manage'));
+  // With one place there is nothing to choose: the camera looks at that one.
+  const placeId = spaceId ?? (places.length === 1 ? places[0].id : null);
 
   const live = (device: Device) => deviceLiveness(device.state.lastSeenAt, now) === 'live';
-  const carriers = spaceId === null ? [] : carriersOf(devices, spaceId, live);
+  const carriers = placeId === null ? [] : carriersOf(devices, placeId, live);
   const carrier = carriers.find(device => device.id === carrierId) ?? carriers[0] ?? null;
   const pulled = carrier !== null && tunnel;
 
@@ -91,7 +93,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   // which cannot be pressed says why instead of being grey for no stated
   // reason. Readiness is the absence of a reason rather than a second condition
   // beside it, because the two would drift apart the moment either changed.
-  const missing = url.trim() === '' ? 'needAddress' : spaceId === null ? 'needPlace' : name.trim() === '' ? 'needName' : null;
+  const missing = url.trim() === '' ? 'needAddress' : placeId === null ? 'needPlace' : name.trim() === '' ? 'needName' : null;
   const ready = missing === null;
   const working = create.isPending || amend.isPending || capture.isPending || drop.isPending;
 
@@ -117,7 +119,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
     const address = url.trim();
     const settings: CameraUpdate = {
       name: name.trim(),
-      spaceId,
+      spaceId: placeId,
       url: address,
       ...(hasLogin(address) ? {} : { username: username.trim(), password }),
       deviceId: carrier?.id ?? null,
@@ -217,7 +219,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
             />
           </div>
         )}
-        <p className={styles.text}>{wayIn(t, spaceId, carrier, pulled)}</p>
+        <p className={styles.text}>{wayIn(t, placeId, carrier, pulled)}</p>
         {carrier && liveness && liveness !== 'live' ? (
           <p className={styles.text} {...ageAttribute(liveness)}>
             {t(`cameras.add.rtsp.carrier.${liveness}`, {
@@ -235,7 +237,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         ) : (
           <Choices label={t('cameras.add.rtsp.where')}>
             {places.map(space => (
-              <Choice key={space.id} chosen={space.id === spaceId} onChoose={() => putIn(space.id)}>
+              <Choice key={space.id} chosen={space.id === placeId} onChoose={() => putIn(space.id)}>
                 {space.name}
               </Choice>
             ))}

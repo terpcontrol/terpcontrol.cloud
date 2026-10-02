@@ -20,7 +20,7 @@ const hasDocument = (device: Device): boolean => device.configuration != null &&
 /** The lamp of a fridge and of a tent controller ramps over this; a stand-alone lamp keeps its own times. */
 function LightRamps({ device, mayManage }: DeviceContext) {
   const { t } = useTranslation();
-  const unit = t('tuning.minutes');
+  const unit = t('units.min');
 
   return (
     <>

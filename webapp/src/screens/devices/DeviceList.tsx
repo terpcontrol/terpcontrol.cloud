@@ -257,7 +257,8 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
           const pairing =
             mayManage && SOCKET_HOST_TYPES.includes(device.type) && rows.length > 0 ? (
               <details className={socketStyles.listAdvanced}>
-                <summary className="label">{t('advanced.title')}</summary>
+                {/* Named for what it holds: right under a socket's own Erweitert, a second one said nothing of which was which. */}
+                <summary className="label">{t('socketForm.pair.another')}</summary>
                 <PairSocketRow deviceId={device.id} deviceName={deviceTitle(device, t, devices.data!.items)} capabilities={table.capabilities} />
               </details>
             ) : null;

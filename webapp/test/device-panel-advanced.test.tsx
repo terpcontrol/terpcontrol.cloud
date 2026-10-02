@@ -248,11 +248,11 @@ describe('pairing a socket by its address', () => {
     await drawWith(controller(), [socket()]);
     await waitFor(() => expect(screen.getByText(/^Smart sockets · Tent 1/)).toBeInTheDocument());
 
-    // One Advanced in the panel, without the pairing, and one under the list, with it.
-    const sections = screen.getAllByText('Advanced', { selector: 'summary' });
-    expect(sections).toHaveLength(2);
-    expect(within(sections[0].closest('details')!).queryByText('Pair a socket by IP')).not.toBeInTheDocument();
-    expect(within(sections[1].closest('details')!).getByText('Pair a socket by IP')).toBeInTheDocument();
+    // Advanced in the panel, without the pairing, and under the list a section named for it, with it.
+    const panel = screen.getByText('Advanced', { selector: 'summary' });
+    expect(within(panel.closest('details')!).queryByText('Pair a socket by IP')).not.toBeInTheDocument();
+    const list = screen.getByText('Pair another socket', { selector: 'summary' });
+    expect(within(list.closest('details')!).getByText('Pair a socket by IP')).toBeInTheDocument();
   });
 });
 

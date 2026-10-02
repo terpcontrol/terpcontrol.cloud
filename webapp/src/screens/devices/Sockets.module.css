@@ -116,10 +116,15 @@
 
 /* The socket list's own Erweitert, under the last section of a device's sockets. */
 .listAdvanced {
-  margin-top: calc(-1 * var(--space-2));
+  margin-top: var(--space-2);
 }
 
 .listAdvanced > summary {
   cursor: pointer;
   width: fit-content;
+}
+
+/* The socket's name opens its row. */
+[data-opens] {
+  cursor: pointer;
 }

@@ -704,7 +704,7 @@ describe('the plan panel', () => {
     draw();
     fireEvent.click(screen.getByRole('button', { name: 'Remove the plan' }));
 
-    expect(screen.getByText(/The controller keeps whatever it was last set to/)).toBeInTheDocument();
+    expect(screen.getByText(/The device keeps whatever it was last set to/)).toBeInTheDocument();
     expect(state.removed).toBe(0);
 
     const buttons = screen.getAllByRole('button', { name: 'Remove the plan' });
@@ -725,7 +725,7 @@ describe('the plan panel', () => {
     state.plan = plan({}, { lastAppliedAt: DateTime.now().minus({ minutes: 20 }).toISO()! });
     draw();
 
-    expect(screen.getByText(/Step sent to the controller 20 min ago/)).toBeInTheDocument();
+    expect(screen.getByText(/Step sent to the device 20 min ago/)).toBeInTheDocument();
   });
 
   it('dims that line and says so when the controller itself has gone quiet', () => {

@@ -94,7 +94,8 @@ function ReleaseSheet({ deviceId, onClose }: { deviceId: string; onClose: () => 
         ) : (
           <>
             <p>{t('release.what', { name })}</p>
-            <p>{t('release.goes')}</p>
+            {/* Only a fridge module and a controller run a plan or carry a camera; the others take their alarms alone. */}
+            <p>{t(device.type === 'fridge' || device.type === 'controller' ? 'release.goes' : 'release.goesAlarms')}</p>
             <p className={ui.note}>{place ? t('release.stays', { place }) : t('release.staysNowhere')}</p>
           </>
         )}

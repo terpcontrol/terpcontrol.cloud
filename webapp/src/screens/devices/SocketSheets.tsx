@@ -160,7 +160,10 @@ export function SocketSheet({
 
             {draft.role && isTimed(draft.role) ? (
               <div className={styles.field}>
-                <span className="label">{t('socketForm.cycle.label')}</span>
+                <span className="label">
+                  {t('socketForm.cycle.label')}
+                  <Help topic="socketTimer" />
+                </span>
                 <CycleFields draft={draft} onChange={setDraft} />
               </div>
             ) : null}
@@ -189,7 +192,10 @@ function RolePick({
 
   return (
     <div className={styles.field}>
-      <span className="label">{t('socketForm.role')}</span>
+      <span className="label">
+        {t('socketForm.role')}
+        <Help topic="socketRoles" />
+      </span>
       <Choices label={t('socketForm.role')}>
         {roles.map(role => (
           <Choice key={role} chosen={role === chosen} disabled={disabled} onChoose={() => onChoose(role)}>
