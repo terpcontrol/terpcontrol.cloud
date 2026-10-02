@@ -87,6 +87,7 @@ const device = (over: Partial<Device> & { id: string }): Device => ({
   firmware: { channel: 'stable', targetId: null },
   configuration: null,
   settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
+  control: null,
   isDemo: false,
   state: {
     lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!,

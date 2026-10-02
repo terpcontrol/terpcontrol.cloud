@@ -1092,7 +1092,10 @@ describe('the device panel', () => {
     await screen.findByText(/^Devices?$/);
   };
 
-  beforeEach(() => vi.mocked(api.post).mockClear());
+  beforeEach(() => {
+    vi.mocked(api.post).mockClear();
+    vi.mocked(api.patch).mockClear();
+  });
 
   it('opens on a tap anywhere on the row, not only on the chevron', async () => {
     await drawWith([fridge()]);
@@ -1160,6 +1163,65 @@ describe('the device panel', () => {
     expect(screen.getByRole('button', { name: /^Restart/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /^Maintenance · 15 min/ })).toBeDisabled();
     expect(screen.getByText('Restart and maintenance work again once the device is connected.')).toBeInTheDocument();
+  });
+
+  const regulating = (over: Partial<NonNullable<Device['control']>> = {}): Device =>
+    ({
+      ...fridge(),
+      configuration: { workmode: over.running === false ? 'off' : 'small', day: { temperature: 25, humidity: 60 } },
+      control: { running: true, drying: false, mode: 'standard', energySaving: false, ...over },
+    }) as Device;
+
+  it('says whether the fridge regulates, and asks before it switches its control off - pausing a running plan first', async () => {
+    planState.status = 'running';
+    await drawWith([regulating()]);
+    vi.mocked(api.patch).mockResolvedValue({ ...regulating({ running: false }) } as never);
+    fireEvent.click(await screen.findByText('Fridge module'));
+
+    expect(screen.getByText('Control', { selector: 'dt' }).nextElementSibling).toHaveTextContent(/^on$/);
+    fireEvent.click(screen.getByRole('button', { name: /^Switch control off/ }));
+
+    const asked = await screen.findByRole('dialog', { name: 'Switch control off?' });
+    expect(within(asked).getByText(/Heater, compressor, light, CO₂ valve and fans go off/)).toBeInTheDocument();
+    expect(within(asked).getByText(/is paused, or its next step would switch control back on/)).toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+
+    fireEvent.click(within(asked).getByRole('button', { name: 'Switch off' }));
+
+    expect(await within(asked).findByText('Control is off.')).toBeInTheDocument();
+    expect(moves).toEqual([{ kind: 'pause', reason: 'Control was switched off.' }]);
+    expect(api.patch).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/configuration', { set: { control: false } });
+  });
+
+  it('switches the control of a fridge that is off back on with one tap', async () => {
+    await drawWith([regulating({ running: false })]);
+    vi.mocked(api.patch).mockResolvedValue(regulating() as never);
+    fireEvent.click(await screen.findByText('Fridge module'));
+
+    expect(screen.getByText('Control', { selector: 'dt' }).nextElementSibling).toHaveTextContent(/^off$/);
+    fireEvent.click(screen.getByRole('button', { name: /^Switch control on/ }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/configuration', { set: { control: true } }));
+  });
+
+  it('keeps the operating mode under Advanced, and sends a choice on the tap', async () => {
+    await drawWith([regulating()]);
+    vi.mocked(api.patch).mockResolvedValue(regulating({ mode: 'greenhouse' }) as never);
+    fireEvent.click(await screen.findByText('Fridge module'));
+
+    expect(screen.getByText('Advanced')).toBeInTheDocument();
+    expect(screen.getByText('Holds temperature, humidity, light and CO₂ to the targets.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Greenhouse' }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/configuration', { set: { mode: 'greenhouse' } }));
+  });
+
+  it('has no control switch and no Advanced for hardware with no work mode', async () => {
+    await drawWith([{ ...fridge(), id: 'plug-1', type: 'plug', name: null, control: null } as Device]);
+    fireEvent.click(await screen.findByText('Plug'));
+
+    expect(screen.queryByRole('button', { name: /control/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Advanced')).not.toBeInTheDocument();
   });
 
   /** A plug parks nothing, so it is offered the restart and no maintenance that would only be a promise. */

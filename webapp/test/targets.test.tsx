@@ -57,6 +57,7 @@ const device = (over: Partial<Device> = {}, hardware: Record<string, string> = {
   firmware: { channel: 'stable', targetId: null },
   configuration: CONFIGURATION,
   settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
+  control: null,
   isDemo: false,
   state: {
     lastSeenAt: DateTime.now().minus({ seconds: 20 }).toISO()!,
@@ -157,6 +158,9 @@ vi.stubGlobal(
     if (method === 'POST' && path === '/devices/device-1/plan/transitions') {
       wire.plan = plan(body.kind === 'pause' ? 'paused' : 'running');
       return json(wire.plan);
+    }
+    if (method === 'PATCH' && path === '/devices/device-1/configuration') {
+      return json({ ...device({ type: 'fridge' }), control: { running: true, drying: false, mode: 'standard', energySaving: false, ...body.set } });
     }
     if (method === 'PUT' && path === '/devices/device-1/configuration') {
       return wire.refuseSave ? problem(wire.refuseSave.status, wire.refuseSave.code, wire.refuseSave.detail) : json(body);
@@ -592,6 +596,52 @@ describe('the targets page', () => {
 
     expect(await screen.findByText('Start page')).toBeInTheDocument();
     expect(sent('PUT')).toHaveLength(0);
+  });
+
+  it('switches energy saving on a fridge on the tap, and leaves the sliders where they were put', async () => {
+    await drawn([device({ type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } })]);
+    slide('Day temperature', 27);
+
+    const toggle = screen.getByRole('switch', { name: 'Energy saving' });
+    expect(screen.getByText('The back-wall fan runs even while the compressor is off.')).toBeInTheDocument();
+    fireEvent.click(toggle);
+
+    await waitFor(() =>
+      expect(sent('PATCH')).toEqual([{ method: 'PATCH', path: '/devices/device-1/configuration', body: { set: { energySaving: true } } }]),
+    );
+    expect(slider('Day temperature').value).toBe('27');
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+  });
+
+  it('offers no energy saving outside the standard mode, which is the only one it belongs to', async () => {
+    await drawn([device({ type: 'fridge', control: { running: true, drying: false, mode: 'greenhouse', energySaving: false } })]);
+
+    expect(screen.queryByRole('switch', { name: 'Energy saving' })).not.toBeInTheDocument();
+  });
+
+  it('offers a controller no energy saving, because it has no back-wall fan', async () => {
+    await drawn([device({ control: { running: true, drying: false, mode: 'standard', energySaving: false } })]);
+
+    expect(screen.queryByRole('switch', { name: 'Energy saving' })).not.toBeInTheDocument();
+  });
+
+  it('says control is off over the sliders, that a save switches it back on, and switches it on from there', async () => {
+    await drawn([device({ type: 'fridge', control: { running: false, drying: false, mode: 'standard', energySaving: false } })]);
+
+    expect(screen.getByText('Control off.')).toBeInTheDocument();
+    expect(screen.getByText(/Saving switches control back on\./)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Switch control on' }));
+
+    await waitFor(() =>
+      expect(sent('PATCH')).toEqual([{ method: 'PATCH', path: '/devices/device-1/configuration', body: { set: { control: true } } }]),
+    );
+  });
+
+  it('says a drying phase has the device drying', async () => {
+    await drawn([device({ type: 'fridge', control: { running: true, drying: true, mode: 'standard', energySaving: false } })]);
+
+    expect(screen.getByText(/^Drying: no day and night, no light, no CO₂/)).toBeInTheDocument();
+    expect(screen.queryByText('Control off.')).not.toBeInTheDocument();
   });
 
   it('heads each panel with the device name when more than one states a climate', async () => {

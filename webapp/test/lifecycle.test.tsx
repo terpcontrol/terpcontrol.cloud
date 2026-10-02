@@ -434,6 +434,7 @@ const standing = (over: Partial<Device> = {}): Device => ({
   firmware: { channel: 'stable', targetId: null },
   configuration: { day: { temperature: 25, humidity: 60 }, night: { temperature: 21, humidity: 55 } },
   settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
+  control: null,
   isDemo: false,
   state: {
     lastSeenAt: at(0),

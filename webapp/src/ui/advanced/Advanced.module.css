@@ -1,0 +1,69 @@
+/* An Erweitert section: folded like the technical details beside it, and once
+   open a short column of settings, each a name with its (i) and a control. */
+.section {
+  margin-top: var(--space-3);
+}
+
+.section > summary {
+  cursor: pointer;
+  width: fit-content;
+}
+
+.lead {
+  margin: var(--space-2) 0 0;
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-2);
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-top: var(--rule-solid);
+}
+
+/* On its own, in a card of its own, it needs no rule to part it from the row above. */
+.row[data-alone] {
+  padding: 0;
+  border-top: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.control {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.note {
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* A figure and its unit, with the button that saves it once it has moved. */
+.number {
+  width: 6rem;
+  text-align: right;
+}

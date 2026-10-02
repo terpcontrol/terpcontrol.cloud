@@ -43,4 +43,11 @@ export default tseslint.config(
       '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports' }],
     },
   },
+  {
+    // An Erweitert item is one file that says where it stands and what it
+    // draws, found by the registry rather than imported by name: its export is
+    // the descriptor, and an edit to one reloads the page rather than the part.
+    files: ['src/**/*.advanced.tsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 );

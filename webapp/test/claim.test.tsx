@@ -58,6 +58,7 @@ const device: Device = {
   firmware: { channel: 'stable', targetId: null },
   configuration: null,
   settings: { vpdLeafOffsetDay: 0, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
+  control: null,
   isDemo: false,
   state: {
     lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!,

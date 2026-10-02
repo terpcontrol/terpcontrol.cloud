@@ -151,6 +151,7 @@ const device = (lastSeenAt = DateTime.now().minus({ seconds: 20 })): Device => (
   firmware: { channel: 'stable', targetId: null },
   configuration: CONFIGURATION,
   settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
+  control: null,
   isDemo: false,
   state: {
     lastSeenAt: lastSeenAt.toISO()!,

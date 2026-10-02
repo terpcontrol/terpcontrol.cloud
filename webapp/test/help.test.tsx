@@ -240,11 +240,24 @@ describe('where the bubble stands', () => {
   });
 });
 
+/** Every `advanced.<name>` topic the source opens, which is how an Erweitert item names its own explanations. */
+const itemTopicsInSource = async (): Promise<string[]> => {
+  const { readdir } = await import('node:fs/promises');
+  const files = (await readdir(resolve(process.cwd(), 'src'), { recursive: true })).filter(file => /\.tsx?$/.test(file));
+  const topics = new Set<string>();
+  for (const file of files) {
+    const source = await readFile(resolve(process.cwd(), 'src', file), 'utf8');
+    // `help="advanced.x"`, `topic="advanced.x"`, `help: 'advanced.x'` and the like.
+    for (const match of source.matchAll(/\b(?:help|topic)\s*[=:]\s*\{?\s*["'`]advanced\.([A-Za-z0-9]+)["'`]/g)) topics.add(match[1]);
+  }
+  return [...topics].sort();
+};
+
 describe('the explanations', () => {
   it('are all written in both languages, and nothing is written that no topic opens', async () => {
     for (const language of ['en', 'de']) {
       const help = (await catalogue(language)).help as Record<string, unknown>;
-      const { about, ...topics } = help;
+      const { about, advanced: _items, ...topics } = help;
 
       expect(typeof about, `${language}: help.about`).toBe('string');
       expect(Object.keys(topics).sort()).toEqual([...HELP_TOPICS].sort());
@@ -253,6 +266,20 @@ describe('the explanations', () => {
         expect(typeof entry.title, `${language}: help.${topic}.title`).toBe('string');
         expect(typeof entry.text, `${language}: help.${topic}.text`).toBe('string');
         expect((entry.text as string).length, `${language}: help.${topic}.text`).toBeGreaterThan(20);
+      }
+    }
+  });
+
+  it('carry every Erweitert item´s own topic in both languages, and none that no item opens', async () => {
+    const used = await itemTopicsInSource();
+    expect(used.length).toBeGreaterThan(0);
+
+    for (const language of ['en', 'de']) {
+      const items = ((await catalogue(language)).help as Record<string, Record<string, { title?: unknown; text?: unknown }>>).advanced ?? {};
+      expect(Object.keys(items).sort(), `${language}: help.advanced`).toEqual(used);
+      for (const [topic, entry] of Object.entries(items)) {
+        expect(typeof entry.title, `${language}: help.advanced.${topic}.title`).toBe('string');
+        expect((entry.text as string).length, `${language}: help.advanced.${topic}.text`).toBeGreaterThan(20);
       }
     }
   });

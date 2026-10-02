@@ -4699,6 +4699,20 @@
     "schemeWeek": {
       "title": "Schema-Woche",
       "text": "Ein Düngeschema zählt die Wochen ab dem ersten Tag des Grows, nicht ab dem Beginn der Phase: Schema-Woche 3 sind die Tage 15–21. Darum kann sie von „Veg Woche 2“ abweichen. Die Mengen auf der Düngen-Kachel und auf der Wochenkarte sind die dieser Woche."
+    },
+    "climateControl": {
+      "title": "Regelung",
+      "text": "Schaltet die ganze Regelung des Geräts ab und wieder an: Heizung, Kühlung bzw. Entfeuchtung, Licht, CO₂ und Lüfter. Ausgeschaltet misst das Gerät weiter und meldet seine Werte. Gedacht für einen leeren Schrank, zum Putzen oder für die Zeit zwischen zwei Grows. Zielwerte speichern, ein Preset anwenden oder der nächste Planschritt schaltet die Regelung wieder ein."
+    },
+    "energySaving": {
+      "title": "Energiespar-Modus",
+      "text": "Bei großen Pflanzen mit viel Pflanzenmasse kann es energieeffizienter sein, den Rückwandlüfter nicht dauerhaft laufen zu lassen: Er steht dann still, solange der Kompressor aus ist. Probier es aus. Läuft der Kühlschrank danach zu lange am Stück oder dimmt die Lampe, weil es zu warm wird, schalte den Modus wieder aus. Richtwert zum Einschalten: sobald tagsüber die Heizung dauerhaft dazugeschaltet werden muss."
+    },
+    "advanced": {
+      "operatingMode": {
+        "title": "Betriebsart",
+        "text": "Was der Kühlschrank als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂. Gewächshaus regelt nur die Temperatur: Licht und CO₂ laufen weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Keimung hält es dunkel und heizt und kühlt auf die Nachttemperatur. Der Energiespar-Modus gilt nur im Standard. Eine Trocknungsphase geht vor und kehrt danach zur Betriebsart zurück."
+      }
     }
   },
   "place": {
@@ -4749,7 +4763,8 @@
       "settling": "Wartung vorbei · Alarme ruhen noch bis {{until}}",
       "stale": "Letzte Werte von {{time}} · das Gerät meldet sich verzögert",
       "noTargets": "Werte kommen an · noch keine Zielwerte",
-      "waiting": "Wartet auf die ersten Werte"
+      "waiting": "Wartet auf die ersten Werte",
+      "controlOff": "Regelung aus: Das Gerät hält keine Zielwerte"
     },
     "metric": {
       "temperature": "Temperatur",
@@ -4862,5 +4877,62 @@
     "dark": "Licht aus · {{day}} °C · {{humidity}} %",
     "alarms": "Die Alarme „Zu warm“, „Zu kalt“ und „Zu feucht“ richten sich nach der Phase.",
     "noClimate": "{{stage}} hat kein eigenes Klima – die Zielwerte bleiben, wie sie sind."
+  },
+  "advanced": {
+    "title": "Erweitert",
+    "lead": {
+      "device": "Was die meisten nie brauchen. Eine Änderung gilt sofort und wird ans Gerät geschickt.",
+      "place": "Was die meisten nie brauchen, für diesen Ort.",
+      "charts": "Feineinstellungen der Graphen."
+    },
+    "range": "Von {{min}} bis {{max}} {{unit}}.",
+    "save": "Speichern"
+  },
+  "climateControl": {
+    "label": "Regelung",
+    "state": {
+      "on": "an",
+      "off": "aus",
+      "drying": "an · Trocknung"
+    },
+    "offAction": "Regelung ausschalten",
+    "offDoes": {
+      "fridge": "Heizung, Kompressor, Licht und CO₂ stoppen",
+      "controller": "Heizung, Entfeuchter, Licht und CO₂ stoppen"
+    },
+    "onAction": "Regelung einschalten",
+    "onDoes": "Hält wieder die Zielwerte",
+    "onDoesLater": "Gilt, sobald das Gerät wieder online ist",
+    "switching": "Wird gesendet …",
+    "title": "Regelung ausschalten?",
+    "stops": {
+      "fridge": "Heizung, Kompressor, Licht, CO₂-Ventil und Lüfter gehen aus und bleiben aus, bis du die Regelung wieder einschaltest.",
+      "controller": "Heizung, Entfeuchter, Licht, CO₂ und Lüfter gehen aus, auch an den Steckdosen, und bleiben aus, bis du die Regelung wieder einschaltest."
+    },
+    "measures": "Das Gerät misst weiter und meldet seine Werte, und deine Alarme bleiben an.",
+    "plan": "Der laufende Plan „{{name}}“ wird pausiert, sonst würde sein nächster Schritt die Regelung wieder einschalten.",
+    "back": "Wieder an: hier, oder indem du Zielwerte speicherst oder ein Preset anwendest.",
+    "yes": "Ausschalten",
+    "done": "Die Regelung ist aus.",
+    "unheard": "Das Gerät ist gerade nicht erreichbar und übernimmt es, sobald es sich wieder meldet.",
+    "pauseReason": "Die Regelung wurde ausgeschaltet.",
+    "offTargets": "Das Gerät hält keine Zielwerte. Speichern schaltet die Regelung wieder ein.",
+    "offTargetsRead": "Das Gerät hält gerade keine Zielwerte.",
+    "dryingNote": "Trocknung läuft: kein Tag und keine Nacht, kein Licht, kein CO₂. Das Gerät entfeuchtet und heizt nur. Ein Preset oder eine andere Phase beendet sie.",
+    "offTitle": "Regelung aus."
+  },
+  "energySaving": {
+    "label": "Energiespar-Modus",
+    "onNote": "Der Rückwandlüfter steht still, solange der Kompressor aus ist.",
+    "offNote": "Der Rückwandlüfter läuft auch, wenn der Kompressor aus ist."
+  },
+  "operatingMode": {
+    "label": "Betriebsart",
+    "standard": "Standard",
+    "standardNote": "Regelt Temperatur, Luftfeuchte, Licht und CO₂ nach den Zielwerten.",
+    "greenhouse": "Gewächshaus",
+    "greenhouseNote": "Nur die Temperatur: Licht und CO₂ laufen, der Kompressor kühlt nur, die Luftfeuchte wird nicht geregelt.",
+    "germination": "Keimung",
+    "germinationNote": "Im Dunkeln: kein Licht, kein CO₂. Heizt und kühlt auf die Nachttemperatur."
   }
 }

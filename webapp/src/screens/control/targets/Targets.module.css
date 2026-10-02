@@ -215,6 +215,23 @@
   font-size: var(--text-sm);
 }
 
+/* Control switched off is said in the plan card's amber. */
+.planCard[data-status='off'] strong {
+  font-weight: var(--weight-semibold);
+}
+
+/* A drying spell, said in a quiet line over the sliders. */
+.drying {
+  margin: 0;
+}
+
+/* The energy-saving switch: one row, in a card of its own under the chips. */
+.operation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 /* The controller has said nothing for a while: dimmed by its age, as the plan's line is. */
 .quiet {
   font-size: var(--text-xs);

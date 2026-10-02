@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, CircleCheck, Clock, Info, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CircleCheck, Clock, Info, Power, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -13,8 +13,10 @@ import { useSession } from '@/api/session';
 import { useTimeline } from '@/api/timeline';
 import { useCorrecting } from '@/log/corrections';
 import { ageLabel, sinceLabel } from '@/ui/age';
+import { AdvancedSection } from '@/ui/advanced/Advanced';
 import { useCameraCalled } from '@/ui/camera-name';
 import { EntryRow } from '@/ui/EntryRow';
+import { Help } from '@/ui/Help';
 import { foldRepeats, readingNamesOf } from '@/ui/entries';
 import { maintenanceQuiet, parksAnything, type Quiet } from '@/ui/maintenance';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -22,6 +24,7 @@ import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
+import { ControlButton } from '../devices/ControlSwitch';
 import { MaintenanceButton } from '../devices/Maintenance';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { DeviceOffer } from '../home/DeviceOffer';
@@ -31,7 +34,7 @@ import { OfflineHelp } from '../home/OfflineHelp';
 import { NotifyNotice } from '../notifications/NotifyNotice';
 import { CameraPicture } from './CameraPicture';
 import { GrowBlock } from './GrowBlock';
-import { climateDeviceOf, focusLink, KIND_ICON, shownStill, statusOf, statusText, toneOf, type Status } from './place';
+import { climateDeviceOf, controlOffOf, focusLink, KIND_ICON, shownStill, statusOf, statusText, toneOf, type Status } from './place';
 import { PlaceMenu } from './PlaceMenu';
 import { usePlace, useDeviceLive } from './reads';
 import { AlarmsSummary, TargetsSummary } from './Summaries';
@@ -81,7 +84,7 @@ export function PlaceCockpit({
   const diary = useDiaryLayer() && (me.data !== undefined || user?.isDemo === true);
   const liveness = livenessOf(overview, now);
   const offline = liveness === 'offline';
-  const status = statusOf({ ...overview, quiet: quietOf(here, now) }, now);
+  const status = statusOf({ ...overview, quiet: quietOf(here, now), controlOff: controlOffOf(here) }, now);
   // Offered once the account has been read, and only where nobody said no; the demo has no account to keep an answer with.
   const offerDiary = me.data !== undefined && !me.data.layers.diary && me.data.preferences.diary !== 'off';
   const Icon = KIND_ICON[overview.kind];
@@ -141,6 +144,15 @@ export function PlaceCockpit({
         <div className={styles.columns}>
           <div className={styles.column}>
             <StatusLine status={status} overview={overview} camera={camera} diary={diary} now={now} zone={zone} mayManage={mayManage} />
+            {/* Switched off, the way back on stands under the sentence that says so rather than under the tiles. */}
+            {mayManage && device?.control && !device.control.running ? (
+              <div className={styles.actions}>
+                <span className={styles.withHelp}>
+                  <ControlButton device={device} offline={offline} />
+                  <Help topic="climateControl" />
+                </span>
+              </div>
+            ) : null}
             <NotifyNotice later />
             {hasDevice ? (
               <Tiles
@@ -157,10 +169,17 @@ export function PlaceCockpit({
             ) : null}
             {growUp && camera ? <GrowBlock overview={overview} camera={camera} still={pictured?.mediaId ?? null} now={now} /> : null}
             {camera && !growUp ? <CameraPicture overview={overview} camera={camera} now={now} /> : null}
-            {/* Offered only where it can do what it says: an offline device would not hear it, and a plug parks nothing. */}
-            {mayManage && !offline && here.some(parksAnything) ? (
+            {/* Offered only where it can do what it says: an offline device would not hear it, and a plug parks nothing.
+                The control switch stays offered offline, because the device is handed it when it is back. */}
+            {mayManage && ((!offline && here.some(parksAnything)) || device?.control?.running) ? (
               <div className={styles.actions}>
-                <MaintenanceButton devices={here} now={now} className={ui.quiet} />
+                {!offline && here.some(parksAnything) ? <MaintenanceButton devices={here} now={now} className={ui.quiet} /> : null}
+                {device?.control?.running ? (
+                  <span className={styles.withHelp}>
+                    <ControlButton device={device} offline={offline} className={ui.quiet} />
+                    <Help topic="climateControl" />
+                  </span>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -171,6 +190,7 @@ export function PlaceCockpit({
             {diary && !growUp ? <GrowBlock overview={overview} still={shown?.mediaId ?? null} now={now} /> : null}
             <Latest overview={overview} now={now} pictured={growUp ? (pictured?.mediaId ?? null) : null} />
             {offerDiary ? <DiaryOffer /> : null}
+            <AdvancedSection scope="place" context={{ spaceId, devices: here, mayManage }} />
           </div>
         </div>
       )}
@@ -209,6 +229,7 @@ const STATUS_ICON: Record<Status['kind'], LucideIcon> = {
   off: TriangleAlert,
   alert: TriangleAlert,
   maintenance: Wrench,
+  controlOff: Power,
   stale: Clock,
   noTargets: Info,
   waiting: Clock,

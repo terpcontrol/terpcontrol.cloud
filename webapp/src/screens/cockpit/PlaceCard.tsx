@@ -1,4 +1,4 @@
-import { CircleCheck, Clock, Info, Leaf, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
+import { CircleCheck, Clock, Info, Leaf, Power, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +14,7 @@ import { LivenessPill } from '../home/LivenessPill';
 import { figure, UNIT } from '../home/units';
 import {
   climateDeviceOf,
+  controlOffOf,
   KIND_ICON,
   lightWindowOf,
   outputsFor,
@@ -34,6 +35,7 @@ const STATUS_ICON: Partial<Record<Status['kind'], LucideIcon>> = {
   alert: TriangleAlert,
   offline: TriangleAlert,
   maintenance: Wrench,
+  controlOff: Power,
   stale: Clock,
 };
 
@@ -63,7 +65,7 @@ export function PlaceCard({
   const device = climateDeviceOf(here, card.deviceIds);
   const live = useDeviceLive(device?.id ?? null).data;
   const quiet = here.map(one => maintenanceQuiet(one, DateTime.max(now, serverNow()))).find((one): one is Quiet => one !== null) ?? null;
-  const status = statusOf({ ...card, quiet }, now);
+  const status = statusOf({ ...card, quiet, controlOff: controlOffOf(here) }, now);
   const Icon = card.kind === null ? Leaf : KIND_ICON[card.kind];
   const StatusIcon = STATUS_ICON[status.kind] ?? Info;
   const shown = SHOWN.flatMap(metric => {

@@ -13,6 +13,7 @@ import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
 import { useScrub } from '@/charts/scrub';
 import { dayOfGrow, downloadCsv, readAt, type PlotLine } from '@/charts/series';
+import { AdvancedSection } from '@/ui/advanced/Advanced';
 import { ageLabel } from '@/ui/age';
 import { looseFigure } from '@/ui/figures';
 import { Help } from '@/ui/Help';
@@ -544,6 +545,9 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
           </button>
         </div>
       </div>
+
+      {/* The finer settings of the drawing, for the few who want them. */}
+      <AdvancedSection scope="charts" context={{ growId: grow.id, spaceId }} />
 
       {/* The table is the answer already in hand, so it is written at the step
           the window decided and not at the rate the devices reported at. That

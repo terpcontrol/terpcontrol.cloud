@@ -22,6 +22,7 @@ import { deviceTitle } from '../../devices/naming';
 import { figure } from '../../home/units';
 import { LeaveGuard, type Unsaved } from './LeaveGuard';
 import { LightsOnRow } from './LightsOnRow';
+import { ControlState, EnergySaving } from './Operation';
 import { TargetRow } from './TargetRow';
 import {
   draftOf,
@@ -198,11 +199,13 @@ function Panel({
   const [edit, setEdit] = useState<Edit | null>(null);
   const [sent, setSent] = useState<Sent | null>(null);
 
-  // A draft holds until the stored document moves - so a save in flight does
+  // A draft holds until the stored targets move - so a save in flight does
   // not snap the sliders back, and a figure dialled in on the device itself
-  // takes them over as soon as it arrives.
+  // takes them over as soon as it arrives. A change to the rest of the
+  // document - the energy-saving switch beside them - leaves the sliders where
+  // they were put.
   const baseline = draftOf(stored);
-  const draft = edit && edit.against === stored ? edit.draft : baseline;
+  const draft = edit && sameDraft(draftOf(edit.against), baseline) ? edit.draft : baseline;
   const dirty = !sameDraft(draft, baseline) && !(sent !== null && sameDraft(draft, sent.draft));
   const set = (next: TargetsDraft) => setEdit({ draft: next, against: stored });
 
@@ -295,6 +298,7 @@ function Panel({
     <section className={styles.panel} aria-label={name}>
       {titled ? <h2 className={styles.deviceName}>{name}</h2> : null}
       <RefreshFailed failedAt={plan.isError && plan.data ? plan.dataUpdatedAt : null} now={now} />
+      <ControlState device={device} mayManage={mayManage} />
 
       <Block grouped label={t('targets.day')} help="dayNight" aside={<a href={`#${nightId}`}>{t('targets.toNight')}</a>}>
         <TargetRow
@@ -431,6 +435,8 @@ function Panel({
             moved in the grow, where the climate is offered beside it. */}
         {grow?.stage ? <p className={ui.note}>{t('targets.growStays', { name: grow.name, stage: t(`home.stage.${grow.stage}`) })}</p> : null}
       </div>
+
+      <EnergySaving device={device} mayManage={mayManage} />
 
       {status === 'running' ? (
         <div className={`${ui.card} ${styles.planCard}`} data-status="running" role="status">

@@ -13,6 +13,7 @@ import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces, useSpaceVerdicts } from '@/api/spaces';
 import { ageAttribute, ageLabel, deviceLiveness, heardAt, offlineLabel } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
+import { AdvancedSection } from '@/ui/advanced/Advanced';
 import { Help, Term } from '@/ui/Help';
 import { maintenanceQuiet, parksAnything } from '@/ui/maintenance';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -27,6 +28,7 @@ import { movesAnywhere } from './moving';
 import { Fact, Facts } from './Facts';
 import { isLightRole, lightOutputOf } from './lights';
 import { LightOutputRow } from './LightOutputRow';
+import { ControlButton } from './ControlSwitch';
 import { MaintenanceButton, RebootButton } from './Maintenance';
 import { cameraTitle, deviceName, deviceTitle } from './naming';
 import { rowsOf, type SocketRowModel } from './sockets';
@@ -433,6 +435,12 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
         <div className={styles.panel}>
           <Facts>
             <Fact label={t('devices.panel.connection')} value={connection} />
+            {device.control ? (
+              <Fact
+                label={t('climateControl.label')}
+                value={t(`climateControl.state.${device.control.running ? (device.control.drying ? 'drying' : 'on') : 'off'}`)}
+              />
+            ) : null}
             <Fact label={t('devices.panel.firmware')} value={firmware} />
             {owedId ? (
               <Fact
@@ -490,6 +498,12 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
                   <Help topic="maintenance" />
                 </span>
               ) : null}
+              {device.control ? (
+                <span className={styles.withHelp}>
+                  <ControlButton device={device} offline={offline} />
+                  <Help topic="climateControl" />
+                </span>
+              ) : null}
             </div>
           ) : null}
           {mayCorrect && offline ? <p className={ui.note}>{t('devices.panel.offlineNote')}</p> : null}
@@ -503,6 +517,10 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
               {t(movable ? 'devices.settings.open' : 'devices.settings.openRename')}
             </button>
           ) : null}
+
+          {/* What few growers need about this device, beside what only support
+              asks for: drawn only where one of its items applies here. */}
+          <AdvancedSection scope="device" context={{ device, mayManage: mayCorrect, offline }} />
 
           {/* What only support asks for: the id printed on the hardware, the
               build as its container stamped it, and what that build takes. */}

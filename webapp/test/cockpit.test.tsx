@@ -420,6 +420,34 @@ describe('the cockpit of a place that is fine', () => {
   });
 });
 
+describe('a place whose control is switched off', () => {
+  const off = () => fridge({ control: { running: false, drying: false, mode: 'standard', energySaving: false } });
+
+  it('opens on it, and offers to switch it back on with one tap', async () => {
+    server.devices = [off()];
+    draw(<PlaceCockpit overview={overviewOf()} />);
+
+    expect(await screen.findByText('Control off: the device holds no targets')).toBeInTheDocument();
+    const on = await screen.findByRole('button', { name: /^Switch control on/ });
+    fireEvent.click(on);
+
+    await waitFor(() =>
+      expect(fetchStub).toHaveBeenCalledWith(
+        expect.stringContaining('/devices/device-1/configuration'),
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ set: { control: true } }) }),
+      ),
+    );
+  });
+
+  it('offers to switch a running one off, beside the maintenance window', async () => {
+    server.devices = [fridge({ control: { running: true, drying: false, mode: 'standard', energySaving: false } })];
+    draw(<PlaceCockpit overview={overviewOf()} />);
+
+    expect(await screen.findByRole('button', { name: /^Switch control off/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Maintenance · 15 min/ })).toBeInTheDocument();
+  });
+});
+
 describe('a reading off its target', () => {
   it('says how far and since when, once the day´s verdict holds an open run outside the band', async () => {
     const startedAt = ago(40);
@@ -790,6 +818,24 @@ describe('what the cockpit decides', () => {
       statusOf({ ...place, deviceIds: [], openAlerts: [{ ...alert, kind: 'camera_stale' as never, severity: 'warning' as const }] }, now).kind,
     ).toBe('alert');
     expect(statusOf({ ...place, values: [] }, now).kind).toBe('waiting');
+  });
+
+  it('says control is switched off before any alarm or reading it explains, and after a silence or a maintenance window', () => {
+    const alert = {
+      alertId: 'a',
+      kind: 'threshold' as const,
+      severity: 'critical' as const,
+      startedAt: ago(5),
+      value: 31,
+      metric: 'temperature' as const,
+      name: 'Too warm',
+    };
+    const hot = values().map(value => (value.metric === 'temperature' ? { ...value, value: 28 } : value));
+    const quiet = { until: ago(-10), alarmsUntil: ago(-20), parked: true };
+
+    expect(statusOf({ ...place, values: hot, openAlerts: [alert], controlOff: true }, now).kind).toBe('controlOff');
+    expect(statusOf({ ...place, quiet, controlOff: true }, now).kind).toBe('maintenance');
+    expect(statusOf({ ...place, values: values(30), controlOff: true }, now).kind).toBe('offline');
   });
 
   /**

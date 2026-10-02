@@ -6,6 +6,7 @@ import type {
   DeviceCommandResult,
   DeviceConfiguration,
   DeviceConfigurationEnvelope,
+  DeviceConfigurationPatch,
   DeviceLive,
   DevicePage,
   DeviceUpdate,
@@ -148,6 +149,32 @@ export const useSaveConfiguration = () => {
     mutationFn: ({ deviceId, configuration }: { deviceId: string; configuration: DeviceConfiguration }) =>
       api.put<DeviceConfigurationEnvelope>(`/devices/${deviceId}/configuration`, { configuration }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['devices'] }),
+  });
+};
+
+/**
+ * Settings beyond the targets, by the names `CONFIGURATION_FIELDS` gives them
+ * for the device's type: the work mode's three switches, and whatever an
+ * Erweitert item offers. It writes on the tap - there is no draft to keep, and
+ * nothing else on the screen is waiting to be saved with it.
+ *
+ * The answer is the device as the server stored it, which is not always what
+ * was asked: the work mode is decided from it (a drying device keeps drying,
+ * one that is off stays off), so the list is given the answer rather than the
+ * request, and the place reads that judge the tent are read again.
+ */
+export const useConfigure = (deviceId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (set: DeviceConfigurationPatch['set']) => api.patch<Device>(`/devices/${deviceId}/configuration`, { set }),
+    onSuccess: device => {
+      queryClient.setQueryData<DevicePage>(['devices'], page =>
+        page ? { ...page, items: page.items.map(one => (one.id === device.id ? device : one)) } : page,
+      );
+      queryClient.setQueryData(['devices', device.id], device);
+      for (const key of ['devices', 'spaces', 'home']) void queryClient.invalidateQueries({ queryKey: [key] });
+    },
   });
 };
 

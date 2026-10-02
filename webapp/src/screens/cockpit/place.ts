@@ -246,12 +246,15 @@ export const nightsOf = (points: SeriesPoint[] | undefined, endsAt: string): Tim
   return nights;
 };
 
+/** Whether a device here has had its whole control switched off. */
+export const controlOffOf = (devices: Device[]): boolean => devices.some(device => device.control?.running === false);
+
 /* ------------------------------------------------------------ the status */
 
 /**
  * The one sentence a place opens with, worst first: gone quiet, being worked
- * on, an alarm, a reading off its target, readings arriving late, nothing to
- * judge against, or all in band.
+ * on, its control switched off, an alarm, a reading off its target, readings
+ * arriving late, nothing to judge against, or all in band.
  *
  * A reading off target says since when only where the day's verdict has an
  * open run outside the band, which the server names once it has lasted ten
@@ -266,6 +269,7 @@ export type Status =
   | { kind: 'none' }
   | { kind: 'waiting' }
   | { kind: 'maintenance'; quiet: Quiet }
+  | { kind: 'controlOff' }
   | { kind: 'alert'; alert: OpenAlert }
   /** `since` is null for a run too short to count yet, and undefined where no verdict was at hand to say. */
   | { kind: 'off'; metric: Steered; high: boolean; delta: number; since?: string | null }
@@ -281,6 +285,8 @@ export interface StatusInput {
   /** The day's verdict, which the cockpit reads and a card of Start is not sent. */
   verdict?: ClimateVerdict | null;
   quiet: Quiet | null;
+  /** A device here has its whole control switched off, which every reading after it is explained by. */
+  controlOff?: boolean;
 }
 
 const STEERED: Steered[] = ['temperature', 'humidity', 'co2'];
@@ -294,6 +300,7 @@ export const statusOf = (place: StatusInput, now: DateTime): Status => {
   }
   if (liveness === 'offline') return place.values.length === 0 ? { kind: 'waiting' } : { kind: 'offline', since: measuredAtOf(place.values) };
   if (place.quiet) return { kind: 'maintenance', quiet: place.quiet };
+  if (place.controlOff) return { kind: 'controlOff' };
 
   const alert = worstAlertOf({ openAlerts: place.openAlerts.filter(one => !isSilence(one)) });
   if (alert) return { kind: 'alert', alert };
@@ -332,6 +339,7 @@ export const toneOf = (status: Status): 'good' | 'warn' | 'alarm' | 'quiet' => {
     case 'off':
     case 'stale':
     case 'maintenance':
+    case 'controlOff':
       return 'warn';
     default:
       return 'quiet';

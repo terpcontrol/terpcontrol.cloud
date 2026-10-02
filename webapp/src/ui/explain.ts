@@ -83,9 +83,19 @@ export const HELP_TOPICS = [
   'ppfd',
   'leafTemperature',
   'lux',
+  'climateControl',
+  'energySaving',
 ] as const;
 
-export type HelpTopic = (typeof HELP_TOPICS)[number];
+/**
+ * An Erweitert item's own explanation, under `help.advanced.<name>`: an item is
+ * added in a file of its own (`ui/advanced/registry.ts`), and its topics come
+ * with it rather than being added to the list above. A test holds both
+ * catalogues to every such topic the source names.
+ */
+export type AdvancedHelpTopic = `advanced.${string}`;
+
+export type HelpTopic = (typeof HELP_TOPICS)[number] | AdvancedHelpTopic;
 
 export interface Box {
   top: number;

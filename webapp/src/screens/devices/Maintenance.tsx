@@ -30,7 +30,7 @@ const WINDOW_SECONDS = VISIT_MINUTES * 60;
 const SPANS = { minutes: VISIT_MINUTES, settle: SETTLE_MINUTES, quiet: quietMinutes(WINDOW_SECONDS) };
 
 /** A button that says what it is, and under it what it does - the two lines a grower decides on. */
-function TwoLines({ Icon, name, does, disabled, className, onClick }: TwoLinesProps) {
+export function TwoLines({ Icon, name, does, disabled, className, onClick }: TwoLinesProps) {
   return (
     <button type="button" className={`${ui.button} ${styles.button} ${className ?? ''}`} disabled={disabled} onClick={onClick}>
       <Icon size={16} strokeWidth={1.75} aria-hidden />
