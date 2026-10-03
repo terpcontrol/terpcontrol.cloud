@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { controlPath } from '@/app/places';
 import type { AlarmRule, Device, Me, OverviewGrow } from '@fg2/shared-types/v1';
-import { restsInGermination } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useMe } from '@/api/account';
 import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
@@ -440,17 +440,21 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
 
   const missing = missingSensor(rule.watch, device);
   const silenced = rule.silencedUntil !== null && DateTime.fromISO(rule.silencedUntil) > now;
-  // A "too humid" alarm rests while the device germinates, unless the grower asked to be warned there too.
-  const resting = rule.enabled && restsInGermination(rule.watch, device.configuration?.workmode, device.control?.germinationChoices);
+  // The stage's "too humid" rests while the device germinates, unless the grower asked to be warned there too,
+  // and warns at germination's own line where they did - which is the line the card shows while it lasts.
+  const workmode = device.configuration?.workmode;
+  const resting = rule.enabled && restsInGermination(rule, workmode, device.control?.germinationChoices);
+  const watch = watchNow(rule, workmode);
+  const ownLine = !resting && boundLabel(t, watch) !== boundLabel(t, rule.watch) ? boundLabel(t, rule.watch) : null;
   // An output watched for running at all crosses no line, so what it watches is
   // said in words and only the duration it has to run for is a figure; a rule
   // that trips on the first sample has not even that.
   const bound =
-    rule.watch.kind === 'output_running'
+    watch.kind === 'output_running'
       ? rule.forSeconds > 0
         ? t('alarms.bound.longer', { duration: durationLabel(rule.forSeconds) })
         : ''
-      : boundLabel(t, rule.watch);
+      : boundLabel(t, watch);
   const watching = watchLabel(t, rule.watch, device.type);
   const title = ruleTitle(t, rule);
 
@@ -468,6 +472,7 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
       ) : null}
       {missing ? <span className={`mono ${styles.reason}`}>{t(`alarms.needs.${missing}`)}</span> : null}
       {resting && !(mayManage && device.spaceId) ? <span className={`mono ${styles.reason}`}>{t('alarms.meta.restsInGermination')}</span> : null}
+      {ownLine ? <span className={`mono ${styles.meta}`}>{t('alarms.meta.germinationLine', { bound: ownLine })}</span> : null}
     </>
   );
 

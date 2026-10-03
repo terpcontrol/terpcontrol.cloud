@@ -2574,7 +2574,7 @@
       "applied": {
         "at": "Schritt vor {{age}} an das Gerät geschickt",
         "never": "Die Einstellungen dieses Schritts gehen innerhalb der nächsten Minute an das Gerät",
-        "atRest": "Dieser Plan schreibt nichts: Das Gerät behält, worauf es zuletzt gestellt wurde",
+        "atRest": "Solange der Plan nicht läuft, schreibt er nichts: Das Gerät behält, worauf es zuletzt gestellt wurde",
         "quiet": "{{offline}} · was das Gerät gerade wirklich fährt, kann ein älterer Stand sein"
       },
       "move": {
@@ -2641,6 +2641,8 @@
         "settings": "Was das Gerät halten soll",
         "writesNothing": "Dieser Schritt schreibt nichts: Das Gerät behält, was es beim Beginn des Schritts gefahren hat.",
         "writesNothingShort": "schreibt nichts",
+        "warnsTooHumid": "„Zu feucht“ warnt",
+        "humidifierRests": "Befeuchter ruht",
         "writesSections": "Ein Schritt schreibt die Werte, die er bekommt, in die Einstellungen des Geräts: die Ziele für Tag und Nacht, das CO₂-Ziel, die Grenze des Lichts und wie lange es an ist. Ein leer gelassener Wert bleibt, wie das Gerät ihn hat, und ebenso alles andere in seinen Einstellungen.",
         "writesSectionsNoCo2": "Ein Schritt schreibt die Werte, die er bekommt, in die Einstellungen des Geräts: die Ziele für Tag und Nacht, die Grenze des Lichts und wie lange es an ist. Dieses Gerät meldet keinen CO₂-Sensor, also wird kein CO₂-Ziel geschrieben – seine Firmware hält es bei null, was immer man ihr sagt. Ein leer gelassener Wert bleibt, wie das Gerät ihn hat, und ebenso alles andere in seinen Einstellungen.",
         "writesNowhere": "Dieses Gerät hat seine Einstellungen noch nicht geschickt; dieser Schritt wird deshalb nicht gesendet. Was er trägt, träte an die Stelle der Abstimmung des Geräts, statt zu ihr hinzuzukommen, und jede Einstellung, die dieser Schritt nicht nennt, stünde wieder auf einem Werkswert. Diese Werte zu leeren nimmt den Schritt wieder weg.",
@@ -3572,6 +3574,7 @@
       "switchedOff": "ausgeschaltet",
       "restsInGermination": "ruht während der Keimung",
       "restsInGerminationChange": "ruht während der Keimung · unter Steuerung ändern ›",
+      "germinationLine": "gilt in der Keimung · danach wieder {{bound}}",
       "announcedOnce": "wird einmal gemeldet",
       "toYou": "geht an dich per {{channels}}"
     },
@@ -3843,6 +3846,7 @@
     "planPausedFor": "Der Plan ist pausiert: {{reason}}",
     "resume": "Plan fortsetzen",
     "pauseReason": "Zielwerte von Hand gesetzt",
+    "pauseReasonGermination": "Keimung von Hand anders gewählt",
     "unsaved": "Ungespeicherte Änderungen",
     "save": "Speichern",
     "saving": "Wird gespeichert…",
@@ -4104,6 +4108,7 @@
       "inMaintenance": "Gerät in Wartung, bis {{time}} wird nichts ausgelöst",
       "settling": "Wartung beendet, bis {{time}} wird nichts ausgelöst, solange das Klima zurückkommt",
       "resolved": "behoben {{time}} · dauerte {{age}}",
+      "rested": "ruht in der Keimung · seit {{time}} · nicht behoben · dauerte {{age}}",
       "notAnnounced": "nicht gemeldet",
       "unheard": "hat dich nicht erreicht · einrichten ›",
       "ruleNow": "die Regel sagt inzwischen {{severity}}"
@@ -5067,11 +5072,11 @@
     },
     "germinationAlarm": {
       "title": "„Zu feucht“ in der Keimung",
-      "text": "Keimende Samen stehen mit Absicht feucht, und eine Keimbox misst oft weit mehr, als für Blätter gut ist. Darum ruht „Zu feucht“ während der Keimung, solange du es nicht einschaltest – ein Alarm, der jede Nacht anschlägt, wird bald überhört. Eingeschaltet warnt der Alarm „Zu feucht“ der Phase über 90 % (darüber steht Wasser auf Substrat und Schale, dort beginnen Schimmel und Umfallkrankheit) und ein eigener Alarm „Zu feucht“ an seiner Grenze. Ein Alarm, der die Luftfeuchte nach oben und unten begrenzt, und alle anderen Alarme bleiben immer an. Ruhen heißt: Der Alarm bleibt eingeschaltet und behält deine Einstellungen; nach der Keimung meldet er sich wieder wie zuvor."
+      "text": "Keimende Samen stehen mit Absicht feucht, und eine Keimbox misst oft weit mehr, als für Blätter gut ist. Darum ruht der Alarm „Zu feucht“ der Phase während der Keimung, solange du das Warnen nicht einschaltest – ein Alarm, der jede Nacht anschlägt, wird bald überhört. Eingeschaltet warnt er in der Keimung über 90 %, gleich ob du sie unter Steuerung, in der Betriebsart, mit einer Phase oder einem Plan eingestellt hast (darüber steht Wasser auf Substrat und Schale, dort beginnen Schimmel und Umfallkrankheit); hat das Gerät noch keinen, wird er angelegt. Nach der Keimung gilt wieder seine eigene Grenze. Alarme, die du selbst angelegt hast, und alle anderen Alarme bleiben immer wach. Ruhen heißt: Der Alarm bleibt eingeschaltet und behält deine Einstellungen; eine offene Meldung endet ohne Entwarnung und steht unter Meldungen als „ruht in der Keimung“. Die Wahl gilt für diese Keimung, die nächste beginnt wieder ohne Warnen."
     },
     "germinationHumidifier": {
       "title": "Befeuchter in der Keimung",
-      "text": "In der Keimung regelt das Gerät nur die Temperatur. Ein Befeuchter an einer Steckdose hält trotzdem die Nacht-Luftfeuchte: Er schaltet ein, wenn die Luft mindestens 5 Punkte trockener ist, und aus, sobald der Wert erreicht ist – feuchter als eingestellt macht er es nie. Das ist voreingestellt, denn trockene Luft lässt eine Keimung eher scheitern als feuchte: Das Substrat trocknet aus. Ausgeschaltet ruht der Befeuchter, bis die Keimung endet, und arbeitet danach wieder wie zuvor. Solange er sie hält, stellst du die Luftfeuchte für die Keimung unter Steuerung ein."
+      "text": "In der Keimung regelt das Gerät nur die Temperatur. Ein Befeuchter an einer Steckdose hält trotzdem die Nacht-Luftfeuchte: Er schaltet ein, wenn die Luft mindestens 5 Punkte trockener ist, und aus, sobald der Wert erreicht ist – feuchter als eingestellt macht er es nie. Das ist voreingestellt, denn trockene Luft lässt eine Keimung eher scheitern als feuchte: Das Substrat trocknet aus. Ausgeschaltet ruht der Befeuchter, bis die Keimung endet – auch einer, der gerade läuft, schaltet gleich ab – und arbeitet danach wieder wie zuvor. Solange er sie hält, stellst du die Luftfeuchte für die Keimung unter Steuerung ein. Die Wahl gilt für diese Keimung, die nächste beginnt wieder mit gehaltener Luftfeuchte."
     },
     "socketTimer": {
       "title": "Zeitschaltung",
@@ -5191,6 +5196,7 @@
       "noTarget": "kein Ziel",
       "co2Night": "nachts kein Ziel",
       "noTargetBy": "kein Ziel · {{mode}}",
+      "humidifierHolds": "Befeuchter hält {{target}}",
       "mode": {
         "off": "Regelung aus",
         "drying": "Trocknung",
@@ -5338,12 +5344,13 @@
   "germinationChoices": {
     "label": "In der Keimung",
     "alarm": "Warnen, wenn es zu feucht wird",
-    "alarmOn": "„Zu feucht“ meldet sich auch während der Keimung.",
-    "alarmOff": "„Zu feucht“ ruht, bis die Keimung endet.",
+    "alarmOn": "„Zu feucht“ warnt in der Keimung über {{line}} %.",
+    "alarmOff": "„Zu feucht“ ruht, bis die Keimung endet. Selbst angelegte Alarme bleiben wach.",
     "humidifier": "Luftfeuchte mit dem Befeuchter halten",
     "humidifierOn": "Der Befeuchter hält {{humidity}} – feuchter macht er es nie.",
     "humidifierOnNight": "Der Befeuchter hält die Nacht-Luftfeuchte – feuchter macht er es nie.",
-    "humidifierOff": "Der Befeuchter ruht, bis die Keimung endet."
+    "humidifierOff": "Der Befeuchter ruht, bis die Keimung endet.",
+    "holdsAboveLine": "Der Befeuchter hält mehr, als „Zu feucht“ in der Keimung zulässt ({{line}} %): Der Alarm wird oft auslösen."
   },
   "advanced": {
     "title": "Erweitert",
@@ -5428,6 +5435,7 @@
     "germination": "Keimung · dunkel",
     "germinationNote": "Für Samen, die im Dunkeln keimen: kein Licht, kein CO₂, rund um die Uhr eine Temperatur – zuerst die bisherige Nachttemperatur, unter Zielwerte zu ändern. Ein Entfeuchter bleibt dabei aus; am Zelt kühlt die Abluft. Zurück auf Standard gilt die Nachttemperatur von vorher wieder. „Keimung · dunkel“ unter Steuerung stellt dasselbe ein, gleich mit 24 °C.",
     "ask": "Auf {{mode}} umstellen? {{what}} Zurück geht es hier mit Standard.",
+    "choicesAfter": "Nach dem Umstellen lässt sich das hier ändern.",
     "yes": "Auf {{mode}} umstellen"
   },
   "recover": {
@@ -5903,7 +5911,11 @@
         "external": "Klemmlüfter",
         "internal": "Innenlüfter"
       },
-      "lightPlan": "Lichtplan"
+      "lightPlan": "Lichtplan",
+      "germination": {
+        "warnTooHumid": "Keimung · Warnen, wenn es zu feucht wird",
+        "humidifierHolds": "Keimung · Luftfeuchte mit dem Befeuchter halten"
+      }
     },
     "mode": {
       "off": "Regelung aus",
@@ -5933,7 +5945,8 @@
       },
       "breed": {
         "night": {
-          "temperature": "Temperatur Keimung"
+          "temperature": "Temperatur Keimung",
+          "humidity": "Luftfeuchte Keimung"
         }
       }
     }

@@ -21,7 +21,18 @@ import { pairsACam } from '@/screens/camera/add/pairers';
 import { NotifyStep } from '@/screens/notifications/NotifyNotice';
 import { PlaceStep } from './PlaceStep';
 import { Step } from './Step';
-import { doingSummary, hardwareSummary, MEASURE, newPlaceName, NOTHING_DOING, notifySummary, pairsSockets, placeSummary, type Doing } from './steps';
+import {
+  doingSummary,
+  hardwareSummary,
+  MEASURE,
+  newPlaceName,
+  NOTHING_DOING,
+  notifySummary,
+  pairsSockets,
+  placeSummary,
+  presetBodyOf,
+  type Doing,
+} from './steps';
 import styles from './Claim.module.css';
 
 /** The steps, in order, so the bottom button can carry the next one's name. */
@@ -167,17 +178,14 @@ export function Claim() {
       return;
     }
 
-    apply.mutate(
-      { stage: pending },
-      {
-        onSuccess: result => {
-          setDoing({ chosen: pending, applied: result });
-          // What to do about the grow is the server's own question and it has
-          // only just been asked, so the step stays open to be answered.
-          if (!result.growDecisionNeeded && after !== null) go(after);
-        },
+    apply.mutate(presetBodyOf(pending, doing), {
+      onSuccess: result => {
+        setDoing({ ...doing, chosen: pending, applied: result });
+        // What to do about the grow is the server's own question and it has
+        // only just been asked, so the step stays open to be answered.
+        if (!result.growDecisionNeeded && after !== null) go(after);
       },
-    );
+    });
   };
 
   return (

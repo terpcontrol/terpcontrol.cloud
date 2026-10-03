@@ -379,15 +379,12 @@ function Panel({
   const owned = ownedBy(step);
   const planSets = planScheduleOf(step, baseline, plan.data?.name ?? '');
   // A germination step that says what germination does about the humidity puts that back within the hour too.
-  const pauses =
-    status === 'running' &&
-    (dryingChange !== null ||
-      germinationChange !== null ||
-      (choicesChange && (step?.germinationChoices ?? null) !== null) ||
-      changedFields(draft, baseline).some(field => owned.has(field)));
+  const setsByHand = dryingChange !== null || germinationChange !== null || changedFields(draft, baseline).some(field => owned.has(field));
+  const pauses = status === 'running' && (setsByHand || (choicesChange && (step?.germinationChoices ?? null) !== null));
   const commit = async (): Promise<boolean> => {
     try {
-      if (pauses) await move.mutateAsync({ kind: 'pause', reason: t('targets.pauseReason') });
+      // The reason the plan card gives says what was done by hand: the targets, or only what germination does about the humidity.
+      if (pauses) await move.mutateAsync({ kind: 'pause', reason: t(setsByHand ? 'targets.pauseReason' : 'targets.pauseReasonGermination') });
       // A spell begun from here stores what it holds in both halves; once a
       // fridge is drying the server keeps its stored day, so the day is sent as stored.
       const held = dryingChange === 'starts' ? heldOf(shape.regime) : 'both';

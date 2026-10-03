@@ -169,6 +169,16 @@ describe('light hours in a step', () => {
     expect(stepMeta(t, { ...step({ lightHours: null }), settings: {} })).toContain('writes nothing');
   });
 
+  /** Germination darkens by its stage alone, and a step says what it chose about the humidity where that is not the default. */
+  it('say a germination step writes by its stage, and name its choices about the humidity', () => {
+    const germination = { ...step({ stage: 'germination', lightHours: null }), settings: {} };
+    expect(stepMeta(t, germination)).toBe('Germination · dark · 2 wk');
+    expect(stepMeta(t, { ...germination, germinationChoices: { warnTooHumid: false, humidifierHolds: true } })).toBe('Germination · dark · 2 wk');
+    expect(stepMeta(t, { ...germination, germinationChoices: { warnTooHumid: true, humidifierHolds: false } })).toBe(
+      'Germination · dark · 2 wk · “Too humid” warns · humidifier rests',
+    );
+  });
+
   it('are typed into the step and saved with it, and an empty field leaves the photoperiod alone', () => {
     wrap(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
 
@@ -297,7 +307,7 @@ describe('light hours in a step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
     const choices = screen.getByRole('group', { name: 'During germination' });
     fireEvent.click(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' }));
-    expect(within(choices).getByText('“Too humid” warns during germination as well.')).toBeInTheDocument();
+    expect(within(choices).getByText('“Too humid” warns during germination above 90 %.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
     expect(state.saved.at(-1)?.steps[0].germinationChoices).toEqual({ warnTooHumid: true, humidifierHolds: true });
 

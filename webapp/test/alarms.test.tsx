@@ -594,15 +594,18 @@ describe('the alarm rules page', () => {
   });
 
   /**
-   * Owner's decision G2: a "too humid" alarm rests while its device germinates
-   * unless the grower asked to be warned there too. It stays switched on, so
-   * the card says it rests and where that is changed.
+   * Owner's decision G2: the stage's "too humid" rests while its device
+   * germinates unless the grower asked to be warned there too, and warns at
+   * germination's line where they did. It stays switched on, so the card says
+   * it rests and where that is changed. A person's own "too humid" is theirs and
+   * watches throughout.
    */
-  it('says a "too humid" alarm rests while the device germinates, and where that is changed', async () => {
-    const humid = rule({ id: 'rule-humid', origin: 'preset', watch: { kind: 'reading', metric: 'humidity', upper: 90, lower: null } });
+  it('says the stage´s "too humid" rests while the device germinates, and where that is changed', async () => {
+    const humid = rule({ id: 'rule-humid', origin: 'preset', watch: { kind: 'reading', metric: 'humidity', upper: 72, lower: null } });
+    const mine = rule({ id: 'rule-mine', name: 'Box soaking', watch: { kind: 'reading', metric: 'humidity', upper: 95, lower: null } });
     vi.mocked(api.get).mockImplementation(
       (path: string) =>
-        Promise.resolve(path === '/devices/device-1/alarm-rules' ? { items: [humid, RULES[0]], nextCursor: null } : answers(path)) as never,
+        Promise.resolve(path === '/devices/device-1/alarm-rules' ? { items: [humid, mine, RULES[0]], nextCursor: null } : answers(path)) as never,
     );
     const germinating = (warnTooHumid: boolean) =>
       device({
@@ -624,10 +627,16 @@ describe('the alarm rules page', () => {
       '/control?space=space-1',
     );
     expect(within(await card('Too hot')).queryByText(/rests during germination/)).not.toBeInTheDocument();
+    expect(within(await card('Box soaking')).queryByText(/rests during germination/)).not.toBeInTheDocument();
     view.unmount();
 
     draw([germinating(true)]);
-    expect(within(await card('Too humid')).queryByText(/rests during germination/)).not.toBeInTheDocument();
+    const warning = await card('Too humid');
+    expect(within(warning).queryByText(/rests during germination/)).not.toBeInTheDocument();
+    // It warns at germination's line, and its own comes back afterwards.
+    expect(within(warning).getByText('above 90 %')).toBeInTheDocument();
+    expect(within(warning).getByText('during germination · above 72 % again afterwards')).toBeInTheDocument();
+    expect(within(await card('Box soaking')).getByText('above 95 %')).toBeInTheDocument();
   });
 });
 

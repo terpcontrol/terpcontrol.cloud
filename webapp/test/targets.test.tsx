@@ -518,7 +518,7 @@ describe('the targets page', () => {
     // What germination does about the humidity is asked under the table: the alarm alone, where no humidifier is paired.
     const choices = screen.getByRole('group', { name: 'During germination' });
     expect(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' })).toHaveAttribute('aria-checked', 'false');
-    expect(within(choices).getByText('“Too humid” rests until germination ends.')).toBeInTheDocument();
+    expect(within(choices).getByText('“Too humid” rests until germination ends. Alarms you set up yourself stay awake.')).toBeInTheDocument();
     expect(within(choices).queryByRole('switch', { name: 'Hold the humidity with the humidifier' })).not.toBeInTheDocument();
     // Energy saving belongs to a day and a night, which germination does not have.
     expect(screen.queryByRole('switch', { name: 'Energy saving' })).not.toBeInTheDocument();
@@ -570,11 +570,53 @@ describe('the targets page', () => {
     expect(screen.getByText('The humidifier rests until germination ends.')).toBeInTheDocument();
     expect(screen.queryByRole('spinbutton', { name: 'Humidity while germinating' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('switch', { name: 'Warn when it gets too humid' }));
-    expect(screen.getByText('“Too humid” warns during germination as well.')).toBeInTheDocument();
+    expect(screen.getByText('“Too humid” warns during germination above 90 %.')).toBeInTheDocument();
 
     tap('Save');
     await waitFor(() => expect(sent('PUT')).toHaveLength(1));
     expect((sent('PUT')[0].body as { germinationChoices?: unknown }).germinationChoices).toEqual({ warnTooHumid: true, humidifierHolds: false });
+  });
+
+  it('says where the humidity the humidifier holds is more than "Too humid" lets pass once it warns', async () => {
+    wire.sockets = ['humidifier'];
+    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
+    draw([device({ type: 'fridge', configuration: { ...CONFIGURATION, night: { temperature: 24, humidity: 92 } }, control: dark })]);
+
+    await screen.findByRole('switch', { name: 'Hold the humidity with the humidifier' });
+    const clash = 'The humidifier holds more than “Too humid” allows during germination (90 %): the alarm will go off often.';
+    expect(screen.queryByText(clash)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('switch', { name: 'Warn when it gets too humid' }));
+    expect(screen.getByText(clash)).toBeInTheDocument();
+    type('Humidity while germinating', 85);
+    expect(screen.queryByText(clash)).not.toBeInTheDocument();
+  });
+
+  it('pauses a plan whose germination step chose otherwise with a reason that says what was changed', async () => {
+    wire.sockets = ['humidifier'];
+    wire.plan = {
+      ...plan('running'),
+      steps: [
+        {
+          ...STEP,
+          stage: 'germination',
+          settings: { night: { temperature: 24 } },
+          lightHours: null,
+          germinationChoices: { warnTooHumid: false, humidifierHolds: true },
+        },
+      ],
+    };
+    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
+    draw([
+      device({ type: 'fridge', configuration: { ...CONFIGURATION, workmode: 'breed', night: { temperature: 24, humidity: 55 } }, control: dark }),
+    ]);
+
+    fireEvent.click(await screen.findByRole('switch', { name: 'Warn when it gets too humid' }));
+    tap('Save');
+
+    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+    expect(wire.calls.filter(call => call.method === 'POST').map(call => call.body)).toEqual([
+      { kind: 'pause', reason: 'Germination choice changed by hand' },
+    ]);
   });
 
   it('brings a germinating fridge back into the light with the seedling´s climate', async () => {

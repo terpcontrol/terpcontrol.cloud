@@ -261,6 +261,8 @@ const server = {
   customers: [] as Device[],
   /** Every grow of the account, as "My grows" reads it. */
   mine: [] as MyGrowCard[],
+  /** The rows of the device's socket table, by role; none paired is what most devices answer. */
+  sockets: [] as { role: string }[],
 };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -277,6 +279,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   if (one) return json(server.customers.find(device => device.id === one[1]) ?? server.devices.find(device => device.id === one[1]));
   if (/^\/devices\/[^/]+\/live$/.test(path)) return json(server.live);
   if (/^\/devices\/[^/]+\/alarm-rules$/.test(path)) return json({ items: server.rules, nextCursor: null });
+  if (/^\/devices\/[^/]+\/sockets$/.test(path)) return json({ items: server.sockets, nextCursor: null });
   if (/^\/devices\/[^/]+\/plan$/.test(path) && server.plan) return json(server.plan);
   if (/^\/devices\/[^/]+\/plan\/transitions$/.test(path)) return json(server.plan);
   if (/^\/devices\/[^/]+\/series$/.test(path)) {
@@ -331,6 +334,7 @@ beforeEach(() => {
   server.overviews = new Map();
   server.plan = null;
   server.customers = [];
+  server.sockets = [];
 });
 
 afterEach(() => {
@@ -436,6 +440,34 @@ describe('the cockpit of a place that is fine', () => {
 
     const alarms = await screen.findByRole('region', { name: 'Alarms' });
     expect(await within(alarms).findByText('Too humid above 90 % (rests during germination)')).toBeInTheDocument();
+  });
+
+  /** Asked to warn, the stage's "too humid" warns at germination's line, whatever stage wrote its band. */
+  it('says the line a "too humid" warns at while the fridge germinates', async () => {
+    server.rules = [
+      rule({
+        id: 'humid',
+        name: 'Too humid',
+        origin: 'preset',
+        watch: { kind: 'reading', metric: 'humidity', upper: 72, lower: null, forSeconds: 1200 } as never,
+      }),
+    ];
+    server.devices = [
+      fridge({
+        configuration: { ...fridge().configuration, workmode: 'breed' },
+        control: {
+          running: true,
+          drying: false,
+          mode: 'germination',
+          energySaving: false,
+          germinationChoices: { warnTooHumid: true, humidifierHolds: true },
+        },
+      }),
+    ];
+    draw(<PlaceCockpit overview={overviewOf()} />);
+
+    const alarms = await screen.findByRole('region', { name: 'Alarms' });
+    expect(await within(alarms).findByText('Too humid above 90 %')).toBeInTheDocument();
   });
 
   it('says where alarms go once something reaches the grower', async () => {
@@ -669,6 +701,63 @@ describe('day and night on the cockpit', () => {
   it('calls a germinating fridge´s target the germination´s, with no night beside it and the light off', async () => {
     server.devices = [
       fridge({ control: { running: true, drying: false, mode: 'germination', energySaving: false, germinationChoices: GERMINATION_CHOICES } }),
+    ];
+    server.live = { ...deviceLive(lamp(0)), setpoints: { day: {}, night: { temperature: 24 }, active: 'night' } };
+    const germinating = [
+      { metric: 'temperature' as const, value: 24, band: 1 },
+      { metric: 'humidity' as const, value: null, band: null },
+      { metric: 'co2' as const, value: null, band: null },
+    ];
+    draw(
+      <PlaceCockpit
+        overview={overviewOf({ setpoints: germinating, targets: { day: germinating, night: [{ metric: 'temperature', value: 24, band: 1 }] } })}
+      />,
+    );
+
+    await waitFor(async () => expect(await tile('Temperature')).toHaveTextContent('Germination target 24 °C'));
+    expect(await tile('Humidity')).toHaveTextContent('no target · germination');
+    await waitFor(() => expect(targetsCard()).toHaveTextContent('Germination24 °C'));
+    expect(targetsCard()).toHaveTextContent('Lightoff · germination');
+    expect(targetsCard()).not.toHaveTextContent(/Day|Night/);
+  });
+
+  /** A humidifier socket the grower lets hold the humidity in the dark is what looks after it, and the tile says so. */
+  it('names the humidity a humidifier holds while the fridge germinates', async () => {
+    server.sockets = [{ role: 'humidifier' }];
+    server.devices = [
+      fridge({
+        configuration: { ...fridge().configuration, workmode: 'breed', night: { temperature: 24, humidity: 75 } },
+        control: { running: true, drying: false, mode: 'germination', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      }),
+    ];
+    server.live = { ...deviceLive(lamp(0)), setpoints: { day: {}, night: { temperature: 24 }, active: 'night' } };
+    const germinating = [
+      { metric: 'temperature' as const, value: 24, band: 1 },
+      { metric: 'humidity' as const, value: null, band: null },
+      { metric: 'co2' as const, value: null, band: null },
+    ];
+    draw(
+      <PlaceCockpit
+        overview={overviewOf({ setpoints: germinating, targets: { day: germinating, night: [{ metric: 'temperature', value: 24, band: 1 }] } })}
+      />,
+    );
+
+    await waitFor(async () => expect(await tile('Humidity')).toHaveTextContent('humidifier holds 75 %'));
+  });
+
+  it('keeps saying germination holds no humidity where the humidifier rests', async () => {
+    server.sockets = [{ role: 'humidifier' }];
+    server.devices = [
+      fridge({
+        configuration: { ...fridge().configuration, workmode: 'breed', night: { temperature: 24, humidity: 75 } },
+        control: {
+          running: true,
+          drying: false,
+          mode: 'germination',
+          energySaving: false,
+          germinationChoices: { warnTooHumid: false, humidifierHolds: false },
+        },
+      }),
     ];
     server.live = { ...deviceLive(lamp(0)), setpoints: { day: {}, night: { temperature: 24 }, active: 'night' } };
     const germinating = [

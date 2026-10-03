@@ -35,6 +35,8 @@ import {
   type Verdict,
 } from './place';
 import { storedShapeOf, type Half, type NowHolding } from '../control/targets/day-night';
+import { choicesOf, useHumidifier } from '../control/germination/germination-choices';
+import { figureOf } from '@/ui/climate-hardware';
 import { useDaySeries } from './reads';
 import styles from './Cockpit.module.css';
 
@@ -150,6 +152,11 @@ function ClimateTile({
       )
     : null;
   const outputs = outputsFor(device, live, timeline?.outputs, metric);
+  // Germination holds no humidity of its own, but a humidifier socket the grower lets hold it does: that is said
+  // where "no target" would read as though nothing looked after the humidity. Asked of the humidity tile alone.
+  const humidified = useHumidifier(metric === 'humidity' ? device : null);
+  const humidifierHolds =
+    humidified && device?.configuration && choicesOf(device).humidifierHolds ? figureOf(device.configuration, 'night', 'humidity') : null;
 
   return (
     <Frame spaceId={spaceId} tileKey={metric} verdict={verdict}>
@@ -170,7 +177,7 @@ function ClimateTile({
                   low: targetFigure(range.low, metric),
                   high: `${targetFigure(range.high, metric)} ${UNIT[metric] ?? ''}`.trim(),
                 })
-              : targetLabel(t, metric, setpoint, holdingNowOf(device, live, now, offline), device, offline)}
+              : targetLabel(t, metric, setpoint, holdingNowOf(device, live, now, offline), device, offline, humidifierHolds)}
           </span>
           <VerdictWords verdict={verdict} metric={metric} now={now} explain={explainBand} />
         </p>
@@ -221,12 +228,17 @@ const targetLabel = (
   holding: NowHolding | null,
   device: Device | null,
   offline: boolean,
+  /** The humidity a humidifier socket holds while the device germinates, where it holds one. */
+  humidifierHolds: number | null = null,
 ): string => {
   const half: Half | null = holding?.half ?? null;
   const regime = storedShapeOf(device)?.regime ?? null;
   // A fridge that is drying, germinating or switched off holds no target here because of what it is doing,
   // which is said: "nachts kein Ziel" over a drying room's CO2 read as though night were the reason.
   const by = unheldBy(device);
+  if (setpoint?.value == null && by === 'germination' && metric === 'humidity' && humidifierHolds !== null) {
+    return t('cockpit.tile.humidifierHolds', { target: `${targetFigure(humidifierHolds, 'humidity')} ${UNIT.humidity ?? '%'}` });
+  }
   if (setpoint?.value == null && by) return t('cockpit.tile.noTargetBy', { mode: t(`cockpit.tile.mode.${by}`) });
   if (setpoint?.value == null && metric === 'co2' && regime === 'never') return t('cockpit.tile.co2Dark');
   if (setpoint?.value == null) return t(metric === 'co2' && half === 'night' ? 'cockpit.tile.co2Night' : 'cockpit.tile.noTarget');

@@ -9,6 +9,7 @@ import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceCapabilities, GrowListItem, Me, NotificationSettings, Space } from '@fg2/shared-types/v1';
+import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { Claim } from '@/screens/claim/Claim';
@@ -518,6 +519,48 @@ describe('adding a device', () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Put it on Germination · dark' }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'germination' }));
+  });
+
+  /** Owner's decision G2: setting up is a way into germination too, and asks what every other way asks. */
+  it('asks what germination does about the humidity, and sends what was moved from either button', async () => {
+    const configured = {
+      ...device,
+      configuration: {
+        workmode: 'small',
+        daynight: { day: 6 * 3600, night: 22 * 3600 },
+        day: { temperature: 25 },
+        night: { temperature: 21, humidity: 55 },
+      },
+      control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+    } as Device;
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices' ? { items: [configured], nextCursor: null } : answers(path)) as never,
+    );
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
+    const choices = await screen.findByRole('group', { name: 'During germination' });
+    // No humidifier is paired on a device that was claimed a moment ago, so the alarm is all there is to choose.
+    expect(
+      within(choices)
+        .getAllByRole('switch')
+        .map(one => one.getAttribute('aria-label')),
+    ).toEqual(['Warn when it gets too humid']);
+    fireEvent.click(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' }));
+    // Away to another stage and back, the choice stays; the bottom button carries it into the write.
+    fireEvent.click(screen.getByRole('button', { name: 'Veg' }));
+    expect(screen.queryByRole('group', { name: 'During germination' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
+    expect(within(screen.getByRole('group', { name: 'During germination' })).getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', {
+        stage: 'germination',
+        germinationChoices: { warnTooHumid: true },
+      }),
+    );
   });
 
   it('leaves the green to the one action on the screen', async () => {

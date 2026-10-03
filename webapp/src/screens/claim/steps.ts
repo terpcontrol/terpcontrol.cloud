@@ -1,4 +1,13 @@
-import type { Device, GrowthStage, Me, PresetApplication, SocketPage, Space } from '@fg2/shared-types/v1';
+import type {
+  Device,
+  GerminationChoices,
+  GrowthStage,
+  Me,
+  PresetApplication,
+  PresetApplicationCreate,
+  SocketPage,
+  Space,
+} from '@fg2/shared-types/v1';
 import { channelsLabel } from '@/screens/control/alarms/rules';
 import { alarmsReach, reachedBy } from '@/screens/notifications/reach';
 
@@ -18,7 +27,18 @@ export const MEASURE = 'measure';
 export interface Doing {
   chosen: GrowthStage | typeof MEASURE | null;
   applied: PresetApplication | null;
+  /** What germination is to do about the humidity, where a switch was moved; the device's own stands for the rest. */
+  germination?: Partial<GerminationChoices>;
 }
+
+/**
+ * The write the step makes, from its own button or from the screen's: the
+ * stage, and with germination the switches that were moved.
+ */
+export const presetBodyOf = (stage: GrowthStage, doing: Doing): PresetApplicationCreate =>
+  stage === 'germination' && doing.germination && Object.keys(doing.germination).length > 0
+    ? { stage, germinationChoices: doing.germination }
+    : { stage };
 
 export const NOTHING_DOING: Doing = { chosen: null, applied: null };
 

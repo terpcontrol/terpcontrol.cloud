@@ -1,6 +1,6 @@
-import type { DeviceConfiguration, GrowthStage, StepDuration } from '@fg2/shared-types/v1';
+import type { DeviceConfiguration, GerminationChoices, GrowthStage, StepDuration } from '@fg2/shared-types/v1';
 import { stageChoiceName } from '@/ui/presets';
-import { stepLightHours, stepLightsOn } from './plan-edit';
+import { isDarkStage, stepLightHours, stepLightsOn } from './plan-edit';
 import { hoursWritten } from './targets/schedule-words';
 import { wallClock } from './targets/targets-draft';
 
@@ -27,13 +27,19 @@ export interface StepFacts {
   settings: Record<string, unknown>;
   lightHours?: number | null;
   waitForConfirmation: boolean;
+  /** What a germination step does about the humidity; null where it leaves the device's own. */
+  germinationChoices?: GerminationChoices | null;
 }
 
 /**
  * "Flower · late flower · 3 wk · 12 h light · waits for you", and "Germination ·
- * dark · 5 d" for the step that keeps the light off. A step that writes
- * nothing says so, because a step that only marks time is a deliberate thing to
- * write and would otherwise look like one whose figures had been forgotten. A
+ * dark · 5 d" for the step that keeps the light off, with what it chose about
+ * the humidity where that is not what germination does anyway ("Zu feucht"
+ * warns, the humidifier rests). A step that writes nothing - no figure, no
+ * light hours, and no drying or germination, which darken the device by their
+ * stage alone - says so, because a step that only marks time is a deliberate
+ * thing to write and would otherwise look like one whose figures had been
+ * forgotten. A
  * step that brings its own light-on time - a recipe from the old app - says
  * from when, on the account's clock (`offset` seconds ahead of UTC), where
  * that is known: it moves the light every hour it runs.
@@ -51,8 +57,12 @@ export const stepMeta = (t: Translate, step: StepFacts, offset: number | null = 
         ? t('planLight.shortFrom', { hours: hoursWritten(hours), time: wallClock(own, offset) })
         : t('planLight.short', { hours: hoursWritten(hours) })
       : null,
+    step.stage === 'germination' && step.germinationChoices?.warnTooHumid ? t('space.control.step.warnsTooHumid') : null,
+    step.stage === 'germination' && step.germinationChoices?.humidifierHolds === false ? t('space.control.step.humidifierRests') : null,
     step.waitForConfirmation ? t('space.control.waits') : null,
-    Object.keys(step.settings).length === 0 && step.lightHours == null ? t('space.control.step.writesNothingShort') : null,
+    !isDarkStage(step.stage) && Object.keys(step.settings).length === 0 && step.lightHours == null
+      ? t('space.control.step.writesNothingShort')
+      : null,
   ]
     .filter(Boolean)
     .join(' · ');

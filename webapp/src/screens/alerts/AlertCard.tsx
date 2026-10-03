@@ -346,8 +346,9 @@ const metaOf = (
     ruleName(t, alert, rule),
     severity,
     whole(
+      // An episode its rule stopped watching - the stage's "too humid" resting in germination - did not get better, and is not said to have.
       alert.resolvedAt
-        ? t('alerts.meta.resolved', { time: clock(alert.resolvedAt, zone), age: lastedLabel(alert, now) })
+        ? t(alert.rested ? 'alerts.meta.rested' : 'alerts.meta.resolved', { time: clock(alert.resolvedAt, zone), age: lastedLabel(alert, now) })
         : t('alerts.meta.since', { time: clockLabel(beganAt(alert), now, zone), age: lastedLabel(alert, now) }),
     ),
   ].filter((part): part is string => part !== null);

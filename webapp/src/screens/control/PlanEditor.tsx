@@ -316,10 +316,11 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
           {t('planLight.range', LIGHT_HOURS)}
         </p>
       ) : null}
-      {/* A drying or germination step says what it writes in its own note above; the day, CO₂ and the light are not among it. */}
-      {dark && !(writesNothing(step.settings) && step.lightHours === null) && !awaiting ? null : (
+      {/* A drying or germination step says what it writes in its own note above, by its stage alone if need be;
+          the day, CO₂ and the light are not among it. */}
+      {dark && !awaiting ? null : (
         <p className={ui.note}>
-          {writesNothing(step.settings) && step.lightHours === null
+          {!dark && writesNothing(step.settings) && step.lightHours === null
             ? t('space.control.step.writesNothing')
             : awaiting
               ? t('space.control.step.writesNowhere')

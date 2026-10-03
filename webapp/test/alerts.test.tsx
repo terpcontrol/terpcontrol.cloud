@@ -499,6 +499,15 @@ describe('the inbox', () => {
     expect(screen.queryByText(/announced once|did not reach you|not announced|repeats every/)).not.toBeInTheDocument();
   });
 
+  /** Owner's decision G2: an episode the stage's "too humid" stopped watching in germination did not get better, and is not said to have. */
+  it('says an alert that went quiet in germination rests there, rather than that it resolved', async () => {
+    server.alerts = [alert({ id: 'humid', severity: 'warning', resolvedAt: iso(NOW.minus({ minutes: 5 })), rested: true })];
+    draw();
+
+    expect(await screen.findByText(/^warning · resting during germination · since .* · not resolved · lasted .*$/)).toBeInTheDocument();
+    expect(screen.queryByText(/· resolved /)).not.toBeInTheDocument();
+  });
+
   it('promises nothing about a ruleless alert that has already resolved', async () => {
     server.alerts = [
       alert({

@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
-import type { Camera, Device, GrowListItem, GrowthStage, Space, SpaceKind } from '@fg2/shared-types/v1';
+import type { Camera, Device, GerminationChoices as ChoiceValues, GrowListItem, GrowthStage, Space, SpaceKind } from '@fg2/shared-types/v1';
 import { useCameras } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useCreateGrow, useGrows, useStartingPhase } from '@/api/grows';
@@ -13,6 +13,7 @@ import { growSchemeOf, useScheme, useSchemes, type SchemeSummary } from '@/api/s
 import { useSpaces } from '@/api/spaces';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
+import { figureOf } from '@/ui/climate-hardware';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import { stageChoiceName, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
@@ -20,6 +21,9 @@ import { enough, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { DAY_IN_YEAR } from '@/ui/zone';
+import { GerminationChoices } from '../../control/germination/GerminationChoices';
+import { choicesOf, useHumidifier } from '../../control/germination/germination-choices';
+import { usePlaceController } from '../phase-climate';
 import { useCreateSpace } from './create-space';
 import { dayNumber, growBody, growIn, presetFor, recordsOnly, START_STAGES, suggestedName, tells, type Draft, type PlantRow } from './new-grow';
 import styles from './NewGrow.module.css';
@@ -169,6 +173,8 @@ function Form({
   /** Open while a place is being invented, and closed again by the place existing. */
   const [naming, setNaming] = useState(false);
   const [backdating, setBackdating] = useState(false);
+  /** What germination is to do about the humidity, where a switch was moved here; the device's own stands otherwise. */
+  const [germination, setGermination] = useState<Partial<ChoiceValues>>({});
   /** What already stands, so that a retry after a refusal carries on rather than starting again. */
   const [made, setMade] = useState<{ growId: string | null; phaseDone: boolean; climateDone: boolean }>({
     growId: null,
@@ -197,6 +203,11 @@ function Form({
   const steers = (one: GrowthStage): boolean =>
     place !== null && writesClimate(one) && standing !== null && standing.length > 0 && !recordsOnly(one, already);
   const alsoClimate = preset === null && steers(draft.stage) && !(stage !== null && draft.stage === stage);
+  // A grow that puts its place into germination asks the two questions every other way into germination asks.
+  const controller = usePlaceController(draft.spaceId);
+  const humidifier = useHumidifier(controller);
+  const darkens = draft.stage === 'germination' && alsoClimate && Boolean(controller?.control);
+  const choices = { ...choicesOf(controller), ...germination };
   // "Keimung · dunkel" where starting the grow puts the place on it, and the plain stage where it is only recorded.
   const stageName = (one: GrowthStage): string => (steers(one) ? stageChoiceName(t, one) : t(`home.stage.${one}`));
   const busy = createGrow.isPending || startingPhase.isPending || applyPreset.isPending;
@@ -245,7 +256,9 @@ function Form({
         setMade(state => ({ ...state, phaseDone: true }));
       }
       if (alsoClimate && !made.climateDone) {
-        await applyPreset.mutateAsync({ stage: draft.stage, preset: null });
+        // Only a switch that was moved is sent: the device's own choice stands for the rest.
+        const said = darkens && Object.keys(germination).length > 0 ? { germinationChoices: germination } : {};
+        await applyPreset.mutateAsync({ stage: draft.stage, preset: null, ...said });
         setMade(state => ({ ...state, climateDone: true }));
       }
       await navigate(`/grows/${growId}`, { replace });
@@ -409,6 +422,15 @@ function Form({
             </Choice>
           </Choices>
           {backdating ? <WhenField label={t('grow.new.startedOn')} at={draft.startedAt} onChange={at => change({ startedAt: at })} /> : null}
+          {darkens ? (
+            <GerminationChoices
+              value={choices}
+              onChange={change => setGermination(current => ({ ...current, ...change }))}
+              humidifier={humidifier}
+              humidity={controller?.configuration ? figureOf(controller.configuration, 'night', 'humidity') : null}
+              disabled={!mayManage || busy}
+            />
+          ) : null}
         </Block>
 
         <Block label={t('grow.new.feeding')} aside={t('grow.new.feedingAside')}>

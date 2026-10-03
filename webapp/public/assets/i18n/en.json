@@ -2566,7 +2566,7 @@
       "applied": {
         "at": "Step sent to the device {{age}} ago",
         "never": "This step's settings go to the device within the minute",
-        "atRest": "This plan is writing nothing: the device keeps whatever it was last set to",
+        "atRest": "While the plan is not running it writes nothing: the device keeps whatever it was last set to",
         "quiet": "{{offline}} · what the device is really running may be older than this"
       },
       "move": {
@@ -2633,6 +2633,8 @@
         "settings": "What the device holds",
         "writesNothing": "This step writes nothing: the device keeps whatever it was running when the step began.",
         "writesNothingShort": "writes nothing",
+        "warnsTooHumid": "“Too humid” warns",
+        "humidifierRests": "humidifier rests",
         "writesSections": "A step writes the figures it is given into the device's settings: the day and night targets, the CO₂ target, the light's limit and how long it is on. A figure left empty stays what the device has, and so does everything else in its settings.",
         "writesSectionsNoCo2": "A step writes the figures it is given into the device's settings: the day and night targets, the light's limit and how long it is on. This device reports no CO₂ sensor, so no CO₂ target is written — its firmware holds one at zero whatever it is told. A figure left empty stays what the device has, and so does everything else in its settings.",
         "writesNowhere": "This device has not sent its settings yet, so this step is not sent. What it carries would be put in place of the device's own tuning rather than added to it, and every setting this step does not name would be back at a factory value. Clearing these figures is how the step is taken off.",
@@ -3564,6 +3566,7 @@
       "switchedOff": "switched off",
       "restsInGermination": "rests during germination",
       "restsInGerminationChange": "rests during germination · change under Control ›",
+      "germinationLine": "during germination · {{bound}} again afterwards",
       "announcedOnce": "announced once",
       "toYou": "goes to you by {{channels}}"
     },
@@ -3835,6 +3838,7 @@
     "planPausedFor": "The plan is paused: {{reason}}",
     "resume": "Resume plan",
     "pauseReason": "Targets set by hand",
+    "pauseReasonGermination": "Germination choice changed by hand",
     "unsaved": "Unsaved changes",
     "save": "Save",
     "saving": "Saving…",
@@ -4096,6 +4100,7 @@
       "inMaintenance": "device in maintenance, nothing raised until {{time}}",
       "settling": "device out of maintenance, nothing raised until {{time}} while the climate comes back",
       "resolved": "resolved {{time}} · lasted {{age}}",
+      "rested": "resting during germination · since {{time}} · not resolved · lasted {{age}}",
       "notAnnounced": "not announced",
       "unheard": "did not reach you · set up ›",
       "ruleNow": "the rule now says {{severity}}"
@@ -5059,11 +5064,11 @@
     },
     "germinationAlarm": {
       "title": "“Too humid” during germination",
-      "text": "Germinating seeds are kept moist on purpose, and a germination box often reads far above what is good for leaves. So “Too humid” rests during germination unless you switch it on – an alarm that goes off every night is soon ignored. Switched on, the phase’s “Too humid” warns above 90 % (above that, water stands on the medium and the tray, where mould and damping-off begin), and a “Too humid” alarm of your own warns at its own line. An alarm that keeps the humidity inside a band from both sides, and every other alarm, always stays on. Resting means the alarm stays switched on and keeps your settings; after germination it warns as before."
+      "text": "Germinating seeds are kept moist on purpose, and a germination box often reads far above what is good for leaves. So the phase’s “Too humid” rests during germination unless you switch warning on – an alarm that goes off every night is soon ignored. Switched on, it warns above 90 % during germination, whether you set germination under Control, in the operating mode, with a phase or with a plan (above that, water stands on the medium and the tray, where mould and damping-off begin); a device that has none gets one. After germination its own line holds again. Alarms you set up yourself, and every other alarm, always stay awake. Resting means the alarm stays switched on and keeps your settings; an open alert ends without an all-clear and is listed under Alerts as “resting during germination”. The choice is for this germination; the next one starts without warning again."
     },
     "germinationHumidifier": {
       "title": "Humidifier during germination",
-      "text": "During germination the device controls the temperature alone. A humidifier on a smart socket still holds the night humidity: it switches on once the air is at least 5 points drier and off as soon as the figure is reached – it never makes it wetter than set. That is the default, because dry air fails a germination sooner than humid air does: the medium dries out. Switched off, the humidifier rests until germination ends and works as before afterwards. While it holds the humidity, you set it for germination under Control."
+      "text": "During germination the device controls the temperature alone. A humidifier on a smart socket still holds the night humidity: it switches on once the air is at least 5 points drier and off as soon as the figure is reached – it never makes it wetter than set. That is the default, because dry air fails a germination sooner than humid air does: the medium dries out. Switched off, the humidifier rests until germination ends – one that is running switches off straight away – and works as before afterwards. While it holds the humidity, you set it for germination under Control. The choice is for this germination; the next one starts with the humidity held again."
     },
     "socketTimer": {
       "title": "Timer",
@@ -5183,6 +5188,7 @@
       "noTarget": "no target",
       "co2Night": "no target at night",
       "noTargetBy": "no target · {{mode}}",
+      "humidifierHolds": "humidifier holds {{target}}",
       "mode": {
         "off": "control off",
         "drying": "drying",
@@ -5330,12 +5336,13 @@
   "germinationChoices": {
     "label": "During germination",
     "alarm": "Warn when it gets too humid",
-    "alarmOn": "“Too humid” warns during germination as well.",
-    "alarmOff": "“Too humid” rests until germination ends.",
+    "alarmOn": "“Too humid” warns during germination above {{line}} %.",
+    "alarmOff": "“Too humid” rests until germination ends. Alarms you set up yourself stay awake.",
     "humidifier": "Hold the humidity with the humidifier",
     "humidifierOn": "The humidifier holds {{humidity}} – it never makes it wetter than that.",
     "humidifierOnNight": "The humidifier holds the night humidity – it never makes it wetter than that.",
-    "humidifierOff": "The humidifier rests until germination ends."
+    "humidifierOff": "The humidifier rests until germination ends.",
+    "holdsAboveLine": "The humidifier holds more than “Too humid” allows during germination ({{line}} %): the alarm will go off often."
   },
   "advanced": {
     "title": "Advanced",
@@ -5420,6 +5427,7 @@
     "germination": "Germination · dark",
     "germinationNote": "For seeds germinating in the dark: no light, no CO₂, one temperature round the clock – the night temperature at first, to be changed under Targets. A dehumidifier stays off; in a tent the exhaust does the cooling. Back on standard, the night temperature from before holds again. “Germination · dark” under Control sets the same, at 24 °C straight away.",
     "ask": "Switch to {{mode}}? {{what}} Standard here switches it back.",
+    "choicesAfter": "This can be changed here once it is switched.",
     "yes": "Switch to {{mode}}"
   },
   "recover": {
@@ -5895,7 +5903,11 @@
         "external": "Clip fan",
         "internal": "Inner fans"
       },
-      "lightPlan": "Light plan"
+      "lightPlan": "Light plan",
+      "germination": {
+        "warnTooHumid": "Germination · warn when it gets too humid",
+        "humidifierHolds": "Germination · hold the humidity with the humidifier"
+      }
     },
     "mode": {
       "off": "control off",
@@ -5925,7 +5937,8 @@
       },
       "breed": {
         "night": {
-          "temperature": "Germination temperature"
+          "temperature": "Germination temperature",
+          "humidity": "Germination humidity"
         }
       }
     }

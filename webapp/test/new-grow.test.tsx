@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -9,6 +9,7 @@ import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Device, GrowListItem, Space } from '@fg2/shared-types/v1';
+import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { growDayAt } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
@@ -99,7 +100,13 @@ const SENT_SCHEME = {
 };
 
 /** What the account holds, per test: the places, the grows already run, and what stands in them. */
-const stack = { spaces: [tent, balcony] as Space[], grows: [spring, tomatoes] as GrowListItem[], devices: [controller], cameras: [cam] };
+const stack = {
+  spaces: [tent, balcony] as Space[],
+  grows: [spring, tomatoes] as GrowListItem[],
+  devices: [controller],
+  cameras: [cam],
+  sockets: [] as { role: string }[],
+};
 
 /** Which reads fail, per test: a read that failed is a state the sheet has to draw, not an empty list. */
 const broken = { devices: false, schemes: false };
@@ -109,6 +116,7 @@ const answers = (path: string): unknown => {
   if (path === '/grows') return { items: stack.grows, nextCursor: null };
   if (path === '/devices') return { items: stack.devices, nextCursor: null };
   if (path === '/cameras') return { items: stack.cameras, nextCursor: null };
+  if (/^\/devices\/[^/]+\/sockets$/.test(path)) return { items: stack.sockets, nextCursor: null };
   throw new Error(`No fixture for ${path}`);
 };
 
@@ -146,6 +154,7 @@ beforeEach(() => {
   stack.grows = [spring, tomatoes];
   stack.devices = [controller];
   stack.cameras = [cam];
+  stack.sockets = [];
   broken.devices = false;
   broken.schemes = false;
 
@@ -255,6 +264,57 @@ describe('the new-grow sheet', () => {
     expect(api.post).toHaveBeenNthCalledWith(2, '/grows/grow-new/phases', { stage: 'germination', preset: null, startedAt: expect.any(String) });
     // The phase writes no climate without a preset of its own, so the stage is applied to the tent as well.
     expect(api.post).toHaveBeenNthCalledWith(3, '/spaces/space-1/preset-applications', { stage: 'germination', preset: null });
+  });
+
+  /**
+   * Owner's decision G2, on the way into germination the one-device grower
+   * takes most: the two questions are asked here as everywhere germination is
+   * set, and what was moved goes with the climate.
+   */
+  it('asks what germination does about the humidity where the grow puts the place into the dark, and sends what was moved', async () => {
+    stack.devices = [
+      {
+        ...controller,
+        configuration: {
+          workmode: 'small',
+          day: { temperature: 25, humidity: 60 },
+          night: { temperature: 21, humidity: 55 },
+          daynight: { day: 21600, night: 0 },
+        },
+        control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      } as Device,
+    ];
+    stack.sockets = [{ role: 'humidifier' }];
+    await drawLoaded();
+
+    const choices = await screen.findByRole('group', { name: 'During germination' });
+    expect(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' })).toHaveAttribute('aria-checked', 'false');
+    await waitFor(() => expect(within(choices).getByText('The humidifier holds 55 % – it never makes it wetter than that.')).toBeInTheDocument());
+    fireEvent.click(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' }));
+    fireEvent.click(within(choices).getByRole('switch', { name: 'Hold the humidity with the humidifier' }));
+    press('Start the grow · Day 1');
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(3));
+    expect(api.post).toHaveBeenNthCalledWith(3, '/spaces/space-1/preset-applications', {
+      stage: 'germination',
+      preset: null,
+      germinationChoices: { warnTooHumid: true, humidifierHolds: false },
+    });
+  });
+
+  it('asks nothing about germination where the grow does not darken the place', async () => {
+    stack.devices = [
+      {
+        ...controller,
+        configuration: { workmode: 'small', day: { temperature: 25, humidity: 60 }, night: { temperature: 21, humidity: 55 } },
+        control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      } as Device,
+    ];
+    await drawLoaded();
+    expect(await screen.findByRole('group', { name: 'During germination' })).toBeInTheDocument();
+
+    press('Seedling · with light');
+    expect(screen.queryByRole('group', { name: 'During germination' })).not.toBeInTheDocument();
   });
 
   // The hint over the field says a count is enough, and the primary has to mean it.

@@ -76,7 +76,17 @@ describe('device messages against the shipped catalogue', () => {
       'Drying humidity: 58 % → 60 %\nDrying temperature: 18 °C → 19 °C',
     );
     expect(text(['night.temperature: 20 → 24', 'breed'])).toContain('Germination temperature: 20 °C → 24 °C');
+    // The humidity a humidifier holds in germination, where the grower lets it.
+    expect(text(['night.humidity: 55 → 75', 'breed'])).toContain('Germination humidity: 55 % → 75 %');
     expect(text(['night.temperature: 20 → 24'])).toContain('Night temperature: 20 °C → 24 °C');
+  });
+
+  it('says what was chosen about the humidity in germination, which leaves no figure of its own', () => {
+    const text = (params: string[]) => resolveDeviceMessage(i18n, { key: 'message-device-configuration-updated', params }, 'text');
+
+    expect(text(['germination.warnTooHumid: false → true\ngermination.humidifierHolds: true → false', 'breed'])).toContain(
+      'Germination · warn when it gets too humid: off → on\nGermination · hold the humidity with the humidifier: on → off',
+    );
     expect(resolveDeviceMessage(i18n, { key: 'message-device-configuration-updated', params: ['workmode: small → dry', 'dry'] }, 'title')).toBe(
       'Drying started',
     );

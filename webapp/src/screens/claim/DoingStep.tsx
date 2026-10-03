@@ -13,13 +13,16 @@ import { stageChoiceName } from '@/ui/presets';
 import { Choice, Choices } from '@/ui/SheetParts';
 import { GrowPicker } from '@/screens/space/GrowPicker';
 import { useMovableGrows } from '@/screens/space/movable-grows';
-import { statesTargets } from '@/ui/climate-hardware';
+import { figureOf, statesTargets } from '@/ui/climate-hardware';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
+import { GerminationChoices } from '../control/germination/GerminationChoices';
+import { choicesOf, useHumidifier } from '../control/germination/germination-choices';
+import { usePlaceController } from '../grow/phase-climate';
 import { scheduleTitle } from '../control/targets/schedule-words';
 import { draftOf, offsetOf } from '../control/targets/targets-draft';
 import { targetFigure } from '../home/units';
-import { MEASURE, type Doing } from './steps';
+import { MEASURE, presetBodyOf, type Doing } from './steps';
 import styles from './Claim.module.css';
 
 /**
@@ -60,10 +63,14 @@ export function DoingStep({
   // second stage applied here asks again, and the answer to the first one is
   // not the answer to it.
   const [answeredFor, setAnsweredFor] = useState<PresetApplication | null>(null);
+  // What germination does about the humidity, asked as everywhere germination is set. The screen holds the
+  // answer, because its own button carries the choice into the write as well.
+  const controller = usePlaceController(spaceId);
+  const humidifier = useHumidifier(controller);
 
   const { chosen, applied } = doing;
   const stage = chosen === MEASURE ? null : chosen;
-  const pick = (next: GrowthStage | typeof MEASURE) => onDoing({ chosen: next, applied: null });
+  const pick = (next: GrowthStage | typeof MEASURE) => onDoing({ chosen: next, applied: null, germination: doing.germination });
   // Whether a controller actually took the targets. A place whose device has
   // never sent its settings takes nothing, and the lines below then have no
   // climate write to report.
@@ -108,6 +115,15 @@ export function DoingStep({
       {stage === 'germination' && !applied ? (
         <p className={ui.note}>{t('claim.doing.germination', { temperature: targetFigure(GERMINATION_TEMPERATURE, 'temperature') })}</p>
       ) : null}
+      {stage === 'germination' && !applied && controller?.control ? (
+        <GerminationChoices
+          value={{ ...choicesOf(controller), ...doing.germination }}
+          onChange={change => onDoing({ ...doing, germination: { ...doing.germination, ...change } })}
+          humidifier={humidifier}
+          humidity={controller.configuration ? figureOf(controller.configuration, 'night', 'humidity') : null}
+          disabled={apply.isPending}
+        />
+      ) : null}
 
       <Refused error={apply.error} />
 
@@ -116,7 +132,7 @@ export function DoingStep({
           type="button"
           className={`${ui.button} ${styles.aside}`}
           disabled={apply.isPending || spaceId === null}
-          onClick={() => apply.mutate({ stage }, { onSuccess: result => onDoing({ chosen: stage, applied: result }) })}
+          onClick={() => apply.mutate(presetBodyOf(stage, doing), { onSuccess: result => onDoing({ ...doing, chosen: stage, applied: result }) })}
         >
           {apply.isPending ? t('claim.doing.applying') : t('claim.doing.apply', { stage: stageChoiceName(t, stage) })}
         </button>

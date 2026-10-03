@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { GerminationChoices as Choices } from '@fg2/shared-types/v1';
+import { GERMINATION_TOO_HUMID } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { configurationFieldsOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useConfigure } from '@/api/devices';
 import { GerminationChoices } from '@/screens/control/germination/GerminationChoices';
@@ -8,6 +9,7 @@ import { FieldChoice } from '@/ui/advanced/Fields';
 import { figureOf } from '@/ui/climate-hardware';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import { Refused } from '@/ui/PageState';
+import { targetFigure, UNIT } from '@/screens/home/units';
 
 /**
  * Betriebsart: what a fridge or a tent controller does as a whole while its
@@ -26,6 +28,24 @@ function OperatingMode({ device, mayManage, sockets }: DeviceContext) {
   const field = configurationFieldsOf(device.type).mode;
   const modes = field?.kind === 'choice' ? field.options : [];
   const germinates = device.control?.running === true && !device.control.drying && device.control.mode === 'germination';
+  const humidifier = sockets?.items?.some(socket => socket.role === 'humidifier') ?? false;
+  // What germination will do about the humidity is said before the switch, as everywhere else germination is
+  // set; the two switches to change it stand here once it runs.
+  const choices = choicesOf(device);
+  const humidity = device.configuration ? figureOf(device.configuration, 'night', 'humidity') : null;
+  const choicesSaid = [
+    t(choices.warnTooHumid ? 'germinationChoices.alarmOn' : 'germinationChoices.alarmOff', { line: GERMINATION_TOO_HUMID }),
+    humidifier
+      ? choices.humidifierHolds
+        ? humidity === null
+          ? t('germinationChoices.humidifierOnNight')
+          : t('germinationChoices.humidifierOn', { humidity: `${targetFigure(humidity, 'humidity')} ${UNIT.humidity ?? '%'}` })
+        : t('germinationChoices.humidifierOff')
+      : null,
+    t('operatingMode.choicesAfter'),
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <>
@@ -42,14 +62,17 @@ function OperatingMode({ device, mayManage, sockets }: DeviceContext) {
           mode === 'standard'
             ? null
             : {
-                question: t('operatingMode.ask', { mode: t(`operatingMode.${mode}`), what: t(`operatingMode.${mode}Note`) }),
+                question: [
+                  t('operatingMode.ask', { mode: t(`operatingMode.${mode}`), what: t(`operatingMode.${mode}Note`) }),
+                  mode === 'germination' ? choicesSaid : null,
+                ]
+                  .filter(Boolean)
+                  .join(' '),
                 yes: t('operatingMode.yes', { mode: t(`operatingMode.${mode}`) }),
               }
         }
       />
-      {germinates ? (
-        <Choosing device={device} mayManage={mayManage} humidifier={sockets?.items?.some(socket => socket.role === 'humidifier') ?? false} />
-      ) : null}
+      {germinates ? <Choosing device={device} mayManage={mayManage} humidifier={humidifier} /> : null}
     </>
   );
 }

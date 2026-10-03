@@ -39,6 +39,10 @@ const FIELDS: Readonly<Record<string, Field>> = {
   'daynight.minimalDehumidifierOffTime': { kind: 'number', unit: 's' },
   'fans.external': { kind: 'number', unit: '%' },
   'fans.internal': { kind: 'number', unit: '%' },
+  // Not figures of the device's document but what germination does about the
+  // humidity, which the server writes into the same line when somebody changes it.
+  'germination.warnTooHumid': { kind: 'switch' },
+  'germination.humidifierHolds': { kind: 'switch' },
 };
 
 const LINE = /^(.+?): (.*) → (.*)$/;
@@ -86,10 +90,14 @@ const valueOf = (i18n: I18n, field: Field, raw: string, context: ChangeContext):
   }
 };
 
-/** The figures held round the clock in a mode that knows no day, named by the mode rather than as the night's. */
+/**
+ * The figures held round the clock in a mode that knows no day, named by the
+ * mode rather than as the night's. Germination's humidity is the one a
+ * humidifier socket holds there, where the grower lets it.
+ */
 const HELD_IN: Readonly<Record<string, readonly string[]>> = {
   dry: ['night.temperature', 'night.humidity'],
-  breed: ['night.temperature'],
+  breed: ['night.temperature', 'night.humidity'],
 };
 
 /** One line of the change, named and written out where the figure is one the app sets. */

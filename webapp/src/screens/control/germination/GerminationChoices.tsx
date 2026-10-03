@@ -17,6 +17,8 @@ import styles from './GerminationChoices.module.css';
  * a device without, nothing reads the humidity in the dark and there is nothing
  * to choose. `humidity` is the night's, which a humidifier that holds goes by;
  * null where the screen cannot say it, and the note then names it in words.
+ * Where it holds more than "Zu feucht" lets pass and the grower asked to be
+ * warned, the two choices work against each other, and that is said.
  */
 export function GerminationChoices({
   value,
@@ -33,6 +35,7 @@ export function GerminationChoices({
 }) {
   const { t } = useTranslation();
   const held = humidity === null ? null : `${targetFigure(humidity, 'humidity')} ${UNIT.humidity ?? '%'}`;
+  const clashes = humidifier && value.humidifierHolds && value.warnTooHumid && humidity !== null && humidity > GERMINATION_TOO_HUMID;
 
   return (
     <div className={styles.choices} role="group" aria-label={t('germinationChoices.label')}>
@@ -61,6 +64,7 @@ export function GerminationChoices({
           onToggle={humidifierHolds => onChange({ humidifierHolds })}
         />
       ) : null}
+      {clashes ? <p className={ui.note}>{t('germinationChoices.holdsAboveLine', { line: GERMINATION_TOO_HUMID })}</p> : null}
     </div>
   );
 }
