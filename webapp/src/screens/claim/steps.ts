@@ -71,6 +71,13 @@ export const doingSummary = ({ chosen, applied }: Doing, onServer: GrowthStage |
 };
 
 /** What the device reported, rather than anything that was set up in the step. */
+/**
+ * Whether the device pairs smart sockets of its own: a fridge module and a
+ * controller do. An AIR fan and a Smart Socket pair a Terp Cam but no sockets,
+ * and a LIGHT pairs neither.
+ */
+export const pairsSockets = (device: Pick<Device, 'type'>): boolean => device.type === 'fridge' || device.type === 'controller';
+
 export const hardwareSummary = (device: Device | null, sockets: SocketPage | undefined, t: Translate, camOnly = false): string =>
   camOnly
     ? t('claim.code.camera', { name: cameraName(device, t) })

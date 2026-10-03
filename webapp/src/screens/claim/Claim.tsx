@@ -21,19 +21,11 @@ import { pairsACam } from '@/screens/camera/add/pairers';
 import { NotifyStep } from '@/screens/notifications/NotifyNotice';
 import { PlaceStep } from './PlaceStep';
 import { Step } from './Step';
-import { doingSummary, hardwareSummary, MEASURE, newPlaceName, NOTHING_DOING, notifySummary, placeSummary, type Doing } from './steps';
+import { doingSummary, hardwareSummary, MEASURE, newPlaceName, NOTHING_DOING, notifySummary, pairsSockets, placeSummary, type Doing } from './steps';
 import styles from './Claim.module.css';
 
 /** The steps, in order, so the bottom button can carry the next one's name. */
 const STEPS = ['code', 'place', 'doing', 'hardware', 'notify'] as const;
-
-/**
- * The hardware that pairs smart sockets of its own. The fourth step is about
- * those and the Terp Cam; an AIR fan and a Smart Socket pair a cam the same
- * way but no sockets, so for them it is about the cam alone, and a LIGHT pairs
- * neither and is not asked.
- */
-const PAIRS_SOCKETS: readonly string[] = ['fridge', 'controller'];
 
 /**
  * Which step the address says was open, kept inside the five. Without a device
@@ -116,7 +108,7 @@ export function Claim() {
   const lost = device.error instanceof ApiError && !device.data;
   // Sockets and a cam are paired at a fridge module or a controller, a cam alone
   // at a smart socket or an AIR fan; a LIGHT has neither and is not asked.
-  const camOnly = claimed !== null && !PAIRS_SOCKETS.includes(claimed.type);
+  const camOnly = claimed !== null && !pairsSockets(claimed);
   const shown = STEPS.flatMap((name, index) => (name === 'hardware' && claimed && !pairsACam(claimed) ? [] : [index]));
   // What a step is called, which for the fourth depends on what the device pairs.
   const keyOf = (index: number): string => (STEPS[index] === 'hardware' && camOnly ? 'camOnly' : STEPS[index]);

@@ -13,7 +13,8 @@ import { QrScanner } from '@/ui/QrScanner';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { LegacyMove } from './LegacyMove';
-import { cameraName, deviceName } from './steps';
+import { pairsACam } from '@/screens/camera/add/pairers';
+import { cameraName, deviceName, pairsSockets } from './steps';
 import styles from './Claim.module.css';
 
 /**
@@ -191,8 +192,9 @@ export function ClaimedFacts({ device, sockets, now }: { device: Device; sockets
     <>
       {t(`claim.code.${deviceLiveness(seen, now)}`, { age: ageLabel(seen, now) })}
       {build?.version || build?.name ? ` · ${t('claim.code.firmware', { version: build.version || build.name })}` : ''}
-      {sockets ? ` · ${t('claim.code.sockets', { count: sockets.items.length })}` : ''}
-      {` · ${t('claim.code.camera', { name: cameraName(device, t) })}`}
+      {/* What hangs on it, for the hardware that can have it: a plug pairs no sockets, a light no cam either. */}
+      {sockets && pairsSockets(device) ? ` · ${t('claim.code.sockets', { count: sockets.items.length })}` : ''}
+      {pairsACam(device) ? ` · ${t('claim.code.camera', { name: cameraName(device, t) })}` : ''}
     </>
   );
 }

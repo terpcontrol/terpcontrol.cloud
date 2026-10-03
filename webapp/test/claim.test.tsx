@@ -280,6 +280,9 @@ describe('adding a device', () => {
 
     expect(await screen.findByRole('button', { name: 'Next · cam?' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('3 of 5');
+    // What the first step says it found names the cam and no sockets a plug cannot have.
+    expect(screen.getByText(/Cam: none/)).toBeInTheDocument();
+    expect(screen.queryByText(/0 sockets/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Next · cam?' }));
 
@@ -298,6 +301,7 @@ describe('adding a device', () => {
     expect(screen.queryByRole('heading', { level: 2, name: 'Sockets and cam' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 2, name: 'Cam' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('3 of 4');
+    expect(screen.queryByText(/Cam: none|0 sockets/)).not.toBeInTheDocument();
   });
 
   /**
