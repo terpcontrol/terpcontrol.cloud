@@ -6,6 +6,7 @@
 
 #include "time.h"
 #include "esp_sntp.h"
+#include <esp_system.h>
 
 const uint8_t  SPRINTF_BUFFER_SIZE{32};
 MCP7940_Class MCP7940;
@@ -27,8 +28,33 @@ static constexpr time_t SENSOR_FAULT_CLOCK_SET = 1000000000;
 // watchdog's recovery reboot would otherwise let a device with a standing fault
 // report it again on every boot. Power-on clears it, which is right - a device
 // that was just switched on reports what it finds at once.
-RTC_DATA_ATTR static time_t g_ext_sensor_fail_logged = 0;
-RTC_DATA_ATTR static time_t g_ext_sensor_deviate_logged = 0;
+//
+// RTC_NOINIT_ATTR, not RTC_DATA_ATTR: the bootloader loads .rtc.data afresh on
+// every reset but a wake from deep sleep, which this device never sleeps in, so
+// the stamps were back at zero after exactly the restarts they are kept for.
+// .rtc_noinit is left alone on those, and holds garbage after a power cycle -
+// hence the magic word, and the reset reason checked once per boot.
+struct SensorFaultStamps {
+  uint32_t magic;
+  time_t fail_logged;
+  time_t deviate_logged;
+};
+RTC_NOINIT_ATTR static SensorFaultStamps g_sensor_fault_stamps;
+static constexpr uint32_t SENSOR_FAULT_STAMPS_KEPT = 0x53464c54UL;
+
+static SensorFaultStamps& sensorFaultStamps() {
+  static bool checked = false;
+  if(!checked) {
+    checked = true;
+    const esp_reset_reason_t reason = esp_reset_reason();
+    if(g_sensor_fault_stamps.magic != SENSOR_FAULT_STAMPS_KEPT || reason == ESP_RST_POWERON || reason == ESP_RST_BROWNOUT) {
+      g_sensor_fault_stamps.magic = SENSOR_FAULT_STAMPS_KEPT;
+      g_sensor_fault_stamps.fail_logged = 0;
+      g_sensor_fault_stamps.deviate_logged = 0;
+    }
+  }
+  return g_sensor_fault_stamps;
+}
 
 static double ntcToTemp(uint16_t adc_val) {
   double R1 = 100000.0;   // voltage divider resistor value
@@ -177,7 +203,7 @@ namespace fg {
         state.humidity = humidity_scd;
         state.temperature = temperature_scd;
         if(!sensor_deviation_seen) {
-          sensor_deviation_seen = logSensorFault(cloud, "message-ext-sensor-deviate", g_ext_sensor_deviate_logged);
+          sensor_deviation_seen = logSensorFault(cloud, "message-ext-sensor-deviate", sensorFaultStamps().deviate_logged);
         }
       }
       else {
@@ -191,7 +217,7 @@ namespace fg {
     // pass.
     if(sht_failed) {
       if(!sensor_fail_seen) {
-        sensor_fail_seen = logSensorFault(cloud, "message-ext-sensor-fail", g_ext_sensor_fail_logged);
+        sensor_fail_seen = logSensorFault(cloud, "message-ext-sensor-fail", sensorFaultStamps().fail_logged);
       }
     }
     else if(sht_valid) {
