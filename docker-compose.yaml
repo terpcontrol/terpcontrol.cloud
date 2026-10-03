@@ -144,6 +144,8 @@ services:
       PREMIUM_FREE_TIMELAPSE_DAYS: ${PREMIUM_FREE_TIMELAPSE_DAYS:-}
       PREMIUM_EXTEND_URL: ${PREMIUM_EXTEND_URL:-}
       PREMIUM_PRICE_LABEL: ${PREMIUM_PRICE_LABEL:-}
+      # The raw climate a window nobody has set keeps, in days; 0 keeps all of it.
+      RETENTION_CLIMATE_DAYS: ${RETENTION_CLIMATE_DAYS:-0}
       DB_HOST: "mongodb"
       DB_PORT: "27017"
       DB_DATABASE: ${MONGODB_DATABASE}

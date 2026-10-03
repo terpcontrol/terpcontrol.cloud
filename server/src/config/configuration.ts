@@ -163,7 +163,8 @@ export const premiumConfig = registerAs('premium', () => ({
  * "keep everything" as a window of its own, and an install that has never said
  * a word about retention must not start summarising three years of somebody's
  * readings away the first time it is upgraded. An install that wants a window
- * says so.
+ * says so. docker-compose.yaml defaults it to 0; the fallback here is for a
+ * server started outside compose.
  */
 export const retentionConfig = registerAs('retention', () => ({
   climateDays: number(process.env.RETENTION_CLIMATE_DAYS, 0),
