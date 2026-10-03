@@ -19,12 +19,15 @@ export declare const firmwareChannel: z.ZodEnum<{
     stable: "stable";
 }>;
 /**
- * The device's own configuration document, passed through untouched.
+ * The device's own configuration document.
  *
  * Its schema belongs to the firmware of that device type, not to this package:
- * every type has its own keys, an older build has fewer of them, and the server
- * never interprets one. Typing it here would date the moment a firmware adds a
- * field.
+ * every type has its own keys, an older build has fewer of them, and typing it
+ * here would date the moment a firmware adds a field. The server holds the keys
+ * a type's firmware reads to what it reads there - a number in the firmware's
+ * range, a switch, a word, a section - and refuses a document that breaks one
+ * with 400, naming each place (`document-figures.ts` in the server); every other
+ * key is kept as it came.
  */
 export declare const deviceConfiguration: z.ZodRecord<z.ZodString, z.ZodAny>;
 export declare const deviceFirmwareTarget: z.ZodObject<{
@@ -303,6 +306,11 @@ export declare const deviceUpdate: z.ZodObject<{
  * read for either. `germinationChoices` is what germination does about the
  * humidity (`GerminationChoices`), kept for whenever the device germinates; a
  * humidifier that holds goes by the night's humidity sent with it.
+ *
+ * A figure the device's firmware would misread - `{"$numberInt": "24"}` where it
+ * reads a number - or one outside its range is refused with 400
+ * (`validation_failed`), each named under `configuration.`; a figure sent as
+ * the device already has it is held to being a number and not to its range.
  */
 export declare const deviceConfigurationEnvelope: z.ZodObject<{
     configuration: z.ZodRecord<z.ZodString, z.ZodAny>;

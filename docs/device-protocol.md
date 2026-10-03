@@ -586,7 +586,14 @@ total (`wifi.h:80`). A row with a role the build does not know is dropped when t
 ## 7 The configuration document
 
 **The configuration is the device's own.** The cloud stores a copy and hands it back, but the device decides what
-it means and which keys exist; the server never validates or interprets it.
+it means and which keys exist. The server holds only the keys a type's firmware reads (section 7.1) to what the
+firmware reads there, because `loadIfAvaliable` takes each with ArduinoJson's `as<float>()` or `as<uint32_t>()`,
+which reads anything that is not a number - an object such as Extended JSON's `{"$numberInt": "24"}`, a list, a
+word - as 0 without a word. A client's document, plan step or template that breaks one, or sets a figure outside
+the firmware's range, is refused with 400 naming each place; anything else that would carry one to a device - a
+step stored before steps were checked, a document the device itself sent - has it replaced by the figure the
+device ran, or left out so the firmware keeps its default (`document-figures.ts`). Every other key is kept as it
+came.
 
 | Direction | Payload | Where |
 | --- | --- | --- |

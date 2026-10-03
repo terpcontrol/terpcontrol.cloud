@@ -177,6 +177,49 @@ describe('what reaches the hardware', () => {
     expect(read.body.configuration).toEqual(configuration);
   });
 
+  it('refuses a figure the firmware would misread, or one outside its range, naming each, and sends the device nothing', async () => {
+    const configuration = { day: { temperature: 24 }, night: { temperature: 20 } };
+    await owner.client.put(`/v1/devices/${device.deviceId}/configuration`).send({ configuration }).expect(200);
+    await settle();
+    simulator.clear();
+
+    // Extended JSON, as a database tool writes a figure: the firmware's as<float>() reads it as 0 °C.
+    const refused = await owner.client
+      .put(`/v1/devices/${device.deviceId}/configuration`)
+      .send({ configuration: { day: { temperature: 24, humidity: '60' }, night: { temperature: { $numberInt: '20' } }, lights: { limit: 140 } } })
+      .expect(400);
+    expect(refused.body).toMatchObject({ status: 400, code: 'validation_failed' });
+    expect(refused.body.errors).toEqual([
+      { field: 'configuration.day.humidity', code: 'invalid_type', detail: expect.any(String) },
+      { field: 'configuration.night.temperature', code: 'invalid_type', detail: expect.any(String) },
+      { field: 'configuration.lights.limit', code: 'too_big', detail: expect.any(String) },
+    ]);
+
+    await settle();
+    expect(simulator.messagesOn('configuration')).toEqual([]);
+    expect((await owner.client.get(`/v1/devices/${device.deviceId}/configuration`).expect(200)).body.configuration).toEqual(configuration);
+
+    // A plan step and a template go to the device as well, every hour they run.
+    const step = {
+      name: 'Veg',
+      stage: 'vegetative',
+      duration: { value: 1, unit: 'weeks' },
+      settings: { night: { temperature: { $numberInt: '20' } } },
+      waitForConfirmation: false,
+      confirmationMessage: null,
+    };
+    const plan = await owner.client
+      .put(`/v1/devices/${device.deviceId}/plan`)
+      .send({ templateId: null, name: 'Figures', loop: false, notify: { mode: 'off', email: null, writeEntries: false }, steps: [step] })
+      .expect(400);
+    expect(plan.body.errors.map((error: { field: string }) => error.field)).toEqual(['steps.0.settings.night.temperature']);
+    const template = await owner.client
+      .post('/v1/plan-templates')
+      .send({ name: 'Figures', isPublic: false, steps: [step] })
+      .expect(400);
+    expect(template.body.errors.map((error: { field: string }) => error.field)).toEqual(['steps.0.settings.night.temperature']);
+  });
+
   it('changes a setting by name, decides the work mode from it, and holds a fridge to what the server tunes itself', async () => {
     const fridge = await provisionDevice(owner);
     const listening = await startSimulator(fridge);
@@ -259,7 +302,7 @@ describe('what reaches the hardware', () => {
     const tent = await provisionDevice(owner, 'controller');
     await owner.client
       .put(`/v1/devices/${tent.deviceId}/configuration`)
-      .send({ configuration: { workmode: 2, lights: { limit: 100 } } })
+      .send({ configuration: { workmode: 'small', lights: { limit: 100 } } })
       .expect(200);
     await owner.client
       .patch(`/v1/devices/${tent.deviceId}/configuration`)

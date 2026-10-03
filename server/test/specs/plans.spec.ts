@@ -68,7 +68,7 @@ const aController = async (session: Session): Promise<{ deviceId: string; spaceI
   const claimed = await provisionDevice(session, 'controller');
   await session.client
     .put(`/v1/devices/${claimed.deviceId}/configuration`)
-    .send({ configuration: { day: { temperature: 25, humidity: 60 }, night: { temperature: 22, humidity: 65 }, workmode: 2 } })
+    .send({ configuration: { day: { temperature: 25, humidity: 60 }, night: { temperature: 22, humidity: 65 }, workmode: 'small' } })
     .expect(200);
   const read = await session.client.get(`/v1/devices/${claimed.deviceId}`).expect(200);
 

@@ -6,7 +6,7 @@ import { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY, germinationChoicesOf, type GerminationChoiceValues } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { co2FanKey, co2FanOf, co2InjectFor, type Co2Fan, type FieldSetting } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { HttpException } from '@common/http-exception';
-import { unprocessable } from '@common/v1/problem';
+import { badRequest, unprocessable } from '@common/v1/problem';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { MODEL_V1 } from '@database/models';
 import { ScheduleClock, StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -20,6 +20,7 @@ import { HIDDEN_FIGURES, HUMIDIFIER_REST_BAND, heldTo } from './class-rules';
 import { fieldChangesOf, withFigures } from './configuration-fields';
 import { DevicePublisherService } from './device-publisher.service';
 import { DEVICE_GERMINATION_SINK, type DeviceGerminationSink } from './device-sinks';
+import { figureRefusals, withFiguresHeld } from './document-figures';
 import { GERMINATION_FORGOTTEN, leavesGermination } from './germination-memory';
 import { driftBetween, keepsTime, SCHEDULE_FOLLOWER, ScheduleFollower, sameClockTimes, scheduleClockOf, withClockTimesMoved } from './schedule-clock';
 import { targetsOf } from '../v1/phase/phase-targets';
@@ -90,6 +91,10 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * What is stored is answered, because it is not always what was sent: the
    * work mode is the server's, the figures a mode leaves alone are kept
    * (`idle-figures.ts`), and the type's rules hold the rest (`class-rules.ts`).
+   *
+   * A figure the device's firmware would misread - anything but a number where
+   * it reads a number - or one outside the firmware's range is refused before
+   * anything is written, every one of them named (`document-figures.ts`).
    */
   public async replace(
     deviceId: string,
@@ -99,6 +104,13 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     germination?: boolean,
     choices?: ChoicesSaid,
   ): Promise<DeviceConfiguration | null> {
+    const device = await this.devices
+      .findOne({ id: deviceId }, { type: 1, configuration: 1 })
+      .lean<Pick<StoredDevice, 'type' | 'configuration'> | null>();
+    if (!device) throw new HttpException(404, 'Device not found');
+    const refused = figureRefusals(device.type, configuration, { stored: device.configuration ?? null });
+    if (refused.length > 0) throw badRequest('validation_failed', 'The settings do not fit what the device reads.', refused);
+
     const written = await this.store(deviceId, { kind: 'targets', drying, germination, choices }, () => configuration);
     if (written) await this.writeDown(deviceId, written, by);
 
@@ -347,7 +359,12 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // along rather than taken as new.
     const clock = await this.ownersClock(device.ownerId, at);
     const drift = driftBetween(device.scheduleClock ?? null, clock);
-    const configuration = drift !== 0 && sameClockTimes(before, held) ? withClockTimesMoved(held, drift) : held;
+    const timed = drift !== 0 && sameClockTimes(before, held) ? withClockTimesMoved(held, drift) : held;
+    // Nothing the firmware would misread goes to the device, whatever wrote it: a
+    // client is refused before this, but a plan step stored before steps were
+    // checked, or a document stored before any of this, is put right here.
+    const { configuration, dropped } = withFiguresHeld(device.type, timed, before);
+    if (dropped.length > 0) logger.warn(`Device ${deviceId}: not sent as stored, as its firmware would misread them: ${dropped.join(', ')}`);
 
     await this.devices.updateOne(
       { id: deviceId },

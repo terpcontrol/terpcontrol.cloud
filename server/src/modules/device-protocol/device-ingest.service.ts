@@ -29,6 +29,7 @@ import {
 import { DevicePublisherService } from './device-publisher.service';
 import { HardwareReportService } from './hardware-report.service';
 import { heldTo, offTheWire, onTheWire } from './class-rules';
+import { withFiguresHeld } from './document-figures';
 import { GERMINATION_FORGOTTEN, leftAtDevice } from './germination-memory';
 import { sameClockTimes } from './schedule-clock';
 import { baseFromUpload, standardOf } from './work-modes';
@@ -260,7 +261,8 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     const firmwareId = typeof reported?.firmware_id === 'string' ? reported.firmware_id : '';
 
     if (firmwareId) await this.firmwareReported(device, firmwareId);
-    if (device.configuration !== null) this.publisher.configuration(device.id, device.configuration);
+    if (device.configuration !== null)
+      this.publisher.configuration(device.id, withFiguresHeld(device.type, device.configuration, null).configuration);
 
     const left = (device.state.maintenanceUntil?.getTime() ?? 0) - Date.now();
     if (left >= 60_000) this.publisher.repeatMaintenance(device.id, left / 1000);
@@ -356,7 +358,9 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
 
     const read = offTheWire(reported, device.configuration ?? null);
     const returned = leftAtDevice(device.configuration ?? null, read, device);
-    const configuration = heldTo(device.type, returned ?? read);
+    // A figure the firmware itself would misread is not kept, so the server never sends it back.
+    const { configuration, dropped } = withFiguresHeld(device.type, heldTo(device.type, returned ?? read), device.configuration ?? null);
+    if (dropped.length > 0) logger.warn(`Device ${device.id} sent settings its firmware would misread, not kept: ${dropped.join(', ')}`);
     const base = baseFromUpload(device.type, configuration);
     const retimed = !sameClockTimes(device.configuration, configuration);
     await this.devices.updateOne(
