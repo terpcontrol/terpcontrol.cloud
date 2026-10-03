@@ -557,12 +557,12 @@ a role):
 
 | Role | What its socket follows |
 | --- | --- |
-| `dehumidifier` | the dehumidifier output |
+| `dehumidifier` | the dehumidifier output, except in `breed`, where nothing dries the air and it stays off |
 | `heater` | the heater output |
 | `light`, `secondary_light` | the light output |
 | `co2` | the CO2 valve |
 | `humidifier` | the dehumidifier's band read the other way round: on below the target minus `targetHumidityDiff` (never less than 5 points), off at the target |
-| `exhaust` | the cooling decision the temperature and breeding modes compute; in the standard modes (`small`, `full`) the same rule on its own: on above the target by 0.8 °C, off below 0.3 °C over it |
+| `exhaust` | the cooling decision the temperature mode, and a fridge's breeding mode, compute; in the standard modes (`small`, `full`) and a controller's `breed` the same rule on its own: on above the target by 0.8 °C, off below 0.3 °C over it |
 | `circulation`, `fan` | anything: on whenever the module is controlling and not paused |
 | `pump`, `custom_timer` | the row's own timer, and nothing else |
 | `manual` | nothing: off unless an override holds it |

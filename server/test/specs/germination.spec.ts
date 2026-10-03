@@ -35,6 +35,14 @@ const placed = async (type: DeviceType): Promise<{ device: DeviceCredentials; sp
   return { device, spaceId: (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId };
 };
 
+/** The rules the stage wrote on a device, by name, with what each watches. */
+const stageRules = async (device: DeviceCredentials): Promise<Record<string, unknown>> => {
+  const rules = (await owner.client.get(`/v1/devices/${device.deviceId}/alarm-rules`).expect(200)).body.items.filter(
+    (rule: { origin: string }) => rule.origin === 'preset',
+  );
+  return Object.fromEntries(rules.map((rule: { name: string; watch: unknown }) => [rule.name, rule.watch]));
+};
+
 const growIn = async (spaceId: string): Promise<string> =>
   (
     await owner.client
@@ -130,6 +138,40 @@ describe('a grow entering germination', () => {
     expect(await configurationOf(device)).toMatchObject({ workmode: 'small', night: { temperature: 20 } });
     const read = (await owner.client.get(`/v1/grows/${grow}`).expect(200)).body;
     expect(read.summary.stage).toBe('germination');
+  });
+
+  it('leaves the alarms of a device that keeps its light where only the phase is written', async () => {
+    const { device, spaceId } = await placed('controller');
+    const grow = await growIn(spaceId);
+    await owner.client.post(`/v1/grows/${grow}/phases`).send({ stage: 'flowering', climate: true }).expect(201);
+    const flowering = await stageRules(device);
+    expect(Object.keys(flowering).sort()).toEqual(['CO₂ too high', 'Too cold', 'Too hot', 'Too humid']);
+
+    await owner.client.post(`/v1/grows/${grow}/phases`).send({ stage: 'germination' }).expect(201);
+
+    // "Too cold" under 20 °C would trip every flowering night, which keeps its 18 °C.
+    expect(await stageRules(device)).toEqual(flowering);
+  });
+
+  it('takes the germination alarms where the device already germinates, or the climate follows the phase', async () => {
+    const dark = await placed('controller');
+    const seeds = await growIn(dark.spaceId);
+    await owner.client
+      .put(`/v1/devices/${dark.device.deviceId}/configuration`)
+      .send({ configuration: document({ night: { temperature: 24, humidity: 55 } }), germination: true })
+      .expect(200);
+    await owner.client.post(`/v1/grows/${seeds}/phases`).send({ stage: 'germination' }).expect(201);
+    expect(Object.keys(await stageRules(dark.device)).sort()).toEqual(['CO₂ too high', 'Too cold', 'Too hot']);
+
+    // The new-grow sheet: the phase recorded first, and the place put on its climate a moment later.
+    const lit = await placed('fridge');
+    const sown = await growIn(lit.spaceId);
+    await owner.client.post(`/v1/grows/${sown}/phases`).send({ stage: 'germination' }).expect(201);
+    expect(await stageRules(lit.device)).toEqual({});
+    await owner.client.post(`/v1/spaces/${lit.spaceId}/preset-applications`).send({ stage: 'germination' }).expect(201);
+    expect(await configurationOf(lit.device)).toMatchObject({ workmode: 'breed' });
+    expect(await stageRules(lit.device)).toMatchObject({ 'Too cold': { lower: 20 }, 'Too hot': { upper: 29 } });
+    expect(Object.keys(await stageRules(lit.device))).not.toContain('Too humid');
   });
 });
 

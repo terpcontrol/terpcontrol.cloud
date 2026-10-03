@@ -40,12 +40,13 @@ export type WriteIntent =
   | { kind: 'targets'; drying?: boolean; germination?: boolean }
   /**
    * A climate preset, a phase, or a plan step, with the stage it is for. Drying
-   * dries and germination germinates in the dark; any other stage switches the
-   * device on, ends a drying spell and brings it out of germination into its
-   * standard mode, and otherwise leaves it on its own mode. `requested` is what
-   * a plan step carries itself. `night` says whether the write brings a night
-   * temperature of its own, which coming out of germination otherwise puts
-   * back (see `DeviceConfigurationService.store`).
+   * dries and germination germinates in the dark; any other stage - or a plan
+   * step that names none - switches the device on, ends a drying spell and
+   * brings it out of germination into its standard mode, and otherwise leaves
+   * it on its own mode. `requested` is what a plan step carries itself.
+   * `night` says whether the write brings a night temperature of its own,
+   * which coming out of germination otherwise puts back (see
+   * `DeviceConfigurationService.store`).
    */
   | { kind: 'climate'; stage: GrowthStage | null; requested?: unknown; night?: boolean }
   /** The settings a person changed one at a time, of which these four are about the work mode. */
@@ -109,8 +110,9 @@ const standardFor = (type: string, standard: string | null | undefined): BaseWor
  *
  * Germination is the one mode a stage puts a device into besides drying, and
  * it is dark: no write that is not about germination leaves a device in it.
- * Any other stage, and targets saved with `germination: false`, bring it back
- * to the standard mode, whose energy saving stands where it was left.
+ * Any other stage, a plan step with none, and targets saved with
+ * `germination: false` bring it back to the standard mode, whose energy saving
+ * stands where it was left.
  */
 export const decideWorkmode = (
   type: string,
@@ -140,8 +142,13 @@ export const decideWorkmode = (
       const asked = intent.requested;
       if (typeof asked === 'string' && asked !== 'small' && asked !== 'full') return { workmode: asked, base: isBase(asked) ? asked : standing };
       if (intent.stage === 'germination') return { workmode: 'breed', base: 'breed' };
-      // A step that names no stage says nothing about germination either.
-      const next = standing === 'breed' && intent.stage !== null ? standardFor(type, standard) : standing;
+      // Only germination is dark, so any other write of a climate - a step that
+      // names no stage among them - brings the device out of it, as it ends a
+      // drying spell or an off. A step without a stage is still a climate with
+      // light: the old app's recipes ran their germination step on `breed` and
+      // every step after it on the standard mode, which the steps no longer say
+      // since the small and the full went out of them.
+      const next = standing === 'breed' ? standardFor(type, standard) : standing;
       return { workmode: intent.stage === 'drying' ? 'dry' : next, base: next };
     }
     case 'fields': {

@@ -1044,7 +1044,9 @@ namespace fg {
       const bool controlling = settings.workmode != FridgeControllerSettings::MODE_OFF && !isPaused();
 
       SmartSocketOutputStates socket_states;
-      socket_states.dehumidifier_on = state.out_dehumidifier > 0;
+      // In germination the compressor cools and nothing dries the air: a
+      // dehumidifier socket rests rather than drying the seeds' medium.
+      socket_states.dehumidifier_on = state.out_dehumidifier > 0 && settings.workmode != FridgeControllerSettings::MODE_BREED;
       socket_states.heater_on = state.out_heater > 0;
       socket_states.light_on = state.out_light > 0;
       socket_states.secondary_light_on = state.out_light > 0;

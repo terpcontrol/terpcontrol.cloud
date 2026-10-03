@@ -113,8 +113,9 @@ describe('the work mode a write leaves', () => {
     });
     expect(decideWorkmode('fridge', 'breed', 'breed', { kind: 'climate', stage: 'drying' }, 'full')).toEqual({ workmode: 'dry', base: 'full' });
     expect(decideWorkmode('fridge', 'off', 'breed', { kind: 'climate', stage: 'curing' }, 'small')).toEqual({ workmode: 'small', base: 'small' });
-    // A step that names no stage says nothing about germination, and the hourly re-send of a seedling step keeps the light.
-    expect(decideWorkmode('fridge', 'breed', 'breed', { kind: 'climate', stage: null })).toEqual({ workmode: 'breed', base: 'breed' });
+    // A step that names no stage is a climate with light all the same, and the hourly re-send of a seedling step keeps the light.
+    expect(decideWorkmode('fridge', 'breed', 'breed', { kind: 'climate', stage: null })).toEqual({ workmode: 'small', base: 'small' });
+    expect(decideWorkmode('fridge', 'breed', 'breed', { kind: 'climate', stage: null }, 'full')).toEqual({ workmode: 'full', base: 'full' });
     expect(decideWorkmode('fridge', 'small', 'small', { kind: 'climate', stage: 'seedling' })).toEqual({ workmode: 'small', base: 'small' });
     expect(decideWorkmode('fridge', 'temp', 'temp', { kind: 'climate', stage: 'seedling' })).toEqual({ workmode: 'temp', base: 'temp' });
   });
@@ -477,6 +478,30 @@ describe('every other way a document is written', () => {
     await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'seedling');
     expect((await stored()).configuration?.workmode).toBe('small');
     expect(published.at(-1)).toMatchObject({ workmode: 'small' });
+  });
+
+  /**
+   * The old app's recipes: a "Germination" step that carries `breed` itself,
+   * and every step after it with no stage and - since the small and the full
+   * were taken out of steps - no work mode. The next step is the light again,
+   * as it was in the old app, and so is a step of the new editor left on "no
+   * stage" after a germination step.
+   */
+  it('comes out of germination with the next plan step that names no stage, and germinates again for one that asks for it', async () => {
+    await device({ configuration: fridgeDocument({ workmode: 'full' }) });
+
+    await configuration.applyConfiguration(DEVICE, { workmode: 'breed', night: { temperature: 24 } }, null);
+    expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { temperature: 24 } });
+
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 26 }, night: { temperature: 22 }, lights: { limit: 80 } }, null);
+    const after = await stored();
+    expect(after.configuration).toMatchObject({ workmode: 'full', day: { temperature: 26 }, night: { temperature: 22 }, lights: { limit: 80 } });
+    expect(after.beforeGermination).toBeNull();
+
+    // A step of nothing but a light limit brings the night from before germination back with the light.
+    await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, after.configuration, true)!, 'germination');
+    await configuration.applyConfiguration(DEVICE, { lights: { limit: 60 } }, null);
+    expect((await stored()).configuration).toMatchObject({ workmode: 'full', night: { temperature: 22 }, lights: { limit: 60 } });
   });
 
   it('germinates for targets saved for germination, and keeps the figures germination does not hold', async () => {

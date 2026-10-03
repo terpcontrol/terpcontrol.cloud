@@ -41,6 +41,13 @@ export interface PhaseRequest {
   spaceId: string | null;
   targets: PhaseTargets | null;
   startedAt?: Date;
+  /**
+   * False where the phase is only recorded and nothing wrote a climate with it.
+   * A germination phase recorded so is about seeds, wherever they sprout, and
+   * leaves the alarms of a place whose device holds a climate with light as
+   * they are (see `rereadThresholds`). Left out, the climate is written.
+   */
+  climateWritten?: boolean;
 }
 
 /**
@@ -112,7 +119,7 @@ export class PhaseWriterService implements DevicePlacement {
       values: { kind: 'phase', phaseId: phase.id, stage: phase.stage, preset: phase.preset },
     });
 
-    await this.rereadThresholds(grow, phase);
+    await this.rereadThresholds(grow, phase, request.climateWritten ?? true);
     return phase;
   }
 
@@ -168,7 +175,8 @@ export class PhaseWriterService implements DevicePlacement {
     // thresholds are what the alarm engine watches today, and re-reading them
     // from a stage that ended in spring would arm the tent for spring.
     if (phases[phases.length - 1]?.id === phaseId && (corrected.stage !== standing.stage || corrected.preset !== standing.preset)) {
-      await this.rereadThresholds(grow, corrected);
+      // A correction writes no climate: it repairs the record.
+      await this.rereadThresholds(grow, corrected, false);
     }
 
     return corrected;
@@ -202,12 +210,23 @@ export class PhaseWriterService implements DevicePlacement {
    * plants do - a plug in the tent measures the same air as the controller -
    * and on the controller the phase names, which is the same set unless the
    * plants have since been moved.
+   *
+   * Germination's bands are for air held round the clock at one temperature
+   * in the dark, with no humidity watched. A germination phase that wrote no
+   * climate leaves a place whose fridge or controller runs another mode - a
+   * climate with light, or drying - with the alarms that climate is watched
+   * by: "too cold" under 20 °C would trip every night of a flowering tent.
+   * Where the device there already germinates, the bands are its own.
    */
-  private async rereadThresholds(grow: GrowDocument, phase: StoredPhase): Promise<void> {
+  private async rereadThresholds(grow: GrowDocument, phase: StoredPhase, climateWritten: boolean): Promise<void> {
     if (!this.alarms) return;
 
     const spaceIds = spacesOf(grow, phase.plantIds);
-    const here = await this.devices.find({ spaceId: { $in: spaceIds } }, { id: 1 }).lean<Pick<StoredDevice, 'id'>[]>();
+    const here = await this.devices
+      .find({ spaceId: { $in: spaceIds } }, { id: 1, type: 1, 'configuration.workmode': 1 })
+      .lean<Pick<StoredDevice, 'id' | 'type' | 'configuration'>[]>();
+    if (phase.stage === 'germination' && !climateWritten && here.some(holdsAnotherMode)) return;
+
     const deviceIds = new Set([...here.map(device => device.id), ...(phase.deviceId ? [phase.deviceId] : [])]);
 
     for (const deviceId of deviceIds) await this.applyStageTo(deviceId, phase);
@@ -226,6 +245,20 @@ export class PhaseWriterService implements DevicePlacement {
 
     const standing = phaseStandingIn(grow, spaceId);
     if (standing) await this.applyStageTo(deviceId, standing);
+  }
+
+  /**
+   * A climate written to a place whose grow already stood in its stage: the
+   * new-grow sheet records the first phase a moment before it puts the place
+   * on that stage's climate, and a preset is applied again. The alarms follow
+   * the climate, so the bands of the stage standing there are read again for
+   * every device in the place.
+   */
+  public async restateSpace(spaceId: string): Promise<void> {
+    if (!this.alarms) return;
+
+    const here = await this.devices.find({ spaceId }, { id: 1 }).lean<Pick<StoredDevice, 'id'>[]>();
+    for (const device of here) await this.restateThresholds(device.id, spaceId);
   }
 
   /** The thresholds are the alarm engine's, and a device that could not be told must not undo the phase the grow is in. */
@@ -248,6 +281,12 @@ export class PhaseWriterService implements DevicePlacement {
     return grow?.id ?? null;
   }
 }
+
+/** A fridge or a controller running a mode other than germination: its work mode is a word, and not `breed`. */
+const holdsAnotherMode = (device: Pick<StoredDevice, 'type' | 'configuration'>): boolean => {
+  const workmode = device.configuration?.workmode;
+  return (device.type === 'fridge' || device.type === 'controller') && typeof workmode === 'string' && workmode !== 'breed';
+};
 
 /** A grow still going with an open placement in the space. The newest wins where two share a tent while one is on its way out. */
 const standingIn = (spaceId: string): FilterQuery<GrowDocument> => ({ endedAt: null, placements: { $elemMatch: { spaceId, endedAt: null } } });

@@ -526,6 +526,7 @@ export class GrowsService {
       spaceId,
       targets: controller?.targets ?? null,
       startedAt: request.startedAt,
+      climateWritten: applied.length > 0,
     });
 
     // Putting a grow into the phase it already stands in changes nothing and is

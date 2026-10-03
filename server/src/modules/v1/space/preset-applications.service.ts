@@ -87,6 +87,10 @@ export class PresetApplicationsService {
             startedAt: appliedAt,
           });
 
+    // The grow already stood in the stage, and the climate was written all the
+    // same: its alarms follow the climate, as they would with a phase appended.
+    if (growId !== null && phase === null && applied.length > 0) await this.phases.restateSpace(spaceId);
+
     // No grow here, nothing said about it, and a space that has not been told to
     // stop asking. The climate has been written either way, so somebody who
     // closes that sheet has still changed the tent.

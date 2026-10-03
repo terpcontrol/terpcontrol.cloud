@@ -502,11 +502,13 @@ const step = (state, config, at, stepSeconds, random, type = 'controller') => {
 
   const heater = aim.temperature === null ? 0 : clamp((aim.temperature - state.temperature) * 0.9, 0, 1);
   // The compressor dehumidifies in the standard modes and drying, and only
-  // cools in the greenhouse mode and germination.
+  // cools in the greenhouse mode and germination. A tent has no compressor:
+  // in germination its exhaust cools and the dehumidifier output rests.
   const cools = aim.mode === 'temp' || aim.kind === 'germination';
   const target = cools ? aim.temperature : aim.humidity;
   const reading = cools ? state.temperature : state.humidity;
-  const dehumidifier = !off && target !== null && reading > target + (cools ? 0.8 : 2) ? 1 : 0;
+  const rests = type === 'controller' && aim.kind === 'germination';
+  const dehumidifier = !off && !rests && target !== null && reading > target + (cools ? 0.8 : 2) ? 1 : 0;
   const co2Valve = aim.co2 !== null && state.co2 < aim.co2 - 40 ? 1 : 0;
   const internal = off ? 0 : configValue(config, 'fans.internal', 60) / 100;
   const external = off ? 0 : clamp(configValue(config, 'fans.external', 40) / 100 + dehumidifier * 0.4, 0, 1);
@@ -559,7 +561,8 @@ const socketFollows = (role, sample, config, at, type = 'controller') => {
 
   const follows = {
     heater: sample.outputs.heater > 0,
-    dehumidifier: sample.outputs.dehumidifier > 0,
+    // Nothing dries the air in germination: a fridge's compressor cools there, and its dehumidifier socket rests.
+    dehumidifier: sample.outputs.dehumidifier > 0 && aim.kind !== 'germination',
     light: sample.outputs.light > 0,
     secondary_light: sample.outputs.light > 0,
     co2: sample.outputs.co2 > 0,

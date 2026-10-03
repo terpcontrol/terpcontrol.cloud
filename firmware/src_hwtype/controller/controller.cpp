@@ -909,8 +909,13 @@ namespace fg {
       else if(settings.workmode == ControllerControllerSettings::MODE_BREED) {
         Serial.println("MODE BREED");
         controlHeater();
-        controlCooling();
-        exhaust_on = state.out_dehumidifier > 0;
+        // A tent has no compressor, so germination does not cool with the
+        // dehumidifier output as the temperature mode does: a dehumidifier
+        // warms the tent and dries the medium the seeds sprout in. The exhaust
+        // cools, by the rule the standard mode gives it, and the dehumidifier
+        // sockets rest.
+        state.out_dehumidifier = 0;
+        exhaust_on = exhaustTarget(state.temperature, settings.night.temperature, isPaused());
         co2_valve_open = false;
         state.out_co2 = 0;
         out_light.set(0);
