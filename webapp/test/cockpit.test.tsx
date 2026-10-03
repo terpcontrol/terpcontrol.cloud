@@ -176,7 +176,11 @@ const deviceLive = (over: Partial<DeviceLive['outputs']> = {}): DeviceLive => ({
     light: { value: 100, measuredAt: ago(0.2), state: 'live' },
     ...over,
   },
-  setpoints: { day: { temperature: 25, humidity: 60, co2: 900 }, night: { temperature: 21, humidity: 55 }, active: 'day' },
+  // `transition: null` is the device saying it is not between its halves. Left
+  // out, the schedule's ramps decide that instead, and a fridge is gliding to
+  // the night for the last quarter of an hour before 18:00 UTC - which made the
+  // day's figures fail to read as the day's whenever the suite ran then.
+  setpoints: { day: { temperature: 25, humidity: 60, co2: 900 }, night: { temperature: 21, humidity: 55 }, active: 'day', transition: null },
 });
 
 const curve = (from: number, step: number) =>
