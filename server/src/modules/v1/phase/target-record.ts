@@ -1,5 +1,6 @@
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
+import { cycleOf, type Cycle } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { targetsOf } from './phase-targets';
 
@@ -7,26 +8,31 @@ import { targetsOf } from './phase-targets';
  * The record of what a device aimed at over time: written wherever its stored
  * configuration changes, read wherever a band is drawn across the past.
  *
- * Only a move of the targets is a row. A configuration is saved again for a
- * plan re-sending its step every hour, a lamp's dimming or the clocks changing,
- * and none of those moved what a band is drawn from.
+ * Only a move of the targets, or of the cycle that decides which half of them
+ * holds, is a row. A configuration is saved again for a plan re-sending its step
+ * every hour or a lamp's dimming, and neither moved what a band or a night is
+ * drawn from; the clocks changing did move the schedule, in UTC.
  */
 
-/** The row a write leaves, or nothing where the targets came out of it where they went in. */
-export const targetChangeOf = (deviceId: string, before: unknown, after: unknown, at: Date): StoredTargetChange | null => {
+/** The row a write leaves, or nothing where the targets and the cycle came out of it where they went in. */
+export const targetChangeOf = (deviceId: string, type: string, before: unknown, after: unknown, at: Date): StoredTargetChange | null => {
   const targets = targetsOf(asConfiguration(after));
+  const cycle = cycleOf(type, asConfiguration(after));
+  const same =
+    JSON.stringify(targetsOf(asConfiguration(before))) === JSON.stringify(targets) &&
+    JSON.stringify(cycleOf(type, asConfiguration(before))) === JSON.stringify(cycle);
 
-  return JSON.stringify(targetsOf(asConfiguration(before))) === JSON.stringify(targets) ? null : { id: uuidv4(), deviceId, at, targets };
+  return same ? null : { id: uuidv4(), deviceId, at, targets, cycle };
 };
 
 export const recordTargets = async (
   record: Model<StoredTargetChange>,
-  deviceId: string,
+  device: { id: string; type: string },
   before: unknown,
   after: unknown,
   at: Date,
 ): Promise<void> => {
-  const change = targetChangeOf(deviceId, before, after, at);
+  const change = targetChangeOf(device.id, device.type, before, after, at);
   if (change) await record.create(change);
 };
 
@@ -64,6 +70,41 @@ export const recordOf = async (
     .sort({ at: 1, _id: 1 })
     .lean<StoredTargetChange>();
   return first ? [first] : [];
+};
+
+/** A stretch of a window and the cycle the record says stood over it; null where it does not say. */
+export interface CycleStretch {
+  from: number;
+  to: number;
+  cycle: Cycle | null;
+}
+
+/**
+ * The cycle over each stretch of a window, from one device's record (`recordOf`).
+ *
+ * A row stands from its instant until the next, so the last one reaches the end
+ * of the window. Before the first row nothing is known - a row after the window
+ * says nothing about it - and a row from before cycles were recorded says
+ * nothing either: both are stretches whose nights are read off the lamp, as
+ * they always were.
+ */
+export const cyclesOf = (rows: readonly StoredTargetChange[], window: { startsAt: Date; endsAt: Date }): CycleStretch[] => {
+  const start = window.startsAt.getTime();
+  const end = window.endsAt.getTime();
+  const sorted = [...rows].sort((one, other) => one.at.getTime() - other.at.getTime());
+  const stretches: CycleStretch[] = [];
+  let cursor = start;
+
+  sorted.forEach((row, index) => {
+    const from = Math.max(row.at.getTime(), start);
+    const to = Math.min(sorted[index + 1]?.at.getTime() ?? end, end);
+    if (from > cursor) stretches.push({ from: cursor, to: Math.min(from, end), cycle: null });
+    if (to > from) stretches.push({ from, to, cycle: row.cycle ?? null });
+    cursor = Math.max(cursor, to);
+  });
+  if (cursor < end) stretches.push({ from: cursor, to: end, cycle: null });
+
+  return stretches.filter(stretch => stretch.to > stretch.from);
 };
 
 const asConfiguration = (value: unknown): Record<string, unknown> | null =>

@@ -244,7 +244,8 @@ describe('the night the clocks change', () => {
     await clocks.run(AFTER_AUTUMN);
 
     // 08:00 in Berlin was 07:00 UTC; 08:00 in New York, still on summer time that week, is 12:00 UTC.
-    expect((await stored()).configuration?.daynight).toEqual({ day: 12 * HOUR, night: 0, maxDehumidifySeconds: 120 });
+    // Twelve hours later is midnight UTC, written as the second before it so the evening ramp runs.
+    expect((await stored()).configuration?.daynight).toEqual({ day: 12 * HOUR, night: 86399, maxDehumidifySeconds: 120 });
     expect((await stored()).scheduleClock).toEqual({ zone: 'America/New_York', offset: -240 });
   });
 });
@@ -339,6 +340,7 @@ describe('a save', () => {
 
     await configuration.applyConfiguration(DEVICE, { daynight: { day: 6 * HOUR, night: 0 }, lights: { limit: 80 } });
 
-    expect((await stored()).configuration?.daynight).toEqual({ day: 6 * HOUR, night: 0, maxDehumidifySeconds: 120 });
+    // Midnight UTC on the dot is held a second short of it (`class-rules.ts`).
+    expect((await stored()).configuration?.daynight).toEqual({ day: 6 * HOUR, night: 86399, maxDehumidifySeconds: 120 });
   });
 });

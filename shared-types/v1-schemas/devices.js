@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.captureStillCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.adminDeviceCreate = exports.deviceConfigurationReading = exports.co2FanCoupling = exports.deviceConfigurationPatch = exports.timerWindow = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.deviceSettingsWritten = exports.devicePage = exports.device = exports.deviceState = exports.deviceControl = exports.dryingReturn = exports.operatingMode = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
-exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = void 0;
-exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = void 0;
+exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.setpointsTransition = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = void 0;
+exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 const configuration_fields_js_1 = require("./configuration-fields.js");
@@ -468,13 +468,15 @@ exports.planStep = (0, common_js_1.named)('PlanStep', zod_1.z.object({
     settings: exports.deviceConfiguration,
     // Hours rather than the document's two times of day, because a step - and a
     // template above all - is written for a tent whose morning it does not know:
-    // the light keeps the hour it comes on and goes off this much later.
+    // the light keeps the hour it comes on and goes off this much later. A step
+    // that does set the hour carries it as `settings.daynight.day`, and only such
+    // a step moves it.
     lightHours: zod_1.z
         .number()
-        .min(1)
+        .min(0)
         .max(24)
         .nullable()
-        .describe('How long the light is on while this step runs; null leaves the photoperiod as it is.'),
+        .describe('How long the light is on while this step runs: 24 is light round the clock, 0 none at all (the night’s figures round the clock). Null leaves the photoperiod as it is. The light comes on at the hour the device has, unless `settings.daynight.day` names one.'),
     waitForConfirmation: zod_1.z.boolean(),
     confirmationMessage: zod_1.z.string().nullable(),
 }));
@@ -737,6 +739,21 @@ exports.alert = (0, common_js_1.named)('Alert', zod_1.z.object({
 exports.alertPage = (0, common_js_1.named)('AlertPage', (0, common_js_1.page)(exports.alert));
 /* --------------------------------------------------------------- live, series */
 /**
+ * A change from one half's targets to the other's (`day-night.ts`): on a
+ * fridge, the dimming ramp its targets glide along, and on any device the hour
+ * after the switch that the climate is given to follow. Meanwhile a reading
+ * anywhere between the two halves' bands is on target.
+ */
+exports.setpointsTransition = (0, common_js_1.named)('SetpointsTransition', zod_1.z.object({
+    from: zod_1.z.enum(['day', 'night']),
+    to: zod_1.z.enum(['day', 'night']),
+    until: (0, common_js_1.instant)().describe('When the device is judged against the half it went to alone again.'),
+    gliding: zod_1.z.boolean().describe("Whether a fridge's targets are still moving along the ramp, rather than the climate following targets that have arrived."),
+    targets: zod_1.z
+        .partialRecord(common_js_1.metric, zod_1.z.number())
+        .describe('What the device aims at this moment: the gliding figures on a fridge, the new half’s otherwise. A metric the new half holds no target for is absent.'),
+}));
+/**
  * The controller's day and night targets, read from its configuration. Influx
  * stores sensors and outputs and never setpoints, so this is the only place a
  * target comes from.
@@ -744,7 +761,23 @@ exports.alertPage = (0, common_js_1.named)('AlertPage', (0, common_js_1.page)(ex
 exports.setpoints = (0, common_js_1.named)('Setpoints', zod_1.z.object({
     day: zod_1.z.partialRecord(common_js_1.metric, zod_1.z.number()),
     night: zod_1.z.partialRecord(common_js_1.metric, zod_1.z.number()),
-    active: zod_1.z.enum(['day', 'night']).describe('Which half of the cycle the device says it is in.'),
+    active: zod_1.z
+        .enum(['day', 'night'])
+        .describe("Whose figures the device holds now. A fridge and a controller decide it by the clock - the light schedule in their own document, in UTC - and by their work mode, never by whether the lamp shines; an AIR fan by its light sensor. Drying, germination and a light that never comes on hold the night's figures; 24 hours of light the day's."),
+    period: zod_1.z
+        .enum(['day', 'night', 'constant'])
+        .optional()
+        .describe('`constant` where nothing alternates: drying, germination, 24 or 0 hours of light. `active` still says whose figures hold.'),
+    cycle: zod_1.z
+        .enum(['schedule', 'always_day', 'always_night', 'drying', 'germination', 'sensor'])
+        .optional()
+        .describe('Why `period` is what it is: the light schedule, 24 or 0 hours of light, a work mode that holds the night round the clock, or an AIR fan going by its light sensor.'),
+    since: (0, common_js_1.instant)().nullable().optional().describe('When the current half began by the schedule; null where nothing alternates or the fan says nothing of it.'),
+    until: (0, common_js_1.instant)().nullable().optional().describe('When the current half ends by the schedule; null where nothing alternates or the fan says nothing of it.'),
+    transition: exports.setpointsTransition
+        .nullable()
+        .optional()
+        .describe('Set while the device is changing from one half to the other and the climate is given time to follow; null otherwise.'),
 }));
 /**
  * One device's newest reading of everything it measures: one `last()` per

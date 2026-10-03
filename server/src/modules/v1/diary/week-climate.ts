@@ -1,18 +1,22 @@
 import type { Metric, PhaseTargets, WeekClimate } from '@fg2/shared-types/v1';
 import { TARGET_BAND } from '@fg2/shared-types/v1-schemas';
+import { nightsIn, transitionsIn } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { DeviceHistory } from '@modules/data/data.service';
 import { RunningSpan, runningFor, runningSpansOf } from '@modules/data/flux';
+import type { CycleStretch } from '../phase/target-record';
 
 /**
  * What a stretch of a grow's climate came to, from the windows a time-series
  * read answered.
  *
- * The day and the night are the tent's cycle rather than hours of the clock, so
- * they are told apart by the controller's own light output: that is what makes
- * "25.0° day avg · 20.6° night avg" the two halves a grower set rather than two
- * halves of a calendar day. A device that drives no light - a fridge drying,
- * a tent lit from a socket nobody told the server about - answers one average
- * and neither half.
+ * The day and the night are the tent's cycle rather than hours of the calendar
+ * day: the light schedule and work mode the device itself goes by, as its record
+ * has them (`cyclesOf`), which is what makes "25.0° day avg · 20.6° night avg"
+ * the two halves a grower set - a lamp held off at noon does not turn noon into
+ * night, and a drying room is all night. Where the record does not say, the
+ * halves are told apart by the controller's own light output, as they always
+ * were; a device that drives no light there answers one average and neither
+ * half.
  *
  * What the lamp did is read from its switchings and never from what its output
  * averaged over a window. `out_light` is a percentage of full brightness, so a
@@ -53,6 +57,8 @@ interface Window {
   isDay: boolean | null;
   /** Whether the lamp switched inside the window, so its air is a mean of both halves and belongs to neither. */
   mixed: boolean;
+  /** Whether the device was changing between its halves then, and the climate following (`SETTLE_SECONDS`): not judged against either band. */
+  settling: boolean;
 }
 
 /**
@@ -80,8 +86,12 @@ interface Lamp {
  * holds between two ends are counted as in or out of band, because CO2 is raised
  * towards its target rather than kept off both sides of it.
  */
-export const summariseClimate = (histories: readonly DeviceHistory[], targets: PhaseTargets | null): ClimateSummary => {
-  const windows = histories.flatMap(windowsOf);
+export const summariseClimate = (
+  histories: readonly DeviceHistory[],
+  targets: PhaseTargets | null,
+  cycles: ReadonlyMap<string, readonly CycleStretch[]> = new Map(),
+): ClimateSummary => {
+  const windows = histories.flatMap(history => windowsOf(history, cycles.get(history.series.deviceId) ?? []));
 
   return {
     climate: CLIMATE_METRICS.flatMap(metric => climateOf(metric, windows)),
@@ -96,7 +106,7 @@ const lampOf = (history: DeviceHistory): Lamp => {
   return { spans: runningSpansOf(switchings), knownFrom: switchings.length > 0 ? Date.parse(switchings[0].at) : null };
 };
 
-const windowsOf = (history: DeviceHistory): Window[] => {
+const windowsOf = (history: DeviceHistory, cycles: readonly CycleStretch[]): Window[] => {
   const { series } = history;
   const lamp = lampOf(history);
   const light = series.outputs.find(output => output.output === 'light')?.points ?? [];
@@ -118,9 +128,25 @@ const windowsOf = (history: DeviceHistory): Window[] => {
           return value === null ? [] : [[one.metric, value] as const];
         }),
       ),
-      ...halfOf(heard === null ? null : lamp, ends - step, ends),
+      ...(scheduledHalfOf(cycles, ends - step, ends) ?? { ...halfOf(heard === null ? null : lamp, ends - step, ends), settling: false }),
     };
   });
+};
+
+/**
+ * Which half of the cycle a window belongs to by the device's own schedule,
+ * where its record says what that was: the night's where it was night for all
+ * of it, the day's where it was day for all of it, and neither where the
+ * schedule switched inside it. Null where the record does not say.
+ */
+const scheduledHalfOf = (cycles: readonly CycleStretch[], from: number, to: number): Omit<Window, 'values'> | null => {
+  const stretch = cycles.find(one => one.from <= from && one.to >= to);
+  if (!stretch?.cycle) return null;
+
+  const dark = nightsIn(stretch.cycle, { from, to }).reduce((sum, span) => sum + span.to - span.from, 0);
+  const settling = transitionsIn(stretch.cycle, { from, to }).length > 0;
+  if (dark === 0) return { isDay: true, mixed: false, settling };
+  return dark >= to - from ? { isDay: false, mixed: false, settling } : { isDay: null, mixed: true, settling };
 };
 
 /**
@@ -226,8 +252,9 @@ const inBandPercentOf = (windows: Window[], targets: PhaseTargets | null): numbe
 /** What can be judged in this window: a metric the controller holds a target for, in the half of the cycle it is in. */
 const bandsFor = (window: Window, targets: PhaseTargets): { value: number; target: number; width: number }[] => {
   // A window the lamp switched inside was held to the day's band for part of
-  // itself and the night's for the rest, and its readings are a mean of both.
-  if (window.mixed) return [];
+  // itself and the night's for the rest, and its readings are a mean of both;
+  // one the climate was still following a switch in is held to neither.
+  if (window.mixed || window.settling) return [];
 
   const half = window.isDay === false ? targets.night : targets.day;
 

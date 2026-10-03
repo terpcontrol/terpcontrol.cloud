@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import type { DeviceConfiguration } from '@fg2/shared-types/v1';
+import { lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/day-night.js';
 import type { ScheduleClock } from '@database/schemas/v1/devices.schema';
 
 /**
@@ -104,14 +105,29 @@ export const sameClockTimes = (one: DeviceConfiguration | null, other: DeviceCon
  * clock where it must - 23:30 an hour later is 00:30 - and every other key, in
  * those sections too, as it was. Works on a whole document and on the fragment
  * a plan step carries alike.
+ *
+ * A fridge's or a controller's light window moves as the window it is: the
+ * hour it comes on moves, and the two times are written again from that hour
+ * and its length (`lightWindowTimes`). Moved one by one, 24 hours of light -
+ * kept past any time of day - would be wrapped into a window, and a light
+ * moved onto midnight UTC would lose its evening ramp.
  */
 export const withClockTimesMoved = (configuration: DeviceConfiguration, seconds: number): DeviceConfiguration => {
   const moved = (value: number) => (((value + seconds) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
   const next: DeviceConfiguration = { ...configuration };
+  const on = timeAt(configuration, ['daynight', 'day']);
+  const off = timeAt(configuration, ['daynight', 'night']);
+  const window = on !== null && off !== null ? lightWindowOf(on, off) : null;
+  if (window) {
+    next.daynight = {
+      ...(configuration.daynight as Record<string, unknown>),
+      ...lightWindowTimes({ lightsOn: window.lightsOn + seconds, lightHours: window.lightHours }),
+    };
+  }
 
   for (const path of CLOCK_TIMES) {
     const value = timeAt(configuration, path);
-    if (value === null) continue;
+    if (value === null || (window && path[0] === 'daynight')) continue;
 
     const [first, second] = path;
     if (second === undefined) next[first] = moved(value);

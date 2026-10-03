@@ -159,7 +159,7 @@ const build = (): void => {
     writer,
     null,
   );
-  const climate = new GrowClimateService(db.devices, fakeData);
+  const climate = new GrowClimateService(db.devices, db.targetChanges, fakeData);
 
   entries = new EntriesService(db.entries, db.devices, access, grows);
   weeks = new GrowWeeksService(db.entries, db.cameras, db.media, db.reminders, db.users, grows, climate);

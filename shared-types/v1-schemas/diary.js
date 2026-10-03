@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.exportAccepted = exports.media = exports.mediaExportJob = exports.exportScope = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.growReadingNames = exports.readingName = exports.entryReading = void 0;
-exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputLevel = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = void 0;
+exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardTransition = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputLevel = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = exports.spaceLive = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -768,6 +768,19 @@ exports.migrationPage = (0, common_js_1.named)('MigrationPage', (0, common_js_1.
  */
 exports.cardValue = (0, common_js_1.named)('CardValue', zod_1.z.object({ metric: common_js_1.metric, ...common_js_1.metricValue.shape }));
 /**
+ * What counts as on target while a device changes between day and night: a
+ * reading anywhere from the lower half's band to the higher half's. Where one
+ * of the halves holds no target for the metric - CO2 at night - it is not
+ * judged at all until the transition is over.
+ */
+exports.cardTransition = (0, common_js_1.named)('CardTransition', zod_1.z.object({
+    from: zod_1.z.enum(['day', 'night']),
+    to: zod_1.z.enum(['day', 'night']),
+    until: (0, common_js_1.instant)(),
+    low: zod_1.z.number().nullable().describe('Null with `high`: not judged until `until`.'),
+    high: zod_1.z.number().nullable(),
+}));
+/**
  * What the controller is aiming at right now, for the metrics it steers, and
  * how far a reading may stray from it and still count as on target. The band is
  * `TARGET_BAND` stated on the wire, so the figure beside a value and the
@@ -776,8 +789,12 @@ exports.cardValue = (0, common_js_1.named)('CardValue', zod_1.z.object({ metric:
  */
 exports.cardSetpoint = (0, common_js_1.named)('CardSetpoint', zod_1.z.object({
     metric: common_js_1.metric,
-    value: zod_1.z.number().nullable(),
+    value: zod_1.z.number().nullable().describe('What is aimed at now: while a fridge glides between day and night, the figure it has glided to.'),
     band: zod_1.z.number().nullable().describe('Half the width of the band around the target; null for a metric that has none.'),
+    transition: exports.cardTransition
+        .nullable()
+        .optional()
+        .describe('Set while the device changes from one half to the other (`SetpointsTransition`); a reading is then judged by this instead of `value` ± `band`.'),
 }));
 /**
  * The picture a space is shown by: its newest one taken with the light on, so a
@@ -1262,7 +1279,13 @@ exports.spaceTimeline = (0, common_js_1.named)('SpaceTimeline', zod_1.z.object({
     lastReadingAt: (0, common_js_1.instant)()
         .nullable()
         .describe('When a device standing here last measured one of the panels\' metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves.'),
-    nights: zod_1.z.array(exports.timelineSpan).describe('When the light was off, from the light output rather than from the clock; empty where no device reports one.'),
+    nights: zod_1.z
+        .array(exports.timelineSpan)
+        .describe("When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor."),
+    transitions: zod_1.z
+        .array(exports.timelineSpan)
+        .optional()
+        .describe('When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.'),
     alarms: zod_1.z.array(exports.timelineAlarm),
     outputs: zod_1.z.array(exports.timelineOutputLane),
     events: zod_1.z.array(exports.entry).describe('The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.'),
@@ -1552,7 +1575,13 @@ exports.growSeries = (0, common_js_1.named)('GrowSeries', zod_1.z.object({
         .nullable()
         .describe('When a device standing where this grow stood last measured one of the climate metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `climate` is empty in both. The Timeline of the tent answers the same question the same way. Answered only where `climate` is empty, because that is the one question it settles; null there where nothing standing with the grow has ever measured, and null beside curves that speak for themselves.'),
     outputs: zod_1.z.array(exports.timelineOutputLane),
-    nights: zod_1.z.array(exports.timelineSpan).describe('When the light was off, which is what every panel is shaded by.'),
+    nights: zod_1.z
+        .array(exports.timelineSpan)
+        .describe("When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor."),
+    transitions: zod_1.z
+        .array(exports.timelineSpan)
+        .optional()
+        .describe('When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.'),
     measurements: zod_1.z.array(exports.growMeasurementSeries),
     cameras: zod_1.z
         .array(exports.timelineCamera)
@@ -1582,7 +1611,13 @@ exports.spaceSeries = (0, common_js_1.named)('SpaceSeries', zod_1.z.object({
         .nullable()
         .describe('When something standing here last measured, answered only where `climate` is empty - as on the grow\'s answer and the Timeline.'),
     outputs: zod_1.z.array(exports.timelineOutputLane),
-    nights: zod_1.z.array(exports.timelineSpan),
+    nights: zod_1.z
+        .array(exports.timelineSpan)
+        .describe("When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor."),
+    transitions: zod_1.z
+        .array(exports.timelineSpan)
+        .optional()
+        .describe('When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.'),
     cameras: zod_1.z.array(exports.timelineCamera).describe('The cameras of the place with their stills over the window, thinned; empty for a reader who is not shown cameras.'),
 }));
 /** Who a public page is by. A handle, a line of text and a picture - never a real name. */

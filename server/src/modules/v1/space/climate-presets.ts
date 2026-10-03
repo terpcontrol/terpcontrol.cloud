@@ -1,5 +1,6 @@
 import type { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
 import { climatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/day-night.js';
 
 /**
  * A climate preset as the device's own configuration document.
@@ -9,10 +10,6 @@ import { climatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
  * that table lands in the document a controller is running.
  */
 
-/** When the light comes on where the device has never said, in seconds past midnight UTC: the firmware's own default. */
-const DEFAULT_LIGHTS_ON = 6 * 60 * 60;
-const DAY_SECONDS = 24 * 60 * 60;
-
 /**
  * The preset merged into the document the device is running.
  *
@@ -21,9 +18,11 @@ const DAY_SECONDS = 24 * 60 * 60;
  * that section with it - the dimming ramps, the dehumidifier timing, everything
  * the tent was tuned with.
  *
- * The hour the light comes on is the grower's and is kept; what a preset says
- * about light is how long it stays on. `curing` has no row, and a stage with no
- * row writes nothing at all rather than a climate somebody invented.
+ * The hour the light comes on is the grower's and is kept - the firmware's own
+ * 06:00 UTC where the device has never said - and what a preset says about
+ * light is how long it stays on, written the one way every window is written
+ * (`lightWindowTimes`). `curing` has no row, and a stage with no row writes
+ * nothing at all rather than a climate somebody invented.
  *
  * The CO2 target is written only where the device says it can measure one. A
  * controller that reports no sensor forces the target to zero as it reads the
@@ -48,13 +47,15 @@ export const presetConfiguration = (
   };
 
   const daynight = section('daynight');
-  const lightsOn = typeof daynight.day === 'number' ? daynight.day : DEFAULT_LIGHTS_ON;
+  const { lightsOn } = lightWindowOf(numberOrNull(daynight.day), numberOrNull(daynight.night));
 
   return {
     day: { ...section('day'), temperature: wanted.dayTemperature, humidity: wanted.dayHumidity },
     night: { ...section('night'), temperature: wanted.nightTemperature, humidity: wanted.nightHumidity },
     ...(hasCo2Sensor ? { co2: { ...section('co2'), target: wanted.co2 } } : {}),
     lights: { ...section('lights'), limit: wanted.lightLimit },
-    daynight: wanted.lightHours === null ? daynight : { ...daynight, day: lightsOn, night: (lightsOn + wanted.lightHours * 60 * 60) % DAY_SECONDS },
+    daynight: wanted.lightHours === null ? daynight : { ...daynight, ...lightWindowTimes({ lightsOn, lightHours: wanted.lightHours }) },
   };
 };
+
+const numberOrNull = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);

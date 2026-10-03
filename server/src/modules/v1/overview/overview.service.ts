@@ -14,6 +14,7 @@ import type {
   Setpoints,
 } from '@fg2/shared-types/v1';
 import { growDayAt, growOriginOf, metric as metricSchema, outputMetric } from '@fg2/shared-types/v1-schemas';
+import { cycleOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { AccessRange, Grant } from '@common/v1/access.types';
 import { clampRange, seenOf, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
@@ -143,8 +144,9 @@ export class OverviewService {
         readings.find(one => one.device.id === device.id)?.reading.isDay ?? true,
         device.state?.hardware,
         device.type,
+        until,
       );
-      return targets ? [{ deviceId: device.id, targets }] : [];
+      return targets ? [{ deviceId: device.id, targets, cycle: cycleOf(device.type, device.configuration) }] : [];
     });
     const window = seenOf({ startsAt: new Date(until.getTime() - VERDICT_HOURS * 3600 * 1000), endsAt: until }, range);
 
@@ -186,7 +188,7 @@ export class OverviewService {
     // it stands now, which a closed window may not be told either - so a tent
     // read through one is stated rather than graded.
     const band = closed ? null : (steering?.targets ?? null);
-    const verdict = verdictOf(series, band, window);
+    const verdict = verdictOf(series, band, window, steering?.cycle ?? null);
 
     /**
      * What is due here and what is alarming are the working half of the page,
@@ -213,7 +215,7 @@ export class OverviewService {
       // and a device id tie it to the rest of an account.
       roomId: grant.redacted ? null : space.roomId,
       deviceIds: grant.redacted ? null : devices.map(device => device.id),
-      ...mergeLive(readings.map(liveOfDevice)),
+      ...mergeLive(readings.map(reading => liveOfDevice(reading, now))),
       targets: closed || !steering ? null : targetsOf(steering.targets),
       verdict: grant.redacted ? { ...verdict, deviceId: null } : verdict,
       grows: grows.map(grow =>

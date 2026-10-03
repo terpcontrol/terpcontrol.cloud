@@ -3450,14 +3450,14 @@
         "anyOf": [
           {
             "type": "number",
-            "minimum": 1,
+            "minimum": 0,
             "maximum": 24
           },
           {
             "type": "null"
           }
         ],
-        "description": "How long the light is on while this step runs; null leaves the photoperiod as it is."
+        "description": "How long the light is on while this step runs: 24 is light round the clock, 0 none at all (the night’s figures round the clock). Null leaves the photoperiod as it is. The light comes on at the hour the device has, unless `settings.daynight.day` names one."
       },
       "waitForConfirmation": {
         "type": "boolean"
@@ -3711,14 +3711,14 @@
         "anyOf": [
           {
             "type": "number",
-            "minimum": 1,
+            "minimum": 0,
             "maximum": 24
           },
           {
             "type": "null"
           }
         ],
-        "description": "How long the light is on while this step runs; null leaves the photoperiod as it is."
+        "description": "How long the light is on while this step runs: 24 is light round the clock, 0 none at all (the night’s figures round the clock). Null leaves the photoperiod as it is. The light comes on at the hour the device has, unless `settings.daynight.day` names one."
       },
       "waitForConfirmation": {
         "type": "boolean"
@@ -4625,6 +4625,52 @@
       "nextCursor"
     ]
   },
+  "SetpointsTransition": {
+    "type": "object",
+    "properties": {
+      "from": {
+        "type": "string",
+        "enum": [
+          "day",
+          "night"
+        ]
+      },
+      "to": {
+        "type": "string",
+        "enum": [
+          "day",
+          "night"
+        ]
+      },
+      "until": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+        "description": "When the device is judged against the half it went to alone again."
+      },
+      "gliding": {
+        "type": "boolean",
+        "description": "Whether a fridge's targets are still moving along the ramp, rather than the climate following targets that have arrived."
+      },
+      "targets": {
+        "type": "object",
+        "propertyNames": {
+          "$ref": "#/components/schemas/Metric"
+        },
+        "additionalProperties": {
+          "type": "number"
+        },
+        "description": "What the device aims at this moment: the gliding figures on a fridge, the new half’s otherwise. A metric the new half holds no target for is absent."
+      }
+    },
+    "required": [
+      "from",
+      "to",
+      "until",
+      "gliding",
+      "targets"
+    ]
+  },
   "Setpoints": {
     "type": "object",
     "properties": {
@@ -4652,7 +4698,65 @@
           "day",
           "night"
         ],
-        "description": "Which half of the cycle the device says it is in."
+        "description": "Whose figures the device holds now. A fridge and a controller decide it by the clock - the light schedule in their own document, in UTC - and by their work mode, never by whether the lamp shines; an AIR fan by its light sensor. Drying, germination and a light that never comes on hold the night's figures; 24 hours of light the day's."
+      },
+      "period": {
+        "description": "`constant` where nothing alternates: drying, germination, 24 or 0 hours of light. `active` still says whose figures hold.",
+        "type": "string",
+        "enum": [
+          "day",
+          "night",
+          "constant"
+        ]
+      },
+      "cycle": {
+        "description": "Why `period` is what it is: the light schedule, 24 or 0 hours of light, a work mode that holds the night round the clock, or an AIR fan going by its light sensor.",
+        "type": "string",
+        "enum": [
+          "schedule",
+          "always_day",
+          "always_night",
+          "drying",
+          "germination",
+          "sensor"
+        ]
+      },
+      "since": {
+        "description": "When the current half began by the schedule; null where nothing alternates or the fan says nothing of it.",
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "until": {
+        "description": "When the current half ends by the schedule; null where nothing alternates or the fan says nothing of it.",
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "transition": {
+        "description": "Set while the device is changing from one half to the other and the climate is given time to follow; null otherwise.",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/SetpointsTransition"
+          },
+          {
+            "type": "null"
+          }
+        ]
       }
     },
     "required": [
@@ -10764,6 +10868,50 @@
       "state"
     ]
   },
+  "CardTransition": {
+    "type": "object",
+    "properties": {
+      "from": {
+        "type": "string",
+        "enum": [
+          "day",
+          "night"
+        ]
+      },
+      "to": {
+        "type": "string",
+        "enum": [
+          "day",
+          "night"
+        ]
+      },
+      "until": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "low": {
+        "description": "Null with `high`: not judged until `until`.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "high": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "from",
+      "to",
+      "until",
+      "low",
+      "high"
+    ]
+  },
   "CardSetpoint": {
     "type": "object",
     "properties": {
@@ -10771,6 +10919,7 @@
         "$ref": "#/components/schemas/Metric"
       },
       "value": {
+        "description": "What is aimed at now: while a fridge glides between day and night, the figure it has glided to.",
         "type": [
           "number",
           "null"
@@ -10781,6 +10930,17 @@
         "type": [
           "number",
           "null"
+        ]
+      },
+      "transition": {
+        "description": "Set while the device changes from one half to the other (`SetpointsTransition`); a reading is then judged by this instead of `value` ± `band`.",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/CardTransition"
+          },
+          {
+            "type": "null"
+          }
         ]
       }
     },
@@ -12677,7 +12837,14 @@
         "items": {
           "$ref": "#/components/schemas/TimelineSpan"
         },
-        "description": "When the light was off, from the light output rather than from the clock; empty where no device reports one."
+        "description": "When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor."
+      },
+      "transitions": {
+        "description": "When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineSpan"
+        }
       },
       "alarms": {
         "type": "array",
@@ -13829,7 +13996,14 @@
         "items": {
           "$ref": "#/components/schemas/TimelineSpan"
         },
-        "description": "When the light was off, which is what every panel is shaded by."
+        "description": "When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor."
+      },
+      "transitions": {
+        "description": "When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineSpan"
+        }
       },
       "measurements": {
         "type": "array",
@@ -13927,6 +14101,14 @@
         }
       },
       "nights": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineSpan"
+        },
+        "description": "When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor."
+      },
+      "transitions": {
+        "description": "When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.",
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/TimelineSpan"

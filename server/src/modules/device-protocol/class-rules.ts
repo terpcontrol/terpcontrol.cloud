@@ -1,5 +1,6 @@
 import type { DeviceConfiguration } from '@fg2/shared-types/v1';
 import { MIN_COMPRESSOR_REST_SECONDS } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { DAY_SECONDS, lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/day-night.js';
 
 /**
  * What the server holds a type's document to, whoever wrote it: the cloud, a
@@ -15,6 +16,11 @@ import { MIN_COMPRESSOR_REST_SECONDS } from '@fg2/shared-types/v1-schemas/config
  *
  * A controller reads the same dehumidifier keys, and drives a room dehumidifier
  * on a socket with them rather than a compressor: it keeps whatever it has.
+ *
+ * Both keep their light schedule the way `day-night.ts` writes it: a light that
+ * goes off at midnight UTC goes off a second before it, and 24 hours of light
+ * are a day that never ends rather than one two seconds short of it - whoever
+ * wrote the times, an older app or the device's own menu.
  */
 
 /** Below this day humidity a fridge dehumidifies from the target itself, in short runs, judged on the long average. */
@@ -51,7 +57,7 @@ const sectionOf = (configuration: DeviceConfiguration, key: string): Record<stri
 const fridge = (configuration: DeviceConfiguration): DeviceConfiguration => {
   const daynight = sectionOf(configuration, 'daynight');
   const co2 = sectionOf(configuration, 'co2');
-  const humidity = sectionOf(configuration, 'day')?.humidity;
+  const humidity = sectionOf(configuration, heldHalfOf(configuration))?.humidity;
   if (!daynight && !co2) return configuration;
 
   const next: DeviceConfiguration = { ...configuration };
@@ -69,7 +75,43 @@ const fridge = (configuration: DeviceConfiguration): DeviceConfiguration => {
   return next;
 };
 
-const RULES: Readonly<Record<string, (configuration: DeviceConfiguration) => DeviceConfiguration>> = { fridge };
+/**
+ * The half whose humidity the dehumidifier is tuned from: the one the fridge
+ * holds. That is the day's - except in drying, which holds the night's round
+ * the clock, and with a light that never comes on, which is always night. A
+ * drying room at 50 % was tuned for the 58 % its unused day still said.
+ */
+const heldHalfOf = (configuration: DeviceConfiguration): 'day' | 'night' => {
+  const daynight = sectionOf(configuration, 'daynight');
+  const dark = typeof daynight?.day === 'number' && daynight.day === daynight.night;
+  return configuration.workmode === 'dry' || dark ? 'night' : 'day';
+};
+
+/**
+ * The light schedule as `lightWindowTimes` writes it, where the times stated
+ * would have the firmware do something other than they mean: off at midnight
+ * UTC on the dot, or a day a second or two short of 24 hours. Every other pair
+ * is kept to the second, so a document read and written back is the document
+ * it was.
+ */
+export const withHeldWindow = (configuration: DeviceConfiguration): DeviceConfiguration => {
+  const daynight = sectionOf(configuration, 'daynight');
+  const { day, night } = daynight ?? {};
+  if (!daynight || typeof day !== 'number' || typeof night !== 'number') return configuration;
+
+  const window = lightWindowOf(day, night);
+  const whole = window.lightHours === 24 && night < DAY_SECONDS;
+  if (!whole && !(night === 0 && day !== 0)) return configuration;
+
+  return { ...configuration, daynight: { ...daynight, ...lightWindowTimes(window) } };
+};
+
+const controller = (configuration: DeviceConfiguration): DeviceConfiguration => withHeldWindow(configuration);
+
+const RULES: Readonly<Record<string, (configuration: DeviceConfiguration) => DeviceConfiguration>> = {
+  fridge: configuration => fridge(withHeldWindow(configuration)),
+  controller,
+};
 
 /** The document as the server keeps it for this type; unchanged for a type it holds to nothing. */
 export const heldTo = (type: string, configuration: DeviceConfiguration): DeviceConfiguration => RULES[type]?.(configuration) ?? configuration;

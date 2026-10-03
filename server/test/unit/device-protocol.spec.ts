@@ -266,9 +266,20 @@ describe('what a device reports', () => {
     await messageOn('configuration', { day: { temperature: 28 }, workmode: 'breed' });
     // What the cloud sends comes back on the same topic, and moved nothing.
     await messageOn('configuration', { day: { temperature: 28 }, workmode: 'breed' });
-    await messageOn('configuration', { day: { temperature: 28 }, workmode: 'small' });
 
     expect(await recordOf()).toEqual([{ deviceId: DEVICE, targets: targets({ day: { temperature: 28, humidity: null } }) }]);
+  });
+
+  it('records a change of the work mode, which decides whose figures hold, with the cycle it leaves', async () => {
+    await device({ configuration: { day: { temperature: 28 }, workmode: 'breed' } });
+
+    await messageOn('configuration', { day: { temperature: 28 }, workmode: 'small' });
+
+    const [row] = await db.targetChanges.find({ deviceId: DEVICE }).lean();
+    expect(row).toMatchObject({
+      targets: targets({ day: { temperature: 28, humidity: null } }),
+      cycle: { workmode: 'small', day: 21600, night: 79200 },
+    });
   });
 });
 

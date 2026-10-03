@@ -19,12 +19,12 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { DIARY_KINDS, MACHINE_KINDS, authorIdsOf, peopleOf, readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
 import { NOTHING_HIDDEN, Redaction, redactionOf } from '../grow/grow-serialiser';
-import { recordOf } from '../phase/target-record';
+import { cyclesOf, recordOf } from '../phase/target-record';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { framesOf } from './frames';
 import { lastReadingOf } from './last-reading';
-import { PANEL_METRICS, fridgesOf, lanesOf, nightsOf, panelsOf } from './timeline-series';
+import { PANEL_METRICS, fridgesOf, lanesOf, nightsOf, panelsOf, transitionsOf } from './timeline-series';
 import { TimelineWindow, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
 /**
@@ -171,7 +171,8 @@ export class TimelineService {
       deviceIds: grant.redacted ? null : devices.map(device => device.id),
       panels,
       lastReadingAt: panels.length > 0 ? null : await lastReadingOf(this.data, devices),
-      nights: nightsOf(series, window),
+      nights: nightsOf(series, window, cyclesOf(aimed, window)),
+      transitions: transitionsOf(cyclesOf(aimed, window)),
       alarms: alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
       outputs: lanesOf(series, window, grant.redacted, fridgesOf(devices)),
       events: told,

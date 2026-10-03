@@ -1250,7 +1250,7 @@ export interface PlanStep {
   duration: StepDuration;
   settings: DeviceConfiguration;
   /**
-   * How long the light is on while this step runs; null leaves the photoperiod as it is.
+   * How long the light is on while this step runs: 24 is light round the clock, 0 none at all (the night’s figures round the clock). Null leaves the photoperiod as it is. The light comes on at the hour the device has, unless `settings.daynight.day` names one.
    */
   lightHours: number | null;
   waitForConfirmation: boolean;
@@ -1328,7 +1328,7 @@ export interface PlanStepInput {
   duration: StepDuration;
   settings: DeviceConfiguration;
   /**
-   * How long the light is on while this step runs; null leaves the photoperiod as it is.
+   * How long the light is on while this step runs: 24 is light round the clock, 0 none at all (the night’s figures round the clock). Null leaves the photoperiod as it is. The light comes on at the hour the device has, unless `settings.daynight.day` names one.
    */
   lightHours?: number | null;
   waitForConfirmation: boolean;
@@ -1572,6 +1572,25 @@ export interface AlertPage {
   nextCursor: string | null;
 }
 
+export interface SetpointsTransition {
+  from: 'day' | 'night';
+  to: 'day' | 'night';
+  /**
+   * When the device is judged against the half it went to alone again.
+   */
+  until: string;
+  /**
+   * Whether a fridge's targets are still moving along the ramp, rather than the climate following targets that have arrived.
+   */
+  gliding: boolean;
+  /**
+   * What the device aims at this moment: the gliding figures on a fridge, the new half’s otherwise. A metric the new half holds no target for is absent.
+   */
+  targets: {
+    [k: string]: number;
+  };
+}
+
 export interface Setpoints {
   day: {
     [k: string]: number;
@@ -1580,9 +1599,29 @@ export interface Setpoints {
     [k: string]: number;
   };
   /**
-   * Which half of the cycle the device says it is in.
+   * Whose figures the device holds now. A fridge and a controller decide it by the clock - the light schedule in their own document, in UTC - and by their work mode, never by whether the lamp shines; an AIR fan by its light sensor. Drying, germination and a light that never comes on hold the night's figures; 24 hours of light the day's.
    */
   active: 'day' | 'night';
+  /**
+   * `constant` where nothing alternates: drying, germination, 24 or 0 hours of light. `active` still says whose figures hold.
+   */
+  period?: 'day' | 'night' | 'constant';
+  /**
+   * Why `period` is what it is: the light schedule, 24 or 0 hours of light, a work mode that holds the night round the clock, or an AIR fan going by its light sensor.
+   */
+  cycle?: 'schedule' | 'always_day' | 'always_night' | 'drying' | 'germination' | 'sensor';
+  /**
+   * When the current half began by the schedule; null where nothing alternates or the fan says nothing of it.
+   */
+  since?: string | null;
+  /**
+   * When the current half ends by the schedule; null where nothing alternates or the fan says nothing of it.
+   */
+  until?: string | null;
+  /**
+   * Set while the device is changing from one half to the other and the climate is given time to follow; null otherwise.
+   */
+  transition?: SetpointsTransition | null;
 }
 
 export interface DeviceLive {
@@ -3259,13 +3298,31 @@ export interface CardValue {
   state: ValueState;
 }
 
+export interface CardTransition {
+  from: 'day' | 'night';
+  to: 'day' | 'night';
+  until: string;
+  /**
+   * Null with `high`: not judged until `until`.
+   */
+  low: number | null;
+  high: number | null;
+}
+
 export interface CardSetpoint {
   metric: Metric;
+  /**
+   * What is aimed at now: while a fridge glides between day and night, the figure it has glided to.
+   */
   value: number | null;
   /**
    * Half the width of the band around the target; null for a metric that has none.
    */
   band: number | null;
+  /**
+   * Set while the device changes from one half to the other (`SetpointsTransition`); a reading is then judged by this instead of `value` ± `band`.
+   */
+  transition?: CardTransition | null;
 }
 
 export interface LatestStill {
@@ -3814,9 +3871,13 @@ export interface SpaceTimeline {
    */
   lastReadingAt: string | null;
   /**
-   * When the light was off, from the light output rather than from the clock; empty where no device reports one.
+   * When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor.
    */
   nights: TimelineSpan[];
+  /**
+   * When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.
+   */
+  transitions?: TimelineSpan[];
   alarms: TimelineAlarm[];
   outputs: TimelineOutputLane[];
   /**
@@ -4113,9 +4174,13 @@ export interface GrowSeries {
   lastReadingAt: string | null;
   outputs: TimelineOutputLane[];
   /**
-   * When the light was off, which is what every panel is shaded by.
+   * When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor.
    */
   nights: TimelineSpan[];
+  /**
+   * When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.
+   */
+  transitions?: TimelineSpan[];
   measurements: GrowMeasurementSeries[];
   /**
    * The cameras of the places the grow stood in, with their stills over the window thinned to a few hundred: the picture at the cursor. Empty for a reader who is not shown cameras.
@@ -4141,7 +4206,14 @@ export interface SpaceSeries {
    */
   lastReadingAt: string | null;
   outputs: TimelineOutputLane[];
+  /**
+   * When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor.
+   */
   nights: TimelineSpan[];
+  /**
+   * When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.
+   */
+  transitions?: TimelineSpan[];
   /**
    * The cameras of the place with their stills over the window, thinned; empty for a reader who is not shown cameras.
    */

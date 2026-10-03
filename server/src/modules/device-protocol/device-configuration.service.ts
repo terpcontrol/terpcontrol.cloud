@@ -20,6 +20,7 @@ import { DevicePublisherService } from './device-publisher.service';
 import { driftBetween, keepsTime, SCHEDULE_FOLLOWER, ScheduleFollower, sameClockTimes, scheduleClockOf, withClockTimesMoved } from './schedule-clock';
 import { targetsOf } from '../v1/phase/phase-targets';
 import { keptForDrying, recordedReturn } from './drying-return';
+import { withIdleFiguresKept } from './idle-figures';
 import { decideWorkmode, standardOf, WriteIntent } from './work-modes';
 
 /** What a write stored: the document before it and after it. */
@@ -72,12 +73,21 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * nothing writes nothing. A device whose control was switched off is switched
    * on again by it: somebody who sets targets wants them held. `drying` is
    * whether they are a drying room's (see `WriteIntent`).
+   *
+   * What is stored is answered, because it is not always what was sent: the
+   * work mode is the server's, the figures a mode leaves alone are kept
+   * (`idle-figures.ts`), and the type's rules hold the rest (`class-rules.ts`).
    */
-  public async replace(deviceId: string, configuration: DeviceConfiguration, by: string | null = null, drying?: boolean): Promise<boolean> {
+  public async replace(
+    deviceId: string,
+    configuration: DeviceConfiguration,
+    by: string | null = null,
+    drying?: boolean,
+  ): Promise<DeviceConfiguration | null> {
     const written = await this.store(deviceId, { kind: 'targets', drying }, () => configuration);
     if (written) await this.writeDown(deviceId, written, by);
 
-    return written?.changed ?? false;
+    return written?.after ?? null;
   }
 
   /**
@@ -229,7 +239,8 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       dried && !dries && intent.kind === 'fields'
         ? withFigures(asked, Object.entries(await this.keptFor(deviceId, device.beforeDrying, before)))
         : asked;
-    const held = heldTo(device.type, mode ? { ...wanted, workmode: mode.workmode } : wanted);
+    const kept = intent.kind === 'targets' && mode ? withIdleFiguresKept(before, wanted, mode.workmode) : wanted;
+    const held = heldTo(device.type, mode ? { ...kept, workmode: mode.workmode } : kept);
 
     // Times a write sets are meant on the clock it is made on. Times it leaves
     // as they were are meant on the clock they were kept on, which may have
@@ -252,7 +263,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
         },
       },
     );
-    await recordTargets(this.targetRecord, deviceId, before, configuration, at);
+    await recordTargets(this.targetRecord, { id: deviceId, type: device.type }, before, configuration, at);
 
     // Not required after the write: the device asks for its configuration when
     // it connects and is answered from what is stored, so a send that fails

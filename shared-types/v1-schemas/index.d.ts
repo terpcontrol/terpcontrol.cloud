@@ -21,3 +21,4 @@ export * from './alert-routing.js';
 export * from './vpd.js';
 export * from './maintenance.js';
 export * from './configuration-fields.js';
+export * from './day-night.js';

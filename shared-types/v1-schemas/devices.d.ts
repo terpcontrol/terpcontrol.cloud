@@ -2130,6 +2130,34 @@ export declare const alertPage: z.ZodObject<{
     nextCursor: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
 /**
+ * A change from one half's targets to the other's (`day-night.ts`): on a
+ * fridge, the dimming ramp its targets glide along, and on any device the hour
+ * after the switch that the climate is given to follow. Meanwhile a reading
+ * anywhere between the two halves' bands is on target.
+ */
+export declare const setpointsTransition: z.ZodObject<{
+    from: z.ZodEnum<{
+        day: "day";
+        night: "night";
+    }>;
+    to: z.ZodEnum<{
+        day: "day";
+        night: "night";
+    }>;
+    until: z.ZodISODateTime;
+    gliding: z.ZodBoolean;
+    targets: z.ZodRecord<z.ZodEnum<{
+        offline: "offline";
+        co2: "co2";
+        temperature: "temperature";
+        humidity: "humidity";
+        leafTemperature: "leafTemperature";
+        lux: "lux";
+        vpd: "vpd";
+        ppfd: "ppfd";
+    }> & z.core.$partial, z.ZodNumber>;
+}, z.core.$strip>;
+/**
  * The controller's day and night targets, read from its configuration. Influx
  * stores sensors and outputs and never setpoints, so this is the only place a
  * target comes from.
@@ -2159,6 +2187,43 @@ export declare const setpoints: z.ZodObject<{
         day: "day";
         night: "night";
     }>;
+    period: z.ZodOptional<z.ZodEnum<{
+        constant: "constant";
+        day: "day";
+        night: "night";
+    }>>;
+    cycle: z.ZodOptional<z.ZodEnum<{
+        germination: "germination";
+        drying: "drying";
+        schedule: "schedule";
+        always_day: "always_day";
+        always_night: "always_night";
+        sensor: "sensor";
+    }>>;
+    since: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
+    until: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
+    transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        from: z.ZodEnum<{
+            day: "day";
+            night: "night";
+        }>;
+        to: z.ZodEnum<{
+            day: "day";
+            night: "night";
+        }>;
+        until: z.ZodISODateTime;
+        gliding: z.ZodBoolean;
+        targets: z.ZodRecord<z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }> & z.core.$partial, z.ZodNumber>;
+    }, z.core.$strip>>>;
 }, z.core.$strip>;
 /**
  * One device's newest reading of everything it measures: one `last()` per
@@ -2235,6 +2300,43 @@ export declare const deviceLive: z.ZodObject<{
             day: "day";
             night: "night";
         }>;
+        period: z.ZodOptional<z.ZodEnum<{
+            constant: "constant";
+            day: "day";
+            night: "night";
+        }>>;
+        cycle: z.ZodOptional<z.ZodEnum<{
+            germination: "germination";
+            drying: "drying";
+            schedule: "schedule";
+            always_day: "always_day";
+            always_night: "always_night";
+            sensor: "sensor";
+        }>>;
+        since: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
+        until: z.ZodOptional<z.ZodNullable<z.ZodISODateTime>>;
+        transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            from: z.ZodEnum<{
+                day: "day";
+                night: "night";
+            }>;
+            to: z.ZodEnum<{
+                day: "day";
+                night: "night";
+            }>;
+            until: z.ZodISODateTime;
+            gliding: z.ZodBoolean;
+            targets: z.ZodRecord<z.ZodEnum<{
+                offline: "offline";
+                co2: "co2";
+                temperature: "temperature";
+                humidity: "humidity";
+                leafTemperature: "leafTemperature";
+                lux: "lux";
+                vpd: "vpd";
+                ppfd: "ppfd";
+            }> & z.core.$partial, z.ZodNumber>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const metricSeries: z.ZodObject<{

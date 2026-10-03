@@ -2167,6 +2167,25 @@ export declare const cardValue: z.ZodObject<{
     }>;
 }, z.core.$strip>;
 /**
+ * What counts as on target while a device changes between day and night: a
+ * reading anywhere from the lower half's band to the higher half's. Where one
+ * of the halves holds no target for the metric - CO2 at night - it is not
+ * judged at all until the transition is over.
+ */
+export declare const cardTransition: z.ZodObject<{
+    from: z.ZodEnum<{
+        day: "day";
+        night: "night";
+    }>;
+    to: z.ZodEnum<{
+        day: "day";
+        night: "night";
+    }>;
+    until: z.ZodISODateTime;
+    low: z.ZodNullable<z.ZodNumber>;
+    high: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>;
+/**
  * What the controller is aiming at right now, for the metrics it steers, and
  * how far a reading may stray from it and still count as on target. The band is
  * `TARGET_BAND` stated on the wire, so the figure beside a value and the
@@ -2186,6 +2205,19 @@ export declare const cardSetpoint: z.ZodObject<{
     }>;
     value: z.ZodNullable<z.ZodNumber>;
     band: z.ZodNullable<z.ZodNumber>;
+    transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        from: z.ZodEnum<{
+            day: "day";
+            night: "night";
+        }>;
+        to: z.ZodEnum<{
+            day: "day";
+            night: "night";
+        }>;
+        until: z.ZodISODateTime;
+        low: z.ZodNullable<z.ZodNumber>;
+        high: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>>>;
 }, z.core.$strip>;
 /**
  * The picture a space is shown by: its newest one taken with the light on, so a
@@ -2383,6 +2415,19 @@ export declare const homeSpaceCard: z.ZodObject<{
         }>;
         value: z.ZodNullable<z.ZodNumber>;
         band: z.ZodNullable<z.ZodNumber>;
+        transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            from: z.ZodEnum<{
+                day: "day";
+                night: "night";
+            }>;
+            to: z.ZodEnum<{
+                day: "day";
+                night: "night";
+            }>;
+            until: z.ZodISODateTime;
+            low: z.ZodNullable<z.ZodNumber>;
+            high: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
     trend: z.ZodNullable<z.ZodObject<{
         metric: z.ZodEnum<{
@@ -2680,6 +2725,19 @@ export declare const homeAnswer: z.ZodObject<{
             }>;
             value: z.ZodNullable<z.ZodNumber>;
             band: z.ZodNullable<z.ZodNumber>;
+            transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                from: z.ZodEnum<{
+                    day: "day";
+                    night: "night";
+                }>;
+                to: z.ZodEnum<{
+                    day: "day";
+                    night: "night";
+                }>;
+                until: z.ZodISODateTime;
+                low: z.ZodNullable<z.ZodNumber>;
+                high: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>>;
         }, z.core.$strip>>;
         trend: z.ZodNullable<z.ZodObject<{
             metric: z.ZodEnum<{
@@ -3231,6 +3289,19 @@ export declare const overviewTargets: z.ZodObject<{
         }>;
         value: z.ZodNullable<z.ZodNumber>;
         band: z.ZodNullable<z.ZodNumber>;
+        transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            from: z.ZodEnum<{
+                day: "day";
+                night: "night";
+            }>;
+            to: z.ZodEnum<{
+                day: "day";
+                night: "night";
+            }>;
+            until: z.ZodISODateTime;
+            low: z.ZodNullable<z.ZodNumber>;
+            high: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
     night: z.ZodArray<z.ZodObject<{
         metric: z.ZodEnum<{
@@ -3245,6 +3316,19 @@ export declare const overviewTargets: z.ZodObject<{
         }>;
         value: z.ZodNullable<z.ZodNumber>;
         band: z.ZodNullable<z.ZodNumber>;
+        transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            from: z.ZodEnum<{
+                day: "day";
+                night: "night";
+            }>;
+            to: z.ZodEnum<{
+                day: "day";
+                night: "night";
+            }>;
+            until: z.ZodISODateTime;
+            low: z.ZodNullable<z.ZodNumber>;
+            high: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
@@ -3300,6 +3384,19 @@ export declare const spaceOverview: z.ZodObject<{
         }>;
         value: z.ZodNullable<z.ZodNumber>;
         band: z.ZodNullable<z.ZodNumber>;
+        transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            from: z.ZodEnum<{
+                day: "day";
+                night: "night";
+            }>;
+            to: z.ZodEnum<{
+                day: "day";
+                night: "night";
+            }>;
+            until: z.ZodISODateTime;
+            low: z.ZodNullable<z.ZodNumber>;
+            high: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
     targets: z.ZodNullable<z.ZodObject<{
         day: z.ZodArray<z.ZodObject<{
@@ -3315,6 +3412,19 @@ export declare const spaceOverview: z.ZodObject<{
             }>;
             value: z.ZodNullable<z.ZodNumber>;
             band: z.ZodNullable<z.ZodNumber>;
+            transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                from: z.ZodEnum<{
+                    day: "day";
+                    night: "night";
+                }>;
+                to: z.ZodEnum<{
+                    day: "day";
+                    night: "night";
+                }>;
+                until: z.ZodISODateTime;
+                low: z.ZodNullable<z.ZodNumber>;
+                high: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>>;
         }, z.core.$strip>>;
         night: z.ZodArray<z.ZodObject<{
             metric: z.ZodEnum<{
@@ -3329,6 +3439,19 @@ export declare const spaceOverview: z.ZodObject<{
             }>;
             value: z.ZodNullable<z.ZodNumber>;
             band: z.ZodNullable<z.ZodNumber>;
+            transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                from: z.ZodEnum<{
+                    day: "day";
+                    night: "night";
+                }>;
+                to: z.ZodEnum<{
+                    day: "day";
+                    night: "night";
+                }>;
+                until: z.ZodISODateTime;
+                low: z.ZodNullable<z.ZodNumber>;
+                high: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     verdict: z.ZodObject<{
@@ -3685,6 +3808,19 @@ export declare const spaceLiveDevice: z.ZodObject<{
         }>;
         value: z.ZodNullable<z.ZodNumber>;
         band: z.ZodNullable<z.ZodNumber>;
+        transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            from: z.ZodEnum<{
+                day: "day";
+                night: "night";
+            }>;
+            to: z.ZodEnum<{
+                day: "day";
+                night: "night";
+            }>;
+            until: z.ZodISODateTime;
+            low: z.ZodNullable<z.ZodNumber>;
+            high: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
@@ -3741,6 +3877,19 @@ export declare const spaceLive: z.ZodObject<{
         }>;
         value: z.ZodNullable<z.ZodNumber>;
         band: z.ZodNullable<z.ZodNumber>;
+        transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            from: z.ZodEnum<{
+                day: "day";
+                night: "night";
+            }>;
+            to: z.ZodEnum<{
+                day: "day";
+                night: "night";
+            }>;
+            until: z.ZodISODateTime;
+            low: z.ZodNullable<z.ZodNumber>;
+            high: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
     devices: z.ZodArray<z.ZodObject<{
         deviceId: z.ZodString;
@@ -3776,6 +3925,19 @@ export declare const spaceLive: z.ZodObject<{
             }>;
             value: z.ZodNullable<z.ZodNumber>;
             band: z.ZodNullable<z.ZodNumber>;
+            transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                from: z.ZodEnum<{
+                    day: "day";
+                    night: "night";
+                }>;
+                to: z.ZodEnum<{
+                    day: "day";
+                    night: "night";
+                }>;
+                until: z.ZodISODateTime;
+                low: z.ZodNullable<z.ZodNumber>;
+                high: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     cameras: z.ZodArray<z.ZodObject<{
@@ -4134,6 +4296,10 @@ export declare const spaceTimeline: z.ZodObject<{
         startsAt: z.ZodISODateTime;
         endsAt: z.ZodISODateTime;
     }, z.core.$strip>>;
+    transitions: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        startsAt: z.ZodISODateTime;
+        endsAt: z.ZodISODateTime;
+    }, z.core.$strip>>>;
     alarms: z.ZodArray<z.ZodObject<{
         alertId: z.ZodString;
         kind: z.ZodEnum<{
@@ -5465,6 +5631,10 @@ export declare const growSeries: z.ZodObject<{
         startsAt: z.ZodISODateTime;
         endsAt: z.ZodISODateTime;
     }, z.core.$strip>>;
+    transitions: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        startsAt: z.ZodISODateTime;
+        endsAt: z.ZodISODateTime;
+    }, z.core.$strip>>>;
     measurements: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
         points: z.ZodArray<z.ZodObject<{
@@ -5577,6 +5747,10 @@ export declare const spaceSeries: z.ZodObject<{
         startsAt: z.ZodISODateTime;
         endsAt: z.ZodISODateTime;
     }, z.core.$strip>>;
+    transitions: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        startsAt: z.ZodISODateTime;
+        endsAt: z.ZodISODateTime;
+    }, z.core.$strip>>>;
     cameras: z.ZodArray<z.ZodObject<{
         cameraId: z.ZodString;
         name: z.ZodString;
@@ -6372,6 +6546,19 @@ export declare const sharedSpace: z.ZodObject<{
             }>;
             value: z.ZodNullable<z.ZodNumber>;
             band: z.ZodNullable<z.ZodNumber>;
+            transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                from: z.ZodEnum<{
+                    day: "day";
+                    night: "night";
+                }>;
+                to: z.ZodEnum<{
+                    day: "day";
+                    night: "night";
+                }>;
+                until: z.ZodISODateTime;
+                low: z.ZodNullable<z.ZodNumber>;
+                high: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>>;
         }, z.core.$strip>>;
         targets: z.ZodNullable<z.ZodObject<{
             day: z.ZodArray<z.ZodObject<{
@@ -6387,6 +6574,19 @@ export declare const sharedSpace: z.ZodObject<{
                 }>;
                 value: z.ZodNullable<z.ZodNumber>;
                 band: z.ZodNullable<z.ZodNumber>;
+                transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    from: z.ZodEnum<{
+                        day: "day";
+                        night: "night";
+                    }>;
+                    to: z.ZodEnum<{
+                        day: "day";
+                        night: "night";
+                    }>;
+                    until: z.ZodISODateTime;
+                    low: z.ZodNullable<z.ZodNumber>;
+                    high: z.ZodNullable<z.ZodNumber>;
+                }, z.core.$strip>>>;
             }, z.core.$strip>>;
             night: z.ZodArray<z.ZodObject<{
                 metric: z.ZodEnum<{
@@ -6401,6 +6601,19 @@ export declare const sharedSpace: z.ZodObject<{
                 }>;
                 value: z.ZodNullable<z.ZodNumber>;
                 band: z.ZodNullable<z.ZodNumber>;
+                transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    from: z.ZodEnum<{
+                        day: "day";
+                        night: "night";
+                    }>;
+                    to: z.ZodEnum<{
+                        day: "day";
+                        night: "night";
+                    }>;
+                    until: z.ZodISODateTime;
+                    low: z.ZodNullable<z.ZodNumber>;
+                    high: z.ZodNullable<z.ZodNumber>;
+                }, z.core.$strip>>>;
             }, z.core.$strip>>;
         }, z.core.$strip>>;
         verdict: z.ZodObject<{
@@ -7012,6 +7225,19 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             }>;
             value: z.ZodNullable<z.ZodNumber>;
             band: z.ZodNullable<z.ZodNumber>;
+            transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                from: z.ZodEnum<{
+                    day: "day";
+                    night: "night";
+                }>;
+                to: z.ZodEnum<{
+                    day: "day";
+                    night: "night";
+                }>;
+                until: z.ZodISODateTime;
+                low: z.ZodNullable<z.ZodNumber>;
+                high: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>>;
         }, z.core.$strip>>;
         targets: z.ZodNullable<z.ZodObject<{
             day: z.ZodArray<z.ZodObject<{
@@ -7027,6 +7253,19 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 }>;
                 value: z.ZodNullable<z.ZodNumber>;
                 band: z.ZodNullable<z.ZodNumber>;
+                transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    from: z.ZodEnum<{
+                        day: "day";
+                        night: "night";
+                    }>;
+                    to: z.ZodEnum<{
+                        day: "day";
+                        night: "night";
+                    }>;
+                    until: z.ZodISODateTime;
+                    low: z.ZodNullable<z.ZodNumber>;
+                    high: z.ZodNullable<z.ZodNumber>;
+                }, z.core.$strip>>>;
             }, z.core.$strip>>;
             night: z.ZodArray<z.ZodObject<{
                 metric: z.ZodEnum<{
@@ -7041,6 +7280,19 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 }>;
                 value: z.ZodNullable<z.ZodNumber>;
                 band: z.ZodNullable<z.ZodNumber>;
+                transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    from: z.ZodEnum<{
+                        day: "day";
+                        night: "night";
+                    }>;
+                    to: z.ZodEnum<{
+                        day: "day";
+                        night: "night";
+                    }>;
+                    until: z.ZodISODateTime;
+                    low: z.ZodNullable<z.ZodNumber>;
+                    high: z.ZodNullable<z.ZodNumber>;
+                }, z.core.$strip>>>;
             }, z.core.$strip>>;
         }, z.core.$strip>>;
         verdict: z.ZodObject<{
@@ -7669,6 +7921,19 @@ export declare const sharedResolution: z.ZodObject<{
                 }>;
                 value: z.ZodNullable<z.ZodNumber>;
                 band: z.ZodNullable<z.ZodNumber>;
+                transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    from: z.ZodEnum<{
+                        day: "day";
+                        night: "night";
+                    }>;
+                    to: z.ZodEnum<{
+                        day: "day";
+                        night: "night";
+                    }>;
+                    until: z.ZodISODateTime;
+                    low: z.ZodNullable<z.ZodNumber>;
+                    high: z.ZodNullable<z.ZodNumber>;
+                }, z.core.$strip>>>;
             }, z.core.$strip>>;
             targets: z.ZodNullable<z.ZodObject<{
                 day: z.ZodArray<z.ZodObject<{
@@ -7684,6 +7949,19 @@ export declare const sharedResolution: z.ZodObject<{
                     }>;
                     value: z.ZodNullable<z.ZodNumber>;
                     band: z.ZodNullable<z.ZodNumber>;
+                    transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                        from: z.ZodEnum<{
+                            day: "day";
+                            night: "night";
+                        }>;
+                        to: z.ZodEnum<{
+                            day: "day";
+                            night: "night";
+                        }>;
+                        until: z.ZodISODateTime;
+                        low: z.ZodNullable<z.ZodNumber>;
+                        high: z.ZodNullable<z.ZodNumber>;
+                    }, z.core.$strip>>>;
                 }, z.core.$strip>>;
                 night: z.ZodArray<z.ZodObject<{
                     metric: z.ZodEnum<{
@@ -7698,6 +7976,19 @@ export declare const sharedResolution: z.ZodObject<{
                     }>;
                     value: z.ZodNullable<z.ZodNumber>;
                     band: z.ZodNullable<z.ZodNumber>;
+                    transition: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                        from: z.ZodEnum<{
+                            day: "day";
+                            night: "night";
+                        }>;
+                        to: z.ZodEnum<{
+                            day: "day";
+                            night: "night";
+                        }>;
+                        until: z.ZodISODateTime;
+                        low: z.ZodNullable<z.ZodNumber>;
+                        high: z.ZodNullable<z.ZodNumber>;
+                    }, z.core.$strip>>>;
                 }, z.core.$strip>>;
             }, z.core.$strip>>;
             verdict: z.ZodObject<{

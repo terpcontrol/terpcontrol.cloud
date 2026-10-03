@@ -357,7 +357,7 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
         },
       },
     );
-    await recordTargets(this.targetRecord, device.id, device.configuration, configuration, new Date());
+    await recordTargets(this.targetRecord, device, device.configuration, configuration, new Date());
 
     if (JSON.stringify(configuration) !== JSON.stringify(reported)) this.publisher.configuration(device.id, configuration);
   }

@@ -340,8 +340,25 @@ describe('what the tent reads right now', () => {
     // Timeline panel two taps away, which draws no night band for it at all.
     expect((await readAs(session(OWNER))).setpoints.map(one => one.metric)).toEqual(['temperature', 'humidity', 'co2']);
 
-    readings[CONTROLLER] = reading({ temperature: [20.1, 20], humidity: [55, 20], co2: [430, 20] }, false);
+    // Night is the controller's schedule: lit 20:00-08:00 UTC, noon is its night.
+    await db.devices.updateOne({ id: CONTROLLER }, { $set: { 'configuration.daynight': { day: 20 * 3600, night: 8 * 3600 } } });
     expect((await readAs(session(OWNER))).setpoints.map(one => one.metric)).toEqual(['temperature', 'humidity']);
+  });
+
+  /**
+   * The controller compares its clock with its schedule and holds the day's
+   * figures between on and off, whatever the lamp does. A lamp held off at noon,
+   * or set to 0 %, had the cloud judge the tent against its night while the
+   * heater worked towards the day.
+   */
+  it('aims at the day´s figures through the day even while the lamp is dark', async () => {
+    await db.devices.updateOne({ id: CONTROLLER }, { $set: { 'configuration.daynight': { day: 6 * 3600, night: 18 * 3600 } } });
+    readings[CONTROLLER] = reading({ temperature: [25.1, 20], humidity: [50, 20] }, null);
+
+    expect((await readAs(session(OWNER))).setpoints).toEqual([
+      { metric: 'temperature', value: 25, band: 1 },
+      { metric: 'humidity', value: 50, band: 5 },
+    ]);
   });
 
   /**

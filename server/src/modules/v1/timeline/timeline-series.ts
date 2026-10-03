@@ -12,10 +12,12 @@ import type {
   TimelineTargets,
 } from '@fg2/shared-types/v1';
 import { METRIC_DECIMALS, TARGET_BAND, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { nightsIn, transitionsIn, type Span } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { OUTPUT_LEVEL } from '@common/v1/metrics';
 import { DAY_ONLY } from '@common/v1/steering';
 import type { DeviceHistory, OutputHistory } from '@modules/data/data.service';
 import type { OutputSwitching } from '@modules/data/flux';
+import type { CycleStretch } from '../phase/target-record';
 
 /**
  * What the windows of a read mean once they are on the screen: the stacked
@@ -97,14 +99,61 @@ export const targetsOf = (metric: Metric, stretches: readonly TargetStretch[]): 
   });
 
 /**
- * When the light was off, which is what the panels are shaded by. It is the
- * tent's own cycle and not hours of the clock, because the grower's day is when
- * the lamp is on.
+ * When the night's figures held, which is what the panels are shaded by: the
+ * cycle of the device the place is steered by, as its record has it
+ * (`cyclesOf`) - its light schedule and its work mode, which is what the device
+ * itself goes by. A lamp held off at noon, or set to 0 %, is a dark day and
+ * not a night, and a drying room is one long night.
  *
- * The controllers of one tent switch one lamp, so the first that reports the
- * output answers for the space rather than two of them shading it twice.
+ * Where the record says nothing - before it began, or before it recorded
+ * cycles - the night is read off the lamp, as it always was.
  */
-export const nightsOf = (histories: readonly DeviceHistory[], window: SeriesWindow): TimelineSpan[] => {
+export const nightsOf = (histories: readonly DeviceHistory[], window: SeriesWindow, cycles: readonly CycleStretch[] = []): TimelineSpan[] => {
+  if (!cycles.some(stretch => stretch.cycle)) return lampNightsOf(histories, window);
+
+  const lamp = cycles.some(stretch => !stretch.cycle) ? lampNightsOf(histories, window).map(spanOf) : [];
+  return asTimelineSpans(
+    cycles.flatMap(stretch =>
+      stretch.cycle
+        ? nightsIn(stretch.cycle, stretch)
+        : lamp.flatMap(span => {
+            const from = Math.max(span.from, stretch.from);
+            const to = Math.min(span.to, stretch.to);
+            return to > from ? [{ from, to }] : [];
+          }),
+    ),
+  );
+};
+
+/**
+ * When the steering device was changing between its halves and the climate was
+ * given time to follow (`transitionsIn`), where the record says what its cycle
+ * was.
+ */
+export const transitionsOf = (cycles: readonly CycleStretch[]): TimelineSpan[] =>
+  asTimelineSpans(cycles.flatMap(stretch => (stretch.cycle ? transitionsIn(stretch.cycle, stretch) : [])));
+
+const spanOf = (span: TimelineSpan): Span => ({ from: millis(span.startsAt), to: millis(span.endsAt) });
+
+/** In order, with touching stretches as one. */
+const asTimelineSpans = (spans: readonly Span[]): TimelineSpan[] =>
+  [...spans]
+    .filter(span => span.to > span.from)
+    .sort((one, other) => one.from - other.from)
+    .reduce<Span[]>((kept, span) => {
+      const last = kept.at(-1);
+      if (last && span.from <= last.to) kept[kept.length - 1] = { from: last.from, to: Math.max(last.to, span.to) };
+      else kept.push(span);
+      return kept;
+    }, [])
+    .map(span => ({ startsAt: new Date(span.from).toISOString(), endsAt: new Date(span.to).toISOString() }));
+
+/**
+ * When the light was off. The controllers of one tent switch one lamp, so the
+ * first that reports the output answers for the space rather than two of them
+ * shading it twice.
+ */
+const lampNightsOf = (histories: readonly DeviceHistory[], window: SeriesWindow): TimelineSpan[] => {
   const lit = histories.find(one => outputIn(one, 'light').switchings.length > 0);
   if (lit) return spansOf(outputIn(lit, 'light'), false, lit.series, window, heardAt(lit));
 

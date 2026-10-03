@@ -1,0 +1,157 @@
+/**
+ * Day and night as a fridge and a tent controller keep them, in the one place
+ * the server, the screens and the simulator read it from.
+ *
+ * The firmware decides by the clock and by nothing else. Its document holds two
+ * times of day as seconds past midnight UTC - `daynight.day`, when the light
+ * comes on, and `daynight.night`, when it goes off - and about once a second it
+ * compares the UTC time of day with them, strictly: between the two it is day,
+ * otherwise night, a window that runs past midnight wrapping round it, and two
+ * equal times never being day at all. In the day the lamp ramps up to its limit
+ * and down again inside the window, the day's figures hold and CO2 is dosed; at
+ * night the night's figures hold. Whether the lamp really shines meanwhile - a
+ * limit of 0 %, a lamp held off from the cloud, a lamp the heat dimmed, 15 % in
+ * maintenance - changes nothing about which figures hold.
+ *
+ * The work mode decides whether there is a day at all. The standard modes and
+ * the greenhouse mode run the schedule; drying and germination hold the night's
+ * figures round the clock in the dark; switched off, nothing is held.
+ *
+ * A fridge glides its targets between the two halves while the lamp ramps
+ * (`daynight.linearChange`, which the server always writes); a controller
+ * switches them with the clock.
+ *
+ * No schema and no imports, so a client and the simulator can share the
+ * arithmetic without pulling zod and the whole contract in.
+ */
+export declare const DAY_SECONDS: number;
+/** The window the firmware runs where its document states none: on at 06:00, off at 22:00 UTC. */
+export declare const FIRMWARE_LIGHTS_ON: number;
+export declare const FIRMWARE_LIGHTS_OFF: number;
+/** Minutes of each dimming ramp where the document states none. */
+export declare const FIRMWARE_RAMP_MINUTES = 15;
+/**
+ * How long after a switch between day and night the climate is given to follow
+ * the new half's targets before it is judged against them alone.
+ *
+ * A fridge needs about forty minutes to come down from a day of 25 °C to a
+ * night of 21 °C, and a tent warms up after the lamp comes on. Judged against
+ * the new half from the second it begins, every evening read "too warm since
+ * 20:02" and every morning "too cold since 08:02", which is the device doing
+ * exactly what it was told. Meanwhile a reading anywhere between the two halves'
+ * bands is on target; one outside both is not.
+ */
+export declare const SETTLE_SECONDS: number;
+/** The light schedule as a person sets it. */
+export interface LightWindow {
+    /** When the light comes on, in seconds past midnight UTC. */
+    lightsOn: number;
+    /** How long it stays on, in hours, to the minute: 0 is always night, 24 always day. */
+    lightHours: number;
+}
+/**
+ * The window two times of a document make, read the way the firmware reads
+ * them: whatever they are, the hours are the ones it runs as day. A light that
+ * goes off at the second it comes on is no light at all, and one a second or
+ * two short of a day - as 24 hours used to be written - is a whole day.
+ * Missing times are the firmware's own.
+ */
+export declare const lightWindowOf: (day: number | null | undefined, night: number | null | undefined) => LightWindow;
+/**
+ * The two times to write for a window: the one place they are worked out, for
+ * the targets page, a preset, a plan step and the clocks changing alike.
+ *
+ * - 24 hours is a day that never ends (see `ALWAYS_LIT_FROM`).
+ * - 0 hours is the light coming on and going off at the same second, which the
+ *   firmware reads as always night.
+ * - A light that goes off at midnight UTC on the dot goes off a second before
+ *   it. The firmware works its evening ramp out without going round the clock,
+ *   so at 0 it found the ramp running all day, clamped it to full and dropped it:
+ *   the lamp went out hard, a fridge stopped gliding into the night, and the CO2
+ *   it should stop during the ramp ran on to the last second.
+ */
+export declare const lightWindowTimes: (window: LightWindow) => {
+    day: number;
+    night: number;
+};
+/** When the light goes off, in seconds past midnight UTC: the hour it comes on again for a light that never goes off, or never comes on. */
+export declare const lightsOffOf: (window: LightWindow) => number;
+/** What the firmware decides a fridge's or a controller's day and night from, as its document states it. */
+export interface Cycle {
+    /** The two times as the document holds them (see `lightWindowOf`). */
+    day: number;
+    night: number;
+    /** The work mode; null where the document states none, which is read as the standard mode. */
+    workmode: string | null;
+    /** Minutes of the dimming ramps inside the day. */
+    sunrise: number;
+    sunset: number;
+    /** Whether the targets glide between the halves while the lamp ramps: a fridge with `daynight.linearChange`. */
+    glides: boolean;
+}
+/** The cycle a document runs, or null for hardware that keeps none and for no document at all. */
+export declare const cycleOf: (type: string, configuration: Record<string, unknown> | null | undefined) => Cycle | null;
+/**
+ * What a cycle amounts to.
+ *
+ * - `schedule`: a day and a night by the clock.
+ * - `always_day`, `always_night`: 24 and 0 hours of light - one half held round the clock.
+ * - `drying`, `germination`: the night's figures held round the clock in the dark.
+ * - `off`: nothing held at all.
+ */
+export type CycleKind = 'schedule' | 'always_day' | 'always_night' | 'drying' | 'germination' | 'off';
+export declare const cycleKindOf: (cycle: Cycle) => CycleKind;
+/** The UTC time of day of an instant, in whole seconds: the firmware's own clock. */
+export declare const utcSecondsOf: (at: number) => number;
+/** Whether the firmware calls this second of the clock day, by its own strict comparisons. Only the times; the work mode is the caller's. */
+export declare const isDayAt: (cycle: Pick<Cycle, "day" | "night">, seconds: number) => boolean;
+/**
+ * How far the morning and the evening ramp have come at this second of the
+ * day: 1 is the lamp at full and a fridge on its day's figures. Worked out as
+ * the firmware works it out - unsigned, without going round the clock - so a
+ * ramp that crosses midnight UTC is cut short here exactly as it is on the
+ * device.
+ */
+export declare const rampsAt: (cycle: Cycle, seconds: number) => {
+    sunrise: number;
+    sunset: number;
+};
+/** A target a fridge is gliding to: `factor` of the way from the night's figure to the day's. */
+export declare const glidingTarget: (day: number, night: number, factor: number) => number;
+/** A change from one half's targets to the other's, and the time the climate is given to follow it. */
+export interface Transition {
+    from: 'day' | 'night';
+    to: 'day' | 'night';
+    /** Epoch milliseconds: when it began - the start of a fridge's ramp, or the switch - and when the climate is judged against `to` alone again. */
+    startsAt: number;
+    until: number;
+    /** While a fridge's targets glide, how far they have come from the night's figures (0) to the day's (1); null once they have arrived. */
+    glide: number | null;
+}
+/** Where a device stands in its cycle at an instant. */
+export interface CycleMoment {
+    kind: CycleKind;
+    /** Which half's figures hold: the night's in drying and germination, and for a light that never comes on. */
+    active: 'day' | 'night';
+    /** `constant` where nothing alternates. */
+    period: 'day' | 'night' | 'constant';
+    /** Epoch milliseconds: when the half began and when it ends; null where nothing alternates. */
+    since: number | null;
+    until: number | null;
+    transition: Transition | null;
+}
+/** Where a cycle stands at an instant (epoch milliseconds). */
+export declare const cycleAt: (cycle: Cycle, at: number) => CycleMoment;
+/** A stretch of time, in epoch milliseconds. */
+export interface Span {
+    from: number;
+    to: number;
+}
+/**
+ * When a cycle holds its night over a range: every night of a schedule, the
+ * whole range where only the night's figures hold, none where only the day's
+ * do - or where nothing is held at all.
+ */
+export declare const nightsIn: (cycle: Cycle, range: Span) => Span[];
+/** When a schedule is changing between its halves over a range (see `SETTLE_SECONDS`); none for anything else. */
+export declare const transitionsIn: (cycle: Cycle, range: Span) => Span[];

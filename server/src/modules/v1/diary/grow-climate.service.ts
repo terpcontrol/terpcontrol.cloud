@@ -4,8 +4,10 @@ import { Model } from 'mongoose';
 import type { PhaseTargets } from '@fg2/shared-types/v1';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { DataService } from '@modules/data/data.service';
 import { targetsOf } from '../phase/phase-targets';
+import { cyclesOf, recordOf } from '../phase/target-record';
 import { ClimateSummary, CLIMATE_METRICS, summariseClimate } from './week-climate';
 
 /**
@@ -54,6 +56,7 @@ export interface Controller {
 export class GrowClimateService {
   constructor(
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
+    @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange>,
     private readonly data: DataService,
   ) {}
 
@@ -95,12 +98,16 @@ export class GrowClimateService {
     window: { startsAt: Date; endsAt: Date },
     targets: PhaseTargets | null,
   ): Promise<ClimateSummary> {
-    const histories = await Promise.all(
-      deviceIds.map(deviceId =>
-        this.data.history(deviceId, { ...window, metrics: CLIMATE_METRICS, outputs: ['light'], stepSeconds: CLIMATE_STEP_SECONDS }),
+    const [histories, records] = await Promise.all([
+      Promise.all(
+        deviceIds.map(deviceId =>
+          this.data.history(deviceId, { ...window, metrics: CLIMATE_METRICS, outputs: ['light'], stepSeconds: CLIMATE_STEP_SECONDS }),
+        ),
       ),
-    );
+      // What each device's cycle was, which is what tells its day from its night.
+      Promise.all(deviceIds.map(async deviceId => [deviceId, cyclesOf(await recordOf(this.targetRecord, deviceId, window), window)] as const)),
+    ]);
 
-    return summariseClimate(histories, targets);
+    return summariseClimate(histories, targets, new Map(records));
   }
 }

@@ -31,6 +31,7 @@ import { entryCredentials } from '@/migrations/steps/017-entry-credentials';
 import { targetRecord } from '@/migrations/steps/018-target-record';
 import { workModes } from '@/migrations/steps/019-work-modes';
 import { readingsStore, retiredDryersWith } from '@/migrations/steps/020-retired-dryers';
+import { lightWindows } from '@/migrations/steps/021-light-windows';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -579,15 +580,17 @@ describe('the record of what a device aims at', () => {
     await migrate();
     const before = await recordOf();
     await collection('targetChanges').deleteMany({ deviceId: LEGACY_DEVICE_IDS.fridge });
+    // The light windows' step adds a row with the cycle to every record it finds.
+    const others = before.filter(row => row.deviceId !== LEGACY_DEVICE_IDS.fridge).length;
 
     await targetRecord.run(new MigrationContext(db(), true, new Date(AT + DAY)));
-    expect(await recordOf()).toHaveLength(before.length - 1);
+    expect(await recordOf()).toHaveLength(others);
 
     const context = new MigrationContext(db(), false, new Date(AT + DAY));
     await targetRecord.run(context);
     await context.flushAll();
 
-    expect(await recordOf()).toHaveLength(before.length);
+    expect(await recordOf()).toHaveLength(others + 1);
     expect(context.stats).toMatchObject({ 'targetChanges.written': 1 });
     const fridge = (await recordOf()).find(row => row.deviceId === LEGACY_DEVICE_IDS.fridge);
     expect(fridge?.at).toEqual(new Date(AT + DAY));
@@ -625,7 +628,9 @@ describe('the work modes', () => {
     const fridge = await one<Record<string, any>>('plans', { deviceId: LEGACY_DEVICE_IDS.fridge });
     expect(fridge?.steps[0].settings.workmode).toBeUndefined();
     expect(fridge?.steps[0].settings.co2).toEqual({ target: 900 });
-    expect(fridge?.steps[0].settings.daynight).toEqual({ day: 21600, night: 64800 });
+    // A drying step's light window did nothing, and is gone (`021-light-windows`).
+    expect(fridge?.steps[0].settings.daynight).toBeUndefined();
+    expect(fridge?.steps[0].lightHours ?? null).toBeNull();
 
     const tent = await one<Record<string, any>>('plans', { deviceId: LEGACY_DEVICE_IDS.controller });
     expect(tent?.steps.every((step: { settings: Document }) => step.settings.workmode === undefined)).toBe(true);
@@ -653,6 +658,96 @@ describe('the work modes', () => {
     await workModes.run(again);
     expect(again.stats['devices.written'] ?? 0).toBe(0);
     expect(again.stats['plans.written'] ?? 0).toBe(0);
+  });
+});
+
+describe('the light windows', () => {
+  const HOUR = 3600;
+  const recipe = (id: string, steps: Record<string, unknown>[]) =>
+    collection('plans').insertOne({
+      id,
+      deviceId: `device-of-${id}`,
+      steps: steps.map((step, index) => ({ id: `${id}-${index}`, stage: null, ...step })),
+    });
+  const stepsOf = async (id: string) => (await one<Record<string, any>>('plans', { id }))?.steps;
+
+  it('turns a recipe´s carried window into its hours, and keeps the hour only where the recipe moves it', async () => {
+    await migrate();
+    // One hour throughout is only the hour the author's device happened to have.
+    await recipe('one-hour', [
+      { name: 'Veg', settings: { day: { temperature: 26 }, daynight: { day: 4 * HOUR, night: 22 * HOUR } } },
+      { name: 'Flower', settings: { daynight: { day: 4 * HOUR, night: 16 * HOUR, linearChange: 1 } } },
+    ]);
+    // Switching on later to shorten the day, as a recipe that keeps 23:00 UTC does.
+    await recipe('moves', [
+      { name: 'Germination', settings: { workmode: 'breed', daynight: { day: 11 * HOUR, night: 23 * HOUR } } },
+      { name: 'Veg', settings: { daynight: { day: 5 * HOUR, night: 23 * HOUR } } },
+      { name: 'Flower', settings: { daynight: { day: 11 * HOUR, night: 23 * HOUR } } },
+      { name: 'Late', settings: { daynight: { day: 11.5 * HOUR, night: 23 * HOUR } } },
+      { name: 'Dry', stage: 'drying', settings: { workmode: 'dry', daynight: { day: 11 * HOUR, night: 23 * HOUR } } },
+    ]);
+
+    const context = new MigrationContext(db(), false, new Date(AT + DAY));
+    await lightWindows.run(context);
+
+    expect(await stepsOf('one-hour')).toMatchObject([
+      { settings: { day: { temperature: 26 } }, lightHours: 18 },
+      { settings: { daynight: { linearChange: 1 } }, lightHours: 12 },
+    ]);
+    expect((await stepsOf('one-hour'))[0].settings.daynight).toBeUndefined();
+
+    const moves = await stepsOf('moves');
+    // A step that runs no day loses a window that did nothing, and names no hours.
+    expect(moves[0].settings).toEqual({ workmode: 'breed' });
+    expect(moves[0].lightHours ?? null).toBeNull();
+    expect(
+      moves.slice(1, 4).map((step: { settings: { daynight: unknown }; lightHours: number }) => [step.settings.daynight, step.lightHours]),
+    ).toEqual([
+      [{ day: 5 * HOUR }, 18],
+      [{ day: 11 * HOUR }, 12],
+      [{ day: 11.5 * HOUR }, 11.5],
+    ]);
+    expect(moves[4].settings).toEqual({ workmode: 'dry' });
+    expect(context.stats).toMatchObject({ 'plans.windowsAsHours': 2 });
+  });
+
+  it('holds a document´s window, records the cycle each device runs, and writes nothing the second time', async () => {
+    await migrate();
+    await collection('devices').insertMany([
+      { id: 'fridge-at-midnight', type: 'fridge', configuration: { workmode: 'small', daynight: { day: 6 * HOUR, night: 0, linearChange: 1 } } },
+      { id: 'tent-all-day', type: 'controller', configuration: { workmode: 'small', daynight: { day: 6 * HOUR, night: 6 * HOUR - 1 } } },
+      { id: 'socket', type: 'plug', configuration: { daynight: { day: 6 * HOUR, night: 0 } } },
+    ]);
+
+    const context = new MigrationContext(db(), false, new Date(AT + DAY));
+    await lightWindows.run(context);
+    await context.flushAll();
+
+    expect((await one<Record<string, any>>('devices', { id: 'fridge-at-midnight' }))?.configuration.daynight).toEqual({
+      day: 6 * HOUR,
+      night: 86399,
+      linearChange: 1,
+    });
+    const allDay = (await one<Record<string, any>>('devices', { id: 'tent-all-day' }))?.configuration.daynight;
+    expect(allDay.day).toBe(allDay.night + 1);
+    expect(allDay.night).toBeGreaterThanOrEqual(2 * 24 * HOUR);
+    expect((await one<Record<string, any>>('devices', { id: 'socket' }))?.configuration.daynight).toEqual({ day: 6 * HOUR, night: 0 });
+
+    const cycle = await one<Record<string, any>>('targetChanges', { deviceId: 'fridge-at-midnight' });
+    expect(cycle).toMatchObject({
+      at: new Date(AT + DAY),
+      cycle: { day: 6 * HOUR, night: 86399, workmode: 'small', sunrise: 15, sunset: 15, glides: true },
+    });
+    expect(await one('targetChanges', { deviceId: 'socket' })).toBeNull();
+    // The migrated fridge's record carries its cycle from the first run on.
+    const fridge = await collection<Record<string, any>>('targetChanges').find({ deviceId: LEGACY_DEVICE_IDS.fridge }).sort({ at: -1 }).toArray();
+    expect(fridge[0].cycle).toMatchObject({ day: 21600, night: 64800, workmode: 'small' });
+
+    const again = new MigrationContext(db(), false, new Date(AT + 2 * DAY));
+    await lightWindows.run(again);
+    expect(again.stats['devices.written'] ?? 0).toBe(0);
+    expect(again.stats['plans.written'] ?? 0).toBe(0);
+    expect(again.stats['targetChanges.written'] ?? 0).toBe(0);
   });
 });
 

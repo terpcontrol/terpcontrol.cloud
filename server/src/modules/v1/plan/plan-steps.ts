@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { DeviceConfiguration, DurationUnit, PlanStep, PlanStepInput, StepDuration } from '@fg2/shared-types/v1';
+import { lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { unprocessable } from '@common/v1/problem';
 import { StoredPlan, StoredPlanState } from '@database/schemas/v1/plans.schema';
 
@@ -110,13 +111,21 @@ export const stepsOf = (steps: PlanStepInput[]): PlanStep[] => {
     ]);
   }
 
-  return steps.map(step => ({
-    ...step,
-    id: step.id ?? uuidv4(),
-    stage: step.stage ?? null,
-    preset: step.preset ?? null,
-    lightHours: step.lightHours ?? null,
-  }));
+  // A step written with both times of day sets the hour the light comes on and
+  // the hours it stays on; it is stored as those, so the night is worked out
+  // where every window is.
+  return steps.map(step =>
+    withWindowAsHours(
+      {
+        ...step,
+        id: step.id ?? uuidv4(),
+        stage: step.stage ?? null,
+        preset: step.preset ?? null,
+        lightHours: step.lightHours ?? null,
+      },
+      true,
+    ),
+  );
 };
 
 /** A step as the contract answers it: one stored before it could name light hours names none. */
@@ -126,37 +135,53 @@ export const answeredStep = (step: PlanStep): PlanStep => ({ ...step, lightHours
 export const stepWrites = (step: PlanStep): boolean =>
   Object.keys(step.settings ?? {}).length > 0 || (step.lightHours ?? null) !== null || step.stage !== null;
 
-const DAY_SECONDS = 24 * 60 * 60;
-
-/** When the light comes on where neither the step nor the device has ever said: the firmware's own default, 06:00 UTC. */
-const DEFAULT_LIGHTS_ON = 6 * 60 * 60;
-
 const sectionOf = (document: DeviceConfiguration | null, key: string): Record<string, unknown> => {
   const value = document?.[key];
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 };
 
+const numberOrNull = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+
 /**
  * What a step sends, merged into the device's document like every other step:
  * its own settings, and its light hours as the two times of day the firmware
- * keeps. The light keeps the hour it comes on - the step's own where a recipe
- * carried one, else the device's - and goes off that many hours later, the
- * way a climate preset lands a photoperiod.
+ * keeps, written the one way every window is written (`lightWindowTimes`).
  *
- * A whole day is one second short of it. The firmware reads a light that goes
- * off the second it comes on as one that never comes on at all, so a step of
- * 24 hours would otherwise keep the tent dark.
+ * The light keeps the hour it comes on - the device's, which is the grower's
+ * to move under the targets without the plan putting it back an hour later -
+ * unless the step names one of its own in `daynight.day`. Only a step that
+ * does sets the time; the rest leave it where it is.
  */
 export const settingsSent = (step: PlanStep, current: DeviceConfiguration | null): DeviceConfiguration => {
   const hours = step.lightHours ?? null;
   if (hours === null) return step.settings;
 
   const own = sectionOf(step.settings, 'daynight');
-  const on = [own.day, sectionOf(current, 'daynight').day].find(value => typeof value === 'number' && Number.isFinite(value)) as number | undefined;
-  const lightsOn = on ?? DEFAULT_LIGHTS_ON;
-  const lit = Math.min(Math.round(hours * 60 * 60), DAY_SECONDS - 1);
+  const device = sectionOf(current, 'daynight');
+  const lightsOn = numberOrNull(own.day) ?? lightWindowOf(numberOrNull(device.day), numberOrNull(device.night)).lightsOn;
+  const { night: _unused, ...kept } = own;
 
-  return { ...step.settings, daynight: { ...own, day: lightsOn, night: (lightsOn + lit) % DAY_SECONDS } };
+  return { ...step.settings, daynight: { ...kept, ...lightWindowTimes({ lightsOn, lightHours: hours }) } };
+};
+
+/**
+ * A step's settings with a whole light window carried in them turned into the
+ * hours the step means, where it names none: both times of day sent as they
+ * stand would put the light-on hour back every hour the plan re-sends its step.
+ * The hour itself is kept where `keepTime` says the recipe sets it.
+ */
+export const withWindowAsHours = <T extends Pick<PlanStep, 'settings' | 'lightHours'>>(step: T, keepTime: boolean): T => {
+  const own = sectionOf(step.settings, 'daynight');
+  const day = numberOrNull(own.day);
+  const night = numberOrNull(own.night);
+  if (day === null || night === null) return step;
+
+  const { day: _day, night: _night, ...rest } = own;
+  const daynight = keepTime ? { ...rest, day: lightWindowOf(day, night).lightsOn } : rest;
+  const { daynight: _old, ...others } = step.settings;
+  const settings = Object.keys(daynight).length > 0 ? { ...others, daynight } : others;
+
+  return { ...step, settings, lightHours: step.lightHours ?? lightWindowOf(day, night).lightHours };
 };
 
 /**

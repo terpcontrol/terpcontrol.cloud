@@ -700,8 +700,8 @@ describe('applying a climate preset', () => {
     await aController();
     await presets.apply(session(OWNER), SPACE, { stage: 'flowering', preset: 'autoflower' });
 
-    // Eighteen hours from 06:00 is midnight, written as the second past it.
-    expect(configured[0].settings).toMatchObject({ daynight: { day: 21600, night: (21600 + 18 * 60 * 60) % 86400 }, day: { temperature: 25 } });
+    // Eighteen hours from 06:00 is midnight UTC, written as the second before it so the evening ramp runs.
+    expect(configured[0].settings).toMatchObject({ daynight: { day: 21600, night: 86399 }, day: { temperature: 25 } });
     expect(configured[0].settings.daynight).not.toMatchObject({ night: 21600 + 12 * 60 * 60 });
   });
 

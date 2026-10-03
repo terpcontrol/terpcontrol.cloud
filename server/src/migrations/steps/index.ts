@@ -19,9 +19,10 @@ import { entryCredentials } from './017-entry-credentials';
 import { targetRecord } from './018-target-record';
 import { workModes } from './019-work-modes';
 import { retiredDryers } from './020-retired-dryers';
+import { lightWindows } from './021-light-windows';
 
 /**
- * In order, and the order matters in six places:
+ * In order, and the order matters in seven places:
  *
  * - the picture bytes move first, because that job looks for its documents in
  *   `images` and every step after it has moved that collection aside;
@@ -36,7 +37,10 @@ import { retiredDryers } from './020-retired-dryers';
  *   only in the new shape once the devices have been migrated, and the work
  *   modes are decided over the devices, plans and templates in that shape too;
  * - the dryers are deleted once everything that names one has been migrated,
- *   so that nothing a later step writes points at a device that is gone.
+ *   so that nothing a later step writes points at a device that is gone;
+ * - the light windows are put into their shape over the devices, plans and
+ *   templates in the new shape, after the work modes have cleared the steps,
+ *   and the cycle each device runs is added to the record that step 018 opened.
  *
  * Everything else is independent, and every step is a no-op on a database that
  * does not have the collection it reads - which is what a fresh install is.
@@ -62,4 +66,5 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   targetRecord,
   workModes,
   retiredDryers,
+  lightWindows,
 ];

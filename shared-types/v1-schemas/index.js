@@ -37,7 +37,9 @@ __exportStar(require("./diary.js"), exports);
 // VPD out along, and the span the alarm engine holds a worked-on device's alarms
 // for that the screens offering a maintenance window have to promise. And the
 // settings beyond the targets a device's type offers, which the server checks a
-// change against and the screens draw their controls from.
+// change against and the screens draw their controls from. And day and night as
+// the firmware keeps them, which the server judges by, the screens draw and the
+// simulator runs.
 __exportStar(require("./socket-report.js"), exports);
 __exportStar(require("./feeding.js"), exports);
 __exportStar(require("./grow-days.js"), exports);
@@ -46,3 +48,4 @@ __exportStar(require("./alert-routing.js"), exports);
 __exportStar(require("./vpd.js"), exports);
 __exportStar(require("./maintenance.js"), exports);
 __exportStar(require("./configuration-fields.js"), exports);
+__exportStar(require("./day-night.js"), exports);

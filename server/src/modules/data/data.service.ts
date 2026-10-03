@@ -123,8 +123,8 @@ export interface DeviceSample {
 
 /**
  * Everything one `last()` says about a device. Two of the facts it holds have no
- * metric of their own and are still read from here: which half of its cycle the
- * device says it is in, and whether its light is on. Both ride along with the
+ * metric of their own and are still read from here: which half of its cycle a
+ * fan says it is in, and whether a light is on. Both ride along with the
  * metrics rather than costing a query each - a card and `/live` are one read.
  */
 export interface LiveReading {
@@ -136,7 +136,7 @@ export interface LiveReading {
    * costs a read and answers nothing at all for a device that fell silent.
    */
   outputs: DeviceLive['outputs'];
-  /** Null where the device does not report a day/night cycle at all. */
+  /** What an AIR fan's light sensor says; null for every device that does not report its own day (`setpoints.ts`). */
   isDay: boolean | null;
   /** Null where the device drives no light output. */
   lightOn: boolean | null;
@@ -279,11 +279,10 @@ export class DataService implements LightStateReader {
       if (value !== null) metrics[name] = metricValueOf(value, computedAt(name, latest));
     }
 
-    // Only a fan says outright which half of the cycle it is in; a controller
-    // and a fridge switch their light by the same schedule, so the light says it
-    // for them - which is what their day and night targets are held against.
-    const lightOn = flag(latest, fieldOfOutputMetric('light'));
-    return { metrics, outputs, isDay: flag(latest, DAY_FIELD) ?? lightOn, lightOn };
+    // Only a fan says outright which half of the cycle it is in. A controller
+    // and a fridge decide it by their schedule (`setpoints.ts`), which the light
+    // does not say: a lamp can be dark in the day and lit at night.
+    return { metrics, outputs, isDay: flag(latest, DAY_FIELD), lightOn: flag(latest, fieldOfOutputMetric('light')) };
   }
 
   /**

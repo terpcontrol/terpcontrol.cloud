@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import { Model } from 'mongoose';
 import type { DeviceConfiguration, PlanReplace, PlanStep, PlanStepInput } from '@fg2/shared-types/v1';
+import { cycleKindOf, lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { MODEL_V1 } from '@database/models';
 import { StoredPlan, plansSchema } from '@database/schemas/v1/plans.schema';
@@ -275,13 +276,25 @@ describe('what the step is applied to', () => {
     expect(applied[1].settings).toEqual({ daynight: { day: 6 * 3600, night: 18 * 3600 } });
   });
 
-  it('keeps a light that is on all day a second short of the day, which the firmware would read as never on', async () => {
+  /**
+   * A light that goes off the second it comes on is one the firmware never
+   * lights, and one a second short of a day dipped for half an hour every
+   * morning through both ramps. 24 hours is a day that never ends, and 0 hours
+   * the dark it reads.
+   */
+  it('keeps a light that is on all day on all day, and one of no hours off', async () => {
     await aDevice();
-    await aPlan([step({ id: 'a', name: 'Seedling', lightHours: 24 })]);
+    await aPlan([step({ id: 'a', name: 'Seedling', lightHours: 24 }), step({ id: 'b', name: 'Dark', lightHours: 0 })]);
 
     await engine.run(NOW);
+    const { day, night } = applied[0].settings.daynight as { day: number; night: number };
+    expect(day).toBe(night + 1);
+    expect(lightWindowOf(day, night)).toEqual({ lightsOn: 6 * 3600, lightHours: 24 });
+    expect(cycleKindOf({ day, night, workmode: 'small', sunrise: 15, sunset: 15, glides: true })).toBe('always_day');
 
-    expect(applied[0].settings).toEqual({ daynight: { day: 6 * 3600, night: 6 * 3600 - 1 } });
+    await transitions.transition(DEVICE, { kind: 'skip' }, OWNER);
+    await engine.run(at(MINUTE));
+    expect(applied[1].settings).toEqual({ daynight: { day: 6 * 3600, night: 6 * 3600 } });
   });
 
   it('re-sends the running step at most once an hour', async () => {

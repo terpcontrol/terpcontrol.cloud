@@ -1,0 +1,558 @@
+import { jest } from '@jest/globals';
+import type { DeviceConfiguration, DeviceSeries, Metric, PlanStep, SeriesPoint } from '@fg2/shared-types/v1';
+import {
+  cycleKindOf,
+  cycleOf,
+  lightWindowOf,
+  lightWindowTimes,
+  nightsIn,
+  SETTLE_SECONDS,
+  transitionsIn,
+  type Cycle,
+} from '@fg2/shared-types/v1-schemas/day-night.js';
+import { EntryWriterService } from '@common/v1/entry-writer.service';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
+import { heldTo } from '@modules/device-protocol/class-rules';
+import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
+import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
+import { withIdleFiguresKept } from '@modules/device-protocol/idle-figures';
+import { withClockTimesMoved } from '@modules/device-protocol/schedule-clock';
+import { MqttClientService } from '@modules/mqtt/mqtt-client.service';
+import { setpointsOf } from '@modules/v1/device/setpoints';
+import { summariseClimate } from '@modules/v1/diary/week-climate';
+import { verdictOf } from '@modules/v1/overview/climate-verdict';
+import { cyclesOf } from '@modules/v1/phase/target-record';
+import { settingsSent, stepsOf } from '@modules/v1/plan/plan-steps';
+import { liveOfDevice } from '@modules/v1/space/space-live';
+import { presetConfiguration } from '@modules/v1/space/climate-presets';
+import { nightsOf, transitionsOf } from '@modules/v1/timeline/timeline-series';
+import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+
+/**
+ * Day and night are the device's: its clock window in UTC and its work mode,
+ * compared the way the firmware compares them (`day-night.ts`). Everything the
+ * server says about which half holds - the live targets, the verdict, the
+ * nights a chart is shaded by, the diary's halves - follows from that and never
+ * from whether the lamp shines; and every light window it writes is written by
+ * one function, so 24 hours is light round the clock, 0 hours is dark, and a
+ * light going off at midnight UTC keeps its evening ramp.
+ */
+
+const HOUR = 3600;
+const at = (iso: string): Date => new Date(iso);
+
+/** A fridge lit 06:00-18:00 UTC with 15-minute ramps it glides its targets along. */
+const fridge = (over: Record<string, unknown> = {}): DeviceConfiguration => ({
+  workmode: 'small',
+  day: { temperature: 25, humidity: 60 },
+  night: { temperature: 21, humidity: 55 },
+  co2: { target: 1000, sunsetOff: 1 },
+  daynight: { day: 6 * HOUR, night: 18 * HOUR, linearChange: 1 },
+  lights: { limit: 80, sunrise: 15, sunset: 15 },
+  ...over,
+});
+
+const controller = (over: Record<string, unknown> = {}): DeviceConfiguration => {
+  const { daynight, ...rest } = fridge(over);
+  return { ...rest, daynight: { ...(daynight as Record<string, unknown>), linearChange: 0 } };
+};
+
+const cycle = (over: Partial<Cycle> = {}): Cycle => ({
+  day: 6 * HOUR,
+  night: 18 * HOUR,
+  workmode: 'small',
+  sunrise: 15,
+  sunset: 15,
+  glides: true,
+  ...over,
+});
+
+describe('the light window', () => {
+  it('reads and writes a photoperiod as the hour the light comes on and the hours it stays on', () => {
+    expect(lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 12 })).toEqual({ day: 6 * HOUR, night: 18 * HOUR });
+    expect(lightWindowOf(6 * HOUR, 18 * HOUR)).toEqual({ lightsOn: 6 * HOUR, lightHours: 12 });
+    // Past midnight UTC: on at 22:00, off at 10:00.
+    expect(lightWindowTimes({ lightsOn: 22 * HOUR, lightHours: 12 })).toEqual({ day: 22 * HOUR, night: 10 * HOUR });
+    expect(lightWindowOf(22 * HOUR, 10 * HOUR)).toEqual({ lightsOn: 22 * HOUR, lightHours: 12 });
+    // Half hours, as a plan step may carry them.
+    expect(lightWindowOf(...(Object.values(lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 16.5 })) as [number, number]))).toEqual({
+      lightsOn: 6 * HOUR,
+      lightHours: 16.5,
+    });
+  });
+
+  it('writes a light going off at midnight UTC a second before it, which keeps the firmware´s evening ramp', () => {
+    expect(lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 18 })).toEqual({ day: 6 * HOUR, night: 86399 });
+    expect(lightWindowOf(6 * HOUR, 86399)).toEqual({ lightsOn: 6 * HOUR, lightHours: 18 });
+    // An older write of midnight reads the same.
+    expect(lightWindowOf(6 * HOUR, 0)).toEqual({ lightsOn: 6 * HOUR, lightHours: 18 });
+  });
+
+  it('writes 24 hours as a day that never ends, keeping the hour it came on, and reads the old one-second-short day as 24 hours', () => {
+    const always = lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 24 });
+    expect(always.night).toBeGreaterThanOrEqual(2 * 24 * HOUR);
+    expect(always.day).toBe(always.night + 1);
+    expect(lightWindowOf(always.day, always.night)).toEqual({ lightsOn: 6 * HOUR, lightHours: 24 });
+    expect(cycleKindOf(cycle(always))).toBe('always_day');
+
+    expect(lightWindowOf(6 * HOUR, 6 * HOUR - 1)).toEqual({ lightsOn: 6 * HOUR, lightHours: 24 });
+  });
+
+  it('keeps 0 hours apart from 24: the light comes on and goes off at the same second, which is always night', () => {
+    expect(lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 0 })).toEqual({ day: 6 * HOUR, night: 6 * HOUR });
+    expect(lightWindowOf(6 * HOUR, 6 * HOUR)).toEqual({ lightsOn: 6 * HOUR, lightHours: 0 });
+    expect(cycleKindOf(cycle({ day: 6 * HOUR, night: 6 * HOUR }))).toBe('always_night');
+  });
+
+  it('is held to that shape on every write of a fridge or a controller, whoever wrote the times, and left alone otherwise', () => {
+    expect((heldTo('controller', controller({ daynight: { day: 6 * HOUR, night: 0 } })).daynight as Record<string, number>).night).toBe(86399);
+    const legacy = heldTo('fridge', fridge({ daynight: { day: 6 * HOUR, night: 6 * HOUR - 1, linearChange: 1 } })).daynight as Record<string, number>;
+    expect(lightWindowOf(legacy.day, legacy.night)).toEqual({ lightsOn: 6 * HOUR, lightHours: 24 });
+    expect(legacy.night).toBeGreaterThanOrEqual(2 * 24 * HOUR);
+
+    // Held already, a document is what it was.
+    const held = heldTo('fridge', fridge({ daynight: { ...lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 24 }), linearChange: 1 } }));
+    expect(heldTo('fridge', held)).toEqual(held);
+    expect(heldTo('controller', controller({ daynight: { day: 6 * HOUR, night: 6 * HOUR } })).daynight).toEqual({
+      day: 6 * HOUR,
+      night: 6 * HOUR,
+      linearChange: 0,
+    });
+    // A smart socket's own window is its own.
+    expect(heldTo('plug', { daynight: { day: 6 * HOUR, night: 0 } })).toEqual({ daynight: { day: 6 * HOUR, night: 0 } });
+  });
+
+  it('moves with the clocks as a window: onto midnight UTC and off it again, and 24 hours stays 24 hours', () => {
+    // Berlin 08:00 + 16 h is 06:00-22:00 UTC in summer; in winter 07:00-23:00, and
+    // with 17 h 07:00 to midnight UTC.
+    const summer = { daynight: lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 17 }) };
+    expect(summer.daynight).toEqual({ day: 6 * HOUR, night: 23 * HOUR });
+    expect(withClockTimesMoved(summer, HOUR).daynight).toEqual({ day: 7 * HOUR, night: 86399 });
+    expect(withClockTimesMoved(withClockTimesMoved(summer, HOUR), -HOUR).daynight).toEqual({ day: 6 * HOUR, night: 23 * HOUR });
+
+    const always = { daynight: { ...lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 24 }), linearChange: 1 } };
+    const moved = withClockTimesMoved(always, HOUR).daynight as Record<string, number>;
+    expect(lightWindowOf(moved.day, moved.night)).toEqual({ lightsOn: 7 * HOUR, lightHours: 24 });
+    expect(moved.linearChange).toBe(1);
+  });
+});
+
+describe('which half holds, by the clock and the work mode', () => {
+  it('is the day between on and off and the night otherwise, whatever the lamp is doing', () => {
+    // The live reading of the lamp is not even an input: a lamp held off at noon,
+    // or set to 0 %, leaves the device holding its day.
+    const noon = setpointsOf(controller({ lights: { limit: 0 } }), null, {}, 'controller', at('2026-10-03T12:00:00Z'));
+    expect(noon).toMatchObject({
+      active: 'day',
+      period: 'day',
+      cycle: 'schedule',
+      since: '2026-10-03T06:00:00.000Z',
+      until: '2026-10-03T18:00:00.000Z',
+    });
+    expect(setpointsOf(controller(), null, {}, 'controller', at('2026-10-03T23:00:00Z'))).toMatchObject({
+      active: 'night',
+      period: 'night',
+      since: '2026-10-03T18:00:00.000Z',
+      until: '2026-10-04T06:00:00.000Z',
+    });
+    // A window past midnight UTC.
+    const late = controller({ daynight: { day: 22 * HOUR, night: 10 * HOUR } });
+    expect(setpointsOf(late, null, {}, 'controller', at('2026-10-03T02:00:00Z'))?.active).toBe('day');
+    expect(setpointsOf(late, null, {}, 'controller', at('2026-10-03T12:00:00Z'))?.active).toBe('night');
+  });
+
+  it('holds the night round the clock while drying or germinating, the day with 24 hours of light, and nothing switched off', () => {
+    const noon = at('2026-10-03T12:00:00Z');
+    expect(setpointsOf(fridge({ workmode: 'dry' }), null, {}, 'fridge', noon)).toMatchObject({
+      active: 'night',
+      period: 'constant',
+      cycle: 'drying',
+      since: null,
+      until: null,
+      transition: null,
+      day: {},
+      night: { temperature: 21, humidity: 55 },
+    });
+    expect(setpointsOf(fridge({ workmode: 'breed' }), null, {}, 'fridge', noon)).toMatchObject({
+      active: 'night',
+      period: 'constant',
+      cycle: 'germination',
+      night: { temperature: 21 },
+    });
+    const always = fridge({ daynight: { ...lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 24 }), linearChange: 1 } });
+    expect(setpointsOf(always, null, {}, 'fridge', at('2026-10-03T23:00:00Z'))).toMatchObject({
+      active: 'day',
+      period: 'constant',
+      cycle: 'always_day',
+    });
+    const dark = fridge({ daynight: { day: 6 * HOUR, night: 6 * HOUR, linearChange: 1 } });
+    expect(setpointsOf(dark, null, {}, 'fridge', noon)).toMatchObject({ active: 'night', period: 'constant', cycle: 'always_night' });
+    expect(setpointsOf(fridge({ workmode: 'off' }), null, {}, 'fridge', noon)).toBeNull();
+    // The greenhouse mode runs the clock and holds no humidity.
+    expect(setpointsOf(fridge({ workmode: 'temp' }), null, {}, 'fridge', noon)).toMatchObject({
+      active: 'day',
+      day: { temperature: 25, co2: 1000 },
+      night: { temperature: 21, co2: 1000 },
+    });
+  });
+
+  it('takes an AIR fan´s word for it, from its light sensor', () => {
+    const fan = { mode: 3, day: { temperature: 25, humidity: 60 }, night: { temperature: 21, humidity: 55 } };
+    expect(setpointsOf(fan, false, {}, 'fan', at('2026-10-03T12:00:00Z'))).toMatchObject({ active: 'night', period: 'night', cycle: 'sensor' });
+    expect(setpointsOf(fan, null, {}, 'fan')).toBeNull();
+  });
+});
+
+describe('the change between the halves', () => {
+  it('glides a fridge´s targets along its ramps as its firmware does, and gives the climate an hour to follow', () => {
+    const rising = setpointsOf(fridge(), null, {}, 'fridge', at('2026-10-03T06:05:00Z'));
+    // A third of the way up the morning ramp: a third of the way from 21 to 25.
+    expect(rising?.transition).toEqual({
+      from: 'night',
+      to: 'day',
+      until: '2026-10-03T07:15:00.000Z',
+      gliding: true,
+      targets: { temperature: 22.3, humidity: 56.7, co2: 1000 },
+    });
+
+    const following = setpointsOf(fridge(), null, {}, 'fridge', at('2026-10-03T07:00:00Z'));
+    expect(following?.transition).toMatchObject({ gliding: false, targets: { temperature: 25, humidity: 60, co2: 1000 } });
+    expect(setpointsOf(fridge(), null, {}, 'fridge', at('2026-10-03T07:16:00Z'))?.transition).toBeNull();
+
+    // The evening ramp is the day's last quarter hour; the night has no CO2 to aim at.
+    const setting = setpointsOf(fridge(), null, {}, 'fridge', at('2026-10-03T17:50:00Z'));
+    expect(setting).toMatchObject({ active: 'day', transition: { from: 'day', to: 'night', gliding: true, until: '2026-10-03T19:00:00.000Z' } });
+    expect(setting?.transition?.targets).toEqual({ temperature: 23.7, humidity: 58.3 });
+  });
+
+  it('switches a controller´s targets with the clock, and still gives the climate an hour after the switch', () => {
+    expect(setpointsOf(controller(), null, {}, 'controller', at('2026-10-03T17:50:00Z'))?.transition).toBeNull();
+    expect(setpointsOf(controller(), null, {}, 'controller', at('2026-10-03T18:30:00Z'))?.transition).toEqual({
+      from: 'day',
+      to: 'night',
+      until: '2026-10-03T19:00:00.000Z',
+      gliding: false,
+      targets: { temperature: 21, humidity: 55 },
+    });
+  });
+
+  it('tells a card what it aims at while gliding and the range a reading counts as on target in, and leaves CO2 unjudged meanwhile', () => {
+    const device = { id: 'fridge-1', type: 'fridge', configuration: fridge(), state: { hardware: {} } } as unknown as StoredDevice;
+    const live = liveOfDevice({ device, reading: { metrics: {}, outputs: {}, isDay: null, lightOn: false } }, at('2026-10-03T06:05:00Z'));
+
+    expect(live.setpoints).toEqual([
+      {
+        metric: 'temperature',
+        value: 22.3,
+        band: 1,
+        transition: { from: 'night', to: 'day', until: '2026-10-03T07:15:00.000Z', low: 20, high: 26 },
+      },
+      {
+        metric: 'humidity',
+        value: 56.7,
+        band: expect.any(Number),
+        transition: { from: 'night', to: 'day', until: '2026-10-03T07:15:00.000Z', low: expect.any(Number), high: expect.any(Number) },
+      },
+      {
+        metric: 'co2',
+        value: 1000,
+        band: expect.any(Number),
+        transition: { from: 'night', to: 'day', until: '2026-10-03T07:15:00.000Z', low: null, high: null },
+      },
+    ]);
+    // Outside a change a card is what it always was.
+    const noon = liveOfDevice({ device, reading: { metrics: {}, outputs: {}, isDay: null, lightOn: false } }, at('2026-10-03T12:00:00Z'));
+    expect(noon.setpoints[0]).toEqual({ metric: 'temperature', value: 25, band: 1 });
+  });
+});
+
+describe('the verdict over a day', () => {
+  const STEP = 300;
+  const START = Date.parse('2026-10-03T12:00:00Z');
+  const COUNT = (12 * HOUR) / STEP;
+
+  const series = (
+    value: (instant: number) => number | null,
+    metric: Metric = 'temperature',
+    light: (instant: number) => number = () => 0,
+  ): DeviceSeries => {
+    const points = (read: (instant: number) => number | null): SeriesPoint[] =>
+      Array.from({ length: COUNT }, (_unused, index) => {
+        const ends = START + (index + 1) * STEP * 1000;
+        return { measuredAt: new Date(ends).toISOString(), value: read(ends - (STEP * 1000) / 2) };
+      });
+    return {
+      deviceId: 'fridge-1',
+      startsAt: new Date(START).toISOString(),
+      endsAt: new Date(START + COUNT * STEP * 1000).toISOString(),
+      stepSeconds: STEP,
+      metrics: [{ metric, points: points(value) }],
+      outputs: [{ output: 'light', points: points(light) }],
+    };
+  };
+  const window = { startsAt: new Date(START), endsAt: new Date(START + COUNT * STEP * 1000) };
+  const targets = setpointsOf(fridge(), null, {}, 'fridge', new Date(START));
+
+  /** A fridge that takes forty minutes to cool from its day to its night after the switch at 18:00. */
+  const cooling = (instant: number): number => {
+    const after = (instant - Date.parse('2026-10-03T17:45:00Z')) / 60_000;
+    return after <= 0 ? 25 : after >= 55 ? 21 : 25 - (4 * after) / 55;
+  };
+
+  it('does not count the evening a fridge needs to reach its night as an excursion', () => {
+    const verdict = verdictOf(series(cooling), targets, window, cycleOf('fridge', fridge()));
+
+    expect(verdict.metrics[0]).toMatchObject({ rating: 'good', outOfBandSeconds: 0, excursions: [] });
+  });
+
+  it('still names a reading outside both halves´ bands during the change', () => {
+    const hot = (instant: number) =>
+      instant > Date.parse('2026-10-03T18:05:00Z') && instant < Date.parse('2026-10-03T18:40:00Z') ? 28 : cooling(instant);
+    const verdict = verdictOf(series(hot), targets, window, cycleOf('fridge', fridge()));
+
+    expect(verdict.metrics[0].excursions).toEqual([expect.objectContaining({ above: true, extremeValue: 28 })]);
+  });
+
+  it('judges the day by the day´s band while the lamp was dark at noon - held off, or at 0 %', () => {
+    // 25 °C all afternoon with the lamp off is on target: the fridge holds its day.
+    const verdict = verdictOf(
+      series(instant => (instant < Date.parse('2026-10-03T17:45:00Z') ? 25 : cooling(instant))),
+      targets,
+      window,
+      cycleOf('fridge', fridge()),
+    );
+    expect(verdict.metrics[0]).toMatchObject({ outOfBandSeconds: 0 });
+  });
+
+  it('judges a drying room against its night all day long', () => {
+    const drying = fridge({ workmode: 'dry', night: { temperature: 18, humidity: 58 } });
+    const verdict = verdictOf(
+      series(() => 18),
+      setpointsOf(drying, null, {}, 'fridge', new Date(START)),
+      window,
+      cycleOf('fridge', drying),
+    );
+
+    expect(verdict.metrics[0]).toMatchObject({ dayBand: null, nightBand: { low: 17, high: 19 }, outOfBandSeconds: 0 });
+  });
+});
+
+describe('the nights a chart is shaded by', () => {
+  const window = { startsAt: at('2026-10-24T12:00:00Z'), endsAt: at('2026-10-26T12:00:00Z') };
+  const row = (iso: string, cycle: Cycle | null): StoredTargetChange => ({ id: iso, deviceId: 'fridge-1', at: at(iso), targets: null, cycle });
+  const lamp = {
+    series: { deviceId: 'fridge-1', startsAt: '', endsAt: '', stepSeconds: 300, metrics: [], outputs: [{ output: 'light' as const, points: [] }] },
+    outputs: [{ output: 'light' as const, switchings: [{ at: '2026-10-24T12:00:00.000Z', on: true }] }],
+    lastSampleAt: null,
+  };
+
+  it('are the schedule´s, and move with it the night the clocks go back', () => {
+    // Berlin 08:00-20:00: 06:00-18:00 UTC in summer, moved at 01:00 UTC on 25 October.
+    const cycles = cyclesOf([row('2026-10-01T00:00:00Z', cycle()), row('2026-10-25T01:00:30Z', cycle({ day: 7 * HOUR, night: 19 * HOUR }))], window);
+
+    expect(nightsOf([], window, cycles)).toEqual([
+      { startsAt: '2026-10-24T18:00:00.000Z', endsAt: '2026-10-25T07:00:00.000Z' },
+      { startsAt: '2026-10-25T19:00:00.000Z', endsAt: '2026-10-26T07:00:00.000Z' },
+    ]);
+  });
+
+  it('are one long night while drying, none with 24 hours of light, and the lamp´s where the record does not say', () => {
+    const always = lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 24 });
+    const cycles = cyclesOf([row('2026-10-25T00:00:00Z', cycle({ workmode: 'dry' })), row('2026-10-26T00:00:00Z', cycle(always))], window);
+
+    // Before the first row the record says nothing, and neither does a lamp nobody heard.
+    expect(nightsOf([lamp as never], window, cycles)).toEqual([{ startsAt: '2026-10-25T00:00:00.000Z', endsAt: '2026-10-26T00:00:00.000Z' }]);
+  });
+
+  it('carry the hour after each switch the climate is given to follow', () => {
+    const cycles = cyclesOf([row('2026-10-01T00:00:00Z', cycle())], { startsAt: at('2026-10-24T00:00:00Z'), endsAt: at('2026-10-25T00:00:00Z') });
+
+    expect(transitionsOf(cycles)).toEqual([
+      { startsAt: '2026-10-24T06:00:00.000Z', endsAt: '2026-10-24T07:15:00.000Z' },
+      { startsAt: '2026-10-24T17:45:00.000Z', endsAt: '2026-10-24T19:00:00.000Z' },
+    ]);
+    expect(SETTLE_SECONDS).toBe(HOUR);
+  });
+
+  it('are whole nights of the UTC clock, which no summer time moves', () => {
+    const range = { from: Date.parse('2026-03-28T12:00:00Z'), to: Date.parse('2026-03-30T12:00:00Z') };
+    expect(nightsIn(cycle({ day: 5 * HOUR, night: 17 * HOUR }), range).map(span => (span.to - span.from) / HOUR / 1000)).toEqual([12, 12]);
+    expect(transitionsIn(cycle({ workmode: 'dry' }), range)).toEqual([]);
+  });
+});
+
+describe('the diary´s day and night', () => {
+  const window = { startsAt: at('2026-10-03T00:00:00Z'), endsAt: at('2026-10-04T00:00:00Z') };
+  const STEP = 900;
+
+  it('are the schedule´s halves, not the lamp´s', () => {
+    // 25 °C in the day, 21 °C at night - and the lamp held off all day long.
+    const points = Array.from({ length: (24 * HOUR) / STEP }, (_unused, index) => {
+      const ends = window.startsAt.getTime() + (index + 1) * STEP * 1000;
+      const hour = new Date(ends - STEP * 500).getUTCHours();
+      return { measuredAt: new Date(ends).toISOString(), value: hour >= 6 && hour < 18 ? 25 : 21 };
+    });
+    const history = {
+      series: {
+        deviceId: 'fridge-1',
+        startsAt: window.startsAt.toISOString(),
+        endsAt: window.endsAt.toISOString(),
+        stepSeconds: STEP,
+        metrics: [{ metric: 'temperature' as const, points }],
+        outputs: [{ output: 'light' as const, points: points.map(point => ({ ...point, value: 0 })) }],
+      },
+      outputs: [{ output: 'light' as const, switchings: [{ at: window.startsAt.toISOString(), on: false }] }],
+      lastSampleAt: null,
+    };
+    const cycles = new Map([
+      ['fridge-1', cyclesOf([{ id: 'r', deviceId: 'fridge-1', at: at('2026-10-01T00:00:00Z'), targets: null, cycle: cycle() }], window)],
+    ]);
+
+    const summary = summariseClimate([history as never], null, cycles);
+    expect(summary.climate[0]).toMatchObject({ metric: 'temperature', dayAverage: 25, nightAverage: 21 });
+
+    // Without the record it is the lamp, as it always was: all night.
+    expect(summariseClimate([history as never], null).climate[0]).toMatchObject({ dayAverage: null, nightAverage: 23 });
+  });
+});
+
+describe('what a preset and a plan step write', () => {
+  it('keeps the light-on hour the device has and writes the hours as every window is written', () => {
+    const preset = presetConfiguration('vegetative', null, fridge(), true);
+    // 06:00 + 18 h ends at midnight UTC.
+    expect(preset?.daynight).toEqual({ day: 6 * HOUR, night: 86399, linearChange: 1 });
+    // A device on 24 hours keeps its hour when a preset brings a photoperiod back.
+    const always = fridge({ daynight: { ...lightWindowTimes({ lightsOn: 8 * HOUR, lightHours: 24 }), linearChange: 1 } });
+    expect(presetConfiguration('flowering', null, always, true)?.daynight).toEqual({ day: 8 * HOUR, night: 20 * HOUR, linearChange: 1 });
+  });
+
+  const step = (over: Partial<PlanStep>): PlanStep => ({
+    id: 'step',
+    name: 'Veg',
+    stage: null,
+    preset: null,
+    duration: { value: 1, unit: 'weeks' },
+    settings: {},
+    lightHours: null,
+    waitForConfirmation: false,
+    confirmationMessage: null,
+    ...over,
+  });
+
+  it('keeps the device´s light-on hour unless the step names one, and writes 24 and 0 hours apart', () => {
+    const moved = fridge({ daynight: { day: 9 * HOUR, night: 21 * HOUR, linearChange: 1 } });
+    expect(settingsSent(step({ lightHours: 18 }), moved).daynight).toEqual({ day: 9 * HOUR, night: 3 * HOUR });
+    expect(settingsSent(step({ lightHours: 12, settings: { daynight: { day: 5 * HOUR } } }), moved).daynight).toEqual({
+      day: 5 * HOUR,
+      night: 17 * HOUR,
+    });
+
+    const always = settingsSent(step({ lightHours: 24 }), moved).daynight as Record<string, number>;
+    expect(lightWindowOf(always.day, always.night)).toEqual({ lightsOn: 9 * HOUR, lightHours: 24 });
+    expect(settingsSent(step({ lightHours: 0 }), moved).daynight).toEqual({ day: 9 * HOUR, night: 9 * HOUR });
+    // A step that names no hours leaves the window alone.
+    expect(settingsSent(step({ settings: { day: { temperature: 24 } } }), moved)).toEqual({ day: { temperature: 24 } });
+  });
+
+  it('stores a step written with both times of day as the hour it sets and the hours it means', () => {
+    const [stored] = stepsOf([
+      { ...step({}), id: undefined, settings: { day: { temperature: 24 }, daynight: { day: 5 * HOUR, night: 23 * HOUR, linearChange: 1 } } },
+    ]);
+
+    expect(stored.settings).toEqual({ day: { temperature: 24 }, daynight: { day: 5 * HOUR, linearChange: 1 } });
+    expect(stored.lightHours).toBe(18);
+  });
+});
+
+describe('the targets a mode leaves alone', () => {
+  it('are kept as stored while drying, germinating, in the greenhouse mode, with 24 and with 0 hours of light', () => {
+    const before = fridge();
+    const sent = (over: Record<string, unknown>) => ({
+      ...before,
+      day: { temperature: 18, humidity: 58 },
+      night: { temperature: 18, humidity: 58 },
+      ...over,
+    });
+
+    const drying = withIdleFiguresKept({ ...before, workmode: 'dry' }, sent({ workmode: 'dry' }), 'dry');
+    expect(drying).toMatchObject({ day: { temperature: 25, humidity: 60 }, night: { temperature: 18, humidity: 58 } });
+
+    const germinating = withIdleFiguresKept({ ...before, workmode: 'breed' }, sent({ workmode: 'breed' }), 'breed');
+    expect(germinating).toMatchObject({ day: { temperature: 25, humidity: 60 }, night: { temperature: 18, humidity: 55 } });
+
+    const greenhouse = withIdleFiguresKept({ ...before, workmode: 'temp' }, sent({ workmode: 'temp' }), 'temp');
+    expect(greenhouse).toMatchObject({ day: { temperature: 18, humidity: 60 }, night: { temperature: 18, humidity: 55 } });
+
+    const always = { ...(before.daynight as Record<string, unknown>), ...lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 24 }) };
+    expect(withIdleFiguresKept(before, sent({ daynight: always }), 'small')).toMatchObject({
+      day: { temperature: 18 },
+      night: { temperature: 21, humidity: 55 },
+    });
+
+    const dark = { ...(before.daynight as Record<string, unknown>), day: 6 * HOUR, night: 6 * HOUR };
+    expect(withIdleFiguresKept(before, sent({ daynight: dark, co2: { target: 400 } }), 'small')).toMatchObject({
+      day: { temperature: 25, humidity: 60 },
+      night: { temperature: 18 },
+      co2: { target: 1000 },
+    });
+  });
+
+  it('are written as sent by a save that ends the mode', () => {
+    const ended = withIdleFiguresKept({ ...fridge(), workmode: 'dry' }, { ...fridge(), day: { temperature: 26, humidity: 62 } }, 'small');
+    expect(ended).toMatchObject({ day: { temperature: 26, humidity: 62 } });
+  });
+});
+
+describe('a save of the targets', () => {
+  const DEVICE = 'sim-fridge-1';
+  let db: V1TestDatabase;
+  let configuration: DeviceConfigurationService;
+
+  beforeAll(async () => {
+    db = await startV1TestDatabase();
+  });
+
+  afterAll(async () => {
+    await db.stop();
+  });
+
+  beforeEach(async () => {
+    await db.reset();
+    const mqtt = { canPublish: true, publish: jest.fn(() => true) } as unknown as MqttClientService;
+    configuration = new DeviceConfigurationService(
+      db.devices,
+      db.users,
+      db.targetChanges,
+      new DevicePublisherService(db.devices, mqtt),
+      new EntryWriterService(db.entries),
+    );
+  });
+
+  it('answers what was stored, keeps the day of a germinating fridge, and tunes a drying room from the humidity it holds', async () => {
+    await db.devices.create({ id: DEVICE, type: 'fridge', ownerId: 'user-1', configuration: fridge({ workmode: 'breed' }) });
+
+    const stored = await configuration.replace(
+      DEVICE,
+      fridge({ workmode: 'breed', day: { temperature: 24, humidity: 55 }, night: { temperature: 24, humidity: 55 } }),
+      'user-1',
+    );
+    expect(stored).toMatchObject({ workmode: 'breed', day: { temperature: 25, humidity: 60 }, night: { temperature: 24, humidity: 55 } });
+
+    await db.devices.updateOne({ id: DEVICE }, { $set: { configuration: fridge({ workmode: 'dry', night: { temperature: 18, humidity: 50 } }) } });
+    const drying = await configuration.replace(DEVICE, fridge({ workmode: 'dry', night: { temperature: 18, humidity: 50 } }), 'user-1');
+    // 50 % is a dry target, whatever the unused day says.
+    expect(drying?.daynight).toMatchObject({ maxDehumidifySeconds: 900, targetHumidityDiff: 0, useLongHumidityAvg: 1 });
+  });
+
+  it('records when the cycle moved as well as the targets, and nothing for a write that moved neither', async () => {
+    await db.devices.create({ id: DEVICE, type: 'fridge', ownerId: 'user-1', configuration: fridge() });
+
+    await configuration.replace(DEVICE, fridge(), 'user-1');
+    await configuration.replace(DEVICE, fridge({ daynight: { day: 8 * HOUR, night: 20 * HOUR, linearChange: 1 } }), 'user-1');
+
+    const rows = await db.targetChanges.find({ deviceId: DEVICE }).lean<StoredTargetChange[]>();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].cycle).toEqual({ day: 8 * HOUR, night: 20 * HOUR, workmode: 'small', sunrise: 15, sunset: 15, glides: true });
+  });
+});

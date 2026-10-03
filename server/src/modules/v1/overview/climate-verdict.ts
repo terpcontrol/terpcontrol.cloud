@@ -12,6 +12,7 @@ import type {
   VerdictRating,
 } from '@fg2/shared-types/v1';
 import { TARGET_BAND, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { cycleAt, type Cycle } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { DAY_ONLY, STEERED } from '@common/v1/steering';
 
 /**
@@ -23,10 +24,14 @@ import { DAY_ONLY, STEERED } from '@common/v1/steering';
  * left it, and how often each actuator came on. Asking Influx once per question
  * would give four reads that disagree at their edges.
  *
- * Day and night are told apart by the light output rather than by a clock,
- * because the grower's day is when the lamp is on, and each half is judged
- * against its own targets. A device that drives no light at all has no halves to
- * tell apart, so the half it says it is in now is used for the whole window.
+ * Day and night are told apart the way the device tells them apart: by the
+ * light schedule and the work mode in its document (`day-night.ts`), whatever
+ * the lamp happened to do, and each half is judged against its own targets.
+ * Around each switch the climate is given time to follow (`SETTLE_SECONDS`, and
+ * a fridge's ramp before it): a reading anywhere between the two halves' bands
+ * is in band then, so a fridge cooling into its night is not an excursion every
+ * evening. A device with no schedule - an AIR fan - is told apart by its light
+ * output where it has one, and otherwise by the half it says it is in now.
  *
  * Nothing here reaches for a database, so what the verdict says about a set of
  * points can be read - and tested - as arithmetic.
@@ -104,15 +109,31 @@ const excursionOf = (run: Run, points: SeriesPoint[], stepSeconds: number, open:
   };
 };
 
-const countMetric = (
-  metric: Metric,
-  points: SeriesPoint[],
-  stepSeconds: number,
-  isDay: (index: number) => boolean,
-  targets: Setpoints | null,
-): ClimateVerdictMetric => {
-  const dayBand = bandOf(targets?.day[metric], metric);
-  const nightBand = DAY_ONLY.includes(metric) ? null : bandOf(targets?.night[metric], metric);
+/** Which half each window was held to, and whether the device was changing between them then. */
+type HalfAt = (index: number) => { half: 'day' | 'night'; changing: boolean };
+
+const bandsOf = (metric: Metric, targets: Setpoints | null): { dayBand: TargetBand | null; nightBand: TargetBand | null } => ({
+  dayBand: bandOf(targets?.day[metric], metric),
+  nightBand: DAY_ONLY.includes(metric) ? null : bandOf(targets?.night[metric], metric),
+});
+
+/**
+ * The band one window is judged by: its half's, or while the device changes
+ * halves both of them as one - and nothing where either half holds no target
+ * for the metric, since there is no telling what it should have read.
+ */
+const bandAt = (halfAt: HalfAt, index: number, bands: { dayBand: TargetBand | null; nightBand: TargetBand | null }): TargetBand | null => {
+  const { half, changing } = halfAt(index);
+  if (!changing) return half === 'day' ? bands.dayBand : bands.nightBand;
+
+  return bands.dayBand && bands.nightBand
+    ? { low: Math.min(bands.dayBand.low, bands.nightBand.low), high: Math.max(bands.dayBand.high, bands.nightBand.high) }
+    : null;
+};
+
+const countMetric = (metric: Metric, points: SeriesPoint[], stepSeconds: number, halfAt: HalfAt, targets: Setpoints | null): ClimateVerdictMetric => {
+  const bands = bandsOf(metric, targets);
+  const { dayBand, nightBand } = bands;
 
   const values = points.map(point => point.value).filter((value): value is number => value !== null);
   const excursions: ClimateExcursion[] = [];
@@ -129,7 +150,7 @@ const countMetric = (
   };
 
   for (const [index, point] of points.entries()) {
-    const band = isDay(index) ? dayBand : nightBand;
+    const band = bandAt(halfAt, index, bands);
     const value = point.value;
     if (value === null) {
       gap += 1;
@@ -189,12 +210,11 @@ const countMetric = (
  * steered in. The same rule `countMetric` counts by, kept per window so the
  * headline share can ask of each window whether everything judged in it held.
  */
-const judgedWindows = (points: SeriesPoint[], metric: Metric, isDay: (index: number) => boolean, targets: Setpoints | null): (boolean | null)[] => {
-  const dayBand = bandOf(targets?.day[metric], metric);
-  const nightBand = DAY_ONLY.includes(metric) ? null : bandOf(targets?.night[metric], metric);
+const judgedWindows = (points: SeriesPoint[], metric: Metric, halfAt: HalfAt, targets: Setpoints | null): (boolean | null)[] => {
+  const bands = bandsOf(metric, targets);
 
   return points.map((point, index) => {
-    const band = isDay(index) ? dayBand : nightBand;
+    const band = bandAt(halfAt, index, bands);
     return point.value === null || band === null ? null : point.value >= band.low && point.value <= band.high;
   });
 };
@@ -221,7 +241,25 @@ const runsOf = (output: DeviceSeries['outputs'][number], stepSeconds: number): A
 };
 
 /**
- * Which half of the cycle each window fell in, from the light output.
+ * Which half of the cycle each window fell in by the device's schedule, read at
+ * the middle of the window: an aggregated point is stamped at its end.
+ */
+const scheduledHalves = (series: DeviceSeries, cycle: Cycle): HalfAt => {
+  const instants = (series.metrics.find(row => row.points.length > 0)?.points ?? series.outputs[0]?.points ?? []).map(point =>
+    Date.parse(point.measuredAt),
+  );
+  const middle = (series.stepSeconds * 1000) / 2;
+  const moments = instants.map(at => cycleAt(cycle, at - middle));
+
+  return index => {
+    const moment = moments[index];
+    return moment ? { half: moment.active, changing: moment.transition !== null } : { half: 'day', changing: false };
+  };
+};
+
+/**
+ * Which half of the cycle each window fell in, from the light output, for a
+ * device that keeps no schedule of its own.
  *
  * The state is carried across the windows that hold no reading - the lamp does
  * not go out because nothing was sampled - and backwards over the ones before
@@ -260,7 +298,12 @@ const trendOf = (points: SeriesPoint[], metric: Metric, endsAt: string, stepSeco
   return { metric, stepSeconds: width * stepSeconds, endsAt, points: buckets };
 };
 
-export const verdictOf = (series: DeviceSeries | null, targets: Setpoints | null, window: { startsAt: Date; endsAt: Date }): ClimateVerdict => {
+export const verdictOf = (
+  series: DeviceSeries | null,
+  targets: Setpoints | null,
+  window: { startsAt: Date; endsAt: Date },
+  cycle: Cycle | null = null,
+): ClimateVerdict => {
   const forSeconds = Math.round((window.endsAt.getTime() - window.startsAt.getTime()) / 1000);
   const empty: ClimateVerdict = {
     deviceId: series?.deviceId ?? null,
@@ -276,20 +319,22 @@ export const verdictOf = (series: DeviceSeries | null, targets: Setpoints | null
   };
   if (!series) return empty;
 
-  const halves = halvesOf(series, targets?.active !== 'night');
-  const isDay = (index: number): boolean => halves[index] ?? targets?.active !== 'night';
+  const halves = cycle ? null : halvesOf(series, targets?.active !== 'night');
+  const halfAt: HalfAt = cycle
+    ? scheduledHalves(series, cycle)
+    : index => ({ half: (halves?.[index] ?? targets?.active !== 'night') ? 'day' : 'night', changing: false });
 
   // A metric with neither a reading nor a target here is not a row of nulls: it
   // is a metric this tent says nothing about.
   const metrics = STEERED.map(metric =>
-    countMetric(metric, series.metrics.find(row => row.metric === metric)?.points ?? [], series.stepSeconds, isDay, targets),
+    countMetric(metric, series.metrics.find(row => row.metric === metric)?.points ?? [], series.stepSeconds, halfAt, targets),
   ).filter(row => row.minValue !== null || row.dayBand !== null || row.nightBand !== null);
 
   // The share is of the time, not of the metrics: a window counts as in band
   // only when every metric judged in it was. Pooling the metrics' seconds made
   // a tent too warm and too dry the whole time, with only its CO2 in band,
   // read "33 % in band" - a third of the day, to anybody reading the sentence.
-  const judged = STEERED.map(metric => judgedWindows(series.metrics.find(row => row.metric === metric)?.points ?? [], metric, isDay, targets));
+  const judged = STEERED.map(metric => judgedWindows(series.metrics.find(row => row.metric === metric)?.points ?? [], metric, halfAt, targets));
   const length = Math.max(0, ...judged.map(states => states.length));
   let inBand = 0;
   let counted = 0;

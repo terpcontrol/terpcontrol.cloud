@@ -16,10 +16,10 @@ import { DataService } from '@modules/data/data.service';
 import { READING_KINDS } from '../diary/diary-entries';
 import { horizonOf, originOf } from '../diary/grow-calendar';
 import { spacesDuring } from '../diary/grow-places';
-import { recordOf } from '../phase/target-record';
+import { cyclesOf, recordOf } from '../phase/target-record';
 import { CHART_FRAME_SLOTS, framesOf } from '../timeline/frames';
 import { lastReadingOf } from '../timeline/last-reading';
-import { fridgesOf, lanesOf, nightsOf, panelsOf } from '../timeline/timeline-series';
+import { fridgesOf, lanesOf, nightsOf, panelsOf, transitionsOf } from '../timeline/timeline-series';
 import { TimelineWindow, narrowedTo, steeringOf, stretchesOf, windowOf } from '../timeline/timeline-window';
 import { Redaction } from './grow-serialiser';
 import { GrowsService } from './grows.service';
@@ -137,7 +137,8 @@ export class GrowSeriesService {
       // the climate at all can have been wondering.
       lastReadingAt: climate.length === 0 && asked.metrics?.length ? await lastReadingOf(this.data, devices) : null,
       outputs: lanesOf(series, window, grant.redacted, fridgesOf(devices)),
-      nights: nightsOf(series, window),
+      nights: nightsOf(series, window, cyclesOf(aimed, window)),
+      transitions: transitionsOf(cyclesOf(aimed, window)),
       measurements: measurementsOf(keys, readings, hide),
       cameras: cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: frames.get(camera.id) ?? [] })),
     };

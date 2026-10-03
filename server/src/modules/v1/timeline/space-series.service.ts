@@ -9,12 +9,12 @@ import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { DataService } from '@modules/data/data.service';
-import { recordOf } from '../phase/target-record';
+import { cyclesOf, recordOf } from '../phase/target-record';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { CHART_FRAME_SLOTS, framesOf } from './frames';
 import { lastReadingOf } from './last-reading';
-import { fridgesOf, lanesOf, nightsOf, panelsOf } from './timeline-series';
+import { fridgesOf, lanesOf, nightsOf, panelsOf, transitionsOf } from './timeline-series';
 import { narrowedTo, steeringOf, stretchesOf } from './timeline-window';
 
 /** What the route was asked for, after the query string has been checked against the contract. */
@@ -94,7 +94,8 @@ export class SpaceSeriesService {
       climate,
       lastReadingAt: climate.length === 0 && metrics.length > 0 ? await lastReadingOf(this.data, devices) : null,
       outputs: lanesOf(series, window, grant.redacted, fridgesOf(devices)),
-      nights: nightsOf(series, window),
+      nights: nightsOf(series, window, cyclesOf(aimed, window)),
+      transitions: transitionsOf(cyclesOf(aimed, window)),
       cameras: cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: frames.get(camera.id) ?? [] })),
     };
   }

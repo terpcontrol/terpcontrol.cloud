@@ -202,8 +202,8 @@ export class DevicesController {
     @Param('id') id: string,
     @V1Body(deviceConfigurationEnvelope) body: DeviceConfigurationEnvelope,
   ): Promise<DeviceConfigurationEnvelope> {
-    await this.configuration.replace(id, body.configuration, ctx.userId, body.drying);
-    return { configuration: body.configuration };
+    const stored = await this.configuration.replace(id, body.configuration, ctx.userId, body.drying);
+    return { configuration: stored ?? body.configuration };
   }
 
   /**

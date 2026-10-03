@@ -8,12 +8,16 @@ import { provisionDevice } from '../support/device';
  * What the unit suite cannot see is the measurement store: that one aggregation
  * over the last day really comes back through Flux, that a device reporting
  * every five minutes into two-minute windows is still read as one run rather
- * than as a run per sample, and that day and night are told apart by the light
- * the device wrote rather than by a clock.
+ * than as a run per sample, and that day and night are told apart by the
+ * device's own schedule - its clock window in UTC - rather than by whatever its
+ * lamp wrote.
  */
 
 const MINUTES = 60_000;
 const SAMPLE_MINUTES = 5;
+
+/** The UTC time of day of an instant, in the seconds a device keeps its schedule in. */
+const utcSecondsOf = (at: number): number => Math.floor(at / 1000) % 86_400;
 
 let owner: Session;
 let stranger: Session;
@@ -59,13 +63,23 @@ beforeAll(async () => {
 
 it('answers one aggregation of the last day as a verdict on it', async () => {
   const device = await provisionDevice(owner, 'controller');
+  const now = Date.now();
   await owner.client
     .put(`/v1/devices/${device.deviceId}/configuration`)
-    .send({ configuration: { day: { temperature: 25, humidity: 55 }, night: { temperature: 20, humidity: 60 }, co2: { target: 1000 } } })
+    .send({
+      configuration: {
+        workmode: 'small',
+        // Lit for the first twelve hours of the last day, as the seeds are.
+        daynight: { day: utcSecondsOf(now - 24 * 60 * MINUTES), night: utcSecondsOf(now - 12 * 60 * MINUTES) },
+        day: { temperature: 25, humidity: 55 },
+        night: { temperature: 20, humidity: 60 },
+        co2: { target: 1000 },
+      },
+    })
     .expect(200);
 
   const spaceId = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId;
-  await seedMeasurements(aDay(device.deviceId, Date.now()));
+  await seedMeasurements(aDay(device.deviceId, now));
 
   const page = (await owner.client.get(`/v1/spaces/${spaceId}/overview`).expect(200)).body;
 
@@ -90,8 +104,8 @@ it('answers one aggregation of the last day as a verdict on it', async () => {
   expect(verdict.inBandFraction).toBeGreaterThan(0.9);
 
   // Twelve hours held against the day's band and twelve against the night's,
-  // which is only right if the light said which was which: the same 25 °C is in
-  // band while the lamp is on and three degrees over it once it is off.
+  // which is only right if the schedule said which was which: the same 25 °C is
+  // in band in the day and three degrees over it at night.
   const temperature = verdict.metrics.find((row: { metric: string }) => row.metric === 'temperature');
   expect(temperature).toMatchObject({ dayBand: { low: 24, high: 26 }, nightBand: { low: 19, high: 21 }, minValue: 20, maxValue: 25 });
   expect(temperature.excursions).toEqual([expect.objectContaining({ above: true, extremeValue: 24 })]);
@@ -114,6 +128,48 @@ it('answers one aggregation of the last day as a verdict on it', async () => {
   });
 
   expect(verdict.trend).toMatchObject({ metric: 'temperature' });
+});
+
+/**
+ * A lamp held off from the cloud, set to 0 % or dimmed by the heat leaves the
+ * controller in its day: it keeps heating to the day's target. Judged by the
+ * lamp, that day read as a night three degrees too warm.
+ */
+it('judges a day the lamp was dark in against the day´s band, and answers the live targets of the day', async () => {
+  const device = await provisionDevice(owner, 'controller');
+  const now = Date.now();
+  await owner.client
+    .put(`/v1/devices/${device.deviceId}/configuration`)
+    .send({
+      configuration: {
+        workmode: 'small',
+        // Lit for 23 hours up to half an hour from now: the hour of night before
+        // them is the hour the climate is given to follow the switch.
+        daynight: { day: utcSecondsOf(now - 22.5 * 60 * MINUTES), night: utcSecondsOf(now + 30 * MINUTES) },
+        day: { temperature: 25, humidity: 55 },
+        night: { temperature: 20, humidity: 60 },
+      },
+    })
+    .expect(200);
+  const spaceId = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId;
+  await seedMeasurements(
+    Array.from({ length: (24 * 60) / SAMPLE_MINUTES + 1 }, (_unused, index) => ({
+      time: now - index * SAMPLE_MINUTES * MINUTES,
+      device_id: device.deviceId,
+      fields: { temperature: 25, humidity: 55, out_light: 0 },
+    })),
+  );
+
+  const page = (await owner.client.get(`/v1/spaces/${spaceId}/overview`).expect(200)).body;
+  expect(page.verdict.metrics.find((row: { metric: string }) => row.metric === 'temperature')).toMatchObject({ rating: 'good', outOfBandSeconds: 0 });
+  expect(page.setpoints).toEqual([
+    { metric: 'temperature', value: 25, band: 1 },
+    { metric: 'humidity', value: 55, band: 5 },
+  ]);
+
+  const live = (await owner.client.get(`/v1/devices/${device.deviceId}/live`).expect(200)).body;
+  expect(live.setpoints).toMatchObject({ active: 'day', period: 'day', cycle: 'schedule', transition: null });
+  expect(Date.parse(live.setpoints.until)).toBeGreaterThan(now);
 });
 
 it('is not there at all for somebody with nothing to do with the tent', async () => {

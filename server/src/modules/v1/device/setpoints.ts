@@ -1,5 +1,8 @@
-import type { Metric, Setpoints } from '@fg2/shared-types/v1';
+import type { CardTransition, Metric, Setpoints, SetpointsTransition } from '@fg2/shared-types/v1';
+import { TARGET_BAND } from '@fg2/shared-types/v1-schemas';
+import { cycleAt, cycleOf, glidingTarget, type CycleMoment } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { reportsNoSensor } from '@common/v1/sentinels';
+import { DAY_ONLY } from '@common/v1/steering';
 
 /**
  * The targets a controller is holding, read out of its own configuration
@@ -20,9 +23,17 @@ const TARGETS: Readonly<Record<'day' | 'night', Partial<Record<Metric, string>>>
 };
 
 /**
- * `isDay` is what the device says about itself, and it is not optional: a target
- * band nobody can say which half of belongs to is worse than none, so a device
- * that has not reported the flag answers no setpoints at all. Nor does one that
+ * Whose figures hold now is worked out the way the device works it out.
+ *
+ * A fridge and a tent controller report no day of their own: they compare the
+ * UTC clock with the light schedule in their document, and their work mode
+ * decides whether there is a day at all (`day-night.ts`). Reading it off the
+ * light output instead - which is what was done - judged a tent against its
+ * night whenever the lamp was dark in the day: a limit of 0 %, a lamp held off,
+ * a lamp the heat dimmed, while the fridge went on heating to its day target.
+ * An AIR fan does say, from its light sensor, and `sensorDay` is that word; a
+ * fan that has not said it answers no setpoints at all, because a band nobody
+ * can say which half of belongs to is worse than none. Nor does a device that
  * states no target - a plug, a light.
  *
  * `hardware` is the device's own report of what is fitted, and it is read for
@@ -35,21 +46,93 @@ const TARGETS: Readonly<Record<'day' | 'night', Partial<Record<Metric, string>>>
  */
 export const setpointsOf = (
   configuration: Record<string, unknown> | null,
-  isDay: boolean | null,
+  sensorDay: boolean | null,
   hardware: Record<string, string> = {},
   type: string | null = null,
+  at: Date = new Date(),
 ): Setpoints | null => {
-  if (!configuration || isDay === null) return null;
+  if (!configuration) return null;
+
+  const cycle = cycleOf(type ?? '', configuration);
+  const moment = cycle ? cycleAt(cycle, at.getTime()) : null;
+  // Switched off - or in a mode the firmware does not know, which it runs as off - nothing is held.
+  if ((!moment && sensorDay === null) || moment?.kind === 'off') return null;
 
   const held = type === 'fan' ? (FAN_HOLDS[Number(configuration.mode)] ?? null) : (HELD[String(configuration.workmode)] ?? null);
-  const setpoints: Setpoints = {
-    day: held?.nightOnly ? {} : halfOf(configuration, 'day', hardware, held),
-    night: halfOf(configuration, 'night', hardware, held),
-    active: isDay && !held?.nightOnly ? 'day' : 'night',
-  };
+  const day = held?.nightOnly ? {} : halfOf(configuration, 'day', hardware, held);
+  const night = halfOf(configuration, 'night', hardware, held);
+  if (Object.keys(day).length + Object.keys(night).length === 0) return null;
 
-  return Object.keys(setpoints.day).length + Object.keys(setpoints.night).length > 0 ? setpoints : null;
+  if (!moment) {
+    const active = sensorDay ? 'day' : 'night';
+    return { day, night, active, period: active, cycle: 'sensor', since: null, until: null, transition: null };
+  }
+
+  return {
+    day,
+    night,
+    active: moment.active,
+    period: moment.period,
+    cycle: moment.kind as Exclude<typeof moment.kind, 'off'>,
+    since: instantOf(moment.since),
+    until: instantOf(moment.until),
+    transition: transitionOf(moment, day, night),
+  };
 };
+
+const instantOf = (at: number | null): string | null => (at === null ? null : new Date(at).toISOString());
+
+/**
+ * The change between the halves as the screens are told it, with what the
+ * device aims at meanwhile: the gliding figures of a fridge, worked out as its
+ * firmware works them out, and the new half's once they have arrived. A metric
+ * the new half holds no target for - CO2 into the night - is not aimed at.
+ */
+const transitionOf = (
+  moment: CycleMoment,
+  day: Partial<Record<Metric, number>>,
+  night: Partial<Record<Metric, number>>,
+): SetpointsTransition | null => {
+  const transition = moment.transition;
+  if (!transition) return null;
+
+  const to = transition.to === 'day' ? day : night;
+  const targets = Object.fromEntries(
+    (Object.entries(to) as [Metric, number][]).flatMap(([metric, value]) => {
+      if (DAY_ONLY.includes(metric) && transition.to === 'night') return [];
+      const other = night[metric];
+      const glides = transition.glide !== null && !DAY_ONLY.includes(metric) && day[metric] !== undefined && other !== undefined;
+      return [[metric, glides ? round(glidingTarget(day[metric]!, other, transition.glide!)) : value]];
+    }),
+  ) as Partial<Record<Metric, number>>;
+
+  return { from: transition.from, to: transition.to, until: new Date(transition.until).toISOString(), gliding: transition.glide !== null, targets };
+};
+
+/**
+ * What counts as on target for one metric while the device changes halves: a
+ * reading anywhere from the lower half's band to the higher one's. A half that
+ * holds no target for the metric leaves nothing to judge it by until the change
+ * is over.
+ */
+export const cardTransitionOf = (setpoints: Setpoints, metric: Metric): CardTransition | null => {
+  const transition = setpoints.transition;
+  if (!transition) return null;
+
+  const band = TARGET_BAND[metric];
+  const ends = [setpoints.day[metric], DAY_ONLY.includes(metric) ? undefined : setpoints.night[metric]];
+  const known = ends.every((value): value is number => value !== undefined) && band !== undefined;
+
+  return {
+    from: transition.from,
+    to: transition.to,
+    until: transition.until,
+    low: known ? round(Math.min(...(ends as number[])) - band) : null,
+    high: known ? round(Math.max(...(ends as number[])) + band) : null,
+  };
+};
+
+const round = (value: number): number => Math.round(value * 10) / 10;
 
 /**
  * What a work mode holds of the targets, where it does not hold all of them.

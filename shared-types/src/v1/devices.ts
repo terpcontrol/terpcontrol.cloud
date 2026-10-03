@@ -642,13 +642,17 @@ export const planStep = named(
     settings: deviceConfiguration,
     // Hours rather than the document's two times of day, because a step - and a
     // template above all - is written for a tent whose morning it does not know:
-    // the light keeps the hour it comes on and goes off this much later.
+    // the light keeps the hour it comes on and goes off this much later. A step
+    // that does set the hour carries it as `settings.daynight.day`, and only such
+    // a step moves it.
     lightHours: z
       .number()
-      .min(1)
+      .min(0)
       .max(24)
       .nullable()
-      .describe('How long the light is on while this step runs; null leaves the photoperiod as it is.'),
+      .describe(
+        'How long the light is on while this step runs: 24 is light round the clock, 0 none at all (the night’s figures round the clock). Null leaves the photoperiod as it is. The light comes on at the hour the device has, unless `settings.daynight.day` names one.',
+      ),
     waitForConfirmation: z.boolean(),
     confirmationMessage: z.string().nullable(),
   }),
@@ -996,6 +1000,25 @@ export const alertPage = named('AlertPage', page(alert));
 /* --------------------------------------------------------------- live, series */
 
 /**
+ * A change from one half's targets to the other's (`day-night.ts`): on a
+ * fridge, the dimming ramp its targets glide along, and on any device the hour
+ * after the switch that the climate is given to follow. Meanwhile a reading
+ * anywhere between the two halves' bands is on target.
+ */
+export const setpointsTransition = named(
+  'SetpointsTransition',
+  z.object({
+    from: z.enum(['day', 'night']),
+    to: z.enum(['day', 'night']),
+    until: instant().describe('When the device is judged against the half it went to alone again.'),
+    gliding: z.boolean().describe("Whether a fridge's targets are still moving along the ramp, rather than the climate following targets that have arrived."),
+    targets: z
+      .partialRecord(metric, z.number())
+      .describe('What the device aims at this moment: the gliding figures on a fridge, the new half’s otherwise. A metric the new half holds no target for is absent.'),
+  }),
+);
+
+/**
  * The controller's day and night targets, read from its configuration. Influx
  * stores sensors and outputs and never setpoints, so this is the only place a
  * target comes from.
@@ -1005,7 +1028,27 @@ export const setpoints = named(
   z.object({
     day: z.partialRecord(metric, z.number()),
     night: z.partialRecord(metric, z.number()),
-    active: z.enum(['day', 'night']).describe('Which half of the cycle the device says it is in.'),
+    active: z
+      .enum(['day', 'night'])
+      .describe(
+        "Whose figures the device holds now. A fridge and a controller decide it by the clock - the light schedule in their own document, in UTC - and by their work mode, never by whether the lamp shines; an AIR fan by its light sensor. Drying, germination and a light that never comes on hold the night's figures; 24 hours of light the day's.",
+      ),
+    period: z
+      .enum(['day', 'night', 'constant'])
+      .optional()
+      .describe('`constant` where nothing alternates: drying, germination, 24 or 0 hours of light. `active` still says whose figures hold.'),
+    cycle: z
+      .enum(['schedule', 'always_day', 'always_night', 'drying', 'germination', 'sensor'])
+      .optional()
+      .describe(
+        'Why `period` is what it is: the light schedule, 24 or 0 hours of light, a work mode that holds the night round the clock, or an AIR fan going by its light sensor.',
+      ),
+    since: instant().nullable().optional().describe('When the current half began by the schedule; null where nothing alternates or the fan says nothing of it.'),
+    until: instant().nullable().optional().describe('When the current half ends by the schedule; null where nothing alternates or the fan says nothing of it.'),
+    transition: setpointsTransition
+      .nullable()
+      .optional()
+      .describe('Set while the device is changing from one half to the other and the climate is given time to follow; null otherwise.'),
   }),
 );
 
