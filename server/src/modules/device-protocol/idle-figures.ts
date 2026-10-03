@@ -21,7 +21,10 @@ import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
  * of write (a preset, a phase, a plan step, a setting by name) writes what it
  * names: those bring a climate of their own. Germination keeps them from the
  * save that begins it, too: it puts aside only the night it writes over, so a
- * day sent with it would be the day the device wakes up to afterwards.
+ * day sent with it would be the day the device wakes up to afterwards. The
+ * night's humidity is germination's own where a humidifier holds it and the
+ * save shows it - the one humidity a germinating device goes by - and is then
+ * written as sent.
  */
 
 /**
@@ -62,15 +65,22 @@ const hoursOf = (document: DeviceConfiguration | null): number | null => {
 /**
  * `asked` with the figures its mode leaves alone put back to what `before`
  * stored. `workmode` is the mode the write leaves the device in, as the server
- * decided it; `before`'s is the one it was in.
+ * decided it; `before`'s is the one it was in. `humidified` is whether a
+ * humidifier holds the night's humidity in germination and the save sets it.
  */
-export const withIdleFiguresKept = (before: DeviceConfiguration | null, asked: DeviceConfiguration, workmode: string | null): DeviceConfiguration => {
+export const withIdleFiguresKept = (
+  before: DeviceConfiguration | null,
+  asked: DeviceConfiguration,
+  workmode: string | null,
+  humidified = false,
+): DeviceConfiguration => {
   const stays = (mode: string) => workmode === mode && (before?.workmode === mode || mode === 'breed');
   const hours = hoursOf(asked);
   const idle = new Set<string>([
     ...Object.entries(IDLE_IN_MODE).flatMap(([mode, paths]) => (stays(mode) ? paths : [])),
     ...(hours === 24 ? IDLE_ALWAYS_DAY : hours === 0 ? IDLE_ALWAYS_NIGHT : []),
   ]);
+  if (humidified && workmode === 'breed') idle.delete('night.humidity');
 
   const next: DeviceConfiguration = { ...asked };
   for (const path of idle) {

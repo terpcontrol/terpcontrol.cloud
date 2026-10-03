@@ -100,6 +100,11 @@ export const stopped = (): StoredPlanState => atRest('stopped');
  * answered carry the same keys as every other one - and a step that said nothing
  * before a person re-saved it says nothing after.
  *
+ * What germination does about the humidity is kept on a germination step
+ * alone, and `null` on the rest: a step that does not germinate has nothing to
+ * say about it, and a choice carried there would be put on the device as the
+ * one for its next germination.
+ *
  * Two steps under one id would make that lookup pick whichever came first, so a
  * plan that carries one is refused rather than stored and misread later.
  */
@@ -122,14 +127,19 @@ export const stepsOf = (steps: PlanStepInput[]): PlanStep[] => {
         stage: step.stage ?? null,
         preset: step.preset ?? null,
         lightHours: step.lightHours ?? null,
+        germinationChoices: step.stage === 'germination' ? (step.germinationChoices ?? null) : null,
       },
       true,
     ),
   );
 };
 
-/** A step as the contract answers it: one stored before it could name light hours names none. */
-export const answeredStep = (step: PlanStep): PlanStep => ({ ...step, lightHours: step.lightHours ?? null });
+/** A step as the contract answers it: one stored before it could name light hours or germination choices names none. */
+export const answeredStep = (step: PlanStep): PlanStep => ({
+  ...step,
+  lightHours: step.lightHours ?? null,
+  germinationChoices: step.germinationChoices ?? null,
+});
 
 /** Whether a step changes anything on the device: figures of its own, light hours, or a stage, which decides the work mode. */
 export const stepWrites = (step: PlanStep): boolean =>

@@ -190,7 +190,14 @@ describe('what reaches the hardware', () => {
       await owner.client.put(`/v1/devices/${fridge.deviceId}/configuration`).send({ configuration }).expect(200);
 
       const off = await owner.client.get(`/v1/devices/${fridge.deviceId}`).expect(200);
-      expect(off.body.control).toEqual({ running: false, drying: false, mode: 'standard', energySaving: false });
+      expect(off.body.control).toEqual({
+        running: false,
+        drying: false,
+        mode: 'standard',
+        energySaving: false,
+        // Nothing chosen about germination: what holds where nobody said.
+        germinationChoices: { warnTooHumid: false, humidifierHolds: true },
+      });
       // A dry day target dehumidifies from the target itself, in short runs on the long average.
       expect(off.body.configuration.daynight).toEqual({
         day: 21600,
@@ -206,7 +213,7 @@ describe('what reaches the hardware', () => {
         .patch(`/v1/devices/${fridge.deviceId}/configuration`)
         .send({ set: { control: true, energySaving: true } })
         .expect(200);
-      expect(on.body.control).toEqual({ running: true, drying: false, mode: 'standard', energySaving: true });
+      expect(on.body.control).toMatchObject({ running: true, drying: false, mode: 'standard', energySaving: true });
       expect(on.body.configuration.workmode).toBe('full');
       expect(JSON.parse((await listening.waitFor('configuration')).payload).workmode).toBe('full');
 

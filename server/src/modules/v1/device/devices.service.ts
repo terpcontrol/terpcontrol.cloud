@@ -308,7 +308,14 @@ export class DevicesService {
         vpdLeafOffsetNight: device.settings.vpdLeafOffsetNight,
         ppfdLuxFactor: device.settings.ppfdLuxFactor,
       },
-      control: controlOf(device.type, device.configuration, device.baseWorkmode, device.beforeDrying, device.beforeGermination ?? null),
+      control: controlOf(
+        device.type,
+        device.configuration,
+        device.baseWorkmode,
+        device.beforeDrying,
+        device.beforeGermination ?? null,
+        device.germinationChoices ?? null,
+      ),
       isDemo: device.isDemo,
       state: {
         lastSeenAt: device.state.lastSeenAt?.toISOString() ?? null,

@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { Mutex, MutexInterface, withTimeout } from 'async-mutex';
 import { Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { MAINTENANCE_SETTLE_SECONDS, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { restsInGermination } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -90,6 +91,10 @@ export class AlarmEngineService {
         // Asked before the band is, because deciding that costs a query into the
         // stored series for a rule that is patient.
         if (value === undefined || this.saysNothingNew(rule, sample.measuredAt)) continue;
+        if (restsInGermination(rule.watch, device.configuration?.workmode, device.germinationChoices)) {
+          await this.rest(rule, sample.measuredAt);
+          continue;
+        }
 
         await this.evaluate(rule, device, value, sample.measuredAt, await this.isOutOfBand(rule, device.id, value, at));
       }
@@ -154,6 +159,23 @@ export class AlarmEngineService {
 
     if (rule.state.triggered && Number.isFinite(value)) await this.worsen(rule, value, at);
     if (!workedOn) await this.repeat(rule, device, value, at);
+  }
+
+  /**
+   * A "too humid" alarm while its device germinates and the grower asked for
+   * no warning (`restsInGermination`): it watches nothing until germination
+   * ends. An episode it had open goes quiet - nothing is said, neither the
+   * alarm again nor an all-clear the reading did not earn - and its duration
+   * starts over once it watches again, so the end of germination is not met
+   * with an alarm for the hours it rested.
+   */
+  private async rest(rule: StoredAlarmRule, at: Date): Promise<void> {
+    this.insideSince.set(rule.id, at.getTime());
+    if (!rule.state.triggered) return;
+
+    const alert = await this.alerts.openOfRule(rule.id);
+    await this.write(rule, at, { 'state.triggered': false, 'state.extremeValue': null, 'state.lastResolvedAt': new Date() });
+    if (alert) await this.alerts.quieten(alert, new Date());
   }
 
   /** The turn itself: what is written down first, and what is said afterwards. */

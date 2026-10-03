@@ -3,6 +3,7 @@ import {
   alertKind,
   anyValue,
   bytes,
+  germinationChoices,
   growthStage,
   id,
   instant,
@@ -107,8 +108,11 @@ export const deviceControl = named(
     afterGermination: dryingReturn
       .optional()
       .describe(
-        "While germinating: the night's figures from before - germination holds the night's temperature round the clock, so what is set for it is written there - which going back to another mode puts back. Only `nightTemperature` is stated. Absent where nothing was kept.",
+        "While germinating: the night's figures from before - germination holds the night's temperature round the clock, and a humidifier that holds goes by the night's humidity, so what is set for either is written there - which going back to another mode puts back. Only `nightTemperature` and `nightHumidity` are stated. Absent where nothing was kept.",
       ),
+    germinationChoices: germinationChoices.describe(
+      'What germination does about the humidity on this device: what was chosen last, or what holds where nothing was (`GERMINATION_CHOICES`). Kept for the next germination as well, and acted on only while the device germinates.',
+    ),
   }),
 );
 
@@ -212,11 +216,21 @@ export const deviceUpdate = named(
  * `germination` is the same for germination in the dark: true puts the device
  * into it, false brings it back to its standard mode, and left out it goes on
  * as it is. The work mode in the document is the server's to decide and is not
- * read for either.
+ * read for either. `germinationChoices` is what germination does about the
+ * humidity (`GerminationChoices`), kept for whenever the device germinates; a
+ * humidifier that holds goes by the night's humidity sent with it.
  */
 export const deviceConfigurationEnvelope = named(
   'DeviceConfigurationEnvelope',
-  z.object({ configuration: deviceConfiguration, drying: z.boolean().optional(), germination: z.boolean().optional() }),
+  z.object({
+    configuration: deviceConfiguration,
+    drying: z.boolean().optional(),
+    germination: z.boolean().optional(),
+    germinationChoices: germinationChoices
+      .partial()
+      .optional()
+      .describe('What germination does about the humidity, where the save says so. A choice left out stands as it was.'),
+  }),
 );
 
 /**
@@ -683,6 +697,11 @@ export const planStep = named(
       ),
     waitForConfirmation: z.boolean(),
     confirmationMessage: z.string().nullable(),
+    germinationChoices: germinationChoices
+      .nullable()
+      .describe(
+        "What a germination step does about the humidity while it runs, put on the device with the step. Null on every other step, and on a germination step written before it could say, which leaves the device's own.",
+      ),
   }),
 );
 
@@ -738,7 +757,7 @@ export const plan = named(
 );
 
 /**
- * A step as a client writes one. Three fields the server fills in, and each for
+ * A step as a client writes one. Four fields the server fills in, and each for
  * a reason of its own.
  *
  * Its **id** is the server's because identity is: an edit sends back the ids of
@@ -755,8 +774,15 @@ export const plan = named(
  * start driving phases its tent never had. The answer still carries both, always
  * present and `null` where a step says nothing, so what a client reads back is
  * what a client may write.
+ *
+ * Its **germination choices** default to `null` for the same reason, and are
+ * kept only on a germination step: a step that does not germinate has nothing
+ * to say about what germination does.
  */
-export const planStepInput = named('PlanStepInput', planStep.partial({ id: true, stage: true, preset: true, lightHours: true }));
+export const planStepInput = named(
+  'PlanStepInput',
+  planStep.partial({ id: true, stage: true, preset: true, lightHours: true, germinationChoices: true }),
+);
 
 /**
  * `PUT /devices/{id}/plan`. A device runs one plan, so the route both writes the

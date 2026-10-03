@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FIELD_METRIC = exports.OUTPUT_METRIC_FIELD = exports.METRIC_FIELD = exports.METRIC_DECIMALS = exports.TARGET_BAND = exports.outputMetric = exports.metric = exports.schemeWeek = exports.schemeAmount = exports.accountLayers = exports.diaryChoice = exports.unitPreference = exports.volumeUnit = exports.weightUnit = exports.temperatureUnit = exports.growOrSpaceRef = exports.growOrSpaceType = exports.shareKind = exports.reminderKind = exports.growType = exports.spaceKind = exports.planStatus = exports.grantKind = exports.mediaKind = exports.cameraKind = exports.seriesPoint = exports.metricValue = exports.VALUE_AGE = exports.valueState = exports.socketRole = exports.planTransitionKind = exports.notificationChannel = exports.webhookMethod = exports.alertKind = exports.severity = exports.entrySource = exports.entryKind = exports.person = exports.memberRole = exports.growthStage = exports.subjectRef = exports.problem = exports.problemError = exports.page = exports.bytes = exports.anyValue = exports.id = exports.instant = exports.named = exports.registry = void 0;
-exports.FIELD_OUTPUT_METRIC = void 0;
+exports.OUTPUT_METRIC_FIELD = exports.METRIC_FIELD = exports.METRIC_DECIMALS = exports.TARGET_BAND = exports.outputMetric = exports.metric = exports.schemeWeek = exports.schemeAmount = exports.accountLayers = exports.diaryChoice = exports.unitPreference = exports.volumeUnit = exports.weightUnit = exports.temperatureUnit = exports.growOrSpaceRef = exports.growOrSpaceType = exports.shareKind = exports.reminderKind = exports.growType = exports.spaceKind = exports.planStatus = exports.grantKind = exports.mediaKind = exports.cameraKind = exports.seriesPoint = exports.metricValue = exports.VALUE_AGE = exports.valueState = exports.socketRole = exports.planTransitionKind = exports.notificationChannel = exports.webhookMethod = exports.alertKind = exports.severity = exports.entrySource = exports.entryKind = exports.person = exports.memberRole = exports.germinationChoices = exports.growthStage = exports.subjectRef = exports.problem = exports.problemError = exports.page = exports.bytes = exports.anyValue = exports.id = exports.instant = exports.named = exports.registry = void 0;
+exports.FIELD_OUTPUT_METRIC = exports.FIELD_METRIC = void 0;
 const zod_1 = require("zod");
 /**
  * The base of the `/v1` wire contract: the registry, the scalar helpers, the
@@ -82,6 +82,26 @@ exports.subjectRef = subjectRef;
  * seventh value.
  */
 exports.growthStage = (0, exports.named)('GrowthStage', zod_1.z.enum(['germination', 'seedling', 'vegetative', 'flowering', 'drying', 'curing']));
+/**
+ * What a grower decides about the air's humidity while a fridge or a tent
+ * controller germinates in the dark. Germination itself holds one temperature
+ * and dries nothing, but two things go on reading the humidity: a humidifier
+ * socket, which follows the night's humidity in every mode that regulates, and
+ * the alarms that say the air is too humid. Whether either goes on is the
+ * grower's to say (`GERMINATION_CHOICES` in `climate-presets.ts` has what holds
+ * where nobody said).
+ *
+ * It lives here because a device keeps it, and a phase, a climate preset and a
+ * plan step each carry it to the device that germinates.
+ */
+exports.germinationChoices = (0, exports.named)('GerminationChoices', zod_1.z.object({
+    warnTooHumid: zod_1.z
+        .boolean()
+        .describe('Whether the "too humid" alarms of the device - the stage\'s, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends.'),
+    humidifierHolds: zod_1.z
+        .boolean()
+        .describe("Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination."),
+}));
 /** The owner is `spaces.ownerId` and never a membership row, so there is no `owner` role. */
 exports.memberRole = (0, exports.named)('MemberRole', zod_1.z.enum(['can_log', 'can_manage']));
 /**

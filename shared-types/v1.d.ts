@@ -265,6 +265,17 @@ export interface Problem {
   errors: ProblemError[];
 }
 
+export interface GerminationChoices {
+  /**
+   * Whether the "too humid" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends.
+   */
+  warnTooHumid: boolean;
+  /**
+   * Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination.
+   */
+  humidifierHolds: boolean;
+}
+
 export interface Person {
   id: string;
   handle: string;
@@ -787,6 +798,7 @@ export interface DeviceControl {
   energySaving: boolean;
   afterDrying?: DryingReturn1;
   afterGermination?: DryingReturn2;
+  germinationChoices: GerminationChoices1;
 }
 
 /**
@@ -803,7 +815,7 @@ export interface DryingReturn1 {
 }
 
 /**
- * While germinating: the night's figures from before - germination holds the night's temperature round the clock, so what is set for it is written there - which going back to another mode puts back. Only `nightTemperature` is stated. Absent where nothing was kept.
+ * While germinating: the night's figures from before - germination holds the night's temperature round the clock, and a humidifier that holds goes by the night's humidity, so what is set for either is written there - which going back to another mode puts back. Only `nightTemperature` and `nightHumidity` are stated. Absent where nothing was kept.
  */
 
 export interface DryingReturn2 {
@@ -813,6 +825,21 @@ export interface DryingReturn2 {
   nightHumidity: number | null;
   co2: number | null;
   lightLimit: number | null;
+}
+
+/**
+ * What germination does about the humidity on this device: what was chosen last, or what holds where nothing was (`GERMINATION_CHOICES`). Kept for the next germination as well, and acted on only while the device germinates.
+ */
+
+export interface GerminationChoices1 {
+  /**
+   * Whether the "too humid" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends.
+   */
+  warnTooHumid: boolean;
+  /**
+   * Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination.
+   */
+  humidifierHolds: boolean;
 }
 
 export interface DeviceState {
@@ -907,6 +934,19 @@ export interface DeviceConfigurationEnvelope {
   configuration: DeviceConfiguration;
   drying?: boolean;
   germination?: boolean;
+  /**
+   * What germination does about the humidity, where the save says so. A choice left out stands as it was.
+   */
+  germinationChoices?: {
+    /**
+     * Whether the "too humid" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends.
+     */
+    warnTooHumid?: boolean;
+    /**
+     * Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination.
+     */
+    humidifierHolds?: boolean;
+  };
 }
 
 export interface TimerWindow {
@@ -1285,6 +1325,10 @@ export interface PlanStep {
   lightHours: number | null;
   waitForConfirmation: boolean;
   confirmationMessage: string | null;
+  /**
+   * What a germination step does about the humidity while it runs, put on the device with the step. Null on every other step, and on a germination step written before it could say, which leaves the device's own.
+   */
+  germinationChoices: GerminationChoices | null;
 }
 
 export interface PlanNotify {
@@ -1363,6 +1407,10 @@ export interface PlanStepInput {
   lightHours?: number | null;
   waitForConfirmation: boolean;
   confirmationMessage: string | null;
+  /**
+   * What a germination step does about the humidity while it runs, put on the device with the step. Null on every other step, and on a germination step written before it could say, which leaves the device's own.
+   */
+  germinationChoices?: GerminationChoices | null;
 }
 
 export interface PlanReplace {
@@ -2258,6 +2306,19 @@ export interface PresetApplicationCreate {
    * The grow to move here.
    */
   growId?: string;
+  /**
+   * What germination does about the humidity on the devices put into it. Read with the germination stage alone; a choice left out stands.
+   */
+  germinationChoices?: {
+    /**
+     * Whether the "too humid" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends.
+     */
+    warnTooHumid?: boolean;
+    /**
+     * Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination.
+     */
+    humidifierHolds?: boolean;
+  };
 }
 
 export interface PresetApplication {
@@ -2351,6 +2412,19 @@ export interface PhaseCreate {
    * Absent or null is every plant.
    */
   plantIds?: string[] | null;
+  /**
+   * What germination does about the humidity on the devices its climate puts into it. Read with the germination stage and its climate alone; a choice left out stands.
+   */
+  germinationChoices?: {
+    /**
+     * Whether the "too humid" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends.
+     */
+    warnTooHumid?: boolean;
+    /**
+     * Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination.
+     */
+    humidifierHolds?: boolean;
+  };
 }
 
 export interface PlacementCreate {

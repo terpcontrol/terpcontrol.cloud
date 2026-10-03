@@ -606,6 +606,7 @@ describe('what a preset and a plan step write', () => {
     lightHours: null,
     waitForConfirmation: false,
     confirmationMessage: null,
+    germinationChoices: null,
     ...over,
   });
 

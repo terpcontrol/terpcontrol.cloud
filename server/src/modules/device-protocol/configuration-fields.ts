@@ -41,6 +41,8 @@ export const fieldChangesOf = (type: string, set: Record<string, Value>): FieldC
       if (name === 'drying') changes.intent.drying = value as boolean;
       if (name === 'energySaving') changes.intent.energySaving = value as boolean;
       if (name === 'mode') changes.intent.mode = value as OperatingMode;
+      if (name === 'germinationWarnTooHumid') changes.intent.choices = { ...changes.intent.choices, warnTooHumid: value as boolean };
+      if (name === 'germinationHumidifier') changes.intent.choices = { ...changes.intent.choices, humidifierHolds: value as boolean };
     } else {
       changes.figures.push([field!.path, stored(field!, value)]);
     }

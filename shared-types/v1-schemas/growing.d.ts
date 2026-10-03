@@ -783,6 +783,10 @@ export declare const presetApplicationCreate: z.ZodObject<{
         climate_only: "climate_only";
     }>>;
     growId: z.ZodOptional<z.ZodString>;
+    germinationChoices: z.ZodOptional<z.ZodObject<{
+        warnTooHumid: z.ZodOptional<z.ZodBoolean>;
+        humidifierHolds: z.ZodOptional<z.ZodBoolean>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
  * What applying a preset did. Nothing of it is stored - what lasts is the phase,
@@ -1019,6 +1023,10 @@ export declare const phaseCreate: z.ZodObject<{
     climate: z.ZodOptional<z.ZodBoolean>;
     startedAt: z.ZodOptional<z.ZodISODateTime>;
     plantIds: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>;
+    germinationChoices: z.ZodOptional<z.ZodObject<{
+        warnTooHumid: z.ZodOptional<z.ZodBoolean>;
+        humidifierHolds: z.ZodOptional<z.ZodBoolean>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 /** A move: the open placement of these plants is closed and a new one opened. */
 export declare const placementCreate: z.ZodObject<{

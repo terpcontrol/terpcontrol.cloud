@@ -46,6 +46,7 @@ let engineWith: (announcer: PlanAnnouncer) => PlanEngineService;
 
 let applied: { deviceId: string; settings: DeviceConfiguration }[];
 let appliedFor: (string | null | undefined)[];
+let choicesFor: unknown[];
 let mailed: { to: string; subject: string; text: string }[];
 let stages: { deviceId: string; stage: string; preset: string | null }[];
 
@@ -57,6 +58,7 @@ const step = (partial: Partial<PlanStep> & Pick<PlanStep, 'id' | 'name'>): PlanS
   lightHours: null,
   waitForConfirmation: false,
   confirmationMessage: null,
+  germinationChoices: null,
   ...partial,
 });
 
@@ -132,13 +134,15 @@ beforeEach(async () => {
   await db.reset();
   applied = [];
   appliedFor = [];
+  choicesFor = [];
   mailed = [];
   stages = [];
 
   const configuration: DeviceConfigurationWriter = {
-    applyConfiguration: async (deviceId, settings, stage) => {
+    applyConfiguration: async (deviceId, settings, stage, choices) => {
       applied.push({ deviceId, settings });
       appliedFor.push(stage);
+      choicesFor.push(choices);
       return true;
     },
   };
@@ -247,6 +251,24 @@ describe('what the step is applied to', () => {
 
     expect(applied).toEqual([{ deviceId: DEVICE, settings: {} }]);
     expect(appliedFor).toEqual(['drying']);
+  });
+
+  /**
+   * What a germination step does about the humidity goes with it on every send,
+   * the hourly one included: the plan holds it as it holds its figures, so a
+   * grower who changed it by hand is put back within the hour - as a figure is.
+   */
+  it('sends a germination step´s choices about the humidity with it, every hour', async () => {
+    await aDevice();
+    const choices = { warnTooHumid: true, humidifierHolds: false };
+    await aPlan([step({ id: 'a', name: 'Keimung', stage: 'germination', settings: { night: { temperature: 24 } }, germinationChoices: choices })]);
+
+    await engine.run(NOW);
+    await db.devices.updateOne({ id: DEVICE }, { $set: { 'state.lastSeenAt': at(HOUR + MINUTE) } });
+    await engine.run(at(HOUR + MINUTE));
+
+    expect(appliedFor).toEqual(['germination', 'germination']);
+    expect(choicesFor).toEqual([choices, choices]);
   });
 
   it('sends a step´s light hours as the device´s own morning and the evening that many hours later', async () => {
@@ -662,6 +684,22 @@ describe('replacing the steps', () => {
     await transitions.replace(DEVICE, replacement(first.steps));
 
     expect((await storedFor()).steps).toEqual(first.steps);
+  });
+
+  it('keeps what germination does about the humidity on a germination step alone', async () => {
+    await aDevice();
+    const choices = { warnTooHumid: false, humidifierHolds: false };
+
+    const written = await transitions.replace(
+      DEVICE,
+      replacement([
+        { ...newStep('Keimung'), stage: 'germination', germinationChoices: choices },
+        { ...newStep('Sämling'), stage: 'seedling', germinationChoices: choices },
+        newStep('Woche 3'),
+      ]),
+    );
+
+    expect(written.steps.map(one => one.germinationChoices)).toEqual([choices, null, null]);
   });
 
   it('refuses two steps under one id, which would make the running step ambiguous', async () => {

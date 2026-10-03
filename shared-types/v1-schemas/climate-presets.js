@@ -39,7 +39,7 @@
  * stage watches for cannot drift from what it asks for.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.stageAlarmBands = exports.CO2_ALARM_PPM = exports.climatePreset = exports.STAGES_WITH_CLIMATE = exports.PRESETS_OF_STAGE = exports.GERMINATION_TEMPERATURE = exports.AMBIENT_CO2 = void 0;
+exports.restsInGermination = exports.watchesTooHumid = exports.germinationChoicesOf = exports.GERMINATION_CHOICES = exports.GERMINATION_TOO_HUMID = exports.stageAlarmBands = exports.CO2_ALARM_PPM = exports.climatePreset = exports.STAGES_WITH_CLIMATE = exports.PRESETS_OF_STAGE = exports.GERMINATION_TEMPERATURE = exports.AMBIENT_CO2 = void 0;
 /** What outdoor air holds: the target a stage that does not enrich is written with. */
 exports.AMBIENT_CO2 = 400;
 /**
@@ -98,8 +98,10 @@ const MINUTE = 60;
 /**
  * The rules a stage implies, or null for a stage with no climate: curing
  * happens in a jar, and a rule watching a flowering band there is noise.
- * Germination holds no humidity, so it implies no rule about one: seeds are
- * kept moist, and a sprouting tray reads far above any band meant for leaves.
+ * Germination holds no humidity, so its "too humid" is not ten points over a
+ * target but the line where germination itself goes wrong
+ * (`GERMINATION_TOO_HUMID`), and it rests unless the grower asks to be warned
+ * (`restsInGermination`).
  *
  * Each margin is what tells a failure from weather. Five degrees over the day
  * target is a cooler that has failed rather than a warm afternoon, and it is
@@ -118,11 +120,10 @@ const stageAlarmBands = (stage, preset) => {
         return null;
     const warmest = climate.dayTemperature ?? climate.nightTemperature;
     const humidities = [climate.dayHumidity, climate.nightHumidity].filter((value) => value !== null);
+    const tooHumid = humidities.length > 0 ? Math.max(...humidities) + 10 : stage === 'germination' ? exports.GERMINATION_TOO_HUMID : null;
     const bands = [
         { key: 'too_hot', watch: reading('temperature', warmest + 5, null), forSeconds: 10 * MINUTE, severity: 'critical' },
-        humidities.length === 0
-            ? null
-            : { key: 'too_humid', watch: reading('humidity', Math.max(...humidities) + 10, null), forSeconds: 20 * MINUTE, severity: 'warning' },
+        tooHumid === null ? null : { key: 'too_humid', watch: reading('humidity', tooHumid, null), forSeconds: 20 * MINUTE, severity: 'warning' },
         { key: 'too_cold', watch: reading('temperature', null, climate.nightTemperature - 4), forSeconds: 15 * MINUTE, severity: 'critical' },
         { key: 'co2_high', watch: reading('co2', exports.CO2_ALARM_PPM, null), forSeconds: 10 * MINUTE, severity: 'warning' },
     ];
@@ -135,3 +136,48 @@ const reading = (metric, upper, lower) => ({
     upper,
     lower,
 });
+/* ----------------------------------------------------- germination choices */
+/**
+ * Germination's "too humid": air wetter than this for twenty minutes in the
+ * dark. Seeds sprout well anywhere from about 70 to 90 % - a germination box is
+ * meant to be humid - and above it water stands on the medium and on the tray,
+ * which is where mould and damping-off begin. Germination holds no humidity of
+ * its own, so this is the line itself rather than ten points over a target.
+ */
+exports.GERMINATION_TOO_HUMID = 90;
+/**
+ * What holds where the grower has not chosen, which is also what every device
+ * did before there was a choice, so that no tent changes by itself:
+ *
+ * - The "too humid" alarms rest. Seeds are kept moist on purpose, a germination
+ *   box reads far above any band meant for leaves, and an alarm that goes off
+ *   every night of a germination teaches the grower to stop reading alarms.
+ * - A humidifier socket goes on holding the night's humidity. Dry air is what
+ *   fails a germination - the medium dries out and the seed coat hardens - and
+ *   a humidifier only ever adds moisture up to its target, so it cannot make
+ *   the box too wet. It is also what the firmware has always done in the dark.
+ */
+exports.GERMINATION_CHOICES = { warnTooHumid: false, humidifierHolds: true };
+/** The choices a device keeps, or what holds where it keeps none; a choice it does not state is the default's. */
+const germinationChoicesOf = (kept) => ({
+    warnTooHumid: typeof kept?.warnTooHumid === 'boolean' ? kept.warnTooHumid : exports.GERMINATION_CHOICES.warnTooHumid,
+    humidifierHolds: typeof kept?.humidifierHolds === 'boolean' ? kept.humidifierHolds : exports.GERMINATION_CHOICES.humidifierHolds,
+});
+exports.germinationChoicesOf = germinationChoicesOf;
+/**
+ * Whether a rule is a "too humid" alarm: it watches the humidity from above
+ * and from nowhere else. That is the stage's, and the one-tap template's. A
+ * rule that keeps the humidity inside a band from both sides watches for dry
+ * air as well, and is never rested for germination.
+ */
+const watchesTooHumid = (watch) => watch.kind === 'reading' && watch.metric === 'humidity' && typeof watch.upper === 'number' && (watch.lower ?? null) === null;
+exports.watchesTooHumid = watchesTooHumid;
+/**
+ * Whether a rule rests now: its device germinates in the dark (`breed`), the
+ * grower did not ask to be warned, and it is a "too humid" alarm. It is not
+ * switched off - what a person set on it stays - and it watches again the
+ * moment germination ends or the grower asks to be warned. The alarm engine
+ * decides by this, and the screens say it by the same rule.
+ */
+const restsInGermination = (watch, workmode, kept) => workmode === 'breed' && !(0, exports.germinationChoicesOf)(kept).warnTooHumid && (0, exports.watchesTooHumid)(watch);
+exports.restsInGermination = restsInGermination;

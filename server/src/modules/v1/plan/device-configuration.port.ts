@@ -1,4 +1,4 @@
-import type { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
+import type { DeviceConfiguration, GerminationChoices, GrowthStage } from '@fg2/shared-types/v1';
 
 /**
  * Putting a device on the settings a plan step carries.
@@ -14,10 +14,16 @@ export interface DeviceConfigurationWriter {
    * sends it. A step that carries the whole document therefore replaces it, which
    * is what the plan screen has always written. `stage` is the stage the step
    * is for: a drying one puts the device into its drying mode, and any other
-   * switches a device that was off or drying back on. True when something
-   * changed.
+   * switches a device that was off or drying back on. `choices` is what a
+   * germination step does about the humidity, kept on the device. True when
+   * something changed.
    */
-  applyConfiguration(deviceId: string, settings: DeviceConfiguration, stage?: GrowthStage | null): Promise<boolean>;
+  applyConfiguration(
+    deviceId: string,
+    settings: DeviceConfiguration,
+    stage?: GrowthStage | null,
+    choices?: Partial<GerminationChoices>,
+  ): Promise<boolean>;
 }
 
 export const DEVICE_CONFIGURATION_WRITER = Symbol('DeviceConfigurationWriter');

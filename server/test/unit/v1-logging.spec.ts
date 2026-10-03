@@ -535,6 +535,7 @@ describe('ticking a plan step off', () => {
     lightHours: null,
     waitForConfirmation: false,
     confirmationMessage: null,
+    germinationChoices: null,
     ...partial,
   });
 

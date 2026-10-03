@@ -90,6 +90,16 @@ export class AlertService {
   }
 
   /**
+   * Its rule has stopped watching for a while - a "too humid" alarm resting
+   * while the device germinates - so the episode goes quiet rather than
+   * resolved: nobody is told, and the record does not claim the reading came
+   * back.
+   */
+  public async quieten(alert: StoredAlert, at: Date): Promise<void> {
+    await this.alerts.updateOne({ id: alert.id }, { $set: { resolvedAt: at } });
+  }
+
+  /**
    * That it is still on, said again because the rule asks to be reminded.
    * Nothing is written to the timeline: the episode is already in it, and a
    * repeat is not a second thing that happened.

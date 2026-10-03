@@ -1,5 +1,5 @@
 import { createAccount, Session } from '../support/api';
-import { DeviceCredentials, DeviceType, provisionDevice } from '../support/device';
+import { DeviceCredentials, DeviceType, provisionDevice, settle, startSimulator } from '../support/device';
 
 /**
  * Germination over HTTP: the one meaning the stage has wherever it is chosen -
@@ -99,7 +99,7 @@ describe('the germination preset', () => {
     expect(await controlOf(device)).toMatchObject({ mode: 'standard', energySaving: true });
   });
 
-  it('watches the temperature it holds and no humidity, which it does not hold', async () => {
+  it('watches the temperature it holds, and the air past where seeds go mouldy', async () => {
     const { device, spaceId } = await placed('controller');
     await growIn(spaceId);
 
@@ -109,9 +109,11 @@ describe('the germination preset', () => {
       (rule: { origin: string }) => rule.origin === 'preset',
     );
     const watched = Object.fromEntries(rules.map((rule: { name: string; watch: unknown }) => [rule.name, rule.watch]));
-    expect(Object.keys(watched).sort()).toEqual(['CO₂ too high', 'Too cold', 'Too hot']);
+    expect(Object.keys(watched).sort()).toEqual(['CO₂ too high', 'Too cold', 'Too hot', 'Too humid']);
     expect(watched['Too hot']).toMatchObject({ metric: 'temperature', upper: 29 });
     expect(watched['Too cold']).toMatchObject({ metric: 'temperature', lower: 20 });
+    // It rests unless the grower asks to be warned (`a "too humid" alarm in germination` below).
+    expect(watched['Too humid']).toMatchObject({ metric: 'humidity', upper: 90, lower: null });
   });
 });
 
@@ -161,7 +163,7 @@ describe('a grow entering germination', () => {
       .send({ configuration: document({ night: { temperature: 24, humidity: 55 } }), germination: true })
       .expect(200);
     await owner.client.post(`/v1/grows/${seeds}/phases`).send({ stage: 'germination' }).expect(201);
-    expect(Object.keys(await stageRules(dark.device)).sort()).toEqual(['CO₂ too high', 'Too cold', 'Too hot']);
+    expect(Object.keys(await stageRules(dark.device)).sort()).toEqual(['CO₂ too high', 'Too cold', 'Too hot', 'Too humid']);
 
     // The new-grow sheet: the phase recorded first, and the place put on its climate a moment later.
     const lit = await placed('fridge');
@@ -170,8 +172,7 @@ describe('a grow entering germination', () => {
     expect(await stageRules(lit.device)).toEqual({});
     await owner.client.post(`/v1/spaces/${lit.spaceId}/preset-applications`).send({ stage: 'germination' }).expect(201);
     expect(await configurationOf(lit.device)).toMatchObject({ workmode: 'breed' });
-    expect(await stageRules(lit.device)).toMatchObject({ 'Too cold': { lower: 20 }, 'Too hot': { upper: 29 } });
-    expect(Object.keys(await stageRules(lit.device))).not.toContain('Too humid');
+    expect(await stageRules(lit.device)).toMatchObject({ 'Too cold': { lower: 20 }, 'Too hot': { upper: 29 }, 'Too humid': { upper: 90 } });
   });
 });
 
@@ -221,5 +222,152 @@ describe('the operating mode of a tent controller', () => {
       .send({ set: { mode: 'standard' } })
       .expect(200);
     expect(await configurationOf(device)).toMatchObject({ workmode: 'small', night: { temperature: 20 } });
+  });
+});
+
+/**
+ * What germination does about the humidity (owner's decision G2): the grower
+ * chooses whether the "too humid" alarms go on warning and whether a
+ * humidifier socket goes on holding the night's humidity. Chosen wherever
+ * germination is set - the targets, the operating mode, a phase or a preset
+ * with its climate, a plan step - and kept on the device.
+ */
+describe('the choices germination makes about the humidity', () => {
+  const bandOf = async (device: DeviceCredentials) => (await configurationOf(device)).daynight?.targetHumidityDiff;
+
+  it('rest the alarms and keep a humidifier holding until somebody says otherwise, and are kept where the targets are saved', async () => {
+    const { device } = await placed('controller');
+    expect((await controlOf(device)).germinationChoices).toEqual({ warnTooHumid: false, humidifierHolds: true });
+
+    await owner.client
+      .put(`/v1/devices/${device.deviceId}/configuration`)
+      .send({
+        configuration: document({ night: { temperature: 24, humidity: 80 } }),
+        germination: true,
+        germinationChoices: { warnTooHumid: true, humidifierHolds: true },
+      })
+      .expect(200);
+
+    expect(await controlOf(device)).toMatchObject({ mode: 'germination', germinationChoices: { warnTooHumid: true, humidifierHolds: true } });
+    // The humidity a humidifier holds is the night's, written as the page showed it.
+    expect(await configurationOf(device)).toMatchObject({ workmode: 'breed', night: { temperature: 24, humidity: 80 } });
+  });
+
+  it('rest a humidifier for the germination a preset starts, and only for germination', async () => {
+    const { device, spaceId } = await placed('controller');
+
+    await owner.client
+      .post(`/v1/spaces/${spaceId}/preset-applications`)
+      .send({ stage: 'germination', germinationChoices: { humidifierHolds: false } })
+      .expect(201);
+    expect(await bandOf(device)).toBe(100);
+    expect((await controlOf(device)).germinationChoices).toEqual({ warnTooHumid: false, humidifierHolds: false });
+
+    // The seedling brings the light back, and the humidifier holds again with the band it had.
+    await owner.client
+      .post(`/v1/spaces/${spaceId}/preset-applications`)
+      .send({ stage: 'seedling', germinationChoices: { warnTooHumid: true } })
+      .expect(201);
+    expect(await bandOf(device)).not.toBe(100);
+    expect((await controlOf(device)).germinationChoices).toEqual({ warnTooHumid: false, humidifierHolds: false });
+  });
+
+  it('come with a phase that writes the germination climate, and with the operating mode by name', async () => {
+    const { device, spaceId } = await placed('fridge');
+    const grow = await growIn(spaceId);
+
+    await owner.client
+      .post(`/v1/grows/${grow}/phases`)
+      .send({ stage: 'germination', climate: true, germinationChoices: { warnTooHumid: true, humidifierHolds: false } })
+      .expect(201);
+    expect(await controlOf(device)).toMatchObject({ mode: 'germination', germinationChoices: { warnTooHumid: true, humidifierHolds: false } });
+    expect(await bandOf(device)).toBe(100);
+
+    const answer = await owner.client
+      .patch(`/v1/devices/${device.deviceId}/configuration`)
+      .send({ set: { germinationHumidifier: true, germinationWarnTooHumid: false } })
+      .expect(200);
+    expect(answer.body.control.germinationChoices).toEqual({ warnTooHumid: false, humidifierHolds: true });
+    expect(await bandOf(device)).toBe(5);
+  });
+
+  it('are kept on a germination step of a plan, and on no other', async () => {
+    const { device } = await placed('controller');
+    const choices = { warnTooHumid: true, humidifierHolds: false };
+
+    const plan = await owner.client
+      .put(`/v1/devices/${device.deviceId}/plan`)
+      .send({
+        templateId: null,
+        name: 'Seeds',
+        loop: false,
+        notify: { mode: 'off', email: null, writeEntries: false },
+        steps: [
+          {
+            name: 'Keimung',
+            stage: 'germination',
+            duration: { value: 4, unit: 'days' },
+            settings: { night: { temperature: 24 } },
+            waitForConfirmation: false,
+            confirmationMessage: null,
+            germinationChoices: choices,
+          },
+          {
+            name: 'Sämling',
+            stage: 'seedling',
+            duration: { value: 2, unit: 'weeks' },
+            settings: {},
+            waitForConfirmation: false,
+            confirmationMessage: null,
+            germinationChoices: choices,
+          },
+        ],
+      })
+      .expect(200);
+
+    expect(plan.body.steps.map((step: { germinationChoices: unknown }) => step.germinationChoices)).toEqual([choices, null]);
+  });
+
+  it('rest a "too humid" alarm while the device germinates, and wake it when the grower asks to be warned', async () => {
+    const { device } = await placed('controller');
+    const simulator = await startSimulator(device);
+    try {
+      await settle();
+      const rule = (
+        await owner.client
+          .post(`/v1/devices/${device.deviceId}/alarm-rules`)
+          .send({
+            name: 'Zu feucht',
+            watch: { kind: 'reading', metric: 'humidity', upper: 70, lower: null },
+            forSeconds: 0,
+            severity: 'warning',
+            enabled: true,
+            cooldownSeconds: 0,
+            repeatSeconds: 0,
+            delivery: { mode: 'routing', custom: null },
+          })
+          .expect(201)
+      ).body;
+      await owner.client
+        .patch(`/v1/devices/${device.deviceId}/configuration`)
+        .send({ set: { mode: 'germination' } })
+        .expect(200);
+
+      await simulator.reportStatus({ temperature: 24, humidity: 92 });
+      await settle(1500);
+      const quiet = (await owner.client.get(`/v1/alerts?deviceId=${device.deviceId}`).expect(200)).body.items;
+      expect(quiet.filter((alert: { ruleId: string }) => alert.ruleId === rule.id)).toEqual([]);
+
+      await owner.client
+        .patch(`/v1/devices/${device.deviceId}/configuration`)
+        .send({ set: { germinationWarnTooHumid: true } })
+        .expect(200);
+      await simulator.reportStatus({ temperature: 24, humidity: 93 });
+      await settle(1500);
+      const raised = (await owner.client.get(`/v1/alerts?deviceId=${device.deviceId}`).expect(200)).body.items;
+      expect(raised.filter((alert: { ruleId: string }) => alert.ruleId === rule.id)).toHaveLength(1);
+    } finally {
+      await simulator.close();
+    }
   });
 });

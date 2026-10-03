@@ -25,13 +25,26 @@ export interface MetricSample {
   outputs: Partial<Record<OutputMetric, number>>;
 }
 
-/** The little of a device an alarm is about: where it is, and whether it is being worked on. */
-export type AlarmDevice = Pick<StoredDevice, 'id' | 'spaceId' | 'ownerId'> & {
+/**
+ * The little of a device an alarm is about: where it is, whether it is being
+ * worked on, and whether it germinates with its "too humid" alarms resting -
+ * its work mode and what the grower chose about that.
+ */
+export type AlarmDevice = Pick<StoredDevice, 'id' | 'spaceId' | 'ownerId' | 'germinationChoices'> & {
   state: Pick<StoredDeviceState, 'lastSeenAt' | 'maintenanceUntil'>;
+  configuration?: { workmode?: unknown } | null;
 };
 
 /** What every read of a device for the alarms selects, so the shape and the projection cannot drift. */
-export const ALARM_DEVICE_FIELDS = { id: 1, spaceId: 1, ownerId: 1, 'state.lastSeenAt': 1, 'state.maintenanceUntil': 1 } as const;
+export const ALARM_DEVICE_FIELDS = {
+  id: 1,
+  spaceId: 1,
+  ownerId: 1,
+  'state.lastSeenAt': 1,
+  'state.maintenanceUntil': 1,
+  'configuration.workmode': 1,
+  germinationChoices: 1,
+} as const;
 
 /** Whether the alert was raised or is over. A repeat says `triggered` again. */
 export type AlarmEvent = 'triggered' | 'resolved';

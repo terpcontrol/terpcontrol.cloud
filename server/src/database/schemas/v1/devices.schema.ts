@@ -83,13 +83,29 @@ export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'cont
    */
   beforeDrying: Record<string, number> | null;
   /**
-   * The night's temperature from before germination began. Germination holds
-   * the night's temperature round the clock, so what is set for it is written
-   * there; going back to another mode by itself puts the night back rather than
-   * leaving every night at the germination temperature. Null while not
-   * germinating, and on a device that began before this was kept.
+   * The night's temperature and humidity from before germination began.
+   * Germination holds the night's temperature round the clock, and a humidifier
+   * that holds goes by the night's humidity, so what is set for either is
+   * written there; going back to another mode by itself puts the night back
+   * rather than leaving every night at the germination's figures. Null while
+   * not germinating, and on a device that began before this was kept.
    */
   beforeGermination?: Record<string, number> | null;
+  /**
+   * What the grower chose germination to do about the humidity: whether the
+   * "too humid" alarms warn and whether a humidifier socket holds the night's
+   * humidity while the device germinates. Null - or a choice it does not state -
+   * is the default (`GERMINATION_CHOICES`). Kept beside the work mode because
+   * the firmware has no word for either, and served as `control`.
+   */
+  germinationChoices?: { warnTooHumid?: boolean; humidifierHolds?: boolean } | null;
+  /**
+   * The humidity band of the document - `daynight.targetHumidityDiff`, which a
+   * controller's dehumidifier switches by - from before a humidifier was rested
+   * for germination by widening it until it never switches on. Put back when the
+   * humidifier holds again; null while nothing is rested, or nothing was stated.
+   */
+  restedHumidityBand?: number | null;
   /**
    * The password the device last said its Terp Cam is secured with, null for
    * the manufacturer's default. The camera row keeps its own copy, and this one
@@ -188,6 +204,8 @@ export const devicesSchema = new Schema<StoredDevice>(
     standardWorkmode: { type: String, default: null },
     beforeDrying: { type: Schema.Types.Mixed, default: null },
     beforeGermination: { type: Schema.Types.Mixed, default: null },
+    germinationChoices: { type: Schema.Types.Mixed, default: null },
+    restedHumidityBand: { type: Number, default: null },
     // Never served, and not read unless asked for: the camera's password.
     cameraSecret: { type: String, default: null, select: false },
     firmware: { type: firmwareTargetSchema, required: true, default: () => ({}) },

@@ -68,6 +68,25 @@ describe('the bands a stage implies', () => {
   it('has nothing to say about a jar', () => {
     expect(stageAlarmBands('curing', null)).toBeNull();
   });
+
+  /**
+   * Germination holds one temperature in the dark and no humidity, so its
+   * "too humid" is the line where germination itself goes wrong rather than ten
+   * points over a target - and the engine rests it unless the grower asks to be
+   * warned (`restsInGermination`).
+   */
+  it('watches germination´s one temperature, and the air past where seeds go mouldy', () => {
+    const bands = Object.fromEntries((stageAlarmBands('germination', null) ?? []).map(band => [band.key, band]));
+
+    expect(bands.too_hot.watch.upper).toBe(29);
+    expect(bands.too_cold.watch.lower).toBe(20);
+    expect(bands.too_humid).toEqual({
+      key: 'too_humid',
+      watch: { kind: 'reading', metric: 'humidity', upper: 90, lower: null },
+      forSeconds: 1200,
+      severity: 'warning',
+    });
+  });
 });
 
 describe('the rules the stage writes on a device', () => {

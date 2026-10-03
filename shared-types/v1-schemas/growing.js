@@ -375,6 +375,10 @@ exports.presetApplicationCreate = (0, common_js_1.named)('PresetApplicationCreat
     preset: zod_1.z.string().nullable().optional().describe("Absent or null applies the stage's own targets with no preset on top."),
     decision: exports.growDecision.optional(),
     growId: (0, common_js_1.id)().optional().describe('The grow to move here.'),
+    germinationChoices: common_js_1.germinationChoices
+        .partial()
+        .optional()
+        .describe('What germination does about the humidity on the devices put into it. Read with the germination stage alone; a choice left out stands.'),
 }));
 /**
  * What applying a preset did. Nothing of it is stored - what lasts is the phase,
@@ -478,6 +482,10 @@ exports.phaseCreate = (0, common_js_1.named)('PhaseCreate', zod_1.z.object({
         .describe("Whether the stage's climate is written to the controllers where the plants stand. A preset always writes it; true writes the stage's own climate without one. Absent is false."),
     startedAt: (0, common_js_1.instant)().optional().describe('Defaults to now.'),
     plantIds: zod_1.z.array((0, common_js_1.id)()).nullable().optional().describe('Absent or null is every plant.'),
+    germinationChoices: common_js_1.germinationChoices
+        .partial()
+        .optional()
+        .describe('What germination does about the humidity on the devices its climate puts into it. Read with the germination stage and its climate alone; a choice left out stands.'),
 }));
 /** A move: the open placement of these plants is closed and a new one opened. */
 exports.placementCreate = (0, common_js_1.named)('PlacementCreate', zod_1.z.object({
@@ -563,7 +571,7 @@ exports.plantUpdate = (0, common_js_1.named)('PlantUpdate', exports.plant.pick({
  * who put the grow into this phase did not change because the date was typed
  * wrongly.
  */
-exports.phaseUpdate = (0, common_js_1.named)('PhaseUpdate', exports.phaseCreate.omit({ climate: true }).partial());
+exports.phaseUpdate = (0, common_js_1.named)('PhaseUpdate', exports.phaseCreate.omit({ climate: true, germinationChoices: true }).partial());
 /**
  * `PATCH /grows/{id}/placements/{placementId}`. Moving the plants is what
  * `POST /grows/{id}/placements` does; this repairs a placement recorded wrongly, `endedAt` included, which is also how a

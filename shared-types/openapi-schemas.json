@@ -64,6 +64,23 @@
       "curing"
     ]
   },
+  "GerminationChoices": {
+    "type": "object",
+    "properties": {
+      "warnTooHumid": {
+        "type": "boolean",
+        "description": "Whether the \"too humid\" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends."
+      },
+      "humidifierHolds": {
+        "type": "boolean",
+        "description": "Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination."
+      }
+    },
+    "required": [
+      "warnTooHumid",
+      "humidifierHolds"
+    ]
+  },
   "MemberRole": {
     "type": "string",
     "enum": [
@@ -2012,15 +2029,20 @@
         "$ref": "#/components/schemas/DryingReturn"
       },
       "afterGermination": {
-        "description": "While germinating: the night's figures from before - germination holds the night's temperature round the clock, so what is set for it is written there - which going back to another mode puts back. Only `nightTemperature` is stated. Absent where nothing was kept.",
+        "description": "While germinating: the night's figures from before - germination holds the night's temperature round the clock, and a humidifier that holds goes by the night's humidity, so what is set for either is written there - which going back to another mode puts back. Only `nightTemperature` and `nightHumidity` are stated. Absent where nothing was kept.",
         "$ref": "#/components/schemas/DryingReturn"
+      },
+      "germinationChoices": {
+        "description": "What germination does about the humidity on this device: what was chosen last, or what holds where nothing was (`GERMINATION_CHOICES`). Kept for the next germination as well, and acted on only while the device germinates.",
+        "$ref": "#/components/schemas/GerminationChoices"
       }
     },
     "required": [
       "running",
       "drying",
       "mode",
-      "energySaving"
+      "energySaving",
+      "germinationChoices"
     ]
   },
   "DeviceState": {
@@ -2368,6 +2390,20 @@
       },
       "germination": {
         "type": "boolean"
+      },
+      "germinationChoices": {
+        "description": "What germination does about the humidity, where the save says so. A choice left out stands as it was.",
+        "type": "object",
+        "properties": {
+          "warnTooHumid": {
+            "type": "boolean",
+            "description": "Whether the \"too humid\" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends."
+          },
+          "humidifierHolds": {
+            "type": "boolean",
+            "description": "Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination."
+          }
+        }
       }
     },
     "required": [
@@ -3505,6 +3541,17 @@
           "string",
           "null"
         ]
+      },
+      "germinationChoices": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/GerminationChoices"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "What a germination step does about the humidity while it runs, put on the device with the step. Null on every other step, and on a germination step written before it could say, which leaves the device's own."
       }
     },
     "required": [
@@ -3516,7 +3563,8 @@
       "settings",
       "lightHours",
       "waitForConfirmation",
-      "confirmationMessage"
+      "confirmationMessage",
+      "germinationChoices"
     ]
   },
   "PlanNotifyMode": {
@@ -3766,6 +3814,17 @@
           "string",
           "null"
         ]
+      },
+      "germinationChoices": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/GerminationChoices"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "What a germination step does about the humidity while it runs, put on the device with the step. Null on every other step, and on a germination step written before it could say, which leaves the device's own."
       }
     },
     "required": [
@@ -6980,6 +7039,20 @@
         "description": "The grow to move here.",
         "type": "string",
         "minLength": 1
+      },
+      "germinationChoices": {
+        "description": "What germination does about the humidity on the devices put into it. Read with the germination stage alone; a choice left out stands.",
+        "type": "object",
+        "properties": {
+          "warnTooHumid": {
+            "type": "boolean",
+            "description": "Whether the \"too humid\" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends."
+          },
+          "humidifierHolds": {
+            "type": "boolean",
+            "description": "Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination."
+          }
+        }
       }
     },
     "required": [
@@ -7308,6 +7381,20 @@
             "type": "null"
           }
         ]
+      },
+      "germinationChoices": {
+        "description": "What germination does about the humidity on the devices its climate puts into it. Read with the germination stage and its climate alone; a choice left out stands.",
+        "type": "object",
+        "properties": {
+          "warnTooHumid": {
+            "type": "boolean",
+            "description": "Whether the \"too humid\" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends."
+          },
+          "humidifierHolds": {
+            "type": "boolean",
+            "description": "Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination."
+          }
+        }
       }
     },
     "required": [

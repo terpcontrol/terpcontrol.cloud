@@ -116,7 +116,11 @@ export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
       // empty change to the firmware, which rebuilds its whole settings from it.
       // One that only names a stage sends the document the device already runs,
       // with the work mode that stage asks for.
-      if (writes && (await this.configuration.applyConfiguration(plan.deviceId, settingsSent(step, device?.configuration ?? null), step.stage))) {
+      const sent = settingsSent(step, device?.configuration ?? null);
+      // A germination step's choices go with it, every hour: the plan holds what
+      // germination does about the humidity as it holds the figures it writes.
+      const choices = step.stage === 'germination' ? (step.germinationChoices ?? undefined) : undefined;
+      if (writes && (await this.configuration.applyConfiguration(plan.deviceId, sent, step.stage, choices))) {
         logger.info(`Applied recipe step ${plan.state.activeStepIndex} to device ${plan.deviceId}`);
       }
 

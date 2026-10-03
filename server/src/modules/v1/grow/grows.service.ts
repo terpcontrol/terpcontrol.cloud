@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type {
+  GerminationChoices,
   GrowCreate,
   GrowListItem,
   GrowthStage,
@@ -488,6 +489,7 @@ export class GrowsService {
         climate: body.climate === true,
         plantIds: body.plantIds ?? null,
         startedAt: body.startedAt ? new Date(body.startedAt) : undefined,
+        germinationChoices: body.germinationChoices,
       },
       spaceOf(grow, plantIds),
       setBy,
@@ -503,12 +505,23 @@ export class GrowsService {
    */
   private async enterPhase(
     growId: string,
-    request: { stage: GrowthStage; preset: string | null; climate?: boolean; plantIds: string[] | null; startedAt?: Date },
+    request: {
+      stage: GrowthStage;
+      preset: string | null;
+      climate?: boolean;
+      plantIds: string[] | null;
+      startedAt?: Date;
+      /** What germination does about the humidity where its climate is written. */
+      germinationChoices?: Partial<GerminationChoices>;
+    },
     spaceId: string | null,
     setBy: string | null,
   ): Promise<StoredPhase> {
     const writesClimate = request.preset !== null || request.climate === true;
-    const applied = writesClimate && spaceId !== null ? ((await this.presets?.applyToSpace(spaceId, request.stage, request.preset)) ?? []) : [];
+    const applied =
+      writesClimate && spaceId !== null
+        ? ((await this.presets?.applyToSpace(spaceId, request.stage, request.preset, request.germinationChoices)) ?? [])
+        : [];
     // Without a climate the stage still decides whether the tent dries.
     if (applied.length === 0 && spaceId !== null) await this.presets?.modeToSpace(spaceId, request.stage);
     const controller = applied.length > 0 ? applied[0] : await this.controllerIn(spaceId);

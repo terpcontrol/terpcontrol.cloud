@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose';
-import type { Plan, PlanNotify, PlanState, PlanStep, StepDuration } from '@fg2/shared-types/v1';
+import type { GerminationChoices, Plan, PlanNotify, PlanState, PlanStep, StepDuration } from '@fg2/shared-types/v1';
 import { durationUnit, growthStage, planNotifyMode, planStatus } from '@fg2/shared-types/v1-schemas';
 
 /** The plan a device is currently being run by: one per device, with where it stands in `state`. */
@@ -27,6 +27,14 @@ const durationSchema = new Schema<StepDuration>(
   { _id: false, versionKey: false },
 );
 
+const germinationChoicesSchema = new Schema<GerminationChoices>(
+  {
+    warnTooHumid: { type: Boolean, required: true },
+    humidifierHolds: { type: Boolean, required: true },
+  },
+  { _id: false, versionKey: false },
+);
+
 /**
  * A step of a plan, shared with `planTemplates`: a template is a plan that runs
  * nothing, and its steps are the same steps.
@@ -48,6 +56,9 @@ export const planStepSchema = new Schema<PlanStep>(
     lightHours: { type: Number, default: null },
     waitForConfirmation: { type: Boolean, required: true, default: false },
     confirmationMessage: { type: String, default: null },
+    // A germination step's choices about the humidity; null on every other
+    // step, and on one written before a step could say.
+    germinationChoices: { type: germinationChoicesSchema, default: null },
   },
   { _id: false, versionKey: false, minimize: false },
 );

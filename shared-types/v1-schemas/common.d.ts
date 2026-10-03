@@ -75,6 +75,22 @@ export declare const growthStage: z.ZodEnum<{
     drying: "drying";
     curing: "curing";
 }>;
+/**
+ * What a grower decides about the air's humidity while a fridge or a tent
+ * controller germinates in the dark. Germination itself holds one temperature
+ * and dries nothing, but two things go on reading the humidity: a humidifier
+ * socket, which follows the night's humidity in every mode that regulates, and
+ * the alarms that say the air is too humid. Whether either goes on is the
+ * grower's to say (`GERMINATION_CHOICES` in `climate-presets.ts` has what holds
+ * where nobody said).
+ *
+ * It lives here because a device keeps it, and a phase, a climate preset and a
+ * plan step each carry it to the device that germinates.
+ */
+export declare const germinationChoices: z.ZodObject<{
+    warnTooHumid: z.ZodBoolean;
+    humidifierHolds: z.ZodBoolean;
+}, z.core.$strip>;
 /** The owner is `spaces.ownerId` and never a membership row, so there is no `owner` role. */
 export declare const memberRole: z.ZodEnum<{
     can_log: "can_log";

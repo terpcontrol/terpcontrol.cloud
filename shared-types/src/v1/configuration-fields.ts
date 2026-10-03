@@ -100,6 +100,18 @@ export const CONTROLLER_MODES = ['standard', 'germination'] as const satisfies r
  */
 const CONTROL: ConfigurationFields = { control: { kind: 'switch', path: null }, drying: { kind: 'switch', path: null } };
 
+/**
+ * What germination does about the humidity (`GerminationChoices`): whether the
+ * "too humid" alarms go on warning and whether a humidifier socket goes on
+ * holding the night's humidity while the device germinates. Kept by the server
+ * beside the work mode rather than written as given, because the firmware has
+ * no word for either: a humidifier that rests is a band the server writes.
+ */
+const GERMINATION: ConfigurationFields = {
+  germinationWarnTooHumid: { kind: 'switch', path: null },
+  germinationHumidifier: { kind: 'switch', path: null },
+};
+
 /** The least the compressor rests between two runs. Below this it is not protected, whatever an older app allowed. */
 export const MIN_COMPRESSOR_REST_SECONDS = 240;
 
@@ -115,6 +127,7 @@ const RAMPS: ConfigurationFields = {
 
 const FRIDGE: ConfigurationFields = {
   ...CONTROL,
+  ...GERMINATION,
   // The back-wall fan stands still while the compressor is off: the firmware's `full`.
   energySaving: { kind: 'switch', path: null },
   mode: { kind: 'choice', path: null, options: OPERATING_MODES },
@@ -127,7 +140,7 @@ const FRIDGE: ConfigurationFields = {
   innerFans: { kind: 'number', path: 'fans.internal', min: 10, max: 100, step: 5 },
 };
 
-const CONTROLLER: ConfigurationFields = { ...CONTROL, mode: { kind: 'choice', path: null, options: CONTROLLER_MODES }, ...RAMPS };
+const CONTROLLER: ConfigurationFields = { ...CONTROL, ...GERMINATION, mode: { kind: 'choice', path: null, options: CONTROLLER_MODES }, ...RAMPS };
 
 /** A time of day as the firmware keeps every one: seconds past midnight UTC. The app writes whole minutes. */
 const TIME_OF_DAY = { kind: 'number', min: 0, max: 86399, step: 60 } as const;

@@ -70,7 +70,8 @@ exports.deviceControl = (0, common_js_1.named)('DeviceControl', zod_1.z.object({
         .describe('While drying: the targets that held before the spell began, which ending it by itself (`drying: false`, or control switched off) puts back. Absent where they are not known - a spell begun before they were kept - and the targets recorded before it are put back instead.'),
     afterGermination: exports.dryingReturn
         .optional()
-        .describe("While germinating: the night's figures from before - germination holds the night's temperature round the clock, so what is set for it is written there - which going back to another mode puts back. Only `nightTemperature` is stated. Absent where nothing was kept."),
+        .describe("While germinating: the night's figures from before - germination holds the night's temperature round the clock, and a humidifier that holds goes by the night's humidity, so what is set for either is written there - which going back to another mode puts back. Only `nightTemperature` and `nightHumidity` are stated. Absent where nothing was kept."),
+    germinationChoices: common_js_1.germinationChoices.describe('What germination does about the humidity on this device: what was chosen last, or what holds where nothing was (`GERMINATION_CHOICES`). Kept for the next germination as well, and acted on only while the device germinates.'),
 }));
 exports.deviceState = (0, common_js_1.named)('DeviceState', zod_1.z.object({
     lastSeenAt: (0, common_js_1.instant)().nullable().describe('Last sample or status; what `offline` is decided from.'),
@@ -153,9 +154,19 @@ exports.deviceUpdate = (0, common_js_1.named)('DeviceUpdate', exports.device
  * `germination` is the same for germination in the dark: true puts the device
  * into it, false brings it back to its standard mode, and left out it goes on
  * as it is. The work mode in the document is the server's to decide and is not
- * read for either.
+ * read for either. `germinationChoices` is what germination does about the
+ * humidity (`GerminationChoices`), kept for whenever the device germinates; a
+ * humidifier that holds goes by the night's humidity sent with it.
  */
-exports.deviceConfigurationEnvelope = (0, common_js_1.named)('DeviceConfigurationEnvelope', zod_1.z.object({ configuration: exports.deviceConfiguration, drying: zod_1.z.boolean().optional(), germination: zod_1.z.boolean().optional() }));
+exports.deviceConfigurationEnvelope = (0, common_js_1.named)('DeviceConfigurationEnvelope', zod_1.z.object({
+    configuration: exports.deviceConfiguration,
+    drying: zod_1.z.boolean().optional(),
+    germination: zod_1.z.boolean().optional(),
+    germinationChoices: common_js_1.germinationChoices
+        .partial()
+        .optional()
+        .describe('What germination does about the humidity, where the save says so. A choice left out stands as it was.'),
+}));
 /**
  * One window of a smart socket's timer, as the firmware keeps it: switched on
  * at `ontime`, in seconds past midnight UTC like every time of day a device
@@ -498,6 +509,9 @@ exports.planStep = (0, common_js_1.named)('PlanStep', zod_1.z.object({
         .describe('How long the light is on while this step runs: 24 is light round the clock, 0 none at all (the night’s figures round the clock). Null leaves the photoperiod as it is. The light comes on at the hour the device has, unless `settings.daynight.day` names one.'),
     waitForConfirmation: zod_1.z.boolean(),
     confirmationMessage: zod_1.z.string().nullable(),
+    germinationChoices: common_js_1.germinationChoices
+        .nullable()
+        .describe("What a germination step does about the humidity while it runs, put on the device with the step. Null on every other step, and on a germination step written before it could say, which leaves the device's own."),
 }));
 /** `on_step` mails at every step change, `on_confirmation` only when the plan waits for a person. */
 exports.planNotifyMode = (0, common_js_1.named)('PlanNotifyMode', zod_1.z.enum(['off', 'on_step', 'on_confirmation']));
@@ -538,7 +552,7 @@ exports.plan = (0, common_js_1.named)('Plan', zod_1.z.object({
     state: exports.planState,
 }));
 /**
- * A step as a client writes one. Three fields the server fills in, and each for
+ * A step as a client writes one. Four fields the server fills in, and each for
  * a reason of its own.
  *
  * Its **id** is the server's because identity is: an edit sends back the ids of
@@ -555,8 +569,12 @@ exports.plan = (0, common_js_1.named)('Plan', zod_1.z.object({
  * start driving phases its tent never had. The answer still carries both, always
  * present and `null` where a step says nothing, so what a client reads back is
  * what a client may write.
+ *
+ * Its **germination choices** default to `null` for the same reason, and are
+ * kept only on a germination step: a step that does not germinate has nothing
+ * to say about what germination does.
  */
-exports.planStepInput = (0, common_js_1.named)('PlanStepInput', exports.planStep.partial({ id: true, stage: true, preset: true, lightHours: true }));
+exports.planStepInput = (0, common_js_1.named)('PlanStepInput', exports.planStep.partial({ id: true, stage: true, preset: true, lightHours: true, germinationChoices: true }));
 /**
  * `PUT /devices/{id}/plan`. A device runs one plan, so the route both writes the
  * first one and replaces the one that is there; where the plan stands is `state`

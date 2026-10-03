@@ -2,6 +2,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
+import { germinationChoicesOf } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { co2FanKey, co2FanOf, co2InjectFor, type Co2Fan, type FieldSetting } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { HttpException } from '@common/http-exception';
 import { unprocessable } from '@common/v1/problem';
@@ -14,14 +15,14 @@ import { logger } from '@utils/logger';
 // The plan hands over what its step stored; the port it asks through is the plan's.
 import { DeviceConfigurationWriter } from '../v1/plan/device-configuration.port';
 import { recordTargets } from '../v1/phase/target-record';
-import { HIDDEN_FIGURES, heldTo } from './class-rules';
+import { HIDDEN_FIGURES, HUMIDIFIER_REST_BAND, heldTo } from './class-rules';
 import { fieldChangesOf, withFigures } from './configuration-fields';
 import { DevicePublisherService } from './device-publisher.service';
 import { driftBetween, keepsTime, SCHEDULE_FOLLOWER, ScheduleFollower, sameClockTimes, scheduleClockOf, withClockTimesMoved } from './schedule-clock';
 import { targetsOf } from '../v1/phase/phase-targets';
-import { keptForDrying, keptForGermination, recordedReturn } from './drying-return';
+import { GERMINATION_FIGURES, keptForDrying, keptForGermination, recordedReturn } from './drying-return';
 import { withIdleFiguresKept } from './idle-figures';
-import { decideWorkmode, standardOf, WriteIntent } from './work-modes';
+import { ChoicesSaid, decideWorkmode, standardOf, WriteIntent } from './work-modes';
 
 /** What a write stored: the document before it and after it. */
 interface Written {
@@ -72,8 +73,9 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * line the timeline could not say who moved it or when. A save that changed
    * nothing writes nothing. A device whose control was switched off is switched
    * on again by it: somebody who sets targets wants them held. `drying` is
-   * whether they are a drying room's, and `germination` whether they are for
-   * germinating in the dark (see `WriteIntent`).
+   * whether they are a drying room's, `germination` whether they are for
+   * germinating in the dark, and `choices` what germination does about the
+   * humidity (see `WriteIntent`).
    *
    * What is stored is answered, because it is not always what was sent: the
    * work mode is the server's, the figures a mode leaves alone are kept
@@ -85,8 +87,9 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     by: string | null = null,
     drying?: boolean,
     germination?: boolean,
+    choices?: ChoicesSaid,
   ): Promise<DeviceConfiguration | null> {
-    const written = await this.store(deviceId, { kind: 'targets', drying, germination }, () => configuration);
+    const written = await this.store(deviceId, { kind: 'targets', drying, germination, choices }, () => configuration);
     if (written) await this.writeDown(deviceId, written, by);
 
     return written?.after ?? null;
@@ -107,13 +110,20 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * `stage` is the stage the climate is for, which decides the work mode: a
    * drying stage dries, germination germinates in the dark, and anything else
    * puts a device that was off, drying or germinating back on its own mode.
+   * `choices` is what germination does about the humidity, where the climate
+   * says so.
    */
-  public async applyConfiguration(deviceId: string, settings: DeviceConfiguration, stage: GrowthStage | null = null): Promise<boolean> {
+  public async applyConfiguration(
+    deviceId: string,
+    settings: DeviceConfiguration,
+    stage: GrowthStage | null = null,
+    choices?: ChoicesSaid,
+  ): Promise<boolean> {
     // Nothing to merge, or nothing to merge into, is no write: the firmware reads
     // every key a document leaves out as its compile-time default, so sending
     // either would reset tuning the cloud has no copy of. A stage with no
     // figures still decides the work mode, so it writes what the device runs.
-    const intent: WriteIntent = { kind: 'climate', stage, requested: settings.workmode, night: statesNight(settings) };
+    const intent: WriteIntent = { kind: 'climate', stage, requested: settings.workmode, stated: nightStated(settings), choices };
     const written = await this.store(deviceId, intent, current =>
       !current || Object.keys(current).length === 0 || (Object.keys(settings).length === 0 && stage === null)
         ? null
@@ -232,11 +242,31 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     const device = await this.devices
       .findOne(
         { id: deviceId },
-        { type: 1, configuration: 1, ownerId: 1, scheduleClock: 1, baseWorkmode: 1, standardWorkmode: 1, beforeDrying: 1, beforeGermination: 1 },
+        {
+          type: 1,
+          configuration: 1,
+          ownerId: 1,
+          scheduleClock: 1,
+          baseWorkmode: 1,
+          standardWorkmode: 1,
+          beforeDrying: 1,
+          beforeGermination: 1,
+          germinationChoices: 1,
+          restedHumidityBand: 1,
+        },
       )
       .lean<Pick<
         StoredDevice,
-        'type' | 'configuration' | 'ownerId' | 'scheduleClock' | 'baseWorkmode' | 'standardWorkmode' | 'beforeDrying' | 'beforeGermination'
+        | 'type'
+        | 'configuration'
+        | 'ownerId'
+        | 'scheduleClock'
+        | 'baseWorkmode'
+        | 'standardWorkmode'
+        | 'beforeDrying'
+        | 'beforeGermination'
+        | 'germinationChoices'
+        | 'restedHumidityBand'
       > | null>();
     if (!device) {
       throw new HttpException(404, 'Device not found');
@@ -256,22 +286,36 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // that ends it brings a climate with it. A preset, a phase or a step does.
     const dried = before?.workmode === 'dry';
     const dries = mode?.workmode === 'dry';
-    // Germination holds the night's temperature round the clock, so what is set
-    // for it lands there. The night it wrote over is kept when it begins, and
-    // put back when the device goes back to a day and a night without a night
-    // of its own: by itself, or by a stage entered without its climate. A
-    // preset, a phase or a step with a climate brings its own night.
+    // Germination holds the night's temperature round the clock, and a
+    // humidifier that holds goes by the night's humidity, so what is set for
+    // either lands there. The night it wrote over is kept when it begins, and
+    // each figure is put back when the device goes back to a day and a night
+    // without one of its own: by itself, or by a stage entered without its
+    // climate. A preset, a phase or a step brings whichever it names.
     const germinated = device.beforeGermination ?? null;
     const germinates = mode?.workmode === 'breed' && before?.workmode !== 'breed' && germinated === null;
     const backFromGermination = germinated !== null && ['small', 'full', 'temp'].includes(mode?.workmode ?? '');
-    const nightBack = intent.kind === 'fields' || (intent.kind === 'climate' && !intent.night);
+    const bringsOwn = (path: string): boolean => intent.kind === 'targets' || (intent.kind === 'climate' && (intent.stated ?? []).includes(path));
     const returned =
       dried && !dries && intent.kind === 'fields'
         ? withFigures(asked, Object.entries(await this.keptFor(deviceId, device.beforeDrying, before)))
         : asked;
-    const wanted = backFromGermination && nightBack ? withFigures(returned, Object.entries(germinated)) : returned;
-    const kept = intent.kind === 'targets' && mode ? withIdleFiguresKept(before, wanted, mode.workmode) : wanted;
-    const held = heldTo(device.type, mode ? { ...kept, workmode: mode.workmode } : kept);
+    const wanted = backFromGermination
+      ? withFigures(
+          returned,
+          Object.entries(germinated).filter(([path]) => !bringsOwn(path)),
+        )
+      : returned;
+    // What germination does about the humidity: what this write says, over what
+    // the device keeps, over what holds where nobody said.
+    const said = 'choices' in intent ? (intent.choices ?? null) : null;
+    const choices = germinationChoicesOf({ ...(device.germinationChoices ?? {}), ...(said ?? {}) });
+    // A save that shows the humidity a humidifier holds in germination writes it.
+    const humidified = intent.kind === 'targets' && said?.humidifierHolds === true;
+    const kept = intent.kind === 'targets' && mode ? withIdleFiguresKept(before, wanted, mode.workmode, humidified) : wanted;
+    const moded = mode ? { ...kept, workmode: mode.workmode } : kept;
+    const band = humidifierBand(moded, !choices.humidifierHolds, device.restedHumidityBand ?? null);
+    const held = heldTo(device.type, band.configuration);
 
     // Times a write sets are meant on the clock it is made on. Times it leaves
     // as they were are meant on the clock they were kept on, which may have
@@ -292,6 +336,8 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
           ...(standard ? { standardWorkmode: standard } : {}),
           ...(dries && !dried ? { beforeDrying: keptForDrying(before) } : !dries && dried ? { beforeDrying: null } : {}),
           ...(germinates ? { beforeGermination: keptForGermination(before) } : backFromGermination ? { beforeGermination: null } : {}),
+          ...(said && Object.keys(said).length > 0 ? { germinationChoices: choices } : {}),
+          ...(band.rested !== undefined ? { restedHumidityBand: band.rested } : {}),
         },
       },
     );
@@ -354,9 +400,48 @@ const isSection = (value: unknown): value is Record<string, unknown> => typeof v
 const standingNow = (configuration: DeviceConfiguration | null): string | null =>
   typeof configuration?.workmode === 'string' ? configuration.workmode : null;
 
-/** Whether settings name a night temperature, nested as the firmware writes it or flat as an older client did. */
-const statesNight = (settings: DeviceConfiguration): boolean =>
-  (isSection(settings.night) && settings.night.temperature !== undefined) || settings['night.temperature'] !== undefined;
+/** The night's figures germination may write over that settings name, nested as the firmware writes them or flat as an older client did. */
+const nightStated = (settings: DeviceConfiguration): string[] =>
+  GERMINATION_FIGURES.filter(path => {
+    const [section, key] = path.split('.');
+    const nested = settings[section];
+    return (isSection(nested) && nested[key] !== undefined) || settings[path] !== undefined;
+  });
+
+/**
+ * The document with its humidifier rested or holding, and what is to be kept
+ * of the band it rests with (undefined where that does not change).
+ *
+ * A humidifier is rested only in germination and only where the grower asked
+ * for it, by widening the band it switches by until it never switches on
+ * (`HUMIDIFIER_REST_BAND`): the firmware has no switch for it, and in
+ * germination nothing else reads the band. The band it had is kept, and put
+ * back the moment the humidifier holds again - germination ended, or the
+ * grower changed their mind. A document with no `daynight` section has no band
+ * to widen, and is not given one.
+ */
+const humidifierBand = (
+  configuration: DeviceConfiguration,
+  rests: boolean,
+  kept: number | null,
+): { configuration: DeviceConfiguration; rested?: number | null } => {
+  const daynight = configuration.daynight;
+  if (!isSection(daynight)) return { configuration };
+  const band = daynight.targetHumidityDiff;
+  const resting = band === HUMIDIFIER_REST_BAND;
+
+  if (configuration.workmode === 'breed' && rests) {
+    if (resting) return { configuration };
+    return {
+      configuration: { ...configuration, daynight: { ...daynight, targetHumidityDiff: HUMIDIFIER_REST_BAND } },
+      rested: typeof band === 'number' ? band : null,
+    };
+  }
+
+  if (!resting) return kept === null ? { configuration } : { configuration, rested: null };
+  const { targetHumidityDiff: _rest, ...others } = daynight;
+  return { configuration: { ...configuration, daynight: kept === null ? others : { ...others, targetHumidityDiff: kept } }, rested: null };
+};
 
 /** A diary line is read, not scrolled: past this many figures the rest are counted rather than listed. */
 const MOST_FIGURES = 12;

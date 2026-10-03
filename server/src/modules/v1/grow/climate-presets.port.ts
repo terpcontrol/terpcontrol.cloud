@@ -1,4 +1,4 @@
-import type { GrowthStage, PhaseTargets } from '@fg2/shared-types/v1';
+import type { GerminationChoices, GrowthStage, PhaseTargets } from '@fg2/shared-types/v1';
 
 /**
  * Putting the controllers of a space on the climate a stage's preset asks for.
@@ -21,8 +21,12 @@ export interface AppliedPreset {
 }
 
 export interface ClimatePresets {
-  /** Writes the preset to every controller standing in the space, and answers the ones it reached. */
-  applyToSpace(spaceId: string, stage: GrowthStage, preset: string | null): Promise<AppliedPreset[]>;
+  /**
+   * Writes the preset to every controller standing in the space, and answers
+   * the ones it reached. `choices` is what germination does about the humidity
+   * there, read with the germination stage alone.
+   */
+  applyToSpace(spaceId: string, stage: GrowthStage, preset: string | null, choices?: Partial<GerminationChoices>): Promise<AppliedPreset[]>;
   /**
    * What a stage entered without a climate still decides: drying puts every
    * device standing in the space on drying, and any other stage but germination

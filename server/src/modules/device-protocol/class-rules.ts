@@ -26,6 +26,30 @@ import { DAY_SECONDS, lightWindowOf, lightWindowTimes } from '@fg2/shared-types/
 /** Below this day humidity a fridge dehumidifies from the target itself, in short runs, judged on the long average. */
 const DRY_FROM = 55;
 
+/**
+ * A humidifier socket switches on where the air is drier than its target by
+ * `daynight.targetHumidityDiff` and off at the target. With this band it never
+ * switches on - no reading lies a hundred points under a target - which is how
+ * a humidifier is rested while a device germinates: the firmware has no switch
+ * for it, and in germination the band is read by the humidifier alone, since
+ * nothing dehumidifies in the dark. Only `breed` keeps it; in every other mode
+ * it would keep a controller's dehumidifier from ever switching on, so there it
+ * is put back (`DeviceConfigurationService` puts back the band it replaced).
+ */
+export const HUMIDIFIER_REST_BAND = 100;
+
+/** What the firmware switches by where its document states no band: what a band that was not kept goes back to. */
+const FIRMWARE_HUMIDITY_BAND = 5;
+
+/** Whether a document rests its humidifier: germinating, with the band nothing switches on at. */
+export const restsHumidifier = (configuration: DeviceConfiguration | null): boolean =>
+  configuration?.workmode === 'breed' && bandOf(configuration) === HUMIDIFIER_REST_BAND;
+
+const bandOf = (configuration: DeviceConfiguration): unknown => {
+  const daynight = configuration.daynight;
+  return isSection(daynight) ? daynight.targetHumidityDiff : undefined;
+};
+
 const DRY_TUNING = { maxDehumidifySeconds: 900, targetHumidityDiff: 0, useLongHumidityAvg: 1 };
 const HUMID_TUNING = { maxDehumidifySeconds: 2700, targetHumidityDiff: 5, useLongHumidityAvg: 0 };
 
@@ -66,6 +90,8 @@ const fridge = (configuration: DeviceConfiguration): DeviceConfiguration => {
     next.daynight = {
       ...daynight,
       ...(typeof humidity === 'number' ? (humidity < DRY_FROM ? DRY_TUNING : HUMID_TUNING) : {}),
+      // A humidifier rested for germination keeps its band; the tuning comes back with the mode after it.
+      ...(restsHumidifier(configuration) ? { targetHumidityDiff: HUMIDIFIER_REST_BAND } : {}),
       linearChange: 1,
       ...(typeof rest === 'number' && rest < MIN_COMPRESSOR_REST_SECONDS ? { minimalDehumidifierOffTime: MIN_COMPRESSOR_REST_SECONDS } : {}),
     };
@@ -108,9 +134,21 @@ export const withHeldWindow = (configuration: DeviceConfiguration): DeviceConfig
 
 const controller = (configuration: DeviceConfiguration): DeviceConfiguration => withHeldWindow(configuration);
 
+/**
+ * The band a humidifier was rested with, outside germination: it would keep a
+ * controller's dehumidifier off for good - and a fridge's tuning, where the
+ * humidity does not decide it. The server puts back the band it replaced on its
+ * own writes; this is for the document that leaves germination without one -
+ * the device's own menu - which goes back to the firmware's band.
+ */
+const withoutRestBand = (configuration: DeviceConfiguration): DeviceConfiguration => {
+  if (configuration.workmode === 'breed' || bandOf(configuration) !== HUMIDIFIER_REST_BAND) return configuration;
+  return { ...configuration, daynight: { ...sectionOf(configuration, 'daynight'), targetHumidityDiff: FIRMWARE_HUMIDITY_BAND } };
+};
+
 const RULES: Readonly<Record<string, (configuration: DeviceConfiguration) => DeviceConfiguration>> = {
-  fridge: configuration => fridge(withHeldWindow(configuration)),
-  controller,
+  fridge: configuration => fridge(withoutRestBand(withHeldWindow(configuration))),
+  controller: configuration => controller(withoutRestBand(configuration)),
 };
 
 /** The document as the server keeps it for this type; unchanged for a type it holds to nothing. */

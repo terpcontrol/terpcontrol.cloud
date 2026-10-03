@@ -26,11 +26,15 @@ const numberAt = (configuration: DeviceConfiguration | null, path: string): numb
 export const keptForDrying = (configuration: DeviceConfiguration | null): Record<string, number> =>
   Object.fromEntries(DRYING_FIGURES.flatMap(path => (numberAt(configuration, path) === null ? [] : [[path, numberAt(configuration, path)!]])));
 
-/** What germination writes over: the night's temperature, which it holds round the clock. */
-export const keptForGermination = (configuration: DeviceConfiguration | null): Record<string, number> => {
-  const night = numberAt(configuration, 'night.temperature');
-  return night === null ? {} : { 'night.temperature': night };
-};
+/**
+ * What germination may write over: the night's temperature, which it holds
+ * round the clock, and the night's humidity, which a humidifier that holds goes
+ * by and which may be set for the seeds. The ones the document states.
+ */
+export const GERMINATION_FIGURES = ['night.temperature', 'night.humidity'] as const;
+
+export const keptForGermination = (configuration: DeviceConfiguration | null): Record<string, number> =>
+  Object.fromEntries(GERMINATION_FIGURES.flatMap(path => (numberAt(configuration, path) === null ? [] : [[path, numberAt(configuration, path)!]])));
 
 /**
  * What to bring back where nothing was kept - a spell begun before anything

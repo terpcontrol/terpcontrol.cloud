@@ -91,6 +91,10 @@ export declare const deviceControl: z.ZodObject<{
         co2: z.ZodNullable<z.ZodNumber>;
         lightLimit: z.ZodNullable<z.ZodNumber>;
     }, z.core.$strip>>;
+    germinationChoices: z.ZodObject<{
+        warnTooHumid: z.ZodBoolean;
+        humidifierHolds: z.ZodBoolean;
+    }, z.core.$strip>;
 }, z.core.$strip>;
 export declare const deviceState: z.ZodObject<{
     lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
@@ -158,6 +162,10 @@ export declare const device: z.ZodObject<{
             co2: z.ZodNullable<z.ZodNumber>;
             lightLimit: z.ZodNullable<z.ZodNumber>;
         }, z.core.$strip>>;
+        germinationChoices: z.ZodObject<{
+            warnTooHumid: z.ZodBoolean;
+            humidifierHolds: z.ZodBoolean;
+        }, z.core.$strip>;
     }, z.core.$strip>>;
     isDemo: z.ZodBoolean;
     state: z.ZodObject<{
@@ -223,6 +231,10 @@ export declare const devicePage: z.ZodObject<{
                 co2: z.ZodNullable<z.ZodNumber>;
                 lightLimit: z.ZodNullable<z.ZodNumber>;
             }, z.core.$strip>>;
+            germinationChoices: z.ZodObject<{
+                warnTooHumid: z.ZodBoolean;
+                humidifierHolds: z.ZodBoolean;
+            }, z.core.$strip>;
         }, z.core.$strip>>;
         isDemo: z.ZodBoolean;
         state: z.ZodObject<{
@@ -288,12 +300,18 @@ export declare const deviceUpdate: z.ZodObject<{
  * `germination` is the same for germination in the dark: true puts the device
  * into it, false brings it back to its standard mode, and left out it goes on
  * as it is. The work mode in the document is the server's to decide and is not
- * read for either.
+ * read for either. `germinationChoices` is what germination does about the
+ * humidity (`GerminationChoices`), kept for whenever the device germinates; a
+ * humidifier that holds goes by the night's humidity sent with it.
  */
 export declare const deviceConfigurationEnvelope: z.ZodObject<{
     configuration: z.ZodRecord<z.ZodString, z.ZodAny>;
     drying: z.ZodOptional<z.ZodBoolean>;
     germination: z.ZodOptional<z.ZodBoolean>;
+    germinationChoices: z.ZodOptional<z.ZodObject<{
+        warnTooHumid: z.ZodOptional<z.ZodBoolean>;
+        humidifierHolds: z.ZodOptional<z.ZodBoolean>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
  * One window of a smart socket's timer, as the firmware keeps it: switched on
@@ -413,6 +431,10 @@ export declare const provisionedDevice: z.ZodObject<{
                 co2: z.ZodNullable<z.ZodNumber>;
                 lightLimit: z.ZodNullable<z.ZodNumber>;
             }, z.core.$strip>>;
+            germinationChoices: z.ZodObject<{
+                warnTooHumid: z.ZodBoolean;
+                humidifierHolds: z.ZodBoolean;
+            }, z.core.$strip>;
         }, z.core.$strip>>;
         isDemo: z.ZodBoolean;
         state: z.ZodObject<{
@@ -645,6 +667,10 @@ export declare const deviceClaimResult: z.ZodObject<{
                 co2: z.ZodNullable<z.ZodNumber>;
                 lightLimit: z.ZodNullable<z.ZodNumber>;
             }, z.core.$strip>>;
+            germinationChoices: z.ZodObject<{
+                warnTooHumid: z.ZodBoolean;
+                humidifierHolds: z.ZodBoolean;
+            }, z.core.$strip>;
         }, z.core.$strip>>;
         isDemo: z.ZodBoolean;
         state: z.ZodObject<{
@@ -1094,6 +1120,10 @@ export declare const planStep: z.ZodObject<{
     lightHours: z.ZodNullable<z.ZodNumber>;
     waitForConfirmation: z.ZodBoolean;
     confirmationMessage: z.ZodNullable<z.ZodString>;
+    germinationChoices: z.ZodNullable<z.ZodObject<{
+        warnTooHumid: z.ZodBoolean;
+        humidifierHolds: z.ZodBoolean;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 /** `on_step` mails at every step change, `on_confirmation` only when the plan waits for a person. */
 export declare const planNotifyMode: z.ZodEnum<{
@@ -1158,6 +1188,10 @@ export declare const plan: z.ZodObject<{
         lightHours: z.ZodNullable<z.ZodNumber>;
         waitForConfirmation: z.ZodBoolean;
         confirmationMessage: z.ZodNullable<z.ZodString>;
+        germinationChoices: z.ZodNullable<z.ZodObject<{
+            warnTooHumid: z.ZodBoolean;
+            humidifierHolds: z.ZodBoolean;
+        }, z.core.$strip>>;
     }, z.core.$strip>>;
     loop: z.ZodBoolean;
     notify: z.ZodObject<{
@@ -1187,7 +1221,7 @@ export declare const plan: z.ZodObject<{
     }, z.core.$strip>;
 }, z.core.$strip>;
 /**
- * A step as a client writes one. Three fields the server fills in, and each for
+ * A step as a client writes one. Four fields the server fills in, and each for
  * a reason of its own.
  *
  * Its **id** is the server's because identity is: an edit sends back the ids of
@@ -1204,6 +1238,10 @@ export declare const plan: z.ZodObject<{
  * start driving phases its tent never had. The answer still carries both, always
  * present and `null` where a step says nothing, so what a client reads back is
  * what a client may write.
+ *
+ * Its **germination choices** default to `null` for the same reason, and are
+ * kept only on a germination step: a step that does not germinate has nothing
+ * to say about what germination does.
  */
 export declare const planStepInput: z.ZodObject<{
     id: z.ZodOptional<z.ZodString>;
@@ -1230,6 +1268,10 @@ export declare const planStepInput: z.ZodObject<{
     lightHours: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     waitForConfirmation: z.ZodBoolean;
     confirmationMessage: z.ZodNullable<z.ZodString>;
+    germinationChoices: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        warnTooHumid: z.ZodBoolean;
+        humidifierHolds: z.ZodBoolean;
+    }, z.core.$strip>>>;
 }, z.core.$strip>;
 /**
  * `PUT /devices/{id}/plan`. A device runs one plan, so the route both writes the
@@ -1274,6 +1316,10 @@ export declare const planReplace: z.ZodObject<{
         lightHours: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         waitForConfirmation: z.ZodBoolean;
         confirmationMessage: z.ZodNullable<z.ZodString>;
+        germinationChoices: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            warnTooHumid: z.ZodBoolean;
+            humidifierHolds: z.ZodBoolean;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /** A plan kept to start others from. It runs nothing, so it has no state. */
@@ -1308,6 +1354,10 @@ export declare const planTemplate: z.ZodObject<{
         lightHours: z.ZodNullable<z.ZodNumber>;
         waitForConfirmation: z.ZodBoolean;
         confirmationMessage: z.ZodNullable<z.ZodString>;
+        germinationChoices: z.ZodNullable<z.ZodObject<{
+            warnTooHumid: z.ZodBoolean;
+            humidifierHolds: z.ZodBoolean;
+        }, z.core.$strip>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const planTemplatePage: z.ZodObject<{
@@ -1342,6 +1392,10 @@ export declare const planTemplatePage: z.ZodObject<{
             lightHours: z.ZodNullable<z.ZodNumber>;
             waitForConfirmation: z.ZodBoolean;
             confirmationMessage: z.ZodNullable<z.ZodString>;
+            germinationChoices: z.ZodNullable<z.ZodObject<{
+                warnTooHumid: z.ZodBoolean;
+                humidifierHolds: z.ZodBoolean;
+            }, z.core.$strip>>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     nextCursor: z.ZodNullable<z.ZodString>;
@@ -1375,6 +1429,10 @@ export declare const planTemplateCreate: z.ZodObject<{
         lightHours: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         waitForConfirmation: z.ZodBoolean;
         confirmationMessage: z.ZodNullable<z.ZodString>;
+        germinationChoices: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            warnTooHumid: z.ZodBoolean;
+            humidifierHolds: z.ZodBoolean;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /** `PATCH /plan-templates/{id}`: the same fields, each only if it changes. */
@@ -1406,6 +1464,10 @@ export declare const planTemplateUpdate: z.ZodObject<{
         lightHours: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         waitForConfirmation: z.ZodBoolean;
         confirmationMessage: z.ZodNullable<z.ZodString>;
+        germinationChoices: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            warnTooHumid: z.ZodBoolean;
+            humidifierHolds: z.ZodBoolean;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>>;
 }, z.core.$strip>;
 /**

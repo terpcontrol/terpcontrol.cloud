@@ -568,7 +568,7 @@ a role):
 | `heater` | the heater output |
 | `light`, `secondary_light` | the light output |
 | `co2` | the CO2 valve |
-| `humidifier` | the dehumidifier's band read the other way round: on below the target minus `targetHumidityDiff` (never less than 5 points), off at the target |
+| `humidifier` | the dehumidifier's band read the other way round: on below the target minus `targetHumidityDiff` (never less than 5 points), off at the target. In `breed` the target is the night's humidity; a grower who rests the humidifier there gets a band of 100 from the cloud (`HUMIDIFIER_REST_BAND`), which it never switches on at, and the band back once it may hold again |
 | `exhaust` | the cooling decision the temperature mode, and a fridge's breeding mode, compute; in the standard modes (`small`, `full`) and a controller's `breed` the same rule on its own: on above the target by 0.8 °C, off below 0.3 °C over it |
 | `circulation`, `fan` | anything: on whenever the module is controlling and not paused |
 | `pump`, `custom_timer` | the row's own timer, and nothing else |

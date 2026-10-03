@@ -248,8 +248,8 @@ describe('writing the plan', () => {
     // Left out on the way in, and answered as `null` rather than as absent, so
     // the plan a client reads has the same keys on every step.
     expect(written.body.steps).toEqual([
-      { ...climateOnly('Woche 1'), id: expect.any(String), stage: null, preset: null, lightHours: null },
-      { ...climateOnly('Woche 2'), id: expect.any(String), stage: null, preset: null, lightHours: null },
+      { ...climateOnly('Woche 1'), id: expect.any(String), stage: null, preset: null, lightHours: null, germinationChoices: null },
+      { ...climateOnly('Woche 2'), id: expect.any(String), stage: null, preset: null, lightHours: null, germinationChoices: null },
     ]);
   });
 

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   anyValue,
+  germinationChoices,
   growOrSpaceRef,
   growthStage,
   growType,
@@ -497,6 +498,10 @@ export const presetApplicationCreate = named(
     preset: z.string().nullable().optional().describe("Absent or null applies the stage's own targets with no preset on top."),
     decision: growDecision.optional(),
     growId: id().optional().describe('The grow to move here.'),
+    germinationChoices: germinationChoices
+      .partial()
+      .optional()
+      .describe('What germination does about the humidity on the devices put into it. Read with the germination stage alone; a choice left out stands.'),
   }),
 );
 
@@ -629,6 +634,12 @@ export const phaseCreate = named(
       ),
     startedAt: instant().optional().describe('Defaults to now.'),
     plantIds: z.array(id()).nullable().optional().describe('Absent or null is every plant.'),
+    germinationChoices: germinationChoices
+      .partial()
+      .optional()
+      .describe(
+        'What germination does about the humidity on the devices its climate puts into it. Read with the germination stage and its climate alone; a choice left out stands.',
+      ),
   }),
 );
 
@@ -742,7 +753,7 @@ export const plantUpdate = named('PlantUpdate', plant.pick({ strain: true, label
  * who put the grow into this phase did not change because the date was typed
  * wrongly.
  */
-export const phaseUpdate = named('PhaseUpdate', phaseCreate.omit({ climate: true }).partial());
+export const phaseUpdate = named('PhaseUpdate', phaseCreate.omit({ climate: true, germinationChoices: true }).partial());
 
 /**
  * `PATCH /grows/{id}/placements/{placementId}`. Moving the plants is what

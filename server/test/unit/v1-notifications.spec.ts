@@ -390,6 +390,7 @@ describe('asking somebody to confirm a plan step', () => {
     duration: { value: 1, unit: 'days' },
     settings: {},
     lightHours: null,
+    germinationChoices: null,
     waitForConfirmation: true,
     confirmationMessage: 'Take the big fan leaves off.',
   };
@@ -600,6 +601,7 @@ describe('what the two new messages say', () => {
     duration: { value: 1, unit: 'days' },
     settings: {},
     lightHours: null,
+    germinationChoices: null,
     waitForConfirmation: true,
     confirmationMessage: '  Take the big fan leaves off.  ',
   };
