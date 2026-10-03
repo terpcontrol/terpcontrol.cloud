@@ -1,8 +1,9 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
-import { germinationChoicesOf } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { germinationChoicesOf, type GerminationChoiceValues } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { co2FanKey, co2FanOf, co2InjectFor, type Co2Fan, type FieldSetting } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { HttpException } from '@common/http-exception';
 import { unprocessable } from '@common/v1/problem';
@@ -18,17 +19,21 @@ import { recordTargets } from '../v1/phase/target-record';
 import { HIDDEN_FIGURES, HUMIDIFIER_REST_BAND, heldTo } from './class-rules';
 import { fieldChangesOf, withFigures } from './configuration-fields';
 import { DevicePublisherService } from './device-publisher.service';
+import { DEVICE_GERMINATION_SINK, type DeviceGerminationSink } from './device-sinks';
+import { GERMINATION_FORGOTTEN, leavesGermination } from './germination-memory';
 import { driftBetween, keepsTime, SCHEDULE_FOLLOWER, ScheduleFollower, sameClockTimes, scheduleClockOf, withClockTimesMoved } from './schedule-clock';
 import { targetsOf } from '../v1/phase/phase-targets';
 import { GERMINATION_FIGURES, keptForDrying, keptForGermination, recordedReturn } from './drying-return';
 import { withIdleFiguresKept } from './idle-figures';
 import { ChoicesSaid, decideWorkmode, standardOf, WriteIntent } from './work-modes';
 
-/** What a write stored: the document before it and after it. */
+/** What a write stored: the document before it and after it, and what germination is to do about the humidity before and after. */
 interface Written {
   before: DeviceConfiguration | null;
   after: DeviceConfiguration;
   changed: boolean;
+  /** Set where the write changed a choice of germination's (`GerminationChoices`): what held before it, and what holds now. */
+  choices?: { before: GerminationChoiceValues; after: GerminationChoiceValues };
 }
 
 /**
@@ -64,6 +69,11 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     private readonly publisher: DevicePublisherService,
     private readonly entries: EntryWriterService,
     @Optional() @Inject(SCHEDULE_FOLLOWER) private readonly followers: ScheduleFollower | null = null,
+    // The alarms are asked for when they are needed rather than handed over here:
+    // they reach back to this service through the grow and its climate (an
+    // alert names the grow standing where it happened, and a grow writes its
+    // climate here), and a cycle of providers is one Nest never finishes building.
+    @Optional() @Inject(ModuleRef) private readonly modules: Pick<ModuleRef, 'get'> | null = null,
   ) {}
 
   /**
@@ -210,8 +220,11 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * than the night's.
    */
   private async writeDown(deviceId: string, written: Written, by: string | null): Promise<void> {
-    const moved = withScheduleWhole(changedFigures(written.before, written.after, HIDDEN_FIGURES), written.after);
-    if (!written.changed || moved.length === 0) return;
+    const moved = [
+      ...withScheduleWhole(changedFigures(written.before, written.after, HIDDEN_FIGURES), written.after),
+      ...choicesMoved(written.choices),
+    ];
+    if (moved.length === 0) return;
     const mode = written.after.workmode;
 
     const device = await this.devices.findOne({ id: deviceId }, { spaceId: 1 }).lean<Pick<StoredDevice, 'spaceId'> | null>();
@@ -307,13 +320,18 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
         )
       : returned;
     // What germination does about the humidity: what this write says, over what
-    // the device keeps, over what holds where nobody said.
+    // the device keeps, over what holds where nobody said. The device keeps it
+    // for the one germination: a write that ends germination lets it go, so the
+    // next one starts from the defaults rather than from a choice made for
+    // seeds months ago that no screen showed on the way in.
     const said = 'choices' in intent ? (intent.choices ?? null) : null;
+    const kept = germinationChoicesOf(device.germinationChoices ?? null);
     const choices = germinationChoicesOf({ ...(device.germinationChoices ?? {}), ...(said ?? {}) });
+    const ended = leavesGermination(before?.workmode, mode?.workmode);
     // A save that shows the humidity a humidifier holds in germination writes it.
     const humidified = intent.kind === 'targets' && said?.humidifierHolds === true;
-    const kept = intent.kind === 'targets' && mode ? withIdleFiguresKept(before, wanted, mode.workmode, humidified) : wanted;
-    const moded = mode ? { ...kept, workmode: mode.workmode } : kept;
+    const idle = intent.kind === 'targets' && mode ? withIdleFiguresKept(before, wanted, mode.workmode, humidified) : wanted;
+    const moded = mode ? { ...idle, workmode: mode.workmode } : idle;
     const band = humidifierBand(moded, !choices.humidifierHolds, device.restedHumidityBand ?? null);
     const held = heldTo(device.type, band.configuration);
 
@@ -336,8 +354,12 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
           ...(standard ? { standardWorkmode: standard } : {}),
           ...(dries && !dried ? { beforeDrying: keptForDrying(before) } : !dries && dried ? { beforeDrying: null } : {}),
           ...(germinates ? { beforeGermination: keptForGermination(before) } : backFromGermination ? { beforeGermination: null } : {}),
-          ...(said && Object.keys(said).length > 0 ? { germinationChoices: choices } : {}),
           ...(band.rested !== undefined ? { restedHumidityBand: band.rested } : {}),
+          ...(ended
+            ? { germinationChoices: GERMINATION_FORGOTTEN.germinationChoices }
+            : said && Object.keys(said).length > 0
+              ? { germinationChoices: choices }
+              : {}),
         },
       },
     );
@@ -350,8 +372,36 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
 
     if (drift !== 0) await this.followers?.onScheduleMoved(deviceId, drift);
     if (device.type === 'plug') await this.followCo2Fan(deviceId, before, configuration);
+    // A device that germinates now - begun, chosen about, or sent its step again -
+    // has its "too humid" told what it is to do there, rather than at the next
+    // reading, and one asked to warn gets the stage's to warn with.
+    if (configuration.workmode === 'breed') await this.tellGermination(deviceId);
 
-    return { before, after: configuration, changed: JSON.stringify(before) !== JSON.stringify(configuration) };
+    const choicesChanged = !ended && (kept.warnTooHumid !== choices.warnTooHumid || kept.humidifierHolds !== choices.humidifierHolds);
+    return {
+      before,
+      after: configuration,
+      changed: JSON.stringify(before) !== JSON.stringify(configuration) || choicesChanged,
+      ...(choicesChanged ? { choices: { before: kept, after: choices } } : {}),
+    };
+  }
+
+  /** The alarms are the alarm engine's, and one it could not be told about must not fail the write the device already has. */
+  private async tellGermination(deviceId: string): Promise<void> {
+    try {
+      await this.germinationSink()?.germinationChanged(deviceId);
+    } catch (error) {
+      logger.error(`Could not tell the alarms that device ${deviceId} germinates: ${error}`);
+    }
+  }
+
+  private germinationSink(): DeviceGerminationSink | null {
+    try {
+      return this.modules?.get<DeviceGerminationSink>(DEVICE_GERMINATION_SINK, { strict: false }) ?? null;
+    } catch {
+      // A server put together without the alarms - a test of this module alone - has nobody to tell.
+      return null;
+    }
   }
 
   /**
@@ -442,6 +492,21 @@ const humidifierBand = (
   const { targetHumidityDiff: _rest, ...others } = daynight;
   return { configuration: { ...configuration, daynight: kept === null ? others : { ...others, targetHumidityDiff: kept } }, rested: null };
 };
+
+/**
+ * The choices of germination a write changed, as lines of the same diary entry
+ * the figures go in: `germination.warnTooHumid: false → true`. They are no
+ * figure of the device's document - the alarm is the cloud's, and a resting
+ * humidifier is a band the server writes and hides - so without them the
+ * history could not say since when the humidifier rested or "Zu feucht" was
+ * quiet.
+ */
+const choicesMoved = (choices: Written['choices']): string[] =>
+  choices
+    ? (['warnTooHumid', 'humidifierHolds'] as const)
+        .filter(choice => choices.before[choice] !== choices.after[choice])
+        .map(choice => `germination.${choice}: ${choices.before[choice]} → ${choices.after[choice]}`)
+    : [];
 
 /** A diary line is read, not scrolled: past this many figures the rest are counted rather than listed. */
 const MOST_FIGURES = 12;

@@ -111,7 +111,7 @@ export const deviceControl = named(
         "While germinating: the night's figures from before - germination holds the night's temperature round the clock, and a humidifier that holds goes by the night's humidity, so what is set for either is written there - which going back to another mode puts back. Only `nightTemperature` and `nightHumidity` are stated. Absent where nothing was kept.",
       ),
     germinationChoices: germinationChoices.describe(
-      'What germination does about the humidity on this device: what was chosen last, or what holds where nothing was (`GERMINATION_CHOICES`). Kept for the next germination as well, and acted on only while the device germinates.',
+      'What germination does about the humidity on this device: what was chosen for this germination, or what holds where nothing was (`GERMINATION_CHOICES`). Acted on only while the device germinates, and back to the defaults when germination ends.',
     ),
   }),
 );
@@ -1041,6 +1041,11 @@ export const alert = named(
     severity: severity,
     startedAt: instant(),
     resolvedAt: instant().nullable(),
+    rested: z
+      .boolean()
+      .describe(
+        'True for an episode that ended because its rule began to rest - the stage\'s "too humid" while its device germinates and the grower asked for no warning - rather than because the reading came back. `resolvedAt` is then when it went quiet; no all-clear was said.',
+      ),
     value: z.number().nullable().describe('The reading that triggered it.'),
     extremeValue: z.number().nullable().describe('The worst reading while it was open.'),
     watched: alertWatched

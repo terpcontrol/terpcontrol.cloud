@@ -57,20 +57,7 @@ export class StageAlarmsService implements StageAlarms {
     for (const band of bands) {
       await this.rules.updateOne(
         { deviceId, origin: 'preset', presetKey: band.key },
-        {
-          $set: { name: BAND_NAME[band.key], watch: band.watch, forSeconds: band.forSeconds, presetId },
-          $setOnInsert: {
-            id: uuidv4(),
-            createdAt: new Date(),
-            severity: band.severity,
-            enabled: true,
-            cooldownSeconds: 0,
-            repeatSeconds: band.severity === 'critical' ? CRITICAL_REPEAT_SECONDS : 0,
-            delivery: { mode: 'routing', custom: null },
-            silencedUntil: null,
-            state: { triggered: false, lastTriggeredAt: null, lastResolvedAt: null, extremeValue: null, lastSampleAt: null },
-          },
-        },
+        { $set: { name: BAND_NAME[band.key], watch: band.watch, forSeconds: band.forSeconds, presetId }, $setOnInsert: insertedOf(band) },
         { upsert: true },
       );
     }
@@ -78,4 +65,46 @@ export class StageAlarmsService implements StageAlarms {
     const stale = await this.rules.find({ deviceId, origin: 'preset', presetKey: { $nin: bands.map(band => band.key) } }).lean<StoredAlarmRule[]>();
     for (const rule of stale) await this.ruleService.remove(rule);
   }
+
+  /**
+   * The stage's "too humid" for a device that germinates and was asked to warn,
+   * where it has none: a device set into germination from Steuerung, the
+   * operating mode or a plan has the bands of whatever stage wrote them last,
+   * or - never in a phase - none at all, and "Warnen, wenn es zu feucht wird"
+   * would promise a warning nothing gives. Germination's own band is written,
+   * which is what the phase writes. A rule that is there is left as it is,
+   * switched off included: that is somebody's decision, and the alarms page
+   * shows it.
+   */
+  public async ensureTooHumid(deviceId: string): Promise<void> {
+    const band = stageAlarmBands('germination', null)?.find(one => one.key === 'too_humid');
+    if (!band) return;
+
+    await this.rules.updateOne(
+      { deviceId, origin: 'preset', presetKey: band.key },
+      {
+        $setOnInsert: {
+          ...insertedOf(band),
+          name: BAND_NAME[band.key],
+          watch: band.watch,
+          forSeconds: band.forSeconds,
+          presetId: 'germination',
+        },
+      },
+      { upsert: true },
+    );
+  }
 }
+
+/** What a stage's rule starts out with, and keeps through every later stage: whatever a person changes on it afterwards is theirs. */
+const insertedOf = (band: StageAlarmBand) => ({
+  id: uuidv4(),
+  createdAt: new Date(),
+  severity: band.severity,
+  enabled: true,
+  cooldownSeconds: 0,
+  repeatSeconds: band.severity === 'critical' ? CRITICAL_REPEAT_SECONDS : 0,
+  delivery: { mode: 'routing', custom: null },
+  silencedUntil: null,
+  state: { triggered: false, lastTriggeredAt: null, lastResolvedAt: null, extremeValue: null, lastSampleAt: null },
+});

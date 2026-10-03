@@ -84,6 +84,7 @@ const alert = (over: Partial<Alert>): Alert => ({
   severity: 'critical',
   startedAt: iso(NOW.minus({ hours: 2, minutes: 20 })),
   resolvedAt: null,
+  rested: false,
   value: 68,
   extremeValue: 71,
   watched: null,

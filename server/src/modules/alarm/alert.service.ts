@@ -72,6 +72,7 @@ export class AlertService {
       severity: subject.severity,
       startedAt: at,
       resolvedAt: null,
+      rested: false,
       value,
       extremeValue: value,
       watched: subject.rule ? { name: subject.rule.name, watch: subject.rule.watch } : null,
@@ -90,13 +91,13 @@ export class AlertService {
   }
 
   /**
-   * Its rule has stopped watching for a while - a "too humid" alarm resting
-   * while the device germinates - so the episode goes quiet rather than
-   * resolved: nobody is told, and the record does not claim the reading came
-   * back.
+   * Its rule has stopped watching for a while - the stage's "too humid"
+   * resting while the device germinates - so the episode goes quiet rather than
+   * resolved: nobody is told, and the record says it was rested (`rested`), so
+   * the inbox does not claim the reading came back.
    */
   public async quieten(alert: StoredAlert, at: Date): Promise<void> {
-    await this.alerts.updateOne({ id: alert.id }, { $set: { resolvedAt: at } });
+    await this.alerts.updateOne({ id: alert.id }, { $set: { resolvedAt: at, rested: true } });
   }
 
   /**

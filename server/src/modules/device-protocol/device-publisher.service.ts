@@ -9,6 +9,7 @@ import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { logger } from '@utils/logger';
 import { MqttClientService } from '../mqtt/mqtt-client.service';
+import { onTheWire } from './class-rules';
 import { decodeCapabilities, decodeSockets } from './sockets';
 import { deviceTopic } from './topics';
 
@@ -149,9 +150,11 @@ export class DevicePublisherService {
    * The configuration document, on its way back to the device that owns it. The
    * server stores a copy and hands it back; what it means is the device's own
    * business, and a key the device does not know is ignored and disappears.
+   * Every send goes through here, so a humidifier resting in germination is
+   * aimed at nothing on every one of them (`onTheWire`).
    */
   public configuration(deviceId: string, configuration: DeviceConfiguration): boolean {
-    return this.mqtt.publish(deviceTopic(deviceId, 'configuration'), JSON.stringify(configuration));
+    return this.mqtt.publish(deviceTopic(deviceId, 'configuration'), JSON.stringify(onTheWire(configuration)));
   }
 
   /** The build a device is to install, as a bare string rather than JSON. */

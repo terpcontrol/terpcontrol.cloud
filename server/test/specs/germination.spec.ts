@@ -269,7 +269,8 @@ describe('the choices germination makes about the humidity', () => {
       .send({ stage: 'seedling', germinationChoices: { warnTooHumid: true } })
       .expect(201);
     expect(await bandOf(device)).not.toBe(100);
-    expect((await controlOf(device)).germinationChoices).toEqual({ warnTooHumid: false, humidifierHolds: false });
+    // The choice was for that germination, and a choice sent with another stage is none: the defaults hold again.
+    expect((await controlOf(device)).germinationChoices).toEqual({ warnTooHumid: false, humidifierHolds: true });
   });
 
   it('come with a phase that writes the germination climate, and with the operating mode by name', async () => {
@@ -328,12 +329,21 @@ describe('the choices germination makes about the humidity', () => {
     expect(plan.body.steps.map((step: { germinationChoices: unknown }) => step.germinationChoices)).toEqual([choices, null]);
   });
 
-  it('rest a "too humid" alarm while the device germinates, and wake it when the grower asks to be warned', async () => {
+  it('rest the stage´s "too humid" while the device germinates, give one to a device asked to warn, and leave a person´s own awake', async () => {
     const { device } = await placed('controller');
     const simulator = await startSimulator(device);
+    const alertsOf = async (ruleId: string) =>
+      (
+        (await owner.client.get(`/v1/alerts?deviceId=${device.deviceId}`).expect(200)).body.items as {
+          ruleId: string;
+          resolvedAt: string | null;
+          rested: boolean;
+          watched: { watch: { upper: number } };
+        }[]
+      ).filter(alert => alert.ruleId === ruleId);
     try {
       await settle();
-      const rule = (
+      const own = (
         await owner.client
           .post(`/v1/devices/${device.deviceId}/alarm-rules`)
           .send({
@@ -353,19 +363,41 @@ describe('the choices germination makes about the humidity', () => {
         .send({ set: { mode: 'germination' } })
         .expect(200);
 
+      // An alarm a person set up is theirs, and watches through germination.
       await simulator.reportStatus({ temperature: 24, humidity: 92 });
       await settle(1500);
-      const quiet = (await owner.client.get(`/v1/alerts?deviceId=${device.deviceId}`).expect(200)).body.items;
-      expect(quiet.filter((alert: { ruleId: string }) => alert.ruleId === rule.id)).toEqual([]);
+      expect(await alertsOf(own.id)).toHaveLength(1);
 
+      // Asked to warn, a device whose germination no phase wrote gets the stage's "too humid", at germination's line.
       await owner.client
         .patch(`/v1/devices/${device.deviceId}/configuration`)
         .send({ set: { germinationWarnTooHumid: true } })
         .expect(200);
+      const rules = (await owner.client.get(`/v1/devices/${device.deviceId}/alarm-rules`).expect(200)).body.items as {
+        id: string;
+        origin: string;
+        watch: { metric: string; upper: number };
+      }[];
+      const stage = rules.find(one => one.origin === 'preset' && one.watch.metric === 'humidity')!;
+      expect(stage.watch).toMatchObject({ upper: 90 });
+      // Twenty minutes is longer than a test waits; what a person sets on a stage's rule stays the stage's rule.
+      await owner.client.patch(`/v1/alarm-rules/${stage.id}`).send({ forSeconds: 0 }).expect(200);
+
       await simulator.reportStatus({ temperature: 24, humidity: 93 });
       await settle(1500);
-      const raised = (await owner.client.get(`/v1/alerts?deviceId=${device.deviceId}`).expect(200)).body.items;
-      expect(raised.filter((alert: { ruleId: string }) => alert.ruleId === rule.id)).toHaveLength(1);
+      const raised = await alertsOf(stage.id);
+      expect(raised).toHaveLength(1);
+      expect(raised[0]).toMatchObject({ resolvedAt: null, rested: false, watched: { watch: { upper: 90 } } });
+
+      // Told to rest, the open alert goes quiet with the save, said to have rested rather than resolved.
+      await owner.client
+        .patch(`/v1/devices/${device.deviceId}/configuration`)
+        .send({ set: { germinationWarnTooHumid: false } })
+        .expect(200);
+      const rested = await alertsOf(stage.id);
+      expect(rested).toHaveLength(1);
+      expect(rested[0].resolvedAt).not.toBeNull();
+      expect(rested[0].rested).toBe(true);
     } finally {
       await simulator.close();
     }

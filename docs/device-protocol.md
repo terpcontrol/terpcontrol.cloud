@@ -568,7 +568,7 @@ a role):
 | `heater` | the heater output |
 | `light`, `secondary_light` | the light output |
 | `co2` | the CO2 valve |
-| `humidifier` | the dehumidifier's band read the other way round: on below the target minus `targetHumidityDiff` (never less than 5 points), off at the target. In `breed` the target is the night's humidity; a grower who rests the humidifier there gets a band of 100 from the cloud (`HUMIDIFIER_REST_BAND`), which it never switches on at, and the band back once it may hold again |
+| `humidifier` | the dehumidifier's band read the other way round: on below the target minus `targetHumidityDiff` (never less than 5 points), off at the target - and once on, it stays on until the target is reached, without reading the band. In `breed` the target is the night's humidity. A grower who rests the humidifier there gets a band of 100 (`HUMIDIFIER_REST_BAND`) and a night humidity of 0 (`HUMIDIFIER_REST_HUMIDITY`) from the cloud, so one that is running stops and none switches on; the cloud stores the night humidity it keeps, reads the 0 back to it when the device uploads, and sends both back once the humidifier may hold again |
 | `exhaust` | the cooling decision the temperature mode, and a fridge's breeding mode, compute; in the standard modes (`small`, `full`) and a controller's `breed` the same rule on its own: on above the target by 0.8 °C, off below 0.3 °C over it |
 | `circulation`, `fan` | anything: on whenever the module is controlling and not paused |
 | `pump`, `custom_timer` | the row's own timer, and nothing else |
@@ -601,7 +601,11 @@ settings (`fridge.cpp:588-594`, `plug.cpp:576-582`, `fan.cpp:371-377`, `light.cp
 
 When a setting is changed on the device itself, the device publishes its whole document on the same topic
 (`saveAndUploadSettings`, e.g. `controller.cpp:516-543`). The server overwrites `devices.configuration` with it
-and echoes nothing (`device-ingest.service.ts`).
+(`device-ingest.service.ts`), holding it to the type's rules (`class-rules.ts`) and reading the night humidity of
+a rested humidifier back to the one it keeps (`offTheWire`). A device that left germination from its own menu
+gets back what germination kept - the night from before it, the humidifier's band - and the server lets that
+memory and the grower's germination choices go, as it does when germination ends from the cloud. Where any of
+this changed the document, the server sends it back; otherwise it answers nothing.
 
 **A key a device does not know is ignored, and disappears.** Parsing is key by key
 (`loadIfAvaliable`, `controller.cpp:437-453`): a key that is missing keeps the struct default and logs a line to

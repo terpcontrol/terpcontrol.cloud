@@ -61,6 +61,7 @@ export const alertOf = (alert: StoredAlert): Alert => ({
   severity: alert.severity,
   startedAt: alert.startedAt.toISOString(),
   resolvedAt: iso(alert.resolvedAt),
+  rested: alert.rested === true,
   value: alert.value,
   extremeValue: alert.extremeValue,
   // The copy goes out through the same narrowing the rule's own watch does, so

@@ -56,6 +56,7 @@ const quietTent: Alert = {
   severity: 'critical',
   startedAt: iso(SERVER_NOW.minus({ minutes: 27 })),
   resolvedAt: null,
+  rested: false,
   value: null,
   extremeValue: null,
   watched: null,

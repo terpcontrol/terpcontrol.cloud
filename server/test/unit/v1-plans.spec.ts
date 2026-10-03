@@ -499,7 +499,8 @@ describe('the transitions', () => {
     await transitions.transition(DEVICE, { kind: 'resume' });
 
     const resumed = (await stored()).state;
-    expect(resumed).toMatchObject({ status: 'running', pausedElapsedMs: paused.pausedElapsedMs, pauseReason: null });
+    // Steering again, the plan sends its step at the engine's next pass rather than at the hour.
+    expect(resumed).toMatchObject({ status: 'running', pausedElapsedMs: paused.pausedElapsedMs, pauseReason: null, lastAppliedAt: null });
 
     // The day the step had served before the pause still counts, so half a day
     // more is not two days.

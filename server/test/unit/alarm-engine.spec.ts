@@ -341,21 +341,29 @@ describe('what keeps an alarm quiet', () => {
 });
 
 /**
- * Owner's decision G2: while a device germinates, its "too humid" alarms rest
- * unless the grower asks to be warned. Germination is the work mode, so the
- * engine reads it off the device on every sample; nothing is written on the
- * rule, which keeps what the person set on it and watches again the moment
- * germination ends.
+ * Owner's decision G2: while a device germinates, the stage's "too humid" rests
+ * unless the grower asks to be warned, and warns at germination's own line
+ * where they did. Germination is the work mode, so the engine reads it off the
+ * device on every sample; nothing is written on the rule, which keeps what the
+ * person set on it and its band, and watches by them again the moment
+ * germination ends. A rule a person wrote is theirs and watches throughout.
  */
 describe('a "too humid" alarm while the device germinates', () => {
   const tooHumid = (over: Partial<StoredAlarmRule> = {}) =>
-    ruleFor({ name: 'Too humid', watch: { kind: 'reading', metric: 'humidity', upper: 70, lower: null }, ...over });
+    ruleFor({
+      name: 'Too humid',
+      origin: 'preset',
+      presetKey: 'too_humid',
+      presetId: 'vegetative',
+      watch: { kind: 'reading', metric: 'humidity', upper: 70, lower: null },
+      ...over,
+    });
   const humid = (humidity: number, at: Date = new Date()) =>
     engine.onSample({ deviceId: DEVICE, measuredAt: at, values: { humidity, temperature: 24 }, outputs: {} });
   const germinating = (choices: Record<string, boolean> | null = null) =>
     device({ configuration: { workmode: 'breed', night: { temperature: 24, humidity: 60 } }, germinationChoices: choices });
 
-  it('rests by default, and says nothing about air far wetter than its line', async () => {
+  it("rests the stage's by default, and says nothing about air far wetter than its line", async () => {
     await germinating();
     await rules.create(tooHumid());
 
@@ -365,26 +373,33 @@ describe('a "too humid" alarm while the device germinates', () => {
     expect((await storedRule()).enabled).toBe(true);
   });
 
-  it('warns where the grower asked to be warned in germination too', async () => {
+  it("warns where the grower asked to, at germination's line rather than the band of the stage before", async () => {
     await germinating({ warnTooHumid: true, humidifierHolds: true });
     await rules.create(tooHumid());
 
-    await humid(95);
+    // Over the veg band of 70 %, and where a germination box is meant to be.
+    await humid(85, new Date(Date.now() - 2_000));
+    expect(await alerts.countDocuments({})).toBe(0);
 
-    expect(await alerts.countDocuments({ resolvedAt: null })).toBe(1);
+    await humid(95, new Date(Date.now() - 1_000));
+    const alert = await openAlert();
+    expect(alert?.watched?.watch).toMatchObject({ metric: 'humidity', upper: 90 });
+    // The rule keeps its own band for after germination.
+    expect((await storedRule()).watch).toMatchObject({ upper: 70 });
   });
 
-  it('goes on watching what is not a "too humid" alarm: the temperature, and a band kept from both sides', async () => {
+  it('leaves a person\'s own alarm watching, and what is not a "too humid" alarm: the temperature, and a band kept from both sides', async () => {
     await germinating();
     await rules.create(ruleFor({ id: 'rule-1' }));
     await rules.create(tooHumid({ id: 'rule-2', watch: { kind: 'reading', metric: 'humidity', upper: 70, lower: 40 } }));
+    await rules.create(tooHumid({ id: 'rule-3', origin: 'human', presetKey: null, presetId: null }));
 
     await engine.onSample({ deviceId: DEVICE, measuredAt: new Date(), values: { humidity: 95, temperature: 32 }, outputs: {} });
 
-    expect(await alerts.countDocuments({ resolvedAt: null })).toBe(2);
+    expect(await alerts.countDocuments({ resolvedAt: null })).toBe(3);
   });
 
-  it('lets an episode it had open go quiet, with no all-clear, and watches again once germination ends', async () => {
+  it('lets an episode it had open go quiet, said to have rested and with no all-clear, and watches again once germination ends', async () => {
     await device({ configuration: { workmode: 'small' } });
     await rules.create(tooHumid());
     await humid(80, new Date(Date.now() - 3_000));
@@ -394,6 +409,7 @@ describe('a "too humid" alarm while the device germinates', () => {
     await humid(85, new Date(Date.now() - 2_000));
 
     expect(await alerts.countDocuments({ resolvedAt: null })).toBe(0);
+    expect(await alerts.findOne({}).lean<StoredAlert>()).toMatchObject({ rested: true });
     expect((await storedRule()).state.triggered).toBe(false);
     // Closed without a word: the diary holds the alarm and no all-clear for it.
     expect(await db.entries.countDocuments({ 'message.key': 'message-alarm-resolved' })).toBe(0);
@@ -401,6 +417,20 @@ describe('a "too humid" alarm while the device germinates', () => {
     await db.devices.updateOne({ id: DEVICE }, { $set: { 'configuration.workmode': 'small' } });
     await humid(85, new Date(Date.now() - 1_000));
     expect(await alerts.countDocuments({ resolvedAt: null })).toBe(1);
+    expect(await openAlert()).toMatchObject({ rested: false });
+  });
+
+  it('goes quiet the moment it is asked to, rather than at the next reading', async () => {
+    await device({ configuration: { workmode: 'small' } });
+    await rules.create(tooHumid());
+    await humid(80, new Date(Date.now() - 3_000));
+    expect(await alerts.countDocuments({ resolvedAt: null })).toBe(1);
+
+    await db.devices.updateOne({ id: DEVICE }, { $set: { 'configuration.workmode': 'breed' } });
+    await engine.restNow(DEVICE);
+
+    expect(await alerts.countDocuments({ resolvedAt: null })).toBe(0);
+    expect(await alerts.findOne({}).lean<StoredAlert>()).toMatchObject({ rested: true });
   });
 });
 

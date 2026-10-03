@@ -203,9 +203,10 @@ export interface GerminationChoiceValues {
  * What holds where the grower has not chosen, which is also what every device
  * did before there was a choice, so that no tent changes by itself:
  *
- * - The "too humid" alarms rest. Seeds are kept moist on purpose, a germination
- *   box reads far above any band meant for leaves, and an alarm that goes off
- *   every night of a germination teaches the grower to stop reading alarms.
+ * - The stage's "too humid" rests. Seeds are kept moist on purpose, a
+ *   germination box reads far above any band meant for leaves, and an alarm
+ *   that goes off every night of a germination teaches the grower to stop
+ *   reading alarms.
  * - A humidifier socket goes on holding the night's humidity. Dry air is what
  *   fails a germination - the medium dries out and the seed coat hardens - and
  *   a humidifier only ever adds moisture up to its target, so it cannot make
@@ -213,7 +214,14 @@ export interface GerminationChoiceValues {
  */
 export const GERMINATION_CHOICES: Readonly<GerminationChoiceValues> = { warnTooHumid: false, humidifierHolds: true };
 
-/** The choices a device keeps, or what holds where it keeps none; a choice it does not state is the default's. */
+/**
+ * The choices a device keeps, or what holds where it keeps none; a choice it
+ * does not state is the default's. A device keeps them for one germination:
+ * they go back to the defaults when it ends, so a choice made for one batch of
+ * seeds is not carried months later into the next by a way into germination
+ * that does not ask (the device's own menu, a plan step written before steps
+ * could say).
+ */
 export const germinationChoicesOf = (kept: Partial<GerminationChoiceValues> | null | undefined): GerminationChoiceValues => ({
   warnTooHumid: typeof kept?.warnTooHumid === 'boolean' ? kept.warnTooHumid : GERMINATION_CHOICES.warnTooHumid,
   humidifierHolds: typeof kept?.humidifierHolds === 'boolean' ? kept.humidifierHolds : GERMINATION_CHOICES.humidifierHolds,
@@ -227,21 +235,48 @@ interface WatchShape {
   lower?: number | null;
 }
 
+/** As much of a rule as says whose it is and what it watches: the contract's `AlarmRule`. */
+interface RuleShape<W extends WatchShape = WatchShape> {
+  origin: string;
+  watch: W;
+}
+
 /**
- * Whether a rule is a "too humid" alarm: it watches the humidity from above
- * and from nowhere else. That is the stage's, and the one-tap template's. A
- * rule that keeps the humidity inside a band from both sides watches for dry
- * air as well, and is never rested for germination.
+ * Whether a rule watches the humidity from above and from nowhere else. A rule
+ * that keeps the humidity inside a band from both sides watches for dry air as
+ * well.
  */
 export const watchesTooHumid = (watch: WatchShape): boolean =>
   watch.kind === 'reading' && watch.metric === 'humidity' && typeof watch.upper === 'number' && (watch.lower ?? null) === null;
 
 /**
+ * Whether a rule is the stage's "too humid": the band a stage wrote (`preset`)
+ * on the humidity from above. That is the one rule germination's choice is
+ * about (owner's decision G2: "whether the stage's 'Zu feucht' alarm stays
+ * on"). A rule a person wrote - the one-tap template's included - is theirs,
+ * set for the box they know, and watches through germination like every other.
+ */
+export const isStageTooHumid = (rule: RuleShape): boolean => rule.origin === 'preset' && watchesTooHumid(rule.watch);
+
+/**
  * Whether a rule rests now: its device germinates in the dark (`breed`), the
- * grower did not ask to be warned, and it is a "too humid" alarm. It is not
+ * grower did not ask to be warned, and it is the stage's "too humid". It is not
  * switched off - what a person set on it stays - and it watches again the
  * moment germination ends or the grower asks to be warned. The alarm engine
  * decides by this, and the screens say it by the same rule.
  */
-export const restsInGermination = (watch: WatchShape, workmode: unknown, kept: Partial<GerminationChoiceValues> | null | undefined): boolean =>
-  workmode === 'breed' && !germinationChoicesOf(kept).warnTooHumid && watchesTooHumid(watch);
+export const restsInGermination = (rule: RuleShape, workmode: unknown, kept: Partial<GerminationChoiceValues> | null | undefined): boolean =>
+  workmode === 'breed' && !germinationChoicesOf(kept).warnTooHumid && isStageTooHumid(rule);
+
+/**
+ * What a rule watches while its device is where it is now. The stage's "too
+ * humid" watches germination's own line (`GERMINATION_TOO_HUMID`) while the
+ * device germinates, whatever stage wrote its band: germination is set from
+ * Steuerung, the operating mode or a plan as often as by a phase, and the band
+ * of the stage before - ten points over a leafy plant's humidity - is one a
+ * germination box stands above all night. Once germination ends the rule's own
+ * band holds again, unmoved, so nothing has to be put back. Every other rule
+ * watches what it says.
+ */
+export const watchNow = <W extends WatchShape>(rule: RuleShape<W>, workmode: unknown): W =>
+  workmode === 'breed' && isStageTooHumid(rule) ? { ...rule.watch, upper: GERMINATION_TOO_HUMID } : rule.watch;

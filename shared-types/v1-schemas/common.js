@@ -97,7 +97,7 @@ exports.growthStage = (0, exports.named)('GrowthStage', zod_1.z.enum(['germinati
 exports.germinationChoices = (0, exports.named)('GerminationChoices', zod_1.z.object({
     warnTooHumid: zod_1.z
         .boolean()
-        .describe('Whether the "too humid" alarms of the device - the stage\'s, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends.'),
+        .describe('Whether the stage\'s "too humid" alarm on the device goes on warning while it germinates, at germination\'s own line (`GERMINATION_TOO_HUMID`, 90 %). False rests it until germination ends. An alarm a person wrote is theirs and is never rested.'),
     humidifierHolds: zod_1.z
         .boolean()
         .describe("Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination."),

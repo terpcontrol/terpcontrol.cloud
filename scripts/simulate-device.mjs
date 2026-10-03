@@ -548,11 +548,15 @@ const step = (state, config, at, stepSeconds, random, type = 'controller') => {
  * points - for a humidifier, and anything that moves air whenever the module is
  * controlling at all.
  *
- * The firmware is the witness. There is no PID and no hysteresis here, so the
- * humidifier and the exhaust are read off the same sample the outputs are -
- * enough to drive a screen, not a second implementation of the laws.
+ * The firmware is the witness. There is no PID here, and the exhaust is read
+ * off the same sample the outputs are - enough to drive a screen, not a second
+ * implementation of the laws. The humidifier keeps the firmware's hysteresis
+ * (`humidifierTarget`), because what the cloud writes to rest one depends on
+ * it: switched on below the target by the band, it stays on until the target
+ * is reached and reads no band meanwhile. `wasOn` is what the socket did on the
+ * pass before.
  */
-const socketFollows = (role, sample, config, at, type = 'controller') => {
+const socketFollows = (role, sample, config, at, type = 'controller', wasOn = false) => {
   const mode = configValue(config, 'workmode', DEFAULT_CONFIG.workmode);
   const running = mode !== 'off';
   const aim = aimOf(config, at, type);
@@ -567,7 +571,7 @@ const socketFollows = (role, sample, config, at, type = 'controller') => {
     light: sample.outputs.light > 0,
     secondary_light: sample.outputs.light > 0,
     co2: sample.outputs.co2 > 0,
-    humidifier: running && sample.sensors.humidity < targetHumidity - band,
+    humidifier: running && (wasOn ? sample.sensors.humidity < targetHumidity : sample.sensors.humidity < targetHumidity - band),
     exhaust: running && mode !== 'dry' && sample.sensors.temperature > targetTemperature + 0.8,
     circulation: running,
     fan: running,
@@ -1341,7 +1345,7 @@ class SimulatedDevice {
     if (left > 0) return socket.override.state;
     if (TIMED_SOCKET_ROLES.includes(socket.role)) return this.#timerState(socket);
     if (!socket.role) return null;
-    return socketFollows(socket.role, sample, this.config, at, this.type) ? 'on' : 'off';
+    return socketFollows(socket.role, sample, this.config, at, this.type, socket.state === 'on') ? 'on' : 'off';
   }
 
   // Where in its cycle a timed socket is: on for `onS` out of every `everyS`,

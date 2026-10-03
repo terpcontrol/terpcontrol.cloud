@@ -2186,6 +2186,7 @@ export declare const alert: z.ZodObject<{
     }>;
     startedAt: z.ZodISODateTime;
     resolvedAt: z.ZodNullable<z.ZodISODateTime>;
+    rested: z.ZodBoolean;
     value: z.ZodNullable<z.ZodNumber>;
     extremeValue: z.ZodNullable<z.ZodNumber>;
     watched: z.ZodNullable<z.ZodObject<{
@@ -2255,6 +2256,7 @@ export declare const alertPage: z.ZodObject<{
         }>;
         startedAt: z.ZodISODateTime;
         resolvedAt: z.ZodNullable<z.ZodISODateTime>;
+        rested: z.ZodBoolean;
         value: z.ZodNullable<z.ZodNumber>;
         extremeValue: z.ZodNullable<z.ZodNumber>;
         watched: z.ZodNullable<z.ZodObject<{

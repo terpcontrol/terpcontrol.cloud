@@ -69,7 +69,7 @@
     "properties": {
       "warnTooHumid": {
         "type": "boolean",
-        "description": "Whether the \"too humid\" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends."
+        "description": "Whether the stage's \"too humid\" alarm on the device goes on warning while it germinates, at germination's own line (`GERMINATION_TOO_HUMID`, 90 %). False rests it until germination ends. An alarm a person wrote is theirs and is never rested."
       },
       "humidifierHolds": {
         "type": "boolean",
@@ -2033,7 +2033,7 @@
         "$ref": "#/components/schemas/DryingReturn"
       },
       "germinationChoices": {
-        "description": "What germination does about the humidity on this device: what was chosen last, or what holds where nothing was (`GERMINATION_CHOICES`). Kept for the next germination as well, and acted on only while the device germinates.",
+        "description": "What germination does about the humidity on this device: what was chosen for this germination, or what holds where nothing was (`GERMINATION_CHOICES`). Acted on only while the device germinates, and back to the defaults when germination ends.",
         "$ref": "#/components/schemas/GerminationChoices"
       }
     },
@@ -2397,7 +2397,7 @@
         "properties": {
           "warnTooHumid": {
             "type": "boolean",
-            "description": "Whether the \"too humid\" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends."
+            "description": "Whether the stage's \"too humid\" alarm on the device goes on warning while it germinates, at germination's own line (`GERMINATION_TOO_HUMID`, 90 %). False rests it until germination ends. An alarm a person wrote is theirs and is never rested."
           },
           "humidifierHolds": {
             "type": "boolean",
@@ -4658,6 +4658,10 @@
           }
         ]
       },
+      "rested": {
+        "type": "boolean",
+        "description": "True for an episode that ended because its rule began to rest - the stage's \"too humid\" while its device germinates and the grower asked for no warning - rather than because the reading came back. `resolvedAt` is then when it went quiet; no all-clear was said."
+      },
       "value": {
         "description": "The reading that triggered it.",
         "type": [
@@ -4695,6 +4699,7 @@
       "severity",
       "startedAt",
       "resolvedAt",
+      "rested",
       "value",
       "extremeValue",
       "watched"
@@ -7046,7 +7051,7 @@
         "properties": {
           "warnTooHumid": {
             "type": "boolean",
-            "description": "Whether the \"too humid\" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends."
+            "description": "Whether the stage's \"too humid\" alarm on the device goes on warning while it germinates, at germination's own line (`GERMINATION_TOO_HUMID`, 90 %). False rests it until germination ends. An alarm a person wrote is theirs and is never rested."
           },
           "humidifierHolds": {
             "type": "boolean",
@@ -7388,7 +7393,7 @@
         "properties": {
           "warnTooHumid": {
             "type": "boolean",
-            "description": "Whether the \"too humid\" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends."
+            "description": "Whether the stage's \"too humid\" alarm on the device goes on warning while it germinates, at germination's own line (`GERMINATION_TOO_HUMID`, 90 %). False rests it until germination ends. An alarm a person wrote is theirs and is never rested."
           },
           "humidifierHolds": {
             "type": "boolean",

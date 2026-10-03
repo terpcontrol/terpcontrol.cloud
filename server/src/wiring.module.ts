@@ -9,6 +9,7 @@ import { DevicePublisherService } from '@modules/device-protocol/device-publishe
 import { SCHEDULE_FOLLOWER } from '@modules/device-protocol/schedule-clock';
 import {
   DEVICE_CAMERA_REPORT_SINK,
+  DEVICE_GERMINATION_SINK,
   DEVICE_METRIC_SINK,
   DEVICE_PRESENCE_SINK,
   DEVICE_SAMPLE_SINK,
@@ -25,6 +26,7 @@ import { FirmwareRolloutService } from '@modules/v1/fleet/firmware-rollout.servi
 import { FleetModule } from '@modules/v1/fleet/fleet.module';
 import { CLIMATE_PRESETS } from '@modules/v1/grow/climate-presets.port';
 import { ALARM_ROUTING, GROW_IN_SPACE } from '@modules/alarm/alarm.types';
+import { GerminationAlarmsService } from '@modules/alarm/germination-alarms.service';
 import { StageAlarmsService } from '@modules/alarm/stage-alarms.service';
 import { GrowsService } from '@modules/v1/grow/grows.service';
 import { GrowModule } from '@modules/v1/grow/grow.module';
@@ -81,6 +83,10 @@ import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/c
     { provide: DEVICE_CAMERA_REPORT_SINK, useExisting: TerpCamDirectService },
     { provide: DEVICE_TUNNEL_SINK, useExisting: TunnelService },
     { provide: DEVICE_PRESENCE_SINK, useExisting: FirmwareRolloutService },
+    // A device written into germination, or told what germination does about
+    // the humidity, has its "too humid" rested or given a rule to warn with by
+    // the alarms, which the protocol module only knows to tell.
+    { provide: DEVICE_GERMINATION_SINK, useExisting: GerminationAlarmsService },
     // What the camera pipeline needs of a device: a relay to its camera on
     // request, and whether its light is on, which is the one thing `nightOff` asks.
     { provide: RELAY_REQUEST, useExisting: DevicePublisherService },
@@ -124,6 +130,7 @@ import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/c
     DEVICE_CAMERA_REPORT_SINK,
     DEVICE_TUNNEL_SINK,
     DEVICE_PRESENCE_SINK,
+    DEVICE_GERMINATION_SINK,
     RELAY_REQUEST,
     LIGHT_STATE_READER,
     SERIES_READER,

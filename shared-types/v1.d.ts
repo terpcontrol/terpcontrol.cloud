@@ -267,7 +267,7 @@ export interface Problem {
 
 export interface GerminationChoices {
   /**
-   * Whether the "too humid" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends.
+   * Whether the stage's "too humid" alarm on the device goes on warning while it germinates, at germination's own line (`GERMINATION_TOO_HUMID`, 90 %). False rests it until germination ends. An alarm a person wrote is theirs and is never rested.
    */
   warnTooHumid: boolean;
   /**
@@ -828,12 +828,12 @@ export interface DryingReturn2 {
 }
 
 /**
- * What germination does about the humidity on this device: what was chosen last, or what holds where nothing was (`GERMINATION_CHOICES`). Kept for the next germination as well, and acted on only while the device germinates.
+ * What germination does about the humidity on this device: what was chosen for this germination, or what holds where nothing was (`GERMINATION_CHOICES`). Acted on only while the device germinates, and back to the defaults when germination ends.
  */
 
 export interface GerminationChoices1 {
   /**
-   * Whether the "too humid" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends.
+   * Whether the stage's "too humid" alarm on the device goes on warning while it germinates, at germination's own line (`GERMINATION_TOO_HUMID`, 90 %). False rests it until germination ends. An alarm a person wrote is theirs and is never rested.
    */
   warnTooHumid: boolean;
   /**
@@ -939,7 +939,7 @@ export interface DeviceConfigurationEnvelope {
    */
   germinationChoices?: {
     /**
-     * Whether the "too humid" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends.
+     * Whether the stage's "too humid" alarm on the device goes on warning while it germinates, at germination's own line (`GERMINATION_TOO_HUMID`, 90 %). False rests it until germination ends. An alarm a person wrote is theirs and is never rested.
      */
     warnTooHumid?: boolean;
     /**
@@ -1629,6 +1629,10 @@ export interface Alert {
   startedAt: string;
   resolvedAt: string | null;
   /**
+   * True for an episode that ended because its rule began to rest - the stage's "too humid" while its device germinates and the grower asked for no warning - rather than because the reading came back. `resolvedAt` is then when it went quiet; no all-clear was said.
+   */
+  rested: boolean;
+  /**
    * The reading that triggered it.
    */
   value: number | null;
@@ -2311,7 +2315,7 @@ export interface PresetApplicationCreate {
    */
   germinationChoices?: {
     /**
-     * Whether the "too humid" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends.
+     * Whether the stage's "too humid" alarm on the device goes on warning while it germinates, at germination's own line (`GERMINATION_TOO_HUMID`, 90 %). False rests it until germination ends. An alarm a person wrote is theirs and is never rested.
      */
     warnTooHumid?: boolean;
     /**
@@ -2417,7 +2421,7 @@ export interface PhaseCreate {
    */
   germinationChoices?: {
     /**
-     * Whether the "too humid" alarms of the device - the stage's, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends.
+     * Whether the stage's "too humid" alarm on the device goes on warning while it germinates, at germination's own line (`GERMINATION_TOO_HUMID`, 90 %). False rests it until germination ends. An alarm a person wrote is theirs and is never rested.
      */
     warnTooHumid?: boolean;
     /**

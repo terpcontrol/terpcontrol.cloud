@@ -28,7 +28,8 @@ import {
 } from './device-sinks';
 import { DevicePublisherService } from './device-publisher.service';
 import { HardwareReportService } from './hardware-report.service';
-import { heldTo } from './class-rules';
+import { heldTo, offTheWire, onTheWire } from './class-rules';
+import { GERMINATION_FORGOTTEN, leftAtDevice } from './germination-memory';
 import { sameClockTimes } from './schedule-clock';
 import { baseFromUpload, standardOf } from './work-modes';
 import { DEVICE_TOPIC_FILTER, DeviceTopic, parseDeviceTopic } from './topics';
@@ -341,12 +342,21 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
    * old ones were kept on is let go and the schedule loop anchors the new ones
    * on whatever the owner's clock is when it next passes. The server's own
    * sends arrive here too, and leave the times as they were.
+   *
+   * A device carries a resting humidifier's target as the server sent it
+   * (`onTheWire`); what is stored is the night's humidity the server keeps
+   * (`offTheWire`), and the echo of a send compares against what was sent. A
+   * device that left germination from its own menu gets back what germination
+   * kept, and the server lets that memory go (`leftAtDevice`), as it does when
+   * germination ends from the cloud.
    */
   private async configuration(device: StoredDevice, payload: string): Promise<void> {
     const reported = asRecord(parsed(payload));
     if (!reported) return;
 
-    const configuration = heldTo(device.type, reported);
+    const read = offTheWire(reported, device.configuration ?? null);
+    const returned = leftAtDevice(device.configuration ?? null, read, device);
+    const configuration = heldTo(device.type, returned ?? read);
     const base = baseFromUpload(device.type, configuration);
     const retimed = !sameClockTimes(device.configuration, configuration);
     await this.devices.updateOne(
@@ -357,12 +367,13 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
           ...(retimed ? { scheduleClock: null } : {}),
           ...(base ? { baseWorkmode: base } : {}),
           ...(standardOf(base) ? { standardWorkmode: standardOf(base) } : {}),
+          ...(returned ? GERMINATION_FORGOTTEN : {}),
         },
       },
     );
     await recordTargets(this.targetRecord, device, device.configuration, configuration, new Date());
 
-    if (JSON.stringify(configuration) !== JSON.stringify(reported)) this.publisher.configuration(device.id, configuration);
+    if (JSON.stringify(onTheWire(configuration)) !== JSON.stringify(reported)) this.publisher.configuration(device.id, configuration);
   }
 }
 

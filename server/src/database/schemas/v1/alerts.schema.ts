@@ -11,10 +11,12 @@ import { alertKind, severity } from '@fg2/shared-types/v1-schemas';
  * ids, and a `$in` carrying a null would otherwise take every alert that names
  * no device with it.
  */
-export interface StoredAlert extends Omit<Alert, 'createdAt' | 'startedAt' | 'resolvedAt'> {
+export interface StoredAlert extends Omit<Alert, 'createdAt' | 'startedAt' | 'resolvedAt' | 'rested'> {
   createdAt: Date;
   startedAt: Date;
   resolvedAt: Date | null;
+  /** Ended by its rule resting rather than by the reading (`Alert.rested`); absent on every episode older than the field. */
+  rested?: boolean;
 }
 
 export const alertsSchema = new Schema<StoredAlert>(
@@ -30,6 +32,7 @@ export const alertsSchema = new Schema<StoredAlert>(
     severity: { type: String, enum: severity.options, required: true },
     startedAt: { type: Date, required: true },
     resolvedAt: { type: Date, default: null },
+    rested: { type: Boolean, default: false },
     value: { type: Number, default: null },
     extremeValue: { type: Number, default: null },
     // The rule's name and watch as they were when the episode opened, so the

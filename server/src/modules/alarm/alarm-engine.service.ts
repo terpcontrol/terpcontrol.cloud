@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import { Mutex, MutexInterface, withTimeout } from 'async-mutex';
 import { Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { MAINTENANCE_SETTLE_SECONDS, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
-import { restsInGermination } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -86,16 +86,20 @@ export class AlarmEngineService {
       const rules = await this.rules
         .find({ deviceId: device.id, $or: [{ 'watch.metric': { $in: metrics } }, { 'watch.output': { $in: outputs } }] })
         .lean<StoredAlarmRule[]>();
-      for (const rule of rules) {
-        const value = watchedValue(rule.watch, sample);
+      for (const stored of rules) {
+        const value = watchedValue(stored.watch, sample);
         // Asked before the band is, because deciding that costs a query into the
         // stored series for a rule that is patient.
-        if (value === undefined || this.saysNothingNew(rule, sample.measuredAt)) continue;
-        if (restsInGermination(rule.watch, device.configuration?.workmode, device.germinationChoices)) {
-          await this.rest(rule, sample.measuredAt);
+        if (value === undefined || this.saysNothingNew(stored, sample.measuredAt)) continue;
+        if (restsInGermination(stored, device.configuration?.workmode, device.germinationChoices)) {
+          await this.rest(stored, sample.measuredAt);
           continue;
         }
 
+        // The band the rule watches where the device is now - the stage's "too
+        // humid" watches germination's own line while it germinates - is the
+        // band it is judged, raised and remembered by.
+        const rule = { ...stored, watch: watchNow(stored, device.configuration?.workmode) };
         await this.evaluate(rule, device, value, sample.measuredAt, await this.isOutOfBand(rule, device.id, value, at));
       }
     } finally {
@@ -162,12 +166,34 @@ export class AlarmEngineService {
   }
 
   /**
-   * A "too humid" alarm while its device germinates and the grower asked for
-   * no warning (`restsInGermination`): it watches nothing until germination
+   * The rules of a device that rest now, rested at once rather than at its next
+   * reading: what the grower chose about germination has just been saved, and
+   * the alert it asked to be quiet should not stand open on the screen it was
+   * saved from until the device next reports.
+   */
+  public async restNow(deviceId: string): Promise<void> {
+    const release = await this.lock(deviceId);
+    try {
+      const device = await this.deviceOf(deviceId);
+      if (!device) return;
+
+      const rules = await this.rules.find({ deviceId, enabled: true, 'watch.metric': 'humidity' }).lean<StoredAlarmRule[]>();
+      for (const rule of rules) {
+        if (restsInGermination(rule, device.configuration?.workmode, device.germinationChoices)) await this.rest(rule, new Date());
+      }
+    } finally {
+      release();
+    }
+  }
+
+  /**
+   * The stage's "too humid" while its device germinates and the grower asked
+   * for no warning (`restsInGermination`): it watches nothing until germination
    * ends. An episode it had open goes quiet - nothing is said, neither the
-   * alarm again nor an all-clear the reading did not earn - and its duration
-   * starts over once it watches again, so the end of germination is not met
-   * with an alarm for the hours it rested.
+   * alarm again nor an all-clear the reading did not earn, and the alert says it
+   * was rested rather than resolved - and its duration starts over once it
+   * watches again, so the end of germination is not met with an alarm for the
+   * hours it rested.
    */
   private async rest(rule: StoredAlarmRule, at: Date): Promise<void> {
     this.insideSince.set(rule.id, at.getTime());

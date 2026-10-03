@@ -30,13 +30,31 @@ const DRY_FROM = 55;
  * A humidifier socket switches on where the air is drier than its target by
  * `daynight.targetHumidityDiff` and off at the target. With this band it never
  * switches on - no reading lies a hundred points under a target - which is how
- * a humidifier is rested while a device germinates: the firmware has no switch
- * for it, and in germination the band is read by the humidifier alone, since
- * nothing dehumidifies in the dark. Only `breed` keeps it; in every other mode
- * it would keep a controller's dehumidifier from ever switching on, so there it
- * is put back (`DeviceConfigurationService` puts back the band it replaced).
+ * the server marks a humidifier rested while a device germinates: the firmware
+ * has no switch for it, and in germination the band is read by the humidifier
+ * alone, since nothing dehumidifies in the dark. Only `breed` keeps it; in every
+ * other mode it would keep a controller's dehumidifier from ever switching on,
+ * so there it is put back (`DeviceConfigurationService` puts back the band it
+ * replaced).
+ *
+ * The band alone does not stop a humidifier that is already running, though.
+ * The firmware switches with a hysteresis (`humidifierTarget` in `fridge.cpp`
+ * and `controller.cpp`): once on, it stays on until the reading reaches the
+ * target and reads no band at all. Resting is usually chosen exactly while it
+ * runs - and germination often begins while it runs, the stage before having
+ * held a wetter day - so the document the device is sent also aims the
+ * humidifier at nothing (`onTheWire`).
  */
 export const HUMIDIFIER_REST_BAND = 100;
+
+/**
+ * The night's humidity a resting humidifier is sent: no reading lies under it,
+ * so a humidifier that is running stops at its next pass and one that is off
+ * stays off. In germination the night's humidity is read by the humidifier
+ * alone - the firmware holds no day there, and dries nothing - so nothing else
+ * changes with it.
+ */
+export const HUMIDIFIER_REST_HUMIDITY = 0;
 
 /** What the firmware switches by where its document states no band: what a band that was not kept goes back to. */
 const FIRMWARE_HUMIDITY_BAND = 5;
@@ -48,6 +66,43 @@ export const restsHumidifier = (configuration: DeviceConfiguration | null): bool
 const bandOf = (configuration: DeviceConfiguration): unknown => {
   const daynight = configuration.daynight;
   return isSection(daynight) ? daynight.targetHumidityDiff : undefined;
+};
+
+const nightHumidityOf = (configuration: DeviceConfiguration): unknown => {
+  const night = configuration.night;
+  return isSection(night) ? night.humidity : undefined;
+};
+
+/**
+ * The document as it goes to the device: the stored one, with a rested
+ * humidifier aimed at nothing (`HUMIDIFIER_REST_HUMIDITY`). What the server
+ * stores, serves and records keeps the night's humidity the grower set - the
+ * one the humidifier holds again once it may - so the target that is nobody's
+ * goes no further than the wire. `offTheWire` reads it back.
+ *
+ * The rest band stays beside it: outside germination the two together keep the
+ * dehumidifier from switching on as well (a band of 100 over nothing), which
+ * covers the moment between a device leaving germination by its own menu and
+ * the server's answer to that.
+ */
+export const onTheWire = (configuration: DeviceConfiguration): DeviceConfiguration =>
+  restsHumidifier(configuration) && typeof nightHumidityOf(configuration) === 'number'
+    ? { ...configuration, night: { ...sectionOf(configuration, 'night'), humidity: HUMIDIFIER_REST_HUMIDITY } }
+    : configuration;
+
+/**
+ * A document a device sent, with the night's humidity the server aimed a rested
+ * humidifier at put back to the one it keeps (`onTheWire`), whatever mode the
+ * device has moved to since: the device's own menu shows no night humidity in
+ * germination, so a night humidity of nothing beside the rest band is the
+ * server's, not the grower's. A document the server kept no night humidity in
+ * is left as it came.
+ */
+export const offTheWire = (reported: DeviceConfiguration, stored: DeviceConfiguration | null): DeviceConfiguration => {
+  const kept = stored ? nightHumidityOf(stored) : undefined;
+  if (bandOf(reported) !== HUMIDIFIER_REST_BAND || nightHumidityOf(reported) !== HUMIDIFIER_REST_HUMIDITY || typeof kept !== 'number')
+    return reported;
+  return { ...reported, night: { ...sectionOf(reported, 'night'), humidity: kept } };
 };
 
 const DRY_TUNING = { maxDehumidifySeconds: 900, targetHumidityDiff: 0, useLongHumidityAvg: 1 };

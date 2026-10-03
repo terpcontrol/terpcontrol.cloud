@@ -74,3 +74,17 @@ export interface DevicePresenceSink {
 }
 
 export const DEVICE_PRESENCE_SINK = 'device-protocol:presence';
+
+/**
+ * That a device germinates, or what it germinates with has just been chosen:
+ * whether the stage's "too humid" warns there or rests (`GerminationChoices`).
+ * Provided by the alarms, which act on it at once rather than at the device's
+ * next reading - an alert the grower has just asked to be quiet goes quiet with
+ * the save - and give a device asked to warn the stage's "too humid" to warn
+ * with where it has none.
+ */
+export interface DeviceGerminationSink {
+  germinationChanged(deviceId: string): Promise<void>;
+}
+
+export const DEVICE_GERMINATION_SINK = 'device-protocol:germination';

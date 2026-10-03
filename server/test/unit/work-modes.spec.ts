@@ -600,7 +600,10 @@ describe('every other way a document is written', () => {
  * the dark or rests. The firmware has no switch for it - a humidifier follows
  * the night's humidity in every mode that regulates - so the server rests it
  * by widening the band it switches by until it never switches on, and puts
- * the band back the moment it may hold again.
+ * the band back the moment it may hold again. A humidifier that is running
+ * when it is rested does not read the band (the firmware's hysteresis), so the
+ * device is sent a night humidity of nothing besides, while the server keeps
+ * the grower's.
  */
 describe('a humidifier while the device germinates', () => {
   const bandOf = (document: Record<string, unknown> | null | undefined) =>
@@ -618,15 +621,28 @@ describe('a humidifier while the device germinates', () => {
     // The rest of the tuning is still the fridge's, from the day the device wakes up to.
     expect(resting.configuration?.daynight).toMatchObject({ maxDehumidifySeconds: 2700, useLongHumidityAvg: 0, linearChange: 1 });
     expect(resting.germinationChoices).toEqual({ warnTooHumid: false, humidifierHolds: false });
-    expect(published.at(-1)).toMatchObject({ workmode: 'breed', daynight: { targetHumidityDiff: 100 } });
+    // The device is told to aim at nothing, so one that is running stops; the server keeps the 55 %.
+    expect(published.at(-1)).toMatchObject({ workmode: 'breed', daynight: { targetHumidityDiff: 100 }, night: { humidity: 0 } });
+    expect(resting.configuration).toMatchObject({ night: { temperature: 24, humidity: 55 } });
 
     // The hourly re-send of a germination step keeps it resting.
     await configuration.applyConfiguration(DEVICE, { night: { temperature: 24 } }, 'germination');
     expect(bandOf((await stored()).configuration)).toBe(100);
+    expect(published.at(-1)).toMatchObject({ night: { humidity: 0 } });
 
-    // Changing one's mind brings the band back at once.
+    // Changing one's mind brings the band and the humidity back at once.
     await configuration.configure(DEVICE, { germinationHumidifier: true }, OWNER);
     expect(bandOf((await stored()).configuration)).toBe(5);
+    expect(published.at(-1)).toMatchObject({ daynight: { targetHumidityDiff: 5 }, night: { temperature: 24, humidity: 55 } });
+  });
+
+  it('writes the change of a choice into the diary, rather than the band it rests with', async () => {
+    await device({ configuration: fridgeDocument({ workmode: 'breed', night: { temperature: 24, humidity: 55 } }) });
+
+    await configuration.configure(DEVICE, { germinationHumidifier: false, germinationWarnTooHumid: true }, OWNER);
+
+    const line = await db.entries.findOne({ 'message.key': 'message-device-configuration-updated' }).lean<{ message: { params: string[] } }>();
+    expect(line?.message.params[0].split('\n')).toEqual(['germination.warnTooHumid: false → true', 'germination.humidifierHolds: true → false']);
   });
 
   it('gives a fridge its tuning back when germination ends, from the day humidity as ever', async () => {
@@ -640,11 +656,11 @@ describe('a humidifier while the device germinates', () => {
       workmode: 'small',
       daynight: { maxDehumidifySeconds: 900, targetHumidityDiff: 0, useLongHumidityAvg: 1 },
     });
-    // The choice is kept for the next germination.
-    expect(after.germinationChoices).toEqual({ warnTooHumid: false, humidifierHolds: false });
+    // The choice was for that germination: the next one starts from the defaults, which hold - by the fridge's own tuning.
+    expect(after.germinationChoices).toBeNull();
 
     await configuration.applyConfiguration(DEVICE, { night: { temperature: 24 } }, 'germination');
-    expect(bandOf((await stored()).configuration)).toBe(100);
+    expect(bandOf((await stored()).configuration)).toBe(0);
   });
 
   it('puts back the band a controller had, which its dehumidifier switches by', async () => {
@@ -661,20 +677,47 @@ describe('a humidifier while the device germinates', () => {
     expect(after.restedHumidityBand).toBeNull();
   });
 
-  it('keeps the rest through the device´s own upload, and gives the band up where the device leaves germination by its menu', async () => {
+  it('keeps the rest through the device´s own upload, and gives the band and the humidity back where the device leaves germination by its menu', async () => {
     await device({
       type: 'controller',
       configuration: fridgeDocument({ workmode: 'breed', daynight: { day: 21600, night: 64800, targetHumidityDiff: 7 } }),
     });
     await configuration.configure(DEVICE, { germinationHumidifier: false }, OWNER);
-    const resting = (await stored()).configuration!;
+    // What the device runs, and so what it uploads: the humidity it was sent.
+    const sent = published.at(-1)!;
+    expect(sent).toMatchObject({ night: { humidity: 0 } });
+    published = [];
 
-    await ingest.handle(`/devices/${DEVICE}/configuration`, JSON.stringify(resting));
-    expect(bandOf((await stored()).configuration)).toBe(100);
+    await ingest.handle(`/devices/${DEVICE}/configuration`, JSON.stringify(sent));
+    expect((await stored()).configuration).toMatchObject({ daynight: { targetHumidityDiff: 100 }, night: { humidity: 55 } });
+    // The echo of what was sent is no change, and is not answered.
+    expect(published).toEqual([]);
 
     // Out of germination at the device itself, the band would keep its dehumidifier off for good.
-    await ingest.handle(`/devices/${DEVICE}/configuration`, JSON.stringify({ ...resting, workmode: 'small' }));
-    expect(bandOf((await stored()).configuration)).toBe(5);
+    await ingest.handle(`/devices/${DEVICE}/configuration`, JSON.stringify({ ...sent, workmode: 'small' }));
+    const after = await stored();
+    expect(after.configuration).toMatchObject({ workmode: 'small', daynight: { targetHumidityDiff: 7 }, night: { humidity: 55 } });
+    expect(after).toMatchObject({ restedHumidityBand: null, germinationChoices: null, beforeGermination: null });
+    expect(published.at(-1)).toMatchObject({ workmode: 'small', daynight: { targetHumidityDiff: 7 }, night: { humidity: 55 } });
+  });
+
+  it('puts the night back where the device leaves germination by its menu, so the next write from the cloud keeps what is set there after', async () => {
+    await device();
+    await configuration.configure(DEVICE, { mode: 'germination', germinationHumidifier: false }, OWNER);
+    expect((await stored()).beforeGermination).toEqual({ 'night.temperature': 20, 'night.humidity': 55 });
+    const sent = published.at(-1)!;
+
+    await ingest.handle(`/devices/${DEVICE}/configuration`, JSON.stringify({ ...sent, workmode: 'small' }));
+    expect((await stored()).configuration).toMatchObject({ workmode: 'small', night: { temperature: 20, humidity: 55 } });
+    expect((await stored()).beforeGermination).toBeNull();
+
+    // Set on the device afterwards, and kept through a write from the cloud about something else.
+    await ingest.handle(
+      `/devices/${DEVICE}/configuration`,
+      JSON.stringify({ ...(await stored()).configuration, night: { temperature: 19, humidity: 50 } }),
+    );
+    await configuration.configure(DEVICE, { energySaving: true }, OWNER);
+    expect((await stored()).configuration).toMatchObject({ workmode: 'full', night: { temperature: 19, humidity: 50 } });
   });
 
   it('writes the humidity a humidifier holds where the save shows it, and puts the night from before back afterwards', async () => {
@@ -707,6 +750,33 @@ describe('a humidifier while the device germinates', () => {
 
     await configuration.applyConfiguration(DEVICE, { night: { temperature: 21 } }, null);
     expect((await stored()).configuration).toMatchObject({ workmode: 'small', night: { temperature: 21, humidity: 55 } });
+  });
+
+  it('tells the alarms of every write that leaves the device germinating, and of none other', async () => {
+    const told: string[] = [];
+    const mqtt = { canPublish: true, publish: () => true } as unknown as MqttClientService;
+    const writer = new DeviceConfigurationService(
+      db.devices,
+      db.users,
+      db.targetChanges,
+      new DevicePublisherService(db.devices, mqtt),
+      new EntryWriterService(db.entries),
+      null,
+      { get: () => ({ germinationChanged: async (deviceId: string) => void told.push(deviceId) }) } as never,
+    );
+    await device();
+
+    await writer.configure(DEVICE, { energySaving: true }, OWNER);
+    expect(told).toEqual([]);
+
+    await writer.configure(DEVICE, { mode: 'germination' }, OWNER);
+    await writer.configure(DEVICE, { germinationWarnTooHumid: true }, OWNER);
+    expect(told).toEqual([DEVICE, DEVICE]);
+
+    await writer.configure(DEVICE, { mode: 'standard' }, OWNER);
+    expect(told).toHaveLength(2);
+    // Germination's choices were for that germination.
+    expect((await stored()).germinationChoices).toBeNull();
   });
 
   it('keeps a choice about germination off any other climate', async () => {

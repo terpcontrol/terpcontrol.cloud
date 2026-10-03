@@ -1,6 +1,8 @@
 import { stageAlarmBands } from '@fg2/shared-types/v1-schemas';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
+import { AlarmEngineService } from '@modules/alarm/alarm-engine.service';
 import { AlarmRuleService } from '@modules/alarm/alarm-rule.service';
+import { GerminationAlarmsService } from '@modules/alarm/germination-alarms.service';
 import { StageAlarmsService } from '@modules/alarm/stage-alarms.service';
 import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
 import { StageAlarms } from '@modules/v1/phase/stage-alarms.port';
@@ -73,7 +75,8 @@ describe('the bands a stage implies', () => {
    * Germination holds one temperature in the dark and no humidity, so its
    * "too humid" is the line where germination itself goes wrong rather than ten
    * points over a target - and the engine rests it unless the grower asks to be
-   * warned (`restsInGermination`).
+   * warned (`restsInGermination`), and watches it at that line however the
+   * device came to germinate (`watchNow`).
    */
   it('watches germination´s one temperature, and the air past where seeds go mouldy', () => {
     const bands = Object.fromEntries((stageAlarmBands('germination', null) ?? []).map(band => [band.key, band]));
@@ -179,6 +182,72 @@ describe('the rules the stage writes on a device', () => {
 
     expect(await db.alarmRules.findOne({ id: own.id }).lean()).toMatchObject({ name: 'Mine', origin: 'human' });
     expect(Object.keys(await byKey(OTHER))).toHaveLength(4);
+  });
+});
+
+/**
+ * Owner's decision G2, set from somewhere a phase is not: a device put into
+ * germination from Steuerung, the operating mode or a plan has the bands of the
+ * stage before - or none - and the grower who asks to be warned is given the
+ * stage's "too humid" where there is none to warn with.
+ */
+describe('a device that germinates and was asked to warn', () => {
+  const germinating = (choices: Record<string, boolean> | null, over: Record<string, unknown> = {}) =>
+    db.devices.create({
+      id: DEVICE,
+      type: 'controller',
+      ownerId: 'user-owner',
+      configuration: { workmode: 'breed', night: { temperature: 24, humidity: 60 } },
+      germinationChoices: choices,
+      ...over,
+    });
+  const told = () => {
+    const engine = { restNow: async (deviceId: string) => void rested.push(deviceId) } as unknown as AlarmEngineService;
+    return new GerminationAlarmsService(db.devices, service, engine);
+  };
+  let rested: string[];
+
+  beforeEach(() => {
+    rested = [];
+  });
+
+  it('gets the stage´s "too humid" at germination´s line where it has none', async () => {
+    await germinating({ warnTooHumid: true, humidifierHolds: true });
+
+    await told().germinationChanged(DEVICE);
+
+    const rules = await byKey();
+    expect(Object.keys(rules)).toEqual(['too_humid']);
+    expect(rules.too_humid).toMatchObject({ name: 'Too humid', presetId: 'germination', enabled: true, severity: 'warning', forSeconds: 1200 });
+    expect(rules.too_humid.watch).toMatchObject({ metric: 'humidity', upper: 90, lower: null });
+    expect(rested).toEqual([]);
+  });
+
+  it('leaves the one it has as it is, switched off by somebody included', async () => {
+    await germinating({ warnTooHumid: true, humidifierHolds: true });
+    await service.applyStage(DEVICE, 'vegetative', null);
+    const before = await byKey();
+    await db.alarmRules.updateOne({ id: before.too_humid.id }, { $set: { enabled: false } });
+
+    await told().germinationChanged(DEVICE);
+
+    const after = await byKey();
+    expect(after.too_humid).toMatchObject({ id: before.too_humid.id, enabled: false, presetId: 'vegetative' });
+    expect(after.too_humid.watch).toEqual(before.too_humid.watch);
+  });
+
+  it('rests it at once where the grower asked for no warning, and writes nothing for a device that does not germinate or is nobody´s', async () => {
+    await germinating(null);
+    await told().germinationChanged(DEVICE);
+    expect(rested).toEqual([DEVICE]);
+    expect(await byKey()).toEqual({});
+
+    await db.devices.updateOne({ id: DEVICE }, { $set: { 'configuration.workmode': 'small', germinationChoices: { warnTooHumid: true } } });
+    await told().germinationChanged(DEVICE);
+    await db.devices.updateOne({ id: DEVICE }, { $set: { 'configuration.workmode': 'breed', ownerId: null } });
+    await told().germinationChanged(DEVICE);
+    expect(await byKey()).toEqual({});
+    expect(rested).toEqual([DEVICE]);
   });
 });
 

@@ -288,13 +288,19 @@ export class PlanService implements ScheduleFollower {
    * The clock runs again. A plan that was stopped or has run to its end has no
    * clock to continue, so resuming starts it on the step it stands at - which is
    * the only way a plan is started, and is what the plan screen's "start" does.
+   *
+   * A paused plan is mostly one somebody paused by changing by hand what its
+   * step sets. Resumed, the plan steers again, so its step is sent again within
+   * the engine's next pass rather than at the hour: until then the device went
+   * on running the hand-set targets - or, in germination, the hand-made choices
+   * about the humidity - under a plan that said it was running.
    */
   private async resume(plan: StoredPlan, now: Date, by: string | null): Promise<StoredPlan> {
     if (plan.state.status === 'running') throw conflict('plan_already_running', 'This plan is already running.');
     if (plan.steps.length === 0) throw conflict('plan_has_no_steps', 'A plan without steps has nothing to run.');
 
     if (plan.state.status === 'paused') {
-      return this.progress.store(plan, { ...plan.state, status: 'running', stepStartedAt: now, pauseReason: null });
+      return this.progress.store(plan, { ...plan.state, status: 'running', stepStartedAt: now, pauseReason: null, lastAppliedAt: null });
     }
 
     const index = plan.state.activeStepIndex < plan.steps.length ? plan.state.activeStepIndex : 0;

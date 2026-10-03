@@ -110,7 +110,7 @@ export const germinationChoices = named(
     warnTooHumid: z
       .boolean()
       .describe(
-        'Whether the "too humid" alarms of the device - the stage\'s, and one set up by hand that watches the humidity from above alone - go on warning while it germinates. False rests them until germination ends.',
+        'Whether the stage\'s "too humid" alarm on the device goes on warning while it germinates, at germination\'s own line (`GERMINATION_TOO_HUMID`, 90 %). False rests it until germination ends. An alarm a person wrote is theirs and is never rested.',
       ),
     humidifierHolds: z
       .boolean()
