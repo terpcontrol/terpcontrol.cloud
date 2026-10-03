@@ -148,19 +148,23 @@ export const presetOf = (chip: ClimateChoice): ClimatePreset | null => climatePr
 
 /**
  * The draft with a preset's figures in it. Only the figures move: nothing is
- * written until it is saved. A preset that says nothing about the light hours
- * - drying - leaves the photoperiod where it is, as it does on the server.
+ * written until it is saved. A figure the preset leaves out stays where it is,
+ * as it does on the server: drying says nothing about the light hours, and
+ * germination names its one temperature and nothing else.
  */
 export const prefilled = (draft: TargetsDraft, preset: ClimatePreset): TargetsDraft => ({
   ...draft,
-  dayTemperature: preset.dayTemperature,
-  dayHumidity: preset.dayHumidity,
+  dayTemperature: preset.dayTemperature ?? draft.dayTemperature,
+  dayHumidity: preset.dayHumidity ?? draft.dayHumidity,
   nightTemperature: preset.nightTemperature,
-  nightHumidity: preset.nightHumidity,
-  lightLimit: preset.lightLimit,
+  nightHumidity: preset.nightHumidity ?? draft.nightHumidity,
+  lightLimit: preset.lightLimit ?? draft.lightLimit,
   lightHours: preset.lightHours ?? draft.lightHours,
-  co2: preset.co2,
+  co2: preset.co2 ?? draft.co2,
 });
+
+/** Whether a figure of the draft is what the preset says, where the preset says anything about it. */
+const fits = (value: number, wanted: number | null): boolean => wanted === null || value === wanted;
 
 /**
  * Whether the draft is what a preset would prefill, which is what draws its
@@ -168,14 +172,12 @@ export const prefilled = (draft: TargetsDraft, preset: ClimatePreset): TargetsDr
  * not held against the draft there: the firmware forces it to nothing anyway.
  */
 export const equalsPreset = (draft: TargetsDraft, preset: ClimatePreset, hasCo2: boolean, climateOnly = false): boolean =>
-  draft.dayTemperature === preset.dayTemperature &&
-  draft.dayHumidity === preset.dayHumidity &&
+  fits(draft.dayTemperature, preset.dayTemperature) &&
+  fits(draft.dayHumidity, preset.dayHumidity) &&
   draft.nightTemperature === preset.nightTemperature &&
-  draft.nightHumidity === preset.nightHumidity &&
+  fits(draft.nightHumidity, preset.nightHumidity) &&
   (climateOnly ||
-    (draft.lightLimit === preset.lightLimit &&
-      (preset.lightHours === null || draft.lightHours === preset.lightHours) &&
-      (!hasCo2 || draft.co2 === preset.co2)));
+    (fits(draft.lightLimit, preset.lightLimit) && fits(draft.lightHours, preset.lightHours) && (!hasCo2 || fits(draft.co2, preset.co2))));
 
 export const sameDraft = (a: TargetsDraft, b: TargetsDraft): boolean => (Object.keys(a) as (keyof TargetsDraft)[]).every(key => a[key] === b[key]);
 

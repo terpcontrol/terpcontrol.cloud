@@ -83,7 +83,7 @@ describe('what Erweitert offers a device', () => {
   });
 
   it('offers a tent controller the ramps its lamp runs on, and the lux factor only where it measures light', () => {
-    expect(ids(device('controller'))).toEqual(['light-ramps', 'continue-plan', 'leaf-offsets', 'update-channel']);
+    expect(ids(device('controller'))).toEqual(['operating-mode', 'light-ramps', 'continue-plan', 'leaf-offsets', 'update-channel']);
     expect(ids(device('controller', { ppfd: 'on' }))).toContain('lux-factor');
   });
 
@@ -119,16 +119,16 @@ describe('the fine settings themselves', () => {
     const Mode = mode.Item;
     const view = wrap(<Mode device={device()} mayManage offline={false} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Germination in the dark' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
     expect(api.patch).not.toHaveBeenCalled();
-    expect(screen.getByText(/^Switch to Germination in the dark\? For seeds germinating in the dark: no light, no CO₂/)).toBeInTheDocument();
+    expect(screen.getByText(/^Switch to Germination · dark\? For seeds germinating in the dark: no light, no CO₂/)).toBeInTheDocument();
     // What going back does to the night is said before it is chosen.
     expect(screen.getByText(/Back on standard, the night temperature from before holds again/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.queryByText(/^Switch to Germination in the dark\?/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Switch to Germination · dark\?/)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Germination in the dark' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Switch to Germination in the dark' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to Germination · dark' }));
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { mode: 'germination' } }));
 
     view.unmount();
@@ -139,6 +139,16 @@ describe('the fine settings themselves', () => {
     wrap(<Mode device={germinating} mayManage offline={false} />);
     fireEvent.click(screen.getByRole('button', { name: 'Standard' }));
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { mode: 'standard' } }));
+  });
+
+  it('offer a tent controller the standard and germination in the dark, and not the greenhouse mode a fridge has', () => {
+    const tent = device('controller');
+    const Mode = itemsFor('device', { device: tent, mayManage: true, offline: false }).find(one => one.id === 'operating-mode')!.Item;
+    wrap(<Mode device={tent} mayManage offline={false} />);
+
+    expect(screen.getByRole('button', { name: 'Standard' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Germination · dark' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Greenhouse' })).not.toBeInTheDocument();
   });
 
   it('show the compressor rest the firmware runs with where the document does not state it', () => {
@@ -310,9 +320,10 @@ describe('the phase tips', () => {
     expect(section).toHaveTextContent(/Keep humidity at or below 50 %/);
   });
 
-  it('give germination a seedling´s tips and curing the end of drying´s, and nothing without a phase', () => {
+  it('give germination its own tips in the dark and curing the end of drying´s, and nothing without a phase', () => {
     wrap(<PhaseTips stage="germination" />);
-    expect(screen.getByText(/seedlings drown faster than they dry out/)).toBeInTheDocument();
+    expect(screen.getByText(/^Seeds germinate dark and moist/)).toBeInTheDocument();
+    expect(screen.getByText(/it needs light: switch to “Seedling · with light”/)).toBeInTheDocument();
 
     const { container } = wrap(<PhaseTips stage={null} />);
     expect(container).toBeEmptyDOMElement();

@@ -470,12 +470,7 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
         <div className={styles.panel}>
           <Facts>
             <Fact label={t('devices.panel.connection')} value={connection} />
-            {device.control ? (
-              <Fact
-                label={t('climateControl.label')}
-                value={t(`climateControl.state.${device.control.running ? (device.control.drying ? 'drying' : 'on') : 'off'}`)}
-              />
-            ) : null}
+            {device.control ? <Fact label={t('climateControl.label')} value={t(`climateControl.state.${controlState(device.control)}`)} /> : null}
             {own && device.spaceId ? (
               <Fact
                 label={own.label}
@@ -713,3 +708,7 @@ const runsOf = (verdict: ClimateVerdict | undefined, role: SocketRole): Actuator
 
   return (output && verdict?.actuators.find(one => one.output === output)) || null;
 };
+
+/** Whether a device regulates, and where it does so in a mode that keeps it dark: drying, or germination. */
+const controlState = (control: NonNullable<Device['control']>): 'on' | 'off' | 'drying' | 'germination' =>
+  !control.running ? 'off' : control.drying ? 'drying' : control.mode === 'germination' ? 'germination' : 'on';

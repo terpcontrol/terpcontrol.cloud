@@ -42,20 +42,25 @@ export interface Shape {
 }
 
 /**
- * The shape a device's targets have. `drying` is the spell as the edit stands -
- * the chip tapped last starts or ends one before it is saved - and the light
- * hours are the draft's, so 24 hours typed in is a day without a night at once.
+ * The shape a device's targets have. `drying` and `germination` are the spells
+ * as the edit stands - the chip tapped last starts or ends one before it is
+ * saved - and the light hours are the draft's, so 24 hours typed in is a day
+ * without a night at once.
  */
 export const shapeOf = (
   device: Device,
   draft: TargetsDraft,
-  { drying = device.control?.drying ?? false, climateOnly = device.type === 'fan' }: { drying?: boolean; climateOnly?: boolean } = {},
+  {
+    drying = device.control?.drying ?? false,
+    germination = device.control?.mode === 'germination',
+    climateOnly = device.type === 'fan',
+  }: { drying?: boolean; germination?: boolean; climateOnly?: boolean } = {},
 ): Shape => {
   const greenhouse = device.control?.mode === 'greenhouse';
   if (climateOnly) return { regime: 'sensor', greenhouse: false };
   if (device.control?.running === false) return { regime: 'off', greenhouse };
   if (drying) return { regime: 'drying', greenhouse: false };
-  if (device.control?.mode === 'germination') return { regime: 'germination', greenhouse: false };
+  if (germination) return { regime: 'germination', greenhouse: false };
   if (draft.lightHours >= 24) return { regime: 'always', greenhouse };
   if (draft.lightHours <= 0) return { regime: 'never', greenhouse };
   return { regime: 'cycle', greenhouse };

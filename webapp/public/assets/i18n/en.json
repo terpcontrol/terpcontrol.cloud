@@ -301,7 +301,7 @@
   },
   "growPresets": {
     "seedling": {
-      "name": "Germination & seedling"
+      "name": "Seedling · with light"
     },
     "vegetative": {
       "name": "Vegetative"
@@ -369,6 +369,12 @@
         "2": "High humidity (65–75 %) helps young roots; a propagator dome works great in the first days.",
         "3": "Keep the light dimmed (around 40 %) and at a good distance — bleached or curled leaves mean it's too strong.",
         "4": "Don't feed yet: the seed carries nutrients for the first two weeks."
+      },
+      "germination": {
+        "1": "Seeds germinate dark and moist: between two damp paper towels or 1 cm deep straight into the medium, never standing in water.",
+        "2": "Around 24 °C round the clock is ideal – below 20 °C it takes days longer, above 28 °C the medium dries out.",
+        "3": "After 1–5 days the taproot breaks through. Once the sprout is above the soil it needs light: switch to “Seedling · with light”, or it stretches.",
+        "4": "No feeding and no pressing down: the seed brings what it needs for the first days."
       },
       "vegetative": {
         "1": "Water when the top few centimeters of the medium feel dry — lifting the pot tells you more than a schedule.",
@@ -1524,6 +1530,10 @@
       "drying": "Drying",
       "curing": "Curing"
     },
+    "stageChoice": {
+      "germination": "Germination · dark",
+      "seedling": "Seedling · with light"
+    },
     "author": {
       "you": "you",
       "youLead": "You",
@@ -2306,6 +2316,7 @@
         "occupied": "{{grow}} is already growing in {{place}}.",
         "occupiedSteered": "{{grow}} is already growing in {{place}}: its climate goes to the {{stage}} preset now, and a plan running there pauses.",
         "preset": "The targets in {{place}} go onto the {{stage}} climate with it.",
+        "presetDark": "{{place}} goes onto {{stage}} with it: light off, no CO₂, one temperature round the clock – until the grow moves on to seedling.",
         "noController": "Nothing in {{place}} steers a climate, so the stage is recorded and nothing is written to anything.",
         "hardwareUnknown": "What stands in {{place}} is not known, so no climate is written there; the stages are recorded all the same.",
         "nowhere": "No place, so nothing is steered; the stages are recorded all the same.",
@@ -2642,7 +2653,8 @@
         "close": "Done",
         "remove": "Remove",
         "add": "Add a step",
-        "dryingNote": "A step into drying switches the device into its drying mode: the light stays off, no CO₂ is dosed, and it holds these two figures round the clock."
+        "dryingNote": "A step into drying switches the device into its drying mode: the light stays off, no CO₂ is dosed, and it holds these two figures round the clock.",
+        "germinationNote": "A step into germination switches the device dark: no light, no CO₂, the humidity left alone, and it holds this one temperature round the clock. The next step with another stage brings the light back."
       },
       "figure": {
         "dayTemperature": "Day · temperature",
@@ -2654,6 +2666,9 @@
         "drying": {
           "nightTemperature": "Drying · temperature",
           "nightHumidity": "Drying · humidity"
+        },
+        "germination": {
+          "nightTemperature": "Germination · temperature"
         }
       },
       "figureUnit": {
@@ -3833,6 +3848,10 @@
       "starts": "Saving starts drying: no light and no CO₂, the device only dehumidifies and heats.",
       "ends": "Saving ends drying: the device holds day and night, light and CO₂ again."
     },
+    "germination": {
+      "starts": "Saving switches to Germination · dark: light off, no CO₂, only the temperature round the clock. The other targets stay for afterwards.",
+      "ends": "Saving ends germination: the device holds day and night again, with light and CO₂."
+    },
     "table": {
       "label": "Targets",
       "figure": "Figure",
@@ -3846,7 +3865,7 @@
       "neverTitle": "Dark round the clock",
       "neverSub": "0 h · night figures",
       "dryingTitle": "Drying",
-      "germinationTitle": "Germination",
+      "germinationTitle": "Germination · dark",
       "roundTheClock": "round the clock",
       "brightTitle": "Bright",
       "brightSub": "day, by its sensor",
@@ -3873,7 +3892,7 @@
       "dayPlain": "Day",
       "dayDark": "(lamp at 0 %)",
       "nightPlain": "Night",
-      "germinationBack": "Back on standard, the night temperature from before holds again: {{temperature}}."
+      "germinationBack": "Where germination ends without a new climate, the night temperature from before holds again: {{temperature}}."
     },
     "stepLess": "{{name}}: less",
     "stepMore": "{{name}}: more",
@@ -3893,7 +3912,7 @@
       "drying": "Light off · drying",
       "germination": "Light off · germination",
       "dryingLine": "The light stays off while drying runs. Afterwards the light plan holds again: {{window}}.",
-      "germinationLine": "Germination keeps the light off round the clock. The light plan – {{window}} – holds again in the standard or greenhouse mode.",
+      "germinationLine": "Germination keeps the light off round the clock. The light plan – {{window}} – holds again once it ends: with “Seedling · with light” or another climate.",
       "sensor": "It is day while the fan’s light sensor sees light.",
       "draft": "Draft",
       "was": "so far: {{window}}",
@@ -4218,7 +4237,8 @@
       "onStage": "on {{stage}}",
       "measuring": "measuring only",
       "nothingYet": "nothing set yet",
-      "window": "{{light}} – when it comes on is changed under Control › Targets."
+      "window": "{{light}} – when it comes on is changed under Control › Targets.",
+      "germination": "Germination · dark: the light goes off, there is no CO₂, and the device holds {{temperature}} °C round the clock. Once the sprouts are up, switch to “Seedling · with light”."
     },
     "hardware": {
       "next": "sockets and cam?",
@@ -4580,11 +4600,11 @@
     },
     "climatePreset": {
       "title": "Climate preset",
-      "text": "A ready climate for a stage: day and night temperature and humidity, the light hours, the light limit and CO₂. Auto is for autoflowers, which keep 18–20 hours of light instead of going to 12/12."
+      "text": "A ready climate for a stage: day and night temperature and humidity, the light hours, the light limit and CO₂. “Germination · dark” is a climate and an operating mode at once: dark, no CO₂, 24 °C round the clock; “Seedling · with light” is the first climate with light. Auto is for autoflowers, which keep 18–20 hours of light instead of going to 12/12."
     },
     "stage": {
       "title": "Stage and phase",
-      "text": "The stage is where the plants are, from germination to curing. Entering one writes a phase on the grow: the date it began, a diary line, and the stage's alarm rules on the devices where the plants stand (curing has none)."
+      "text": "The stage is where the plants are, from germination to curing. Germination means the same everywhere: seeds sprouting in the dark, and with its climate the device goes dark; seedling is the first stage with light. Entering one writes a phase on the grow: the date it began, a diary line, and the stage's alarm rules on the devices where the plants stand (curing has none)."
     },
     "stepPreset": {
       "title": "A preset in a step",
@@ -4604,7 +4624,7 @@
     },
     "lightLimit": {
       "title": "Light limit",
-      "text": "The most the lamp may give by day, as a share of its full output: it ramps up to it at sunrise and down again at sunset. At 0 % it stays dark, but the day still holds - with the day figures and with CO₂. Dark with no day at all are drying and the germination mode."
+      "text": "The most the lamp may give by day, as a share of its full output: it ramps up to it at sunrise and down again at sunset. At 0 % it stays dark, but the day still holds - with the day figures and with CO₂. Dark with no day at all are drying and germination · dark."
     },
     "lightsOn": {
       "title": "Light on at",
@@ -4628,7 +4648,7 @@
     },
     "phasePreset": {
       "title": "Targets with the phase",
-      "text": "Leave as they are records only the phase: light, temperature and humidity stay as they are under Control. Choosing a climate switches the targets of the devices there right away – for Flower, for instance, the light goes to 12 hours. Auto is for autoflowers, which keep long days."
+      "text": "Leave as they are records only the phase: light, temperature and humidity stay as they are under Control. Choosing a climate switches the targets of the devices there right away – for Flower, for instance, the light goes to 12 hours, for “Germination · dark” the light goes off. Out of germination, any other phase brings the light back. Auto is for autoflowers, which keep long days."
     },
     "phaseCorrection": {
       "title": "Correct or withdraw",
@@ -4889,7 +4909,7 @@
     "advanced": {
       "operatingMode": {
         "title": "Operating mode",
-        "text": "What the fridge does as a whole while control is on. Standard holds temperature, humidity, light and CO₂ by day and night. Greenhouse holds the temperature only: light and CO₂ keep running by the light plan, the compressor only cools and does not dehumidify on purpose. Germination keeps it dark round the clock and heats and cools to one temperature – the one in the “Germination” column under Targets. Energy saving applies to standard only. A drying phase takes precedence and returns to the operating mode afterwards."
+        "text": "What the device does as a whole while control is on. Standard holds temperature, humidity, light and CO₂ by day and night. Germination · dark keeps it dark round the clock without CO₂ and heats and cools to one temperature – the one in the “Germination · dark” column under Targets; the “Germination · dark” climate and the germination phase set the same germination. A fridge also has greenhouse: the temperature only, light and CO₂ keep running by the light plan, the compressor only cools and does not dehumidify on purpose. Energy saving applies to standard only. A drying phase takes precedence and returns to the operating mode afterwards."
       },
       "chartStep": {
         "title": "Interval",
@@ -5019,6 +5039,10 @@
     "drying": {
       "title": "Drying",
       "text": "While drying the device knows no day and no night: the light stays off, no CO₂ is dosed, it only dehumidifies and heats to the drying targets. Drying starts with the “Drying” preset under Control, with the drying phase in the grow or with a drying plan step. Another preset, another phase or a plan step end it with targets of their own. “End drying” and “Control off” bring back the targets from before drying, and the device goes back to its operating mode, energy saving included."
+    },
+    "germination": {
+      "title": "Germination · dark",
+      "text": "Seeds germinate in the dark: the device goes into its germination mode – no light, no CO₂, the humidity left alone – and heats and cools to one temperature round the clock. 24 °C is suggested, the middle of the 22–26 °C seeds sprout fastest at. Germination starts with “Germination · dark” under Control, as the climate of the germination phase, during setup or with a germination plan step. Any other climate, phase or plan step ends it: the device holds day and night with light again, on standard with its energy saving. Entering the germination phase without a climate changes nothing on the device."
     },
     "socketTimer": {
       "title": "Timer",
@@ -5254,7 +5278,7 @@
     "mode": {
       "drying": "Drying: no light and no CO₂; the drying temperature and humidity are held.",
       "greenhouse": "Operating mode greenhouse: only the temperature is held, not the humidity.",
-      "germination": "Operating mode germination: dark and without CO₂, one temperature round the clock.",
+      "germination": "Germination · dark: no light and no CO₂, one temperature round the clock.",
       "change": "Change"
     },
     "visiting": "Support view of a customer's place: read only. Times are in your time zone."
@@ -5272,7 +5296,10 @@
     "noClimate": "{{stage}} has no climate of its own – the targets stay as they are.",
     "keepsDrying": "Drying holds the night figures as they are, round the clock: {{temperature}} °C · {{humidity}} % – no light and no CO₂.",
     "setsDark": "New: {{figures}} – replaces the targets under Control.",
-    "germinationNote": "This is the climate for freshly sprouted seedlings, with light. To germinate seeds in the dark: the operating mode “Germination in the dark” under Device › Advanced."
+    "setsGermination": "New: Germination · dark – light off, no CO₂, {{temperature}} °C round the clock; the device does not control the humidity. The day, the humidity and the light stay for the seedling.",
+    "keepsGermination": "Stays: Germination · dark at {{temperature}} °C.",
+    "staysLit": "The light stays on: only “Germination · dark” makes it dark.",
+    "endsGermination": "Germination ends: the device holds day and night again, with light and CO₂."
   },
   "advanced": {
     "title": "Advanced",
@@ -5291,7 +5318,8 @@
     "state": {
       "on": "on",
       "off": "off",
-      "drying": "on · drying"
+      "drying": "on · drying",
+      "germination": "on · germination · dark"
     },
     "offAction": "Switch control off",
     "offDoes": {
@@ -5319,7 +5347,7 @@
     "endDrying": "End drying",
     "modeNote": {
       "greenhouse": "Operating mode greenhouse: the device holds the temperature only, not the humidity. Light and CO₂ run by the light plan.",
-      "germination": "Operating mode germination: dark and without CO₂, round the clock. The device only heats and cools to the temperature below."
+      "germination": "Germination · dark: no light, no CO₂, only the temperature below round the clock. Once the sprouts are up, choose “Seedling · with light” below and save."
     },
     "modeChange": "Change operating mode",
     "offTitle": "Control off.",
@@ -5353,8 +5381,8 @@
     "standardNote": "Holds temperature, humidity, light and CO₂ to the targets.",
     "greenhouse": "Greenhouse",
     "greenhouseNote": "Temperature only: light and CO₂ run, the compressor only cools, humidity is not controlled.",
-    "germination": "Germination in the dark",
-    "germinationNote": "For seeds germinating in the dark: no light, no CO₂, one temperature round the clock – the night temperature at first, to be changed under Targets. Back on standard, the night temperature from before holds again. The grow phase “Germination” is something else: it sets a climate for seedlings, with light.",
+    "germination": "Germination · dark",
+    "germinationNote": "For seeds germinating in the dark: no light, no CO₂, one temperature round the clock – the night temperature at first, to be changed under Targets. Back on standard, the night temperature from before holds again. “Germination · dark” under Control sets the same, at 24 °C straight away.",
     "ask": "Switch to {{mode}}? {{what}} Standard here switches it back.",
     "yes": "Switch to {{mode}}"
   },

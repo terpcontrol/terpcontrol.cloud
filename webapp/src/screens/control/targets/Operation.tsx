@@ -104,7 +104,7 @@ function ModeLine({ device, mayManage, onEndDrying }: { device: Device; mayManag
         <Icon size={16} strokeWidth={2} aria-hidden />
         <span>
           {t(`climateControl.modeNote.${control.mode}`)}
-          <Help topic="advanced.operatingMode" />
+          <Help topic={control.mode === 'germination' ? 'germination' : 'advanced.operatingMode'} />
         </span>
       </p>
       {mayManage ? (

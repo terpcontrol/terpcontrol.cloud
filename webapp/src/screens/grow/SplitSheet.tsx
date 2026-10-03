@@ -7,7 +7,7 @@ import { useSplit } from '@/api/lifecycle';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
-import { presetsOf } from '@/ui/presets';
+import { presetsOf, stageChoiceName } from '@/ui/presets';
 import { enough } from '@/ui/session-access';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
@@ -110,7 +110,7 @@ export function SplitSheet({
                   setPreset(current => (presetsOf(one).includes(current ?? '') ? current : null));
                 }}
               >
-                {t(`home.stage.${one}`)}
+                {stageChoiceName(t, one)}
               </Choice>
             ))}
           </Choices>

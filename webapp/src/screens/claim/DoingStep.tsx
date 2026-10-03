@@ -3,12 +3,13 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowthStage, PresetApplication } from '@fg2/shared-types/v1';
-import { climatePreset, STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { climatePreset, GERMINATION_TEMPERATURE, STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { serverNow } from '@/api/clock';
 import { useDevices } from '@/api/devices';
 import { useApplyPreset } from '@/api/lifecycle';
 import { useSetPresetPrompt } from '@/api/spaces';
 import { Refused } from '@/ui/PageState';
+import { stageChoiceName } from '@/ui/presets';
 import { Choice, Choices } from '@/ui/SheetParts';
 import { GrowPicker } from '@/screens/space/GrowPicker';
 import { useMovableGrows } from '@/screens/space/movable-grows';
@@ -17,6 +18,7 @@ import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
 import { scheduleTitle } from '../control/targets/schedule-words';
 import { draftOf, offsetOf } from '../control/targets/targets-draft';
+import { targetFigure } from '../home/units';
 import { MEASURE, type Doing } from './steps';
 import styles from './Claim.module.css';
 
@@ -89,7 +91,7 @@ export function DoingStep({
       <Choices label={t('claim.doing.pick')}>
         {STAGES_WITH_CLIMATE.map(one => (
           <Choice key={one} chosen={chosen === one} disabled={apply.isPending} onChoose={() => pick(one)}>
-            {t(`home.stage.${one}`)}
+            {stageChoiceName(t, one)}
           </Choice>
         ))}
         <Choice chosen={chosen === MEASURE} disabled={apply.isPending} onChoose={() => pick(MEASURE)}>
@@ -102,6 +104,10 @@ export function DoingStep({
           has, so the hours are said as the window they make before anything is
           written - eighteen of them from eight in the morning burn until two. */}
       {stage && !applied && window ? <p className={ui.note}>{t('claim.doing.window', { light: window })}</p> : null}
+      {/* Germination has no window to say: it is dark, and says what it holds instead. */}
+      {stage === 'germination' && !applied ? (
+        <p className={ui.note}>{t('claim.doing.germination', { temperature: targetFigure(GERMINATION_TEMPERATURE, 'temperature') })}</p>
+      ) : null}
 
       <Refused error={apply.error} />
 
@@ -112,7 +118,7 @@ export function DoingStep({
           disabled={apply.isPending || spaceId === null}
           onClick={() => apply.mutate({ stage }, { onSuccess: result => onDoing({ chosen: stage, applied: result }) })}
         >
-          {apply.isPending ? t('claim.doing.applying') : t('claim.doing.apply', { stage: t(`home.stage.${stage}`) })}
+          {apply.isPending ? t('claim.doing.applying') : t('claim.doing.apply', { stage: stageChoiceName(t, stage) })}
         </button>
       ) : null}
 

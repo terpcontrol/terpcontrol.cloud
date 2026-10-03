@@ -14,7 +14,7 @@ import { useSpaces } from '@/api/spaces';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
-import { writesClimate } from '@/ui/presets';
+import { stageChoiceName, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { enough, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -218,7 +218,7 @@ function Form({
           standing: already?.name ?? null,
           writesClimate: alsoClimate,
         },
-    t(`home.stage.${draft.stage}`),
+    stageChoiceName(t, draft.stage),
   );
   const warning = told.find(one => one.warns) ?? null;
 
@@ -392,7 +392,7 @@ function Form({
           <Choices label={t('grow.new.startingAt')}>
             {START_STAGES.map(one => (
               <Choice key={one} chosen={draft.stage === one} onChoose={() => change({ stage: one })}>
-                {t(`home.stage.${one}`)}
+                {stageChoiceName(t, one)}
                 {draft.stage === one ? ` · ${backdating ? DateTime.fromJSDate(draft.startedAt).toFormat(DAY_IN_YEAR) : t('grow.new.today')}` : ''}
               </Choice>
             ))}

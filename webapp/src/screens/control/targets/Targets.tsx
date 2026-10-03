@@ -235,11 +235,18 @@ interface Edit {
   chip: ClimateChoice | null;
 }
 
-/** Whether saving the edit would start or end a drying spell, which is something to save even where the figures did not move. */
-const dryingChangeOf = (chip: ClimateChoice | null, device: Device): 'starts' | 'ends' | null => {
-  if (!chip || !device.control) return null;
-  const dries = chip.stage === 'drying';
-  return dries === device.control.drying ? null : dries ? 'starts' : 'ends';
+/**
+ * Whether saving the edit would start or end one of the two stages that are a
+ * mode of the device as well - drying, and germination in the dark - which is
+ * something to save even where the figures did not move. The chip tapped last
+ * decides: its own stage starts the spell, any other ends it.
+ */
+const spellChangeOf = (chip: ClimateChoice | null, device: Device, spell: 'drying' | 'germination'): 'starts' | 'ends' | null => {
+  const control = device.control;
+  if (!chip || !control) return null;
+  const wanted = chip.stage === spell;
+  const running = spell === 'drying' ? control.drying : !control.drying && control.mode === 'germination';
+  return wanted === running ? null : wanted ? 'starts' : 'ends';
 };
 
 /** What the last save sent, so the figures stay where they were put until the device's document catches up. */
@@ -292,13 +299,17 @@ function Panel({
   const baseline = draftOf(stored);
   const editing = edit && sameDraft(draftOf(edit.against), baseline) ? edit : null;
   const draft = editing ? editing.draft : baseline;
-  const dirty =
-    (!sameDraft(draft, baseline) && !(sent !== null && sameDraft(draft, sent.draft))) || dryingChangeOf(editing?.chip ?? null, device) !== null;
   const tapped = editing?.chip ?? null;
+  const dryingChange = spellChangeOf(tapped, device, 'drying');
+  const germinationChange = spellChangeOf(tapped, device, 'germination');
+  const dirty =
+    (!sameDraft(draft, baseline) && !(sent !== null && sameDraft(draft, sent.draft))) || dryingChange !== null || germinationChange !== null;
   const set = (next: TargetsDraft, chip: ClimateChoice | null = tapped) => setEdit({ draft: next, against: stored, chip });
-  // A drying chip starts a drying spell and any other chip ends one; moving a figure alone leaves it as it is.
+  // A drying chip starts a drying spell and any other chip ends one, and the
+  // germination chip the same for germination in the dark; moving a figure
+  // alone leaves both as they are.
   const drying = device.control && tapped ? tapped.stage === 'drying' : undefined;
-  const dryingChange = dryingChangeOf(tapped, device);
+  const germination = device.control && tapped ? tapped.stage === 'germination' : undefined;
 
   const hasCo2 = hasCo2Sensor(device);
   // An AIR fan reads a temperature and a humidity, by its own day: no lamp, no
@@ -318,7 +329,11 @@ function Panel({
   // What the targets are made of: what the device holds in the mode it runs,
   // or will hold once the chip tapped last and the light hours typed in are
   // saved - and, beside it, what it runs now, which is what "now" is about.
-  const shape = shapeOf(device, draft, { drying: drying ?? device.control?.drying ?? false, climateOnly });
+  const shape = shapeOf(device, draft, {
+    drying: drying ?? device.control?.drying ?? false,
+    germination: germination ?? device.control?.mode === 'germination',
+    climateOnly,
+  });
   const storedShape = shapeOf(device, baseline, { climateOnly });
   const holding = nowHoldingOf({
     device,
@@ -339,16 +354,17 @@ function Panel({
   const step = runningStep(plan.data);
   const owned = ownedBy(step);
   const planSets = planScheduleOf(step, baseline, plan.data?.name ?? '');
-  const pauses = status === 'running' && (dryingChange !== null || changedFields(draft, baseline).some(field => owned.has(field)));
+  const pauses =
+    status === 'running' && (dryingChange !== null || germinationChange !== null || changedFields(draft, baseline).some(field => owned.has(field)));
   const commit = async (): Promise<boolean> => {
     try {
       if (pauses) await move.mutateAsync({ kind: 'pause', reason: t('targets.pauseReason') });
       // A spell begun from here stores what it holds in both halves; once a
       // fridge is drying the server keeps its stored day, so the day is sent as stored.
       const held = dryingChange === 'starts' ? heldOf(shape.regime) : 'both';
-      await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, draft, climateOnly, held), drying });
+      await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, draft, climateOnly, held), drying, germination });
       setSent({ draft, at: serverNow() });
-      // Saved, the chip has said what it had to: the drying spell is the device's now.
+      // Saved, the chip has said what it had to: the drying spell or the germination is the device's now.
       setEdit(current => (current ? { ...current, chip: null } : current));
       return true;
     } catch {
@@ -382,9 +398,12 @@ function Panel({
   const bar = useRef<HTMLDivElement>(null);
   const touched = useKeepInView(bar, dirty, editing?.draft ?? null);
 
+  // Germination is chosen by the dark it runs in as much as by its one figure:
+  // a lit device at 24 °C at night is not germinating, and a germinating one
+  // whose idle figures happen to be the seedling's is not on the seedling climate.
   const chosen = (chip: ClimateChoice): boolean => {
     const preset = presetOf(chip);
-    return preset !== null && equalsPreset(draft, preset, hasCo2, climateOnly);
+    return preset !== null && (chip.stage === 'germination') === (shape.regime === 'germination') && equalsPreset(draft, preset, hasCo2, climateOnly);
   };
 
   if (plan.isPending) {
@@ -514,17 +533,17 @@ function Panel({
           </Choices>
           {/* The chips move the targets and nothing else; the grow's phase is
               moved in the grow, where the climate is offered beside it. */}
-          {dryingChange ? (
+          {dryingChange || germinationChange ? (
             <p className={ui.note} role="status">
-              {t(`targets.drying.${dryingChange}`)}
+              {t(dryingChange ? `targets.drying.${dryingChange}` : `targets.germination.${germinationChange}`)}
             </p>
           ) : null}
           {grow?.stage ? <p className={ui.note}>{t('targets.growStays', { name: grow.name, stage: t(`home.stage.${grow.stage}`) })}</p> : null}
         </div>
       )}
 
-      {/* Energy saving belongs to a day and night of the standard mode, which neither a drying spell nor control off is. */}
-      {off || shape.regime === 'drying' ? null : <EnergySaving device={device} mayManage={mayManage} />}
+      {/* Energy saving belongs to a day and night of the standard mode, which neither a drying spell, germination nor control off is. */}
+      {off || shape.regime === 'drying' || shape.regime === 'germination' ? null : <EnergySaving device={device} mayManage={mayManage} />}
 
       {readOnly ? <p className={ui.note}>{t('targets.readOnly')}</p> : null}
 

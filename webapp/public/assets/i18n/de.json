@@ -301,7 +301,7 @@
   },
   "growPresets": {
     "seedling": {
-      "name": "Keimung & Sämling"
+      "name": "Sämling · mit Licht"
     },
     "vegetative": {
       "name": "Wachstum"
@@ -369,6 +369,12 @@
         "2": "Hohe Luftfeuchte (65–75 %) hilft jungen Wurzeln; eine Anzuchthaube wirkt in den ersten Tagen Wunder.",
         "3": "Licht gedimmt lassen (ca. 40 %) und Abstand halten — ausgebleichte oder eingerollte Blätter heißen: zu viel.",
         "4": "Noch nicht düngen: Der Samen bringt Nährstoffe für die ersten zwei Wochen mit."
+      },
+      "germination": {
+        "1": "Samen keimen im Dunkeln und feucht: zwischen zwei feuchten Küchentüchern oder gleich 1 cm tief im Medium, nie im Wasser stehend.",
+        "2": "Rund um die Uhr um 24 °C ist ideal – unter 20 °C dauert es Tage länger, über 28 °C trocknet das Medium aus.",
+        "3": "Nach 1–5 Tagen bricht die Keimwurzel durch. Steht der Keimling über der Erde, braucht er Licht: auf „Sämling · mit Licht“ stellen, sonst vergeilt er.",
+        "4": "Nicht düngen und nicht andrücken: Der Samen bringt mit, was er für die ersten Tage braucht."
       },
       "vegetative": {
         "1": "Gieße, wenn die oberen Zentimeter des Mediums trocken sind — der Topf-Hebetest sagt mehr als ein Zeitplan.",
@@ -1524,6 +1530,10 @@
       "drying": "Trocknung",
       "curing": "Reifung"
     },
+    "stageChoice": {
+      "germination": "Keimung · dunkel",
+      "seedling": "Sämling · mit Licht"
+    },
     "author": {
       "you": "du",
       "youLead": "Du",
@@ -2314,6 +2324,7 @@
         "occupied": "In {{place}} wächst bereits {{grow}}.",
         "occupiedSteered": "In {{place}} wächst bereits {{grow}}: Das Klima dort geht jetzt auf das Preset für {{stage}}, und ein laufender Plan pausiert.",
         "preset": "Die Zielwerte in {{place}} gehen damit auf das Klima für {{stage}}.",
+        "presetDark": "{{place}} geht damit auf {{stage}}: Licht aus, kein CO₂, eine Temperatur rund um die Uhr – bis der Grow in den Sämling geht.",
         "noController": "In {{place}} steuert nichts ein Klima, die Phase wird also nur festgehalten und nirgendwohin geschrieben.",
         "hardwareUnknown": "Was in {{place}} steht, ist nicht bekannt, dort wird also kein Klima geschrieben; die Phasen werden trotzdem festgehalten.",
         "nowhere": "Kein Ort, also wird nichts gesteuert; die Phasen werden trotzdem festgehalten.",
@@ -2650,7 +2661,8 @@
         "close": "Fertig",
         "remove": "Entfernen",
         "add": "Schritt hinzufügen",
-        "dryingNote": "Ein Schritt in die Trocknung schaltet das Gerät in die Betriebsart Trocknung: Das Licht bleibt aus, CO₂ wird nicht zugegeben, und es hält diese beiden Werte rund um die Uhr."
+        "dryingNote": "Ein Schritt in die Trocknung schaltet das Gerät in die Betriebsart Trocknung: Das Licht bleibt aus, CO₂ wird nicht zugegeben, und es hält diese beiden Werte rund um die Uhr.",
+        "germinationNote": "Ein Schritt in die Keimung schaltet das Gerät dunkel: kein Licht, kein CO₂, die Luftfeuchte ungeregelt, und rund um die Uhr hält es diese eine Temperatur. Der nächste Schritt mit einem anderen Stadium bringt das Licht zurück."
       },
       "figure": {
         "dayTemperature": "Tag · Temperatur",
@@ -2662,6 +2674,9 @@
         "drying": {
           "nightTemperature": "Trocknung · Temperatur",
           "nightHumidity": "Trocknung · Feuchte"
+        },
+        "germination": {
+          "nightTemperature": "Keimung · Temperatur"
         }
       },
       "figureUnit": {
@@ -3841,6 +3856,10 @@
       "starts": "Speichern schaltet die Trocknung ein: kein Licht und kein CO₂, das Gerät entfeuchtet und heizt nur.",
       "ends": "Speichern beendet die Trocknung: Das Gerät hält wieder Tag und Nacht, Licht und CO₂."
     },
+    "germination": {
+      "starts": "Speichern schaltet auf Keimung · dunkel: Licht aus, kein CO₂, rund um die Uhr nur die Temperatur. Die übrigen Zielwerte bleiben für danach.",
+      "ends": "Speichern beendet die Keimung: Das Gerät hält wieder Tag und Nacht, mit Licht und CO₂."
+    },
     "table": {
       "label": "Zielwerte",
       "figure": "Wert",
@@ -3854,7 +3873,7 @@
       "neverTitle": "Durchgehend dunkel",
       "neverSub": "0 Std · Nachtwerte",
       "dryingTitle": "Trocknung",
-      "germinationTitle": "Keimung",
+      "germinationTitle": "Keimung · dunkel",
       "roundTheClock": "rund um die Uhr",
       "brightTitle": "Hell",
       "brightSub": "Tag, laut Lichtsensor",
@@ -3881,7 +3900,7 @@
       "dayPlain": "Tag",
       "dayDark": "(Lampe auf 0 %)",
       "nightPlain": "Nacht",
-      "germinationBack": "Zurück auf Standard gilt wieder die Nachttemperatur von vorher: {{temperature}}."
+      "germinationBack": "Endet die Keimung ohne neues Klima, gilt wieder die Nachttemperatur von vorher: {{temperature}}."
     },
     "stepLess": "{{name}}: weniger",
     "stepMore": "{{name}}: mehr",
@@ -3901,7 +3920,7 @@
       "drying": "Licht aus · Trocknung",
       "germination": "Licht aus · Keimung",
       "dryingLine": "Das Licht bleibt aus, solange die Trocknung läuft. Danach gilt wieder der Lichtplan: {{window}}.",
-      "germinationLine": "In der Keimung bleibt das Licht rund um die Uhr aus. Der Lichtplan – {{window}} – gilt wieder in der Betriebsart Standard oder Gewächshaus.",
+      "germinationLine": "In der Keimung bleibt das Licht rund um die Uhr aus. Der Lichtplan – {{window}} – gilt wieder, sobald sie endet: mit „Sämling · mit Licht“ oder einem anderen Klima.",
       "sensor": "Tag ist, solange der Lichtsensor des Lüfters Licht sieht.",
       "draft": "Entwurf",
       "was": "bisher: {{window}}",
@@ -4226,7 +4245,8 @@
       "onStage": "auf {{stage}}",
       "measuring": "nur messen",
       "nothingYet": "noch nichts gesetzt",
-      "window": "{{light}} – wann es angeht, änderst du unter Steuerung › Zielwerte."
+      "window": "{{light}} – wann es angeht, änderst du unter Steuerung › Zielwerte.",
+      "germination": "Keimung · dunkel: Das Licht geht aus, CO₂ gibt es keins, und das Gerät hält rund um die Uhr {{temperature}} °C. Sind die Keimlinge da, stellst du auf „Sämling · mit Licht“."
     },
     "hardware": {
       "next": "Steckdosen und Cam?",
@@ -4588,11 +4608,11 @@
     },
     "climatePreset": {
       "title": "Klima-Preset",
-      "text": "Ein fertiges Klima für ein Stadium: Temperatur und Feuchte für Tag und Nacht, Lichtstunden, Lichtgrenze und CO₂. „Auto“ ist für Autoflowers, die 18–20 Stunden Licht behalten, statt auf 12/12 zu wechseln."
+      "text": "Ein fertiges Klima für ein Stadium: Temperatur und Feuchte für Tag und Nacht, Lichtstunden, Lichtgrenze und CO₂. „Keimung · dunkel“ ist Klima und Betriebsart zugleich: dunkel, ohne CO₂, rund um die Uhr 24 °C; „Sämling · mit Licht“ ist das erste Klima mit Licht. „Auto“ ist für Autoflowers, die 18–20 Stunden Licht behalten, statt auf 12/12 zu wechseln."
     },
     "stage": {
       "title": "Stadium und Phase",
-      "text": "Das Stadium sagt, wo die Pflanzen stehen, von der Keimung bis zur Reifung. Wer eines betritt, schreibt eine Phase in den Grow: ihr Startdatum, eine Tagebuchzeile und die Alarmregeln des Stadiums für die Geräte, bei denen die Pflanzen stehen (die Reifung hat keine)."
+      "text": "Das Stadium sagt, wo die Pflanzen stehen, von der Keimung bis zur Reifung. Keimung heißt überall dasselbe: Samen keimen im Dunkeln, und mit ihrem Klima geht das Gerät dunkel; der Sämling ist das erste Stadium mit Licht. Wer eines betritt, schreibt eine Phase in den Grow: ihr Startdatum, eine Tagebuchzeile und die Alarmregeln des Stadiums für die Geräte, bei denen die Pflanzen stehen (die Reifung hat keine)."
     },
     "stepPreset": {
       "title": "Ein Preset im Schritt",
@@ -4612,7 +4632,7 @@
     },
     "lightLimit": {
       "title": "Lichtgrenze",
-      "text": "Das Maximum, das die Lampe am Tag geben darf, als Anteil ihrer vollen Leistung: Bei Sonnenaufgang fährt sie darauf hoch, bei Sonnenuntergang wieder herunter. Mit 0 % bleibt sie dunkel, der Tag gilt aber weiter – mit den Tageswerten und mit CO₂. Ganz dunkel und ohne Tag sind die Trocknung und die Betriebsart Keimung."
+      "text": "Das Maximum, das die Lampe am Tag geben darf, als Anteil ihrer vollen Leistung: Bei Sonnenaufgang fährt sie darauf hoch, bei Sonnenuntergang wieder herunter. Mit 0 % bleibt sie dunkel, der Tag gilt aber weiter – mit den Tageswerten und mit CO₂. Ganz dunkel und ohne Tag sind die Trocknung und die Keimung · dunkel."
     },
     "lightsOn": {
       "title": "Licht an um",
@@ -4636,7 +4656,7 @@
     },
     "phasePreset": {
       "title": "Zielwerte mit der Phase",
-      "text": "„Lassen, wie sie sind“ trägt nur die Phase ein: Licht, Temperatur und Feuchte bleiben, wie sie unter Steuerung stehen. Wählst du ein Klima, stellt es die Zielwerte der Geräte dort sofort um – bei Blüte zum Beispiel das Licht auf 12 Stunden. „Auto“ ist für Autoflowers, die lange Tage behalten."
+      "text": "„Lassen, wie sie sind“ trägt nur die Phase ein: Licht, Temperatur und Feuchte bleiben, wie sie unter Steuerung stehen. Wählst du ein Klima, stellt es die Zielwerte der Geräte dort sofort um – bei Blüte zum Beispiel das Licht auf 12 Stunden, bei „Keimung · dunkel“ das Licht ganz aus. Aus der Keimung heraus bringt jede andere Phase das Licht zurück. „Auto“ ist für Autoflowers, die lange Tage behalten."
     },
     "phaseCorrection": {
       "title": "Korrigieren oder zurückziehen",
@@ -4897,7 +4917,7 @@
     "advanced": {
       "operatingMode": {
         "title": "Betriebsart",
-        "text": "Was der Kühlschrank als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂ nach Tag und Nacht. Gewächshaus regelt nur die Temperatur: Licht und CO₂ laufen nach dem Lichtplan weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Keimung hält es rund um die Uhr dunkel und heizt und kühlt auf eine Temperatur – die der Spalte „Keimung“ unter Zielwerte. Der Energiespar-Modus gilt nur im Standard. Eine Trocknungsphase geht vor und kehrt danach zur Betriebsart zurück."
+        "text": "Was das Gerät als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂ nach Tag und Nacht. Keimung · dunkel hält es rund um die Uhr dunkel und ohne CO₂ und heizt und kühlt auf eine Temperatur – die der Spalte „Keimung · dunkel“ unter Zielwerte; dieselbe Keimung stellen auch das Klima „Keimung · dunkel“ und die Phase Keimung ein. Der Kühlschrank kennt dazu Gewächshaus: nur die Temperatur, Licht und CO₂ laufen nach dem Lichtplan weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Der Energiespar-Modus gilt nur im Standard. Eine Trocknungsphase geht vor und kehrt danach zur Betriebsart zurück."
       },
       "chartStep": {
         "title": "Intervall",
@@ -5027,6 +5047,10 @@
     "drying": {
       "title": "Trocknung",
       "text": "In der Trocknung kennt das Gerät keinen Tag und keine Nacht: Das Licht bleibt aus, CO₂ wird nicht dosiert, es wird nur entfeuchtet und geheizt, auf die Zielwerte der Trocknung. Sie beginnt mit dem Preset „Trocknung“ unter Steuerung, mit der Phase Trocknung im Grow oder mit einem Planschritt der Trocknung. Ein anderes Preset, eine andere Phase oder ein Planschritt beenden sie mit ihren eigenen Zielwerten. „Trocknung beenden“ und „Regelung aus“ bringen die Zielwerte von vor der Trocknung zurück, und das Gerät kehrt zu seiner Betriebsart zurück, Energiespar eingeschlossen."
+    },
+    "germination": {
+      "title": "Keimung · dunkel",
+      "text": "Samen keimen im Dunkeln: Das Gerät geht in die Betriebsart Keimung – kein Licht, kein CO₂, die Luftfeuchte ungeregelt – und heizt und kühlt rund um die Uhr auf eine Temperatur. Vorgeschlagen sind 24 °C, die Mitte der 22–26 °C, in denen Samen am schnellsten keimen. Die Keimung beginnt mit „Keimung · dunkel“ unter Steuerung, als Klima der Phase Keimung, beim Einrichten oder mit einem Planschritt der Keimung. Jedes andere Klima, jede andere Phase und jeder andere Planschritt beendet sie: Das Gerät hält wieder Tag und Nacht mit Licht, im Standard samt Energiespar. Wer die Phase Keimung ohne Klima einträgt, ändert am Gerät nichts."
     },
     "socketTimer": {
       "title": "Zeitschaltung",
@@ -5262,7 +5286,7 @@
     "mode": {
       "drying": "Trocknung läuft: kein Licht und kein CO₂, gehalten werden Temperatur und Luftfeuchte der Trocknung.",
       "greenhouse": "Betriebsart Gewächshaus: Geregelt wird nur die Temperatur, die Luftfeuchte nicht.",
-      "germination": "Betriebsart Keimung: dunkel und ohne CO₂, rund um die Uhr auf eine Temperatur.",
+      "germination": "Keimung · dunkel: kein Licht und kein CO₂, rund um die Uhr eine Temperatur.",
       "change": "Ändern"
     },
     "visiting": "Support-Ansicht eines Kundenorts: nur lesen. Zeiten stehen in deiner Zeitzone."
@@ -5280,7 +5304,10 @@
     "noClimate": "{{stage}} hat kein eigenes Klima – die Zielwerte bleiben, wie sie sind.",
     "keepsDrying": "Die Trocknung hält die bisherigen Nachtwerte rund um die Uhr: {{temperature}} °C · {{humidity}} % – ohne Licht und ohne CO₂.",
     "setsDark": "Neu: {{figures}} – ersetzt die Zielwerte unter Steuerung.",
-    "germinationNote": "Das ist das Klima für frisch gekeimte Sämlinge, mit Licht. Samen im Dunkeln keimen lassen: Betriebsart „Keimung im Dunkeln“ unter Gerät › Erweitert."
+    "setsGermination": "Neu: Keimung · dunkel – Licht aus, kein CO₂, rund um die Uhr {{temperature}} °C; die Luftfeuchte regelt das Gerät nicht. Tag, Luftfeuchte und Licht bleiben für den Sämling.",
+    "keepsGermination": "Bleibt: Keimung · dunkel bei {{temperature}} °C.",
+    "staysLit": "Das Licht bleibt an: Dunkel wird es erst mit „Keimung · dunkel“.",
+    "endsGermination": "Die Keimung endet: Das Gerät hält wieder Tag und Nacht, mit Licht und CO₂."
   },
   "advanced": {
     "title": "Erweitert",
@@ -5299,7 +5326,8 @@
     "state": {
       "on": "an",
       "off": "aus",
-      "drying": "an · Trocknung"
+      "drying": "an · Trocknung",
+      "germination": "an · Keimung · dunkel"
     },
     "offAction": "Regelung ausschalten",
     "offDoes": {
@@ -5327,7 +5355,7 @@
     "endDrying": "Trocknung beenden",
     "modeNote": {
       "greenhouse": "Betriebsart Gewächshaus: Das Gerät regelt nur die Temperatur, die Luftfeuchte hält es nicht. Licht und CO₂ laufen nach dem Lichtplan.",
-      "germination": "Betriebsart Keimung: dunkel und ohne CO₂, rund um die Uhr. Das Gerät heizt und kühlt nur auf die Temperatur unten."
+      "germination": "Keimung · dunkel: kein Licht, kein CO₂, rund um die Uhr nur die Temperatur unten. Sind die Keimlinge da, unten „Sämling · mit Licht“ wählen und speichern."
     },
     "modeChange": "Betriebsart ändern",
     "offTitle": "Regelung aus.",
@@ -5361,8 +5389,8 @@
     "standardNote": "Regelt Temperatur, Luftfeuchte, Licht und CO₂ nach den Zielwerten.",
     "greenhouse": "Gewächshaus",
     "greenhouseNote": "Nur die Temperatur: Licht und CO₂ laufen, der Kompressor kühlt nur, die Luftfeuchte wird nicht geregelt.",
-    "germination": "Keimung im Dunkeln",
-    "germinationNote": "Für Samen, die im Dunkeln keimen: kein Licht, kein CO₂, rund um die Uhr eine Temperatur – zuerst die bisherige Nachttemperatur, unter Zielwerte zu ändern. Zurück auf Standard gilt die Nachttemperatur von vorher wieder. Die Grow-Phase „Keimung“ ist etwas anderes: Sie stellt ein Klima für Sämlinge mit Licht ein.",
+    "germination": "Keimung · dunkel",
+    "germinationNote": "Für Samen, die im Dunkeln keimen: kein Licht, kein CO₂, rund um die Uhr eine Temperatur – zuerst die bisherige Nachttemperatur, unter Zielwerte zu ändern. Zurück auf Standard gilt die Nachttemperatur von vorher wieder. „Keimung · dunkel“ unter Steuerung stellt dasselbe ein, gleich mit 24 °C.",
     "ask": "Auf {{mode}} umstellen? {{what}} Zurück geht es hier mit Standard.",
     "yes": "Auf {{mode}} umstellen"
   },

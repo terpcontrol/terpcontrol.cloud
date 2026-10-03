@@ -1239,6 +1239,13 @@ describe('the device panel', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/configuration', { set: { control: true } }));
   });
 
+  it('says a fridge that germinates in the dark regulates, and in which mode', async () => {
+    await drawWith([regulating({ mode: 'germination' })]);
+    fireEvent.click(await screen.findByText('Fridge module'));
+
+    expect(screen.getByText('Control', { selector: 'dt' }).nextElementSibling).toHaveTextContent(/^on · germination · dark$/);
+  });
+
   it('keeps the operating mode under Advanced, and sends a choice once it is confirmed', async () => {
     await drawWith([regulating()]);
     vi.mocked(api.patch).mockResolvedValue(regulating({ mode: 'greenhouse' }) as never);

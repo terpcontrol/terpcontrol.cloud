@@ -162,8 +162,17 @@ export const useSaveConfiguration = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ deviceId, configuration, drying }: { deviceId: string; configuration: DeviceConfiguration; drying?: boolean }) =>
-      api.put<DeviceConfigurationEnvelope>(`/devices/${deviceId}/configuration`, { configuration, drying }),
+    mutationFn: ({
+      deviceId,
+      configuration,
+      drying,
+      germination,
+    }: {
+      deviceId: string;
+      configuration: DeviceConfiguration;
+      drying?: boolean;
+      germination?: boolean;
+    }) => api.put<DeviceConfigurationEnvelope>(`/devices/${deviceId}/configuration`, { configuration, drying, germination }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['devices'] }),
   });
 };

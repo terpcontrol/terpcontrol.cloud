@@ -466,7 +466,58 @@ describe('the targets page', () => {
     ]);
     await screen.findByRole('spinbutton', { name: 'Temperature while germinating' });
 
-    expect(screen.getByText('Back on standard, the night temperature from before holds again: 20 °C.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Where germination ends without a new climate, the night temperature from before holds again: 20 °C.'),
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * Germination is a climate among the chips and a mode of the device at once:
+   * its chip moves the one figure germination holds and says the device goes
+   * dark, and the save sends it as germination. Any other chip ends it.
+   */
+  it('puts a lit fridge into germination in the dark from its chip, and saves it as germination', async () => {
+    const lit = { running: true, drying: false, mode: 'standard' as const, energySaving: false };
+    await drawn([device({ type: 'fridge', configuration: { ...CONFIGURATION, workmode: 'small' }, control: lit })]);
+
+    const chips = screen.getAllByRole('button', { name: / · (dark|with light)$/ }).map(chip => chip.textContent);
+    expect(chips).toEqual(['Germination · dark', 'Seedling · with light']);
+    expect(screen.getByRole('switch', { name: 'Energy saving' })).toBeInTheDocument();
+
+    tap('Germination · dark');
+    expect(screen.getByRole('button', { name: 'Germination · dark' })).toHaveAttribute('aria-pressed', 'true');
+    expect(field('Temperature while germinating').value).toBe('24');
+    expect(screen.queryByRole('spinbutton', { name: 'Day temperature' })).not.toBeInTheDocument();
+    expect(screen.getByText(/^Saving switches to Germination · dark: light off, no CO₂, only the temperature round the clock\./)).toBeInTheDocument();
+    // Energy saving belongs to a day and a night, which germination does not have.
+    expect(screen.queryByRole('switch', { name: 'Energy saving' })).not.toBeInTheDocument();
+
+    tap('Save');
+    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+    const body = sent('PUT')[0].body as { configuration: DeviceConfiguration; germination?: boolean; drying?: boolean };
+    expect(body).toMatchObject({ germination: true, drying: false });
+    expect(body.configuration.night).toEqual({ temperature: 24, humidity: 55 });
+    // The rest stays for the seedling after it.
+    expect(body.configuration.day).toEqual({ temperature: 25, humidity: 60, heating: 'hard' });
+  });
+
+  it('brings a germinating fridge back into the light with the seedling´s climate', async () => {
+    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false };
+    draw([device({ type: 'fridge', configuration: { ...CONFIGURATION, night: { temperature: 24, humidity: 55 } }, control: dark })]);
+    await screen.findByRole('spinbutton', { name: 'Temperature while germinating' });
+    expect(screen.getByRole('button', { name: 'Germination · dark' })).toHaveAttribute('aria-pressed', 'true');
+
+    tap('Seedling · with light');
+    expect(screen.getByText('Saving ends germination: the device holds day and night again, with light and CO₂.')).toBeInTheDocument();
+    expect(field('Day temperature').value).toBe('24');
+    expect(field('Night temperature').value).toBe('21');
+
+    tap('Save');
+    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+    const body = sent('PUT')[0].body as { configuration: DeviceConfiguration; germination?: boolean };
+    expect(body.germination).toBe(false);
+    expect(body.configuration.day).toMatchObject({ temperature: 24, humidity: 70 });
+    expect(body.configuration.night).toMatchObject({ temperature: 21, humidity: 65 });
   });
 
   /** A lamp at 0 % keeps its day: the plan and the column call it the day, not "light on", where they are read first. */
@@ -848,8 +899,8 @@ describe('the targets page', () => {
     expect(screen.queryByRole('spinbutton', { name: 'CO₂ target' })).not.toBeInTheDocument();
     expect(screen.queryByRole('row', { name: /^CO₂/ })).not.toBeInTheDocument();
     // The chip is judged on what the page can set, so a preset still reads as chosen without its CO2 figure.
-    fireEvent.click(screen.getByRole('button', { name: 'Seedling' }));
-    expect(screen.getByRole('button', { name: 'Seedling' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Seedling · with light' }));
+    expect(screen.getByRole('button', { name: 'Seedling · with light' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   /**
@@ -1016,7 +1067,7 @@ describe('the targets page', () => {
     draw([device({ type: 'fridge', control: { running: true, drying: false, mode: 'germination', energySaving: false } })]);
     await screen.findByRole('spinbutton', { name: 'Temperature while germinating' });
 
-    expect(within(screen.getByRole('table')).getAllByRole('columnheader').at(-1)).toHaveTextContent(/^Germinationround the clock/);
+    expect(within(screen.getByRole('table')).getAllByRole('columnheader').at(-1)).toHaveTextContent(/^Germination · darkround the clock/);
     expect(within(plan_()).getByText('Light off · germination')).toBeInTheDocument();
     expect(
       within(plan_()).getByText(/^Germination keeps the light off round the clock\. The light plan – Light on 06:00–18:00 · 12 h – holds again/),

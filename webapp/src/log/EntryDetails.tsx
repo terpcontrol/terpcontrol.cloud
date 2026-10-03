@@ -23,7 +23,8 @@ import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { ClimatePick } from '@/screens/grow/ClimatePick';
 import { assetTitle } from '@/screens/grow/scheme';
-import { climateRequest, KEEP_CLIMATE, type PhaseClimate } from '@/screens/grow/phase-climate';
+import { climateRequest, defaultPick, KEEP_CLIMATE, usePlaceController, type PhaseClimate } from '@/screens/grow/phase-climate';
+import { stageChoiceName } from '@/ui/presets';
 import { dayOf, momentOn } from '@/ui/days';
 import { readingFigure } from '@/ui/entries';
 import { parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
@@ -103,8 +104,14 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
   const [shown, setShown] = useState<string[]>(() => firstFields(definitions, readingsOf(entry)));
   const [text, setText] = useState(entry?.text ?? '');
   const [stage, setStage] = useState<GrowthStage | null>(nextStage(grow));
-  /** Whether the phase moves the tent's climate too: asked beside the stage, and kept until the stage changes. */
-  const [climate, setClimate] = useState<PhaseClimate>(KEEP_CLIMATE);
+  /**
+   * Whether the phase moves the tent's climate too: asked beside the stage, and
+   * kept until the stage changes. Null until somebody picks, because what it
+   * starts on depends on the device there (`defaultPick`).
+   */
+  const [picked, setClimate] = useState<PhaseClimate | null>(null);
+  const placeController = usePlaceController(target.spaceId ?? target.standsIn);
+  const climate = picked ?? (stage ? defaultPick(stage, placeController) : KEEP_CLIMATE);
   const [saving, setSaving] = useState(false);
   /** Which of the two writes went wrong, so the line under the button says the right thing. */
   const [failed, setFailed] = useState<'save' | 'back' | null>(null);
@@ -334,7 +341,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
           stage={stage}
           onPick={next => {
             setStage(next);
-            setClimate(KEEP_CLIMATE);
+            setClimate(null);
           }}
           spaceId={target.spaceId ?? target.standsIn}
           onStartGrow={() => setStartingGrow(true)}
@@ -534,7 +541,7 @@ function Stages({
     <div className={styles.stages} role="group" aria-label={t('log.tile.phase')}>
       {STAGES.map(one => (
         <button key={one} type="button" className={ui.chip} data-chosen={one === stage} aria-pressed={one === stage} onClick={() => onPick(one)}>
-          {t(`home.stage.${one}`)}
+          {stageChoiceName(t, one)}
           {one === current ? ` · ${t('log.now')}` : ''}
         </button>
       ))}

@@ -265,6 +265,25 @@ describe('light hours in a step', () => {
     expect(state.saved[0].steps[0].settings).not.toHaveProperty('co2');
   });
 
+  /** Germination is dark and holds one temperature, the one seeds sprout at unless the step names another. */
+  it('are one temperature for a germination step, in the dark, the one seeds sprout at', () => {
+    const veg = draft({ lightHours: 18, settings: { day: { temperature: 26, humidity: 62 }, co2: { target: 900 }, lights: { limit: 80 } } });
+    wrap(<PlanEditor device={device()} plan={null} draft={veg} onClose={() => {}} />);
+
+    const stages = screen.getAllByRole('button', { name: / · (dark|with light)$/ }).map(chip => chip.textContent);
+    expect(stages).toEqual(['Germination · dark', 'Seedling · with light']);
+    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
+    expect(screen.queryByRole('spinbutton', { name: 'Light on for' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Day · temperature')).not.toBeInTheDocument();
+    expect(screen.queryByText('Night · humidity')).not.toBeInTheDocument();
+    expect(screen.getByText('Germination · temperature')).toBeInTheDocument();
+    expect(screen.getByText(/^A step into germination switches the device dark: no light, no CO₂, the humidity left alone/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
+    expect(state.saved[0].steps[0]).toMatchObject({ stage: 'germination', lightHours: null, settings: { night: { temperature: 24 } } });
+    expect(Object.keys(state.saved[0].steps[0].settings)).toEqual(['night']);
+  });
+
   it('take the hours the controller holds now along with its figures', () => {
     wrap(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
 

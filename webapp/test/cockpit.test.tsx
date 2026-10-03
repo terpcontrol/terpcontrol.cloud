@@ -543,12 +543,14 @@ describe('a customer´s place read by support', () => {
 });
 
 describe('a place in another work mode', () => {
-  it('says a germinating fridge is dark and holds its night, and that its light is off for that reason', async () => {
+  it('says a germinating fridge is dark and holds one temperature, that its light is off for that reason, and where it ends', async () => {
     server.devices = [fridge({ control: { running: true, drying: false, mode: 'germination', energySaving: false } })];
     draw(<PlaceCockpit overview={overviewOf()} />);
 
-    expect(await screen.findByText(/^Operating mode germination: dark and without CO₂/)).toBeInTheDocument();
+    expect(await screen.findByText(/^Germination · dark: no light and no CO₂, one temperature round the clock/)).toBeInTheDocument();
     expect(screen.getAllByText('off · germination').length).toBeGreaterThan(0);
+    // Ended by the seedling climate under Steuerung, like drying.
+    expect(screen.getByRole('link', { name: 'Change ›' })).toHaveAttribute('href', expect.stringContaining('/control'));
   });
 
   it('says a drying fridge is drying, with the way to end it in Steuerung', async () => {

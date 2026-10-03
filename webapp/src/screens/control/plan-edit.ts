@@ -1,5 +1,6 @@
 import type { DateTime } from 'luxon';
 import type { Device, DeviceConfiguration, GrowthStage, Plan, PlanNotify, PlanReplace, PlanStep, StepDuration } from '@fg2/shared-types/v1';
+import { GERMINATION_TEMPERATURE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { hasCo2Sensor } from '@/ui/climate-hardware';
 import { elapsedMs } from './plan-clock';
@@ -147,7 +148,7 @@ const CLIMATE_SECTIONS = [...new Set(CLIMATE_FIGURES.map(figure => figure.sectio
  * that row dead and says what it needs.
  */
 export const figuresFor = (device: Device, stage: GrowthStage | null = null): Figure[] =>
-  (stage === 'drying' ? DRYING_FIGURES : CLIMATE_FIGURES).filter(figure => hasCo2Sensor(device) || figure.section !== 'co2');
+  (heldInTheDark(stage) ?? CLIMATE_FIGURES).filter(figure => hasCo2Sensor(device) || figure.section !== 'co2');
 
 /**
  * What a drying step holds: the night's temperature and humidity, round the
@@ -157,17 +158,30 @@ export const figuresFor = (device: Device, stage: GrowthStage | null = null): Fi
  */
 const DRYING_FIGURES: Figure[] = CLIMATE_FIGURES.filter(figure => figure.section === 'night');
 
+/**
+ * What a germination step holds: one temperature, the night's, round the clock
+ * in the dark. A step into germination switches the device into its germination
+ * mode, which holds no day, no humidity, no light and no CO2.
+ */
+const GERMINATION_FIGURES: Figure[] = CLIMATE_FIGURES.filter(figure => figure.key === 'nightTemperature');
+
+/** The figures a stage held in the dark keeps, or null for a stage with a day and a night. */
+const heldInTheDark = (stage: GrowthStage | null): Figure[] | null =>
+  stage === 'drying' ? DRYING_FIGURES : stage === 'germination' ? GERMINATION_FIGURES : null;
+
+/** Whether a step's stage keeps the device dark round the clock: drying and germination, which have no light hours to set. */
+export const isDarkStage = (stage: GrowthStage | null): boolean => heldInTheDark(stage) !== null;
+
 /** A step's settings with the figures its stage does not hold taken out, so that it writes what it shows. */
-export const heldByStage = (step: StepDraft, stage: GrowthStage | null): Pick<StepDraft, 'settings' | 'lightHours'> =>
-  stage === 'drying'
-    ? {
-        settings: CLIMATE_FIGURES.filter(figure => !DRYING_FIGURES.includes(figure)).reduce(
-          (settings, figure) => withFigure(settings, figure, null),
-          step.settings,
-        ),
-        lightHours: null,
-      }
-    : { settings: step.settings, lightHours: step.lightHours };
+export const heldByStage = (step: StepDraft, stage: GrowthStage | null): Pick<StepDraft, 'settings' | 'lightHours'> => {
+  const held = heldInTheDark(stage);
+  if (!held) return { settings: step.settings, lightHours: step.lightHours };
+
+  const settings = CLIMATE_FIGURES.filter(figure => !held.includes(figure)).reduce((kept, figure) => withFigure(kept, figure, null), step.settings);
+  // Germination holds its one temperature or the night's, whatever that is: it is given the one seeds sprout at.
+  const germinates = stage === 'germination' && figureOf(settings, GERMINATION_FIGURES[0]) === null;
+  return { settings: germinates ? withFigure(settings, GERMINATION_FIGURES[0], GERMINATION_TEMPERATURE) : settings, lightHours: null };
+};
 
 /**
  * A draft with every figure this controller cannot run taken out of its steps,
@@ -180,13 +194,13 @@ export const heldByStage = (step: StepDraft, stage: GrowthStage | null): Pick<St
  */
 export const asWritableBy = (draft: PlanDraft, device: Device): PlanDraft => {
   const dropped = CLIMATE_FIGURES.filter(figure => !figuresFor(device).includes(figure));
-  if (dropped.length === 0 && !draft.steps.some(step => step.stage === 'drying')) return draft;
+  if (dropped.length === 0 && !draft.steps.some(step => isDarkStage(step.stage))) return draft;
 
-  // A drying step holds the drying room's two figures and nothing else, so it is opened as it is shown.
+  // A drying or germination step holds its own figures and nothing else, so it is opened as it is shown.
   return {
     ...draft,
     steps: draft.steps.map(step => {
-      const held = step.stage === 'drying' ? { ...step, ...heldByStage(step, 'drying') } : step;
+      const held = isDarkStage(step.stage) ? { ...step, ...heldByStage(step, step.stage) } : step;
       return { ...held, settings: dropped.reduce((settings, figure) => withFigure(settings, figure, null), held.settings) };
     }),
   };

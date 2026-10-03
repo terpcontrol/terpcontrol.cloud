@@ -357,10 +357,10 @@ function StatusLine({
 
 /**
  * The work mode where it is not the everyday one, under the status line: a
- * fridge left on germination is dark and holds its night temperature, and the
- * tiles under "Alles im Ziel" read like a fridge holding its day. Set under
- * Erweitert and forgotten there, it was said nowhere else. Drying is changed
- * in Steuerung, where it can be ended; a mode, in the device's panel.
+ * device germinating is dark and holds one temperature, and the tiles under
+ * "Alles im Ziel" read like a device holding its day. Drying and germination
+ * are changed in Steuerung, where the next stage's climate ends them; the
+ * greenhouse mode, in the device's panel.
  */
 function ModeLine({ device, spaceId, mayManage }: { device: Device | null; spaceId: string; mayManage: boolean }) {
   const { t } = useTranslation();
@@ -373,10 +373,10 @@ function ModeLine({ device, spaceId, mayManage }: { device: Device | null; space
       <Info size={18} strokeWidth={2} aria-hidden />
       <span className={styles.statusText}>
         {t(`cockpit.mode.${kind}`)}
-        <Help topic={kind === 'drying' ? 'drying' : 'advanced.operatingMode'} />
+        <Help topic={kind === 'greenhouse' ? 'advanced.operatingMode' : kind} />
       </span>
       {mayManage ? (
-        <Link to={kind === 'drying' ? controlPath(spaceId) : devicesPath(spaceId)} className={ui.headLink}>
+        <Link to={kind === 'greenhouse' ? devicesPath(spaceId) : controlPath(spaceId)} className={ui.headLink}>
           {t('cockpit.mode.change')} ›
         </Link>
       ) : null}

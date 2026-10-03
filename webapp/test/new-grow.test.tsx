@@ -183,7 +183,7 @@ describe('the new-grow sheet', () => {
     expect(screen.getByText("the place's preset and cams follow the grow")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Blue Dream tent · Controller + Cam' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Balcony' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Germination · today' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Germination · dark · today' })).toBeInTheDocument();
 
     // The board opens on the first shipped scheme; "None / my own" is a choice, not the default.
     expect(screen.getByRole('button', { name: 'Biobizz · Light·Mix' })).toHaveAttribute('aria-pressed', 'true');
@@ -192,8 +192,12 @@ describe('the new-grow sheet', () => {
     // The run after the last one *here*, offered rather than filled in - the
     // account's newest run stands on the balcony and is not what the tent is counted from.
     expect(screen.getByRole('button', { name: 'Spring run #2' })).toBeInTheDocument();
-    // Under the chips, and again beside the button, where it cannot have scrolled away.
-    expect(screen.getAllByText('The targets in Blue Dream tent go onto the Germination climate with it.')).toHaveLength(2);
+    // Under the chips, and again beside the button, where it cannot have scrolled away: germination is dark.
+    expect(
+      screen.getAllByText(
+        'Blue Dream tent goes onto Germination · dark with it: light off, no CO₂, one temperature round the clock – until the grow moves on to seedling.',
+      ),
+    ).toHaveLength(2);
   });
 
   it('counts the suggestion over the place that is chosen, not over the account', async () => {
@@ -352,7 +356,7 @@ describe('where the plants go', () => {
     press('Blue Dream tent · Controller + Cam');
 
     const warning =
-      'Spring run is already growing in Blue Dream tent: its climate goes to the Germination preset now, and a plan running there pauses.';
+      'Spring run is already growing in Blue Dream tent: its climate goes to the Germination · dark preset now, and a plan running there pauses.';
     expect(screen.getAllByText(warning)).toHaveLength(2);
   });
 
@@ -373,7 +377,11 @@ describe('where the plants go', () => {
     press('New place');
 
     expect(screen.getByRole('button', { name: 'Blue Dream tent · Controller + Cam' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.queryByText('The targets in Blue Dream tent go onto the Germination climate with it.')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        'Blue Dream tent goes onto Germination · dark with it: light off, no CO₂, one temperature round the clock – until the grow moves on to seedling.',
+      ),
+    ).not.toBeInTheDocument();
     expect(screen.getByText('Make the place first, or pick one of the chips.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start the grow · Day 1' })).toBeDisabled();
   });

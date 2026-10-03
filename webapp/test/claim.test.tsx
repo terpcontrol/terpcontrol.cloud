@@ -469,12 +469,26 @@ describe('adding a device', () => {
   it('writes the stage that was picked when the bottom button is the one pressed', async () => {
     await drawClaimed();
     fireEvent.click(screen.getByRole('button', { name: /Next/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Seedling' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Seedling · with light' }));
     fireEvent.click(screen.getByRole('button', { name: /Next/ }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'seedling' }));
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 3 of 5');
     expect(await screen.findByRole('link', { name: /Start a grow here/ })).toBeInTheDocument();
+  });
+
+  it('offers germination in the dark first, and says what it holds before it is written', async () => {
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    const stages = screen.getAllByRole('button', { name: /· dark|· with light|^Veg$|^Flower$|^Drying$/ }).map(button => button.textContent);
+    expect(stages.slice(0, 2)).toEqual(['Germination · dark', 'Seedling · with light']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
+    expect(
+      screen.getByText(/^Germination · dark: the light goes off, there is no CO₂, and the device holds 24 °C round the clock/),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Germination · dark' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'germination' }));
   });
 
   it('leaves the green to the one action on the screen', async () => {

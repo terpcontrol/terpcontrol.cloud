@@ -6,7 +6,7 @@ import { useSavePlan } from '@/api/plans';
 import { Sheet } from '@/log/Sheet';
 import { awaitingClimate, hasCo2Sensor } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
-import { presetsOf } from '@/ui/presets';
+import { presetsOf, stageChoiceName } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
@@ -22,6 +22,7 @@ import {
   figuresFor,
   figureOf,
   heldByStage,
+  isDarkStage,
   LIGHT_HOURS,
   lightHoursFit,
   moveStep,
@@ -198,10 +199,11 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
   const pickStage = (stage: GrowthStage | null) => {
     // A preset refines the stage it belongs to, so it does not survive a change of stage.
     const keep = stage !== null && presetsOf(stage).includes(step.preset ?? '');
-    // Drying knows no day, light or CO2: a step into it writes what it holds and nothing else.
-    onChange({ stage, preset: keep ? step.preset : null, ...(stage === 'drying' ? heldByStage(step, stage) : {}) });
+    // Drying and germination know no day, light or CO2: a step into either writes what it holds and nothing else.
+    onChange({ stage, preset: keep ? step.preset : null, ...(isDarkStage(stage) ? heldByStage(step, stage) : {}) });
   };
-  const drying = step.stage === 'drying';
+  // Held round the clock in the dark: drying, or germination.
+  const dark = isDarkStage(step.stage) ? (step.stage as 'drying' | 'germination') : null;
 
   return (
     <div className={styles.fields}>
@@ -226,7 +228,7 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
         </Choice>
         {STAGES.map(stage => (
           <Choice key={stage} chosen={step.stage === stage} onChoose={() => pickStage(stage)}>
-            {t(`home.stage.${stage}`)}
+            {stageChoiceName(t, stage)}
           </Choice>
         ))}
       </Choices>
@@ -273,29 +275,29 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
       <span className="label">{t('space.control.step.settings')}</span>
       <div className={styles.figures}>
         {figuresFor(device, step.stage).map(figure => (
-          <FigureField key={figure.key} figure={figure} step={step} onChange={onChange} drying={drying} />
+          <FigureField key={figure.key} figure={figure} step={step} onChange={onChange} held={dark} />
         ))}
-        {/* A drying room is dark round the clock: it has no light hours to set. */}
-        {drying ? null : <LightHoursField step={step} device={device} onChange={onChange} />}
+        {/* A drying room and a germination are dark round the clock: they have no light hours to set. */}
+        {dark ? null : <LightHoursField step={step} device={device} onChange={onChange} />}
         {/* The figure this controller cannot run keeps its place and says what
             it needs, rather than leaving a gap that reads as a screen that
             forgot it. It is the row the manual targets page draws, in the same
             words. */}
-        {hasCo2Sensor(device) || drying ? null : (
+        {hasCo2Sensor(device) || dark ? null : (
           <span className={styles.figure}>
             <span className={styles.figureLabel}>{t('space.control.figure.co2')}</span>
             <span className={`mono ${styles.figureNeeds}`}>{t('targets.needsCo2')}</span>
           </span>
         )}
       </div>
-      {drying ? <p className={ui.note}>{t('space.control.step.dryingNote')}</p> : null}
+      {dark ? <p className={ui.note}>{t(`space.control.step.${dark}Note`)}</p> : null}
       {step.lightHours !== null && (step.lightHours < LIGHT_HOURS.min || step.lightHours > LIGHT_HOURS.max) ? (
         <p className={ui.note} role="alert">
           {t('planLight.range', LIGHT_HOURS)}
         </p>
       ) : null}
-      {/* A drying step says what it writes in its own note above; the day, CO₂ and the light are not among it. */}
-      {drying && !(writesNothing(step.settings) && step.lightHours === null) && !awaiting ? null : (
+      {/* A drying or germination step says what it writes in its own note above; the day, CO₂ and the light are not among it. */}
+      {dark && !(writesNothing(step.settings) && step.lightHours === null) && !awaiting ? null : (
         <p className={ui.note}>
           {writesNothing(step.settings) && step.lightHours === null
             ? t('space.control.step.writesNothing')
@@ -344,7 +346,7 @@ const fromController = (step: StepDraft, device: Device): Partial<StepDraft> => 
       (settings, figure) => withFigure(settings, figure, figureOf(configuration, figure)),
       step.settings,
     ),
-    lightHours: statesLight && step.stage !== 'drying' ? Math.round(targetsOf(configuration).lightHours) : step.lightHours,
+    lightHours: statesLight && !isDarkStage(step.stage) ? Math.round(targetsOf(configuration).lightHours) : step.lightHours,
   };
 };
 
@@ -433,20 +435,20 @@ function FigureField({
   figure,
   step,
   onChange,
-  drying = false,
+  held = null,
 }: {
   figure: Figure;
   step: StepDraft;
   onChange: (over: Partial<StepDraft>) => void;
-  /** A drying step, whose night figures are the drying room's and are named so. */
-  drying?: boolean;
+  /** A drying or germination step, whose night figures are what it holds round the clock and are named so. */
+  held?: 'drying' | 'germination' | null;
 }) {
   const { t } = useTranslation();
   const value = figureOf(step.settings, figure);
 
   return (
     <label className={styles.figure}>
-      <span className={styles.figureLabel}>{t(drying ? `space.control.figure.drying.${figure.key}` : `space.control.figure.${figure.key}`)}</span>
+      <span className={styles.figureLabel}>{t(held ? `space.control.figure.${held}.${figure.key}` : `space.control.figure.${figure.key}`)}</span>
       <input
         className={`mono ${styles.figureInput}`}
         type="number"

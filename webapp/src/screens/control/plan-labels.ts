@@ -1,4 +1,5 @@
 import type { DeviceConfiguration, GrowthStage, StepDuration } from '@fg2/shared-types/v1';
+import { stageChoiceName } from '@/ui/presets';
 import { stepLightHours, stepLightsOn } from './plan-edit';
 import { hoursWritten } from './targets/schedule-words';
 import { wallClock } from './targets/targets-draft';
@@ -29,7 +30,8 @@ export interface StepFacts {
 }
 
 /**
- * "Flower · late flower · 3 wk · 12 h light · waits for you". A step that writes
+ * "Flower · late flower · 3 wk · 12 h light · waits for you", and "Germination ·
+ * dark · 5 d" for the step that keeps the light off. A step that writes
  * nothing says so, because a step that only marks time is a deliberate thing to
  * write and would otherwise look like one whose figures had been forgotten. A
  * step that brings its own light-on time - a recipe from the old app - says
@@ -41,7 +43,7 @@ export const stepMeta = (t: Translate, step: StepFacts, offset: number | null = 
   const hours = stepLightHours({ settings, lightHours: step.lightHours ?? null });
   const own = stepLightsOn(settings);
   return [
-    step.stage ? t(`home.stage.${step.stage}`) : t('space.control.noStage'),
+    step.stage ? stageChoiceName(t, step.stage) : t('space.control.noStage'),
     step.preset ? t(`grow.presetName.${step.preset}`, { defaultValue: step.preset }) : null,
     durationLabel(t, step.duration),
     hours !== null

@@ -46,24 +46,35 @@ export interface ClimateChoice {
  * Every climate as one list, in the order the targets page draws its chips:
  * each stage with its own presets beside it, and the autoflower rows at the
  * end - they are the same stages kept under a long day, and read as one group.
- * Germination writes what a seedling does and is left out.
+ * Germination comes first, dark, and the seedling climate with light after it.
  */
 export const CLIMATE_CHOICES: readonly ClimateChoice[] = (() => {
-  const stages = STAGES_WITH_CLIMATE.filter(stage => stage !== 'germination');
   const choices: ClimateChoice[] = [];
-  for (const stage of stages) {
+  for (const stage of STAGES_WITH_CLIMATE) {
     choices.push({ stage, preset: null });
     for (const preset of presetsOf(stage)) if (preset !== 'autoflower') choices.push({ stage, preset });
   }
-  for (const stage of stages) if (presetsOf(stage).includes('autoflower')) choices.push({ stage, preset: 'autoflower' });
+  for (const stage of STAGES_WITH_CLIMATE) if (presetsOf(stage).includes('autoflower')) choices.push({ stage, preset: 'autoflower' });
   return choices;
 })();
 
+/**
+ * The stages whose name alone does not say what they do to a place: germination
+ * is dark - the device's germination mode, no light and no CO2 - and the
+ * seedling stage the first climate with light. Wherever one is chosen it says
+ * which, so "Keimung" means one thing on every screen.
+ */
+const NAMED_BY_LIGHT: readonly GrowthStage[] = ['germination', 'seedling'];
+
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
-/** "Flower", "Late flower", "Auto · Flower": what a climate is called wherever it is offered. */
+/** "Keimung · dunkel", "Sämling · mit Licht", "Blüte": a stage as it is offered wherever one is chosen. */
+export const stageChoiceName = (t: Translate, stage: GrowthStage): string =>
+  t(NAMED_BY_LIGHT.includes(stage) ? `home.stageChoice.${stage}` : `home.stage.${stage}`);
+
+/** "Keimung · dunkel", "Late flower", "Auto · Flower": what a climate is called wherever it is offered. */
 export const climateChoiceName = (t: Translate, choice: ClimateChoice): string => {
-  if (choice.preset === null) return t(`home.stage.${choice.stage}`);
+  if (choice.preset === null) return stageChoiceName(t, choice.stage);
   const preset = t(`grow.presetName.${choice.preset}`, { defaultValue: choice.preset });
   return choice.preset === 'autoflower' ? `${preset} · ${t(`home.stage.${choice.stage}`)}` : preset;
 };

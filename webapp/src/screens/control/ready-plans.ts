@@ -73,7 +73,7 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  */
 const stepOf = (t: Translate, step: ReadyStep): StepDraft => {
   const climate = climatePreset(step.stage, step.preset);
-  const values: Record<string, number | undefined> = {
+  const values: Record<string, number | null | undefined> = {
     dayTemperature: climate?.dayTemperature,
     dayHumidity: climate?.dayHumidity,
     nightTemperature: climate?.nightTemperature,

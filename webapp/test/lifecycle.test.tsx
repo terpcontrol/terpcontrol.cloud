@@ -532,12 +532,69 @@ describe('the climate beside a phase', () => {
     expect(screen.getByText(/^New: light off · 18 °C · 58 % – replaces the targets under Control\. The device starts drying/)).toBeInTheDocument();
   });
 
-  it('tells a fridge´s germination phase from its dark germination mode', () => {
-    hardware.devices = [{ ...tent(), type: 'fridge' }];
+  /**
+   * Germination means one thing everywhere: seeds in the dark. A phase written
+   * alone is the record of them sprouting and darkens nothing; the climate of
+   * the same name puts the device into its dark germination mode.
+   */
+  it('keeps the light where only the germination phase is written, and darkens the device for its climate', async () => {
+    const asked: { method: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        asked.push({ method: init?.method ?? 'GET', body: init?.body === undefined ? null : JSON.parse(String(init.body)) });
+        return new Response(JSON.stringify(phase('p3', 'germination', 0)), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }),
+    );
+    hardware.devices = [{ ...tent(), type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } }];
     draw(<PhaseSheet grow={veg} onClose={() => {}} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Germination' }));
-    expect(screen.getByText(/^This is the climate for freshly sprouted seedlings, with light\./)).toBeInTheDocument();
+    // The stage chip, ahead of the climate of the same name.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Germination · dark' })[0]);
+    expect(
+      screen.getByText(/^Stay: Light on 06:00–00:00 · 18 h · .* The light stays on: only “Germination · dark” makes it dark\./),
+    ).toBeInTheDocument();
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Germination · dark' }));
+    expect(
+      screen.getByText(/^New: Germination · dark – light off, no CO₂, 24 °C round the clock; the device does not control the humidity\./),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Enter Germination' }));
+
+    await waitFor(() => expect(asked.filter(call => call.method === 'POST')).toHaveLength(1));
+    expect(asked.find(call => call.method === 'POST')?.body).toMatchObject({ stage: 'germination', preset: null, climate: true });
+  });
+
+  it('offers the seedling´s climate first while the device germinates, and says the light comes back either way', () => {
+    const germinating: GrowListItem = {
+      ...grow,
+      phases: [phase('p1', 'germination', 3)],
+      summary: { ...grow.summary, stage: 'germination' },
+    };
+    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false };
+    hardware.devices = [
+      {
+        ...tent(),
+        type: 'fridge',
+        control: {
+          ...dark,
+          afterGermination: { dayTemperature: null, dayHumidity: null, nightTemperature: 19, nightHumidity: null, co2: null, lightLimit: null },
+        },
+      },
+    ];
+    draw(<PhaseSheet grow={germinating} onClose={() => {}} />);
+
+    const choices = screen.getByRole('group', { name: 'Targets' });
+    expect(within(choices).getByRole('button', { name: 'Seedling · with light' })).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      screen.getByText(
+        /^New: Light on 06:00–00:00 · 18 h · day 24 °C · night 21 °C · 70 % – .* Germination ends: the device holds day and night again/,
+      ),
+    ).toBeInTheDocument();
+
+    // Left as they are, the night germination wrote over comes back with the light.
+    fireEvent.click(within(choices).getByRole('button', { name: 'Leave as they are' }));
+    expect(screen.getByText(/^Stay: Light on 06:00–00:00 · 18 h · day 26 °C · night 19 °C · 62 %\. Germination ends/)).toBeInTheDocument();
   });
 
   it('is not asked where nothing standing there states a climate', () => {

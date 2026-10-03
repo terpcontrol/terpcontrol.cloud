@@ -8,14 +8,14 @@ import { Sheet } from '@/log/Sheet';
 import { nextStage } from '@/log/defaults';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
-import { climateChoiceName, presetsOf } from '@/ui/presets';
+import { climateChoiceName, presetsOf, stageChoiceName } from '@/ui/presets';
 import { standsIn } from '@/ui/session-access';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES, weekOfGrowDay } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { ClimatePick } from './ClimatePick';
-import { climateRequest, KEEP_CLIMATE, type PhaseClimate } from './phase-climate';
+import { climateRequest, defaultPick, usePlaceController, type PhaseClimate } from './phase-climate';
 import { correctionEffect, phasesInOrder, withdrawalEffect, type PhaseEffect } from './phase-effect';
 import styles from './Lifecycle.module.css';
 
@@ -48,7 +48,10 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
 
   const ended = grow.endedAt !== null;
   const [stage, setStage] = useState<GrowthStage>(() => nextStage(grow) ?? grow.summary.stage ?? STAGES[0]);
-  const [pick, setPick] = useState<PhaseClimate>(KEEP_CLIMATE);
+  // Null until somebody picks: what the sheet starts on depends on the device there (`defaultPick`).
+  const [picked, setPick] = useState<PhaseClimate | null>(null);
+  const controller = usePlaceController(ended ? null : standsIn(grow));
+  const pick = picked ?? defaultPick(stage, controller);
   const preset = pick.preset;
   // A grow that is over opens on the day it ended; one still running opens on
   // now as the server reckons it, which is what the field's cap is measured
@@ -69,7 +72,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   // The climate belongs to the stage it is the climate of, so a change of stage asks again.
   const pickStage = (next: GrowthStage) => {
     setStage(next);
-    setPick(KEEP_CLIMATE);
+    setPick(null);
   };
 
   return (
@@ -81,7 +84,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           <Choices label={t('grow.lifecycle.phase.stageLabel')}>
             {STAGES.map(one => (
               <Choice key={one} chosen={one === stage} onChoose={() => pickStage(one)}>
-                {t(`home.stage.${one}`)}
+                {stageChoiceName(t, one)}
                 {!ended && one === grow.summary.stage ? ` · ${t('log.now')}` : ''}
               </Choice>
             ))}
@@ -265,7 +268,7 @@ function PhaseEditor({ grow, phase, onDone }: { grow: GrowListItem; phase: Phase
               setPreset(current => (presetsOf(one).includes(current ?? '') ? current : null));
             }}
           >
-            {t(`home.stage.${one}`)}
+            {stageChoiceName(t, one)}
           </Choice>
         ))}
       </Choices>

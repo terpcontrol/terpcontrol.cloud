@@ -7,12 +7,11 @@ import styles from './GrowPage.module.css';
  * Four short tips for the phase the grow is in - how to water a seedling, when
  * to train, how dry to keep the flowers, how slowly to dry - folded under the
  * phase line, so that somebody new finds them and nobody else has to scroll past
- * them. Germination is a seedling's first days and gets its tips; curing is
- * where the drying tips end, in the jar.
+ * them. Curing is where the drying tips end, in the jar.
  */
 
 const TIPS_OF: Partial<Record<GrowthStage, string>> = {
-  germination: 'seedling',
+  germination: 'germination',
   seedling: 'seedling',
   vegetative: 'vegetative',
   flowering: 'flowering',
