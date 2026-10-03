@@ -71,7 +71,7 @@ Every topic is `/devices/<device_id>/<name>`, with the device's own id. The devi
 | `fetch` | device → server, on every connect | device | server: firmware report, configuration reply |
 | `log` | device → server | device | server: diary entries and `hardware-info:` |
 | `configuration` | both ways | device after a local change; server after a save | the other side |
-| `image` | device → server | device, during a capture | server: still assembly |
+| `image` | device → server | firmware older than the camera relay, when asked for a still | server: dropped |
 | `tunnel_read` | device → server | device | server: tunnel |
 | `command` | server → device | server | device |
 | `firmware` | server → device | server | device: OTA |
@@ -82,7 +82,8 @@ Every topic is `/devices/<device_id>/<name>`, with the device's own id. The devi
 The device subscribes to `configuration`, `firmware`, `fwupdate`, `command`, `control/#` and `tunnel_write`
 (`fridgecloud.cpp:179-355`) and publishes on the rest. The server subscribes to `/devices/#`
 (`device-ingest.service.ts`) and therefore also sees its own outbound messages echoed back; it ignores the
-echoes of `tunnel_write`, `command` and `firmware` and logs anything else as unhandled.
+echoes of `tunnel_write`, `command` and `firmware`, drops `image` (nothing asks for a still that way any more,
+see [9](#9-the-still-cycle)) and logs anything else as unhandled.
 
 `fwupdate` and `control/#` are subscribed by every device and **never published by the server today**. They stay
 reserved, and the broker's topic rules keep covering them, so a future server can use them without a firmware
@@ -406,12 +407,11 @@ The messages current firmware sends:
 | `message-smart-socket-readdressed:<role>` | 0 | LAN search found it elsewhere | `wifi.cpp:2494` |
 | `message-smart-socket-address-lost:<role>` | 1 | identity probe mismatch | `wifi.cpp:553,595` |
 | `message-smart-socket-cmd-failed:<role>:<on\|off\|test>` | 1 | a socket HTTP command failed | `wifi.cpp:646,3171` |
-| `message-aux-command-failed:<what>` | 1 | a failed `cam_capture` or `socket_*` | `wifi.cpp:3114,3127,3149,3162` |
+| `message-aux-command-failed:<what>` | 1 | a failed `socket_*`; `cam_capture` on firmware older than the relay | `wifi.cpp:3180,3202,3215` |
 | `message-terp-cam-connected` | 0 | camera pairing | `wifi.cpp:1357` |
-| `message-terp-cam-found` / `-not-found` | 0 / 1 | background camera search | `terpcam.cpp:473` |
-| `message-cam-reset:ok` / `:no-response` | 0 / 1 | camera factory reset | `terpcam.cpp:627` |
-| `message-cam-capture:skipped-low-heap …` | 1 | capture refused for want of heap | `terpcam.cpp:654-662` |
-| `message-cam-capture:incomplete res=… bytes=… …` | 1 | a failed capture only | `terpcam.cpp:934-947` |
+| `message-terp-cam-found` / `-not-found` | 0 / 1 | background camera search | `terpcam.cpp:525` |
+| `message-cam-reset:ok` / `:no-response` | 0 / 1 | camera factory reset | `terpcam.cpp:703` |
+| `message-cam-capture:…` | 1 | a failed capture, on firmware older than the relay only | — |
 
 Boot reasons are `POWERON`, `EXT`, `SW`, `PANIC`, `INT_WDT`, `TASK_WDT`, `WDT`, `DEEPSLEEP`, `BROWNOUT`, `SDIO`,
 `UNKNOWN`, plus `REMOTE` for a reboot the cloud asked for (`fridgecloud.cpp:39-53,156-162`).
@@ -463,23 +463,26 @@ over it would serialise into truncated JSON and the server would drop the whole 
 | `socket_roles` | csv of the roles this build accepts | controller, fridge, at init | `wifi.cpp:2811` |
 | `caps` | csv of what it accepts beyond the frozen commands | controller, fridge, at init | `wifi.cpp:2812` |
 | `socket_pulse` | `role:seconds`: the failsafe each role's socket is given | controller, fridge, at init | `wifi.cpp:2813` |
-| `webcam_did` | the camera's device id, or `none` | at boot and on pairing | `wifi.cpp:2833-2835`, `:1358` |
-| `webcam_ip` | where the camera last answered, or `none` | at boot, and on discovery | `wifi.cpp:2839-2841` |
-| `webcam_url` | a legacy stored RTSP URL, or `none` | at boot | `wifi.cpp:2843-2845` |
-| `webcam_uid` | the camera's 20-byte P2P id, formatted | when discovery learns it | `terpcam.cpp:225-228` |
-| `webcam_pwd` | the password the controller set on the camera | after each securing attempt | `terpcam.cpp:566-571` |
+| `webcam_did` | the camera's device id, or `none` | at boot, on pairing, on disconnect | `wifi.cpp:2862`, `:1367`, `:1390` |
+| `webcam_ip` | where the camera last answered, or `none` | at boot, on discovery, on disconnect | `wifi.cpp:2868`, `terpcam.cpp:188` |
+| `webcam_url` | a legacy stored RTSP URL, or `none` | at boot, on disconnect | `wifi.cpp:2877`, `:1393` |
+| `webcam_uid` | the camera's 20-byte P2P id, formatted, or `none` | at boot, on pairing, when learnt | `wifi.cpp:2873`, `:1368`, `terpcam.cpp:192` |
+| `webcam_pwd` | the password the device set on the camera | at boot, after each securing attempt | `wifi.cpp:2887`, `terpcam.cpp:637` |
 
-The `socket_*` and `webcam_*` keys come from the controller and the fridge only — no other type calls
-`wifiInitAuxCloudReporting`. `reportCamIp` (`terpcam.cpp:220-229`) sends `webcam_ip` and `webcam_uid` whenever
-discovery has learnt a new value, which is at the end of every capture.
+The `socket_*` keys come from the controller and the fridge only — no other type calls
+`wifiInitAuxCloudReporting`. The `webcam_*` keys come from every type that pairs a Terp Cam: the controller and
+the fridge, and the fan and the plug, which call `wifiInitTerpCamCloudReporting` alone (`fan.cpp:399`,
+`plug.cpp:598`). `reportCamIp` (`terpcam.cpp:180-193`) sends `webcam_ip` and `webcam_uid` whenever the device
+has learnt a new value, and only while no relay is running, because the relay task never logs. Disconnecting the
+camera in the menu forgets everything stored about it and reports `none` for all four keys (`forgetTerpCam`,
+`wifi.cpp:1378-1394`).
 
 The `none` sentinel matters. A device reports `webcam_did=none` and `sockets=none` rather than staying silent,
 because silence cannot clear a stale value: the cloud would keep whatever it last heard, and a camera unpaired
 while the module was offline would look connected forever (`wifi.cpp:2828-2833`, `:2653-2657`).
 
 `webcam_pwd` is reported on **every** attempt to secure the camera, including the failed ones, where its value is
-the empty string (`terpcam.cpp:566-571`). Since securing is retried on every capture, a camera that cannot be
-secured makes the controller report an empty password roughly every 30 s.
+the empty string (`terpcam.cpp:637`).
 
 Server-side handling beyond storage (`hardware-report.service.ts`):
 
@@ -489,9 +492,13 @@ Server-side handling beyond storage (`hardware-report.service.ts`):
 | `firmware_version` | the build is reported to the rollout and stored as `devices.state.firmwareId` |
 | `sockets_n` | superseded `socket_list<k>` chunks from a larger table are unset |
 | `socket_list<k>` | a row whose state left the one the last report gave stamps `devices.state.socketStateChangedAt.<slot>`, falling silent included; a row that had no state yet stamps nothing, so a build that starts reporting the column does not read as every socket having just moved |
-| `webcam_did` | the camera the controller pairs is reconciled into a row of `cameras` |
-| `webcam_pwd` | the camera's `secret`; an empty value means "none" |
-| `webcam_uid`, `webcam_ip` | the camera's `uid` and `ip`, which is how the cloud reaches it directly |
+| `webcam_did` | the camera the device pairs is reconciled into a row of `cameras` |
+| `webcam_pwd` | the camera's `secret`, which the cloud logs in with over the relay; an empty value means "none" |
+| `webcam_uid`, `webcam_ip` | the camera's `uid` and `ip`, kept for the record; the relay finds the camera itself |
+
+`webcam_did`, `webcam_uid` and `webcam_pwd` also end a hold the cloud keeps on a camera that turned it away: a
+different camera, or one that refused the password, is left alone for 30 minutes unless the device says
+something new about it ([9](#9-the-still-cycle)).
 
 The reconciliation requires `/^[A-Za-z0-9_-]{4,32}$/` of the reported id. A device that reports one is given the
 camera row it already has, or a new one with its twelve months of Premium; `none` and the empty string retire
@@ -678,21 +685,22 @@ own handler (`:226-232`).
 | `socket_remove` | `role`, optional `slot` | controller, fridge |
 | `socket_test` | `role`, optional `slot` | controller, fridge |
 | `socket_override` | `slot` **or** `output`, `state: on \| off \| auto`, `seconds` | controller, fridge announcing `socket_override` |
-| `cam_capture` | — | controller, fridge |
+| `cam_relay` | `url`, `token`, `key` | controller, fridge, fan, plug |
 
 `socket_set`'s `timer` and `socket_override` are the two additions since the builds in the field. They are sent
 only to a device that announced `socket_timer` and `socket_override` in `caps`, and a role outside `socket_roles`
 is never sent at all, because an old build drops what it does not know without a word
 ([12](#12-extending-it-safely)).
 
-`plug`, `light` and `cam` have empty command handlers (`plug.cpp:588-590`, `light.cpp:353-360`,
-`cam.cpp:56-58`) and so honour nothing beyond `reboot`. None of `plug`, `fan`, `light` or `cam` calls
-`wifiInitAuxCloudReporting` or `wifiHandleAuxCommand`, so they never report sockets or a camera and ignore
-`socket_*` and `cam_capture`.
+`light` and `cam` have empty command handlers (`light.cpp:353-360`, `cam.cpp:56-58`) and so honour nothing
+beyond `reboot`; the `plug` honours `cam_relay` and nothing else (`plug.cpp:594-596`). None of `plug`, `fan`,
+`light` or `cam` calls `wifiInitAuxCloudReporting` or `wifiHandleAuxCommand`, so they never report sockets and
+ignore `socket_*`; the fan and the plug hand `cam_relay` to `wifiHandleTerpCamCommand` directly
+(`fan.cpp:395`, `plug.cpp:595`).
 
 **An action a device does not know is dropped silently.** There is no negative acknowledgement, no error log and
 no reply of any kind: the command subject fires, the type's handler matches nothing,
-`wifiHandleAuxCommand` returns `false` (`wifi.cpp:3180`), and the message ends there. That is the single most
+`wifiHandleAuxCommand` returns `false` (`wifi.cpp:3233`), and the message ends there. That is the single most
 important property for anything new: a caller cannot tell an unimplemented action from one that worked.
 
 ### 8.1 `reboot`
@@ -798,81 +806,79 @@ the watchdog fed, and answers `message-smart-socket-tested:<role>` or
 `message-smart-socket-cmd-failed:<role>:test`. The control loop re-asserts the real target within its resend
 window afterwards.
 
-### 8.5 `cam_capture`
+### 8.5 `cam_relay`
 
-`{ "action": "cam_capture" }`, handled by `wifiHandleAuxCommand` (`wifi.cpp:3110-3117`) on the controller and the
-fridge. The camera pipeline asks for it, and the protocol module publishes it like every other command. A capture
-that fails logs
-`message-aux-command-failed:cam_capture`. See [9 The still cycle](#9-the-still-cycle).
+```json
+{ "action": "cam_relay", "url": "https://api.example.com/terpcam/relay", "token": "<32 hex>", "key": "<64 hex>" }
+```
+
+Handled by `wifiHandleTerpCamCommand` (`wifi.cpp:3091-3104`) on every type that pairs a Terp Cam: the controller
+and the fridge through `wifiHandleAuxCommand`, the fan and the plug directly. It starts the relay task
+(`terpCamStartRelay`, `terpcam.cpp:1009-1035`) and returns at once, so a slow relay never holds the control loop.
+A relay already running, no paired camera, an empty token, a URL that is not `http://` or `https://`, or a key
+that is not 32 bytes of hex make it do nothing - and there is no reply either way. The camera pipeline asks for
+it, through the protocol module's `requestRelay`; it is not a `/v1` device command. See
+[9 The still cycle](#9-the-still-cycle).
+
+**Firmware older than the relay drops `cam_relay` without a word, so a device on such a build delivers no Terp Cam
+still until it is updated.** The cloud no longer sends `cam_capture`, the command those builds answered with
+still fragments on `image`; what they still log about a capture (`message-cam-capture:…`,
+`message-aux-command-failed:cam_capture`) is read as before.
 
 ---
 
 ## 9 The still cycle
 
-A camera is paired on the controller, in its menu. The controller stores the camera's device id in NVS and
-reports it as `hardware-info:webcam_did=<did>`; the cloud makes that a row of `cameras` of kind
-`terpcam_controller` and starts asking for pictures (`hardware-report.service.ts`). One camera per module: the
-pairing flow refuses a second while one is stored (`wifi.cpp:1382-1389`).
+A camera is paired on the device, in its menu - the controller, the fridge, the fan and the plug carry the
+entry. The device stores the camera's printed id in NVS and reports it as `hardware-info:webcam_did=<did>`; the
+cloud makes that a row of `cameras` of kind `terpcam_controller` and starts asking for pictures
+(`hardware-report.service.ts`). One camera per device.
 
 The poller (`server/src/modules/v1/camera/camera-poller.service.ts`) runs a pass every 5 s and asks each configured
 camera at most every `stillIntervalSeconds`, with a failure backoff of `min(interval × 2^failures, 120 min)`. It
-skips a device in maintenance or with `workmode: off`, and one whose previous read is still in flight.
+skips a device in maintenance or with `workmode: off`, and one whose previous read is still in flight. A Terp Cam,
+and a stream tunnelled through a device, is skipped while its device is offline: each try could only wait out
+its timeouts. That is decided before the schedule, so an offline spell does not grow the backoff.
 
-### 9.1 Through the controller
+### 9.1 The relay
 
-1. The cloud publishes `{"action":"cam_capture"}` on `command` and waits up to `CAPTURE_TIMEOUT_MS = 30 000`
-   (`terpcam-p2p.service.ts:42,81-95`). A new request supersedes a pending one.
-2. The controller reaches the camera over its P2P transport on the LAN and asks it for a JPEG. It has nowhere
-   near enough RAM to hold a whole picture, so fragments are published as they arrive, out of a 48 KiB sliding
-   window (`terpcam.cpp:104-108,736-769`).
-3. Each fragment is one `image` message (`terpcam.cpp:748-752`):
+The camera speaks only its vendor's P2P transport on the LAN, and the cloud cannot find it from outside. So the
+device bridges it and the cloud runs the P2P client itself (`server/src/modules/v1/camera/terpcam-direct.service.ts`,
+`firmware/src/terpcam.cpp:759-…`):
 
-   ```json
-   { "capture": 1893422, "seq": 0, "last": false, "payload": "<base64>" }
-   ```
+1. The cloud publishes `cam_relay` ([8.5](#85-cam_relay)) with a fresh random `token` and `key`, and the URL to
+   dial back: `TERPCAM_RELAY_URL`, which `docker-compose.yaml` defaults to `API_URL_EXTERNAL/terpcam/relay`; an
+   empty value turns Terp Cam stills off. It waits `RELAY_DIAL_MS = 45 s` for the device to dial in.
+2. The relay runs in a task of its own (8 KB of stack, 12 KB with TLS). Where the device does not know the
+   camera's P2P id yet it learns it first, from a session of its own that checks the camera is the paired one.
+   It finds the camera on the LAN and opens the URL as an HTTP upgrade - `GET <path>` with
+   `Upgrade: terpcam-relay` and `Connection: Upgrade` - and needs a `101` back. TLS is not verified: everything
+   after the response head is enciphered under the key that came over the verified MQTT link. The API's own
+   HTTP server takes the upgrade, so it needs no port of its own, and a reverse proxy in front of the API has to
+   pass it on as it would a WebSocket.
+3. Every frame, both ways, is a 2-byte big-endian length and its payload, under AES-128-CTR with a zero counter -
+   the key's first 16 bytes for what the device sends, the last 16 for what it receives. The first frame is the
+   header: the token in the clear, a NUL, and the camera's 20-byte P2P id, which is the first thing enciphered.
+   The server matches the token to a waiting capture within `RELAY_HEADER_MS = 20 s` and drops a dial-in it
+   cannot match. Every later frame is one datagram between the cloud and the camera.
+4. The cloud logs in to the camera over the relay and checks that the camera that answered is the paired one and
+   took the password. A different camera, or a refused password, ends the attempt, and the device is then left
+   alone for 30 minutes - or until it reports `webcam_did`, `webcam_uid` or `webcam_pwd` again. Otherwise the
+   cloud takes a full-resolution keyframe off the camera's main stream and decodes it to JPEG, which is stored
+   like any other still.
+5. An empty frame from the cloud means it has its still. The device frees the camera's session slot on the LAN
+   itself and hangs up; the server waits for that (`RELAY_CLOSE_MS = 10 s`) rather than closing first, because
+   the device takes no new relay until the last one has ended.
 
-   | Key | Meaning |
-   | --- | --- |
-   | `capture` | identifies this capture; `millis()` at the start (`terpcam.cpp:710`) |
-   | `seq` | fragment index from 0, always ascending |
-   | `last` | `true` on the final fragment; the firmware always sends the key, `true` or `false` |
-   | `payload` | base64 of the raw JPEG bytes of this fragment |
-   | `abort` | `true` in place of a payload when a started capture failed (`terpcam.cpp:949-953`) |
-   | `h264` | reserved: the payload is a raw keyframe rather than JPEG. No shipped firmware sets it |
+One relay per device, on both sides: the device ignores `cam_relay` while a relay runs, and the server runs one
+capture per device, so the test-image button pressed during a poll waits for the poll's picture. A capture makes
+up to three attempts, each bounded by the dial-in, `LOGIN_MS = 15 s` (`LOGIN_SILENT_MS = 10 s` when nothing comes
+back at all), `TRANSFER_MS = 60 s` and the close - a capture that fails every time takes about six and a half
+minutes. The device ends a relay after 2 minutes, or 30 seconds without traffic, whatever the cloud does. The
+hold on a refusing camera lives in the server's memory and ends with a restart.
 
-4. The cloud reassembles (`terpcam-p2p.service.ts:97-155`). The first fragment fixes the capture id and
-   fragments carrying a different one are dropped, so a straggler from an abandoned attempt cannot corrupt the
-   picture. `abort` rejects the capture. A missing `seq` falls back to insertion order. The total is bounded by
-   `MAX_IMAGE_BYTES = 2 MiB`. `last` triggers the concatenation in ascending `seq` order.
-5. The JPEG is stored like any other still, and feeds the timelapse and thinning pipelines unchanged.
-
-Capture-side limits, all in `terpcam.cpp`: the capture is skipped when the largest free heap block cannot spare
-48 KiB plus a 16 KiB margin, logging `message-cam-capture:skipped-low-heap` (`:61,104-106,652-663`); Wi-Fi modem
-power-save is disabled for the duration, because with it on most of the fragments are lost (`:670-671`); the
-transfer is bounded by `TRANSFER_MS = 20 000` and `IDLE_ABORT_MS = 8 000` (`:55-56`), inside the cloud's 30 s
-wait; the image itself by `MAX_IMAGE_BYTES = 512 KiB` (`:108`); one attempt per request, because the cloud paces
-the retries (`:62`).
-
-The controller asks for 1280x720 and falls back to 640x360 for the rest of the boot after three replies that
-carried no picture at all — which is what a camera rejecting the size parameter looks like, as distinct from
-ordinary fragment loss (`terpcam.cpp:76-82,924-932`).
-
-### 9.2 Directly from the cloud
-
-When `TERPCAM_RENDEZVOUS_HOSTS` is configured and the device has reported a `webcam_uid`, the server speaks the
-camera's P2P protocol itself over UDP and takes a full-resolution keyframe, which it decodes to JPEG
-(`server/src/modules/v1/camera/terpcam-direct.service.ts`). **No MQTT is involved at all**: the only thing the
-device contributes is the `hardware-info` that named the camera, its id, its last address and its password.
-
-Which path a poll takes (`camera-poller.service.ts`):
-
-| Situation | Path |
-| --- | --- |
-| No rendezvous hosts configured, or no `webcam_uid` reported | the controller |
-| Direct capture succeeds | direct |
-| Direct fails, but it has succeeded this online period or has failed fewer than twice | no picture this poll |
-| Direct has failed twice running with no success since the device came online | the controller |
-| The test-image button | the controller on the first failure |
+A standalone Terp Cam has no device to open the relay, so the server has no way to reach one and refuses to
+create one ("coming soon").
 
 The camera is a purchased VStarcam-family unit. What the firmware and the server need of its own CGI and P2P
 transport is in the code in this repository; **the full vendor CGI recipe is documented in the private
@@ -933,9 +939,10 @@ A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ign
 | Tunnel TCP frame | ≤ 127 raw bytes, base64-encoded | `fridgecloud.h:19`, `.cpp:803-816` |
 | Tunnel messages per loop | ≤ 6 TCP and ≤ 41 UDP, shared across slots | `fridgecloud.h:20,25`, `.cpp:763,775,805` |
 | Tunnel activity | only while the display is idle (30 s after the last input) | `fridgecloud.cpp:730-732,759-761` |
-| Capture timeout (cloud side) | 30 s | `terpcam-p2p.service.ts:42` |
-| Assembled picture cap (cloud side) | 2 MiB | `terpcam-p2p.service.ts:44` |
-| Capture transfer / idle (device side) | 20 s / 8 s | `terpcam.cpp:55-56` |
+| Relay dial-in / header / close (cloud side) | 45 s / 20 s / 10 s | `terpcam-direct.service.ts` |
+| Login / transfer per attempt, attempts per capture (cloud side) | 15 s / 60 s, 3 | `terpcam-direct.service.ts` |
+| Relay length / silence (device side) | 2 min / 30 s | `terpcam.cpp:897-898` |
+| Hold on a camera that refused the cloud | 30 min, or until the device reports it again | `terpcam-direct.service.ts` |
 | Still poll interval | the camera's own `stillIntervalSeconds`, backoff to 120 min | `camera-poller.service.ts` |
 | Upgrade instruction | first after 30 s, doubling to at most 24 h | `firmware-rollout.service.ts` |
 
@@ -1043,19 +1050,14 @@ reader of either should not conclude from it.
 - **Live readings.** The firmware uses `bulk` in cloud mode and bare `status` sub-topics in custom-MQTT mode; it
   never publishes a JSON document on `status`. The server accepts one there anyway and discards its timestamp,
   and the simulator sends its live samples exactly that way.
-- **`image.last`.** The firmware always sends the key, `true` or `false`. The server treats a missing `last` as
-  `false`, and the simulator sends the key only on the final fragment.
-- **`image.abort` and `image.h264`.** The firmware sends `abort` when a started capture fails and never sets
-  `h264` on the shipped controller path. The server handles both, and would decode an `h264` payload as a
-  keyframe. The simulator sends neither.
 - **Extra `log` keys.** The firmware sends `severity` and `message` and nothing else, as does the simulator, and
   those two are what the server reads. Until the rewrite it spread every key of the object into the entry, so a
   `title`, `time`, `data` or `images` a device sent would have been stored.
 - **`message-device-firmware-update`.** The firmware sends it without an argument; the simulator appends the
   firmware id.
-- **`message-cam-capture`.** The firmware sends only failures, keeping successes on the serial console. The
-  server drops `…:ok` at ingest in any case, and the failures too unless webcam error logging is on. The
-  simulator never sends the key.
+- **`message-cam-capture`.** Only firmware older than the relay sends it, and only failures. The server drops
+  `…:ok` at ingest in any case, and the failures too unless webcam error logging is on. The simulator never sends
+  the key.
 - **A failing external sensor.** Only the fridge has one, in the firmware and in the simulator alike — `--fault`
   refuses any other type. What differs is where the fault comes from and where the interval lives. The simulator
   is told to have one rather than measuring it, and `--fault <kind>=<seconds>` makes the sensor flap on that
@@ -1068,9 +1070,11 @@ reader of either should not conclude from it.
   and divides the three fan percentages by 100. The `/v1` contract describes the outputs of a test as partial and
   says an output left out keeps doing what it was doing; the firmware reads a missing field as zero, so it does
   not, and the server fills in the ones a caller left out.
-- **Camera identity.** The firmware reports `webcam_did`, `webcam_uid`, `webcam_pwd`, `webcam_ip` and
-  `webcam_url`. The simulator reports only `webcam_did`, so a simulated camera always takes the controller path
-  and never exercises the direct one.
+- **The camera.** The simulator answers `cam_relay` the way the firmware does - the same upgrade, header and
+  cipher - but the camera at the far end is emulated in the script, so the cloud's P2P client is exercised and
+  the camera's own quirks are not. It reports `webcam_did` and `webcam_uid` and no password, so the cloud logs in
+  with the default, and it pairs a camera whatever type it is started as, where the firmware has the menu entry
+  on the controller, fridge, fan and plug only.
 - **Who reports sockets.** Only the controller and the fridge call `wifiInitAuxCloudReporting`, so only they
   report a socket table and the three capability keys. The simulator reports both for every type it can be
   started as, which means a simulated `plug` or `light` announces sockets no real one of that type ever would.

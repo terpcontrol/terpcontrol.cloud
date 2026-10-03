@@ -31,7 +31,8 @@ shapes and the firmware. The screens assume twelve things the server does not ha
 9. **Follow**, user to grow.
 10. The manual stage picker writes the same phase the grow plan writes.
 11. More **socket roles** and per-socket timed overrides that reach the firmware.
-12. **RTSP cameras** through the controller; **standalone Terp Cams** without one.
+12. **RTSP cameras** through the controller; **standalone Terp Cams** without one (kept in the model, not reachable
+    yet: see the cameras paragraph below).
 
 Rules of the record that bind the model: no persona or mode selection; Premium covers camera images only; every
 value carries an age (live under 2 min, stale 2 to 10 min, offline after 10 min, dimmed and never hidden); grows
@@ -363,11 +364,13 @@ removed together with the Angular app.
 - **Cameras.** The poller, the timelapse builder, thinning and retention iterate `cameras`. When a device
   reports a paired Terp Cam over MQTT, the protocol module upserts its camera row. A controller still pairs
   exactly one Terp Cam; "several cameras per tent" is that camera plus RTSP cameras pulled through the
-  controller's existing tunnel plus standalone Terp Cams the cloud reaches itself, none of which needs firmware.
-  Creating an RTSP camera is never refused. **Pairing a standalone Terp Cam ships as "coming soon"**: the model,
-  the camera kind and the server-side path to reach such a camera are built, the tab that would pair one says it
-  is coming, and the flow is finished in its own session once the rewrite is merged, because it needs a camera
-  on a desk to prove it. The timelapse composer stores a `media` row with `render.status:
+  controller's existing tunnel plus standalone Terp Cams, none of which needs firmware. Creating an RTSP camera
+  is never refused. **Pairing a standalone Terp Cam ships as "coming soon"**: the model and the camera kind are
+  built and the tab that would pair one says it is coming. The server-side path that was built for it - the
+  cloud finding the camera through the manufacturer's rendezvous servers - is gone: those servers stopped
+  answering, and the cloud now reaches every Terp Cam over a relay the device it is paired at opens to the API
+  (`cam_relay`, see `docs/device-protocol.md` §9). A standalone camera has no such device, so it has no path at
+  all until one is found, and the server refuses to create one. The timelapse composer stores a `media` row with `render.status:
   queued`, which the hourly builder drains first.
 - **Entitlement** (`PREMIUM_ENFORCED`; unset gates nothing, which is what a self-hosted install gets) is
   enforced in the image pipeline only: free cameras are **served** at a reduced width while full stills stay
@@ -588,8 +591,9 @@ before the first screen can show a live value.
 6. **Cascading deletes are new to this server** and need their own specs.
 7. **Control laws for the new socket roles are decided here, not by a screen.** They ship behind
    `socket_roles`, so a firmware that omits a role never offers it.
-8. **The standalone Terp Cam flow is unproven end to end** and therefore ships as "coming soon" rather than
-   as a tab that fails on a stranger's camera.
+8. **The standalone Terp Cam has no way in.** It ships as "coming soon" rather than as a tab that fails on a
+   stranger's camera; with the rendezvous gone, finishing it needs a new path to a camera that stands at no
+   device, not only a session with a camera on a desk.
 9. **Retention can delete pictures** where today everything is kept for three years. It is off unless an
    install turns it on, so the risk is taken deliberately rather than by upgrading.
 10. **Two new outward-facing surfaces**, Web Push and the Telegram webhook, both off until configured.
