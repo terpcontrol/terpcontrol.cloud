@@ -709,10 +709,22 @@ describe('the band that applied', () => {
       // overnight: from then on the snapshot is not what the controller holds.
       await recorded(['2026-06-01T00:00:00.000Z', aimed(24)], [FLOWERING_FROM.toISOString(), FLOWER_AIMED], ['2026-06-10T09:00:00.000Z', NOW_AIMED]);
 
+      // The hour after each change is a stretch of its own, its band reaching
+      // over what was aimed at just before: 24 °C before flower, 26 °C before this morning.
       expect(await setpoints()).toEqual([
         ['2026-06-09T12:00:00.000Z', 'phase-veg', 24],
         [FLOWERING_FROM.toISOString(), 'phase-flower', 26],
+        ['2026-06-10T01:00:00.000Z', 'phase-flower', 26],
         ['2026-06-10T09:00:00.000Z', 'phase-flower', 27],
+        ['2026-06-10T10:00:00.000Z', 'phase-flower', 27],
+      ]);
+      const bands = (await readAs(session(OWNER))).panels.find(panel => panel.metric === 'temperature')?.targets ?? [];
+      expect(bands.map(one => [one.settling ?? false, one.day?.band])).toEqual([
+        [false, { low: 23, high: 25 }],
+        [true, { low: 23, high: 27 }],
+        [false, { low: 25, high: 27 }],
+        [true, { low: 25, high: 28 }],
+        [false, { low: 26, high: 28 }],
       ]);
     });
 
@@ -748,6 +760,7 @@ describe('the band that applied', () => {
       expect(await setpoints()).toEqual([
         ['2026-06-09T12:00:00.000Z', null, 25],
         ['2026-06-10T10:00:00.000Z', null, 27],
+        ['2026-06-10T11:00:00.000Z', null, 27],
       ]);
       // A week back the record has not begun yet, and its first row is still
       // nearer to that week than this morning's change.
@@ -769,6 +782,8 @@ describe('the band that applied', () => {
         stage: null,
         day: { setpoint: 27, band: { low: 26, high: 28 } },
         night: { setpoint: 22, band: { low: 21, high: 23 } },
+        // The configuration says how the controller holds them: by its schedule.
+        held: 'schedule',
       },
     ]);
   });

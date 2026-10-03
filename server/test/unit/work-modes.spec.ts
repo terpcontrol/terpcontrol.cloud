@@ -256,6 +256,38 @@ describe('a setting changed by name', () => {
     expect((await stored()).configuration?.workmode).toBe('full');
   });
 
+  /**
+   * Germination holds the night's temperature round the clock, so the
+   * germination temperature is written there - and going back to the standard
+   * left every night after it at 24 °C.
+   */
+  it('puts the night back that germination wrote over, when the device goes back to another mode by itself', async () => {
+    await device();
+
+    await configuration.configure(DEVICE, { mode: 'germination' }, OWNER);
+    const germinating = await stored();
+    expect(germinating.beforeGermination).toEqual({ 'night.temperature': 20 });
+    expect(
+      controlOf('fridge', germinating.configuration, germinating.baseWorkmode, null, germinating.beforeGermination)?.afterGermination,
+    ).toMatchObject({
+      nightTemperature: 20,
+      dayTemperature: null,
+    });
+
+    await configuration.replace(DEVICE, fridgeDocument({ workmode: 'breed', night: { temperature: 24, humidity: 55 } }), OWNER);
+    expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { temperature: 24 } });
+
+    // Switched off and on again, it is still germinating.
+    await configuration.configure(DEVICE, { control: false }, OWNER);
+    await configuration.configure(DEVICE, { control: true }, OWNER);
+    expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { temperature: 24 } });
+
+    await configuration.configure(DEVICE, { mode: 'standard' }, OWNER);
+    const after = await stored();
+    expect(after.configuration).toMatchObject({ workmode: 'small', day: { temperature: 25 }, night: { temperature: 20 } });
+    expect(after.beforeGermination).toBeNull();
+  });
+
   it('refuses a device that has never sent its document', async () => {
     await device({ configuration: null });
 

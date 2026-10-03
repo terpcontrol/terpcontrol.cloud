@@ -5,6 +5,7 @@ import { MAX_ASKED_WINDOWS, MIN_STEP_SECONDS as FINEST_STEP_SECONDS } from '@mod
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
+import { SETTLE_SECONDS, cycleOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { dayNumberOf, horizonOf, originOf } from '../diary/grow-calendar';
 import { targetsOf } from '../phase/phase-targets';
 import { TargetStretch } from './timeline-series';
@@ -194,6 +195,7 @@ export const stretchesOf = (
   const steering = steeringOf(devices);
   const moves = record.filter(row => row.deviceId === steering?.id).sort((one, other) => one.at.getTime() - other.at.getTime());
   const borrowed = moves.length > 0 ? moves[0].targets : steering ? targetsOf(steering.configuration) : null;
+  const borrowedCycle = moves.length > 0 ? (moves[0].cycle ?? null) : steering ? cycleOf(steering.type, steering.configuration) : null;
   const spine = grow ? spineOf(grow) : [];
   const running = grow !== null && grow.endedAt === null;
   const phases = spine.flatMap((phase, index) => {
@@ -202,30 +204,62 @@ export const stretchesOf = (
     if (endsAt <= startsAt) return [];
 
     const steered = running && endsAt >= asOf;
-    return [{ startsAt, endsAt, phaseId: phase.id, stage: phase.stage, targets: phase.targets ?? (steered ? borrowed : null) }];
+    const targets = phase.targets ?? (steered ? borrowed : null);
+    return [{ startsAt, endsAt, phaseId: phase.id, stage: phase.stage, targets, cycle: phase.targets || !steered ? null : borrowedCycle }];
   });
   const stretches =
-    phases.length > 0 ? phases : [{ startsAt: window.startsAt, endsAt: window.endsAt, phaseId: null, stage: null, targets: borrowed }];
+    phases.length > 0
+      ? phases
+      : [{ startsAt: window.startsAt, endsAt: window.endsAt, phaseId: null, stage: null, targets: borrowed, cycle: borrowedCycle }];
 
   return joined(stretches.flatMap(stretch => recorded(stretch, moves)));
 };
 
-/** A stretch cut where the record says the targets moved, each piece drawn against the row standing at its start. */
+/**
+ * Whether a row is somebody changing something, and so starts an hour the
+ * climate is given to follow: not a row that only added the cycle to a record
+ * written before cycles were.
+ */
+const settles = (before: StoredTargetChange, row: StoredTargetChange): boolean =>
+  !((before.cycle ?? null) === null && JSON.stringify(before.targets) === JSON.stringify(row.targets));
+
+/**
+ * A stretch cut where the record says the targets or the cycle moved, each
+ * piece drawn against the row standing at its start - and cut again where the
+ * hour after a change ends, the piece before it carrying what stood before the
+ * change (`settling`).
+ */
 const recorded = (stretch: TargetStretch, moves: readonly StoredTargetChange[]): TargetStretch[] => {
-  const cuts = moves.filter(row => row.at > stretch.startsAt && row.at < stretch.endsAt).map(row => row.at);
-  const edges = [stretch.startsAt, ...cuts, stretch.endsAt];
+  const settleEnds = moves.flatMap((row, index) =>
+    index > 0 && settles(moves[index - 1], row) ? [new Date(row.at.getTime() + SETTLE_SECONDS * 1000)] : [],
+  );
+  const inside = [...moves.map(row => row.at), ...settleEnds].filter(at => at > stretch.startsAt && at < stretch.endsAt);
+  const edges = [...new Set([stretch.startsAt, ...inside, stretch.endsAt].map(at => at.getTime()))]
+    .sort((one, other) => one - other)
+    .map(at => new Date(at));
 
   return edges.slice(0, -1).map((startsAt, index) => {
-    const standing = moves.filter(row => row.at <= startsAt).at(-1);
-    return { ...stretch, startsAt, endsAt: edges[index + 1], targets: standing ? standing.targets : stretch.targets };
+    const at = moves.reduce((found, row, index) => (row.at <= startsAt ? index : found), -1);
+    const standing = at >= 0 ? moves[at] : undefined;
+    const before = at > 0 ? moves[at - 1] : undefined;
+    const settling = standing && before && settles(before, standing) && startsAt.getTime() < standing.at.getTime() + SETTLE_SECONDS * 1000;
+    return {
+      ...stretch,
+      startsAt,
+      endsAt: edges[index + 1],
+      targets: standing ? standing.targets : stretch.targets,
+      cycle: standing ? (standing.cycle ?? null) : (stretch.cycle ?? null),
+      settling: settling ? { at: standing.at.getTime(), targets: before.targets ?? null, cycle: before.cycle ?? null } : null,
+    };
   });
 };
 
-/** Neighbours of one phase aimed at the same figures are one stretch, so a row that confirmed a snapshot draws no seam. */
+/** Neighbours of one phase aimed at the same figures by the same cycle are one stretch, so a row that confirmed a snapshot draws no seam. */
 const joined = (stretches: readonly TargetStretch[]): TargetStretch[] =>
   stretches.reduce<TargetStretch[]>((kept, stretch) => {
     const last = kept.at(-1);
-    if (last && last.phaseId === stretch.phaseId && JSON.stringify(last.targets) === JSON.stringify(stretch.targets)) {
+    const same = (key: 'targets' | 'cycle' | 'settling') => JSON.stringify(last?.[key] ?? null) === JSON.stringify(stretch[key] ?? null);
+    if (last && last.phaseId === stretch.phaseId && same('targets') && same('cycle') && same('settling')) {
       return [...kept.slice(0, -1), { ...last, endsAt: stretch.endsAt }];
     }
     return [...kept, stretch];

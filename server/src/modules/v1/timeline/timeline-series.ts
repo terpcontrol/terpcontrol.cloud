@@ -12,11 +12,12 @@ import type {
   TimelineTargets,
 } from '@fg2/shared-types/v1';
 import { METRIC_DECIMALS, TARGET_BAND, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
-import { nightsIn, transitionsIn, type Span } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { cycleKindOf, nightsIn, transitionsIn, type Cycle, type Span } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { OUTPUT_LEVEL } from '@common/v1/metrics';
 import { DAY_ONLY } from '@common/v1/steering';
 import type { DeviceHistory, OutputHistory } from '@modules/data/data.service';
 import type { OutputSwitching } from '@modules/data/flux';
+import { halvesHeld, recordedBandAt, unionOf, type RecordedClimate } from '../device/held-targets';
 import type { CycleStretch } from '../phase/target-record';
 
 /**
@@ -49,6 +50,10 @@ export interface TargetStretch {
   phaseId: string | null;
   stage: GrowthStage | null;
   targets: PhaseTargets | null;
+  /** The cycle the steering device ran over it - its work mode and light schedule - where the record says; read as a schedule where it does not. */
+  cycle?: Cycle | null;
+  /** In the hour after a change: the climate that stood just before it, which the bands reach over too. */
+  settling?: RecordedClimate | null;
 }
 
 /**
@@ -79,12 +84,57 @@ export const panelsOf = (
     return points.some(point => point.value !== null) ? [{ metric, points, targets: targetsOf(metric, stretches) }] : [];
   });
 
-/** The band and the dashed line of one metric, one row per stretch that holds a target for it at all. */
-export const targetsOf = (metric: Metric, stretches: readonly TargetStretch[]): TimelineTargets[] =>
+/**
+ * The band and the dashed line of one metric, one row per stretch that holds a
+ * target for it at all - in the mode the device ran then. Drying holds the
+ * night's temperature and humidity round the clock, germination the night's
+ * temperature alone, the greenhouse mode no humidity, and a device switched off
+ * nothing; 24 hours of light hold the day's figures and none the night's. Such a
+ * stretch says so (`held`), and its one band is drawn through the whole of it.
+ *
+ * In the hour after a change each band reaches over what held just before it
+ * (`settling`), as the verdict judges it.
+ */
+export const targetsOf = (metric: Metric, stretches: readonly TargetStretch[]): TimelineTargets[] => joinedRows(rowsOf(metric, stretches));
+
+/**
+ * Neighbours that say the same about this metric are one row: a stretch cut
+ * where the record moved something else - the light schedule, the other
+ * metric - or where it confirmed what a phase took down draws no seam in a
+ * band that did not move. A row that does not say how its targets were held is
+ * read as a schedule's, as a client reads it.
+ */
+const joinedRows = (rows: readonly TimelineTargets[]): TimelineTargets[] =>
+  rows.reduce<TimelineTargets[]>((kept, row) => {
+    const last = kept.at(-1);
+    const said = (one: TimelineTargets) =>
+      JSON.stringify([one.phaseId, one.stage, one.day, one.night, one.held ?? 'schedule', one.settling ?? false]);
+    if (last && last.endsAt === row.startsAt && said(last) === said(row)) {
+      return [...kept.slice(0, -1), { ...last, endsAt: row.endsAt, ...((last.held ?? row.held) ? { held: last.held ?? row.held } : {}) }];
+    }
+    return [...kept, row];
+  }, []);
+
+const rowsOf = (metric: Metric, stretches: readonly TargetStretch[]): TimelineTargets[] =>
   stretches.flatMap(stretch => {
-    const day = halfOf(metric, setpointIn(stretch.targets, metric, 'day'));
-    const night = DAY_ONLY.includes(metric) ? null : halfOf(metric, setpointIn(stretch.targets, metric, 'night'));
+    const kind = stretch.cycle ? cycleKindOf(stretch.cycle) : null;
+    if (kind === 'off') return [];
+    const halves = halvesHeld(stretch.targets, stretch.cycle?.workmode ?? null);
+    let day = kind === 'always_night' ? null : halfOf(metric, halves.day[metric] ?? null);
+    let night = kind === 'always_day' || DAY_ONLY.includes(metric) ? null : halfOf(metric, halves.night[metric] ?? null);
     if (day === null && night === null) return [];
+
+    let settling = false;
+    if (stretch.settling) {
+      const before = recordedBandAt(stretch.settling, metric, stretch.settling.at - 1, 'day');
+      const widen = (own: TimelineTarget | null): TimelineTarget | null => {
+        const band = own && unionOf([own.band, before]);
+        return own && band ? { setpoint: own.setpoint, band: { low: rounded(band.low, metric), high: rounded(band.high, metric) } } : null;
+      };
+      const [wideDay, wideNight] = [widen(day), widen(night)];
+      settling = JSON.stringify([wideDay, wideNight]) !== JSON.stringify([day, night]);
+      if (settling) [day, night] = [wideDay, wideNight];
+    }
 
     return [
       {
@@ -94,6 +144,8 @@ export const targetsOf = (metric: Metric, stretches: readonly TargetStretch[]): 
         stage: stretch.stage,
         day,
         night,
+        ...(kind ? { held: kind } : {}),
+        ...(settling ? { settling: true } : {}),
       },
     ];
   });
@@ -457,13 +509,6 @@ const closed = (points: readonly SeriesPoint[], endsAt: number | null, silence: 
   if (!last || last.value === null || endsAt === null || endsAt - millis(last.measuredAt) <= silence) return [...points];
 
   return [...points, { measuredAt: new Date(millis(last.measuredAt) + 1).toISOString(), value: null }];
-};
-
-const setpointIn = (targets: PhaseTargets | null, metric: Metric, half: 'day' | 'night'): number | null => {
-  if (targets === null) return null;
-  if (metric === 'co2') return half === 'day' ? targets.co2 : null;
-
-  return metric === 'temperature' || metric === 'humidity' ? targets[half][metric] : null;
 };
 
 const halfOf = (metric: Metric, setpoint: number | null): TimelineTarget | null => {

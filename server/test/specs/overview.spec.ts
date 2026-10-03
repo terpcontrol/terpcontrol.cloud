@@ -92,10 +92,11 @@ it('answers one aggregation of the last day as a verdict on it', async () => {
       { metric: 'humidity', value: 55, band: 5 },
       { metric: 'co2', value: 1000, band: 200 },
     ],
+    // CO2 is dosed by day alone: the night holds no target for it.
     night: [
       { metric: 'temperature', value: 20, band: 1 },
       { metric: 'humidity', value: 60, band: 5 },
-      { metric: 'co2', value: 1000, band: 200 },
+      { metric: 'co2', value: null, band: 200 },
     ],
   });
 

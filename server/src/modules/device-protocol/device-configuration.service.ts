@@ -19,7 +19,7 @@ import { fieldChangesOf, withFigures } from './configuration-fields';
 import { DevicePublisherService } from './device-publisher.service';
 import { driftBetween, keepsTime, SCHEDULE_FOLLOWER, ScheduleFollower, sameClockTimes, scheduleClockOf, withClockTimesMoved } from './schedule-clock';
 import { targetsOf } from '../v1/phase/phase-targets';
-import { keptForDrying, recordedReturn } from './drying-return';
+import { keptForDrying, keptForGermination, recordedReturn } from './drying-return';
 import { withIdleFiguresKept } from './idle-figures';
 import { decideWorkmode, standardOf, WriteIntent } from './work-modes';
 
@@ -184,10 +184,22 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     return (await this.store(deviceId, { kind: 'clock' }, current => current, at))?.changed ?? false;
   }
 
-  /** The diary line of a write somebody made, naming the figures that moved; nothing for a write that moved none. */
+  /**
+   * The diary line of a write somebody made, naming the figures that moved;
+   * nothing for a write that moved none.
+   *
+   * The two times of the light schedule are named together whenever either
+   * moved: 24 hours and none are each written as a pair - a day that never
+   * ends, a light that goes off as it comes on - and one of them alone reads as
+   * a time of day that means nothing. Where the device holds the night's
+   * figures round the clock - drying, germination - the mode it is in goes with
+   * the line, so the screens can say the drying room's humidity moved rather
+   * than the night's.
+   */
   private async writeDown(deviceId: string, written: Written, by: string | null): Promise<void> {
-    const moved = changedFigures(written.before, written.after, HIDDEN_FIGURES);
+    const moved = withScheduleWhole(changedFigures(written.before, written.after, HIDDEN_FIGURES), written.after);
     if (!written.changed || moved.length === 0) return;
+    const mode = written.after.workmode;
 
     const device = await this.devices.findOne({ id: deviceId }, { spaceId: 1 }).lean<Pick<StoredDevice, 'spaceId'> | null>();
     await this.entries.write({
@@ -197,7 +209,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       spaceId: device?.spaceId ?? null,
       deviceId,
       severity: 'info',
-      message: { key: 'message-device-configuration-updated', params: [moved.join('\n')] },
+      message: { key: 'message-device-configuration-updated', params: [moved.join('\n'), ...(mode === 'dry' || mode === 'breed' ? [mode] : [])] },
     });
   }
 
@@ -215,10 +227,13 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     }
 
     const device = await this.devices
-      .findOne({ id: deviceId }, { type: 1, configuration: 1, ownerId: 1, scheduleClock: 1, baseWorkmode: 1, standardWorkmode: 1, beforeDrying: 1 })
+      .findOne(
+        { id: deviceId },
+        { type: 1, configuration: 1, ownerId: 1, scheduleClock: 1, baseWorkmode: 1, standardWorkmode: 1, beforeDrying: 1, beforeGermination: 1 },
+      )
       .lean<Pick<
         StoredDevice,
-        'type' | 'configuration' | 'ownerId' | 'scheduleClock' | 'baseWorkmode' | 'standardWorkmode' | 'beforeDrying'
+        'type' | 'configuration' | 'ownerId' | 'scheduleClock' | 'baseWorkmode' | 'standardWorkmode' | 'beforeDrying' | 'beforeGermination'
       > | null>();
     if (!device) {
       throw new HttpException(404, 'Device not found');
@@ -235,10 +250,18 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // that ends it brings a climate with it. A preset, a phase or a step does.
     const dried = before?.workmode === 'dry';
     const dries = mode?.workmode === 'dry';
-    const wanted =
+    // Germination holds the night's temperature round the clock, so what is set
+    // for it lands there. The night it wrote over is kept when it begins, and
+    // put back when the device goes back to a day and a night by itself - a
+    // preset, a phase or a step brings a night of its own.
+    const germinated = device.beforeGermination ?? null;
+    const germinates = mode?.workmode === 'breed' && before?.workmode !== 'breed' && germinated === null;
+    const backFromGermination = germinated !== null && ['small', 'full', 'temp'].includes(mode?.workmode ?? '');
+    const returned =
       dried && !dries && intent.kind === 'fields'
         ? withFigures(asked, Object.entries(await this.keptFor(deviceId, device.beforeDrying, before)))
         : asked;
+    const wanted = backFromGermination && intent.kind === 'fields' ? withFigures(returned, Object.entries(germinated)) : returned;
     const kept = intent.kind === 'targets' && mode ? withIdleFiguresKept(before, wanted, mode.workmode) : wanted;
     const held = heldTo(device.type, mode ? { ...kept, workmode: mode.workmode } : kept);
 
@@ -260,6 +283,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
           ...(mode ? { baseWorkmode: mode.base } : {}),
           ...(standard ? { standardWorkmode: standard } : {}),
           ...(dries && !dried ? { beforeDrying: keptForDrying(before) } : !dries && dried ? { beforeDrying: null } : {}),
+          ...(germinates ? { beforeGermination: keptForGermination(before) } : backFromGermination ? { beforeGermination: null } : {}),
         },
       },
     );
@@ -339,6 +363,18 @@ const figuresMoved = (before: unknown, after: unknown, path: string, hidden: Rea
   if (hidden.has(path) || JSON.stringify(before) === JSON.stringify(after)) return [];
 
   return [`${path || 'configuration'}: ${figureOf(before)} → ${figureOf(after)}`];
+};
+
+/** Both times of the light schedule where one of them moved, the one that stayed written as itself on both sides. */
+const withScheduleWhole = (lines: string[], after: DeviceConfiguration): string[] => {
+  const named = (key: string) => lines.some(line => line.startsWith(`daynight.${key}: `));
+  if (named('day') === named('night')) return lines;
+
+  const missing = named('day') ? 'night' : 'day';
+  const section = after.daynight;
+  const value = isSection(section) ? section[missing] : undefined;
+  if (typeof value !== 'number') return lines;
+  return [...lines, `daynight.${missing}: ${value} → ${value}`].sort((one, other) => (one < other ? -1 : one > other ? 1 : 0));
 };
 
 const figureOf = (value: unknown): string =>

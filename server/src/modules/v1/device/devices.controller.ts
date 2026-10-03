@@ -1,4 +1,6 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Optional, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import {
@@ -58,7 +60,10 @@ import { DeviceConfigurationService } from '@modules/device-protocol/device-conf
 import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
 import { decodeCapabilities, decodeSockets } from '@modules/device-protocol/sockets';
 import { DataService } from '@modules/data/data.service';
+import { MODEL_V1 } from '@database/models';
+import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { V1Answer } from '../answer-shape';
+import { settlingsOf } from '../phase/target-record';
 import { FleetService } from '../fleet/fleet.service';
 import { DevicesService } from './devices.service';
 import { setpointsOf } from './setpoints';
@@ -110,6 +115,7 @@ export class DevicesController {
     private readonly publisher: DevicePublisherService,
     private readonly configuration: DeviceConfigurationService,
     private readonly access: AccessService,
+    @Optional() @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange> | null = null,
   ) {}
 
   @Get()
@@ -277,13 +283,17 @@ export class DevicesController {
   @V1Answer(deviceLive)
   public async live(@Param('id') id: string): Promise<DeviceLive> {
     const device = await this.devices.require(id);
-    const reading = await this.data.live(id);
+    const now = new Date();
+    const [reading, settling] = await Promise.all([
+      this.data.live(id),
+      this.targetRecord ? settlingsOf(this.targetRecord, [device], now) : Promise.resolve(new Map()),
+    ]);
 
     return {
       deviceId: id,
       metrics: reading.metrics,
       outputs: reading.outputs,
-      setpoints: setpointsOf(device.configuration, reading.isDay, device.state?.hardware, device.type),
+      setpoints: setpointsOf(device.configuration, reading.isDay, device.state?.hardware, device.type, now, settling.get(id) ?? null),
     };
   }
 

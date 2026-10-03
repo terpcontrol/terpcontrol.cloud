@@ -72,6 +72,8 @@ export const controlOf = (
   base: string | null | undefined,
   /** What a drying spell put aside (`drying-return.ts`), which is told while it lasts. */
   beforeDrying: Record<string, number> | null = null,
+  /** The night's temperature germination put aside, told while the device germinates. */
+  beforeGermination: Record<string, number> | null = null,
 ): DeviceControl | null => {
   const current = configuration?.workmode;
   if (!hasWorkModes(type) || typeof current !== 'string') return null;
@@ -83,6 +85,9 @@ export const controlOf = (
     mode: modeOf(standing),
     energySaving: type === 'fridge' && standing === 'full',
     ...(current === 'dry' && beforeDrying && Object.keys(beforeDrying).length > 0 ? { afterDrying: dryingReturnOf(beforeDrying) } : {}),
+    ...(standing === 'breed' && beforeGermination && Object.keys(beforeGermination).length > 0
+      ? { afterGermination: dryingReturnOf(beforeGermination) }
+      : {}),
   };
 };
 

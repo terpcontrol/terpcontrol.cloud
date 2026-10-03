@@ -1,6 +1,6 @@
 import type { Metric, PhaseTargets, WeekClimate } from '@fg2/shared-types/v1';
 import { TARGET_BAND } from '@fg2/shared-types/v1-schemas';
-import { nightsIn, transitionsIn } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { cycleKindOf, nightsIn, transitionsIn } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { DeviceHistory } from '@modules/data/data.service';
 import { RunningSpan, runningFor, runningSpansOf } from '@modules/data/flux';
 import type { CycleStretch } from '../phase/target-record';
@@ -59,6 +59,8 @@ interface Window {
   mixed: boolean;
   /** Whether the device was changing between its halves then, and the climate following (`SETTLE_SECONDS`): not judged against either band. */
   settling: boolean;
+  /** Whose figures held where one climate held round the clock - the night's in drying and germination - whatever `isDay` says. */
+  holds?: 'day' | 'night';
 }
 
 /**
@@ -142,6 +144,19 @@ const windowsOf = (history: DeviceHistory, cycles: readonly CycleStretch[]): Win
 const scheduledHalfOf = (cycles: readonly CycleStretch[], from: number, to: number): Omit<Window, 'values'> | null => {
   const stretch = cycles.find(one => one.from <= from && one.to >= to);
   if (!stretch?.cycle) return null;
+
+  // One climate round the clock has no halves to average apart: 24 hours of
+  // light are all day and none all night, and a drying room or a germination
+  // is neither - its week is one average, as the help beside it says.
+  const kind = cycleKindOf(stretch.cycle);
+  if (kind !== 'schedule') {
+    return {
+      isDay: kind === 'always_day' ? true : kind === 'always_night' ? false : null,
+      mixed: false,
+      settling: false,
+      holds: kind === 'always_day' ? 'day' : 'night',
+    };
+  }
 
   const dark = nightsIn(stretch.cycle, { from, to }).reduce((sum, span) => sum + span.to - span.from, 0);
   const settling = transitionsIn(stretch.cycle, { from, to }).length > 0;
@@ -256,7 +271,7 @@ const bandsFor = (window: Window, targets: PhaseTargets): { value: number; targe
   // one the climate was still following a switch in is held to neither.
   if (window.mixed || window.settling) return [];
 
-  const half = window.isDay === false ? targets.night : targets.day;
+  const half = (window.holds ?? (window.isDay === false ? 'night' : 'day')) === 'night' ? targets.night : targets.day;
 
   return (['temperature', 'humidity'] as const).flatMap(metric => {
     const value = window.values.get(metric);

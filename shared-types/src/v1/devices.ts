@@ -104,6 +104,11 @@ export const deviceControl = named(
       .describe(
         'While drying: the targets that held before the spell began, which ending it by itself (`drying: false`, or control switched off) puts back. Absent where they are not known - a spell begun before they were kept - and the targets recorded before it are put back instead.',
       ),
+    afterGermination: dryingReturn
+      .optional()
+      .describe(
+        "While germinating: the night's figures from before - germination holds the night's temperature round the clock, so what is set for it is written there - which going back to another mode puts back. Only `nightTemperature` is stated. Absent where nothing was kept.",
+      ),
   }),
 );
 

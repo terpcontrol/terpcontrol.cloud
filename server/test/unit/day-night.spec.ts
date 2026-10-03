@@ -19,6 +19,7 @@ import { DevicePublisherService } from '@modules/device-protocol/device-publishe
 import { withIdleFiguresKept } from '@modules/device-protocol/idle-figures';
 import { withClockTimesMoved } from '@modules/device-protocol/schedule-clock';
 import { MqttClientService } from '@modules/mqtt/mqtt-client.service';
+import { bandOverRecordAt, settlingOf, type RecordedClimate } from '@modules/v1/device/held-targets';
 import { setpointsOf } from '@modules/v1/device/setpoints';
 import { summariseClimate } from '@modules/v1/diary/week-climate';
 import { verdictOf } from '@modules/v1/overview/climate-verdict';
@@ -26,7 +27,7 @@ import { cyclesOf } from '@modules/v1/phase/target-record';
 import { settingsSent, stepsOf } from '@modules/v1/plan/plan-steps';
 import { liveOfDevice } from '@modules/v1/space/space-live';
 import { presetConfiguration } from '@modules/v1/space/climate-presets';
-import { nightsOf, transitionsOf } from '@modules/v1/timeline/timeline-series';
+import { nightsOf, targetsOf, transitionsOf } from '@modules/v1/timeline/timeline-series';
 import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
 
 /**
@@ -189,12 +190,10 @@ describe('which half holds, by the clock and the work mode', () => {
     const dark = fridge({ daynight: { day: 6 * HOUR, night: 6 * HOUR, linearChange: 1 } });
     expect(setpointsOf(dark, null, {}, 'fridge', noon)).toMatchObject({ active: 'night', period: 'constant', cycle: 'always_night' });
     expect(setpointsOf(fridge({ workmode: 'off' }), null, {}, 'fridge', noon)).toBeNull();
-    // The greenhouse mode runs the clock and holds no humidity.
-    expect(setpointsOf(fridge({ workmode: 'temp' }), null, {}, 'fridge', noon)).toMatchObject({
-      active: 'day',
-      day: { temperature: 25, co2: 1000 },
-      night: { temperature: 21, co2: 1000 },
-    });
+    // The greenhouse mode runs the clock and holds no humidity; CO2 is dosed by day alone.
+    const greenhouse = setpointsOf(fridge({ workmode: 'temp' }), null, {}, 'fridge', noon);
+    expect(greenhouse).toMatchObject({ active: 'day', day: { temperature: 25, co2: 1000 } });
+    expect(greenhouse?.night).toEqual({ temperature: 21 });
   });
 
   it('takes an AIR fan´s word for it, from its light sensor', () => {
@@ -336,6 +335,166 @@ describe('the verdict over a day', () => {
 
     expect(verdict.metrics[0]).toMatchObject({ dayBand: null, nightBand: { low: 17, high: 19 }, outOfBandSeconds: 0 });
   });
+
+  /**
+   * Moving the light from 06:00 to 13:00 at eight in the evening turned the
+   * afternoon that had been a day into a night after the fact: the cockpit
+   * said "too warm since 12:00" about a fridge that had held its day all
+   * afternoon, while the Timeline drew the same afternoon correctly.
+   */
+  it('judges each window by what the record says was aimed at then, and gives the hour after a change to the climate', () => {
+    const targets = { day: { temperature: 25, humidity: 60 }, night: { temperature: 21, humidity: 55 }, co2: 1000 };
+    const moved = cycle({ day: 13 * HOUR, night: 1 * HOUR });
+    const record: RecordedClimate[] = [
+      { at: Date.parse('2026-10-01T00:00:00Z'), targets, cycle: cycle() },
+      { at: Date.parse('2026-10-03T20:00:00Z'), targets, cycle: moved },
+    ];
+    const reading = (instant: number): number => (instant < Date.parse('2026-10-03T17:45:00Z') ? 25 : cooling(instant));
+    const now = setpointsOf(fridge({ daynight: { day: 13 * HOUR, night: 1 * HOUR, linearChange: 1 } }), null, {}, 'fridge', window.endsAt);
+
+    const verdict = verdictOf(series(reading), now, window, cycleOf('fridge', fridge({ daynight: { day: 13 * HOUR, night: HOUR } })), record);
+
+    // Nothing before the change, and nothing in the hour after it: the fridge
+    // at its night's 21 °C is told it is day again, and is on its way.
+    expect(verdict.metrics[0].excursions).toEqual([{ startedAt: '2026-10-03T21:05:00.000Z', endedAt: null, above: false, extremeValue: 21 }]);
+  });
+});
+
+describe('the hour after a lamp switch, where the record says nothing of the cycle', () => {
+  it('judges a row recorded before cycles were by its lamp, and gives the climate the hour after the lamp switched', () => {
+    const STEP = 300;
+    const START = Date.parse('2026-10-03T12:00:00Z');
+    const COUNT = (12 * HOUR) / STEP;
+    const read = (value: (instant: number) => number): SeriesPoint[] =>
+      Array.from({ length: COUNT }, (_unused, index) => {
+        const ends = START + (index + 1) * STEP * 1000;
+        return { measuredAt: new Date(ends).toISOString(), value: value(ends - (STEP * 1000) / 2) };
+      });
+    const off = Date.parse('2026-10-03T18:00:00Z');
+    const series: DeviceSeries = {
+      deviceId: 'fridge-1',
+      startsAt: new Date(START).toISOString(),
+      endsAt: new Date(START + COUNT * STEP * 1000).toISOString(),
+      stepSeconds: STEP,
+      // Cooling from 25 to 21 over forty minutes after the lamp went out.
+      metrics: [{ metric: 'temperature', points: read(at => (at < off ? 25 : Math.max(21, 25 - (4 * (at - off)) / (40 * 60_000)))) }],
+      outputs: [{ output: 'light', points: read(at => (at < off ? 100 : 0)) }],
+    };
+    const record: RecordedClimate[] = [
+      {
+        at: Date.parse('2026-10-01T00:00:00Z'),
+        targets: { day: { temperature: 25, humidity: null }, night: { temperature: 21, humidity: null }, co2: null },
+        cycle: null,
+      },
+    ];
+    const window = { startsAt: new Date(START), endsAt: new Date(START + COUNT * STEP * 1000) };
+
+    const verdict = verdictOf(series, setpointsOf(fridge(), null, {}, 'fridge', window.endsAt), window, cycleOf('fridge', fridge()), record);
+    expect(verdict.metrics[0]).toMatchObject({ outOfBandSeconds: 0, excursions: [] });
+  });
+});
+
+describe('the hour after a change', () => {
+  const targets = (day: number) => ({ day: { temperature: day, humidity: 60 }, night: { temperature: 21, humidity: 55 }, co2: 1000 });
+  const CHANGED = Date.parse('2026-10-03T11:24:00Z');
+
+  it('reaches over what held before the change, for an hour, and then holds the new band alone', () => {
+    const record: RecordedClimate[] = [
+      { at: Date.parse('2026-10-01T00:00:00Z'), targets: targets(20), cycle: cycle() },
+      { at: CHANGED, targets: targets(25), cycle: cycle() },
+    ];
+
+    expect(bandOverRecordAt(record, 'temperature', CHANGED - 60_000, 'day')).toEqual({ low: 19, high: 21 });
+    expect(bandOverRecordAt(record, 'temperature', CHANGED + 10 * 60_000, 'day')).toEqual({ low: 19, high: 26 });
+    expect(bandOverRecordAt(record, 'temperature', CHANGED + SETTLE_SECONDS * 1000, 'day')).toEqual({ low: 24, high: 26 });
+    // CO2 did not move, and its band stays what it was.
+    expect(bandOverRecordAt(record, 'co2', CHANGED + 10 * 60_000, 'day')).toEqual({ low: 800, high: 1200 });
+  });
+
+  it('tells the live card it is changing over, and judges a reading on its way from the old figure as on target', () => {
+    const rows: RecordedClimate[] = [
+      { at: Date.parse('2026-10-01T00:00:00Z'), targets: targets(20), cycle: cycle() },
+      { at: CHANGED, targets: targets(25), cycle: cycle() },
+    ];
+    const settling = settlingOf(rows, CHANGED + 10 * 60_000, ['temperature', 'humidity', 'co2']);
+    const device = { id: 'fridge-1', type: 'fridge', configuration: fridge(), state: { hardware: {} } } as unknown as StoredDevice;
+    const live = liveOfDevice(
+      { device, reading: { metrics: {}, outputs: {}, isDay: null, lightOn: false } },
+      new Date(CHANGED + 10 * 60_000),
+      settling,
+    );
+
+    expect(live.setpoints[0]).toEqual({
+      metric: 'temperature',
+      value: 25,
+      band: 1,
+      transition: { from: 'day', to: 'day', until: '2026-10-03T12:24:00.000Z', low: 19, high: 26 },
+    });
+    // What did not move is judged as it always is.
+    expect(live.setpoints[1]).toEqual({ metric: 'humidity', value: 60, band: expect.any(Number), transition: expect.any(Object) });
+    expect(live.setpoints[1].transition).toMatchObject({ low: 55, high: 65 });
+  });
+
+  it('settles nothing where only the light moved inside the half that holds, or the record was only filled in', () => {
+    const moved: RecordedClimate[] = [
+      { at: Date.parse('2026-10-01T00:00:00Z'), targets: targets(25), cycle: cycle() },
+      { at: CHANGED, targets: targets(25), cycle: cycle({ night: 19 * HOUR }) },
+    ];
+    const settling = settlingOf(moved, CHANGED + 60_000, ['temperature']);
+    expect(setpointsOf(fridge(), null, {}, 'fridge', new Date(CHANGED + 60_000), settling)?.transition).toBeNull();
+
+    const filledIn: RecordedClimate[] = [
+      { at: Date.parse('2026-10-01T00:00:00Z'), targets: targets(25), cycle: null },
+      { at: CHANGED, targets: targets(25), cycle: cycle() },
+    ];
+    expect(settlingOf(filledIn, CHANGED + 60_000, ['temperature'])).toBeNull();
+  });
+
+  it('settles a change of the work mode as any other: germination´s 24 °C on its way back to a night of 21 °C', () => {
+    const rows: RecordedClimate[] = [
+      {
+        at: Date.parse('2026-10-01T00:00:00Z'),
+        targets: { ...targets(25), night: { temperature: 24, humidity: 55 } },
+        cycle: cycle({ workmode: 'breed' }),
+      },
+      { at: Date.parse('2026-10-03T20:00:00Z'), targets: targets(25), cycle: cycle() },
+    ];
+    const at = Date.parse('2026-10-03T20:10:00Z');
+
+    // Germination held no humidity, so the humidity is not judged until the hour is over.
+    expect(bandOverRecordAt(rows, 'temperature', at, 'night')).toEqual({ low: 20, high: 25 });
+    expect(bandOverRecordAt(rows, 'humidity', at, 'night')).toBeNull();
+  });
+});
+
+describe('the bands of a stretch, by the mode it ran in', () => {
+  const stretch = (cycleOver: Partial<Cycle> | null) => ({
+    startsAt: at('2026-10-03T00:00:00Z'),
+    endsAt: at('2026-10-04T00:00:00Z'),
+    phaseId: null,
+    stage: null,
+    targets: { day: { temperature: 25, humidity: 60 }, night: { temperature: 18, humidity: 58 }, co2: 1000 },
+    cycle: cycleOver === null ? null : cycle(cycleOver),
+  });
+
+  it('draws one band through a drying room, a germination and a light that never changes, and none switched off', () => {
+    expect(targetsOf('temperature', [stretch({ workmode: 'dry' })])).toEqual([
+      expect.objectContaining({ held: 'drying', day: null, night: { setpoint: 18, band: { low: 17, high: 19 } } }),
+    ]);
+    expect(targetsOf('humidity', [stretch({ workmode: 'dry' })])).toEqual([expect.objectContaining({ held: 'drying', day: null })]);
+    expect(targetsOf('co2', [stretch({ workmode: 'dry' })])).toEqual([]);
+    // Germination holds a temperature alone.
+    expect(targetsOf('temperature', [stretch({ workmode: 'breed' })])).toEqual([expect.objectContaining({ held: 'germination', day: null })]);
+    expect(targetsOf('humidity', [stretch({ workmode: 'breed' })])).toEqual([]);
+    // The greenhouse runs the clock and holds no humidity.
+    expect(targetsOf('humidity', [stretch({ workmode: 'temp' })])).toEqual([]);
+    expect(targetsOf('temperature', [stretch({ workmode: 'off' })])).toEqual([]);
+    const always = lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 24 });
+    expect(targetsOf('temperature', [stretch(always)])).toEqual([expect.objectContaining({ held: 'always_day', night: null })]);
+    expect(targetsOf('co2', [stretch({ day: 6 * HOUR, night: 6 * HOUR })])).toEqual([]);
+    // A row recorded before cycles were says nothing, and is drawn as it always was.
+    expect(targetsOf('temperature', [stretch(null)])[0]).not.toHaveProperty('held');
+  });
 });
 
 describe('the nights a chart is shaded by', () => {
@@ -357,12 +516,22 @@ describe('the nights a chart is shaded by', () => {
     ]);
   });
 
-  it('are one long night while drying, none with 24 hours of light, and the lamp´s where the record does not say', () => {
+  it('are none while drying or germinating, nor with 24 or 0 hours of light, and the lamp´s where the record does not say', () => {
     const always = lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 24 });
-    const cycles = cyclesOf([row('2026-10-25T00:00:00Z', cycle({ workmode: 'dry' })), row('2026-10-26T00:00:00Z', cycle(always))], window);
+    const never = lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 0 });
+    const cycles = cyclesOf(
+      [
+        row('2026-10-25T00:00:00Z', cycle({ workmode: 'dry' })),
+        row('2026-10-25T12:00:00Z', cycle({ workmode: 'breed' })),
+        row('2026-10-26T00:00:00Z', cycle(always)),
+        row('2026-10-26T06:00:00Z', cycle(never)),
+      ],
+      window,
+    );
 
-    // Before the first row the record says nothing, and neither does a lamp nobody heard.
-    expect(nightsOf([lamp as never], window, cycles)).toEqual([{ startsAt: '2026-10-25T00:00:00.000Z', endsAt: '2026-10-26T00:00:00.000Z' }]);
+    // One climate round the clock has no night to tell from a day; before the
+    // first row the record says nothing, and neither does a lamp nobody heard.
+    expect(nightsOf([lamp as never], window, cycles)).toEqual([]);
   });
 
   it('carry the hour after each switch the climate is given to follow', () => {
@@ -554,5 +723,21 @@ describe('a save of the targets', () => {
     const rows = await db.targetChanges.find({ deviceId: DEVICE }).lean<StoredTargetChange[]>();
     expect(rows).toHaveLength(1);
     expect(rows[0].cycle).toEqual({ day: 8 * HOUR, night: 20 * HOUR, workmode: 'small', sunrise: 15, sunset: 15, glides: true });
+  });
+
+  it('writes both times of the light down whenever one moved, and the mode of a drying room beside its figures', async () => {
+    await db.devices.create({ id: DEVICE, type: 'fridge', ownerId: 'user-1', configuration: fridge() });
+
+    // No hours of light moves only the time the light goes off.
+    await configuration.replace(
+      DEVICE,
+      fridge({ daynight: { ...lightWindowTimes({ lightsOn: 6 * HOUR, lightHours: 0 }), linearChange: 1 } }),
+      'user-1',
+    );
+    await db.devices.updateOne({ id: DEVICE }, { $set: { configuration: fridge({ workmode: 'dry', night: { temperature: 18, humidity: 58 } }) } });
+    await configuration.replace(DEVICE, fridge({ workmode: 'dry', night: { temperature: 18, humidity: 55 } }), 'user-1');
+
+    const lines = (await db.entries.find({}).sort({ _id: 1 }).lean()).map(entry => entry.message?.params);
+    expect(lines).toEqual([['daynight.day: 21600 → 21600\ndaynight.night: 64800 → 21600'], ['night.humidity: 58 → 55', 'dry']]);
   });
 });

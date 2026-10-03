@@ -1,8 +1,8 @@
-import type { CardTransition, Metric, Setpoints, SetpointsTransition } from '@fg2/shared-types/v1';
-import { TARGET_BAND } from '@fg2/shared-types/v1-schemas';
+import type { CardTransition, Metric, Setpoints, SetpointsTransition, TargetBand } from '@fg2/shared-types/v1';
 import { cycleAt, cycleOf, glidingTarget, type CycleMoment } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { reportsNoSensor } from '@common/v1/sentinels';
 import { DAY_ONLY } from '@common/v1/steering';
+import { bandAround, HELD, unionOf, type Held, type Settling } from './held-targets';
 
 /**
  * The targets a controller is holding, read out of its own configuration
@@ -16,10 +16,10 @@ import { DAY_ONLY } from '@common/v1/steering';
 
 /** The configuration path each metric's target is stated at, per half of the cycle. */
 const TARGETS: Readonly<Record<'day' | 'night', Partial<Record<Metric, string>>>> = {
-  // The CO2 target is one number for the whole cycle: the controller holds it
-  // whichever half it is in, so both halves answer the same value.
+  // The CO2 target is one number in the document, and the device doses towards
+  // it by day alone: the night holds none, and is not said to.
   day: { temperature: 'day.temperature', humidity: 'day.humidity', co2: 'co2.target' },
-  night: { temperature: 'night.temperature', humidity: 'night.humidity', co2: 'co2.target' },
+  night: { temperature: 'night.temperature', humidity: 'night.humidity' },
 };
 
 /**
@@ -50,6 +50,8 @@ export const setpointsOf = (
   hardware: Record<string, string> = {},
   type: string | null = null,
   at: Date = new Date(),
+  /** The hour after a change of the targets or the cycle, from the device's record (`settlingOf`). */
+  settling: Settling | null = null,
 ): Setpoints | null => {
   if (!configuration) return null;
 
@@ -76,8 +78,51 @@ export const setpointsOf = (
     cycle: moment.kind as Exclude<typeof moment.kind, 'off'>,
     since: instantOf(moment.since),
     until: instantOf(moment.until),
-    transition: transitionOf(moment, day, night),
+    transition: withSettling(
+      transitionOf(moment, day, night),
+      settlingAt(settling, at, moment.active === 'day' ? day : night),
+      moment.active,
+      moment.active === 'day' ? day : night,
+    ),
   };
+};
+
+/**
+ * The settling of a change that is still running and moved something the
+ * device holds now: a band before that is not the band of now. A change of the
+ * light schedule alone, inside the same half, leaves nothing to follow.
+ */
+const settlingAt = (settling: Settling | null, at: Date, active: Partial<Record<Metric, number>>): Settling | null => {
+  if (!settling || at.getTime() >= settling.until) return null;
+  const moved = (Object.entries(settling.bands) as [Metric, TargetBand | null][]).some(([metric, before]) => {
+    const now = bandAround(metric, active[metric]);
+    return JSON.stringify(before) !== JSON.stringify(now) && !(before === null && now === null);
+  });
+  return moved ? settling : null;
+};
+
+/**
+ * The transition the screens are told: the schedule's between its halves, the
+ * hour after a change somebody made, or both at once - the later end, and the
+ * figures the schedule's glide aims at where it glides.
+ */
+const withSettling = (
+  scheduled: SetpointsTransition | null,
+  settling: Settling | null,
+  active: 'day' | 'night',
+  figures: Partial<Record<Metric, number>>,
+): SetpointsTransition | null => {
+  if (!settling) return scheduled;
+  const until = new Date(Math.max(settling.until, scheduled ? Date.parse(scheduled.until) : 0)).toISOString();
+  return scheduled
+    ? { ...scheduled, until }
+    : {
+        from: settling.from,
+        to: active,
+        until,
+        gliding: false,
+        targets: Object.fromEntries(Object.entries(figures).filter(([metric]) => !(DAY_ONLY.includes(metric as Metric) && active === 'night'))),
+      };
 };
 
 const instantOf = (at: number | null): string | null => (at === null ? null : new Date(at).toISOString());
@@ -115,46 +160,41 @@ const transitionOf = (
  * holds no target for the metric leaves nothing to judge it by until the change
  * is over.
  */
-export const cardTransitionOf = (setpoints: Setpoints, metric: Metric): CardTransition | null => {
+export const cardTransitionOf = (
+  setpoints: Setpoints,
+  metric: Metric,
+  settling: Settling | null = null,
+  at: Date = new Date(),
+): CardTransition | null => {
   const transition = setpoints.transition;
   if (!transition) return null;
 
-  const band = TARGET_BAND[metric];
-  const ends = [setpoints.day[metric], DAY_ONLY.includes(metric) ? undefined : setpoints.night[metric]];
-  const known = ends.every((value): value is number => value !== undefined) && band !== undefined;
+  // Between the halves, both of them; within one half - a change somebody made
+  // - the half that holds; and after a change, whatever held before it too.
+  const now =
+    transition.from !== transition.to
+      ? [bandAround(metric, setpoints.day[metric]), bandAround(metric, DAY_ONLY.includes(metric) ? undefined : setpoints.night[metric])]
+      : [bandAround(metric, setpoints[transition.to][metric])];
+  const before = settling && at.getTime() < settling.until ? [settling.bands[metric] ?? null] : [];
+  const band = unionOf([...now, ...before]);
 
   return {
     from: transition.from,
     to: transition.to,
     until: transition.until,
-    low: known ? round(Math.min(...(ends as number[])) - band) : null,
-    high: known ? round(Math.max(...(ends as number[])) + band) : null,
+    low: band ? round(band.low) : null,
+    high: band ? round(band.high) : null,
   };
 };
 
 const round = (value: number): number => Math.round(value * 10) / 10;
 
 /**
- * What a work mode holds of the targets, where it does not hold all of them.
- * Switched off the firmware holds none. Drying and germination know no day -
- * the firmware calls neither one - and hold the night's figures: drying its
- * temperature and humidity without CO2, germination the temperature alone. The
- * greenhouse mode holds no humidity. A figure a mode does not hold is not one
- * the tent can be judged by, however it reads.
- */
-const HELD: Readonly<Record<string, { metrics: readonly Metric[]; nightOnly: boolean }>> = {
-  off: { metrics: [], nightOnly: false },
-  dry: { metrics: ['temperature', 'humidity'], nightOnly: true },
-  breed: { metrics: ['temperature'], nightOnly: true },
-  temp: { metrics: ['temperature', 'co2'], nightOnly: false },
-};
-
-/**
  * What an AIR fan holds by its mode, the firmware's number for it: at a fixed
  * speed (0) it follows no reading at all, and it follows the temperature (1),
  * the humidity (2) or both (3). Its CO2 is never a target of its own.
  */
-const FAN_HOLDS: Readonly<Record<number, { metrics: readonly Metric[]; nightOnly: boolean }>> = {
+const FAN_HOLDS: Readonly<Record<number, Held>> = {
   0: { metrics: [], nightOnly: false },
   1: { metrics: ['temperature'], nightOnly: false },
   2: { metrics: ['humidity'], nightOnly: false },

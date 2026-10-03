@@ -83,6 +83,14 @@ export declare const deviceControl: z.ZodObject<{
         co2: z.ZodNullable<z.ZodNumber>;
         lightLimit: z.ZodNullable<z.ZodNumber>;
     }, z.core.$strip>>;
+    afterGermination: z.ZodOptional<z.ZodObject<{
+        dayTemperature: z.ZodNullable<z.ZodNumber>;
+        dayHumidity: z.ZodNullable<z.ZodNumber>;
+        nightTemperature: z.ZodNullable<z.ZodNumber>;
+        nightHumidity: z.ZodNullable<z.ZodNumber>;
+        co2: z.ZodNullable<z.ZodNumber>;
+        lightLimit: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const deviceState: z.ZodObject<{
     lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
@@ -142,6 +150,14 @@ export declare const device: z.ZodObject<{
             co2: z.ZodNullable<z.ZodNumber>;
             lightLimit: z.ZodNullable<z.ZodNumber>;
         }, z.core.$strip>>;
+        afterGermination: z.ZodOptional<z.ZodObject<{
+            dayTemperature: z.ZodNullable<z.ZodNumber>;
+            dayHumidity: z.ZodNullable<z.ZodNumber>;
+            nightTemperature: z.ZodNullable<z.ZodNumber>;
+            nightHumidity: z.ZodNullable<z.ZodNumber>;
+            co2: z.ZodNullable<z.ZodNumber>;
+            lightLimit: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>;
     isDemo: z.ZodBoolean;
     state: z.ZodObject<{
@@ -192,6 +208,14 @@ export declare const devicePage: z.ZodObject<{
             }>;
             energySaving: z.ZodBoolean;
             afterDrying: z.ZodOptional<z.ZodObject<{
+                dayTemperature: z.ZodNullable<z.ZodNumber>;
+                dayHumidity: z.ZodNullable<z.ZodNumber>;
+                nightTemperature: z.ZodNullable<z.ZodNumber>;
+                nightHumidity: z.ZodNullable<z.ZodNumber>;
+                co2: z.ZodNullable<z.ZodNumber>;
+                lightLimit: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>;
+            afterGermination: z.ZodOptional<z.ZodObject<{
                 dayTemperature: z.ZodNullable<z.ZodNumber>;
                 dayHumidity: z.ZodNullable<z.ZodNumber>;
                 nightTemperature: z.ZodNullable<z.ZodNumber>;
@@ -517,6 +541,14 @@ export declare const deviceClaimResult: z.ZodObject<{
             }>;
             energySaving: z.ZodBoolean;
             afterDrying: z.ZodOptional<z.ZodObject<{
+                dayTemperature: z.ZodNullable<z.ZodNumber>;
+                dayHumidity: z.ZodNullable<z.ZodNumber>;
+                nightTemperature: z.ZodNullable<z.ZodNumber>;
+                nightHumidity: z.ZodNullable<z.ZodNumber>;
+                co2: z.ZodNullable<z.ZodNumber>;
+                lightLimit: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>;
+            afterGermination: z.ZodOptional<z.ZodObject<{
                 dayTemperature: z.ZodNullable<z.ZodNumber>;
                 dayHumidity: z.ZodNullable<z.ZodNumber>;
                 nightTemperature: z.ZodNullable<z.ZodNumber>;

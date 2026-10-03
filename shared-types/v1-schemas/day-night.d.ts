@@ -148,9 +148,13 @@ export interface Span {
     to: number;
 }
 /**
- * When a cycle holds its night over a range: every night of a schedule, the
- * whole range where only the night's figures hold, none where only the day's
- * do - or where nothing is held at all.
+ * The nights of a schedule over a range: the stretches between the light going
+ * off and coming on again, which a chart shades and a diary averages apart.
+ *
+ * Only a schedule has any. Drying, germination and a light that is on or off
+ * round the clock hold one climate the whole time - there is no night to tell
+ * from a day - and answering them as one long night shaded a whole drying week
+ * grey under "the night" and named its band the night's.
  */
 export declare const nightsIn: (cycle: Cycle, range: Span) => Span[];
 /** When a schedule is changing between its halves over a range (see `SETTLE_SECONDS`); none for anything else. */

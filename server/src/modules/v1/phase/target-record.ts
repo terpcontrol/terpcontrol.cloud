@@ -1,7 +1,9 @@
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { cycleOf, type Cycle } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { SETTLE_SECONDS, cycleOf, type Cycle } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { STEERED } from '@common/v1/steering';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
+import { settlingOf, type RecordedClimate, type Settling } from '../device/held-targets';
 import { targetsOf } from './phase-targets';
 
 /**
@@ -109,3 +111,45 @@ export const cyclesOf = (rows: readonly StoredTargetChange[], window: { startsAt
 
 const asConfiguration = (value: unknown): Record<string, unknown> | null =>
   typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+
+/** A row of the record as the arithmetic of `held-targets.ts` reads it. */
+export const climateOf = (row: StoredTargetChange): RecordedClimate => ({
+  at: row.at.getTime(),
+  targets: row.targets ?? null,
+  cycle: row.cycle ?? null,
+});
+
+/**
+ * The hour after a change, for each of these devices still in one at `now`
+ * (`settlingOf`): their rows of the last hour, and the one standing before the
+ * first of them. One read for all of them, and a second per device that has
+ * one - which is a device somebody just changed, not every device on a card.
+ */
+export const settlingsOf = async (
+  record: Model<StoredTargetChange>,
+  devices: readonly { id: string; state?: { hardware?: Record<string, string> } | null }[],
+  now: Date,
+): Promise<Map<string, Settling>> => {
+  if (devices.length === 0) return new Map();
+
+  const recent = await record
+    .find({ deviceId: { $in: devices.map(device => device.id) }, at: { $gt: new Date(now.getTime() - SETTLE_SECONDS * 1000), $lte: now } })
+    .sort({ at: 1, _id: 1 })
+    .lean<StoredTargetChange[]>();
+  const changed = [...new Set(recent.map(row => row.deviceId))];
+
+  const settlings = await Promise.all(
+    changed.map(async deviceId => {
+      const rows = recent.filter(row => row.deviceId === deviceId);
+      const standing = await record
+        .findOne({ deviceId, at: { $lt: rows[0].at } })
+        .sort({ at: -1, _id: -1 })
+        .lean<StoredTargetChange>();
+      const hardware = devices.find(device => device.id === deviceId)?.state?.hardware ?? {};
+      const settling = settlingOf([...(standing ? [standing] : []), ...rows].map(climateOf), now.getTime(), STEERED, hardware);
+      return settling ? ([[deviceId, settling]] as const) : [];
+    }),
+  );
+
+  return new Map(settlings.flat());
+};

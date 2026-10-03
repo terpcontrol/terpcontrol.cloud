@@ -26,6 +26,12 @@ const numberAt = (configuration: DeviceConfiguration | null, path: string): numb
 export const keptForDrying = (configuration: DeviceConfiguration | null): Record<string, number> =>
   Object.fromEntries(DRYING_FIGURES.flatMap(path => (numberAt(configuration, path) === null ? [] : [[path, numberAt(configuration, path)!]])));
 
+/** What germination writes over: the night's temperature, which it holds round the clock. */
+export const keptForGermination = (configuration: DeviceConfiguration | null): Record<string, number> => {
+  const night = numberAt(configuration, 'night.temperature');
+  return night === null ? {} : { 'night.temperature': night };
+};
+
 /**
  * What to bring back where nothing was kept - a spell begun before anything
  * was: the targets the record holds from before it, and a lamp the spell left

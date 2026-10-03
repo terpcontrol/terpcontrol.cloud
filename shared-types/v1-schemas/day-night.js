@@ -265,18 +265,17 @@ const daily = (range, start, seconds) => {
     return merged(spans);
 };
 /**
- * When a cycle holds its night over a range: every night of a schedule, the
- * whole range where only the night's figures hold, none where only the day's
- * do - or where nothing is held at all.
+ * The nights of a schedule over a range: the stretches between the light going
+ * off and coming on again, which a chart shades and a diary averages apart.
+ *
+ * Only a schedule has any. Drying, germination and a light that is on or off
+ * round the clock hold one climate the whole time - there is no night to tell
+ * from a day - and answering them as one long night shaded a whole drying week
+ * grey under "the night" and named its band the night's.
  */
 const nightsIn = (cycle, range) => {
-    if (range.to <= range.from)
+    if (range.to <= range.from || (0, exports.cycleKindOf)(cycle) !== 'schedule')
         return [];
-    const kind = (0, exports.cycleKindOf)(cycle);
-    if (kind === 'always_day' || kind === 'off')
-        return [];
-    if (kind !== 'schedule')
-        return [{ ...range }];
     const { off, lit } = switchesOf(cycle);
     return daily(range, off, exports.DAY_SECONDS - lit);
 };

@@ -2010,6 +2010,10 @@
       "afterDrying": {
         "description": "While drying: the targets that held before the spell began, which ending it by itself (`drying: false`, or control switched off) puts back. Absent where they are not known - a spell begun before they were kept - and the targets recorded before it are put back instead.",
         "$ref": "#/components/schemas/DryingReturn"
+      },
+      "afterGermination": {
+        "description": "While germinating: the night's figures from before - germination holds the night's temperature round the clock, so what is set for it is written there - which going back to another mode puts back. Only `nightTemperature` is stated. Absent where nothing was kept.",
+        "$ref": "#/components/schemas/DryingReturn"
       }
     },
     "required": [
@@ -12477,6 +12481,21 @@
           }
         ],
         "description": "Null where the metric is not steered in the dark half at all: CO2 is only raised while the light is on."
+      },
+      "held": {
+        "description": "How the steering device held its targets over the stretch: a day and a night by the light schedule, or one climate round the clock - 24 or 0 hours of light, a drying room, a germination - whose band is `day` for `always_day` and `night` for the rest, drawn through the whole stretch, nights or not. Absent where nothing says (an older record): read as `schedule`.",
+        "type": "string",
+        "enum": [
+          "schedule",
+          "always_day",
+          "always_night",
+          "drying",
+          "germination"
+        ]
+      },
+      "settling": {
+        "description": "The hour after somebody changed the targets or the work mode: each band reaches over what was aimed at just before the change too, so a fridge still on its way from the old figures to the new ones is not out of band.",
+        "type": "boolean"
       }
     },
     "required": [

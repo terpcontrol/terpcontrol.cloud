@@ -4043,6 +4043,14 @@ export declare const timelineTargets: z.ZodObject<{
             high: z.ZodNumber;
         }, z.core.$strip>;
     }, z.core.$strip>>;
+    held: z.ZodOptional<z.ZodEnum<{
+        germination: "germination";
+        drying: "drying";
+        schedule: "schedule";
+        always_day: "always_day";
+        always_night: "always_night";
+    }>>;
+    settling: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 /**
  * One stacked panel: a metric over the window, with the targets that applied
@@ -4091,6 +4099,14 @@ export declare const timelinePanel: z.ZodObject<{
                 high: z.ZodNumber;
             }, z.core.$strip>;
         }, z.core.$strip>>;
+        held: z.ZodOptional<z.ZodEnum<{
+            germination: "germination";
+            drying: "drying";
+            schedule: "schedule";
+            always_day: "always_day";
+            always_night: "always_night";
+        }>>;
+        settling: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
@@ -4289,6 +4305,14 @@ export declare const spaceTimeline: z.ZodObject<{
                     high: z.ZodNumber;
                 }, z.core.$strip>;
             }, z.core.$strip>>;
+            held: z.ZodOptional<z.ZodEnum<{
+                germination: "germination";
+                drying: "drying";
+                schedule: "schedule";
+                always_day: "always_day";
+                always_night: "always_night";
+            }>>;
+            settling: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     lastReadingAt: z.ZodNullable<z.ZodISODateTime>;
@@ -5594,6 +5618,14 @@ export declare const growSeries: z.ZodObject<{
                     high: z.ZodNumber;
                 }, z.core.$strip>;
             }, z.core.$strip>>;
+            held: z.ZodOptional<z.ZodEnum<{
+                germination: "germination";
+                drying: "drying";
+                schedule: "schedule";
+                always_day: "always_day";
+                always_night: "always_night";
+            }>>;
+            settling: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     lastReadingAt: z.ZodNullable<z.ZodISODateTime>;
@@ -5710,6 +5742,14 @@ export declare const spaceSeries: z.ZodObject<{
                     high: z.ZodNumber;
                 }, z.core.$strip>;
             }, z.core.$strip>>;
+            held: z.ZodOptional<z.ZodEnum<{
+                germination: "germination";
+                drying: "drying";
+                schedule: "schedule";
+                always_day: "always_day";
+                always_night: "always_night";
+            }>>;
+            settling: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     lastReadingAt: z.ZodNullable<z.ZodISODateTime>;

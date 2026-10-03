@@ -3,6 +3,7 @@ import { TARGET_BAND, metric } from '@fg2/shared-types/v1-schemas';
 import { STEERED, steeredIn } from '@common/v1/steering';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { LiveReading } from '@modules/data/data.service';
+import type { Settling } from '../device/held-targets';
 import { cardTransitionOf, setpointsOf } from '../device/setpoints';
 
 /**
@@ -33,8 +34,8 @@ export interface DeviceReading {
  * called a tent's CO2 "in band" at three in the morning against a target the
  * Timeline panel two taps away said it did not have.
  */
-export const liveOfDevice = ({ device, reading }: DeviceReading, at: Date = new Date()): SpaceLiveDevice => {
-  const targets = setpointsOf(device.configuration, reading.isDay, device.state?.hardware, device.type, at);
+export const liveOfDevice = ({ device, reading }: DeviceReading, at: Date = new Date(), settling: Settling | null = null): SpaceLiveDevice => {
+  const targets = setpointsOf(device.configuration, reading.isDay, device.state?.hardware, device.type, at, settling);
   const active = targets ? targets[targets.active] : {};
   const aimed = steeredIn(targets?.active ?? 'day');
   // While a fridge glides, what it aims at is between the halves' figures.
@@ -46,7 +47,7 @@ export const liveOfDevice = ({ device, reading }: DeviceReading, at: Date = new 
     setpoints: aimed
       .filter(name => active[name] !== undefined)
       .map(name => {
-        const transition = targets && cardTransitionOf(targets, name);
+        const transition = targets && cardTransitionOf(targets, name, settling, at);
         return { ...setpointOf(name, now[name] ?? (active[name] as number)), ...(transition ? { transition } : {}) };
       }),
   };

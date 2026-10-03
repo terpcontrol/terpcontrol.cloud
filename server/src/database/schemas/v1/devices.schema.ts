@@ -82,6 +82,14 @@ export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'cont
    * the drying room's 18 °C. Null while not drying.
    */
   beforeDrying: Record<string, number> | null;
+  /**
+   * The night's temperature from before germination began. Germination holds
+   * the night's temperature round the clock, so what is set for it is written
+   * there; going back to another mode by itself puts the night back rather than
+   * leaving every night at the germination temperature. Null while not
+   * germinating, and on a device that began before this was kept.
+   */
+  beforeGermination?: Record<string, number> | null;
   state: StoredDeviceState;
 }
 
@@ -171,6 +179,7 @@ export const devicesSchema = new Schema<StoredDevice>(
     baseWorkmode: { type: String, default: null },
     standardWorkmode: { type: String, default: null },
     beforeDrying: { type: Schema.Types.Mixed, default: null },
+    beforeGermination: { type: Schema.Types.Mixed, default: null },
     firmware: { type: firmwareTargetSchema, required: true, default: () => ({}) },
     // The device's own configuration document, null until it reports one. Its
     // schema belongs to the firmware of that type and is not restated here.

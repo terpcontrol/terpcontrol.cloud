@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { DateTime } from 'luxon';
@@ -27,9 +27,11 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
+import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { setpointsOf } from '../device/setpoints';
+import { climateOf, recordOf, settlingsOf } from '../phase/target-record';
 import { readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
 import { NOTHING_HIDDEN, Redaction, growUpTo, redactionOf, stagesReachedOf, summaryOf } from '../grow/grow-serialiser';
 import { dueTasksOf, occurrencePrefix } from '../home/due-tasks';
@@ -96,6 +98,7 @@ export class OverviewService {
     private readonly places: SpacesService,
     private readonly live: SpaceLiveService,
     private readonly data: DataService,
+    @Optional() @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange> | null = null,
   ) {}
 
   public async read(grant: Grant, spaceId: string, now: Date = new Date()): Promise<SpaceOverview> {
@@ -150,7 +153,7 @@ export class OverviewService {
     });
     const window = seenOf({ startsAt: new Date(until.getTime() - VERDICT_HOURS * 3600 * 1000), endsAt: until }, range);
 
-    const [plants, reminders, entries, stills, lit, hide, series] = await Promise.all([
+    const [plants, reminders, entries, stills, lit, hide, series, record, settling] = await Promise.all([
       this.plants
         .find({ growId: { $in: growIds } })
         .sort({ createdAt: 1, _id: 1 })
@@ -181,6 +184,10 @@ export class OverviewService {
             stepSeconds: VERDICT_STEP_SECONDS,
           })
         : Promise.resolve(null),
+      // What the steering device aimed at over the window, change by change:
+      // the day is judged by what held then, not by what was saved since.
+      steering && this.targetRecord && !closed ? recordOf(this.targetRecord, steering.deviceId, window) : Promise.resolve([]),
+      this.targetRecord && !closed ? settlingsOf(this.targetRecord, devices, until) : Promise.resolve(new Map()),
     ]);
 
     const [completions, openAlertOf] = await Promise.all([this.completionsOf(reminders), openAlertReader(this.rules, alerts)]);
@@ -188,7 +195,8 @@ export class OverviewService {
     // it stands now, which a closed window may not be told either - so a tent
     // read through one is stated rather than graded.
     const band = closed ? null : (steering?.targets ?? null);
-    const verdict = verdictOf(series, band, window, steering?.cycle ?? null);
+    const hardware = devices.find(device => device.id === steering?.deviceId)?.state?.hardware ?? {};
+    const verdict = verdictOf(series, band, window, steering?.cycle ?? null, record.map(climateOf), hardware);
 
     /**
      * What is due here and what is alarming are the working half of the page,
@@ -215,7 +223,7 @@ export class OverviewService {
       // and a device id tie it to the rest of an account.
       roomId: grant.redacted ? null : space.roomId,
       deviceIds: grant.redacted ? null : devices.map(device => device.id),
-      ...mergeLive(readings.map(reading => liveOfDevice(reading, now))),
+      ...mergeLive(readings.map(reading => liveOfDevice(reading, now, settling.get(reading.device.id) ?? null))),
       targets: closed || !steering ? null : targetsOf(steering.targets),
       verdict: grant.redacted ? { ...verdict, deviceId: null } : verdict,
       grows: grows.map(grow =>

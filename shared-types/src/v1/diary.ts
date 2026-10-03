@@ -1524,6 +1524,18 @@ export const timelineTargets = named(
     stage: growthStage.nullable(),
     day: timelineTarget.nullable(),
     night: timelineTarget.nullable().describe('Null where the metric is not steered in the dark half at all: CO2 is only raised while the light is on.'),
+    held: z
+      .enum(['schedule', 'always_day', 'always_night', 'drying', 'germination'])
+      .optional()
+      .describe(
+        "How the steering device held its targets over the stretch: a day and a night by the light schedule, or one climate round the clock - 24 or 0 hours of light, a drying room, a germination - whose band is `day` for `always_day` and `night` for the rest, drawn through the whole stretch, nights or not. Absent where nothing says (an older record): read as `schedule`.",
+      ),
+    settling: z
+      .boolean()
+      .optional()
+      .describe(
+        'The hour after somebody changed the targets or the work mode: each band reaches over what was aimed at just before the change too, so a fridge still on its way from the old figures to the new ones is not out of band.',
+      ),
   }),
 );
 

@@ -1,11 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { SpaceLive, SpaceLiveDevice } from '@fg2/shared-types/v1';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { DataService } from '@modules/data/data.service';
+import { settlingsOf } from '../phase/target-record';
 import { liveOfDevice, mergeLive } from './space-live';
 
 /**
@@ -20,6 +22,7 @@ export class SpaceLiveService {
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @InjectModel(MODEL_V1.camera) private readonly cameras: Model<CameraDocument>,
     private readonly data: DataService,
+    @Optional() @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange> | null = null,
   ) {}
 
   /**
@@ -37,8 +40,21 @@ export class SpaceLiveService {
       .lean<StoredDevice[]>();
   }
 
-  public readingsOf(devices: StoredDevice[]): Promise<SpaceLiveDevice[]> {
-    return Promise.all(devices.map(async device => liveOfDevice({ device, reading: await this.data.live(device.id) })));
+  /**
+   * Each device's newest reading and what it aims at, with the hour after a
+   * change somebody made to its targets or its mode (`settlingsOf`): a fridge
+   * just set from 25 °C to 20 °C is on its way there, not too warm.
+   */
+  public async readingsOf(devices: StoredDevice[], now: Date = new Date()): Promise<SpaceLiveDevice[]> {
+    const settling = await this.settlingOf(devices, now);
+    return Promise.all(
+      devices.map(async device => liveOfDevice({ device, reading: await this.data.live(device.id) }, now, settling.get(device.id) ?? null)),
+    );
+  }
+
+  /** The hour after a change, per device still in one; none where the record cannot be read here. */
+  public settlingOf(devices: StoredDevice[], now: Date = new Date()): ReturnType<typeof settlingsOf> {
+    return this.targetRecord ? settlingsOf(this.targetRecord, devices, now) : Promise.resolve(new Map());
   }
 
   public async liveOf(spaceId: string): Promise<SpaceLive> {
