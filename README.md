@@ -22,7 +22,7 @@ license, no separate agreement needed.
 ### Quickstart
 1. `cd myfolder`
 1. `git clone https://github.com/terpcontrol/terpcontrol.cloud`
-1. `cd fg2/`
+1. `cd terpcontrol.cloud/`
 1. `cp .env.sample .env`
 1. `vi .env` (or edit this file in any other way) 
 1. `./up.sh`
@@ -31,7 +31,7 @@ license, no separate agreement needed.
 ### Firmware building
 Before being able to connect the module to your server, you need to build a custom firmware. This firmware contains the 
 server url specified in your .env file.
-1. `cd myfolder/fg2/`
+1. `cd myfolder/terpcontrol.cloud/`
 1. `./build-fw.sh`
 1. Now you can use the "Change server" option in the module to flash the firmware to your module. You'll need to input 
    the `API_URL_EXTERNAL` and the `SELF_REGISTRATION_PASSWORD` values from your `.env` file with the knob.
@@ -39,7 +39,7 @@ server url specified in your .env file.
    restart the module. 
 
 ### Upgrading / Restarting
-1. `cd myfolder/fg2/`
+1. `cd myfolder/terpcontrol.cloud/`
 1. `./backup.sh` — an upgrade may migrate the database, which happens by itself on the next start.
 1. `git pull` (optional: this gets you the latest changes from the repo)
 1. `docker compose run --rm --build --no-deps server npm run migrate:check` — asks whether the database can be
@@ -94,7 +94,7 @@ After running, you can access the management tools:
 - http://localhost:8086 - InfluxDB UI (*see `.env`*)
 
 ### Backup
-1. `cd myfolder/fg2/`
+1. `cd myfolder/terpcontrol.cloud/`
 2. `./backup.sh`
 
 This produces two files that are both needed, e.g.
@@ -106,7 +106,7 @@ backup-2025-10-29_22-12-27.mongodump
 Additionally, you may want to back up the `.env` file as well.
 
 ### Restore
-1. `cd myfolder/fg2/`
+1. `cd myfolder/terpcontrol.cloud/`
 2. Place the backup files here
 2. `./stop.sh server`
 2. `./restore.sh backup-2025-10-29_22-12-27`
@@ -115,10 +115,10 @@ Additionally, you may want to back up the `.env` file as well.
 
 ## Cleanup
 To remove all data and start fresh:
-1. `cd myfolder/fg2/`
+1. `cd myfolder/terpcontrol.cloud/`
 2. `./down.sh --volumes`
 4. `cd ../`
-5. `rm -rf fg2/`
+5. `rm -rf terpcontrol.cloud/`
 6. When starting fresh, you'll also need to use the module's "Change server" again, as this registers the module in the 
    server again.
 

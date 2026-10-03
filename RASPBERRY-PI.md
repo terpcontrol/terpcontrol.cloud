@@ -27,7 +27,7 @@ This stack runs multiple resource-heavy database services (MongoDB + InfluxDB) s
 
 1. `cd myfolder`
 1. `git clone https://github.com/terpcontrol/terpcontrol.cloud`
-1. `cd fg2/`
+1. `cd terpcontrol.cloud/`
 1. `cp .env.sample .env`
 1. `vi .env` (or edit this file in any other way)
 1. `wget https://github.com/themattman/mongodb-raspberrypi-docker/releases/download/r7.0.4-mongodb-raspberrypi-docker-unofficial/mongodb.ce.pi4.r7.0.4-mongodb-raspberrypi-docker-unofficial.tar.gz`
