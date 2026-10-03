@@ -266,6 +266,12 @@ function TimelineFor({ spaceId, heading, shared }: TimelineProps & { shared: Sha
           <span className={styles.nightSwatch} aria-hidden />
           <Term topic="nightBand">{t('timeline.nightLegend')}</Term>
         </p>
+      ) : data.panels.some(panel => panel.targets.some(row => row.held !== undefined && row.held !== 'schedule')) ? (
+        // A drying room, a germination or a light that never changes has no
+        // night to shade, which is said where the grey would otherwise be looked for.
+        <p className={styles.legend}>
+          <Term topic="nightBand">{t('timeline.legendNone')}</Term>
+        </p>
       ) : null}
 
       {/* Two different states, and only the payload can tell them apart: a

@@ -657,7 +657,9 @@ describe('day and night on the cockpit', () => {
     await waitFor(() => expect(targetsCard()).toHaveTextContent('Round the clock25 °C · 60 % · CO₂ 900 ppm'));
     expect(targetsCard()).toHaveTextContent('Lighton round the clock · 24 h');
     expect(targetsCard()).not.toHaveTextContent('Night');
-    await waitFor(async () => expect(await tile('Temperature')).toHaveTextContent('Day target 25 °C'));
+    // One climate round the clock has no other half to name it against.
+    await waitFor(async () => expect(await tile('Temperature')).toHaveTextContent('Target 25 °C'));
+    expect(await tile('Temperature')).not.toHaveTextContent('Day target');
   });
 
   it('says a light that never comes on is off round the clock, and that its CO₂ has no target without light', async () => {
@@ -755,6 +757,24 @@ describe('a device changing between day and night', () => {
     });
   });
 
+  /** The figure a fridge glides through is neither half's: "Day target 23.3 °C" read as the day being set to 23.3. */
+  it('calls the figure a fridge is gliding through the target of now, and says where it is gliding', async () => {
+    server.live = {
+      ...deviceLive(),
+      setpoints: {
+        ...deviceLive().setpoints!,
+        active: 'day',
+        period: 'day',
+        transition: { from: 'day', to: 'night', until: until.toISO()!, gliding: true, targets: { temperature: 23.3 } },
+      },
+    };
+    const gliding = changing.map(one => (one.metric === 'temperature' ? { ...one, value: 23.3 } : one));
+    draw(<PlaceCockpit overview={overviewOf({ values: warm(24), setpoints: gliding })} />);
+
+    await waitFor(async () => expect(await tile('Temperature')).toHaveTextContent('Target now 23.3 °C · gliding to the night'));
+    expect(await tile('Temperature')).not.toHaveTextContent('Day target');
+  });
+
   it('says on the tile that it is changing over, and until when, and judges CO₂ not at all meanwhile', async () => {
     draw(<PlaceCockpit overview={overviewOf({ values: warm(24.6), setpoints: changing })} />);
 
@@ -778,6 +798,8 @@ describe('a place that has gone quiet', () => {
 
     const temperature = await tile('Temperature');
     expect(temperature).toHaveTextContent('last value');
+    // Nothing is heard from it, so the half named is the one its schedule would put it in, and says so.
+    expect(temperature).toHaveTextContent(/(Day|Night) target by the schedule/);
     expect(temperature).not.toHaveTextContent('in band');
     expect(temperature).not.toHaveTextContent('Compressor');
     // Maintenance would not be heard by a device that is not listening.
@@ -1200,13 +1222,13 @@ describe('what the cockpit decides', () => {
   });
 
   /**
-   * The Timeline draws a grow's phase against the targets it recorded when it
-   * began. A tile judges against what the controller holds now, so its curve
-   * is banded the same way, or "62 % · in band" stood over a line drawn under
-   * a band of 65-75 after the targets were changed mid-phase.
+   * The Timeline's bands are what the controller aimed at, change by change and
+   * in the mode it ran - the record the status line is judged by too - so a
+   * tile's curve draws them as they came. Only a curve with no band at all
+   * borrows what the controller holds now, as one climate where it holds one.
    */
-  it('bands a tile´s curve by the targets the tile judges against, not by the ones the phase began with', () => {
-    const phase = {
+  it('bands a tile´s curve by the record the status line is judged by, and borrows today´s targets only where it has none', () => {
+    const recorded = {
       metric: 'humidity' as const,
       points: [],
       targets: [
@@ -1215,8 +1237,9 @@ describe('what the cockpit decides', () => {
           endsAt: ago(0),
           phaseId: 'phase-1',
           stage: 'vegetative' as const,
-          day: { setpoint: 70, band: { low: 65, high: 75 } },
-          night: { setpoint: 65, band: { low: 60, high: 70 } },
+          day: { setpoint: 62, band: { low: 57, high: 67 } },
+          night: { setpoint: 58, band: { low: 53, high: 63 } },
+          held: 'schedule' as const,
         },
       ],
     };
@@ -1226,7 +1249,9 @@ describe('what the cockpit decides', () => {
     };
 
     const [from, to] = [ago(1440), ago(0)];
-    expect(judgedPanel(phase, now, from, to)?.targets).toEqual([
+    expect(judgedPanel(recorded, now, from, to)).toBe(recorded);
+    const bare = { ...recorded, targets: [] };
+    expect(judgedPanel(bare, now, from, to)?.targets).toEqual([
       {
         startsAt: from,
         endsAt: to,
@@ -1236,9 +1261,12 @@ describe('what the cockpit decides', () => {
         night: { setpoint: 58, band: { low: 53, high: 63 } },
       },
     ]);
+    // A drying room's one climate is drawn through the whole day.
+    const drying = { day: [], night: [{ metric: 'humidity' as const, value: 58, band: 5 }] };
+    expect(judgedPanel(bare, drying, from, to, 'drying')?.targets[0]).toMatchObject({ day: null, held: 'drying' });
     // A place that holds no targets keeps whatever the Timeline drew.
-    expect(judgedPanel(phase, null, from, to)).toBe(phase);
-    expect(judgedPanel(phase, { day: [], night: [] }, from, to)).toBe(phase);
+    expect(judgedPanel(bare, null, from, to)).toBe(bare);
+    expect(judgedPanel(bare, { day: [], night: [] }, from, to)).toBe(bare);
   });
 
   it('leaves out an output the device never reported, and a CO₂ valve the firmware never opens', () => {

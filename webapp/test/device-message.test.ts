@@ -44,6 +44,44 @@ describe('device messages against the shipped catalogue', () => {
     );
   });
 
+  /**
+   * 24 hours is written as a day that never ends and 0 hours as a light going
+   * off the second it comes on: their two times apart read "Light off at
+   * 09:00" for a lamp that never goes off, and the same words for one that
+   * never comes on.
+   */
+  it('says a change of the light plan as one line, 24 and 0 hours included, on the account´s clock of the day it was written', () => {
+    const text = (params: string[], context = {}) =>
+      resolveDeviceMessage(i18n, { key: 'message-device-configuration-updated', params }, 'text', context);
+    const berlin = { zone: 'Europe/Berlin', at: '2026-10-03T09:48:22.000Z' };
+
+    expect(text(['daynight.day: 25200 → 198001\ndaynight.night: 68400 → 198000'], berlin)).toContain(
+      'Light plan: Light on 09:00–21:00 · 12 h → Light on round the clock · 24 h',
+    );
+    expect(text(['daynight.day: 25200 → 25200\ndaynight.night: 68400 → 25200'], berlin)).toContain(
+      'Light plan: Light on 09:00–21:00 · 12 h → Light off round the clock · 0 h',
+    );
+    // In winter the same seconds were an hour earlier on the wall.
+    expect(text(['daynight.day: 25200 → 28800\ndaynight.night: 68400 → 72000'], { zone: 'Europe/Berlin', at: '2026-01-10T12:00:00.000Z' })).toContain(
+      'Light plan: Light on 08:00–20:00 · 12 h → Light on 09:00–21:00 · 12 h',
+    );
+    // An older line with one of the two times says the other as it can.
+    expect(text(['daynight.night: 68400 → 198000'], berlin)).toContain('Light off at: 21:00 → on round the clock');
+  });
+
+  it('names what a drying room or a germination holds by the mode, where the server wrote the mode beside the line', () => {
+    const text = (params: string[]) => resolveDeviceMessage(i18n, { key: 'message-device-configuration-updated', params }, 'text');
+
+    expect(text(['night.humidity: 58 → 60\nnight.temperature: 18 → 19', 'dry'])).toContain(
+      'Drying humidity: 58 % → 60 %\nDrying temperature: 18 °C → 19 °C',
+    );
+    expect(text(['night.temperature: 20 → 24', 'breed'])).toContain('Germination temperature: 20 °C → 24 °C');
+    expect(text(['night.temperature: 20 → 24'])).toContain('Night temperature: 20 °C → 24 °C');
+    expect(resolveDeviceMessage(i18n, { key: 'message-device-configuration-updated', params: ['workmode: small → dry', 'dry'] }, 'title')).toBe(
+      'Drying started',
+    );
+  });
+
   it('names a change of the work mode alone in its title', () => {
     const titled = (line: string) => resolveDeviceMessage(i18n, { key: 'message-device-configuration-updated', params: [line] }, 'title');
 

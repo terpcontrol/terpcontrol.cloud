@@ -21,6 +21,7 @@ interface Figures {
   dayTemperature: number;
   nightTemperature: number;
   dayHumidity: number;
+  nightHumidity: number;
 }
 
 /**
@@ -68,6 +69,7 @@ export function ClimatePick({
   // A preset sets how long the light is on, never when it comes on: the window it makes starts at the device's hour.
   const chosen = preset ? { ...preset, lightsOn: now.lightsOn } : null;
   const offset = offsetOf(serverNow(), zone);
+  const startsDrying = stage === 'drying' && !controller.control?.drying;
 
   return (
     <Block label={t('climatePick.label')} help="phasePreset">
@@ -86,12 +88,22 @@ export function ClimatePick({
         ))}
       </Choices>
       <p className={ui.note} role="status">
-        {chosen ? t('climatePick.sets', { figures: summary(t, chosen, offset) }) : t('climatePick.keeps', { figures: summary(t, now, offset) })}{' '}
+        {chosen
+          ? t(darkOf(chosen) ? 'climatePick.setsDark' : 'climatePick.sets', { figures: summary(t, chosen, offset) })
+          : startsDrying
+            ? // Drying keeps no day and no light: what stays is the night it holds round the clock.
+              t('climatePick.keepsDrying', {
+                temperature: targetFigure(now.nightTemperature, 'temperature'),
+                humidity: targetFigure(now.nightHumidity, 'humidity'),
+              })
+            : t('climatePick.keeps', { figures: summary(t, now, offset) })}{' '}
         {/* The stage decides the drying spell whatever is chosen here: entering drying dries, leaving it ends it. */}
-        {stage === 'drying' && !controller.control?.drying ? `${t('climatePick.dries')} ` : null}
+        {startsDrying && chosen ? `${t('climatePick.dries')} ` : null}
         {stage !== 'drying' && controller.control?.drying ? `${t('climatePick.endsDrying')} ` : null}
         {t('climatePick.alarms')}
       </p>
+      {/* The grow's germination is a seedling's climate with light; a fridge has a dark mode of that name too. */}
+      {stage === 'germination' && controller.type === 'fridge' ? <p className={ui.note}>{t('climatePick.germinationNote')}</p> : null}
     </Block>
   );
 }
@@ -104,8 +116,11 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * from the device's eight in the morning burns until two at night, which "18
  * Std" alone never told anybody.
  */
+/** A climate kept dark: a drying room's, which leaves the light alone, or one with the lamp at nothing. */
+const darkOf = (figures: Figures): boolean => figures.lightHours === null || figures.lightLimit === 0;
+
 const summary = (t: Translate, figures: Figures, offset: number): string =>
-  t(figures.lightHours === null || figures.lightLimit === 0 ? 'climatePick.dark' : 'climatePick.figures', {
+  t(darkOf(figures) ? 'climatePick.dark' : 'climatePick.figures', {
     light: figures.lightHours === null ? '' : scheduleTitle(t, { lightsOn: figures.lightsOn, lightHours: figures.lightHours }, offset),
     day: targetFigure(figures.dayTemperature, 'temperature'),
     night: targetFigure(figures.nightTemperature, 'temperature'),

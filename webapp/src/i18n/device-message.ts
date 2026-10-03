@@ -1,7 +1,7 @@
 import type { i18n as I18n } from 'i18next';
 import type { Entry, EntryMessage } from '@fg2/shared-types/v1';
 import { alarmLineText } from './alarm-line';
-import { configurationChange, configurationTitle } from './configuration-change';
+import { configurationChange, configurationTitle, type ChangeContext } from './configuration-change';
 
 /**
  * A device does not write sentences; it writes keys. The server parses a log
@@ -35,7 +35,7 @@ const buildChange = (i18n: I18n, value: string): string =>
     .map(build => (build === 'unknown' ? i18n.t('deviceLine.unknownBuild') : build))
     .join(' → ');
 
-export const resolveDeviceMessage = (i18n: I18n, message: EntryMessage, part: MessagePart): string => {
+export const resolveDeviceMessage = (i18n: I18n, message: EntryMessage, part: MessagePart, context: ChangeContext = {}): string => {
   const value = message.params.join(':');
 
   // An alarm's line carries the reading in English prose; it is read back into
@@ -46,9 +46,11 @@ export const resolveDeviceMessage = (i18n: I18n, message: EntryMessage, part: Me
   }
 
   // A change of settings names its figures by the firmware's keys; they are said in the app's words.
+  // The server writes the mode a drying room or a germination was left in beside them.
   if (message.key === CONFIGURATION_CHANGE && value) {
-    if (part === 'title') return configurationTitle(i18n, value) ?? i18n.t(`${message.key}-title`);
-    return i18n.t(`${message.key}-text`, { value: configurationChange(i18n, value) });
+    const [lines = '', mode = null] = message.params;
+    if (part === 'title') return configurationTitle(i18n, lines) ?? i18n.t(`${message.key}-title`);
+    return i18n.t(`${message.key}-text`, { value: configurationChange(i18n, lines, { ...context, mode }) });
   }
 
   const specific = value ? `${message.key}:${value}-${part}` : null;
@@ -118,8 +120,8 @@ export const machineLineParts = (entry: EntryWords): { headline: string; detail:
 export const entryHeadline = (i18n: I18n, entry: EntryWords): string =>
   machineLineParts(entry)?.headline ?? ownWords(entry) ?? (entry.message ? resolveDeviceMessage(i18n, entry.message, 'title') : (entry.text ?? ''));
 
-export const entryBody = (i18n: I18n, entry: EntryWords): string =>
-  ownWords(entry) ?? (entry.message ? resolveDeviceMessage(i18n, entry.message, 'text') : (entry.text ?? ''));
+export const entryBody = (i18n: I18n, entry: EntryWords, context: ChangeContext = {}): string =>
+  ownWords(entry) ?? (entry.message ? resolveDeviceMessage(i18n, entry.message, 'text', context) : (entry.text ?? ''));
 
 /**
  * What a machine's line actually said, under the kind of thing it was - or
@@ -172,12 +174,12 @@ const RESTATES_THE_MARK = new Set([
   'message-ext-sensor-fail',
 ]);
 
-export const entryDetail = (i18n: I18n, entry: EntryWords): string | null => {
+export const entryDetail = (i18n: I18n, entry: EntryWords, context: ChangeContext = {}): string | null => {
   const migrated = machineLineParts(entry);
   if (migrated) return migrated.detail;
 
   if (ownWords(entry) || !entry.message || RESTATES_THE_MARK.has(entry.message.key)) return null;
 
-  const detail = entryBody(i18n, entry);
+  const detail = entryBody(i18n, entry, context);
   return detail === entryHeadline(i18n, entry) ? null : detail;
 };

@@ -12,7 +12,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
 import { Timeline } from '@/screens/timeline/Timeline';
 import { figure, targetFigure } from '@/screens/home/units';
-import { frameNear, scaleOf, splitByNight, stretchesOf } from '@/screens/timeline/window';
+import { dayStopOf, daysOnAxis, frameNear, scaleOf, splitByNight, stretchesOf } from '@/screens/timeline/window';
 
 const state = vi.hoisted(() => ({ answer: null as SpaceTimeline | null, asked: [] as string[] }));
 
@@ -658,6 +658,62 @@ describe('what a panel is drawn against', () => {
     // Night throughout - a drying room - or never: one target, and no other to tell it from.
     expect(splitByNight([{ startsAt: FROM.minus({ hours: 1 }).toISO()!, endsAt: TO.plus({ hours: 1 }).toISO()! }], from, to)).toBe(false);
     expect(splitByNight([], from, to)).toBe(false);
+  });
+
+  /**
+   * A drying room holds one climate round the clock: it is not a night, and
+   * its band was drawn only over whatever grey the server answered and named
+   * "Night target". Now the band runs through the stretch and is named by
+   * what was held.
+   */
+  it('draws one band through a stretch that held one climate round the clock, nights or not, and names it by what it held', () => {
+    const drying = {
+      ...temperature,
+      targets: [{ ...temperature.targets[0], day: null, night: { setpoint: 18, band: { low: 17, high: 19 } }, held: 'drying' as const }],
+    };
+    const stretches = stretchesOf(drying, answer.nights, from, to);
+
+    expect(stretches.map(one => [one.from, one.to, one.target.setpoint, one.dark, one.held])).toEqual([[from, to, 18, false, 'drying']]);
+    const always = { ...temperature, targets: [{ ...temperature.targets[0], night: null, held: 'always_day' as const }] };
+    expect(stretchesOf(always, [], from, to).map(one => [one.target.setpoint, one.held])).toEqual([[26, 'always_day']]);
+  });
+
+  it('reads the hour after somebody changed the targets as a change, its band as the server widened it', () => {
+    const changed = {
+      ...temperature,
+      targets: [
+        { ...temperature.targets[0], endsAt: at(14) },
+        { ...temperature.targets[0], startsAt: at(14), endsAt: at(15), day: { setpoint: 26, band: { low: 20, high: 27 } }, settling: true },
+        { ...temperature.targets[0], startsAt: at(15) },
+      ],
+    };
+    const stretches = stretchesOf(changed, answer.nights, from, to);
+
+    expect(stretches.filter(one => one.from >= DateTime.fromISO(at(14)).toMillis()).map(one => [one.target.band.low, one.changing])).toEqual([
+      [20, true],
+      [25, false],
+    ]);
+  });
+
+  it('stands a week´s axis stops on midnights on the account´s clock, at most four, and none in the way of now', () => {
+    const end = DateTime.fromISO('2026-10-03T10:00:00.000Z').toMillis();
+    const start = end - 7 * 24 * 3600 * 1000;
+    const days = daysOnAxis(start, end, 'Europe/Berlin', true)!;
+
+    expect(days.length).toBeLessThanOrEqual(4);
+    expect(days.map(time => DateTime.fromMillis(time).setZone('Europe/Berlin').toFormat('HH:mm'))).toEqual(days.map(() => '00:00'));
+    // Every other midnight, counted back from today's - which stands too near "now" to be written.
+    expect(days.map(time => dayStopOf(time, 'Europe/Berlin', 'de'))).toEqual(['So 27.', 'Di 29.', 'Do 1.']);
+    expect(dayStopOf(days.at(-1)!, 'Europe/Berlin', 'en')).toBe('Thu 1');
+    expect(daysOnAxis(start, end, 'Europe/Berlin', false)?.map(time => dayStopOf(time, 'Europe/Berlin', 'de'))).toEqual([
+      'So 27.',
+      'Di 29.',
+      'Do 1.',
+      'Sa 3.',
+    ]);
+    // A day and a month are read by the hour and by the date.
+    expect(daysOnAxis(end - 24 * 3600 * 1000, end, 'Europe/Berlin', true)).toBeNull();
+    expect(daysOnAxis(end - 30 * 24 * 3600 * 1000, end, 'Europe/Berlin', true)).toBeNull();
   });
 
   it('leaves out the half of a metric that is not steered in it', () => {

@@ -3,7 +3,7 @@ import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
 import { Help } from '@/ui/Help';
-import { halfOf, phaseOf, rampsFor, utcSecondsOf, type Field, type Half, type NowHolding, type Ramps, type Shape } from './day-night';
+import { halfOf, phaseOf, rampsFor, rampsOf, utcSecondsOf, type Field, type Half, type NowHolding, type Ramps, type Shape } from './day-night';
 import { scheduleTitle, windowWords } from './schedule-words';
 import { ClockStepper, Stepper } from './Stepper';
 import type { LightSchedule, TargetsDraft } from './targets-draft';
@@ -87,6 +87,14 @@ function Schedule(props: LightPlanProps) {
   const changed = draft.lightsOn !== baseline.lightsOn || draft.lightHours !== baseline.lightHours;
   const words = windowWords(draft, offset);
   const ramps = rampsFor(device, device.configuration, baseline);
+  // A lamp at 0 % keeps its day without light: the plan is the day's then, and says so where it is read first.
+  const dark = draft.lightLimit <= 0 && !words.never;
+  const title = dark
+    ? t(words.always ? 'targets.plan.alwaysDark' : 'targets.plan.windowDark', { on: words.on, off: words.off, hours: words.hours })
+    : scheduleTitle(t, draft, offset);
+  // A tent controller's firmware loses the morning ramp of a window that runs
+  // past midnight UTC: its lamp comes on at once, as the bar draws it.
+  const hardStart = rampsOf(device.configuration).up > 0 && rampsFor(device, device.configuration, draft).up === 0 && !words.always && !words.never;
   const mark = (field: Field) =>
     owned.has(field) ? (
       <CalendarRange size={13} strokeWidth={2} className={styles.planMark} role="img" aria-label={t('targets.table.planMark')} />
@@ -97,7 +105,7 @@ function Schedule(props: LightPlanProps) {
       <p className={styles.planTitle} data-changed={changed || undefined} data-dark={words.never || undefined}>
         {words.never ? <Moon size={16} strokeWidth={2} aria-hidden /> : <Sun size={16} strokeWidth={2} aria-hidden />}
         <span className={styles.planWindow}>
-          {scheduleTitle(t, draft, offset)}
+          {title}
           <Help topic="dayNight" />
         </span>
         {changed ? <span className={styles.draftTag}>{t('targets.plan.draft')}</span> : null}
@@ -117,6 +125,7 @@ function Schedule(props: LightPlanProps) {
 
       <NowLine {...props} />
       <Flip {...props} changed={changed} />
+      {dark ? <p className={`${styles.note} ${styles.warn}`}>{t('targets.table.zeroLimit')}</p> : null}
       {/* A step that names its own hours or its own time puts them back within the hour, whatever runs now. */}
       {planSets ? (
         <p className={`${styles.note} ${styles.warn}`}>
@@ -125,23 +134,27 @@ function Schedule(props: LightPlanProps) {
       ) : null}
 
       <div className={styles.fields}>
-        <div className={styles.field} data-keep>
-          <span className={styles.fieldLabel}>
-            {t('targets.plan.lightsOn')}
-            {mark('lightsOn')}
-            <Help topic="lightsOn" />
-          </span>
-          <ClockStepper
-            name={t('targets.aria.lightsOn')}
-            seconds={draft.lightsOn}
-            offset={offset}
-            less={t('targets.plan.earlier', { name: t('targets.aria.lightsOn') })}
-            more={t('targets.plan.later', { name: t('targets.aria.lightsOn') })}
-            changed={draft.lightsOn !== baseline.lightsOn}
-            disabled={readOnly}
-            onChange={lightsOn => set({ ...draft, lightsOn })}
-          />
-        </div>
+        {/* Light round the clock, or none, has no time it comes on: the hour is
+            kept for the day a photoperiod is set again, and said under the plan. */}
+        {words.always || words.never ? null : (
+          <div className={styles.field} data-keep>
+            <span className={styles.fieldLabel}>
+              {t('targets.plan.lightsOn')}
+              {mark('lightsOn')}
+              <Help topic="lightsOn" />
+            </span>
+            <ClockStepper
+              name={t('targets.aria.lightsOn')}
+              seconds={draft.lightsOn}
+              offset={offset}
+              less={t('targets.plan.earlier', { name: t('targets.aria.lightsOn') })}
+              more={t('targets.plan.later', { name: t('targets.aria.lightsOn') })}
+              changed={draft.lightsOn !== baseline.lightsOn}
+              disabled={readOnly}
+              onChange={lightsOn => set({ ...draft, lightsOn })}
+            />
+          </div>
+        )}
         <div className={styles.field} data-keep>
           <span className={styles.fieldLabel}>
             {t('targets.plan.hours')}
@@ -165,12 +178,17 @@ function Schedule(props: LightPlanProps) {
       </div>
 
       {words.always ? (
-        <p className={styles.note}>{t('targets.plan.alwaysLine')}</p>
+        <p className={styles.note}>
+          {t('targets.plan.alwaysLine')} {t('targets.plan.keepsHour', { time: words.on })}
+        </p>
       ) : words.never ? (
-        <p className={styles.note}>{t('targets.plan.neverLine')}</p>
+        <p className={styles.note}>
+          {t('targets.plan.neverLine')} {t('targets.plan.keepsHour', { time: words.on })}
+        </p>
       ) : (
         <p className={styles.note}>{t('targets.plan.night', { from: words.off, to: words.on, hours: words.nightHours })}</p>
       )}
+      {hardStart ? <p className={styles.note}>{t('targets.plan.hardStart', { time: words.on })}</p> : null}
     </div>
   );
 }
@@ -196,9 +214,8 @@ function NowLine({ storedShape, baseline, offset, holding, offline }: LightPlanP
             ? t('targets.plan.now.never')
             : holding.glide
               ? t(`targets.plan.now.glide.${holding.glide.to}`, { time: holding.glide.until })
-              : half === 'day'
-                ? t('targets.plan.now.day', { time: words.off })
-                : t('targets.plan.now.night', { time: words.on });
+              : // A lamp at 0 % switches nothing: what changes at those times is the half.
+                t(`targets.plan.now.${half}${baseline.lightLimit <= 0 ? 'Dark' : ''}`, { time: half === 'day' ? words.off : words.on });
 
   return (
     <p className={styles.nowLine} data-by={offline !== null ? 'schedule' : by} role="status">

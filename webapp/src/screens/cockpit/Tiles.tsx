@@ -13,8 +13,10 @@ import { figure, targetFigure, UNIT } from '../home/units';
 import { DayBar } from './DayBar';
 import { MiniCurve, type Tone } from './MiniCurve';
 import {
+  constantHoldOf,
   focusLink,
   halfNowOf,
+  holdingNowOf,
   hoursFigure,
   judgedPanel,
   darkReasonOf,
@@ -32,7 +34,7 @@ import {
   type TileKey,
   type Verdict,
 } from './place';
-import { storedShapeOf, type Half } from '../control/targets/day-night';
+import { storedShapeOf, type Half, type NowHolding } from '../control/targets/day-night';
 import { useDaySeries } from './reads';
 import styles from './Cockpit.module.css';
 
@@ -139,7 +141,13 @@ function ClimateTile({
   const age = value ? valueAge(value, now) : 'offline';
   const vpd = metric === 'humidity' ? valueOf(values, 'vpd') : null;
   const panel = timeline
-    ? judgedPanel(timeline.panels.find(one => one.metric === metric) ?? null, targets, timeline.startsAt, timeline.endsAt)
+    ? judgedPanel(
+        timeline.panels.find(one => one.metric === metric) ?? null,
+        targets,
+        timeline.startsAt,
+        timeline.endsAt,
+        constantHoldOf(storedShapeOf(device)?.regime ?? null),
+      )
     : null;
   const outputs = outputsFor(device, live, timeline?.outputs, metric);
 
@@ -162,7 +170,7 @@ function ClimateTile({
                   low: targetFigure(range.low, metric),
                   high: `${targetFigure(range.high, metric)} ${UNIT[metric] ?? ''}`.trim(),
                 })
-              : targetLabel(t, metric, setpoint, halfNowOf(device, live, now, offline), device)}
+              : targetLabel(t, metric, setpoint, holdingNowOf(device, live, now, offline), device, offline)}
           </span>
           <VerdictWords verdict={verdict} metric={metric} now={now} explain={explainBand} />
         </p>
@@ -199,10 +207,22 @@ const unheldBy = (device: Device | null): 'off' | 'drying' | 'germination' | 'gr
  * the verdict beside it is judged by. CO2 is dosed by day only, so at night it
  * says it has none rather than looking unset. Where the device has no day and
  * night the target is named by what it holds instead: a drying room's, a
- * germination's, and at 24 hours of light the day's and with none the night's
- * - there is no other half to tell it from.
+ * germination's, and at 24 or 0 hours of light simply the target - there is
+ * no other half to tell it from.
+ *
+ * While a fridge glides between its halves the figure is neither half's but
+ * the one it has glided to, and is said as that. For a device not heard from
+ * the half is the one its schedule would put it in, which is said too.
  */
-const targetLabel = (t: Translate, metric: Steered, setpoint: CardSetpoint | null, half: Half | null, device: Device | null): string => {
+const targetLabel = (
+  t: Translate,
+  metric: Steered,
+  setpoint: CardSetpoint | null,
+  holding: NowHolding | null,
+  device: Device | null,
+  offline: boolean,
+): string => {
+  const half: Half | null = holding?.half ?? null;
   const regime = storedShapeOf(device)?.regime ?? null;
   // A fridge that is drying, germinating or switched off holds no target here because of what it is doing,
   // which is said: "nachts kein Ziel" over a drying room's CO2 read as though night were the reason.
@@ -213,8 +233,9 @@ const targetLabel = (t: Translate, metric: Steered, setpoint: CardSetpoint | nul
   const target = `${targetFigure(setpoint.value, metric)} ${UNIT[metric] ?? ''}`.trim();
   if (regime === 'drying') return t('cockpit.tile.target.drying', { target });
   if (regime === 'germination') return t('cockpit.tile.target.germination', { target });
-  if (regime === 'always') return t('cockpit.tile.target.day', { target });
-  if (regime === 'never') return t('cockpit.tile.target.night', { target });
+  if (regime === 'always' || regime === 'never') return t('cockpit.tile.target.any', { target });
+  if (holding?.glide && !offline && metric !== 'co2') return t(`cockpit.tile.target.gliding.${holding.glide.to}`, { target });
+  if (half && offline) return t(`cockpit.tile.target.bySchedule.${half}`, { target });
   return t(half ? `cockpit.tile.target.${half}` : 'cockpit.tile.target.any', { target });
 };
 
@@ -342,7 +363,7 @@ function LightTile({ spaceId, device, live, now, offline }: TilesProps) {
 }
 
 /** What the canopy itself reads: the leaf against the air around it, and the light that reaches it. */
-function LeafTile({ spaceId, values, device, now }: TilesProps) {
+function LeafTile({ spaceId, values, device, now, timeline }: TilesProps) {
   const { t } = useTranslation();
   const leaf = valueOf(values, 'leafTemperature');
   const lux = valueOf(values, 'lux');
@@ -386,7 +407,9 @@ function LeafTile({ spaceId, values, device, now }: TilesProps) {
         {leaf ? (
           <MiniCurve
             panel={panel}
-            nights={series ? nightsOf(series.outputs.find(one => one.output === 'light')?.points, series.endsAt) : []}
+            // Shaded by the same nights as every other curve on the page - the
+            // schedule's - and by the lamp only where the place has no schedule to say.
+            nights={timeline ? timeline.nights : series ? nightsOf(series.outputs.find(one => one.output === 'light')?.points, series.endsAt) : []}
             from={series ? Date.parse(series.startsAt) : 0}
             to={series ? Date.parse(series.endsAt) : 0}
             tone="leaf"

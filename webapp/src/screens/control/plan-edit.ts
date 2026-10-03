@@ -146,8 +146,28 @@ const CLIMATE_SECTIONS = [...new Set(CLIMATE_FIGURES.map(figure => figure.sectio
  * store a number nobody runs, on the same tab whose manual targets page draws
  * that row dead and says what it needs.
  */
-export const figuresFor = (device: Device): Figure[] =>
-  hasCo2Sensor(device) ? CLIMATE_FIGURES : CLIMATE_FIGURES.filter(figure => figure.section !== 'co2');
+export const figuresFor = (device: Device, stage: GrowthStage | null = null): Figure[] =>
+  (stage === 'drying' ? DRYING_FIGURES : CLIMATE_FIGURES).filter(figure => hasCo2Sensor(device) || figure.section !== 'co2');
+
+/**
+ * What a drying step holds: the night's temperature and humidity, round the
+ * clock in the dark. A step into drying switches the device into its drying
+ * mode, which knows no day - no light, no CO2 - so the day's figures, the light
+ * limit and the light hours would be written for nothing.
+ */
+const DRYING_FIGURES: Figure[] = CLIMATE_FIGURES.filter(figure => figure.section === 'night');
+
+/** A step's settings with the figures its stage does not hold taken out, so that it writes what it shows. */
+export const heldByStage = (step: StepDraft, stage: GrowthStage | null): Pick<StepDraft, 'settings' | 'lightHours'> =>
+  stage === 'drying'
+    ? {
+        settings: CLIMATE_FIGURES.filter(figure => !DRYING_FIGURES.includes(figure)).reduce(
+          (settings, figure) => withFigure(settings, figure, null),
+          step.settings,
+        ),
+        lightHours: null,
+      }
+    : { settings: step.settings, lightHours: step.lightHours };
 
 /**
  * A draft with every figure this controller cannot run taken out of its steps,

@@ -433,6 +433,76 @@ describe('the targets page', () => {
     ).toBeInTheDocument();
   });
 
+  /** A drying room has no schedule, so offline its column is the one it was last left in, not the schedule's. */
+  it('says a quiet drying room holds what it was last left at, not what a schedule says', async () => {
+    at('12:00');
+    const quiet = DateTime.now().minus({ hours: 8 });
+    draw([
+      device({
+        type: 'fridge',
+        control: { running: true, drying: true, mode: 'standard', energySaving: false },
+        state: { ...device().state, lastSeenAt: quiet.toISO()! },
+      }),
+    ]);
+    await screen.findByRole('spinbutton', { name: 'Temperature while drying' });
+
+    expect(screen.getAllByRole('columnheader').at(-1)).toHaveTextContent(/as last left$/);
+    expect(screen.queryByText('by the schedule')).not.toBeInTheDocument();
+  });
+
+  it('says what germination gives back to the night when it ends', async () => {
+    draw([
+      device({
+        type: 'fridge',
+        configuration: { ...CONFIGURATION, night: { temperature: 24, humidity: 55 } },
+        control: {
+          running: true,
+          drying: false,
+          mode: 'germination',
+          energySaving: false,
+          afterGermination: { dayTemperature: null, dayHumidity: null, nightTemperature: 20, nightHumidity: null, co2: null, lightLimit: null },
+        },
+      }),
+    ]);
+    await screen.findByRole('spinbutton', { name: 'Temperature while germinating' });
+
+    expect(screen.getByText('Back on standard, the night temperature from before holds again: 20 °C.')).toBeInTheDocument();
+  });
+
+  /** A lamp at 0 % keeps its day: the plan and the column call it the day, not "light on", where they are read first. */
+  it('calls a day with the lamp at 0 % the day, and says so over the table', async () => {
+    at('12:00');
+    await drawn([device({ configuration: { ...CONFIGURATION, 'lights.limit': 0 } })]);
+
+    expect(within(plan_()).getByText('Day 06:00–18:00 · 12 h · lamp at 0 %')).toBeInTheDocument();
+    // Nothing switches the lamp at 18:00; the night begins.
+    expect(within(plan_()).getByText('Day now · night from 18:00')).toBeInTheDocument();
+    expect(
+      within(plan_()).getByText('Light limit 0 %: the lamp stays dark, but the day still holds – with the day figures and with CO₂.'),
+    ).toBeInTheDocument();
+    const heads = within(screen.getByRole('table')).getAllByRole('columnheader');
+    expect(heads[1]).toHaveTextContent(/^Day \(lamp at 0 %\)/);
+    expect(heads[2]).toHaveTextContent(/^Night/);
+    expect(screen.queryByText('Light on')).not.toBeInTheDocument();
+  });
+
+  /** The tent controller's firmware loses its morning ramp for a window past midnight UTC; the bar drew a hard start nothing explained. */
+  it('says a tent controller switches on without ramping for a window past midnight UTC', async () => {
+    await drawn([device({ configuration: { ...CONFIGURATION, daynight: { day: 22 * 3600, night: 16 * 3600 } } })]);
+
+    expect(within(plan_()).getByText(/^With this window the controller switches the light on at 22:00 without ramping up/)).toBeInTheDocument();
+  });
+
+  /** The server keeps the stored night when 24 hours are saved, so the night that is kept is the stored one, not one typed first. */
+  it('shows the night that is kept at 24 hours as stored, not as typed before', async () => {
+    await drawn();
+
+    type('Night temperature', 18);
+    for (let i = 0; i < 12; i += 1) tap('Light on for: more');
+    expect(screen.getByText('20 °C · 55 %')).toBeInTheDocument();
+    expect(screen.queryByText('18 °C · 55 %')).not.toBeInTheDocument();
+  });
+
   it('draws the table first and the presets under it', async () => {
     await drawn();
 
@@ -517,8 +587,12 @@ describe('the targets page', () => {
     for (let i = 0; i < 14; i += 1) tap('Light on at: later');
     expect(lightsOn().value).toBe('13:00');
     expect(within(plan_()).getByText('Once saved it is night at once: the light goes off and the night figures hold.')).toBeInTheDocument();
-    // What holds is still what runs.
-    expect(holding()[0]).toHaveTextContent(/^Light on \(day\)/);
+    // The heads show the edited times, so the mark stands on the column those times put now in, and says it is the draft's.
+    expect(holding()).toEqual([]);
+    const marked = screen.getAllByRole('columnheader').filter(head => within(head).queryByText('holds once saved'));
+    expect(marked).toHaveLength(1);
+    expect(marked[0]).toHaveTextContent(/^Light off \(night\)/);
+    expect(within(plan_()).getByText('Day now · light off at 18:00')).toBeInTheDocument();
 
     // Back to a window that holds noon: nothing turns over.
     for (let i = 0; i < 14; i += 1) tap('Light on at: earlier');
@@ -627,9 +701,12 @@ describe('the targets page', () => {
     expect(screen.queryByRole('spinbutton', { name: 'Night temperature' })).not.toBeInTheDocument();
     expect(
       within(plan_()).getByText(
-        'The lamp stays at its light limit round the clock – no dimming down and up once a day. The day figures hold throughout.',
+        'The lamp stays at its light limit round the clock – no dimming down and up once a day. The day figures hold throughout. Set a length between 0 and 24 h and the day starts at 06:00 again.',
       ),
     ).toBeInTheDocument();
+    // A light that never goes off has no time it comes on to set.
+    expect(screen.queryByRole('textbox', { name: 'Light on at' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Light on at: later' })).not.toBeInTheDocument();
     expect(screen.getByText('Night figures – hold again as soon as there is a night')).toBeInTheDocument();
     expect(screen.getByText('20 °C · 55 %')).toBeInTheDocument();
 
@@ -652,7 +729,11 @@ describe('the targets page', () => {
     expect(field('Light on for').value).toBe('0');
     expect(screen.getByRole('button', { name: 'Light on for: less' })).toBeDisabled();
     expect(within(plan_()).getByText('Light off round the clock · 0 h')).toBeInTheDocument();
-    expect(within(plan_()).getByText('With no light it is night round the clock: the night figures hold and no CO₂ is dosed.')).toBeInTheDocument();
+    expect(
+      within(plan_()).getByText(
+        'With no light it is night round the clock: the night figures hold and no CO₂ is dosed. Set a length between 0 and 24 h and the day starts at 06:00 again.',
+      ),
+    ).toBeInTheDocument();
     expect(within(plan_()).getByText('Once saved it is night at once: the light goes off and the night figures hold.')).toBeInTheDocument();
     expect(within(screen.getByRole('table')).getAllByRole('columnheader').at(-1)).toHaveTextContent(/^Dark round the clock/);
     expect(field('Night temperature').value).toBe('20');
@@ -1011,10 +1092,11 @@ describe('the targets page', () => {
    * night's figures. The page used to offer the whole day - light, schedule
    * and CO₂ included - under the card saying there was none, and saved a day
    * temperature that changed nothing. One column is offered now, and what it
-   * sets is written to both halves, so the document says what is held; the
-   * day before the spell is the server's to bring back.
+   * sets is written to the night it holds; the stored day is sent as it is,
+   * since the server keeps it through the spell and brings back the one from
+   * before it when the spell ends.
    */
-  it('dries in one column, offers nothing the drying does not hold, and writes it to both halves', async () => {
+  it('dries in one column, offers nothing the drying does not hold, and writes it to the night it holds', async () => {
     draw([device({ type: 'fridge', control: { running: true, drying: true, mode: 'standard', energySaving: false } })]);
     await screen.findByRole('spinbutton', { name: 'Temperature while drying' });
 
@@ -1033,7 +1115,7 @@ describe('the targets page', () => {
 
     await waitFor(() => expect(sent('PUT')).toHaveLength(1));
     const written = (sent('PUT')[0].body as { configuration: DeviceConfiguration }).configuration;
-    expect(written.day).toEqual({ temperature: 17, humidity: 55, heating: 'hard' });
+    expect(written.day).toEqual({ temperature: 25, humidity: 60, heating: 'hard' });
     expect(written.night).toEqual({ temperature: 17, humidity: 55 });
     // The schedule and the lamp stay as they were, for when the spell ends.
     expect(written.daynight).toEqual(CONFIGURATION.daynight);

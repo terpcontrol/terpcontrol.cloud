@@ -119,14 +119,16 @@ describe('the fine settings themselves', () => {
     const Mode = mode.Item;
     const view = wrap(<Mode device={device()} mayManage offline={false} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Germination' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Germination in the dark' }));
     expect(api.patch).not.toHaveBeenCalled();
-    expect(screen.getByText(/^Switch to Germination\? In the dark, round the clock: no light, no CO₂/)).toBeInTheDocument();
+    expect(screen.getByText(/^Switch to Germination in the dark\? For seeds germinating in the dark: no light, no CO₂/)).toBeInTheDocument();
+    // What going back does to the night is said before it is chosen.
+    expect(screen.getByText(/Back on standard, the night temperature from before holds again/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.queryByText(/^Switch to Germination\?/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Switch to Germination in the dark\?/)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Germination' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Switch to Germination' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Germination in the dark' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to Germination in the dark' }));
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { mode: 'germination' } }));
 
     view.unmount();

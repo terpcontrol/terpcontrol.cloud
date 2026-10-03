@@ -240,6 +240,31 @@ describe('light hours in a step', () => {
     });
   });
 
+  /**
+   * A step into drying switches the device into its drying mode, which knows
+   * no day: the editor offered the day's figures, CO₂, the light limit and
+   * eighteen hours of light under it all the same.
+   */
+  it('are not offered for a drying step, which holds the drying room´s two figures and nothing else', () => {
+    const veg = draft({
+      lightHours: 18,
+      settings: { day: { temperature: 26, humidity: 62 }, night: { temperature: 22, humidity: 58 }, co2: { target: 900 }, lights: { limit: 80 } },
+    });
+    wrap(<PlanEditor device={device()} plan={null} draft={veg} onClose={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Drying' }));
+    expect(screen.queryByRole('spinbutton', { name: 'Light on for' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Day · temperature')).not.toBeInTheDocument();
+    expect(screen.queryByText('Light limit')).not.toBeInTheDocument();
+    expect(screen.getByText('Drying · temperature')).toBeInTheDocument();
+    expect(screen.getByText(/^A step into drying switches the device into its drying mode/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
+    expect(state.saved[0].steps[0]).toMatchObject({ stage: 'drying', lightHours: null, settings: { night: { temperature: 22, humidity: 58 } } });
+    expect(state.saved[0].steps[0].settings).not.toHaveProperty('day');
+    expect(state.saved[0].steps[0].settings).not.toHaveProperty('co2');
+  });
+
   it('take the hours the controller holds now along with its figures', () => {
     wrap(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
 

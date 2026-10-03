@@ -1,11 +1,24 @@
 import { CalendarRange, Moon, Sprout, Sun, Wind, type LucideIcon } from 'lucide-react';
+import type { DateTime } from 'luxon';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
 import { Help, Term } from '@/ui/Help';
 import type { HelpTopic } from '@/ui/explain';
 import { figure, targetFigure, UNIT } from '../../home/units';
-import { halvesOf, hasDay, holdsHumidity, type Field, type Half, type NowHolding, type Regime, type Shape } from './day-night';
+import {
+  halfOf,
+  halvesOf,
+  hasDay,
+  holdsHumidity,
+  phaseOf,
+  rampsFor,
+  type Field,
+  type Half,
+  type NowHolding,
+  type Regime,
+  type Shape,
+} from './day-night';
 import { windowWords } from './schedule-words';
 import { Stepper } from './Stepper';
 import { leafOffset, vpdOf, type TargetsDraft } from './targets-draft';
@@ -28,6 +41,8 @@ interface TableProps {
   holding: NowHolding;
   /** The figures a running plan writes back every hour. */
   owned: ReadonlySet<Field>;
+  /** Now, which a light plan being edited is read against: the half it would hold once saved. */
+  now: DateTime;
 }
 
 /** The range and step of each figure a stepper sets. */
@@ -63,7 +78,14 @@ export function DayNightTable(props: TableProps) {
   const halves = halvesOf(regime);
   const single = halves.length === 1;
   const comparable = shape.regime === storedShape.regime || (SCHEDULED.includes(shape.regime) && SCHEDULED.includes(storedShape.regime));
-  const nowHalf = comparable && holding.half && halves.includes(holding.half) ? holding.half : null;
+  const holdingHalf = comparable && holding.half && halves.includes(holding.half) ? holding.half : null;
+  // The heads show the light plan being edited, so the column marked has to be
+  // read by it too: where saving it would turn the half over, the mark stands on
+  // the column that will hold then and says so, rather than "holds now" under
+  // times that do not include now.
+  const after = afterSaveOf(props);
+  const nowHalf = after ?? holdingHalf;
+  const by = after ? 'draft' : holding.by;
   if (halves.length === 0) return null;
 
   const named = (half: Half, figureName: 'Temperature' | 'Humidity') =>
@@ -155,7 +177,7 @@ export function DayNightTable(props: TableProps) {
         aria-label={t('targets.table.label')}
         data-single={single || undefined}
         data-now={nowHalf ?? undefined}
-        data-by={holding.by}
+        data-by={by}
       >
         <div role="row" className={styles.tr} style={{ gridRow: 1 }}>
           <div role="columnheader" className={`${styles.th} ${styles.corner}`} aria-label={t('targets.table.figure')} />
@@ -163,8 +185,17 @@ export function DayNightTable(props: TableProps) {
             <div key={half} role="columnheader" className={`${styles.td} ${styles.colHead}`}>
               <ColumnHead regime={regime} half={half} draft={draft} baseline={baseline} offset={offset} />
               {nowHalf === half ? (
-                <span className={styles.nowTag} data-by={holding.by}>
-                  {t(holding.by === 'schedule' ? 'targets.table.bySchedule' : 'targets.table.now')}
+                <span className={styles.nowTag} data-by={by}>
+                  {t(
+                    by === 'draft'
+                      ? 'targets.table.afterSave'
+                      : by === 'schedule'
+                        ? // Only a light plan is a schedule; a drying room offline is held as it was last left.
+                          storedShape.regime === 'cycle'
+                          ? 'targets.table.bySchedule'
+                          : 'targets.table.byLastState'
+                        : 'targets.table.now',
+                  )}
                 </span>
               ) : null}
             </div>
@@ -227,18 +258,20 @@ function ColumnHead({
   const before = windowWords(baseline, offset);
   const Icon = TITLE_ICON[regime] ?? (half === 'day' ? Sun : Moon);
 
+  // A lamp at 0 % keeps the day without any light in it, so the day is not called "light on".
+  const dark = draft.lightLimit <= 0;
   const [title, what, span, changed]: [string, string | null, string[] | null, boolean] =
     regime === 'cycle'
       ? half === 'day'
         ? [
-            t('targets.table.dayTitle'),
-            t('targets.table.dayWhat'),
+            t(dark ? 'targets.table.dayPlain' : 'targets.table.dayTitle'),
+            t(dark ? 'targets.table.dayDark' : 'targets.table.dayWhat'),
             [`${words.on}–${words.off}`, t('targets.table.hours', { hours: words.hours })],
             words.on !== before.on || words.off !== before.off,
           ]
         : [
-            t('targets.table.nightTitle'),
-            t('targets.table.nightWhat'),
+            t(dark ? 'targets.table.nightPlain' : 'targets.table.nightTitle'),
+            dark ? null : t('targets.table.nightWhat'),
             [`${words.off}–${words.on}`, t('targets.table.hours', { hours: words.nightHours })],
             words.on !== before.on || words.off !== before.off,
           ]
@@ -279,16 +312,22 @@ function ColumnHead({
  * 24 hours of light, the day at none - written out behind a line that says
  * when it holds again, so it is neither lost nor taken for what runs.
  */
-function Notes({ shape, draft, hasCo2 }: TableProps) {
+function Notes({ device, shape, baseline, hasCo2 }: TableProps) {
   const { t } = useTranslation();
   const regime = shape.regime;
+  // What is kept is what the device stores, not what was typed: a save that
+  // leaves a half unused keeps the stored one, so a night edited and then set
+  // to 24 hours of light is not shown as kept when it is not.
+  const draft = baseline;
   const pair = (temperature: number, humidity: number) =>
     [
       `${targetFigure(temperature, 'temperature')} ${UNIT.temperature}`,
       holdsHumidity(shape) ? `${targetFigure(humidity, 'humidity')} ${UNIT.humidity}` : null,
     ].filter((part): part is string => part !== null);
 
-  const zero = hasDay(regime) && draft.lightLimit <= 0;
+  // What germination gives back to the night, where it is not what germination holds anyway.
+  const before = regime === 'germination' ? (device.control?.afterGermination?.nightTemperature ?? null) : null;
+  const back = before !== null && before !== draft.nightTemperature ? before : null;
   const kept =
     regime === 'always'
       ? { summary: t('targets.table.keptNight'), parts: pair(draft.nightTemperature, draft.nightHumidity) }
@@ -303,11 +342,15 @@ function Notes({ shape, draft, hasCo2 }: TableProps) {
           }
         : null;
 
-  if (!zero && !kept) return null;
+  if (!kept && back === null) return null;
 
   return (
     <>
-      {zero ? <p className={`${styles.note} ${styles.warn}`}>{t('targets.table.zeroLimit')}</p> : null}
+      {back !== null ? (
+        <p className={styles.note}>
+          {t('targets.table.germinationBack', { temperature: `${targetFigure(back, 'temperature')} ${UNIT.temperature}` })}
+        </p>
+      ) : null}
       {kept ? (
         <details className={styles.kept}>
           <summary>{kept.summary}</summary>
@@ -318,3 +361,20 @@ function Notes({ shape, draft, hasCo2 }: TableProps) {
     </>
   );
 }
+
+/**
+ * The half a light plan being edited would hold now once saved, where it is
+ * not the one that holds: null while the plan is not being moved, or moving it
+ * changes nothing about now.
+ */
+const afterSaveOf = ({ device, shape, storedShape, draft, baseline, holding, now }: TableProps): Half | null => {
+  const moved = draft.lightsOn !== baseline.lightsOn || draft.lightHours !== baseline.lightHours;
+  if (!moved || !SCHEDULED.includes(shape.regime) || !SCHEDULED.includes(storedShape.regime)) return null;
+  const after: Half =
+    shape.regime === 'always'
+      ? 'day'
+      : shape.regime === 'never'
+        ? 'night'
+        : halfOf(phaseOf(draft, rampsFor(device, device.configuration, draft), now));
+  return after === holding.half ? null : after;
+};

@@ -8,7 +8,7 @@ import type { Device, DeviceConfiguration, GrowCard, PlanStep } from '@fg2/share
 import { useHome } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
 import { serverNow } from '@/api/clock';
-import { useDevices, useHeardAt, useSaveConfiguration } from '@/api/devices';
+import { useDevices, useHeardAt, useLiveReads, useSaveConfiguration } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { ageAttribute, deviceLiveness, offlineLabel } from '@/ui/age';
 import { awaitingClimate, hasCo2Sensor, statesTargets } from '@/ui/climate-hardware';
@@ -307,7 +307,10 @@ function Panel({
   const status = plan.data?.state.status ?? null;
   const heard = useHeardAt(device);
   const liveness = deviceLiveness(heard, now);
-  const offline = liveness === 'offline' ? offlineLabel(heard, now, zone, true) : null;
+  // Since when is said from the device's newest reading, as the page's own pill
+  // says it, so the two lines on one screen do not name two different minutes.
+  const spoke = useLiveReads([device.id]).measuredAt.get(device.id) ?? heard;
+  const offline = liveness === 'offline' ? offlineLabel(spoke, now, zone, true) : null;
   const busy = save.isPending || move.isPending;
   const name = deviceName(device, t);
   const offset = offsetOf(now, zone);
@@ -340,7 +343,10 @@ function Panel({
   const commit = async (): Promise<boolean> => {
     try {
       if (pauses) await move.mutateAsync({ kind: 'pause', reason: t('targets.pauseReason') });
-      await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, draft, climateOnly, heldOf(shape.regime)), drying });
+      // A spell begun from here stores what it holds in both halves; once a
+      // fridge is drying the server keeps its stored day, so the day is sent as stored.
+      const held = dryingChange === 'starts' ? heldOf(shape.regime) : 'both';
+      await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, draft, climateOnly, held), drying });
       setSent({ draft, at: serverNow() });
       // Saved, the chip has said what it had to: the drying spell is the device's now.
       setEdit(current => (current ? { ...current, chip: null } : current));
@@ -459,6 +465,7 @@ function Panel({
               offset={offset}
               holding={holding}
               owned={owned}
+              now={now}
             />
           </>
         )}

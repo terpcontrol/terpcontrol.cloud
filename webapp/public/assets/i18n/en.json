@@ -1226,101 +1226,6 @@
   "message-aux-command-failed-text": "The device could not carry out a command sent to it from here ({{value}}).",
   "message-aux-command-failed:cam_capture-title": "Picture not taken",
   "message-aux-command-failed:cam_capture-text": "The device was asked for a picture from its camera and could not get one. Check that the camera has power and is on the same WiFi as the device.",
-  "simpleSettings": {
-    "modeSimple": "Simple",
-    "modeExpert": "Expert",
-    "referenceBannerMonitor": "This controller only monitors. Your targets act as reference ranges for charts, the assistant and alarms — nothing is switched.",
-    "referenceBannerLightOnly": "This controller only drives the lamp. Climate targets act as reference ranges — heating or humidity are not switched.",
-    "stageTitle": "Your grow stage",
-    "stageText": "Pick the stage your plants are in — we set proven targets. Fine-tune anything below.",
-    "stageTextReference": "Pick the stage your plants are in — we set proven reference values. Fine-tune anything below.",
-    "startPlan": "Start a grow plan",
-    "targetsTitle": "Targets",
-    "targetsTitleReference": "Reference values",
-    "temperature": "Temperature",
-    "humidity": "Humidity",
-    "deviceOff": "The device is switched off. Pick a grow stage above to start regulating — or leave it on \"Off\".",
-    "expertHint": "Fine-tuning like heater behavior, dehumidify timing or alarms lives in expert mode (switch at the top).",
-    "plan": {
-      "title": "Grow plan",
-      "dayOf": "Day {{day}} of {{total}} in this stage",
-      "next": "Next stage: {{name}}",
-      "editHint": "The values below apply to the current stage. Saving keeps the plan running.",
-      "stop": "Stop plan",
-      "currentDuration": "Duration of this stage",
-      "skip": "End stage now",
-      "skipConfirmTitle": "End this stage?",
-      "skipConfirmNext": "The current stage ends immediately and {{name}} starts. Remember to save afterwards.",
-      "skipConfirmNextGeneric": "The current stage ends immediately and the next stage starts. Remember to save afterwards.",
-      "skipConfirmEnd": "The current stage ends and the plan is completed. Remember to save afterwards.",
-      "skipConfirmButton": "End stage",
-      "upcomingTitle": "Upcoming phases",
-      "upcomingFrom": "from ~ {{date}}",
-      "upcomingHint": "Tap a duration to adjust the remaining plan. Changes apply when you save."
-    },
-    "light": {
-      "title": "Light & day rhythm",
-      "hint": "Defines when your lamp is on and how bright it runs. The day targets below apply while the light is on.",
-      "hintMonitor": "Defines which hours count as day. The day targets below are evaluated during these hours.",
-      "start": "Light on at",
-      "duration": "Hours of light",
-      "scheduleText": "Seedlings and vegetative plants usually get 18 h, flowering runs at 12 h. Autoflowers stay at 18 h all the way.",
-      "intensity": "Light intensity",
-      "intensityHint": "Start seedlings dimmed (about 40%) and increase towards 100% in flowering."
-    },
-    "day": {
-      "title": "Daytime targets (light on)"
-    },
-    "night": {
-      "title": "Nighttime targets (light off)"
-    },
-    "climate": {
-      "title": "Climate targets"
-    },
-    "co2": {
-      "title": "CO2",
-      "target": "CO2 target",
-      "hint": "Only useful with a CO2 bottle and valve. Without one, keep 400 ppm (ambient level) — the valve then never opens.",
-      "text": "Without CO2 enrichment leave this at 400 ppm. With a CO2 setup, 900–1200 ppm speeds up growth."
-    },
-    "notifications": {
-      "title": "Notifications & alarms",
-      "empty": "No alarms yet. Add one from a template — e.g. heat, humidity or an empty CO2 bottle.",
-      "add": "Add alarm",
-      "pickPreset": "What do you want to watch?",
-      "pickChannel": "how do you want to be notified?",
-      "create": "Create alarm",
-      "savedNote": "Alarms are stored when you save the settings.",
-      "runsFor": "Runs non-stop for {{minutes}} min",
-      "forMinutes": "≥ {{minutes}} min",
-      "emailLabel": "E-mail address",
-      "channels": {
-        "info": "App log",
-        "email": "E-mail",
-        "discord": "Discord",
-        "telegram": "Telegram",
-        "ntfy": "ntfy.sh",
-        "home_assistant": "Home Assistant",
-        "webhook": "Webhook"
-      },
-      "changeChannel": "Change"
-    },
-    "offSelectedHint": "The device is not regulating anything. Pick a grow stage to start again.",
-    "startPlanHint": "A grow plan switches stages for you — from seedling all the way to drying.",
-    "startPlanUnavailable": "This device has no grow plan.",
-    "turnOff": {
-      "button": "Switch device off",
-      "title": "Stop regulating?",
-      "message": "The device will stop regulating entirely — no light, no temperature, no humidity. Remember to save afterwards.",
-      "messagePlan": "The running grow plan stops and the device will not regulate anything. Remember to save afterwards.",
-      "confirm": "Switch off"
-    },
-    "maintenance": {
-      "title": "Stepping in",
-      "text": "Maintenance mode pauses the regulation for a while, so watering or repotting does not raise alarms. Everything resumes automatically afterwards.",
-      "button": "Start maintenance mode"
-    }
-  },
   "auxDevices": {
     "title": "Connected devices",
     "webcam": {
@@ -2736,7 +2641,8 @@
         "open": "Edit",
         "close": "Done",
         "remove": "Remove",
-        "add": "Add a step"
+        "add": "Add a step",
+        "dryingNote": "A step into drying switches the device into its drying mode: the light stays off, no CO₂ is dosed, and it holds these two figures round the clock."
       },
       "figure": {
         "dayTemperature": "Day · temperature",
@@ -2744,7 +2650,11 @@
         "nightTemperature": "Night · temperature",
         "nightHumidity": "Night · humidity",
         "co2": "CO₂ target",
-        "light": "Light"
+        "light": "Light limit",
+        "drying": {
+          "nightTemperature": "Drying · temperature",
+          "nightHumidity": "Drying · humidity"
+        }
       },
       "figureUnit": {
         "dayTemperature": "°C",
@@ -2807,7 +2717,7 @@
       },
       "belowLabel": "Below the plan",
       "targets": "Targets",
-      "targetsLine": "Setting them by hand pauses the plan",
+      "targetsLine": "Changing what the plan sets pauses it",
       "alarms": "Alarms",
       "alarmsOn_zero": "none on",
       "alarmsOn_one": "{{count}} alarm on",
@@ -3165,7 +3075,14 @@
     "bandNight": "night target {{low}}–{{high}}",
     "bandChanging": "changing over {{low}}–{{high}}",
     "noTargetNight": "no target at night",
-    "nightLegend": "Shaded grey: the night"
+    "nightLegend": "Shaded grey: the night",
+    "bandHeld": {
+      "always_day": "Target {{low}}–{{high}} · round the clock",
+      "always_night": "Target {{low}}–{{high}} · round the clock",
+      "drying": "Drying target {{low}}–{{high}}",
+      "germination": "Germination target {{low}}–{{high}}"
+    },
+    "legendNone": "No night: one target round the clock"
   },
   "camera": {
     "never": "never",
@@ -3223,7 +3140,7 @@
     "looksAtHint": "canopy, side view …",
     "premium": "Premium",
     "stillEvery": "Still every",
-    "nightOff": "night off",
+    "nightOff": "off in the dark",
     "maintenanceOff": "off during maintenance",
     "tellsYou": "Tells you",
     "staleWarning": "warn when it stops delivering",
@@ -3950,7 +3867,13 @@
       "keptNightHow": "With less than 24 h of light they are back in the table.",
       "keptDay": "Day figures – hold again as soon as there is a day",
       "keptDayHow": "With more than 0 h of light they are back in the table.",
-      "keptLight": "light limit {{percent}} %"
+      "keptLight": "light limit {{percent}} %",
+      "afterSave": "holds once saved",
+      "byLastState": "as last left",
+      "dayPlain": "Day",
+      "dayDark": "(lamp at 0 %)",
+      "nightPlain": "Night",
+      "germinationBack": "Back on standard, the night temperature from before holds again: {{temperature}}."
     },
     "stepLess": "{{name}}: less",
     "stepMore": "{{name}}: more",
@@ -3988,7 +3911,9 @@
         "sensor": {
           "day": "Bright now · the day figures hold",
           "night": "Dark now · the night figures hold"
-        }
+        },
+        "dayDark": "Day now · night from {{time}}",
+        "nightDark": "Night now · day from {{time}}"
       },
       "half": {
         "day": "day",
@@ -4005,7 +3930,11 @@
       "neverLine": "With no light it is night round the clock: the night figures hold and no CO₂ is dosed.",
       "earlier": "{{name}}: earlier",
       "later": "{{name}}: later",
-      "planSets": "The running plan “{{name}}” sets it back within the hour: {{window}}."
+      "planSets": "The running plan “{{name}}” sets it back within the hour: {{window}}.",
+      "windowDark": "Day {{on}}–{{off}} · {{hours}} h · lamp at 0 %",
+      "alwaysDark": "Day round the clock · 24 h · lamp at 0 %",
+      "keepsHour": "Set a length between 0 and 24 h and the day starts at {{time}} again.",
+      "hardStart": "With this window the controller switches the light on at {{time}} without ramping up: it counts in UTC, and the window runs past midnight UTC. In the evening it dims as usual."
     }
   },
   "notifications": {
@@ -4643,7 +4572,7 @@
     },
     "band": {
       "title": "In band",
-      "text": "Close enough to the target to count as on it: within ±1 °C, ±5 % humidity or ±200 ppm CO₂. At night CO₂ has no band, because the device only adds CO₂ by day. After every switch between day and night the climate is given an hour to follow the new figures – on a fridge, plus the minutes its lamp and targets glide. Meanwhile anything between the day band and the night band counts as on target, and the tile says “changing over”."
+      "text": "Close enough to the target to count as on it: within ±1 °C, ±5 % humidity or ±200 ppm CO₂. At night CO₂ has no band, because the device only adds CO₂ by day. After every switch between day and night the climate is given an hour to follow the new figures – on a fridge, plus the minutes its lamp and targets glide – and so it is for an hour after every change of the targets, the light plan or the operating mode. Meanwhile anything between the band before and the band after counts as on target, and the tile says “changing over”."
     },
     "verdict": {
       "title": "In band over 24 hours",
@@ -4679,7 +4608,7 @@
     },
     "lightsOn": {
       "title": "Light on at",
-      "text": "When the light comes on and the day begins, on your account’s clock (Me › Appearance). When the clocks change for summer or winter time it stays at this time - the cloud resets the device itself on the night of the change. For cheaper night power or a cooler summer tent, move the day into the night, from 22:00 for example. A running plan keeps this time unless its step brings one of its own."
+      "text": "When the light comes on and the day begins, on your account’s clock (Me › Appearance). When the clocks change for summer or winter time it stays at this time - the cloud resets the device itself on the night of the change, once your account’s time zone is set: the app takes it on your first sign-in, and Me › Appearance changes it. For cheaper night power or a cooler summer tent, move the day into the night, from 22:00 for example. A running plan keeps this time unless its step brings one of its own."
     },
     "resumePlan": {
       "title": "Resume the plan",
@@ -4834,8 +4763,8 @@
       "text": "How often the cloud asks this camera for a picture, 30 seconds at the least; after a failed try it waits twice as long each time, up to two hours. Older pictures are thinned: after a day one a minute is kept, after a week one every 5, after a month one every 15, after three months one an hour."
     },
     "cameraPauses": {
-      "title": "Night off, off during maintenance",
-      "text": "Night off skips pictures while the device's light is off; off during maintenance skips them while the device is in maintenance or switched off. Both only work for a camera that belongs to a device, and with night off no warning is raised when this camera stops delivering."
+      "title": "Off in the dark, off during maintenance",
+      "text": "Off in the dark skips pictures while the device's lamp is off – at night, but also at a light limit of 0 % or while drying; off during maintenance skips them while the device is in maintenance or switched off. Both only work for a camera that belongs to a device, and with off in the dark no warning is raised when this camera stops delivering."
     },
     "staleWarning": {
       "title": "Tells you",
@@ -4927,7 +4856,7 @@
     },
     "dayCurve": {
       "title": "The last 24 hours",
-      "text": "The small curve shows how the reading went over the last 24 hours. The grey stretch is the night, the green band the target range – at night the night target applies. For the hour after each switch the band spans both targets, which is how long the climate is given to follow. Tapping the tile opens the Timeline."
+      "text": "The small curve shows how the reading went over the last 24 hours. The grey stretch is the night, the green band the target range – at night the night target applies. Drying, germination and 24 or 0 h of light have no night, just one target round the clock. For the hour after each switch and after every change the band spans the targets from before and after, which is how long the climate is given to follow. Tapping the tile opens the Timeline."
     },
     "ppfd": {
       "title": "PPFD",
@@ -5129,7 +5058,7 @@
     },
     "nightBand": {
       "title": "Shaded grey: the night",
-      "text": "The grey stretches are the nights: the hours the light plan makes night – the light off, the night figures holding, no CO₂ dosed. The green band is the target range, at night the night figures’ one; for the hour after each switch – on a fridge, from the start of its dimming – it spans both bands: that is how long the climate is given to follow the new figures. Drying and germination have no day: then it is night throughout."
+      "text": "The grey stretches are the nights: the hours the light plan makes night – the light off, the night figures holding, no CO₂ dosed. The green band is the target range, at night the night figures’ one. For the hour after each switch – on a fridge, from the start of its dimming – and after every change of the targets, the light plan or the operating mode it spans the figures from before and after: that is how long the climate is given to follow. Where nothing alternates – drying, germination, 24 or 0 h of light – nothing is grey, and the band is the one target that holds round the clock."
     }
   },
   "place": {
@@ -5196,7 +5125,15 @@
         "night": "Night target {{target}}",
         "any": "Target {{target}}",
         "drying": "Drying target {{target}}",
-        "germination": "Germination target {{target}}"
+        "germination": "Germination target {{target}}",
+        "gliding": {
+          "day": "Target now {{target}} · gliding to the day",
+          "night": "Target now {{target}} · gliding to the night"
+        },
+        "bySchedule": {
+          "day": "Day target by the schedule {{target}}",
+          "night": "Night target by the schedule {{target}}"
+        }
       },
       "noTarget": "no target",
       "co2Night": "no target at night",
@@ -5332,7 +5269,10 @@
     "dries": "The device starts drying: no light and no CO₂.",
     "endsDrying": "Drying ends, and the device holds day and night again.",
     "alarms": "The alarms Too hot, Too cold and Too humid follow the phase.",
-    "noClimate": "{{stage}} has no climate of its own – the targets stay as they are."
+    "noClimate": "{{stage}} has no climate of its own – the targets stay as they are.",
+    "keepsDrying": "Drying holds the night figures as they are, round the clock: {{temperature}} °C · {{humidity}} % – no light and no CO₂.",
+    "setsDark": "New: {{figures}} – replaces the targets under Control.",
+    "germinationNote": "This is the climate for freshly sprouted seedlings, with light. To germinate seeds in the dark: the operating mode “Germination in the dark” under Device › Advanced."
   },
   "advanced": {
     "title": "Advanced",
@@ -5413,8 +5353,8 @@
     "standardNote": "Holds temperature, humidity, light and CO₂ to the targets.",
     "greenhouse": "Greenhouse",
     "greenhouseNote": "Temperature only: light and CO₂ run, the compressor only cools, humidity is not controlled.",
-    "germination": "Germination",
-    "germinationNote": "In the dark, round the clock: no light, no CO₂. Heats and cools to one temperature – the night temperature at first, to be changed under Targets.",
+    "germination": "Germination in the dark",
+    "germinationNote": "For seeds germinating in the dark: no light, no CO₂, one temperature round the clock – the night temperature at first, to be changed under Targets. Back on standard, the night temperature from before holds again. The grow phase “Germination” is something else: it sets a climate for seedlings, with light.",
     "ask": "Switch to {{mode}}? {{what}} Standard here switches it back.",
     "yes": "Switch to {{mode}}"
   },
@@ -5890,7 +5830,8 @@
       "fans": {
         "external": "Clip fan",
         "internal": "Inner fans"
-      }
+      },
+      "lightPlan": "Light plan"
     },
     "mode": {
       "off": "control off",
@@ -5910,6 +5851,19 @@
       "energySavingOn": "Energy saving on",
       "energySavingOff": "Energy saving off",
       "mode": "Operating mode: {{mode}}"
+    },
+    "held": {
+      "dry": {
+        "night": {
+          "temperature": "Drying temperature",
+          "humidity": "Drying humidity"
+        }
+      },
+      "breed": {
+        "night": {
+          "temperature": "Germination temperature"
+        }
+      }
     }
   },
   "privacyPage": {

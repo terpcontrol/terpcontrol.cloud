@@ -155,7 +155,7 @@ export function EntryRow({
   const Icon = KIND_ICON[entry.kind];
   const at = zoned(entry.occurredAt, zone);
   const readings = 'readings' in entry.values ? entry.values.readings : [];
-  const detail = entryDetail(i18n, entry);
+  const detail = entryDetail(i18n, entry, { zone, at: entry.occurredAt });
   const [opened, setOpened] = useState<number | null>(null);
   /**
    * The pictures of this line this surface may actually show. A share link

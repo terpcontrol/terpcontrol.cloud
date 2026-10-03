@@ -82,14 +82,24 @@ export function Panel({
   const target = stretch?.target ?? null;
   const left = `${fractionOf(cursor, from, to) * 100}%`;
   const unit = UNIT[panel.metric] ?? '';
-  // The band is named by its half where the window has both, as the tile it was opened from names it.
+  // The band is named by its half where the window has both, as the tile it was
+  // opened from names it - and by what was held where one climate held round
+  // the clock: a drying room's band is not the night's.
   const split = splitByNight(nights, from, to);
   const bandLabel =
     stretch && target
-      ? t(stretch.changing ? 'timeline.bandChanging' : split ? (stretch.dark ? 'timeline.bandNight' : 'timeline.bandDay') : 'timeline.band', {
-          low: targetFigure(target.band.low, panel.metric),
-          high: targetFigure(target.band.high, panel.metric),
-        })
+      ? t(
+          stretch.changing
+            ? 'timeline.bandChanging'
+            : stretch.held
+              ? `timeline.bandHeld.${stretch.held}`
+              : split
+                ? stretch.dark
+                  ? 'timeline.bandNight'
+                  : 'timeline.bandDay'
+                : 'timeline.band',
+          { low: targetFigure(target.band.low, panel.metric), high: targetFigure(target.band.high, panel.metric) },
+        )
       : null;
   const none = stretches.length === 0 ? 'timeline.noTarget' : split && spans(nights, cursor) ? 'timeline.noTargetNight' : 'timeline.noTargetNow';
   const name = t(`timeline.metric.${panel.metric}`, { defaultValue: panel.metric });

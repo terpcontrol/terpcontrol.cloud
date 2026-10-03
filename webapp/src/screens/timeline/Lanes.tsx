@@ -6,7 +6,7 @@ import { EntryRow, type EntryPicture } from '@/ui/EntryRow';
 import { KIND_ICON, readingNamesOf } from '@/ui/entries';
 import { useZone } from '@/ui/zone';
 import type { OutputName } from './Timeline';
-import { at, fractionOf, stampOf, stopOf } from './window';
+import { at, dayStopOf, daysOnAxis, fractionOf, stampOf, stopOf } from './window';
 import styles from './Timeline.module.css';
 
 /** How far apart two marks stand before they are drawn as one: the mark itself, and room to tell them apart. */
@@ -73,11 +73,13 @@ export function Lanes({
   correcting = NOT_CORRECTED,
   picture,
 }: LanesProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // The axis is cut at midnight and the marks are titled with the hour, both
   // of which are the account's and not this browser's: a window of a week read
   // two zones away otherwise labels its stops with the wrong days.
   const zone = useZone();
+  const live = now.diff(DateTime.fromMillis(to)).as('minutes') < 2;
+  const days = daysOnAxis(from, to, zone, live);
   // How many lines fit on the rail is a question about pixels, so the rail is
   // measured: a desktop's rail carries three times a phone's marks.
   const rail = useRef<HTMLDivElement>(null);
@@ -147,16 +149,29 @@ export function Lanes({
         </div>
       ) : null}
 
-      <div className={styles.axis}>
-        {Array.from({ length: AXIS_STOPS }, (_, index) => {
-          const time = from + ((to - from) * index) / (AXIS_STOPS - 1);
-          return (
-            <span key={index} className={`mono ${styles.stop}`}>
-              {index === AXIS_STOPS - 1 && now.diff(DateTime.fromMillis(to)).as('minutes') < 2 ? t('timeline.now') : stopOf(time, to - from, zone)}
+      {days ? (
+        // A week is read by its days: the stops stand on midnight and say which
+        // day begins there, so a grey night can be put on a date.
+        <div className={`${styles.axis} ${styles.axisDays}`}>
+          {days.map(time => (
+            <span key={time} className={`mono ${styles.stop} ${styles.dayStop}`} style={{ left: `${fractionOf(time, from, to) * 100}%` }}>
+              {dayStopOf(time, zone, i18n.language)}
             </span>
-          );
-        })}
-      </div>
+          ))}
+          {live ? <span className={`mono ${styles.stop} ${styles.dayStopEnd}`}>{t('timeline.now')}</span> : null}
+        </div>
+      ) : (
+        <div className={styles.axis}>
+          {Array.from({ length: AXIS_STOPS }, (_, index) => {
+            const time = from + ((to - from) * index) / (AXIS_STOPS - 1);
+            return (
+              <span key={index} className={`mono ${styles.stop}`}>
+                {index === AXIS_STOPS - 1 && live ? t('timeline.now') : stopOf(time, to - from, zone)}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {/* The net over a device's own log and the plan's bookkeeping cuts the far
           end of a long window, so a four-month grow's first months would

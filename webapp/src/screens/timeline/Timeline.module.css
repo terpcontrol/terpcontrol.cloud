@@ -595,6 +595,25 @@
   color: var(--muted);
 }
 
+/* A week's stops stand on its midnights, each centred under the line it names. */
+.axisDays {
+  position: relative;
+  display: block;
+  min-height: calc(var(--text-xs) * 1.6 + var(--space-1));
+}
+
+.dayStop {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.dayStopEnd {
+  position: absolute;
+  right: 0;
+  white-space: nowrap;
+}
+
 /* The first and the last stop sit on the ends of the track rather than centred under them. */
 .stop:first-child {
   margin-left: calc(var(--space-2) * -1);

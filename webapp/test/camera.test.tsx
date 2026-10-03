@@ -543,7 +543,7 @@ describe('what the camera is set to', () => {
     expect(screen.getByRole('checkbox', { name: 'off during maintenance' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'warn when it stops delivering' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'log failed captures to the diary' })).not.toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'night off' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'off in the dark' })).not.toBeChecked();
   });
 
   it('states the stream it pulls, how, and whether it goes through the tunnel', () => {

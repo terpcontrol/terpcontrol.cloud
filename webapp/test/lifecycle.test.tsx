@@ -513,6 +513,33 @@ describe('the climate beside a phase', () => {
     expect(asked.find(call => call.method === 'POST')?.body).toMatchObject({ stage: 'flowering', preset: null, climate: true });
   });
 
+  /**
+   * Drying with the targets left as they are named a light window, a day and a
+   * night the device was about to stop having, and the day's humidity it would
+   * not hold.
+   */
+  it('says what drying holds where the targets are left, and nothing of a light or a day', () => {
+    hardware.devices = [tent()];
+    draw(<PhaseSheet grow={veg} onClose={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Drying' }));
+    expect(
+      screen.getByText(/^Drying holds the night figures as they are, round the clock: 22 °C · 58 % – no light and no CO₂\./),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Light on 06:00/)).not.toBeInTheDocument();
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Drying' }));
+    expect(screen.getByText(/^New: light off · 18 °C · 58 % – replaces the targets under Control\. The device starts drying/)).toBeInTheDocument();
+  });
+
+  it('tells a fridge´s germination phase from its dark germination mode', () => {
+    hardware.devices = [{ ...tent(), type: 'fridge' }];
+    draw(<PhaseSheet grow={veg} onClose={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Germination' }));
+    expect(screen.getByText(/^This is the climate for freshly sprouted seedlings, with light\./)).toBeInTheDocument();
+  });
+
   it('is not asked where nothing standing there states a climate', () => {
     hardware.devices = [];
     draw(<PhaseSheet grow={veg} onClose={() => {}} />);

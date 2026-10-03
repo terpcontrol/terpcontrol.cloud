@@ -21,6 +21,7 @@ import {
   editEffect,
   figuresFor,
   figureOf,
+  heldByStage,
   LIGHT_HOURS,
   lightHoursFit,
   moveStep,
@@ -197,8 +198,10 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
   const pickStage = (stage: GrowthStage | null) => {
     // A preset refines the stage it belongs to, so it does not survive a change of stage.
     const keep = stage !== null && presetsOf(stage).includes(step.preset ?? '');
-    onChange({ stage, preset: keep ? step.preset : null });
+    // Drying knows no day, light or CO2: a step into it writes what it holds and nothing else.
+    onChange({ stage, preset: keep ? step.preset : null, ...(stage === 'drying' ? heldByStage(step, stage) : {}) });
   };
+  const drying = step.stage === 'drying';
 
   return (
     <div className={styles.fields}>
@@ -269,21 +272,23 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
 
       <span className="label">{t('space.control.step.settings')}</span>
       <div className={styles.figures}>
-        {figuresFor(device).map(figure => (
-          <FigureField key={figure.key} figure={figure} step={step} onChange={onChange} />
+        {figuresFor(device, step.stage).map(figure => (
+          <FigureField key={figure.key} figure={figure} step={step} onChange={onChange} drying={drying} />
         ))}
-        <LightHoursField step={step} device={device} onChange={onChange} />
+        {/* A drying room is dark round the clock: it has no light hours to set. */}
+        {drying ? null : <LightHoursField step={step} device={device} onChange={onChange} />}
         {/* The figure this controller cannot run keeps its place and says what
             it needs, rather than leaving a gap that reads as a screen that
             forgot it. It is the row the manual targets page draws, in the same
             words. */}
-        {hasCo2Sensor(device) ? null : (
+        {hasCo2Sensor(device) || drying ? null : (
           <span className={styles.figure}>
             <span className={styles.figureLabel}>{t('space.control.figure.co2')}</span>
             <span className={`mono ${styles.figureNeeds}`}>{t('targets.needsCo2')}</span>
           </span>
         )}
       </div>
+      {drying ? <p className={ui.note}>{t('space.control.step.dryingNote')}</p> : null}
       {step.lightHours !== null && (step.lightHours < LIGHT_HOURS.min || step.lightHours > LIGHT_HOURS.max) ? (
         <p className={ui.note} role="alert">
           {t('planLight.range', LIGHT_HOURS)}
@@ -332,8 +337,11 @@ const fromController = (step: StepDraft, device: Device): Partial<StepDraft> => 
   const statesLight = typeof daynight?.day === 'number' && typeof daynight?.night === 'number';
 
   return {
-    settings: figuresFor(device).reduce((settings, figure) => withFigure(settings, figure, figureOf(configuration, figure)), step.settings),
-    lightHours: statesLight ? Math.round(targetsOf(configuration).lightHours) : step.lightHours,
+    settings: figuresFor(device, step.stage).reduce(
+      (settings, figure) => withFigure(settings, figure, figureOf(configuration, figure)),
+      step.settings,
+    ),
+    lightHours: statesLight && step.stage !== 'drying' ? Math.round(targetsOf(configuration).lightHours) : step.lightHours,
   };
 };
 
@@ -418,13 +426,24 @@ function LightHoursField({ step, device, onChange }: { step: StepDraft; device: 
 }
 
 /** One climate figure. Empty is a figure this step does not write, which is not the same as zero. */
-function FigureField({ figure, step, onChange }: { figure: Figure; step: StepDraft; onChange: (over: Partial<StepDraft>) => void }) {
+function FigureField({
+  figure,
+  step,
+  onChange,
+  drying = false,
+}: {
+  figure: Figure;
+  step: StepDraft;
+  onChange: (over: Partial<StepDraft>) => void;
+  /** A drying step, whose night figures are the drying room's and are named so. */
+  drying?: boolean;
+}) {
   const { t } = useTranslation();
   const value = figureOf(step.settings, figure);
 
   return (
     <label className={styles.figure}>
-      <span className={styles.figureLabel}>{t(`space.control.figure.${figure.key}`)}</span>
+      <span className={styles.figureLabel}>{t(drying ? `space.control.figure.drying.${figure.key}` : `space.control.figure.${figure.key}`)}</span>
       <input
         className={`mono ${styles.figureInput}`}
         type="number"

@@ -64,6 +64,36 @@ export const stopOf = (time: number, span: number, zone: string | null = null): 
   return stamp.toFormat(DAY_IN_YEAR);
 };
 
+/** The most day stops an axis carries, so a week on a phone still has room for each label. */
+const MOST_DAY_STOPS = 4;
+
+/**
+ * The midnights a window of a few days is labelled at, on the account's
+ * clock, or null for a window that is read by the hour or by the month. Quarter
+ * points named by their weekday alone put "Sa" a third of the way into a
+ * Saturday and no stop on a date, so a grey night could not be told by its
+ * day. Every other midnight where there are too many, and none so close to the
+ * right end that it would run into "now".
+ */
+export const daysOnAxis = (from: number, to: number, zone: string | null, live: boolean): number[] | null => {
+  const span = to - from;
+  if (span <= 36 * HOUR_MS || span > 10 * 24 * HOUR_MS) return null;
+
+  const midnights: number[] = [];
+  for (let day = zonedAt(from, zone).startOf('day').plus({ days: 1 }); day.toMillis() < to; day = day.plus({ days: 1 })) {
+    midnights.push(day.toMillis());
+  }
+  const every = Math.ceil(midnights.length / MOST_DAY_STOPS);
+  // Counted back from the newest, so the day that is now always carries a stop.
+  return midnights.filter((_time, index) => (midnights.length - 1 - index) % every === 0).filter(time => !live || fractionOf(time, from, to) < 0.88);
+};
+
+/** "Sa 4." - the day that begins at a midnight of the axis. */
+export const dayStopOf = (time: number, zone: string | null, language: string): string => {
+  const day = zonedAt(time, zone).setLocale(language);
+  return `${day.toFormat('ccc')} ${day.toFormat(language.startsWith('de') ? 'd.' : 'd')}`;
+};
+
 /** Where an instant sits across the window, 0 at its left edge and 1 at its right. */
 export const fractionOf = (time: number, from: number, to: number): number =>
   to <= from ? 0 : Math.min(1, Math.max(0, (time - from) / (to - from)));
@@ -93,24 +123,65 @@ export interface Stretch {
   dark: boolean;
   /**
    * In the hour after a switch between day and night (and a fridge's ramp
-   * before it): the band is both halves' together, which is what the reading
-   * is judged by then - a fridge cooling into its night is on its way, not out
-   * of band.
+   * before it), or after somebody changed the targets: the band reaches over
+   * both, which is what the reading is judged by then - a fridge cooling into
+   * its night is on its way, not out of band.
    */
   changing: boolean;
+  /**
+   * One climate held round the clock - a drying room, a germination, 24 or 0
+   * hours of light - which has no day and night to tell its band by: what it
+   * held instead, which names the band. Null for a day and a night.
+   */
+  held: ConstantHold | null;
 }
+
+/** What a stretch holds where nothing alternates (`TimelineTargets.held`). */
+export type ConstantHold = Exclude<NonNullable<TimelineTargets['held']>, 'schedule'>;
+
+const constantOf = (targets: TimelineTargets): ConstantHold | null =>
+  targets.held === undefined || targets.held === 'schedule' ? null : targets.held;
 
 /** Both halves' bands as one, around the setpoint of the half the device is changing to; none where either half has none. */
 const changingTarget = (to: TimelineTarget | null, other: TimelineTarget | null): TimelineTarget | null =>
   to && other ? { setpoint: to.setpoint, band: { low: Math.min(to.band.low, other.band.low), high: Math.max(to.band.high, other.band.high) } } : null;
 
 export const stretchesOf = (panel: TimelinePanel, nights: TimelineSpan[], from: number, to: number, transitions: TimelineSpan[] = []): Stretch[] =>
-  cut(from, to, nights, panel.targets, transitions).flatMap(piece => {
-    const targets = panel.targets.find(one => at(one.startsAt) <= piece.from && at(one.endsAt) >= piece.to);
-    const own = targets ? (piece.dark ? targets.night : targets.day) : null;
-    const target = targets && piece.changing ? changingTarget(own, piece.dark ? targets.day : targets.night) : own;
+  joinedHeld(piecesOf(panel, nights, from, to, transitions));
 
-    return target ? [{ from: piece.from, to: piece.to, target, dark: piece.dark, changing: piece.changing }] : [];
+/** One climate round the clock is one stretch, however often a night or a switch cut the window under it. */
+const joinedHeld = (stretches: Stretch[]): Stretch[] =>
+  stretches.reduce<Stretch[]>((kept, stretch) => {
+    const last = kept.at(-1);
+    const same =
+      last !== undefined &&
+      last.held !== null &&
+      last.held === stretch.held &&
+      last.changing === stretch.changing &&
+      last.to === stretch.from &&
+      JSON.stringify(last.target) === JSON.stringify(stretch.target);
+    return same ? [...kept.slice(0, -1), { ...last, to: stretch.to }] : [...kept, stretch];
+  }, []);
+
+const piecesOf = (panel: TimelinePanel, nights: TimelineSpan[], from: number, to: number, transitions: TimelineSpan[]): Stretch[] =>
+  cut(from, to, nights, panel.targets, transitions).flatMap((piece): Stretch[] => {
+    const targets = panel.targets.find(one => at(one.startsAt) <= piece.from && at(one.endsAt) >= piece.to);
+    if (!targets) return [];
+
+    // One climate round the clock is one band through the whole stretch, whatever the night does.
+    const held = constantOf(targets);
+    if (held) {
+      const target = held === 'always_day' ? targets.day : targets.night;
+      return target ? [{ from: piece.from, to: piece.to, target, dark: false, changing: targets.settling === true, held }] : [];
+    }
+
+    // The hour after somebody changed the targets comes with its band already
+    // reaching over what held before; a switch between the halves is widened here.
+    const own = piece.dark ? targets.night : targets.day;
+    const target = piece.changing && !targets.settling ? changingTarget(own, piece.dark ? targets.day : targets.night) : own;
+    const changing = piece.changing || targets.settling === true;
+
+    return target ? [{ from: piece.from, to: piece.to, target, dark: piece.dark, changing, held: null }] : [];
   });
 
 /**

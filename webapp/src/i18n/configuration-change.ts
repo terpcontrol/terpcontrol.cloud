@@ -1,5 +1,8 @@
 import type { i18n as I18n } from 'i18next';
+import { DateTime } from 'luxon';
+import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { serverNow } from '@/api/clock';
+import { scheduleTitle } from '@/screens/control/targets/schedule-words';
 import { offsetOf, wallClock } from '@/screens/control/targets/targets-draft';
 
 /**
@@ -40,8 +43,27 @@ const FIELDS: Readonly<Record<string, Field>> = {
 
 const LINE = /^(.+?): (.*) → (.*)$/;
 
+/**
+ * What a line is read against: the account's zone and the instant it was
+ * written, which together say on what wall clock its times of day were meant -
+ * the server moves them when the clocks change, so a line from before the
+ * change is read with the offset of then. `mode` is the work mode the device
+ * was left in where it holds the night's figures round the clock.
+ */
+export interface ChangeContext {
+  zone?: string | null;
+  at?: string | null;
+  mode?: string | null;
+}
+
+/** How far the account's wall clock was ahead of UTC when the line was written. */
+const offsetFor = (context: ChangeContext): number => offsetOf(context.at ? DateTime.fromISO(context.at) : serverNow(), context.zone ?? null);
+
+/** Past any time of day: the night of a light that is on round the clock (`lightWindowTimes`). */
+const ALWAYS_LIT_FROM = 2 * 24 * 60 * 60;
+
 /** A figure as the line wrote it, in the reader's words: `–` for one that was not there. */
-const valueOf = (i18n: I18n, field: Field, raw: string): string => {
+const valueOf = (i18n: I18n, field: Field, raw: string, context: ChangeContext): string => {
   if (raw === '–') return raw;
   switch (field.kind) {
     case 'mode':
@@ -50,11 +72,11 @@ const valueOf = (i18n: I18n, field: Field, raw: string): string => {
       return raw === 'true' || Number(raw) > 0 ? i18n.t('configChange.on') : i18n.t('configChange.off');
     case 'time': {
       // The document keeps seconds past midnight UTC; the reader thinks in the
-      // clock on the wall. A line is resolved without the account at hand, so
-      // that is the wall this screen hangs on, which is the account's own for
-      // everybody who has not moved their account to another zone.
+      // clock on the wall of their account. A time past any time of day is a
+      // light that never goes off, which is no time to name.
       const seconds = Number(raw);
-      return Number.isFinite(seconds) ? wallClock(seconds, offsetOf(serverNow(), null)) : raw;
+      if (!Number.isFinite(seconds)) return raw;
+      return seconds >= ALWAYS_LIT_FROM ? i18n.t('targets.plan.alwaysShort') : wallClock(seconds, offsetFor(context));
     }
     case 'number': {
       const number = Number(raw);
@@ -64,21 +86,55 @@ const valueOf = (i18n: I18n, field: Field, raw: string): string => {
   }
 };
 
+/** The figures held round the clock in a mode that knows no day, named by the mode rather than as the night's. */
+const HELD_IN: Readonly<Record<string, readonly string[]>> = {
+  dry: ['night.temperature', 'night.humidity'],
+  breed: ['night.temperature'],
+};
+
 /** One line of the change, named and written out where the figure is one the app sets. */
-const lineOf = (i18n: I18n, line: string): string => {
+const lineOf = (i18n: I18n, line: string, context: ChangeContext): string => {
   const match = LINE.exec(line);
   const field = match ? FIELDS[match[1]] : undefined;
   if (!match || !field) return line;
 
-  return `${i18n.t(`configChange.field.${match[1]}`)}: ${valueOf(i18n, field, match[2])} → ${valueOf(i18n, field, match[3])}`;
+  const name = HELD_IN[context.mode ?? '']?.includes(match[1])
+    ? i18n.t(`configChange.held.${context.mode}.${match[1]}`)
+    : i18n.t(`configChange.field.${match[1]}`);
+  return `${name}: ${valueOf(i18n, field, match[2], context)} → ${valueOf(i18n, field, match[3], context)}`;
+};
+
+/**
+ * The light schedule, where both its times are in the change: one line, the
+ * way the targets page says it - "Licht an 08:00–20:00 · 12 Std → Licht
+ * durchgehend an · 24 Std". Its two times apart read 24 hours as a light that
+ * goes off at the hour it comes on, and 0 hours as the same.
+ */
+const scheduleLineOf = (i18n: I18n, day: RegExpExecArray, night: RegExpExecArray, context: ChangeContext): string => {
+  const offset = offsetFor(context);
+  const said = (on: string, off: string): string => {
+    const [lightsOn, lightsOff] = [Number(on), Number(off)];
+    if (on === '–' || off === '–' || !Number.isFinite(lightsOn) || !Number.isFinite(lightsOff)) return '–';
+    return scheduleTitle(i18n.t.bind(i18n), lightWindowOf(lightsOn, lightsOff), offset);
+  };
+  return `${i18n.t('configChange.field.lightPlan')}: ${said(day[2], night[2])} → ${said(day[3], night[3])}`;
 };
 
 /** The whole of what moved, a line each. */
-export const configurationChange = (i18n: I18n, value: string): string =>
-  value
-    .split('\n')
-    .map(line => lineOf(i18n, line))
+export const configurationChange = (i18n: I18n, value: string, context: ChangeContext = {}): string => {
+  const lines = value.split('\n');
+  const day = lines.map(line => LINE.exec(line)).find(match => match?.[1] === 'daynight.day') ?? null;
+  const night = lines.map(line => LINE.exec(line)).find(match => match?.[1] === 'daynight.night') ?? null;
+  const schedule = day && night ? scheduleLineOf(i18n, day, night, context) : null;
+
+  return lines
+    .flatMap(line => {
+      if (!schedule || !/^daynight\.(day|night): /.test(line)) return [lineOf(i18n, line, context)];
+      // The two times are said as one line, where the first of them stood.
+      return line.startsWith('daynight.day: ') ? [schedule] : [];
+    })
     .join('\n');
+};
 
 /**
  * What one change of the work mode alone is called, which is what the row's

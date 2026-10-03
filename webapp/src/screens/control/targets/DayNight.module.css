@@ -469,6 +469,13 @@
   color: var(--muted);
 }
 
+/* A light plan being edited: the half it would hold once saved, in the draft's colour. */
+.nowTag[data-by='draft'] {
+  background: var(--card);
+  box-shadow: inset 0 0 0 var(--rule-width) var(--brand);
+  color: var(--brand);
+}
+
 /* The half that holds now, behind its column through every row. */
 .nowColumn {
   z-index: 0;
@@ -482,6 +489,11 @@
 .table[data-by='schedule'] .nowColumn {
   background: var(--card-2);
   box-shadow: inset 0 3px 0 var(--rule-strong);
+}
+
+.table[data-by='draft'] .nowColumn {
+  background: var(--card-2);
+  box-shadow: inset 0 3px 0 var(--brand);
 }
 
 .table[data-now='day'] .nowColumn,

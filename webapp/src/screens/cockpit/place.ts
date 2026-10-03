@@ -25,7 +25,8 @@ import { offlineLabel, sinceLabel, valueAge } from '@/ui/age';
 import { statesTargets } from '@/ui/climate-hardware';
 import type { Quiet } from '@/ui/maintenance';
 import { clock } from '@/ui/zone';
-import { nowHoldingOf, setpointsOf, storedShapeOf, type Half } from '../control/targets/day-night';
+import { nowHoldingOf, setpointsOf, storedShapeOf, type Half, type NowHolding, type Regime } from '../control/targets/day-night';
+import type { ConstantHold } from '../timeline/window';
 import { hoursWritten } from '../control/targets/schedule-words';
 import { draftOf, lightsOffOf, offsetOf } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from '../home/attention';
@@ -128,17 +129,24 @@ export const setpointOf = (setpoints: CardSetpoint[], metric: Metric): CardSetpo
   setpoints.find(setpoint => setpoint.metric === metric) ?? null;
 
 /**
- * A day of one reading with the band the cockpit judges it by: the
- * controller's configuration as it stands now, day and night, which is what the
- * tile's "im Ziel", the status line and its "seit 18:02" are all worked out
- * against. The Timeline draws a grow's phase against the targets the phase
- * recorded when it began, and a target changed since - a preset applied, a
- * value saved under Steuerung - left a tile saying "Tagesziel 62 % · im Ziel"
- * over a curve drawn under a band of 65-75. Where the place holds no targets
- * the panel is drawn as it came.
+ * A day of one reading with the band the cockpit judges it by.
+ *
+ * The Timeline's bands are what the controller aimed at, change by change, in
+ * the mode it ran - the server's record, which is also what the status line and
+ * its "seit 18:02" are worked out against - so a panel that carries them is
+ * drawn as it came: a drying room's band through the whole of its day, the hour
+ * after a change reaching over what held before. Only a panel with no band at
+ * all borrows the controller's configuration as it stands now, day and night,
+ * or the one climate it holds round the clock (`held`).
  */
-export const judgedPanel = (panel: TimelinePanel | null, targets: OverviewTargets | null, startsAt: string, endsAt: string): TimelinePanel | null => {
-  if (!panel || !targets) return panel;
+export const judgedPanel = (
+  panel: TimelinePanel | null,
+  targets: OverviewTargets | null,
+  startsAt: string,
+  endsAt: string,
+  held: ConstantHold | null = null,
+): TimelinePanel | null => {
+  if (!panel || !targets || panel.targets.length > 0) return panel;
   const half = (row: CardSetpoint[]): TimelineTarget | null => {
     const setpoint = setpointOf(row, panel.metric);
     return setpoint?.value == null || setpoint.band == null
@@ -149,7 +157,23 @@ export const judgedPanel = (panel: TimelinePanel | null, targets: OverviewTarget
   const night = half(targets.night);
   if (!day && !night) return panel;
 
-  return { ...panel, targets: [{ startsAt, endsAt, phaseId: null, stage: null, day, night }] };
+  return { ...panel, targets: [{ startsAt, endsAt, phaseId: null, stage: null, day, night, ...(held ? { held } : {}) }] };
+};
+
+/** The one climate a regime holds round the clock, as the Timeline names it; null for a day and a night. */
+export const constantHoldOf = (regime: Regime | null): ConstantHold | null => {
+  switch (regime) {
+    case 'drying':
+      return 'drying';
+    case 'germination':
+      return 'germination';
+    case 'always':
+      return 'always_day';
+    case 'never':
+      return 'always_night';
+    default:
+      return null;
+  }
 };
 
 /**
@@ -367,11 +391,22 @@ const lampWindowOf = (device: Device, now: DateTime, zone: string | null): Light
  * running. Never the lamp: a lamp held off at noon, dimmed to 0 % or cut by
  * the heat leaves the device in its day, holding its day's figures.
  */
-export const halfNowOf = (device: Device | null, live: DeviceLive | undefined, now: DateTime, offline: boolean): Half | null => {
+export const halfNowOf = (device: Device | null, live: DeviceLive | undefined, now: DateTime, offline: boolean): Half | null =>
+  holdingNowOf(device, live, now, offline)?.half ?? null;
+
+/**
+ * The same, with how it is known - the device's word, or its schedule for one
+ * not heard from - and whether a fridge is gliding its targets between the
+ * halves right now.
+ */
+export const holdingNowOf = (device: Device | null, live: DeviceLive | undefined, now: DateTime, offline: boolean): NowHolding | null => {
   const shape = storedShapeOf(device);
-  if (!device?.configuration || !shape) return offline ? null : (setpointsOf(live)?.active ?? null);
+  if (!device?.configuration || !shape) {
+    const said = offline ? null : (setpointsOf(live)?.active ?? null);
+    return said ? { half: said, by: 'device', glide: null } : null;
+  }
   const stored = draftOf(device.configuration);
-  return nowHoldingOf({ device, shape, stored, live, offline, now, clock: () => '' }).half;
+  return nowHoldingOf({ device, shape, stored, live, offline, now, clock: () => '' });
 };
 
 /** "12" or "12,5": the length of the day the way a person says it, in the reader's own decimals. */
