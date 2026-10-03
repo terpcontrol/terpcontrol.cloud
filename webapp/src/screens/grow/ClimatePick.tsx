@@ -86,7 +86,10 @@ export function ClimatePick({
 
   const line = (): string => {
     if (chosen && stage === 'germination')
-      return t('climatePick.setsGermination', { temperature: targetFigure(chosen.nightTemperature, 'temperature') });
+      return t('climatePick.setsGermination', {
+        temperature: targetFigure(chosen.nightTemperature, 'temperature'),
+        humidity: targetFigure(chosen.nightHumidity, 'humidity'),
+      });
     if (chosen) return t(darkOf(chosen, preset) ? 'climatePick.setsDark' : 'climatePick.sets', { figures: summary(t, chosen, preset, offset) });
     // Drying keeps no day and no light: what stays is the night it holds round the clock.
     if (startsDrying) {
@@ -132,7 +135,7 @@ export function ClimatePick({
           value={choices}
           onChange={change => onChange({ ...value, germination: { ...value.germination, ...change } })}
           humidifier={humidifier}
-          humidity={now.nightHumidity}
+          humidity={chosen?.nightHumidity ?? now.nightHumidity}
         />
       ) : null}
     </Block>

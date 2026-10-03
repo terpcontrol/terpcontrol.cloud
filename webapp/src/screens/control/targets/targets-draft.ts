@@ -150,7 +150,7 @@ export const presetOf = (chip: ClimateChoice): ClimatePreset | null => climatePr
  * The draft with a preset's figures in it. Only the figures move: nothing is
  * written until it is saved. A figure the preset leaves out stays where it is,
  * as it does on the server: drying says nothing about the light hours, and
- * germination names its one temperature and nothing else.
+ * germination names its temperature and its humidity and nothing else.
  */
 export const prefilled = (draft: TargetsDraft, preset: ClimatePreset): TargetsDraft => ({
   ...draft,

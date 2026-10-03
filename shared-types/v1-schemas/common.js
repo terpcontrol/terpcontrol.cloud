@@ -84,10 +84,12 @@ exports.subjectRef = subjectRef;
 exports.growthStage = (0, exports.named)('GrowthStage', zod_1.z.enum(['germination', 'seedling', 'vegetative', 'flowering', 'drying', 'curing']));
 /**
  * What a grower decides about the air's humidity while a fridge or a tent
- * controller germinates in the dark. Germination itself holds one temperature
- * and dries nothing, but two things go on reading the humidity: a humidifier
- * socket, which follows the night's humidity in every mode that regulates, and
- * the alarms that say the air is too humid. Whether either goes on is the
+ * controller germinates in the dark. Germination itself regulates one
+ * temperature and dries nothing, but two things go on reading the humidity: a
+ * humidifier socket, which follows the night's humidity in every mode that
+ * regulates - germination's own 75 % from the moment it begins
+ * (`GERMINATION_HUMIDITY`) - and the alarms that say the air is too humid.
+ * Whether either goes on is the
  * grower's to say (`GERMINATION_CHOICES` in `climate-presets.ts` has what holds
  * where nobody said).
  *
@@ -100,7 +102,7 @@ exports.germinationChoices = (0, exports.named)('GerminationChoices', zod_1.z.ob
         .describe('Whether the stage\'s "too humid" alarm on the device goes on warning while it germinates, at germination\'s own line (`GERMINATION_TOO_HUMID`, 90 %). False rests it until germination ends. An alarm a person wrote is theirs and is never rested.'),
     humidifierHolds: zod_1.z
         .boolean()
-        .describe("Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination."),
+        .describe("Whether a humidifier socket goes on holding the night's humidity while the device germinates - 75 % (`GERMINATION_HUMIDITY`) unless the grower set another. False rests it until germination ends; nothing else regulates the humidity in germination."),
 }));
 /** The owner is `spaces.ownerId` and never a membership row, so there is no `owner` role. */
 exports.memberRole = (0, exports.named)('MemberRole', zod_1.z.enum(['can_log', 'can_manage']));

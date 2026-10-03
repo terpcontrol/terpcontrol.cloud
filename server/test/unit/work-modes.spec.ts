@@ -475,10 +475,11 @@ describe('every other way a document is written', () => {
 
     await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, (await stored()).configuration, true)!, 'germination');
     const germinating = await stored();
+    // Germination brings its 24 °C and its 75 % (owner's decision G3); the day, the CO2 and the lamp stay for the seedling.
     expect(germinating.configuration).toMatchObject({
       workmode: 'breed',
       day: { temperature: 25, humidity: 60 },
-      night: { temperature: 24, humidity: 55 },
+      night: { temperature: 24, humidity: 75 },
       co2: { target: 900 },
       lights: { limit: 80 },
       daynight: { day: 21600, night: 64800 },
@@ -501,7 +502,7 @@ describe('every other way a document is written', () => {
     await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, (await stored()).configuration, true)!, 'germination');
 
     await configuration.applyConfiguration(DEVICE, {}, 'seedling');
-    expect((await stored()).configuration).toMatchObject({ workmode: 'small', day: { temperature: 25 }, night: { temperature: 20 } });
+    expect((await stored()).configuration).toMatchObject({ workmode: 'small', day: { temperature: 25 }, night: { temperature: 20, humidity: 55 } });
 
     // The plan's hourly re-send of a seedling step leaves the light where it is.
     published = [];
@@ -659,8 +660,13 @@ describe('a humidifier while the device germinates', () => {
     // The choice was for that germination: the next one starts from the defaults, which hold - by the fridge's own tuning.
     expect(after.germinationChoices).toBeNull();
 
+    // In germination the fridge is tuned from the night it holds - germination's 75 % - and not from the 50 % of the
+    // flowering day it stood on: the humidifier switches five points under it, which the dry tuning's band of 0 did not say.
     await configuration.applyConfiguration(DEVICE, { night: { temperature: 24 } }, 'germination');
-    expect(bandOf((await stored()).configuration)).toBe(0);
+    expect((await stored()).configuration).toMatchObject({
+      night: { humidity: 75 },
+      daynight: { maxDehumidifySeconds: 2700, targetHumidityDiff: 5, useLongHumidityAvg: 0 },
+    });
   });
 
   it('puts back the band a controller had, which its dehumidifier switches by', async () => {
@@ -720,28 +726,55 @@ describe('a humidifier while the device germinates', () => {
     expect((await stored()).configuration).toMatchObject({ workmode: 'full', night: { temperature: 19, humidity: 50 } });
   });
 
-  it('writes the humidity a humidifier holds where the save shows it, and puts the night from before back afterwards', async () => {
+  it('writes the humidity germination is saved with, and puts the night from before back afterwards', async () => {
     await device();
-    await configuration.replace(DEVICE, fridgeDocument({ night: { temperature: 24, humidity: 55 } }), OWNER, false, true);
+    // The page prefills germination's 75 % with its chip; the save writes it as the night's.
+    await configuration.replace(DEVICE, fridgeDocument({ night: { temperature: 24, humidity: 75 } }), OWNER, false, true);
+    expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { temperature: 24, humidity: 75 } });
 
-    // A page that does not show the humidity sends what it last read; it is not germination's to change.
+    // Germination's humidity is the grower's to change under Steuerung, a humidifier or not.
     await configuration.replace(DEVICE, fridgeDocument({ workmode: 'breed', night: { temperature: 24, humidity: 80 } }), OWNER);
-    expect((await stored()).configuration).toMatchObject({ night: { temperature: 24, humidity: 55 } });
-
-    await configuration.replace(
-      DEVICE,
-      fridgeDocument({ workmode: 'breed', night: { temperature: 24, humidity: 80 } }),
-      OWNER,
-      undefined,
-      undefined,
-      {
-        humidifierHolds: true,
-      },
-    );
     expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { temperature: 24, humidity: 80 } });
 
     await configuration.configure(DEVICE, { mode: 'standard' }, OWNER);
     expect((await stored()).configuration).toMatchObject({ workmode: 'small', night: { temperature: 20, humidity: 55 } });
+  });
+
+  it('brings germination its own humidity however it begins, and gives the night from before back however it ends', async () => {
+    // The operating mode by name names no humidity: germination brings its 75 % all the same.
+    await device({ configuration: fridgeDocument({ day: { temperature: 25, humidity: 50 }, night: { temperature: 20, humidity: 50 } }) });
+    await configuration.configure(DEVICE, { mode: 'germination' }, OWNER);
+    const germinating = await stored();
+    // The temperature stays the night's until the grower sets another; the humidity is germination's.
+    expect(germinating.configuration).toMatchObject({ workmode: 'breed', night: { temperature: 20, humidity: 75 } });
+    expect(germinating.beforeGermination).toEqual({ 'night.temperature': 20, 'night.humidity': 50 });
+    expect(published.at(-1)).toMatchObject({ night: { humidity: 75 } });
+
+    // Changed by hand in germination, it is kept through the plan's re-sends and the operating mode's switches.
+    await configuration.replace(DEVICE, fridgeDocument({ workmode: 'breed', night: { temperature: 23, humidity: 82 } }), OWNER);
+    await configuration.applyConfiguration(DEVICE, { night: { temperature: 23 } }, 'germination');
+    await configuration.configure(DEVICE, { germinationWarnTooHumid: true }, OWNER);
+    expect((await stored()).configuration).toMatchObject({ night: { temperature: 23, humidity: 82 } });
+
+    // Back to the standard, the 50 % the dehumidifier dried to before comes back.
+    await configuration.configure(DEVICE, { mode: 'standard' }, OWNER);
+    expect((await stored()).configuration).toMatchObject({ workmode: 'small', night: { temperature: 20, humidity: 50 } });
+
+    // A plan step into germination that names a humidity of its own writes that one.
+    await configuration.applyConfiguration(DEVICE, { night: { temperature: 24, humidity: 70 } }, 'germination');
+    expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { temperature: 24, humidity: 70 } });
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 25 } }, null);
+    expect((await stored()).configuration).toMatchObject({ workmode: 'small', night: { temperature: 20, humidity: 50 } });
+  });
+
+  it('does not write germination´s humidity over a device that only comes back on while it germinates', async () => {
+    await device({
+      configuration: fridgeDocument({ workmode: 'breed', night: { temperature: 24, humidity: 82 } }),
+      beforeGermination: { 'night.humidity': 55 },
+    });
+    await configuration.configure(DEVICE, { control: false }, OWNER);
+    await configuration.configure(DEVICE, { control: true }, OWNER);
+    expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { humidity: 82 } });
   });
 
   it('puts back only the night figures a step back into the light does not name', async () => {

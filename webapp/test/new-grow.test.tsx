@@ -289,7 +289,8 @@ describe('the new-grow sheet', () => {
 
     const choices = await screen.findByRole('group', { name: 'During germination' });
     expect(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' })).toHaveAttribute('aria-checked', 'false');
-    await waitFor(() => expect(within(choices).getByText('The humidifier holds 55 % – it never makes it wetter than that.')).toBeInTheDocument());
+    // Germination brings its own humidity, so that is the one the humidifier will hold, not the night's 55 %.
+    await waitFor(() => expect(within(choices).getByText('The humidifier holds 75 % – it never makes it wetter than that.')).toBeInTheDocument());
     fireEvent.click(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' }));
     fireEvent.click(within(choices).getByRole('switch', { name: 'Hold the humidity with the humidifier' }));
     press('Start the grow · Day 1');

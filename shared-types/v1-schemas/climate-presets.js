@@ -30,16 +30,17 @@
  * the server decides from the stage rather than from this table.
  *
  * Germination is the one row that holds less than a whole climate. The dark
- * mode holds the night's temperature round the clock, with the lamp off, no
- * CO2 and the humidity left to itself, so the row is that one temperature and
- * nothing else: every figure it leaves out stays as it is, for the seedling
- * climate that follows.
+ * mode holds the night round the clock, with the lamp off and no CO2: its
+ * temperature, and its humidity for a humidifier socket to hold. So the row is
+ * those two figures and nothing else: every figure it leaves out - the day, the
+ * lamp, the light hours, the CO2 - stays as it is, for the seedling climate that
+ * follows.
  *
  * The alarm bands at the end are derived from the same rows, so that what a
  * stage watches for cannot drift from what it asks for.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.watchNow = exports.restsInGermination = exports.isStageTooHumid = exports.watchesTooHumid = exports.germinationChoicesOf = exports.GERMINATION_CHOICES = exports.GERMINATION_TOO_HUMID = exports.stageAlarmBands = exports.CO2_ALARM_PPM = exports.climatePreset = exports.STAGES_WITH_CLIMATE = exports.PRESETS_OF_STAGE = exports.GERMINATION_TEMPERATURE = exports.AMBIENT_CO2 = void 0;
+exports.watchNow = exports.restsInGermination = exports.isStageTooHumid = exports.watchesTooHumid = exports.germinationChoicesOf = exports.GERMINATION_CHOICES = exports.GERMINATION_TOO_HUMID = exports.stageAlarmBands = exports.CO2_ALARM_PPM = exports.climatePreset = exports.STAGES_WITH_CLIMATE = exports.PRESETS_OF_STAGE = exports.GERMINATION_HUMIDITY = exports.GERMINATION_TEMPERATURE = exports.AMBIENT_CO2 = void 0;
 /** What outdoor air holds: the target a stage that does not enrich is written with. */
 exports.AMBIENT_CO2 = 400;
 /**
@@ -51,6 +52,25 @@ exports.AMBIENT_CO2 = 400;
  * warmth.
  */
 exports.GERMINATION_TEMPERATURE = 24;
+/**
+ * The humidity germination brings with it, held through the dark by a
+ * humidifier socket where the grower lets one hold it (owner's decision G3).
+ * Seeds take up water to swell and push out the root, and they sprout well
+ * anywhere from about 70 to 90 %: drier, the medium dries out at its surface
+ * and the seed coat hardens; wetter, water stands on the medium and the tray.
+ * 75 % is inside that with room on both sides - a humidifier switching on five
+ * points under it never lets the box fall below 70 %, and it stays well clear of
+ * the 90 % where "too humid" warns (`GERMINATION_TOO_HUMID`). The seedling
+ * climate after it holds 65 to 70 %, so the step into the light is a small one.
+ *
+ * It is the night's humidity because that is the one the dark mode goes by: the
+ * firmware knows no day in germination, and a humidifier socket follows the
+ * night's figure there. Before germination the same figure told a dehumidifier
+ * where to start drying a leafy plant's air - 50 % in flower - which is why it is
+ * written whenever germination begins, by whatever way, rather than kept: held
+ * by a humidifier in the dark, the flowering figure would leave the seeds dry.
+ */
+exports.GERMINATION_HUMIDITY = 75;
 /** The presets that refine a stage, by the stage they refine. The stage on its own is always an option and is not one of them. */
 exports.PRESETS_OF_STAGE = {
     vegetative: ['autoflower'],
@@ -61,7 +81,7 @@ const PRESETS = {
         dayTemperature: null,
         nightTemperature: exports.GERMINATION_TEMPERATURE,
         dayHumidity: null,
-        nightHumidity: null,
+        nightHumidity: exports.GERMINATION_HUMIDITY,
         lightHours: null,
         lightLimit: null,
         co2: null,
@@ -98,10 +118,11 @@ const MINUTE = 60;
 /**
  * The rules a stage implies, or null for a stage with no climate: curing
  * happens in a jar, and a rule watching a flowering band there is noise.
- * Germination holds no humidity, so its "too humid" is not ten points over a
- * target but the line where germination itself goes wrong
- * (`GERMINATION_TOO_HUMID`), and it rests unless the grower asks to be warned
- * (`restsInGermination`).
+ * Germination's "too humid" is not ten points over its humidity but the line
+ * where germination itself goes wrong (`GERMINATION_TOO_HUMID`): its 75 % is
+ * what a humidifier lifts dry air to, not a ceiling the box is kept under, and a
+ * box that stands at 85 % is germinating well. It rests unless the grower asks
+ * to be warned (`restsInGermination`).
  *
  * Each margin is what tells a failure from weather. Five degrees over the day
  * target is a cooler that has failed rather than a warm afternoon, and it is
@@ -120,7 +141,7 @@ const stageAlarmBands = (stage, preset) => {
         return null;
     const warmest = climate.dayTemperature ?? climate.nightTemperature;
     const humidities = [climate.dayHumidity, climate.nightHumidity].filter((value) => value !== null);
-    const tooHumid = humidities.length > 0 ? Math.max(...humidities) + 10 : stage === 'germination' ? exports.GERMINATION_TOO_HUMID : null;
+    const tooHumid = stage === 'germination' ? exports.GERMINATION_TOO_HUMID : humidities.length > 0 ? Math.max(...humidities) + 10 : null;
     const bands = [
         { key: 'too_hot', watch: reading('temperature', warmest + 5, null), forSeconds: 10 * MINUTE, severity: 'critical' },
         tooHumid === null ? null : { key: 'too_humid', watch: reading('humidity', tooHumid, null), forSeconds: 20 * MINUTE, severity: 'warning' },
@@ -141,8 +162,9 @@ const reading = (metric, upper, lower) => ({
  * Germination's "too humid": air wetter than this for twenty minutes in the
  * dark. Seeds sprout well anywhere from about 70 to 90 % - a germination box is
  * meant to be humid - and above it water stands on the medium and on the tray,
- * which is where mould and damping-off begin. Germination holds no humidity of
- * its own, so this is the line itself rather than ten points over a target.
+ * which is where mould and damping-off begin. Germination's own humidity is
+ * what a humidifier lifts the air to (`GERMINATION_HUMIDITY`), not a ceiling, so
+ * this is the line itself rather than ten points over it.
  */
 exports.GERMINATION_TOO_HUMID = 90;
 /**
@@ -153,10 +175,11 @@ exports.GERMINATION_TOO_HUMID = 90;
  *   germination box reads far above any band meant for leaves, and an alarm
  *   that goes off every night of a germination teaches the grower to stop
  *   reading alarms.
- * - A humidifier socket goes on holding the night's humidity. Dry air is what
- *   fails a germination - the medium dries out and the seed coat hardens - and
- *   a humidifier only ever adds moisture up to its target, so it cannot make
- *   the box too wet. It is also what the firmware has always done in the dark.
+ * - A humidifier socket goes on holding the night's humidity, which germination
+ *   sets to its own 75 % (`GERMINATION_HUMIDITY`). Dry air is what fails a
+ *   germination - the medium dries out and the seed coat hardens - and a
+ *   humidifier only ever adds moisture up to its target, so it cannot make the
+ *   box too wet. It is also what the firmware has always done in the dark.
  */
 exports.GERMINATION_CHOICES = { warnTooHumid: false, humidifierHolds: true };
 /**

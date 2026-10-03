@@ -271,7 +271,7 @@ export interface GerminationChoices {
    */
   warnTooHumid: boolean;
   /**
-   * Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination.
+   * Whether a humidifier socket goes on holding the night's humidity while the device germinates - 75 % (`GERMINATION_HUMIDITY`) unless the grower set another. False rests it until germination ends; nothing else regulates the humidity in germination.
    */
   humidifierHolds: boolean;
 }
@@ -815,7 +815,7 @@ export interface DryingReturn1 {
 }
 
 /**
- * While germinating: the night's figures from before - germination holds the night's temperature round the clock, and a humidifier that holds goes by the night's humidity, so what is set for either is written there - which going back to another mode puts back. Only `nightTemperature` and `nightHumidity` are stated. Absent where nothing was kept.
+ * While germinating: the night's figures from before - germination holds the night's temperature round the clock and brings a humidity of its own for a humidifier to hold, and both are written in the night's place - which going back to another mode puts back. Only `nightTemperature` and `nightHumidity` are stated. Absent where nothing was kept.
  */
 
 export interface DryingReturn2 {
@@ -837,7 +837,7 @@ export interface GerminationChoices1 {
    */
   warnTooHumid: boolean;
   /**
-   * Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination.
+   * Whether a humidifier socket goes on holding the night's humidity while the device germinates - 75 % (`GERMINATION_HUMIDITY`) unless the grower set another. False rests it until germination ends; nothing else regulates the humidity in germination.
    */
   humidifierHolds: boolean;
 }
@@ -943,7 +943,7 @@ export interface DeviceConfigurationEnvelope {
      */
     warnTooHumid?: boolean;
     /**
-     * Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination.
+     * Whether a humidifier socket goes on holding the night's humidity while the device germinates - 75 % (`GERMINATION_HUMIDITY`) unless the grower set another. False rests it until germination ends; nothing else regulates the humidity in germination.
      */
     humidifierHolds?: boolean;
   };
@@ -2319,7 +2319,7 @@ export interface PresetApplicationCreate {
      */
     warnTooHumid?: boolean;
     /**
-     * Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination.
+     * Whether a humidifier socket goes on holding the night's humidity while the device germinates - 75 % (`GERMINATION_HUMIDITY`) unless the grower set another. False rests it until germination ends; nothing else regulates the humidity in germination.
      */
     humidifierHolds?: boolean;
   };
@@ -2425,7 +2425,7 @@ export interface PhaseCreate {
      */
     warnTooHumid?: boolean;
     /**
-     * Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination.
+     * Whether a humidifier socket goes on holding the night's humidity while the device germinates - 75 % (`GERMINATION_HUMIDITY`) unless the grower set another. False rests it until germination ends; nothing else regulates the humidity in germination.
      */
     humidifierHolds?: boolean;
   };

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowthStage, PresetApplication } from '@fg2/shared-types/v1';
-import { climatePreset, GERMINATION_TEMPERATURE, STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { climatePreset, GERMINATION_HUMIDITY, GERMINATION_TEMPERATURE, STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { serverNow } from '@/api/clock';
 import { useDevices } from '@/api/devices';
 import { useApplyPreset } from '@/api/lifecycle';
@@ -13,7 +13,7 @@ import { stageChoiceName } from '@/ui/presets';
 import { Choice, Choices } from '@/ui/SheetParts';
 import { GrowPicker } from '@/screens/space/GrowPicker';
 import { useMovableGrows } from '@/screens/space/movable-grows';
-import { figureOf, statesTargets } from '@/ui/climate-hardware';
+import { statesTargets } from '@/ui/climate-hardware';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
 import { GerminationChoices } from '../control/germination/GerminationChoices';
@@ -113,14 +113,19 @@ export function DoingStep({
       {stage && !applied && window ? <p className={ui.note}>{t('claim.doing.window', { light: window })}</p> : null}
       {/* Germination has no window to say: it is dark, and says what it holds instead. */}
       {stage === 'germination' && !applied ? (
-        <p className={ui.note}>{t('claim.doing.germination', { temperature: targetFigure(GERMINATION_TEMPERATURE, 'temperature') })}</p>
+        <p className={ui.note}>
+          {t('claim.doing.germination', {
+            temperature: targetFigure(GERMINATION_TEMPERATURE, 'temperature'),
+            humidity: targetFigure(GERMINATION_HUMIDITY, 'humidity'),
+          })}
+        </p>
       ) : null}
       {stage === 'germination' && !applied && controller?.control ? (
         <GerminationChoices
           value={{ ...choicesOf(controller), ...doing.germination }}
           onChange={change => onDoing({ ...doing, germination: { ...doing.germination, ...change } })}
           humidifier={humidifier}
-          humidity={controller.configuration ? figureOf(controller.configuration, 'night', 'humidity') : null}
+          humidity={GERMINATION_HUMIDITY}
           disabled={apply.isPending}
         />
       ) : null}

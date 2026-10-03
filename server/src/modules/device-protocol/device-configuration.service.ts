@@ -3,7 +3,7 @@ import { ModuleRef } from '@nestjs/core';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
-import { germinationChoicesOf, type GerminationChoiceValues } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { GERMINATION_HUMIDITY, germinationChoicesOf, type GerminationChoiceValues } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { co2FanKey, co2FanOf, co2InjectFor, type Co2Fan, type FieldSetting } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { HttpException } from '@common/http-exception';
 import { unprocessable } from '@common/v1/problem';
@@ -313,12 +313,19 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       dried && !dries && intent.kind === 'fields'
         ? withFigures(asked, Object.entries(await this.keptFor(deviceId, device.beforeDrying, before)))
         : asked;
+    // Germination brings its own humidity (owner's decision G3), however it is
+    // begun: the operating mode and a plan step that names none get it here, as
+    // a preset, a phase and the targets page bring it themselves. The figure
+    // before it was a dehumidifier's - where to start drying a leafy plant's
+    // air - and a humidifier holding it in the dark would leave the seeds dry.
     const wanted = backFromGermination
       ? withFigures(
           returned,
           Object.entries(germinated).filter(([path]) => !bringsOwn(path)),
         )
-      : returned;
+      : germinates && !bringsOwn(GERMINATION_HUMIDITY_PATH)
+        ? withFigures(returned, [[GERMINATION_HUMIDITY_PATH, GERMINATION_HUMIDITY]])
+        : returned;
     // What germination does about the humidity: what this write says, over what
     // the device keeps, over what holds where nobody said. The device keeps it
     // for the one germination: a write that ends germination lets it go, so the
@@ -328,9 +335,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     const kept = germinationChoicesOf(device.germinationChoices ?? null);
     const choices = germinationChoicesOf({ ...(device.germinationChoices ?? {}), ...(said ?? {}) });
     const ended = leavesGermination(before?.workmode, mode?.workmode);
-    // A save that shows the humidity a humidifier holds in germination writes it.
-    const humidified = intent.kind === 'targets' && said?.humidifierHolds === true;
-    const idle = intent.kind === 'targets' && mode ? withIdleFiguresKept(before, wanted, mode.workmode, humidified) : wanted;
+    const idle = intent.kind === 'targets' && mode ? withIdleFiguresKept(before, wanted, mode.workmode) : wanted;
     const moded = mode ? { ...idle, workmode: mode.workmode } : idle;
     const band = humidifierBand(moded, !choices.humidifierHolds, device.restedHumidityBand ?? null);
     const held = heldTo(device.type, band.configuration);
@@ -446,6 +451,9 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
 }
 
 const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** Where germination's own humidity is written: the night's, the one half the dark mode holds. */
+const GERMINATION_HUMIDITY_PATH = 'night.humidity';
 
 const standingNow = (configuration: DeviceConfiguration | null): string | null =>
   typeof configuration?.workmode === 'string' ? configuration.workmode : null;

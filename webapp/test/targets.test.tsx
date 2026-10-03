@@ -514,7 +514,13 @@ describe('the targets page', () => {
     expect(screen.getByRole('button', { name: 'Germination · dark' })).toHaveAttribute('aria-pressed', 'true');
     expect(field('Temperature while germinating').value).toBe('24');
     expect(screen.queryByRole('spinbutton', { name: 'Day temperature' })).not.toBeInTheDocument();
-    expect(screen.getByText(/^Saving switches to Germination · dark: light off, no CO₂, one temperature round the clock\./)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /^Saving switches to Germination · dark: light off, no CO₂, one temperature and 75 % humidity for a humidifier round the clock\./,
+      ),
+    ).toBeInTheDocument();
+    // Without a humidifier nothing holds the humidity, so the table does not show it.
+    expect(screen.queryByRole('spinbutton', { name: 'Humidity while germinating' })).not.toBeInTheDocument();
     // What germination does about the humidity is asked under the table: the alarm alone, where no humidifier is paired.
     const choices = screen.getByRole('group', { name: 'During germination' });
     expect(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' })).toHaveAttribute('aria-checked', 'false');
@@ -528,9 +534,31 @@ describe('the targets page', () => {
     const body = sent('PUT')[0].body as { configuration: DeviceConfiguration; germination?: boolean; drying?: boolean };
     expect(body).toMatchObject({ germination: true, drying: false, germinationChoices: { warnTooHumid: false } });
     expect(body).not.toHaveProperty('germinationChoices.humidifierHolds');
-    expect(body.configuration.night).toEqual({ temperature: 24, humidity: 55 });
-    // The rest stays for the seedling after it.
+    // Germination brings its 75 % all the same, for a humidifier paired later; the rest stays for the seedling after it.
+    expect(body.configuration.night).toEqual({ temperature: 24, humidity: 75 });
     expect(body.configuration.day).toEqual({ temperature: 25, humidity: 60, heating: 'hard' });
+  });
+
+  it('prefills germination´s 75 % for a paired humidifier, and draws its chip chosen by what the table shows', async () => {
+    wire.sockets = ['humidifier'];
+    const lit = { running: true, drying: false, mode: 'standard' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
+    const { unmount } = draw([device({ type: 'fridge', configuration: { ...CONFIGURATION, workmode: 'small' }, control: lit })]);
+
+    await screen.findByRole('spinbutton', { name: 'Day temperature' });
+    await screen.findByRole('switch', { name: 'Energy saving' });
+    tap('Germination · dark');
+    expect(field('Temperature while germinating').value).toBe('24');
+    expect(((await screen.findByRole('spinbutton', { name: 'Humidity while germinating' })) as HTMLInputElement).value).toBe('75');
+    expect(screen.getByText('The humidifier holds 75 % – it never makes it wetter than that.')).toBeInTheDocument();
+    unmount();
+
+    // A device that went into germination before it brought a humidity, with nothing to hold one: the chip is still its own.
+    wire.sockets = [];
+    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
+    draw([
+      device({ type: 'fridge', configuration: { ...CONFIGURATION, workmode: 'breed', night: { temperature: 24, humidity: 55 } }, control: dark }),
+    ]);
+    expect(await screen.findByRole('button', { name: 'Germination · dark' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   /**

@@ -515,7 +515,9 @@ describe('adding a device', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
     expect(
-      screen.getByText(/^Germination · dark: the light goes off, there is no CO₂, and the device holds 24 °C round the clock/),
+      screen.getByText(
+        /^Germination · dark: the light goes off, there is no CO₂, and the device holds 24 °C round the clock; a humidifier on a smart socket holds 75 % humidity besides\./,
+      ),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Put it on Germination · dark' }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'germination' }));

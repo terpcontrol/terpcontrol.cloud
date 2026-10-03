@@ -158,14 +158,19 @@ const fridge = (configuration: DeviceConfiguration): DeviceConfiguration => {
 
 /**
  * The half whose humidity the dehumidifier is tuned from: the one the fridge
- * holds. That is the day's - except in drying, which holds the night's round
- * the clock, and with a light that never comes on, which is always night. A
- * drying room at 50 % was tuned for the 58 % its unused day still said.
+ * holds. That is the day's - except in drying and germination, which hold the
+ * night's round the clock (the firmware knows no day in either), and with a
+ * light that never comes on, which is always night. A drying room at 50 % was
+ * tuned for the 58 % its unused day still said. A germinating fridge dries
+ * nothing - its compressor only cools - and the band is read by a humidifier
+ * alone, which the firmware switches five points under the night's 75 % at the
+ * least; tuned from the flowering day it stood on before, the band went to the
+ * dry tuning's zero, which is not what the humidifier does.
  */
 const heldHalfOf = (configuration: DeviceConfiguration): 'day' | 'night' => {
   const daynight = sectionOf(configuration, 'daynight');
   const dark = typeof daynight?.day === 'number' && daynight.day === daynight.night;
-  return configuration.workmode === 'dry' || dark ? 'night' : 'day';
+  return configuration.workmode === 'dry' || configuration.workmode === 'breed' || dark ? 'night' : 'day';
 };
 
 /**

@@ -63,14 +63,19 @@ describe('the germination preset', () => {
 
       await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'germination' }).expect(201);
 
+      // 24 °C and 75 % in the night's place (owner's decision G3); the day, the lamp and the light hours stay for the seedling.
       expect(await configurationOf(device)).toMatchObject({
         workmode: 'breed',
-        night: { temperature: 24, humidity: 55 },
+        night: { temperature: 24, humidity: 75 },
         day: { temperature: 25, humidity: 60 },
         lights: { limit: 80 },
         daynight: { day: 6 * HOUR, night: 22 * HOUR },
       });
-      expect(await controlOf(device)).toMatchObject({ running: true, mode: 'germination', afterGermination: { nightTemperature: 20 } });
+      expect(await controlOf(device)).toMatchObject({
+        running: true,
+        mode: 'germination',
+        afterGermination: { nightTemperature: 20, nightHumidity: 55 },
+      });
 
       await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'seedling' }).expect(201);
 
@@ -127,7 +132,7 @@ describe('a grow entering germination', () => {
 
     // The seedling stage without its climate: the light comes back on the targets that held before germination.
     await owner.client.post(`/v1/grows/${grow}/phases`).send({ stage: 'seedling' }).expect(201);
-    expect(await configurationOf(device)).toMatchObject({ workmode: 'small', day: { temperature: 25 }, night: { temperature: 20 } });
+    expect(await configurationOf(device)).toMatchObject({ workmode: 'small', day: { temperature: 25 }, night: { temperature: 20, humidity: 55 } });
     expect((await controlOf(device)).afterGermination).toBeUndefined();
   });
 
@@ -210,6 +215,8 @@ describe('the operating mode of a tent controller', () => {
       .send({ set: { mode: 'germination' } })
       .expect(200);
     expect(answer.body.control).toMatchObject({ running: true, mode: 'germination' });
+    // The mode keeps the night's temperature, and brings germination's humidity for a humidifier to hold.
+    expect(answer.body.configuration).toMatchObject({ workmode: 'breed', night: { temperature: 20, humidity: 75 } });
 
     const refused = await owner.client
       .patch(`/v1/devices/${device.deviceId}/configuration`)
@@ -221,7 +228,7 @@ describe('the operating mode of a tent controller', () => {
       .patch(`/v1/devices/${device.deviceId}/configuration`)
       .send({ set: { mode: 'standard' } })
       .expect(200);
-    expect(await configurationOf(device)).toMatchObject({ workmode: 'small', night: { temperature: 20 } });
+    expect(await configurationOf(device)).toMatchObject({ workmode: 'small', night: { temperature: 20, humidity: 55 } });
   });
 });
 
@@ -290,6 +297,31 @@ describe('the choices germination makes about the humidity', () => {
       .expect(200);
     expect(answer.body.control.germinationChoices).toEqual({ warnTooHumid: false, humidifierHolds: true });
     expect(await bandOf(device)).toBe(5);
+  });
+
+  it('hold germination´s own humidity with a humidifier, sent as the night´s and resting at nothing', async () => {
+    const { device, spaceId } = await placed('fridge');
+    const simulator = await startSimulator(device);
+    try {
+      await settle();
+      await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'germination' }).expect(201);
+      const held = JSON.parse((await simulator.waitFor('configuration', 10_000, payload => JSON.parse(payload).workmode === 'breed')).payload);
+      expect(held).toMatchObject({ workmode: 'breed', night: { temperature: 24, humidity: 75 } });
+      // The fridge is tuned from the night it holds, which leaves its humidifier the five points the help promises.
+      expect(held.daynight).toMatchObject({ targetHumidityDiff: 5 });
+
+      simulator.clear();
+      await owner.client
+        .patch(`/v1/devices/${device.deviceId}/configuration`)
+        .send({ set: { germinationHumidifier: false } })
+        .expect(200);
+      const resting = JSON.parse((await simulator.waitFor('configuration')).payload);
+      expect(resting).toMatchObject({ night: { humidity: 0 }, daynight: { targetHumidityDiff: 100 } });
+      // What the grower is shown, and what comes back once the humidifier may hold again, is germination's 75 %.
+      expect(await configurationOf(device)).toMatchObject({ night: { temperature: 24, humidity: 75 } });
+    } finally {
+      await simulator.close();
+    }
   });
 
   it('are kept on a germination step of a plan, and on no other', async () => {

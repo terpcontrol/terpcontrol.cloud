@@ -278,8 +278,11 @@ describe('light hours in a step', () => {
   });
 
   /** Germination is dark and holds one temperature, the one seeds sprout at unless the step names another. */
-  it('are one temperature for a germination step, in the dark, the one seeds sprout at', () => {
-    const veg = draft({ lightHours: 18, settings: { day: { temperature: 26, humidity: 62 }, co2: { target: 900 }, lights: { limit: 80 } } });
+  it('are germination´s temperature and humidity for a germination step, in the dark, the ones seeds sprout at', () => {
+    const veg = draft({
+      lightHours: 18,
+      settings: { day: { temperature: 26, humidity: 62 }, night: { humidity: 58 }, co2: { target: 900 }, lights: { limit: 80 } },
+    });
     wrap(<PlanEditor device={device()} plan={null} draft={veg} onClose={() => {}} />);
 
     const stages = screen.getAllByRole('button', { name: / · (dark|with light)$/ }).map(chip => chip.textContent);
@@ -289,18 +292,32 @@ describe('light hours in a step', () => {
     expect(screen.queryByText('Day · temperature')).not.toBeInTheDocument();
     expect(screen.queryByText('Night · humidity')).not.toBeInTheDocument();
     expect(screen.getByText('Germination · temperature')).toBeInTheDocument();
+    expect(screen.getByText('Germination · humidity')).toBeInTheDocument();
     expect(
-      screen.getByText(/^A step into germination switches the device dark: no light, no CO₂, only a humidifier holding the humidity/),
+      screen.getByText(
+        /^A step into germination switches the device dark: no light, no CO₂, and it holds this temperature round the clock; a humidifier holds the humidity/,
+      ),
     ).toBeInTheDocument();
 
+    // The humidity the step carried for a leafy plant was a dehumidifier's line; germination brings its own 75 %.
     fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
-    expect(state.saved[0].steps[0]).toMatchObject({ stage: 'germination', lightHours: null, settings: { night: { temperature: 24 } } });
+    expect(state.saved[0].steps[0]).toMatchObject({ stage: 'germination', lightHours: null, settings: { night: { temperature: 24, humidity: 75 } } });
     expect(Object.keys(state.saved[0].steps[0].settings)).toEqual(['night']);
     // The step says what germination does about the humidity, starting from what the device does now.
     expect(state.saved[0].steps[0].germinationChoices).toEqual({ warnTooHumid: false, humidifierHolds: true });
   });
 
   /** A germination step carries what it does about the humidity, which the plan puts on the device with it. */
+  it('give a germination step that names no humidity germination´s 75 %, which its humidifier switch says', () => {
+    wrap(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
+
+    const humidity = screen.getByText('Germination · humidity').closest('label')!;
+    expect(within(humidity).getByRole('spinbutton')).toHaveValue(75);
+    fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
+    expect(state.saved.at(-1)?.steps[0].settings).toEqual({ night: { temperature: 24, humidity: 75 } });
+  });
+
   it('keep a germination step´s choices about the humidity, and drop them where the step stops germinating', () => {
     wrap(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
 
@@ -332,7 +349,7 @@ describe('light hours in a step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
     fireEvent.click(screen.getByRole('button', { name: 'Take what the device holds now' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
-    expect(state.saved.at(-1)?.steps[0]).toMatchObject({ stage: 'germination', settings: { night: { temperature: 23 } } });
+    expect(state.saved.at(-1)?.steps[0]).toMatchObject({ stage: 'germination', settings: { night: { temperature: 23, humidity: 55 } } });
   });
 
   it('take the hours the controller holds now along with its figures', () => {

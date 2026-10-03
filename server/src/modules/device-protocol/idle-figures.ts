@@ -6,8 +6,9 @@ import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
  * targets in it.
  *
  * A fridge drying holds the night's temperature and humidity and nothing else;
- * germinating, the night's temperature alone; in the greenhouse mode no
- * humidity; with 24 hours of light no night, and with none no day. The figures
+ * germinating, the night's temperature and the humidity a humidifier holds; in
+ * the greenhouse mode no humidity; with 24 hours of light no night, and with
+ * none no day. The figures
  * a mode leaves alone are not lost: they are what the device holds again the
  * moment the mode ends, or the light schedule changes back. A page that shows
  * only what is held still sends a whole document, and whatever it put in the
@@ -22,9 +23,9 @@ import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
  * names: those bring a climate of their own. Germination keeps them from the
  * save that begins it, too: it puts aside only the night it writes over, so a
  * day sent with it would be the day the device wakes up to afterwards. The
- * night's humidity is germination's own where a humidifier holds it and the
- * save shows it - the one humidity a germinating device goes by - and is then
- * written as sent.
+ * night's humidity is germination's own (`GERMINATION_HUMIDITY`, the one a
+ * humidifier holds in the dark) and is written as sent: the page prefills it
+ * with the germination chip and shows it where a humidifier holds it.
  */
 
 /**
@@ -35,7 +36,7 @@ import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
  */
 const IDLE_IN_MODE: Readonly<Record<string, readonly string[]>> = {
   dry: ['day.temperature', 'day.humidity', 'co2.target', 'lights.limit'],
-  breed: ['day.temperature', 'day.humidity', 'night.humidity', 'co2.target', 'lights.limit'],
+  breed: ['day.temperature', 'day.humidity', 'co2.target', 'lights.limit'],
   temp: ['day.humidity', 'night.humidity'],
 };
 
@@ -65,22 +66,15 @@ const hoursOf = (document: DeviceConfiguration | null): number | null => {
 /**
  * `asked` with the figures its mode leaves alone put back to what `before`
  * stored. `workmode` is the mode the write leaves the device in, as the server
- * decided it; `before`'s is the one it was in. `humidified` is whether a
- * humidifier holds the night's humidity in germination and the save sets it.
+ * decided it; `before`'s is the one it was in.
  */
-export const withIdleFiguresKept = (
-  before: DeviceConfiguration | null,
-  asked: DeviceConfiguration,
-  workmode: string | null,
-  humidified = false,
-): DeviceConfiguration => {
+export const withIdleFiguresKept = (before: DeviceConfiguration | null, asked: DeviceConfiguration, workmode: string | null): DeviceConfiguration => {
   const stays = (mode: string) => workmode === mode && (before?.workmode === mode || mode === 'breed');
   const hours = hoursOf(asked);
   const idle = new Set<string>([
     ...Object.entries(IDLE_IN_MODE).flatMap(([mode, paths]) => (stays(mode) ? paths : [])),
     ...(hours === 24 ? IDLE_ALWAYS_DAY : hours === 0 ? IDLE_ALWAYS_NIGHT : []),
   ]);
-  if (humidified && workmode === 'breed') idle.delete('night.humidity');
 
   const next: DeviceConfiguration = { ...asked };
   for (const path of idle) {

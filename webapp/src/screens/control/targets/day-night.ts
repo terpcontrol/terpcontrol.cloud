@@ -29,7 +29,8 @@ export type Half = 'day' | 'night';
  *   kept for when there is a night again.
  * - `never`: no hours of light. Only the night's figures hold, in the dark.
  * - `drying`, `germination`: no day at all - the night's figures, held round
- *   the clock in the dark. Germination holds only the temperature.
+ *   the clock in the dark. Germination regulates only the temperature; its
+ *   humidity is held by a humidifier socket where the grower lets one.
  * - `sensor`: an AIR fan, whose day is whatever its light sensor sees.
  * - `off`: control is switched off and nothing is held.
  */

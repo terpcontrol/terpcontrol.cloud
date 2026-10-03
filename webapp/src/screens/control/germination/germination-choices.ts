@@ -28,8 +28,7 @@ export const useHumidifier = (device: Device | null): boolean => {
 
 /**
  * What a save says about the choices: the alarm always, the humidifier only
- * where one is offered - the server writes the night's humidity in germination
- * only for a save that shows it.
+ * where one is offered - without a humidifier there is nothing for it to say.
  */
 export const choicesSaid = (choices: GerminationChoices, humidifier: boolean): Partial<GerminationChoices> =>
   humidifier ? { ...choices } : { warnTooHumid: choices.warnTooHumid };

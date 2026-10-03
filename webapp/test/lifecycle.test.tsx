@@ -561,7 +561,7 @@ describe('the climate beside a phase', () => {
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Germination · dark' }));
     expect(
       screen.getByText(
-        /^New: Germination · dark – light off, no CO₂, 24 °C round the clock; only a humidifier holds the humidity\..* The alarms Too hot and Too cold follow germination; Too humid is set to above 90 %: It rests until germination ends\.$/,
+        /^New: Germination · dark – light off, no CO₂, 24 °C and 75 % humidity round the clock, the humidity held by a humidifier alone\..* The alarms Too hot and Too cold follow germination; Too humid is set to above 90 %: It rests until germination ends\.$/,
       ),
     ).toBeInTheDocument();
     // What germination does about the humidity is asked beside its climate: the alarm, and no humidifier where none is paired.

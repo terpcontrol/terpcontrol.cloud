@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, GrowthStage, Plan, PlanNotifyMode } from '@fg2/shared-types/v1';
+import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useSavePlan } from '@/api/plans';
 import { Sheet } from '@/log/Sheet';
 import { awaitingClimate, figureOf as documentFigure, hasCo2Sensor } from '@/ui/climate-hardware';
@@ -308,7 +309,11 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
           value={choices}
           onChange={change => onChange({ germinationChoices: { ...choices, ...change } })}
           humidifier={humidifier}
-          humidity={device.configuration ? documentFigure(device.configuration, 'night', 'humidity') : null}
+          // The humidity the step holds, or what the device goes on holding where it names none.
+          humidity={
+            documentFigure(step.settings, 'night', 'humidity') ??
+            (germinates(device) && device.configuration ? documentFigure(device.configuration, 'night', 'humidity') : GERMINATION_HUMIDITY)
+          }
         />
       ) : null}
       {step.lightHours !== null && (step.lightHours < LIGHT_HOURS.min || step.lightHours > LIGHT_HOURS.max) ? (

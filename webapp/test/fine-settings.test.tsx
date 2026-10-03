@@ -122,8 +122,11 @@ describe('the fine settings themselves', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
     expect(api.patch).not.toHaveBeenCalled();
     expect(screen.getByText(/^Switch to Germination · dark\? For seeds germinating in the dark: no light, no CO₂/)).toBeInTheDocument();
-    // What going back does to the night is said before it is chosen, and what germination does about the humidity.
-    expect(screen.getByText(/Back on standard, the night temperature from before holds again/)).toBeInTheDocument();
+    // What going back does to the night is said before it is chosen, the humidity germination brings, and what it does about it.
+    expect(
+      screen.getByText(/the night temperature at first, to be changed under Targets – and 75 % humidity for a humidifier\./),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Back on standard, the night from before holds again/)).toBeInTheDocument();
     expect(
       screen.getByText(
         /“Too humid” rests until germination ends\. Alarms you set up yourself stay awake\. This can be changed here once it is switched\.$/,

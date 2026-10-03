@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import type { Camera, Device, GerminationChoices as ChoiceValues, GrowListItem, GrowthStage, Space, SpaceKind } from '@fg2/shared-types/v1';
+import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useCameras } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useCreateGrow, useGrows, useStartingPhase } from '@/api/grows';
@@ -13,7 +14,6 @@ import { growSchemeOf, useScheme, useSchemes, type SchemeSummary } from '@/api/s
 import { useSpaces } from '@/api/spaces';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
-import { figureOf } from '@/ui/climate-hardware';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import { stageChoiceName, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
@@ -427,7 +427,7 @@ function Form({
               value={choices}
               onChange={change => setGermination(current => ({ ...current, ...change }))}
               humidifier={humidifier}
-              humidity={controller?.configuration ? figureOf(controller.configuration, 'night', 'humidity') : null}
+              humidity={GERMINATION_HUMIDITY}
               disabled={!mayManage || busy}
             />
           ) : null}

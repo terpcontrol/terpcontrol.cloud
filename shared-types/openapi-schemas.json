@@ -73,7 +73,7 @@
       },
       "humidifierHolds": {
         "type": "boolean",
-        "description": "Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination."
+        "description": "Whether a humidifier socket goes on holding the night's humidity while the device germinates - 75 % (`GERMINATION_HUMIDITY`) unless the grower set another. False rests it until germination ends; nothing else regulates the humidity in germination."
       }
     },
     "required": [
@@ -2029,7 +2029,7 @@
         "$ref": "#/components/schemas/DryingReturn"
       },
       "afterGermination": {
-        "description": "While germinating: the night's figures from before - germination holds the night's temperature round the clock, and a humidifier that holds goes by the night's humidity, so what is set for either is written there - which going back to another mode puts back. Only `nightTemperature` and `nightHumidity` are stated. Absent where nothing was kept.",
+        "description": "While germinating: the night's figures from before - germination holds the night's temperature round the clock and brings a humidity of its own for a humidifier to hold, and both are written in the night's place - which going back to another mode puts back. Only `nightTemperature` and `nightHumidity` are stated. Absent where nothing was kept.",
         "$ref": "#/components/schemas/DryingReturn"
       },
       "germinationChoices": {
@@ -2401,7 +2401,7 @@
           },
           "humidifierHolds": {
             "type": "boolean",
-            "description": "Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination."
+            "description": "Whether a humidifier socket goes on holding the night's humidity while the device germinates - 75 % (`GERMINATION_HUMIDITY`) unless the grower set another. False rests it until germination ends; nothing else regulates the humidity in germination."
           }
         }
       }
@@ -7055,7 +7055,7 @@
           },
           "humidifierHolds": {
             "type": "boolean",
-            "description": "Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination."
+            "description": "Whether a humidifier socket goes on holding the night's humidity while the device germinates - 75 % (`GERMINATION_HUMIDITY`) unless the grower set another. False rests it until germination ends; nothing else regulates the humidity in germination."
           }
         }
       }
@@ -7397,7 +7397,7 @@
           },
           "humidifierHolds": {
             "type": "boolean",
-            "description": "Whether a humidifier socket goes on holding the night's humidity while the device germinates. False rests it until germination ends; nothing else regulates the humidity in germination."
+            "description": "Whether a humidifier socket goes on holding the night's humidity while the device germinates - 75 % (`GERMINATION_HUMIDITY`) unless the grower set another. False rests it until germination ends; nothing else regulates the humidity in germination."
           }
         }
       }

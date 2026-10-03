@@ -10,7 +10,7 @@ import type {
   PlanStep,
   StepDuration,
 } from '@fg2/shared-types/v1';
-import { GERMINATION_TEMPERATURE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { GERMINATION_HUMIDITY, GERMINATION_TEMPERATURE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { hasCo2Sensor } from '@/ui/climate-hardware';
 import { elapsedMs } from './plan-clock';
@@ -174,11 +174,18 @@ export const figuresFor = (device: Device, stage: GrowthStage | null = null): Fi
 const DRYING_FIGURES: Figure[] = CLIMATE_FIGURES.filter(figure => figure.section === 'night');
 
 /**
- * What a germination step holds: one temperature, the night's, round the clock
- * in the dark. A step into germination switches the device into its germination
- * mode, which holds no day, no humidity, no light and no CO2.
+ * What a germination step holds: the night's temperature, round the clock in
+ * the dark, and the night's humidity, which a humidifier socket holds there. A
+ * step into germination switches the device into its germination mode, which
+ * holds no day, no light and no CO2.
  */
-const GERMINATION_FIGURES: Figure[] = CLIMATE_FIGURES.filter(figure => figure.key === 'nightTemperature');
+const GERMINATION_FIGURES: Figure[] = CLIMATE_FIGURES.filter(figure => figure.key === 'nightTemperature' || figure.key === 'nightHumidity');
+
+/** What a germination step is given where it names nothing: the germination climate's own two figures. */
+const GERMINATION_DEFAULTS: Readonly<Record<string, number>> = {
+  nightTemperature: GERMINATION_TEMPERATURE,
+  nightHumidity: GERMINATION_HUMIDITY,
+};
 
 /** The figures a stage held in the dark keeps, or null for a stage with a day and a night. */
 const heldInTheDark = (stage: GrowthStage | null): Figure[] | null =>
@@ -193,9 +200,19 @@ export const heldByStage = (step: StepDraft, stage: GrowthStage | null): Pick<St
   if (!held) return { settings: step.settings, lightHours: step.lightHours };
 
   const settings = CLIMATE_FIGURES.filter(figure => !held.includes(figure)).reduce((kept, figure) => withFigure(kept, figure, null), step.settings);
-  // Germination holds its one temperature or the night's, whatever that is: it is given the one seeds sprout at.
-  const germinates = stage === 'germination' && figureOf(settings, GERMINATION_FIGURES[0]) === null;
-  return { settings: germinates ? withFigure(settings, GERMINATION_FIGURES[0], GERMINATION_TEMPERATURE) : settings, lightHours: null };
+  if (stage !== 'germination') return { settings, lightHours: null };
+  // Germination holds its temperature and its humidity or the night's, whatever that is: it is given what seeds
+  // sprout at. A step turned into germination loses the humidity it named besides: in the light that was where a
+  // dehumidifier starts drying a leafy plant's air, and a humidifier holding it in the dark would leave seeds dry.
+  const turned = step.stage !== 'germination';
+  const given = GERMINATION_FIGURES.reduce(
+    (kept, figure) =>
+      figureOf(kept, figure) === null || (turned && figure.key === 'nightHumidity')
+        ? withFigure(kept, figure, GERMINATION_DEFAULTS[figure.key])
+        : kept,
+    settings,
+  );
+  return { settings: given, lightHours: null };
 };
 
 /**

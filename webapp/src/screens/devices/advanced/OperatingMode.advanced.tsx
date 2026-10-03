@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { GerminationChoices as Choices } from '@fg2/shared-types/v1';
-import { GERMINATION_TOO_HUMID } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { GERMINATION_HUMIDITY, GERMINATION_TEMPERATURE, GERMINATION_TOO_HUMID } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { configurationFieldsOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useConfigure } from '@/api/devices';
 import { GerminationChoices } from '@/screens/control/germination/GerminationChoices';
@@ -30,22 +30,25 @@ function OperatingMode({ device, mayManage, sockets }: DeviceContext) {
   const germinates = device.control?.running === true && !device.control.drying && device.control.mode === 'germination';
   const humidifier = sockets?.items?.some(socket => socket.role === 'humidifier') ?? false;
   // What germination will do about the humidity is said before the switch, as everywhere else germination is
-  // set; the two switches to change it stand here once it runs.
+  // set; the two switches to change it stand here once it runs. Germination brings its own humidity, so that is
+  // the one a humidifier will hold.
   const choices = choicesOf(device);
-  const humidity = device.configuration ? figureOf(device.configuration, 'night', 'humidity') : null;
   const choicesSaid = [
     t(choices.warnTooHumid ? 'germinationChoices.alarmOn' : 'germinationChoices.alarmOff', { line: GERMINATION_TOO_HUMID }),
     humidifier
       ? choices.humidifierHolds
-        ? humidity === null
-          ? t('germinationChoices.humidifierOnNight')
-          : t('germinationChoices.humidifierOn', { humidity: `${targetFigure(humidity, 'humidity')} ${UNIT.humidity ?? '%'}` })
+        ? t('germinationChoices.humidifierOn', { humidity: `${targetFigure(GERMINATION_HUMIDITY, 'humidity')} ${UNIT.humidity ?? '%'}` })
         : t('germinationChoices.humidifierOff')
       : null,
     t('operatingMode.choicesAfter'),
   ]
     .filter(Boolean)
     .join(' ');
+  // What germination brings, in the notes that say it.
+  const figures = {
+    temperature: targetFigure(GERMINATION_TEMPERATURE, 'temperature'),
+    humidity: targetFigure(GERMINATION_HUMIDITY, 'humidity'),
+  };
 
   return (
     <>
@@ -55,7 +58,7 @@ function OperatingMode({ device, mayManage, sockets }: DeviceContext) {
         label={t('operatingMode.label')}
         help="advanced.operatingMode"
         disabled={!mayManage}
-        options={modes.map(mode => ({ value: mode, label: t(`operatingMode.${mode}`), note: t(`operatingMode.${mode}Note`) }))}
+        options={modes.map(mode => ({ value: mode, label: t(`operatingMode.${mode}`), note: t(`operatingMode.${mode}Note`, figures) }))}
         // Germination darkens the device and the greenhouse mode stops holding its humidity: a tap in bloom
         // would cost a night of light, so either is asked first. Back to the standard is written at once.
         ask={mode =>
@@ -63,7 +66,7 @@ function OperatingMode({ device, mayManage, sockets }: DeviceContext) {
             ? null
             : {
                 question: [
-                  t('operatingMode.ask', { mode: t(`operatingMode.${mode}`), what: t(`operatingMode.${mode}Note`) }),
+                  t('operatingMode.ask', { mode: t(`operatingMode.${mode}`), what: t(`operatingMode.${mode}Note`, figures) }),
                   mode === 'germination' ? choicesSaid : null,
                 ]
                   .filter(Boolean)

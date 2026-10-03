@@ -648,8 +648,9 @@ describe('the targets a mode leaves alone', () => {
     const drying = withIdleFiguresKept({ ...before, workmode: 'dry' }, sent({ workmode: 'dry' }), 'dry');
     expect(drying).toMatchObject({ day: { temperature: 25, humidity: 60 }, night: { temperature: 18, humidity: 58 } });
 
+    // Germination holds the night's temperature and its own humidity, the one a humidifier holds: both are written as sent.
     const germinating = withIdleFiguresKept({ ...before, workmode: 'breed' }, sent({ workmode: 'breed' }), 'breed');
-    expect(germinating).toMatchObject({ day: { temperature: 25, humidity: 60 }, night: { temperature: 18, humidity: 55 } });
+    expect(germinating).toMatchObject({ day: { temperature: 25, humidity: 60 }, night: { temperature: 18, humidity: 58 } });
 
     const greenhouse = withIdleFiguresKept({ ...before, workmode: 'temp' }, sent({ workmode: 'temp' }), 'temp');
     expect(greenhouse).toMatchObject({ day: { temperature: 18, humidity: 60 }, night: { temperature: 18, humidity: 55 } });

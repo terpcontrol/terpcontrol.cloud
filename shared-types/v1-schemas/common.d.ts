@@ -77,10 +77,12 @@ export declare const growthStage: z.ZodEnum<{
 }>;
 /**
  * What a grower decides about the air's humidity while a fridge or a tent
- * controller germinates in the dark. Germination itself holds one temperature
- * and dries nothing, but two things go on reading the humidity: a humidifier
- * socket, which follows the night's humidity in every mode that regulates, and
- * the alarms that say the air is too humid. Whether either goes on is the
+ * controller germinates in the dark. Germination itself regulates one
+ * temperature and dries nothing, but two things go on reading the humidity: a
+ * humidifier socket, which follows the night's humidity in every mode that
+ * regulates - germination's own 75 % from the moment it begins
+ * (`GERMINATION_HUMIDITY`) - and the alarms that say the air is too humid.
+ * Whether either goes on is the
  * grower's to say (`GERMINATION_CHOICES` in `climate-presets.ts` has what holds
  * where nobody said).
  *

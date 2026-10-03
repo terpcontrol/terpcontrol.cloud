@@ -70,7 +70,7 @@ exports.deviceControl = (0, common_js_1.named)('DeviceControl', zod_1.z.object({
         .describe('While drying: the targets that held before the spell began, which ending it by itself (`drying: false`, or control switched off) puts back. Absent where they are not known - a spell begun before they were kept - and the targets recorded before it are put back instead.'),
     afterGermination: exports.dryingReturn
         .optional()
-        .describe("While germinating: the night's figures from before - germination holds the night's temperature round the clock, and a humidifier that holds goes by the night's humidity, so what is set for either is written there - which going back to another mode puts back. Only `nightTemperature` and `nightHumidity` are stated. Absent where nothing was kept."),
+        .describe("While germinating: the night's figures from before - germination holds the night's temperature round the clock and brings a humidity of its own for a humidifier to hold, and both are written in the night's place - which going back to another mode puts back. Only `nightTemperature` and `nightHumidity` are stated. Absent where nothing was kept."),
     germinationChoices: common_js_1.germinationChoices.describe('What germination does about the humidity on this device: what was chosen for this germination, or what holds where nothing was (`GERMINATION_CHOICES`). Acted on only while the device germinates, and back to the defaults when germination ends.'),
 }));
 exports.deviceState = (0, common_js_1.named)('DeviceState', zod_1.z.object({

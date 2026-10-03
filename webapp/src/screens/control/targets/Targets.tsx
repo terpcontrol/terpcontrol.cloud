@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 import { controlPath } from '@/app/places';
 import type { Device, DeviceConfiguration, GerminationChoices as ChoiceValues, GrowCard, PlanStep } from '@fg2/shared-types/v1';
+import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useHome } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
 import { serverNow } from '@/api/clock';
@@ -24,7 +25,7 @@ import { FanPanel } from '../devices/FanPanel';
 import { LightPanel } from '../devices/LightPanel';
 import { PlugPanel } from '../devices/PlugPanel';
 import { useDeviceLive } from '../../cockpit/reads';
-import { changedFields, heldOf, nowHoldingOf, ownedBy, runningStep, shapeOf } from './day-night';
+import { changedFields, heldOf, holdsHumidity, nowHoldingOf, ownedBy, runningStep, shapeOf } from './day-night';
 import { DayNightTable } from './DayNightTable';
 import { LightPlan } from './LightPlan';
 import { LeaveGuard, type Unsaved } from './LeaveGuard';
@@ -48,6 +49,7 @@ import day from './DayNight.module.css';
 import styles from './Targets.module.css';
 import { deviceName } from '@/screens/devices/naming';
 import { fieldValue } from '@/ui/advanced/field-values';
+import { targetFigure } from '@/screens/home/units';
 
 /**
  * The targets a tent is held at: what the Control tab opens on, unless a plan
@@ -432,12 +434,15 @@ function Panel({
   const bar = useRef<HTMLDivElement>(null);
   const touched = useKeepInView(bar, dirty, editing?.draft ?? null);
 
-  // Germination is chosen by the dark it runs in as much as by its one figure:
+  // Germination is chosen by the dark it runs in as much as by its figures:
   // a lit device at 24 °C at night is not germinating, and a germinating one
   // whose idle figures happen to be the seedling's is not on the seedling climate.
+  // Its humidity counts only where the table shows it, a humidifier holding it.
   const chosen = (chip: ClimateChoice): boolean => {
     const preset = presetOf(chip);
-    return preset !== null && (chip.stage === 'germination') === (shape.regime === 'germination') && equalsPreset(draft, preset, hasCo2, climateOnly);
+    if (preset === null || (chip.stage === 'germination') !== (shape.regime === 'germination')) return false;
+    const shown = chip.stage === 'germination' && !holdsHumidity(shape) ? { ...preset, nightHumidity: null } : preset;
+    return equalsPreset(draft, shown, hasCo2, climateOnly);
   };
 
   if (plan.isPending) {
@@ -575,7 +580,9 @@ function Panel({
               moved in the grow, where the climate is offered beside it. */}
           {dryingChange || germinationChange ? (
             <p className={ui.note} role="status">
-              {t(dryingChange ? `targets.drying.${dryingChange}` : `targets.germination.${germinationChange}`)}
+              {t(dryingChange ? `targets.drying.${dryingChange}` : `targets.germination.${germinationChange}`, {
+                humidity: targetFigure(GERMINATION_HUMIDITY, 'humidity'),
+              })}
             </p>
           ) : null}
           {grow?.stage ? <p className={ui.note}>{t('targets.growStays', { name: grow.name, stage: t(`home.stage.${grow.stage}`) })}</p> : null}

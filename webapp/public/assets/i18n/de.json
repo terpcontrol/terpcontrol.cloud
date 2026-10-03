@@ -2659,7 +2659,7 @@
         "remove": "Entfernen",
         "add": "Schritt hinzufügen",
         "dryingNote": "Ein Schritt in die Trocknung schaltet das Gerät in die Betriebsart Trocknung: Das Licht bleibt aus, CO₂ wird nicht zugegeben, und es hält diese beiden Werte rund um die Uhr.",
-        "germinationNote": "Ein Schritt in die Keimung schaltet das Gerät dunkel: kein Licht, kein CO₂, die Luftfeuchte hält höchstens ein Befeuchter, und rund um die Uhr hält es diese eine Temperatur. Der nächste Schritt bringt das Licht zurück, auch einer ohne Stadium – außer er ist selbst eine Keimung."
+        "germinationNote": "Ein Schritt in die Keimung schaltet das Gerät dunkel: kein Licht, kein CO₂, und rund um die Uhr hält es diese Temperatur; die Luftfeuchte hält ein Befeuchter, wo einer gekoppelt ist und halten darf. Der nächste Schritt bringt das Licht zurück, auch einer ohne Stadium – außer er ist selbst eine Keimung."
       },
       "figure": {
         "dayTemperature": "Tag · Temperatur",
@@ -2673,7 +2673,8 @@
           "nightHumidity": "Trocknung · Feuchte"
         },
         "germination": {
-          "nightTemperature": "Keimung · Temperatur"
+          "nightTemperature": "Keimung · Temperatur",
+          "nightHumidity": "Keimung · Feuchte"
         }
       },
       "figureUnit": {
@@ -3867,7 +3868,7 @@
       "ends": "Speichern beendet die Trocknung: Das Gerät hält wieder Tag und Nacht, Licht und CO₂."
     },
     "germination": {
-      "starts": "Speichern schaltet auf Keimung · dunkel: Licht aus, kein CO₂, rund um die Uhr eine Temperatur. Die übrigen Zielwerte bleiben für danach.",
+      "starts": "Speichern schaltet auf Keimung · dunkel: Licht aus, kein CO₂, rund um die Uhr eine Temperatur und {{humidity}} % Luftfeuchte für einen Befeuchter. Die übrigen Zielwerte bleiben für danach.",
       "ends": "Speichern beendet die Keimung: Das Gerät hält wieder Tag und Nacht, mit Licht und CO₂."
     },
     "table": {
@@ -4258,7 +4259,7 @@
       "measuring": "nur messen",
       "nothingYet": "noch nichts gesetzt",
       "window": "{{light}} – wann es angeht, änderst du unter Steuerung › Zielwerte.",
-      "germination": "Keimung · dunkel: Das Licht geht aus, CO₂ gibt es keins, und das Gerät hält rund um die Uhr {{temperature}} °C. Sind die Keimlinge da, stellst du auf „Sämling · mit Licht“."
+      "germination": "Keimung · dunkel: Das Licht geht aus, CO₂ gibt es keins, und das Gerät hält rund um die Uhr {{temperature}} °C; ein Befeuchter an einer Steckdose hält dazu {{humidity}} % Luftfeuchte. Sind die Keimlinge da, stellst du auf „Sämling · mit Licht“."
     },
     "hardware": {
       "next": "Steckdosen und Cam?",
@@ -4626,7 +4627,7 @@
     },
     "climatePreset": {
       "title": "Klima-Preset",
-      "text": "Ein fertiges Klima für ein Stadium: Temperatur und Feuchte für Tag und Nacht, Lichtstunden, Lichtgrenze und CO₂. „Keimung · dunkel“ ist Klima und Betriebsart zugleich: dunkel, ohne CO₂, rund um die Uhr 24 °C; „Sämling · mit Licht“ ist das erste Klima mit Licht. „Auto“ ist für Autoflowers, die 18–20 Stunden Licht behalten, statt auf 12/12 zu wechseln."
+      "text": "Ein fertiges Klima für ein Stadium: Temperatur und Feuchte für Tag und Nacht, Lichtstunden, Lichtgrenze und CO₂. „Keimung · dunkel“ ist Klima und Betriebsart zugleich: dunkel, ohne CO₂, rund um die Uhr 24 °C und 75 % Luftfeuchte für einen Befeuchter; „Sämling · mit Licht“ ist das erste Klima mit Licht. „Auto“ ist für Autoflowers, die 18–20 Stunden Licht behalten, statt auf 12/12 zu wechseln."
     },
     "stage": {
       "title": "Stadium und Phase",
@@ -4935,7 +4936,7 @@
     "advanced": {
       "operatingMode": {
         "title": "Betriebsart",
-        "text": "Was das Gerät als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂ nach Tag und Nacht. Keimung · dunkel hält es rund um die Uhr dunkel und ohne CO₂ und heizt und kühlt auf eine Temperatur – die der Spalte „Keimung · dunkel“ unter Zielwerte; am Zelt kühlt dabei die Abluft, und ein Entfeuchter bleibt aus. Ob „Zu feucht“ dabei warnt und ob ein Befeuchter die Luftfeuchte hält, wählst du während der Keimung darunter. Dieselbe Keimung stellen auch das Klima „Keimung · dunkel“ und die Phase Keimung ein. Der Kühlschrank kennt dazu Gewächshaus: nur die Temperatur, Licht und CO₂ laufen nach dem Lichtplan weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Der Energiespar-Modus gilt nur im Standard. Eine Trocknungsphase geht vor und kehrt danach zur Betriebsart zurück."
+        "text": "Was das Gerät als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂ nach Tag und Nacht. Keimung · dunkel hält es rund um die Uhr dunkel und ohne CO₂ und heizt und kühlt auf eine Temperatur – die der Spalte „Keimung · dunkel“ unter Zielwerte; am Zelt kühlt dabei die Abluft, und ein Entfeuchter bleibt aus. Die Luftfeuchte stellt sie auf 75 %, die ein Befeuchter hält: Die Nacht-Luftfeuchte davor war für Blätter gedacht, oft 50 %, und hielte die Samen zu trocken; sie gilt wieder, sobald die Keimung endet. Ob „Zu feucht“ dabei warnt und ob ein Befeuchter die Luftfeuchte hält, wählst du während der Keimung darunter. Dieselbe Keimung stellen auch das Klima „Keimung · dunkel“ und die Phase Keimung ein. Der Kühlschrank kennt dazu Gewächshaus: nur die Temperatur, Licht und CO₂ laufen nach dem Lichtplan weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Der Energiespar-Modus gilt nur im Standard. Eine Trocknungsphase geht vor und kehrt danach zur Betriebsart zurück."
       },
       "chartStep": {
         "title": "Intervall",
@@ -5068,7 +5069,7 @@
     },
     "germination": {
       "title": "Keimung · dunkel",
-      "text": "Samen keimen im Dunkeln: Das Gerät geht in die Betriebsart Keimung – kein Licht, kein CO₂, die Luftfeuchte hält höchstens ein Befeuchter – und heizt und kühlt rund um die Uhr auf eine Temperatur. Am Zelt kühlt dabei die Abluft; ein Entfeuchter bleibt aus, denn er würde wärmen und das Keimsubstrat austrocknen. Vorgeschlagen sind 24 °C, die Mitte der 22–26 °C, in denen Samen am schnellsten keimen. Die Keimung beginnt mit „Keimung · dunkel“ unter Steuerung, als Klima der Phase Keimung, beim Einrichten oder mit einem Planschritt der Keimung. Jedes andere Klima, jede andere Phase und jeder andere Planschritt – auch einer ohne Stadium – beendet sie: Das Gerät hält wieder Tag und Nacht mit Licht, im Standard samt Energiespar. Wer die Phase Keimung ohne Klima einträgt, ändert am Gerät nichts, auch nicht an seinen Alarmen. Ob „Zu feucht“ in der Keimung warnt und ob ein Befeuchter die Luftfeuchte hält, wählst du dort, wo du die Keimung einstellst."
+      "text": "Samen keimen im Dunkeln: Das Gerät geht in die Betriebsart Keimung – kein Licht, kein CO₂, die Luftfeuchte hält höchstens ein Befeuchter – und heizt und kühlt rund um die Uhr auf eine Temperatur. Am Zelt kühlt dabei die Abluft; ein Entfeuchter bleibt aus, denn er würde wärmen und das Keimsubstrat austrocknen. Vorgeschlagen sind 24 °C, die Mitte der 22–26 °C, in denen Samen am schnellsten keimen. Dazu bringt die Keimung 75 % Luftfeuchte mit: Samen keimen gut zwischen etwa 70 und 90 % – trockener trocknet das Substrat oben aus und die Samenschale wird hart, feuchter steht Wasser auf Substrat und Schale. 75 % liegt sicher dazwischen, unter den 90 %, ab denen „Zu feucht“ warnt, und der Sämling danach hält 65–70 %. Halten kann sie nur ein Befeuchter an einer Steckdose; endet die Keimung, gilt die Luftfeuchte von vorher wieder. Die Keimung beginnt mit „Keimung · dunkel“ unter Steuerung, als Klima der Phase Keimung, beim Einrichten, mit einem Planschritt der Keimung oder in der Betriebsart. Jedes andere Klima, jede andere Phase und jeder andere Planschritt – auch einer ohne Stadium – beendet sie: Das Gerät hält wieder Tag und Nacht mit Licht, im Standard samt Energiespar. Wer die Phase Keimung ohne Klima einträgt, ändert am Gerät nichts, auch nicht an seinen Alarmen. Ob „Zu feucht“ in der Keimung warnt und ob ein Befeuchter die Luftfeuchte hält, wählst du dort, wo du die Keimung einstellst."
     },
     "germinationAlarm": {
       "title": "„Zu feucht“ in der Keimung",
@@ -5076,7 +5077,7 @@
     },
     "germinationHumidifier": {
       "title": "Befeuchter in der Keimung",
-      "text": "In der Keimung regelt das Gerät nur die Temperatur. Ein Befeuchter an einer Steckdose hält trotzdem die Nacht-Luftfeuchte: Er schaltet ein, wenn die Luft mindestens 5 Punkte trockener ist, und aus, sobald der Wert erreicht ist – feuchter als eingestellt macht er es nie. Das ist voreingestellt, denn trockene Luft lässt eine Keimung eher scheitern als feuchte: Das Substrat trocknet aus. Ausgeschaltet ruht der Befeuchter, bis die Keimung endet – auch einer, der gerade läuft, schaltet gleich ab – und arbeitet danach wieder wie zuvor. Solange er sie hält, stellst du die Luftfeuchte für die Keimung unter Steuerung ein. Die Wahl gilt für diese Keimung, die nächste beginnt wieder mit gehaltener Luftfeuchte."
+      "text": "In der Keimung regelt das Gerät nur die Temperatur. Ein Befeuchter an einer Steckdose hält trotzdem die Luftfeuchte der Keimung, vorgegeben 75 %: Er schaltet ein, wenn die Luft mindestens 5 Punkte trockener ist, und aus, sobald der Wert erreicht ist – feuchter als eingestellt macht er es nie. So fällt die Luft nicht unter 70 %, den unteren Rand dessen, worin Samen gut keimen, und bleibt weit unter den 90 %, ab denen „Zu feucht“ warnt. Das Halten ist voreingestellt, denn trockene Luft lässt eine Keimung eher scheitern als feuchte: Das Substrat trocknet aus. Ausgeschaltet ruht der Befeuchter, bis die Keimung endet – auch einer, der gerade läuft, schaltet gleich ab – und arbeitet danach wieder wie zuvor. Solange er sie hält, stellst du die Luftfeuchte für die Keimung unter Steuerung ein. Die Wahl gilt für diese Keimung, die nächste beginnt wieder mit gehaltener Luftfeuchte."
     },
     "socketTimer": {
       "title": "Zeitschaltung",
@@ -5336,7 +5337,7 @@
     "noClimate": "{{stage}} hat kein eigenes Klima – die Zielwerte bleiben, wie sie sind.",
     "keepsDrying": "Die Trocknung hält die bisherigen Nachtwerte rund um die Uhr: {{temperature}} °C · {{humidity}} % – ohne Licht und ohne CO₂.",
     "setsDark": "Neu: {{figures}} – ersetzt die Zielwerte unter Steuerung.",
-    "setsGermination": "Neu: Keimung · dunkel – Licht aus, kein CO₂, rund um die Uhr {{temperature}} °C; die Luftfeuchte hält höchstens ein Befeuchter. Tag, Luftfeuchte und Licht bleiben für den Sämling.",
+    "setsGermination": "Neu: Keimung · dunkel – Licht aus, kein CO₂, rund um die Uhr {{temperature}} °C und {{humidity}} % Luftfeuchte, die nur ein Befeuchter hält. Tag und Licht bleiben für den Sämling.",
     "keepsGermination": "Bleibt: Keimung · dunkel bei {{temperature}} °C.",
     "staysLit": "Das Licht bleibt an: Dunkel wird es erst mit „Keimung · dunkel“.",
     "endsGermination": "Die Keimung endet: Das Gerät hält wieder Tag und Nacht, mit Licht und CO₂."
@@ -5433,7 +5434,7 @@
     "greenhouse": "Gewächshaus",
     "greenhouseNote": "Nur die Temperatur: Licht und CO₂ laufen, der Kompressor kühlt nur, die Luftfeuchte wird nicht geregelt.",
     "germination": "Keimung · dunkel",
-    "germinationNote": "Für Samen, die im Dunkeln keimen: kein Licht, kein CO₂, rund um die Uhr eine Temperatur – zuerst die bisherige Nachttemperatur, unter Zielwerte zu ändern. Ein Entfeuchter bleibt dabei aus; am Zelt kühlt die Abluft. Zurück auf Standard gilt die Nachttemperatur von vorher wieder. „Keimung · dunkel“ unter Steuerung stellt dasselbe ein, gleich mit 24 °C.",
+    "germinationNote": "Für Samen, die im Dunkeln keimen: kein Licht, kein CO₂, rund um die Uhr eine Temperatur – zuerst die bisherige Nachttemperatur, unter Zielwerte zu ändern – und {{humidity}} % Luftfeuchte für einen Befeuchter. Ein Entfeuchter bleibt dabei aus; am Zelt kühlt die Abluft. Zurück auf Standard gilt die Nacht von vorher wieder. „Keimung · dunkel“ unter Steuerung stellt dasselbe ein, gleich mit {{temperature}} °C.",
     "ask": "Auf {{mode}} umstellen? {{what}} Zurück geht es hier mit Standard.",
     "choicesAfter": "Nach dem Umstellen lässt sich das hier ändern.",
     "yes": "Auf {{mode}} umstellen"
