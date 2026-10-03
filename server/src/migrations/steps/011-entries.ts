@@ -1,3 +1,4 @@
+import { mongo } from 'mongoose';
 import { logger } from '@utils/logger';
 import { derivedId, planIdOf } from '../ids';
 import { LEGACY, LegacyDevice, LegacyDeviceLog, createdAtOf, fromTable, textOf } from '../legacy';
@@ -269,6 +270,13 @@ const repeatedKeyOf = (log: LegacyDeviceLog): string | null => {
   return key !== null && REPEATED.includes(key) ? key : null;
 };
 
+/** One repeated line of one device: how often it is there, and the ids of the newest hundred. */
+interface RepeatedLines {
+  _id: { deviceId: string | null; key: string };
+  keep: unknown[];
+  total: number;
+}
+
 /**
  * The newest hundred of each repeated line per device, and what that leaves
  * behind.
@@ -281,31 +289,7 @@ const repeatedKeyOf = (log: LegacyDeviceLog): string | null => {
  */
 const thinRepeatedLines = async (context: MigrationContext): Promise<{ leftBehind: (log: LegacyDeviceLog) => boolean }> => {
   const logs = await context.source(LEGACY.deviceLogs);
-  const looksLike = new RegExp(`^\\s*(${REPEATED.join('|')})(:|$)`, 'u');
-
-  // The message the transform would read, derived in the pipeline the same way
-  // `repeatedKeyOf` derives it, so the rows chosen here are exactly the rows
-  // recognised below.
-  const spoken = { $trim: { input: { $ifNull: ['$message', ''] } } };
-  const raw = { $cond: [{ $eq: [{ $indexOfCP: [spoken, 'message-'] }, 0] }, spoken, { $trim: { input: { $ifNull: ['$title', ''] } } }] };
-
-  const groups = await logs
-    .aggregate<{ _id: { deviceId: string | null; key: string }; keep: unknown[]; total: number }>(
-      [
-        { $match: { $or: [{ message: looksLike }, { title: looksLike }] } },
-        { $set: { repeatedKey: { $arrayElemAt: [{ $split: [raw, ':'] }, 0] } } },
-        { $match: { repeatedKey: { $in: REPEATED } } },
-        {
-          $group: {
-            _id: { deviceId: '$device_id', key: '$repeatedKey' },
-            keep: { $topN: { n: KEEP_NEWEST, sortBy: { time: -1, _id: -1 }, output: '$_id' } },
-            total: { $sum: 1 },
-          },
-        },
-      ],
-      { allowDiskUse: true },
-    )
-    .toArray();
+  const groups = await newestRepeatedLines(logs, await hasTopN(context.db));
 
   const keep = new Set<string>();
   const perDevice = new Map<string, number>();
@@ -332,6 +316,69 @@ const thinRepeatedLines = async (context: MigrationContext): Promise<{ leftBehin
   }
 
   return { leftBehind: log => repeatedKeyOf(log) !== null && !keep.has(String(log._id)) };
+};
+
+/**
+ * Whether the database has `$topN`, which MongoDB has had since 5.2. A CPU
+ * without AVX runs nothing newer than 4.4 - `.env.sample` offers that image for
+ * it - and the upgrade has to run there as well.
+ */
+const hasTopN = async (db: mongo.Db): Promise<boolean> => {
+  const info = await db.command({ buildInfo: 1 });
+  const [major = 0, minor = 0] = Array.isArray(info.versionArray) ? (info.versionArray as number[]) : [];
+  return major > 5 || (major === 5 && minor >= 2);
+};
+
+/**
+ * Each device's repeated lines, counted, with the ids of the newest hundred of
+ * each. Where the database has `$topN` that is one aggregation; without it the
+ * counts are one and the hundred are a sorted read per device and line, which
+ * keeps exactly the rows `$topN` keeps. Exported for the spec, which holds the
+ * two to the same answer.
+ */
+export const newestRepeatedLines = async (logs: mongo.Collection, topN: boolean): Promise<RepeatedLines[]> => {
+  const looksLike = new RegExp(`^\\s*(${REPEATED.join('|')})(:|$)`, 'u');
+
+  // The message the transform would read, derived in the pipeline the same way
+  // `repeatedKeyOf` derives it, so the rows chosen here are exactly the rows
+  // recognised below.
+  const spoken = { $trim: { input: { $ifNull: ['$message', ''] } } };
+  const raw = { $cond: [{ $eq: [{ $indexOfCP: [spoken, 'message-'] }, 0] }, spoken, { $trim: { input: { $ifNull: ['$title', ''] } } }] };
+  const repeated = [
+    { $match: { $or: [{ message: looksLike }, { title: looksLike }] } },
+    { $set: { repeatedKey: { $arrayElemAt: [{ $split: [raw, ':'] }, 0] } } },
+    { $match: { repeatedKey: { $in: REPEATED } } },
+  ];
+  const group = { _id: { deviceId: '$device_id', key: '$repeatedKey' }, total: { $sum: 1 } };
+
+  if (topN) {
+    const kept = { keep: { $topN: { n: KEEP_NEWEST, sortBy: { time: -1, _id: -1 }, output: '$_id' } } };
+    return logs.aggregate<RepeatedLines>([...repeated, { $group: { ...group, ...kept } }], { allowDiskUse: true }).toArray();
+  }
+
+  const counted = await logs.aggregate<Omit<RepeatedLines, 'keep'>>([...repeated, { $group: group }], { allowDiskUse: true }).toArray();
+  const groups: RepeatedLines[] = [];
+
+  for (const { _id, total } of counted) {
+    const keep: unknown[] = [];
+    const newestFirst = logs
+      .find<LegacyDeviceLog>(
+        { device_id: _id.deviceId, $or: [{ message: looksLike }, { title: looksLike }] },
+        { projection: { message: 1, title: 1 } },
+      )
+      .sort({ time: -1, _id: -1 });
+
+    for await (const log of newestFirst) {
+      if (repeatedKeyOf(log) !== _id.key) continue;
+      keep.push(log._id);
+      if (keep.length === KEEP_NEWEST) break;
+    }
+    await newestFirst.close();
+
+    groups.push({ _id, keep, total });
+  }
+
+  return groups;
 };
 
 const planned = async (context: MigrationContext): Promise<Set<string>> => {

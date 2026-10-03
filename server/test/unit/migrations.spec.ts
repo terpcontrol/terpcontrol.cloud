@@ -21,6 +21,7 @@ import { targetChangesSchema } from '@database/schemas/v1/target-changes.schema'
 import { usersSchema } from '@database/schemas/v1/users.schema';
 import { cameraIdOf, planIdOf, spaceIdOf } from '@/migrations/ids';
 import { grows } from '@/migrations/steps/010-grows';
+import { newestRepeatedLines } from '@/migrations/steps/011-entries';
 import { MigrationContext } from '@/migrations/migration';
 import { MigrationRunner, RejectedRows, RunEvent, runProgress } from '@/migrations/migration-runner';
 import { StaleMigrationRecord, TwoGenerationsOfOldData } from '@/migrations/preflight';
@@ -1852,6 +1853,32 @@ describe('the lines a controller repeats until somebody fixes it', () => {
     await migrate();
 
     expect(await collection('entries').countDocuments()).toBe(fixture.counts.devicelogs + 100);
+  });
+
+  it('keeps the same hundred where the database has no $topN, as MongoDB 4.4 has not', async () => {
+    await repeat(LEGACY_DEVICE_IDS.controller, 'message-ext-sensor-fail', 130);
+    await repeat(LEGACY_DEVICE_IDS.controller, 'message-ext-sensor-deviate', 112);
+    await repeat(LEGACY_DEVICE_IDS.fridge, 'message-ext-sensor-fail', 40);
+    // Two lines in the same millisecond, which only the id behind the time tells apart.
+    await collection('devicelogs').insertMany(
+      [0, 1].map(() => ({
+        device_id: LEGACY_DEVICE_IDS.controller,
+        title: 'x',
+        message: 'message-ext-sensor-fail:2',
+        time: new Date(AT),
+        categories: [],
+      })),
+    );
+
+    const byGroup = (groups: Awaited<ReturnType<typeof newestRepeatedLines>>) =>
+      Object.fromEntries(
+        groups.map(group => [`${group._id.deviceId}|${group._id.key}`, { total: group.total, keep: group.keep.map(String).sort() }]),
+      );
+    const withTopN = byGroup(await newestRepeatedLines(collection('devicelogs'), true));
+
+    expect(byGroup(await newestRepeatedLines(collection('devicelogs'), false))).toEqual(withTopN);
+    expect(withTopN[`${LEGACY_DEVICE_IDS.controller}|message-ext-sensor-fail`]).toMatchObject({ total: 132 });
+    expect(withTopN[`${LEGACY_DEVICE_IDS.controller}|message-ext-sensor-fail`].keep).toHaveLength(100);
   });
 
   it('keeps the same hundred on a second run, so a resumed run does not shift the window', async () => {
