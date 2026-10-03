@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AccessNeed, Camera, GrowListItem, TimelapseCreate } from '@fg2/shared-types/v1';
+import type { AccessNeed, Camera, Device, GrowListItem, TimelapseCreate } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { CameraScreen } from '@/screens/camera/CameraPage';
 import { causeOf, filmCauseOf } from '@/screens/camera/capture-failure';
@@ -54,6 +54,17 @@ const state = vi.hoisted(() => ({
   captureError: null as unknown,
   /** Whether the account keeps a grow diary, whose films are a phase and a whole grow. */
   diary: true,
+  /** The account's devices, which a camera read through one goes dark with; null is a read still out. */
+  devices: null as Device[] | null,
+}));
+
+vi.mock('@/api/devices', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useDevices: () => ({
+    data: state.devices ? { items: state.devices, nextCursor: null } : undefined,
+    isPending: state.devices === null,
+    isError: false,
+  }),
 }));
 
 vi.mock('@/api/layers', async importOriginal => ({ ...(await importOriginal<object>()), useDiaryLayer: () => state.diary }));
@@ -200,6 +211,7 @@ beforeEach(() => {
   state.capture = null;
   state.captureError = null;
   state.diary = true;
+  state.devices = null;
 });
 
 describe('the composer', () => {
@@ -442,12 +454,50 @@ describe('the camera page, by who is reading', () => {
   it('says that nothing has answered yet where this side gave up, and that the camera was not reached only where it was not', () => {
     state.captureError = new DOMException('signal timed out', 'TimeoutError');
     const drawn = drawPage();
-    expect(screen.getByRole('alert')).toHaveTextContent('No answer after two minutes. If the camera still sends the picture, it appears here.');
+    expect(screen.getByRole('alert')).toHaveTextContent('No answer after 7 minutes. If the camera still sends the picture, it appears here.');
     drawn.unmount();
 
     state.captureError = new TypeError('Failed to fetch');
     drawPage();
     expect(screen.getByRole('alert')).toHaveTextContent('That did not reach the camera.');
+  });
+
+  /**
+   * A Terp Cam is read over its device's relay and is not even tried while
+   * that device is offline. The page said only why the last try before it
+   * failed - "the device did not open the way to the camera in time" - and left
+   * the test button to spend over two minutes finding the same thing out.
+   */
+  it('says the device the camera is read through is offline, with what to try, and holds the test button until it is back', () => {
+    const carrier = (secondsAgo: number) =>
+      ({
+        id: 'device-1',
+        name: null,
+        type: 'controller',
+        spaceId: 'space-1',
+        state: { lastSeenAt: serverNow().minus({ seconds: secondsAgo }).toISO()! },
+      }) as unknown as Device;
+    state.lastError = 'the device did not open the relay in time';
+    state.devices = [carrier(60 * 60)];
+    const drawn = drawPage();
+
+    expect(screen.getByText(/^Offline since /)).toBeInTheDocument();
+    expect(screen.getByText('This camera is read through the device (Controller). No pictures arrive until it is back online.')).toBeInTheDocument();
+    expect(screen.getByText(/Power: is the adapter plugged in/)).toBeInTheDocument();
+    expect(screen.queryByText(/did not open the way to the camera/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Take a picture now' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Take a picture now' })).toHaveAttribute('title', 'Possible again once the device is back online.');
+    drawn.unmount();
+
+    state.devices = [carrier(5)];
+    drawPage();
+    expect(screen.queryByText(/is read through the device/)).not.toBeInTheDocument();
+    expect(screen.getByText(/did not open the way to the camera/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Take a picture now' })).toBeEnabled();
+  });
+
+  it('names a press the server turned down because the device was offline as that', () => {
+    expect(causeOf('the device this camera is read through is offline since 2026-10-03T18:48:00.401Z')).toBe('camera.failure.deviceOffline');
   });
 
   it('gives a co-manager the kind of failure and not the words that name the hardware', () => {

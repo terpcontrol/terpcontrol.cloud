@@ -112,9 +112,26 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
     const running = this.reading.get(camera.id);
     if (running?.key === readKey(camera)) return running.still;
 
-    const still = this.readAndStore(camera);
+    const still = this.throughAnOnlineDevice(camera).then(() => this.readAndStore(camera));
     if (!running) this.track(camera.id, readKey(camera), still);
     return still;
+  }
+
+  /**
+   * A camera read through its device is not tried while that device is
+   * offline, here as in the pass: a Terp Cam would wait out three relay
+   * dial-ins - over two minutes - to report a relay that was never going to
+   * open, and the person who pressed the button would be told the wrong thing
+   * at the end of it. The answer is the device being offline, at once.
+   */
+  private async throughAnOnlineDevice(camera: CameraWithSecret): Promise<void> {
+    if (!readsThroughDevice(camera) || !camera.deviceId) return;
+
+    const device = await this.devices.findOne({ id: camera.deviceId }, { state: 1 }).lean<Pick<StoredDevice, 'state'>>();
+    if (device && isOffline(device.state.lastSeenAt)) {
+      const since = device.state.lastSeenAt ? ` since ${device.state.lastSeenAt.toISOString()}` : '';
+      throw new Error(`the device this camera is read through is offline${since}`);
+    }
   }
 
   private track(cameraId: string, key: string, still: Promise<StoredStill | null>): void {

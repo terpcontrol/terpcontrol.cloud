@@ -33,6 +33,9 @@ interface Cause {
 }
 
 const CAUSES: Cause[] = [
+  // Not tried at all: the device the camera is read through was offline. First,
+  // because the instant it names may carry digits a status code is read from.
+  { key: 'deviceOffline', says: /read through is offline/i },
   // The camera was reached and delivered, and what arrived was not a picture.
   { key: 'damaged', says: /corrupt|truncat|produced no output|size limit/i },
   // The far end gave up on purpose, which is what a Terp Cam said through its device before the relay.

@@ -5,7 +5,17 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
-import { gaveUp, useCamera, useCameraFrames, useLatestStills, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
+import {
+  CAPTURE_WAIT_MS,
+  gaveUp,
+  useCamera,
+  useCameraFrames,
+  useLatestStills,
+  useRequestTimelapse,
+  useTestCapture,
+  useTimelapses,
+} from '@/api/cameras';
+import { useDevices } from '@/api/devices';
 import { useSpaceGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
@@ -14,7 +24,7 @@ import { useSpaces } from '@/api/spaces';
 import { placePath, timelinePath } from '@/app/places';
 import { rowReaches } from '@/screens/notifications/reach';
 import { useCameraCalled } from '@/ui/camera-name';
-import { ageLabel, instantOf } from '@/ui/age';
+import { ageLabel, deviceLiveness, instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import { enough, useMayWith } from '@/ui/session-access';
@@ -23,6 +33,8 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, DATED_CLOCK, WEEKDAY_DAY, zoned, zonedAt, zoneOf } from '@/ui/zone';
 import { cameraFreshness } from '../devices/cameras';
+import { deviceName } from '../devices/naming';
+import { OfflineHelp } from '../home/OfflineHelp';
 import { causeOf } from './capture-failure';
 import { at, stamps, stampFor } from '../timeline/window';
 import { Slider } from '../timeline/CameraFrame';
@@ -107,6 +119,14 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   const called = useCameraCalled();
   const spaces = useSpaces();
   const place = spaces.data?.items.find(space => space.id === camera.spaceId) ?? null;
+  // A camera read through a device - a Terp Cam over its relay, a stream through
+  // its tunnel - goes dark with that device, and is not even tried while the
+  // device is offline. So that is what the page says then, rather than the
+  // reason the last try before it failed, and the test button waits for it.
+  const throughDevice = readsThroughDevice(camera);
+  const devices = useDevices(throughDevice);
+  const carrier = throughDevice ? (devices.data?.items.find(device => device.id === camera.deviceId) ?? null) : null;
+  const carrierOffline = carrier !== null && deviceLiveness(carrier.state.lastSeenAt, now) === 'offline';
 
   // The day the scrubber walks, which is the account's day and not the
   // browser's: a grower in Berlin reading a UTC account is two hours into
@@ -219,7 +239,9 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           words the server stored are the only way the one person who can fix
           the camera finds out what is wrong with it, so they stay - a tap
           below, selectable, rather than a line nobody can read. */}
-      {mayOwn && camera.state.lastError ? (
+      {carrier && carrierOffline ? (
+        <OfflineHelp since={carrier.state.lastSeenAt} now={now} about={t('camera.carrierOffline', { device: deviceName(carrier, t) })} />
+      ) : mayOwn && camera.state.lastError ? (
         <div className={styles.lastError} role="alert">
           <p className={ui.problem}>{t('camera.lastError', { reason: t(causeOf(camera.state.lastError)) })}</p>
           <details className={styles.rawError}>
@@ -285,7 +307,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
               {t('devices.ago', { age: ageLabel(camera.state.lastStillAt, now) })}
             </span>
           ) : null}
-          {mayManage ? <TestImage cameraId={camera.id} mayOwn={mayOwn} /> : null}
+          {mayManage ? <TestImage cameraId={camera.id} mayOwn={mayOwn} offline={carrierOffline} /> : null}
         </div>
 
         {/* The scrubber walks between the day's pictures, so it is drawn where
@@ -537,19 +559,27 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * behind the disclosure the banner puts them behind and, like the banner, for
  * the owner alone - they name the address the cloud reaches the hardware at.
  */
-function TestImage({ cameraId, mayOwn }: { cameraId: string; mayOwn: boolean }) {
+function TestImage({ cameraId, mayOwn, offline }: { cameraId: string; mayOwn: boolean; offline: boolean }) {
   const { t } = useTranslation();
   const test = useTestCapture(cameraId);
   const failed = test.data && !test.data.succeeded ? test.data : null;
 
   return (
     <div className={styles.testWrap}>
-      <button type="button" className={`${ui.button} ${styles.test}`} disabled={test.isPending} onClick={() => test.mutate()}>
+      {/* Held while the device is offline, which the box above the picture says
+          in full; the button carries the short reason for whoever reaches it alone. */}
+      <button
+        type="button"
+        className={`${ui.button} ${styles.test}`}
+        disabled={test.isPending || offline}
+        title={offline ? t('camera.testOffline') : undefined}
+        onClick={() => test.mutate()}
+      >
         {test.isPending ? t('camera.testing') : t('camera.testImage')}
       </button>
       {test.error ? (
         <span className={styles.testWhy} role="alert">
-          {gaveUp(test.error) ? t('camera.testNoAnswer') : refusalText(test.error, t('camera.testFailed'))}
+          {gaveUp(test.error) ? t('camera.testNoAnswer', { minutes: CAPTURE_WAIT_MS / 60_000 }) : refusalText(test.error, t('camera.testFailed'))}
         </span>
       ) : test.data?.succeeded ? (
         <span className={`mono ${styles.testWorked}`} role="status">
@@ -649,3 +679,7 @@ const frameAt = (shots: Media[], time: number): Media | null => {
 
   return found;
 };
+
+/** Whether reading the camera goes through its device, which is then the only way to it: as the server decides it. */
+const readsThroughDevice = (camera: Camera): boolean =>
+  camera.deviceId !== null && (camera.kind === 'terpcam_controller' || (camera.kind === 'rtsp' && camera.tunnel));

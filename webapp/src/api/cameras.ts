@@ -32,7 +32,7 @@ export const CAMERAS_REFRESH_MS = 30_000;
  * the camera was never reached while the server was still reading it, and the
  * picture landed minutes later.
  */
-const CAPTURE_WAIT_MS = 7 * 60_000;
+export const CAPTURE_WAIT_MS = 7 * 60_000;
 
 /** Whether a call was given up on by this side rather than answered by the other. */
 export const gaveUp = (error: unknown): boolean => error instanceof DOMException && error.name === 'TimeoutError';

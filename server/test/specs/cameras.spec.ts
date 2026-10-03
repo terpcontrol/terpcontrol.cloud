@@ -244,6 +244,8 @@ describe('a stream´s address, changed in place', () => {
   it('pulls the stream through the tunnel of the fridge module it names', async () => {
     const fridge = await provisionDevice(owner, 'fridge');
     const simulator = await startSimulator(fridge);
+    // Heard from, which a camera read through a device needs it to be.
+    await simulator.reportStatus();
     await settle();
 
     try {
@@ -259,6 +261,22 @@ describe('a stream´s address, changed in place', () => {
     } finally {
       await simulator.close();
     }
+  });
+});
+
+describe('a test picture through a device that is offline', () => {
+  it('is answered at once with the device being offline, and nothing is asked of the device or of ffmpeg', async () => {
+    // Registered and claimed, and never heard from since: offline.
+    const fridge = await provisionDevice(owner, 'fridge');
+    resetFfmpeg();
+    const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.75:554/never-heard', deviceId: fridge.deviceId, tunnel: true }));
+
+    const started = Date.now();
+    const answer = (await owner.client.post(`/v1/cameras/${id}/test-captures`).expect(200)).body;
+
+    expect(answer).toMatchObject({ succeeded: false, mediaId: null, error: 'the device this camera is read through is offline' });
+    expect(Date.now() - started).toBeLessThan(5_000);
+    expect(ffmpegCalls().some(args => args.join(' ').includes('never-heard'))).toBe(false);
   });
 });
 

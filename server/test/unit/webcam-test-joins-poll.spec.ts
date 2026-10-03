@@ -78,6 +78,7 @@ beforeEach(() => {
 
   const devices = {
     find: () => ({ lean: async () => [{ id: DEVICE, configuration: {}, state: { lastSeenAt, maintenanceUntil: null } }] }),
+    findOne: () => ({ lean: async () => ({ id: DEVICE, state: { lastSeenAt, maintenanceUntil: null } }) }),
   };
   const cameras = {
     capturable: async () => polled,
@@ -188,6 +189,26 @@ describe('a camera read through its device', () => {
     polled = [{ ...STREAM, tunnel: false }];
 
     await pass();
+    expect(readStill).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers the test-image button at once that the device is offline, rather than after the relay´s timeouts', async () => {
+    lastSeenAt = new Date(Date.now() - 60 * 60_000);
+
+    for (const camera of [TERPCAM, STREAM]) {
+      const answer = await controller.testCapture(camera.id);
+      expect(answer).toMatchObject({ succeeded: false, mediaId: null });
+      expect(answer.error).toBe(`the device this camera is read through is offline since ${lastSeenAt.toISOString()}`);
+    }
+    expect(readStill).not.toHaveBeenCalled();
+  });
+
+  it('reads for the button as soon as the device is back', async () => {
+    lastSeenAt = new Date(Date.now() - 60 * 60_000);
+    await controller.testCapture(TERPCAM.id);
+    lastSeenAt = new Date();
+
+    await expect(controller.testCapture(TERPCAM.id)).resolves.toMatchObject({ succeeded: true });
     expect(readStill).toHaveBeenCalledTimes(1);
   });
 });

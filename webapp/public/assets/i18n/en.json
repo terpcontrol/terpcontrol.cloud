@@ -3105,6 +3105,7 @@
     "lastError": "Last try failed: {{reason}}",
     "whatItSaid": "What the camera said",
     "failure": {
+      "deviceOffline": "the device this camera is read through was offline",
       "damaged": "what arrived was not a whole picture",
       "aborted": "the camera stopped the capture",
       "stoppedEarly": "the stream ended before a picture arrived",
@@ -3149,7 +3150,9 @@
     "testing": "Reading…",
     "testWorked": "Taken. It is the newest picture of the day.",
     "testFailed": "That did not reach the camera.",
-    "testNoAnswer": "No answer after two minutes. If the camera still sends the picture, it appears here.",
+    "testNoAnswer": "No answer after {{minutes}} minutes. If the camera still sends the picture, it appears here.",
+    "testOffline": "Possible again once the device is back online.",
+    "carrierOffline": "This camera is read through the device ({{device}}). No pictures arrive until it is back online.",
     "thisCamera": "This camera",
     "connectedVia": "Connected via",
     "reachedAt": "Camera ID",

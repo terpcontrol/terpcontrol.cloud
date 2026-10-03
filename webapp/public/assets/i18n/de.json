@@ -3113,6 +3113,7 @@
     "lastError": "Letzter Versuch fehlgeschlagen: {{reason}}",
     "whatItSaid": "Was die Kamera gemeldet hat",
     "failure": {
+      "deviceOffline": "das Gerät, über das diese Kamera läuft, war offline",
       "damaged": "es kam kein vollständiges Bild an",
       "aborted": "die Kamera hat die Aufnahme abgebrochen",
       "stoppedEarly": "der Stream endete, bevor ein Bild ankam",
@@ -3157,7 +3158,9 @@
     "testing": "Wird gelesen…",
     "testWorked": "Aufgenommen. Es ist das neueste Bild des Tages.",
     "testFailed": "Das hat die Kamera nicht erreicht.",
-    "testNoAnswer": "Nach zwei Minuten keine Antwort. Schickt die Kamera das Bild doch noch, erscheint es hier.",
+    "testNoAnswer": "Nach {{minutes}} Minuten keine Antwort. Schickt die Kamera das Bild doch noch, erscheint es hier.",
+    "testOffline": "Geht wieder, sobald das Gerät online ist.",
+    "carrierOffline": "Diese Kamera läuft über das Gerät ({{device}}). Bis es wieder online ist, kommen keine Bilder.",
     "thisCamera": "Diese Kamera",
     "connectedVia": "Verbunden über",
     "reachedAt": "Kamera-ID",
