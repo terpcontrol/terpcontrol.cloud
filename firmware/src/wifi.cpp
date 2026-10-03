@@ -200,8 +200,9 @@ static const char* TERP_CAM_AP_BASE = "http://192.168.168.1:81"; // CGI server i
 // still has it: pairing replaces it with a per-camera secret straight away.
 static const char* TERP_CAM_AUTH = "loginuse=admin&loginpas=888888";
 static const char* TERP_CAM_URL_NVS_KEY = "terpcam_url";         // legacy (RTSP url)
-static const char* TERP_CAM_DID_NVS_KEY = "webcam_did";          // VStarcam P2P device id
+static const char* TERP_CAM_DID_NVS_KEY = "webcam_did";          // its printed id (realdeviceid)
 static const char* TERP_CAM_IP_NVS_KEY = "webcam_ip";            // last address it answered on
+static const char* TERP_CAM_UID_NVS_KEY = "webcam_uid";          // its P2P id (VSTH...)
 
 std::string primary_ssid;
 std::string primary_password;
@@ -460,6 +461,7 @@ void wifiTick() {
   }
   reportSocketStateChanges();
 
+  fg::terpCamReportPending(smart_socket_cloud_handle);
   tickAuxDeviceSearch();
 }
 
@@ -1317,6 +1319,10 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   if(did.empty()) {
     return fail_with_reconnect("cam id fail");
   }
+  // The P2P id is what the camera answers discovery with. Knowing it from the
+  // start means the controller never mistakes another camera on this network -
+  // the one this replaces, a neighbour's - for this one.
+  const std::string uid = fg::terpCamCanonicalUid(parseCamVar(status_body, "deviceid"));
 
   emit_status("scan cam wifi...");
   std::string scan_url = std::string(TERP_CAM_AP_BASE) + "/wifi_scan.cgi?" + TERP_CAM_AUTH;
@@ -1346,6 +1352,9 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
 
   fg::settings().setStr(TERP_CAM_DID_NVS_KEY, did.c_str());
   fg::settings().erase(fg::TERP_CAM_PWD_NVS_KEY);   // a freshly paired camera has the default
+  fg::settings().erase(TERP_CAM_IP_NVS_KEY);        // where the previous camera answered
+  if(uid.empty()) fg::settings().erase(TERP_CAM_UID_NVS_KEY);  // discovery reads it instead
+  else fg::settings().setStr(TERP_CAM_UID_NVS_KEY, uid.c_str());
   fg::settings().commit();
 
   // Replace the manufacturer's published password now that the camera is on the
@@ -1356,11 +1365,33 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   if(smart_socket_cloud_handle != nullptr) {
     smart_socket_cloud_handle->log("message-terp-cam-connected", 0);
     smart_socket_cloud_handle->log(std::string("hardware-info:webcam_did=") + did, 0);
+    smart_socket_cloud_handle->log("hardware-info:webcam_uid=" + (uid.empty() ? std::string("none") : uid), 0);
   }
 
   emit_status("cam configured");
   delayWithWatchdog(1500);
   return true;
+}
+
+// Forget everything stored about the paired camera and tell the cloud, so the
+// module is left as if no camera had ever been paired.
+static void forgetTerpCam() {
+  fg::settings().erase(TERP_CAM_DID_NVS_KEY);
+  fg::settings().erase(TERP_CAM_IP_NVS_KEY);    // and where it used to answer
+  fg::settings().erase(TERP_CAM_UID_NVS_KEY);   // and who it was on the wire
+  fg::settings().erase(fg::TERP_CAM_PWD_NVS_KEY);   // reset restores the default
+  fg::settings().erase(TERP_CAM_URL_NVS_KEY);   // clear legacy slot too
+  fg::settings().commit();
+
+  if(smart_socket_cloud_handle != nullptr) {
+    // Report every slot as cleared — otherwise a device that once had the legacy
+    // RTSP url keeps advertising it, and the cloud keeps asking for relays to a
+    // camera the module no longer knows.
+    smart_socket_cloud_handle->log("hardware-info:webcam_did=none", 0);
+    smart_socket_cloud_handle->log("hardware-info:webcam_uid=none", 0);
+    smart_socket_cloud_handle->log("hardware-info:webcam_ip=none", 0);
+    smart_socket_cloud_handle->log("hardware-info:webcam_url=none", 0);
+  }
 }
 
 void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
@@ -1452,6 +1483,10 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
   menu->addOption("disconnect cam", []() {
     if(sanitizeSettingString(fg::settings().getStr(TERP_CAM_DID_NVS_KEY)).empty()) {
+      // No camera id, but an interrupted pairing or an older build can still have
+      // left the camera's other keys behind. Clear them anyway, so disconnecting
+      // always leaves the module as if no camera had ever been paired.
+      forgetTerpCam();
       ui_handle->push<TextDisplay>("no cam connected", 1, []() {
         ui_handle->pop();
       });
@@ -1479,18 +1514,7 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
       const bool reset_ok = fg::terpCamFactoryReset(smart_socket_cloud_handle);
       ui_handle->pop();
 
-      fg::settings().erase(TERP_CAM_DID_NVS_KEY);
-      fg::settings().erase(TERP_CAM_IP_NVS_KEY);    // and where it used to answer
-      fg::settings().erase(fg::TERP_CAM_PWD_NVS_KEY);   // reset restores the default
-      fg::settings().erase(TERP_CAM_URL_NVS_KEY);   // clear legacy slot too
-      fg::settings().commit();
-
-      if(smart_socket_cloud_handle != nullptr) {
-        // Both slots are erased above, so report both as cleared — otherwise a
-        // device that once had the legacy RTSP url keeps advertising it.
-        smart_socket_cloud_handle->log("hardware-info:webcam_did=none", 0);
-        smart_socket_cloud_handle->log("hardware-info:webcam_url=none", 0);
-      }
+      forgetTerpCam();
 
       ui_handle->push<TextDisplay>(reset_ok ? "cam disconnected\nand reset"
                                             : "cam disconnected\ncam did not\nanswer - reset\nit by hand",
@@ -2822,6 +2846,11 @@ void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {
   ensureSmartSocketsLoaded();
   reportSocketCapabilities();
   reportSocketsHardwareInfo();
+  wifiInitTerpCamCloudReporting(cloud);
+}
+
+void wifiInitTerpCamCloudReporting(fg::Fridgecloud* cloud) {
+  smart_socket_cloud_handle = cloud;
 
   if(cloud != nullptr) {
     // Report the camera state on every boot, INCLUDING when there is none.
@@ -2838,10 +2867,25 @@ void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {
     const std::string cam_ip = sanitizeSettingString(fg::settings().getStr(TERP_CAM_IP_NVS_KEY));
     cloud->log("hardware-info:webcam_ip=" +
                ((!cam_ip.empty() && cam_ip.size() < 40) ? cam_ip : std::string("none")), 0);
+    // The camera's P2P id. The controller relays the camera to the cloud only
+    // once it knows it, so the cloud asks for a relay only while this is set.
+    const std::string cam_uid = sanitizeSettingString(fg::settings().getStr(TERP_CAM_UID_NVS_KEY));
+    cloud->log("hardware-info:webcam_uid=" +
+               ((!cam_uid.empty() && cam_uid.size() < 40) ? cam_uid : std::string("none")), 0);
     // legacy: also surface a stored RTSP url if one was configured before
     const std::string cam_url = sanitizeSettingString(fg::settings().getStr(TERP_CAM_URL_NVS_KEY));
     cloud->log("hardware-info:webcam_url=" +
                ((!cam_url.empty() && cam_url.size() < 200) ? cam_url : std::string("none")), 0);
+    // The password the camera was secured with. Only ever set at securing time
+    // until now, so a controller that secured a camera before this line existed
+    // (or whose report the cloud lost) left the cloud unable to authenticate to
+    // the camera itself. Reporting it on every boot heals that. Empty means the
+    // camera is still on the manufacturer default; hardware-info is stored
+    // against the device, never written into the diary the user reads.
+    const std::string cam_pwd = sanitizeSettingString(fg::settings().getStr(fg::TERP_CAM_PWD_NVS_KEY));
+    if(!cam_pwd.empty() && cam_pwd.size() < 64) {
+      cloud->log("hardware-info:webcam_pwd=" + cam_pwd, 0);
+    }
   }
 }
 
@@ -3044,6 +3088,21 @@ bool wifiTestSmartSocket(const std::string& role, int slot) {
   return ok;
 }
 
+bool wifiHandleTerpCamCommand(const JsonDocument& command) {
+  if(command["action"] == std::string("cam_relay")) {
+    // Bridge the camera's P2P to a connection to the cloud (an HTTP upgrade on
+    // `url`) so the cloud pulls the full-resolution still itself. Runs in its own
+    // task (terpCamStartRelay) and returns at once, so a held session does not
+    // block the control loop.
+    const std::string url = command["url"] | "";
+    const std::string token = command["token"] | "";
+    const std::string key = command["key"] | "";
+    fg::terpCamStartRelay(url, token, key);
+    return true;
+  }
+  return false;
+}
+
 // How long an override may hold, in ticks. `auto` ends one, which is why it
 // carries no duration.
 static bool overrideTicks(const std::string& state, uint32_t seconds, bool& active, bool& on, TickType_t& until_tick) {
@@ -3106,13 +3165,7 @@ bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
   if(!command["action"]) {
     return false;
   }
-
-  if(command["action"] == std::string("cam_capture")) {
-    // Grab a still from the paired camera and stream it to the cloud. Runs on
-    // the loop task; terpCamCapture() is bounded and feeds the watchdog.
-    if(!terpCamCapture(cloud) && cloud) {
-      cloud->log("message-aux-command-failed:cam_capture", 1);
-    }
+  if(wifiHandleTerpCamCommand(command)) {
     return true;
   }
 

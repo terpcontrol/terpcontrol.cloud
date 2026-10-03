@@ -3150,18 +3150,6 @@
       "forSeconds"
     ]
   },
-  "CaptureStillCommand": {
-    "type": "object",
-    "properties": {
-      "kind": {
-        "type": "string",
-        "const": "capture_still"
-      }
-    },
-    "required": [
-      "kind"
-    ]
-  },
   "SocketOverrideCommand": {
     "type": "object",
     "properties": {
@@ -3291,9 +3279,6 @@
       },
       {
         "$ref": "#/components/schemas/MaintenanceCommand"
-      },
-      {
-        "$ref": "#/components/schemas/CaptureStillCommand"
       },
       {
         "$ref": "#/components/schemas/SocketOverrideCommand"

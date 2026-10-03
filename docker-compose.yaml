@@ -1,7 +1,11 @@
 services:
   mongodb:
-    image: ${DOCKER_MONGODB_IMAGE:-mongo}
+    # Pinned to a release: an image newer than the data's featureCompatibilityVersion does not start on it.
+    # Raising this means teaching upgrade-mongodb.sh the way there; up.sh stops and points at it.
+    image: ${DOCKER_MONGODB_IMAGE:-mongo:9.0}
     restart: always
+    # The default 10s ends in a SIGKILL when a busy mongod takes longer to checkpoint on its way down.
+    stop_grace_period: 60s
     networks:
       - main
     volumes:
@@ -120,10 +124,6 @@ services:
         condition: service_started
     ports:
       - ${API_PORT_EXTERNAL}:8081
-      # UDP ports the Terp Cam client binds, which have to be published: the
-      # camera's first reply comes from a port we never sent to, so the bridge
-      # has no state for it and drops it unless the port is forwarded in.
-      - ${TERPCAM_P2P_PORTS_EXTERNAL_START:-32200}-${TERPCAM_P2P_PORTS_EXTERNAL_END:-32209}:${TERPCAM_P2P_PORTS_EXTERNAL_START:-32200}-${TERPCAM_P2P_PORTS_EXTERNAL_END:-32209}/udp
     networks:
       - main
     environment:
@@ -134,13 +134,7 @@ services:
       # mails carry. Unset, a message goes out without its link rather than with
       # a broken one.
       APP_URL_EXTERNAL: ${APP_URL_EXTERNAL:-}
-      # Same numbers as the published range above: both sides must match.
-      TERPCAM_P2P_PORTS_START: ${TERPCAM_P2P_PORTS_EXTERNAL_START:-32200}
-      TERPCAM_P2P_PORTS_END: ${TERPCAM_P2P_PORTS_EXTERNAL_END:-32209}
-      TERPCAM_RENDEZVOUS_HOSTS: ${TERPCAM_RENDEZVOUS_HOSTS:-}
-      # A stack hosted alongside its cameras is reachable at MQTT_HOST_EXTERNAL,
-      # so that is the default. Only a private address is ever advertised.
-      TERPCAM_ADVERTISE_ADDRESS: ${TERPCAM_ADVERTISE_ADDRESS:-${MQTT_HOST_EXTERNAL:-}}
+      TERPCAM_RELAY_URL: ${TERPCAM_RELAY_URL-${API_URL_EXTERNAL}/terpcam/relay}
       # Unset, which is what these are here, gates nothing: an install that says
       # nothing serves every picture whole and keeps every one of them.
       PREMIUM_ENFORCED: ${PREMIUM_ENFORCED:-}

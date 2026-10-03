@@ -16,12 +16,10 @@ import { logger } from '@utils/logger';
 import { MqttClientService } from '../mqtt/mqtt-client.service';
 import { recordTargets } from '../v1/phase/target-record';
 import {
-  DEVICE_IMAGE_SINK,
   DEVICE_METRIC_SINK,
   DEVICE_PRESENCE_SINK,
   DEVICE_SAMPLE_SINK,
   DEVICE_TUNNEL_SINK,
-  DeviceImageSink,
   DevicePresenceSink,
   DeviceSample,
   DeviceSampleSink,
@@ -50,7 +48,11 @@ import { DEVICE_TOPIC_FILTER, DeviceTopic, parseDeviceTopic } from './topics';
 
 const MQTT_RECONNECT_DELAY = 5 * 1000;
 
-/** A capture reports its outcome every 30 s, which is diagnostics rather than diary material. */
+/**
+ * Firmware older than the camera relay reports every still it was asked for,
+ * which is diagnostics rather than diary material. Nothing asks it any more, but
+ * a device can still be on such a build, and a line it sends is read the same.
+ */
 const CAM_CAPTURE_PREFIX = 'message-cam-capture:';
 
 /** The device could not take the still it was asked for - a failed capture, said the other way. */
@@ -86,7 +88,6 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     private readonly entries: EntryWriterService,
     @Optional() @Inject(DEVICE_SAMPLE_SINK) private readonly samples: DeviceSampleSink | null = null,
     @Optional() @Inject(DEVICE_METRIC_SINK) private readonly metrics: MetricSampleSink | null = null,
-    @Optional() @Inject(DEVICE_IMAGE_SINK) private readonly images: DeviceImageSink | null = null,
     @Optional() @Inject(DEVICE_TUNNEL_SINK) private readonly tunnel: DeviceTunnelSink | null = null,
     @Optional() @Inject(DEVICE_PRESENCE_SINK) private readonly presence: DevicePresenceSink | null = null,
   ) {}
@@ -194,9 +195,6 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
       case 'configuration':
         await this.configuration(device, payload);
         break;
-      case 'image':
-        this.images?.onImageMessage(device.id, payload);
-        break;
       case 'tunnel_read':
         await this.tunnel?.onTunnelReadDataReceived(device.id, payload);
         break;
@@ -205,6 +203,11 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
       case 'tunnel_write':
         // The server's own messages, echoed back by the subscription that covers
         // every topic under a device.
+        break;
+      case 'image':
+        // Still fragments, which firmware older than the camera relay sends when
+        // it is asked for a picture. Nothing asks any more, so a stray one is
+        // dropped rather than logged at the size of a picture.
         break;
       default:
         logger.info(`Unhandled MQTT message on ${topic.name}: ${payload}`);

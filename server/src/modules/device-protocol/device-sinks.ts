@@ -45,19 +45,23 @@ export interface MetricSampleSink {
 
 export const DEVICE_METRIC_SINK = 'device-protocol:metrics';
 
-/** One fragment of a still, as the controller reads it off the camera. Provided by the camera pipeline. */
-export interface DeviceImageSink {
-  onImageMessage(deviceId: string, payload: string): void;
-}
-
-export const DEVICE_IMAGE_SINK = 'device-protocol:images';
-
 /** One frame out of the tunnel a device holds open. Provided by the tunnel. */
 export interface DeviceTunnelSink {
   onTunnelReadDataReceived(deviceId: string, payload: string): Promise<void> | void;
 }
 
 export const DEVICE_TUNNEL_SINK = 'device-protocol:tunnel';
+
+/**
+ * That a device has said something about its camera - paired another, secured
+ * it with a new password, learned its P2P id. Provided by the camera pipeline,
+ * which may be holding off a camera that refused it and should try again.
+ */
+export interface DeviceCameraReportSink {
+  cameraReported(deviceId: string): void;
+}
+
+export const DEVICE_CAMERA_REPORT_SINK = 'device-protocol:camera-reports';
 
 /**
  * That a device is there, and what it came back running. Provided by the

@@ -21,11 +21,11 @@ license, no separate agreement needed.
 
 ### Quickstart
 1. `cd myfolder`
-1. `git clone https://github.com/novazer/fg2.git`
+1. `git clone https://github.com/terpcontrol/terpcontrol.cloud`
 1. `cd fg2/`
 1. `cp .env.sample .env`
 1. `vi .env` (or edit this file in any other way) 
-1. `docker compose up --build -d --remove-orphans`
+1. `./up.sh`
 1. Go to `http://<youripOrDomain>:8080` to access the web interface
 
 ### Firmware building
@@ -44,8 +44,10 @@ server url specified in your .env file.
 1. `git pull` (optional: this gets you the latest changes from the repo)
 1. `docker compose run --rm --build --no-deps server npm run migrate:check` — asks whether the database can be
    migrated at all, and writes nothing. If it lists anything, that has to be cleaned up in the database first:
-   the migration refuses to start on it, so the server would not come up.
-1. `docker compose up --build -d --remove-orphans`
+   the migration refuses to start on it, so the server would not come up. With `DOCKER_COMPOSE_NAME` set in `.env`,
+   put `COMPOSE_PROJECT_NAME=<that name>` in front of the command, or it looks at a stack that does not exist.
+1. `./up.sh` — if it stops and says the MongoDB data is not ready for the image, run `./upgrade-mongodb.sh` first.
+   It takes a backup of its own before it changes anything.
 1. `./build-fw.sh` (if you want to update the firmware as well)
 
 ## MQTT transport
@@ -72,7 +74,7 @@ Devices pin the **CA**, not the server cert. To **rotate** the server certificat
 the script again: it detects the existing CA, reads the CA private key from
 `./mqtts-ca.key` (or `$MQTTS_CA_KEY_FILE`, or `$MQTTS_CA_KEY_B64`), and issues a fresh
 server cert signed by the same CA. Because the CA is unchanged, already-deployed devices
-keep trusting the broker with no firmware update — just `docker compose up -d rabbitmq`
+keep trusting the broker with no firmware update — just `./up.sh rabbitmq`
 to serve the new cert. The key is read from a file rather than pasted because terminals
 truncate a pasted line at 1024 bytes and the key is larger than that.
 
@@ -106,15 +108,15 @@ Additionally, you may want to back up the `.env` file as well.
 ### Restore
 1. `cd myfolder/fg2/`
 2. Place the backup files here
-2. `docker compose stop server`
+2. `./stop.sh server`
 2. `./restore.sh backup-2025-10-29_22-12-27`
-2. `docker compose up -d`
+2. `./up.sh`
 3. It may be necessary to create a new firmware version. Run `./build-fw.sh` if needed.
 
 ## Cleanup
 To remove all data and start fresh:
 1. `cd myfolder/fg2/`
-2. `docker compose down --volumes`
+2. `./down.sh --volumes`
 4. `cd ../`
 5. `rm -rf fg2/`
 6. When starting fresh, you'll also need to use the module's "Change server" again, as this registers the module in the 
@@ -163,8 +165,8 @@ CI regenerates and fails if the result differs.
 
 Make sure that the following environment variables are set in `.env`:
 ```
-API_URL_EXTERNAL=https://fg2.novazer.com/api
-MQTT_HOST_EXTERNAL=fg2.novazer.com
+API_URL_EXTERNAL=https://terpcontrol.cloud/api
+MQTT_HOST_EXTERNAL=terpcontrol.cloud
 MQTT_PORT_EXTERNAL=4883
 ```
 

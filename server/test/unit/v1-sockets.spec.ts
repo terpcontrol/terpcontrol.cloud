@@ -89,16 +89,15 @@ beforeEach(async () => {
 });
 
 /**
- * A plug, a fan and a light have no socket table and no camera relay in any
- * build, and drop these commands without a word - so a 202 that said the device
- * was listening read as delivered, and a refusal that pointed at newer firmware
- * promised something no build of theirs brings.
+ * A plug, a fan and a light have no socket table in any build, and drop these
+ * commands without a word - so a 202 that said the device was listening read as
+ * delivered, and a refusal that pointed at newer firmware promised something no
+ * build of theirs brings.
  */
 describe('a device type that takes no socket command in any build', () => {
   it.each([
     ['a socket pairing', set()],
     ['a hold of its light output', hold({ subject: { type: 'output', id: 'light' } })],
-    ['a still', { kind: 'capture_still' } as DeviceCommand],
   ])('is refused %s, and not told to wait for firmware', async (_what, command) => {
     await db.devices.create({ id: 'sim-plug', type: 'plug', ownerId: 'user-1', state: { hardware: {} } } as never);
 

@@ -5,8 +5,16 @@
 - Only add comments when they remain useful in the long run. Skip comments that just restate what the code does.
 - Don't reference specific issues, tasks, or conversations in code comments (e.g. "see issue #24", "fix from PR #2", "as discussed"). Comments must stand on their own — explain the *why* in general terms so they still make sense in isolation a year from now. Issue/PR references belong in the commit message, not in the source.
 
+## Configuration
+- Defaults for environment variables belong in `docker-compose.yaml` (`${VAR:-default}`, or `${VAR-default}` where an
+  empty value has to stay empty), including values derived from other variables. Server code reads what compose passes
+  and does not default or derive it again.
+
 ## Running the stack
 - The full application launches with `docker compose up --build -d --remove-orphans`.
+- `./up.sh` does the same as a deploy does it - pull, build, and recreate every container - and `./stop.sh` and
+  `./down.sh` are its counterparts. All three take service names (`./up.sh server`) and read the compose project
+  from `DOCKER_COMPOSE_NAME` in `.env`.
 - Webapp: `http://localhost:${WEBAPP_PORT_EXTERNAL}` (port from `.env`).
 - Use a local browser as chromium to test the webapp.
 - API: `${API_URL_EXTERNAL}` (from `.env`) — call directly for backend testing.

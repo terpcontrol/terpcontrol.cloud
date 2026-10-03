@@ -164,3 +164,22 @@ describe('the camera a controller reports', () => {
     expect(buried?.did).toBe(PAIRED);
   });
 });
+
+describe('what the camera pipeline is told', () => {
+  it('hears of every report that may let the cloud back in to a camera that refused it', async () => {
+    const told: string[] = [];
+    hardware = new HardwareReportService(db.devices, db.cameras, { cameraReported: deviceId => told.push(deviceId) });
+    await claim(ALICE, DEVICE);
+
+    // A different camera, the password it was secured with, the P2P id read off it.
+    await reports(DEVICE, `webcam_did=${PAIRED}`);
+    await reports(DEVICE, 'webcam_pwd=hunter2');
+    await reports(DEVICE, 'webcam_uid=UID-OF-THE-CAM');
+    expect(told).toEqual([DEVICE, DEVICE, DEVICE]);
+
+    // Where it is on the LAN, and anything else, changes nothing about whether it lets us in.
+    await reports(DEVICE, 'webcam_ip=10.0.0.9');
+    await reports(DEVICE, 'co2=on');
+    expect(told).toHaveLength(3);
+  });
+});

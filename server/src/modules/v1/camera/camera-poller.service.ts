@@ -8,7 +8,7 @@ import { isOffline } from '@common/v1/value-age';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
-import { CamerasService } from './cameras.service';
+import { CamerasService, CameraWithSecret } from './cameras.service';
 import { CaptureService, CorruptFrameError } from './capture.service';
 import { MediaService } from './media.service';
 import { LIGHT_STATE_READER, LightStateReader } from './light-state';
@@ -35,11 +35,39 @@ interface PollState {
   failureCount: number;
 }
 
+/** A still that was read and stored. */
+export interface StoredStill {
+  mediaId: string;
+  capturedAt: Date;
+}
+
+/**
+ * Which camera a read is of, for telling whether two reads would fetch the same
+ * picture. A Terp Cam is decided by the device it is paired at, so every read of
+ * that device's camera is the same one; a stream is the same only with the same
+ * settings.
+ */
+function readKey(camera: Pick<CameraDocument, 'kind' | 'deviceId' | 'url' | 'transport' | 'tunnel'>): string {
+  if (camera.kind !== 'rtsp') return JSON.stringify([camera.kind, camera.deviceId]);
+  return JSON.stringify([camera.url, camera.transport ?? 'tcp', camera.tunnel, camera.deviceId]);
+}
+
+/** Whether reading the camera goes through its device, so it only works while the device is online. */
+function readsThroughDevice(camera: Pick<CameraDocument, 'kind' | 'tunnel'>): boolean {
+  return camera.kind === 'terpcam_controller' || (camera.kind === 'rtsp' && camera.tunnel);
+}
+
 @Injectable()
 export class CameraPollerService implements OnModuleInit, OnApplicationShutdown {
   private readonly state = new Map<string, PollState>();
-  /** The cameras being read right now - queued for ffmpeg counts as being read. */
-  private readonly beingRead = new Set<string>();
+  /**
+   * The reads under way - queued for ffmpeg counts - and which camera each is
+   * of. A camera is never read twice at once: a read that outlives a pass would
+   * otherwise be joined by the next one, and the test-image button waits for a
+   * running read instead of starting a second, because a device bridges one
+   * relay to its Terp Cam at a time and turns a second request down.
+   */
+  private readonly reading = new Map<string, { key: string; still: Promise<StoredStill | null> }>();
   private readonly work = new BackgroundWork();
 
   constructor(
@@ -71,8 +99,30 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
 
   public forget(cameraId: string): void {
     this.state.delete(cameraId);
-    this.beingRead.delete(cameraId);
-    this.capture.forget(cameraId);
+    this.reading.delete(cameraId);
+  }
+
+  /**
+   * One still now, for somebody waiting for it: the read under way where there
+   * is one of the same camera, else a read of its own, which the poller leaves
+   * the camera to while it runs. It counts towards nothing - a failure here is
+   * somebody trying settings out, not the camera failing its schedule.
+   */
+  public readNow(camera: CameraWithSecret): Promise<StoredStill | null> {
+    const running = this.reading.get(camera.id);
+    if (running?.key === readKey(camera)) return running.still;
+
+    const still = this.readAndStore(camera);
+    if (!running) this.track(camera.id, readKey(camera), still);
+    return still;
+  }
+
+  private track(cameraId: string, key: string, still: Promise<StoredStill | null>): void {
+    this.reading.set(cameraId, { key, still });
+    const done = () => {
+      if (this.reading.get(cameraId)?.still === still) this.reading.delete(cameraId);
+    };
+    still.then(done, done);
   }
 
   private async pass(): Promise<void> {
@@ -87,14 +137,21 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
         if (this.work.isStopped) break;
 
         const controller = camera.deviceId ? (controllers.get(camera.deviceId) ?? null) : null;
-        this.capture.trackControllerOnlinePeriod(camera.id, controller !== null && !isOffline(controller.state.lastSeenAt));
 
-        if (this.beingRead.has(camera.id) || !this.isDue(camera) || (await this.isResting(camera, controller))) {
+        // A camera read through its device - a Terp Cam over the device's relay,
+        // or a stream tunnelled through it - needs the device to answer, and an
+        // offline one cannot: each try would only wait out its timeouts (three
+        // relay dial-ins for a Terp Cam). Asked before the schedule, so an offline
+        // spell does not grow the backoff. A camera reached directly is still read.
+        if (readsThroughDevice(camera) && (!controller || isOffline(controller.state.lastSeenAt))) continue;
+
+        if (this.reading.has(camera.id) || !this.isDue(camera) || (await this.isResting(camera, controller))) {
           continue;
         }
 
-        this.beingRead.add(camera.id);
-        logIfItFails(`Reading camera ${camera.id}`, this.read(camera));
+        const still = this.cameras.withSecret(camera.id).then(withSecret => (withSecret ? this.readAndStore(withSecret) : null));
+        this.track(camera.id, readKey(camera), still);
+        logIfItFails(`Reading camera ${camera.id}`, this.paidFor(camera, still));
 
         await new Promise(resolve => setTimeout(resolve, BETWEEN_CAMERAS_MS));
       }
@@ -109,24 +166,26 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
     }
   }
 
-  /** One read, start to finish: the picture stored, or the failure paid for. */
-  private async read(camera: CameraDocument): Promise<void> {
+  /** One read, and the picture stored. */
+  private async readAndStore(camera: CameraWithSecret): Promise<StoredStill> {
+    const still = await this.capture.readStill(camera);
+    const capturedAt = new Date();
+    const lit = await this.litOf(camera, still);
+    const stored = await this.media.storeBytes({ kind: 'still', mime: 'image/jpeg', cameraId: camera.id, capturedAt, lit }, still);
+    await this.cameras.noteCapture(camera.id, capturedAt, null);
+    return { mediaId: stored.id, capturedAt };
+  }
+
+  /** A scheduled read, start to finish: the backoff reset, or the failure paid for. */
+  private async paidFor(camera: CameraDocument, still: Promise<StoredStill | null>): Promise<void> {
     const state = this.stateOf(camera.id);
 
     try {
-      const withSecret = await this.cameras.withSecret(camera.id);
-      if (!withSecret) return;
-
-      const still = await this.capture.readStill(withSecret);
+      await still;
       // The camera answered, so the backoff is reset: how far apart to try is
       // about reaching the camera, and one that is working must not be backed
       // off to the two-hour cap because of something on this side.
       state.failureCount = 0;
-
-      const capturedAt = new Date();
-      const lit = await this.litOf(camera, still);
-      await this.media.storeBytes({ kind: 'still', mime: 'image/jpeg', cameraId: camera.id, capturedAt, lit }, still);
-      await this.cameras.noteCapture(camera.id, capturedAt, null);
     } catch (e) {
       const reason = (e as Error)?.message ?? String(e);
       // A corrupt frame means the camera was reachable and streaming, so unlike
@@ -138,7 +197,6 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
       if (camera.logErrors) await this.writeTheFailureDown(camera, reason);
     } finally {
       state.lastTry = Date.now();
-      this.beingRead.delete(camera.id);
     }
   }
 

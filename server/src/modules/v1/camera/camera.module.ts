@@ -14,7 +14,6 @@ import { MediaPresentationService } from './media-presentation.service';
 import { MediaService } from './media.service';
 import { OptionalSessionGuard } from './optional-session.guard';
 import { TerpCamDirectService } from './terpcam-direct.service';
-import { TerpCamP2PService } from './terpcam-p2p.service';
 import { TerpCamService } from './terpcam.service';
 import { TimelapseContextService } from './timelapse-context.service';
 import { TimelapseService } from './timelapse.service';
@@ -22,17 +21,18 @@ import { TimelapseService } from './timelapse.service';
 /**
  * Cameras, and the pictures and films they produce.
  *
- * A tent holds several cameras: the Terp Cam its device pairs, RTSP cameras
- * pulled through that device's tunnel, and standalone Terp Cams the cloud
- * reaches itself. The poller reads them, the builder rolls the stills up, both
- * store `media` rows, and the bytes go into the bucket they have always gone in.
+ * A tent holds several cameras: the Terp Cam its device pairs and RTSP cameras,
+ * pulled through that device's tunnel where they only exist on the tent's own
+ * network. The poller reads them, the builder rolls the stills up, both store
+ * `media` rows, and the bytes go into the bucket they have always gone in.
  *
- * Three ports are bound where the modules are wired together: `STILL_REQUEST`,
- * to ask a controller for a picture, `LIGHT_STATE_READER`, which is the one
- * thing `nightOff` needs and is not this module's to know, and `SERIES_READER`,
- * which is what the composer draws its climate curve from and reads the light
- * of a past night off. `TerpCamP2PService` goes the other way, as the protocol
- * module's image sink.
+ * Three ports are bound where the modules are wired together: `RELAY_REQUEST`,
+ * to ask a device to bridge its Terp Cam to the cloud, `LIGHT_STATE_READER`,
+ * which is the one thing `nightOff` needs and is not this module's to know, and
+ * `SERIES_READER`, which is what the composer draws its climate curve from and
+ * reads the light of a past night off. `TerpCamDirectService` goes the other
+ * way, told by the protocol module when a device reports something about its
+ * camera.
  */
 @Module({
   imports: [ModelsModule, V1CommonModule, TunnelModule],
@@ -47,11 +47,10 @@ import { TimelapseService } from './timelapse.service';
     MediaPresentationService,
     OptionalSessionGuard,
     TerpCamService,
-    TerpCamP2PService,
     TerpCamDirectService,
     TimelapseContextService,
     TimelapseService,
   ],
-  exports: [CamerasService, MediaService, MediaDeliveryService, EntitlementService, TerpCamP2PService],
+  exports: [CamerasService, MediaService, MediaDeliveryService, EntitlementService, TerpCamDirectService],
 })
 export class CameraModule {}

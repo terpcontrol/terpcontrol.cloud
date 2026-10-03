@@ -280,11 +280,10 @@ export const flagOf = (value: unknown, whenAbsent = false): boolean => {
 };
 
 /**
- * How a paired Terp Cam is stored today: in the field meant for an RTSP URL,
- * under a marker followed by the camera's own id. The live reader of it is
- * `modules/camera/terpcam-p2p.service.ts`; the marker is restated here because
- * this is the one place that reads the old field, and it goes with the rest of
- * the legacy layer rather than with the camera the model gives its own record.
+ * How the old app stored a paired Terp Cam: in the field meant for an RTSP URL,
+ * under a marker followed by the camera's own id. This is the one place that
+ * reads the old field, so the marker lives here, with the rest of the legacy
+ * layer, rather than with the camera the model gives its own record.
  */
 const TERPCAM_STREAM_PREFIXES = ['terpcam://', 'okam://'];
 

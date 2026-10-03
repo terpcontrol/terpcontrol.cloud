@@ -7,9 +7,10 @@
 // the repo root has no package.json, and a dev tool that needs `npm install`
 // before it runs is a dev tool nobody runs.
 
-import { createHash, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
+import tls from 'node:tls';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
@@ -594,129 +595,155 @@ const shape = (sample, type, overrides) => {
 // ----------------------------------------------------------------- Camera
 
 /**
- * A JPEG encoder small enough to keep this tool dependency-free.
+ * An H.264 encoder small enough to keep this tool dependency-free.
  *
- * It only ever emits the DC coefficient of each block, so the picture has one
- * colour per 8x8 pixels and no discrete cosine transform is needed - the DC
- * coefficient of a block of one colour is just that colour, level-shifted. That
- * is a blocky image, but it is a valid baseline JPEG, which is all the cloud's
- * webcam pipeline and the webapp ask for.
+ * Every macroblock is I_PCM: its samples are stored as they are, so there is no
+ * prediction, transform or entropy coding to get right, only the bitstream
+ * syntax around them. That is a large keyframe (384 bytes per 16x16 pixels),
+ * but a valid Baseline one, which is all the cloud's decoder asks for - the same
+ * SPS + PPS + IDR access unit a real Terp Cam opens its stream with.
  */
-
-// Standard luminance DC table (ITU-T T.81 Annex K). The AC table is ours: the
-// encoder emits nothing but end-of-block, and two codes are the fewest that
-// leave the all-ones code unused, as the format requires.
-const DC_BITS = [0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0];
-const DC_VALUES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-const AC_BITS = [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-const AC_VALUES = [0x00, 0x01];
-const END_OF_BLOCK = 0x00;
-
-// Quantising the DC coefficient by 8 undoes the transform's scaling, so the
-// stored coefficient is the level-shifted sample value itself.
-const DC_QUANT = 8;
-
-const huffmanCodes = (bits, values) => {
-  const codes = new Map();
-  let code = 0;
-  let index = 0;
-  for (let length = 1; length <= 16; length++) {
-    for (let i = 0; i < bits[length - 1]; i++) codes.set(values[index++], { code: code++, length });
-    code <<= 1;
-  }
-  return codes;
-};
 
 class BitWriter {
   bytes = [];
   #current = 0;
   #filled = 0;
 
-  write(code, length) {
-    for (let bit = length - 1; bit >= 0; bit--) {
-      this.#current = (this.#current << 1) | ((code >> bit) & 1);
-      if (++this.#filled === 8) this.#flush(this.#current);
-    }
-  }
-
-  // Pad with 1 bits: the format reserves the all-ones code so a decoder cannot
-  // mistake the padding for another symbol.
-  end() {
-    while (this.#filled !== 0) this.write(1, 1);
-    return Buffer.from(this.bytes);
-  }
-
-  #flush(byte) {
-    this.bytes.push(byte & 0xff);
-    // A 0xFF in the entropy-coded data would look like the start of a marker.
-    if ((byte & 0xff) === 0xff) this.bytes.push(0x00);
-    this.#current = 0;
-    this.#filled = 0;
-  }
-}
-
-const marker = (code, ...payload) => {
-  const body = Buffer.from(payload.flat());
-  const header = Buffer.alloc(4);
-  header.writeUInt16BE(0xff00 | code, 0);
-  header.writeUInt16BE(body.length + 2, 2);
-  return Buffer.concat([header, body]);
-};
-
-const huffmanSegment = (id, bits, values) => marker(0xc4, [id], bits, values);
-
-// How many bits a coefficient needs, and the value the format writes for it.
-const coefficientBits = value => {
-  let size = 0;
-  for (let magnitude = Math.abs(value); magnitude > 0; magnitude >>= 1) size++;
-  return { size, bits: value < 0 ? value + (1 << size) - 1 : value };
-};
-
-const toYCbCr = ([r, g, b]) => [
-  0.299 * r + 0.587 * g + 0.114 * b,
-  128 - 0.168736 * r - 0.331264 * g + 0.5 * b,
-  128 + 0.5 * r - 0.418688 * g - 0.081312 * b,
-];
-
-/** Encode blocksX x blocksY blocks of 8x8 pixels, each a colour from blockColor. */
-const encodeJpeg = (blocksX, blocksY, blockColor) => {
-  const dc = huffmanCodes(DC_BITS, DC_VALUES);
-  const ac = huffmanCodes(AC_BITS, AC_VALUES);
-  const writer = new BitWriter();
-  const previous = [0, 0, 0];
-
-  for (let by = 0; by < blocksY; by++) {
-    for (let bx = 0; bx < blocksX; bx++) {
-      const channels = toYCbCr(blockColor(bx, by));
-      for (let channel = 0; channel < 3; channel++) {
-        const level = clamp(Math.round(channels[channel]), 0, 255) - 128;
-        const { size, bits } = coefficientBits(level - previous[channel]);
-        previous[channel] = level;
-        const symbol = dc.get(size);
-        writer.write(symbol.code, symbol.length);
-        if (size > 0) writer.write(bits, size);
-        const eob = ac.get(END_OF_BLOCK);
-        writer.write(eob.code, eob.length);
+  bits(value, count) {
+    for (let bit = count - 1; bit >= 0; bit--) {
+      this.#current = (this.#current << 1) | ((value >>> bit) & 1);
+      if (++this.#filled === 8) {
+        this.bytes.push(this.#current);
+        this.#current = 0;
+        this.#filled = 0;
       }
     }
   }
 
-  const component = id => [id, 0x11, 0];
-  const uint16 = value => [(value >> 8) & 0xff, value & 0xff];
-  return Buffer.concat([
-    Buffer.from([0xff, 0xd8]),
-    marker(0xdb, [0x00], new Array(64).fill(DC_QUANT)),
-    marker(0xc0, [8], uint16(blocksY * 8), uint16(blocksX * 8), [3], component(1), component(2), component(3)),
-    huffmanSegment(0x00, DC_BITS, DC_VALUES),
-    huffmanSegment(0x10, AC_BITS, AC_VALUES),
-    marker(0xda, [3], [1, 0x00], [2, 0x00], [3, 0x00], [0, 63, 0]),
-    writer.end(),
-    Buffer.from([0xff, 0xd9]),
-  ]);
+  // Exp-Golomb, the variable-length code nearly every header field uses.
+  ue(value) {
+    const length = 32 - Math.clz32(value + 1);
+    this.bits(0, length - 1);
+    this.bits(value + 1, length);
+  }
+
+  align() {
+    while (this.#filled !== 0) this.bits(0, 1);
+  }
+
+  // The stop bit, then zeros to the byte boundary.
+  end() {
+    this.bits(1, 1);
+    this.align();
+    return this.bytes;
+  }
+}
+
+// Start code, header byte, and the payload with emulation prevention: a 0x03 is
+// slipped in after any two zero bytes that would otherwise read as a start code.
+const nalUnit = (header, payload) => {
+  const out = [0, 0, 0, 1, header];
+  let zeros = 0;
+  for (const byte of payload) {
+    if (zeros >= 2 && byte <= 3) {
+      out.push(3);
+      zeros = 0;
+    }
+    out.push(byte);
+    zeros = byte === 0 ? zeros + 1 : 0;
+  }
+  return Buffer.from(out);
 };
 
-const CAMERA_BLOCKS_X = 80;
-const CAMERA_BLOCKS_Y = 60;
+/** One H.264 access unit (SPS, PPS, IDR slice) of a width x height picture, each pixel [r, g, b] from pixel(). */
+const encodeKeyframe = (width, height, pixel) => {
+  const mbsX = Math.ceil(width / 16);
+  const mbsY = Math.ceil(height / 16);
+  const stride = mbsX * 16;
+  const lines = mbsY * 16;
+
+  // BT.601 studio range, which is what a decoder assumes without VUI. The
+  // macroblock padding past the picture repeats its edge and is cropped away.
+  const luma = new Uint8Array(stride * lines);
+  const cb = new Float32Array(stride * lines);
+  const cr = new Float32Array(stride * lines);
+  for (let y = 0; y < lines; y++) {
+    for (let x = 0; x < stride; x++) {
+      const [r, g, b] = pixel(Math.min(x, width - 1), Math.min(y, height - 1));
+      const at = y * stride + x;
+      luma[at] = clamp(Math.round(16 + 0.257 * r + 0.504 * g + 0.098 * b), 1, 255);
+      cb[at] = 128 - 0.148 * r - 0.291 * g + 0.439 * b;
+      cr[at] = 128 + 0.439 * r - 0.368 * g - 0.071 * b;
+    }
+  }
+  // 4:2:0: one chroma sample per 2x2 pixels.
+  const chroma = (plane, x, y) => {
+    const at = 2 * y * stride + 2 * x;
+    return clamp(Math.round((plane[at] + plane[at + 1] + plane[at + stride] + plane[at + stride + 1]) / 4), 1, 255);
+  };
+
+  const sps = new BitWriter();
+  sps.bits(66, 8); // Baseline
+  sps.bits(0xc0, 8); // constraint_set0/1: constrained Baseline
+  sps.bits(30, 8); // level 3.0
+  sps.ue(0); // seq_parameter_set_id
+  sps.ue(0); // log2_max_frame_num_minus4
+  sps.ue(2); // pic_order_cnt_type: none to signal for a lone picture
+  sps.ue(1); // max_num_ref_frames
+  sps.bits(0, 1); // gaps_in_frame_num_value_allowed_flag
+  sps.ue(mbsX - 1);
+  sps.ue(mbsY - 1);
+  sps.bits(1, 1); // frame_mbs_only_flag
+  sps.bits(1, 1); // direct_8x8_inference_flag
+  const crop = stride !== width || lines !== height;
+  sps.bits(crop ? 1 : 0, 1);
+  if (crop) [0, (stride - width) / 2, 0, (lines - height) / 2].forEach(offset => sps.ue(offset)); // in 2-pixel units
+  sps.bits(0, 1); // vui_parameters_present_flag
+
+  const pps = new BitWriter();
+  pps.ue(0); // pic_parameter_set_id
+  pps.ue(0); // seq_parameter_set_id
+  pps.bits(0, 1); // entropy_coding_mode_flag: CAVLC
+  pps.bits(0, 1); // bottom_field_pic_order_in_frame_present_flag
+  pps.ue(0); // num_slice_groups_minus1
+  pps.ue(0); // num_ref_idx_l0_default_active_minus1
+  pps.ue(0); // num_ref_idx_l1_default_active_minus1
+  pps.bits(0, 3); // weighted_pred_flag, weighted_bipred_idc
+  pps.ue(0); // pic_init_qp_minus26 (se 0)
+  pps.ue(0); // pic_init_qs_minus26 (se 0)
+  pps.ue(0); // chroma_qp_index_offset (se 0)
+  pps.bits(0, 3); // deblocking_filter_control_present, constrained_intra_pred, redundant_pic_cnt_present
+
+  const slice = new BitWriter();
+  slice.ue(0); // first_mb_in_slice
+  slice.ue(7); // slice_type: I, and so is every other slice of the picture
+  slice.ue(0); // pic_parameter_set_id
+  slice.bits(0, 4); // frame_num
+  slice.ue(0); // idr_pic_id
+  slice.bits(0, 2); // no_output_of_prior_pics_flag, long_term_reference_flag
+  slice.ue(0); // slice_qp_delta (se 0)
+  for (let my = 0; my < mbsY; my++) {
+    for (let mx = 0; mx < mbsX; mx++) {
+      slice.ue(25); // mb_type I_PCM
+      slice.align(); // pcm_alignment_zero_bit
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) slice.bytes.push(luma[(my * 16 + y) * stride + mx * 16 + x]);
+      }
+      for (const plane of [cb, cr]) {
+        for (let y = 0; y < 8; y++) {
+          for (let x = 0; x < 8; x++) slice.bytes.push(chroma(plane, mx * 8 + x, my * 8 + y));
+        }
+      }
+    }
+  }
+
+  return Buffer.concat([nalUnit(0x67, sps.end()), nalUnit(0x68, pps.end()), nalUnit(0x65, slice.end())]);
+};
+
+// The real camera's main stream is 2304x1296; this is the same 16:9 at a size
+// whose I_PCM keyframe (about 350 KB) is still a realistic burst for the relay.
+const CAMERA_WIDTH = 640;
+const CAMERA_HEIGHT = 360;
 
 /**
  * A grow tent seen from the camera: back wall, floor, and a plant whose canopy
@@ -724,7 +751,7 @@ const CAMERA_BLOCKS_Y = 60;
  * timelapse of the stills tracks the day/night cycle the charts show.
  */
 const growScene = (light, growth, phase) => {
-  // Value noise from the block coordinates, so the foliage has an irregular
+  // Value noise over small cells of pixels, so the foliage has an irregular
   // texture instead of a visible pattern.
   const noise = (bx, by, salt) => {
     const hash = Math.sin(bx * 12.9898 + by * 78.233 + salt * 37.719) * 43758.5453;
@@ -736,9 +763,11 @@ const growScene = (light, growth, phase) => {
   const halfWidth = 0.13 + growth * 0.21;
   const canopyHeight = 0.12 + growth * 0.36;
 
-  return (bx, by) => {
-    const x = bx / CAMERA_BLOCKS_X;
-    const y = by / CAMERA_BLOCKS_Y;
+  return (px, py) => {
+    const x = px / CAMERA_WIDTH;
+    const y = py / CAMERA_HEIGHT;
+    const bx = Math.floor(px / 4);
+    const by = Math.floor(py / 4);
 
     // Grow lights are heavy on red and blue. Lights-out keeps the exposure a
     // camera with a night mode would still show rather than going black.
@@ -757,7 +786,7 @@ const growScene = (light, growth, phase) => {
     const offset = (x - centre + Math.sin(phase + y * 4) * 0.015) / halfWidth;
     if (Math.abs(offset) < 1) {
       const dome = Math.sqrt(1 - offset * offset) * canopyHeight;
-      const ragged = dome * (0.88 + noise(bx, 0, 3) * 0.24);
+      const ragged = dome * (0.88 + noise(Math.floor(px / 8), 0, 3) * 0.24);
       if (y > horizon - ragged) {
         const depth = (y - (horizon - ragged)) / Math.max(ragged, 0.001);
         const leaf = noise(bx, by, phase) * 40 - 20;
@@ -770,6 +799,182 @@ const growScene = (light, growth, phase) => {
     return tint([42 + y * 26, 44 + y * 26, 50 + y * 28]);
   };
 };
+
+// ------------------------------------------------------------ Terp Cam (P2P)
+
+/**
+ * The camera's side of its P2P protocol, as far as the cloud's client uses it
+ * (server/src/modules/camera/terpcam-direct.service.ts). The real controller
+ * only shovels datagrams between the cloud and the camera on its LAN, so the
+ * simulator plays both: the relay in SimulatedDevice#relay, and the camera
+ * here, answering the datagrams in-process instead of over UDP.
+ */
+
+// The transport's table cipher (vendor constants, as in the server and firmware).
+// prettier-ignore
+const P2P_SBOX = Buffer.from([
+  0x7c,0x9c,0xe8,0x4a,0x13,0xde,0xdc,0xb2,0x2f,0x21,0x23,0xe4,0x30,0x7b,0x3d,0x8c,
+  0xbc,0x0b,0x27,0x0c,0x3c,0xf7,0x9a,0xe7,0x08,0x71,0x96,0x00,0x97,0x85,0xef,0xc1,
+  0x1f,0xc4,0xdb,0xa1,0xc2,0xeb,0xd9,0x01,0xfa,0xba,0x3b,0x05,0xb8,0x15,0x87,0x83,
+  0x28,0x72,0xd1,0x8b,0x5a,0xd6,0xda,0x93,0x58,0xfe,0xaa,0xcc,0x6e,0x1b,0xf0,0xa3,
+  0x88,0xab,0x43,0xc0,0x0d,0xb5,0x45,0x38,0x4f,0x50,0x22,0x66,0x20,0x7f,0x07,0x5b,
+  0x14,0x98,0x1d,0x9b,0xa7,0x2a,0xb9,0xa8,0xcb,0xf1,0xfc,0x49,0x47,0x06,0x3e,0xb1,
+  0x0e,0x04,0x3a,0x94,0x5e,0xee,0x54,0x11,0x34,0xdd,0x4d,0xf9,0xec,0xc7,0xc9,0xe3,
+  0x78,0x1a,0x6f,0x70,0x6b,0xa4,0xbd,0xa9,0x5d,0xd5,0xf8,0xe5,0xbb,0x26,0xaf,0x42,
+  0x37,0xd8,0xe1,0x02,0x0a,0xae,0x5f,0x1c,0xc5,0x73,0x09,0x4e,0x69,0x24,0x90,0x6d,
+  0x12,0xb3,0x19,0xad,0x74,0x8a,0x29,0x40,0xf5,0x2d,0xbe,0xa5,0x59,0xe0,0xf4,0x79,
+  0xd2,0x4b,0xce,0x89,0x82,0x48,0x84,0x25,0xc6,0x91,0x2b,0xa2,0xfb,0x8f,0xe9,0xa6,
+  0xb0,0x9e,0x3f,0x65,0xf6,0x03,0x31,0x2e,0xac,0x0f,0x95,0x2c,0x5c,0xed,0x39,0xb7,
+  0x33,0x6c,0x56,0x7e,0xb4,0xa0,0xfd,0x7a,0x81,0x53,0x51,0x86,0x8d,0x9f,0x77,0xff,
+  0x6a,0x80,0xdf,0xe2,0xbf,0x10,0xd7,0x75,0x64,0x57,0x76,0xf3,0x55,0xcd,0xd0,0xc8,
+  0x18,0xe6,0x36,0x41,0x62,0xcf,0x99,0xf2,0x32,0x4c,0x67,0x60,0x61,0x92,0xca,0xd3,
+  0xea,0x63,0x7d,0x16,0xb6,0x8e,0xd4,0x68,0x35,0xc3,0x52,0x9d,0x46,0x44,0x1e,0x17,
+]);
+const P2P_DK = [44, 212, 96, 6];
+
+// Symmetric: `prev` is always the ciphertext byte, so the two differ only in
+// which side of the XOR that is.
+const p2pCipher = (buf, encrypting) => {
+  const out = Buffer.allocUnsafe(buf.length);
+  let prev = 0;
+  for (let i = 0; i < buf.length; i++) {
+    out[i] = P2P_SBOX[(P2P_DK[prev & 3] + prev) & 0xff] ^ buf[i];
+    prev = encrypting ? out[i] : buf[i];
+  }
+  return out;
+};
+
+const p2pPacket = (type, payload = Buffer.alloc(0)) => {
+  const head = Buffer.from([0xf1, type, 0, 0]);
+  head.writeUInt16BE(payload.length, 2);
+  return p2pCipher(Buffer.concat([head, payload]), true);
+};
+
+// A DRW data packet: d1, channel, a per-channel index, then the data.
+const p2pData = (channel, index, data) => {
+  const head = Buffer.from([0xd1, channel, 0, 0]);
+  head.writeUInt16BE(index & 0xffff, 2);
+  return p2pPacket(0xd0, Buffer.concat([head, data]));
+};
+
+// A CGI reply carries the same 8-byte command header as the request that asked.
+const cgiReply = text => {
+  const body = Buffer.from(text, 'latin1');
+  const head = Buffer.from([0x01, 0x0a, 0, 0, 0, 0, 0, 0]);
+  head.writeUInt32LE(body.length, 4);
+  return Buffer.concat([head, body]);
+};
+
+const CMD_CHANNEL = 0;
+const VIDEO_CHANNEL = 1;
+// The camera's datagrams carry at most 1024 bytes of stream (1032 in all).
+const VIDEO_FRAGMENT_BYTES = 1024;
+// One keyframe per GOP, about as often as the real camera sends one.
+const GOP_MS = 2000;
+
+/**
+ * The camera's P2P id, derived from the printed id pairing stored: VSTH, a
+ * number and five letters, the way the real ones read. Packed into the 20 bytes
+ * the protocol carries it as (the firmware's formatCamUid reads it back).
+ */
+const cameraUid = label => {
+  const hash = createHash('sha1').update(label).digest();
+  const number = 100000 + (hash.readUInt32BE(0) % 900000);
+  const letters = [...hash.subarray(4, 9)].map(byte => String.fromCharCode(65 + (byte % 26))).join('');
+  const did = Buffer.alloc(20);
+  did.write('VSTH', 0, 'latin1');
+  did.writeBigUInt64BE(BigInt(number), 4);
+  did.write(letters, 12, 'latin1');
+  return { uid: `VSTH${number}${letters}`, did };
+};
+
+/**
+ * One P2P session on the simulated camera. `receive` takes a datagram from the
+ * client, `send` puts one on the way back; both are table-ciphered, exactly as
+ * they cross the controller.
+ */
+class SimulatedTerpCam {
+  #outIndex = [0, 0];
+  #seen = new Set();
+  #stream = null;
+
+  constructor({ label, did, send, keyframe }) {
+    Object.assign(this, { label, did, send, keyframe });
+  }
+
+  receive(datagram) {
+    const m = p2pCipher(datagram, false);
+    if (m.length < 4 || m[0] !== 0xf1) return;
+    switch (m[1]) {
+      case 0x00: // hello: answered with the address the camera sees, which nobody reads
+        this.send(p2pPacket(0x01, Buffer.alloc(16)));
+        break;
+      case 0x41: // punch: the camera is ready, and the client echoes that back
+        if (m.subarray(4, 24).equals(this.did)) this.send(p2pPacket(0x42, this.did));
+        break;
+      case 0xe0: // keepalive
+        this.send(p2pPacket(0xe1));
+        break;
+      case 0xd0:
+        if (m.length > 16 && m[5] === CMD_CHANNEL) this.#onCgi(m.readUInt16BE(6), m.subarray(16).toString('latin1'));
+        break;
+      case 0xf0: // the client closed the session
+        this.stop();
+        break;
+      // 0x05, 0x20 (the DevLgn) and the client's acks (0xd1) need no answer.
+    }
+  }
+
+  stop() {
+    clearInterval(this.#stream);
+    this.#stream = null;
+  }
+
+  // Acked like every DRW, but answered once: the client repeats get_status
+  // under the same index until something comes back.
+  #onCgi(index, request) {
+    const ack = Buffer.from([0xd1, CMD_CHANNEL, 0, 1, 0, 0]);
+    ack.writeUInt16BE(index, 4);
+    this.send(p2pPacket(0xd1, ack));
+    if (this.#seen.has(index)) return;
+    this.#seen.add(index);
+
+    const cgi = request.replace(/^GET \//, '');
+    let reply = 'result=0;\r\n';
+    if (cgi.startsWith('get_status.cgi')) {
+      // What the client checks is `realdeviceid`; support_vuid is there because
+      // a real reply has it, and it once fooled the client's parsing.
+      reply = `var alias="Terp Cam";\r\nvar realdeviceid="${this.label}";\r\nvar support_vuid=1;\r\nvar vuidResult=0;\r\n`;
+    } else if (/^livestream\.cgi\?streamid=16\b/.test(cgi)) {
+      this.stop();
+    } else if (/^livestream\.cgi\?streamid=10\b/.test(cgi)) {
+      this.#startStream();
+    }
+    this.send(p2pData(CMD_CHANNEL, this.#outIndex[CMD_CHANNEL]++, cgiReply(reply)));
+  }
+
+  // A restarted stream begins mid-GOP, so the first frame is not the keyframe.
+  #startStream() {
+    if (this.#stream) return;
+    this.#sendFrame(1, Buffer.from([0, 0, 0, 1, 0x09, 0xf0])); // an access unit delimiter stands in for a P frame
+    this.#sendFrame(0, this.keyframe());
+    this.#stream = setInterval(() => this.#sendFrame(0, this.keyframe()), GOP_MS);
+  }
+
+  // The vendor frame: a 32-byte header (the client reads the magic and the
+  // payload length at 16), then the H.264 access unit, cut into datagrams.
+  #sendFrame(type, payload) {
+    const header = Buffer.alloc(32);
+    Buffer.from([0x55, 0xaa, 0x15, 0xa8]).copy(header, 0);
+    header[4] = type;
+    header.writeUInt32LE(payload.length, 16);
+    header.writeUInt32LE(Math.floor(Date.now() / 1000), 20);
+    const frame = Buffer.concat([header, payload]);
+    for (let offset = 0; offset < frame.length; offset += VIDEO_FRAGMENT_BYTES) {
+      this.send(p2pData(VIDEO_CHANNEL, this.#outIndex[VIDEO_CHANNEL]++, frame.subarray(offset, offset + VIDEO_FRAGMENT_BYTES)));
+    }
+  }
+}
 
 // ------------------------------------------------------------------ Device I/O
 
@@ -794,7 +999,6 @@ class SimulatedDevice {
       // First boot of this device.
     }
     this.memory.sockets = this.#loadSockets();
-    this.captureCount = 0;
     this.configWaiters = [];
     // An override of the module's own light output, held in RAM like a socket's.
     this.lightOverride = null;
@@ -860,6 +1064,11 @@ class SimulatedDevice {
     if (key === 'webcam_did') {
       this.memory.webcamDid = value === 'none' || value === '' ? null : String(value);
       this.remember();
+      // The controller reads the camera's P2P id off its first session with it
+      // and reports that too; the cloud asks for a relay only once it has one.
+      this.log(`hardware-info:${key}=${value}`);
+      this.log(`hardware-info:webcam_uid=${this.memory.webcamDid ? cameraUid(this.memory.webcamDid).uid : 'none'}`);
+      return;
     }
     this.log(`hardware-info:${key}=${value}`);
   }
@@ -945,31 +1154,127 @@ class SimulatedDevice {
   }
 
   // Pair a camera the way the module's menu does. The cloud turns the reported
-  // id into an okam:// stream and starts asking for stills.
+  // id into a terpcam:// stream and starts asking for stills.
   attachCamera() {
     const did = createHash('sha1').update(this.deviceId).digest('hex').slice(0, 6).toUpperCase();
     this.hardwareInfo('webcam_did', this.memory.webcamDid ?? `SIMCAM${did}`);
   }
 
-  /**
-   * Answer a still request. The real controller reads the frame off its P2P
-   * link and forwards it in fragments as it goes, because it has nowhere near
-   * enough RAM to hold a whole image - so this fragments too, and the cloud's
-   * reassembly is exercised rather than bypassed.
-   */
-  #capture() {
+  // The camera as paired right now. Read from the state file rather than from
+  // memory, so `hwinfo webcam_did=...` from another shell reaches a running device.
+  #pairedCamera() {
+    try {
+      const stored = JSON.parse(fs.readFileSync(this.memoryFile, 'utf8'));
+      if ('webcamDid' in stored) this.memory.webcamDid = stored.webcamDid;
+    } catch {
+      // Nothing stored yet, so memory is current.
+    }
+    return this.memory.webcamDid;
+  }
+
+  // The still the camera would see right now, as the keyframe its stream opens with.
+  #keyframe() {
     const light = lightPercent(this.config, new Date(), this.type);
     const age = (Date.now() - this.memory.plantedAt) / 86400000;
-    const jpeg = encodeJpeg(CAMERA_BLOCKS_X, CAMERA_BLOCKS_Y, growScene(light, clamp(0.45 + age / 40, 0.45, 1), Date.now() / 60000));
+    return encodeKeyframe(CAMERA_WIDTH, CAMERA_HEIGHT, growScene(light, clamp(0.45 + age / 40, 0.45, 1), Date.now() / 60000));
+  }
 
-    const capture = ++this.captureCount;
-    const FRAGMENT_BYTES = 4096;
-    for (let offset = 0, seq = 0; offset < jpeg.length; offset += FRAGMENT_BYTES, seq++) {
-      const chunk = jpeg.subarray(offset, offset + FRAGMENT_BYTES);
-      const last = offset + FRAGMENT_BYTES >= jpeg.length;
-      this.mqtt.publish(this.topic('image'), JSON.stringify({ capture, seq, payload: chunk.toString('base64'), ...(last ? { last: true } : {}) }));
+  /**
+   * Answer a cam_relay the way firmware/src/terpcam.cpp relay() does: open `url`
+   * as an HTTP upgrade, send the header (token in the clear, a NUL, the camera's 20-byte P2P
+   * id), then carry length-framed datagrams both ways under AES-128-CTR - the
+   * key's first half for what goes up, the second for what comes down. An empty
+   * frame from the cloud means it has its still, and the device hangs up.
+   *
+   * The real controller bridges to the camera on its LAN; here the camera is
+   * SimulatedTerpCam, so the cloud's P2P client runs against the whole path.
+   */
+  #relay({ url, token, key }) {
+    const label = this.#pairedCamera();
+    const keyBytes = Buffer.from(String(key ?? ''), 'hex');
+    let target;
+    try {
+      target = new URL(String(url));
+    } catch {
+      return;
     }
-    console.error(`cam_capture -> ${jpeg.length}B still`);
+    const secure = target.protocol === 'https:';
+    // One relay at a time, and only to a camera the device knows - as the firmware.
+    if (!this.servesCamera || this.relaying || !label || !token || keyBytes.length !== 32) return;
+    if (!secure && target.protocol !== 'http:') return;
+    this.relaying = true;
+
+    const up = createCipheriv('aes-128-ctr', keyBytes.subarray(0, 16), Buffer.alloc(16));
+    const down = createDecipheriv('aes-128-ctr', keyBytes.subarray(16), Buffer.alloc(16));
+    const { did } = cameraUid(label);
+    const host = target.hostname;
+    const port = Number(target.port || (secure ? 443 : 80));
+    // The relay enciphers everything itself, so TLS only has to get through - as the firmware.
+    const conn = secure ? tls.connect({ host, port, rejectUnauthorized: false }) : net.createConnection({ host, port });
+    conn.setNoDelay(true);
+
+    const frame = datagram => {
+      if (!conn.writable) return;
+      const out = Buffer.alloc(2 + datagram.length);
+      out.writeUInt16BE(datagram.length, 0);
+      datagram.copy(out, 2);
+      conn.write(up.update(out));
+    };
+    let picture = null;
+    const camera = new SimulatedTerpCam({ label, did, send: frame, keyframe: () => (picture ??= this.#keyframe()) });
+
+    // The firmware's cap, for a cloud that has lost track of the relay.
+    const cap = setTimeout(() => conn.destroy(), 2 * 60000);
+    const finish = () => {
+      camera.stop();
+      clearTimeout(cap);
+      this.relaying = false;
+    };
+    conn.on('error', error => console.error(`cam_relay: ${error.message}`));
+    conn.on('close', finish);
+
+    conn.once(secure ? 'secureConnect' : 'connect', () =>
+      conn.write(`GET ${target.pathname} HTTP/1.1\r\nHost: ${target.host}\r\nUpgrade: terpcam-relay\r\nConnection: Upgrade\r\n\r\n`),
+    );
+    const switched = () => {
+      const header = Buffer.concat([Buffer.from(String(token), 'latin1'), Buffer.from([0]), up.update(did)]);
+      const length = Buffer.alloc(2);
+      length.writeUInt16BE(header.length);
+      conn.write(Buffer.concat([length, header]));
+    };
+
+    // The response head is not the relay's; only what follows it is.
+    let response = Buffer.alloc(0);
+    let held = Buffer.alloc(0);
+    conn.on('data', data => {
+      let chunk = data;
+      if (response) {
+        response = Buffer.concat([response, chunk]);
+        const end = response.indexOf('\r\n\r\n');
+        if (end < 0) return;
+        if (!/^HTTP\/1\.\d 101/.test(response.toString('latin1'))) {
+          console.error(`cam_relay: ${url} answered ${response.toString('latin1').split('\r\n')[0]}`);
+          conn.destroy();
+          return;
+        }
+        chunk = response.subarray(end + 4);
+        response = null;
+        switched();
+      }
+      held = Buffer.concat([held, down.update(chunk)]);
+      while (held.length >= 2) {
+        const length = held.readUInt16BE(0);
+        if (length === 0) {
+          console.error(`cam_relay -> ${picture ? `${picture.length}B keyframe` : 'no keyframe'} to ${url}`);
+          camera.stop();
+          conn.end();
+          return;
+        }
+        if (held.length < 2 + length) return;
+        camera.receive(held.subarray(2, 2 + length));
+        held = held.subarray(2 + length);
+      }
+    });
   }
 
   /**
@@ -1167,8 +1472,8 @@ class SimulatedDevice {
   // port on the home network, and the device relays a TCP connection to it
   // byte for byte over MQTT. That is how a stream camera at a local address is
   // read, so a camera on this machine - an RTSP server on localhost - is
-  // reachable through a simulated device exactly as through a real one. The
-  // UDP relay of the Terp Cam's P2P path is not simulated.
+  // reachable through a simulated device exactly as through a real one. A Terp
+  // Cam does not go through it: it has a relay of its own (#relay).
   #tunnels = new Map();
 
   #onTunnel(payload) {
@@ -1282,8 +1587,8 @@ class SimulatedDevice {
       case 'stoptest':
         this.testOutputs = null;
         break;
-      case 'cam_capture':
-        this.#capture();
+      case 'cam_relay':
+        this.#relay(command);
         break;
       case 'maintenance':
         this.maintenanceUntil = Date.now() + Number(command.durationMinutes ?? 0) * 60000;
@@ -1398,8 +1703,8 @@ Options:
                          With a period the sensor flaps - broken for that many
                          seconds, working for as many - and the device reports
                          it the way the firmware does, at most every 15 minutes
-      --camera           pair a simulated webcam, so run answers the still
-                         requests the cloud makes every 30s
+      --camera           pair a simulated webcam, so run relays the cloud's
+                         still requests (every 30s) to it
       --no-claim         skip claiming during setup
 `;
 
@@ -1621,6 +1926,9 @@ const faultPresent = (fault, runningMs) => !fault.periodMs || Math.floor(running
 
 const run = async options => {
   const device = new SimulatedDevice({ deviceId: options.deviceId, type: options.type, ...credentials(options.deviceId) });
+  // Only the long-running device bridges its camera: a short-lived `send` would
+  // otherwise take a relay and exit halfway through it.
+  device.servesCamera = true;
 
   const goOnline = async (booting = false) => {
     await device.connect();

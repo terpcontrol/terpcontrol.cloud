@@ -84,6 +84,9 @@ namespace fg {
     static constexpr int CO2_SAMPLE_DELAY = 100;
     static constexpr int WARN_LEVEL_CO2_MIN = 100;
 
+    // Hard stop for the heater socket: however the PID ends up, it never
+    // heats a tent that is already this far above its target.
+    static constexpr float HEATER_OVERTEMP_MARGIN = 5.0f;
     static constexpr double HEATER_PID_P = 0.5;
     static constexpr double HEATER_PID_I = 0.001;
     static constexpr double HEATER_PID_D = 100.0;

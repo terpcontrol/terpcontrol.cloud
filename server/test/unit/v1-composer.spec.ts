@@ -67,7 +67,7 @@ const picture = (colour: string): Promise<Buffer> =>
 
 const compose = (body: TimelapseCreate, cameraId = CAMERA) => controller.requestTimelapse(session, cameraId, body, reply());
 
-const build = (rendezvous: string[] = []): void => {
+const build = (): void => {
   const entitlement = new EntitlementService(PREMIUM);
   const cameras = new CamerasService(db.cameras, db.devices, db.memberships, entitlement, db.users);
   media = new MediaService(db.media, db.grows, null as never);
@@ -77,12 +77,7 @@ const build = (rendezvous: string[] = []): void => {
   // what it then renders is the builder's own test.
   const builder = { renderQueued: () => undefined };
 
-  controller = new CamerasController(cameras, media, null as never, poller as never, builder as never, entitlement, access, {
-    rendezvousHosts: rendezvous,
-    advertiseAddress: '',
-    portsStart: 0,
-    portsEnd: 0,
-  });
+  controller = new CamerasController(cameras, media, poller as never, builder as never, entitlement, access);
 };
 
 const world = async (entitledUntil: Date | null): Promise<void> => {

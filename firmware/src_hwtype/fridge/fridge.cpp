@@ -166,7 +166,13 @@ namespace fg {
       state.temperature = temperature_sht;
     }
 
-    if(scd_valid) {
+    bool sht_failed = sht_fails >= MAX_SENSOR_FAILS;
+
+    if(scd_valid && sht_failed) {
+      state.humidity = humidity_scd;
+      state.temperature = temperature_scd;
+    }
+    else if(scd_valid) {
       if(temperature_scd > state.temperature + MAX_SENSOR_DEVIATION || temperature_scd < state.temperature - MAX_SENSOR_DEVIATION) {
         state.humidity = humidity_scd;
         state.temperature = temperature_scd;
@@ -183,21 +189,17 @@ namespace fg {
     // and returned. The flag is cleared by a working sensor and by nothing
     // else, so a sensor that stays broken costs one line rather than one per
     // pass.
-    if(sht_fails >= 10) {
+    if(sht_failed) {
       if(!sensor_fail_seen) {
         sensor_fail_seen = logSensorFault(cloud, "message-ext-sensor-fail", g_ext_sensor_fail_logged);
       }
     }
-    else {
+    else if(sht_valid) {
       sensor_fail_seen = false;
     }
 
-    if(co2_fails < 10) {
-      sensors_valid = true;
-    }
-    else {
-      sensors_valid = false;
-    }
+    // A failed SHT is covered by the SCD4x readings above, so only a failed SCD4x leaves nothing to regulate on.
+    sensors_valid = co2_fails < MAX_SENSOR_FAILS;
   }
 
   void FridgeController::checkDayCycle() {
@@ -450,6 +452,26 @@ namespace fg {
     out_fan_backwall.set(255);
   }
 
+  void FridgeController::pulseHeater(float seconds) {
+    // Nothing to do: do not switch on at all. Switching on and relying on the
+    // off path would heat for as long as the loop task happens to be blocked.
+    if(seconds <= 0.0f || heater_temp >= HEATER_MAX_TEMPERATURE) {
+      esp_timer_stop(heater_off_timer);
+      out_heater.set(0);
+      if(seconds > 0.0f) {
+        Serial.println("HEATER THROTTLING!");
+      }
+      return;
+    }
+
+    // Stop the previous pulse's timer before switching on, so it cannot fire
+    // in between and cut this pulse short.
+    esp_timer_stop(heater_off_timer);
+    heater_turn_off = xTaskGetTickCount() + (TickType_t)(configTICK_RATE_HZ * seconds);
+    out_heater.set(1);
+    esp_timer_start_once(heater_off_timer, (uint64_t)(seconds * 1000000.0f));
+  }
+
   void FridgeController::controlHeater() {
 
     if (isPaused()) {
@@ -462,18 +484,11 @@ namespace fg {
       state.out_heater = heater_night_pid.tick(state.temperature, state.target_temperature);
     }
 
-    heater_turn_off = (float)xTaskGetTickCount() + (float)configTICK_RATE_HZ * state.out_heater;
+    if(state.temperature > state.target_temperature + HEATER_OVERTEMP_MARGIN) {
+      state.out_heater = 0;
+    }
 
-    if (isPaused()) {
-      out_heater.set(0);
-    }
-    else if(heater_temp < HEATER_MAX_TEMPERATURE) {
-      out_heater.set(1);
-    }
-    else {
-      out_heater.set(0);
-      Serial.println("HEATER THROTTLING!");
-    }
+    pulseHeater(state.out_heater);
 
     heater_avg.push(heater_temp);
     auto fanramp = (heater_avg.avg() - HEATER_FANRAMP_START_TEMP) / (HEATER_FANRAMP_END_TEMP - HEATER_FANRAMP_START_TEMP);
@@ -754,6 +769,12 @@ namespace fg {
       }
     });
 
+    esp_timer_create_args_t heater_off_args = {};
+    heater_off_args.callback = [](void* output) { static_cast<PinOutput*>(output)->set(0); };
+    heater_off_args.arg = &out_heater;
+    heater_off_args.name = "heater_off";
+    esp_timer_create(&heater_off_args, &heater_off_timer);
+
     Wire.begin(PIN_SDA, PIN_SCL);
 
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
@@ -911,25 +932,11 @@ namespace fg {
     if(testmode_duration > 0) {
       testmode_duration--;
       Serial.println("TESTMODE ACTIVE!");
-      if(heater_temp < HEATER_MAX_TEMPERATURE) {
-        heater_turn_off = (float)xTaskGetTickCount() + (float)configTICK_RATE_HZ * testmode_heater_power / 100.0;
-        out_heater.set(1);
-      }
-      else {
-        out_heater.set(0);
-        Serial.println("!!!!!!!!   HEATER THROTTLING !!!!!!!!!!");
-      }
+      pulseHeater(testmode_heater_power / 100.0f);
     }
     else if(settings.mqttcontrol) {
       Serial.println("Direct control mode active");;
-      if(heater_temp < HEATER_MAX_TEMPERATURE) {
-        heater_turn_off = (float)xTaskGetTickCount() + (float)configTICK_RATE_HZ * testmode_heater_power;
-        out_heater.set(1);
-      }
-      else {
-        out_heater.set(0);
-        Serial.println("!!!!!!!!   HEATER THROTTLING !!!!!!!!!!");
-      }
+      pulseHeater(testmode_heater_power);
 
       if(tickPassed(directmode_timer)) {
         Serial.println("DIRECTMODE TIMEOUT! REVERTING!");

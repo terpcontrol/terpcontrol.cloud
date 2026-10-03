@@ -48,14 +48,14 @@ describe('adding a camera', () => {
     expect(created.body.entitlement).toMatchObject({ validUntil: null, grant: null });
   });
 
-  it('says a standalone Terp Cam is coming, because this install has no rendezvous to find one through', async () => {
+  it('says a standalone Terp Cam is coming, because a Terp Cam is reached through the device it is paired at', async () => {
     const refused = await owner.client
       .post('/v1/cameras')
       .send({ kind: 'terpcam_standalone', spaceId: tent, name: 'On the balcony', did: 'TERP123456' })
       .expect(400);
 
     expect(refused.body.code).toBe('not_yet');
-    expect(refused.body.detail).toMatch(/no rendezvous/);
+    expect(refused.body.detail).toMatch(/through the device it is paired at/);
   });
 
   it('pulls a stream through a fridge module as it does through a controller', async () => {

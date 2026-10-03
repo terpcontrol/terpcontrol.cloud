@@ -2,15 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { execFile } from 'node:child_process';
 
 /**
- * The one thing both Terp Cam paths end in: a raw H.264 keyframe turned into a
- * JPEG.
+ * What a Terp Cam still ends in: a raw H.264 keyframe turned into a JPEG.
  *
  * The shipped webcam is a VStarcam OEM that, once on the home wifi, only speaks a
  * proprietary P2P transport (no LAN RTSP/HTTP; the protocol notes are kept
- * internally). Neither the controller nor the camera hands over a picture: the
- * controller has no decoder and little RAM, and the camera's own `snapshot.cgi`
- * is pinned far below what its video stream carries. So both paths take a
- * keyframe off that stream and it is decoded here.
+ * internally). Neither the device it is paired at nor the camera hands over a
+ * picture: the device has no decoder and little RAM, and the camera's own
+ * `snapshot.cgi` is pinned far below what its video stream carries. So the
+ * server takes a keyframe off that stream, over the device's relay, and it is
+ * decoded here.
  *
  * The keyframe is a standard H.264 Annex-B GOP head (SPS + PPS + IDR); the
  * VStarcam 55aa15a8 frame headers are stripped before it gets here.

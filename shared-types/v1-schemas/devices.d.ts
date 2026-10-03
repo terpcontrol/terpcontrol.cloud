@@ -798,10 +798,6 @@ export declare const maintenanceCommand: z.ZodObject<{
     kind: z.ZodLiteral<"maintenance">;
     forSeconds: z.ZodNumber;
 }, z.core.$strip>;
-/** Asks for a still now. A controller answers for the one Terp Cam it pairs, so it names no camera. */
-export declare const captureStillCommand: z.ZodObject<{
-    kind: z.ZodLiteral<"capture_still">;
-}, z.core.$strip>;
 /**
  * Forces one socket, or the controller's own light output, for a while. The
  * subject is `{ type, id }` because the two are addressed differently: a socket
@@ -866,8 +862,6 @@ export declare const deviceCommand: z.ZodDiscriminatedUnion<[z.ZodObject<{
 }, z.core.$strip>, z.ZodObject<{
     kind: z.ZodLiteral<"maintenance">;
     forSeconds: z.ZodNumber;
-}, z.core.$strip>, z.ZodObject<{
-    kind: z.ZodLiteral<"capture_still">;
 }, z.core.$strip>, z.ZodObject<{
     kind: z.ZodLiteral<"socket_override">;
     subject: z.ZodObject<{

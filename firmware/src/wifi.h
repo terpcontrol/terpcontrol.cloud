@@ -104,6 +104,9 @@ void wifiForceAllSmartSocketsOff();
 // call before the cloud connection is up (and without any network at all).
 void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud);
 
+// The Terp Cam part of the above, for hwtypes that drive no smart sockets.
+void wifiInitTerpCamCloudReporting(fg::Fridgecloud* cloud);
+
 // A `slot` of -1 in the calls below means "the sockets of this role" — every
 // one of them for remove/test, and the single existing one for set. That is
 // what a command could mean before a role could hold several sockets, so old
@@ -159,7 +162,11 @@ bool wifiOverrideOutput(const std::string& output, const std::string& state, uin
 bool wifiLightOutputOverride(bool& on);
 
 // Handles the cloud aux-device commands shared by all socket-capable
-// hwtypes (socket_remove / socket_set / socket_test). Returns true when the
+// hwtypes (cam_relay / socket_remove / socket_set / socket_test). Returns true when the
 // command was one of these actions; hwtype-specific commands stay with the
 // caller.
 bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud);
+
+// Handles the Terp Cam commands (cam_relay); part of wifiHandleAuxCommand, and
+// on its own for hwtypes that drive no smart sockets.
+bool wifiHandleTerpCamCommand(const JsonDocument& command);

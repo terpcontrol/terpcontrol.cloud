@@ -55,7 +55,7 @@ regression.
 ## Unit suite
 
 `unit/`, for behaviour the integration suite cannot reach: the daily cleanup sweep has no route of its own, and the
-Terp Cam fallback decides between two paths that both end in a rendezvous server the harness has nothing to answer
+Terp Cam's P2P client needs a camera at the far end of the device's relay, which the harness has nothing to answer
 with. A spec here constructs the service itself and passes it what it needs.
 
 It is a separate jest project because it has to run as ESM. NestJS 12 ships ESM only, so importing any service into

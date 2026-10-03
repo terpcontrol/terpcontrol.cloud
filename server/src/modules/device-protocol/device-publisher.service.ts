@@ -165,11 +165,13 @@ export class DevicePublisherService {
   }
 
   /**
-   * Asks the controller for a still now. It answers with the picture in
-   * fragments on `image`, and with nothing at all when it cannot.
+   * Asks the device to bridge its Terp Cam to the cloud: it dials `url` back as
+   * an HTTP upgrade and carries the camera's P2P over it. Not gated by type like
+   * the socket commands - every type that pairs a camera takes it, and one that
+   * has none drops it, which the capture reads as a relay that never opened.
    */
-  public captureStill(deviceId: string): boolean {
-    return this.mqtt.publish(deviceTopic(deviceId, 'command'), JSON.stringify({ action: 'cam_capture' }));
+  public requestRelay(deviceId: string, relay: { url: string; token: string; key: string }): boolean {
+    return this.mqtt.publish(deviceTopic(deviceId, 'command'), JSON.stringify({ action: 'cam_relay', ...relay }));
   }
 
   private publishCommand(deviceId: string, payload: Record<string, unknown>): void {
@@ -188,9 +190,6 @@ export class DevicePublisherService {
         return { action: 'reboot' };
       case 'maintenance':
         return maintenancePayload(command.forSeconds);
-      case 'capture_still':
-        this.mustHost(device, 'no camera to take a still with');
-        return { action: 'cam_capture' };
       case 'socket_override':
         this.mustHost(device, command.subject.type === 'output' ? 'no way to hold its light output on command' : 'no smart sockets');
         return this.overridePayload(device, command);

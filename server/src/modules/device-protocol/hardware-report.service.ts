@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,6 +7,7 @@ import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { logger } from '@utils/logger';
+import { DEVICE_CAMERA_REPORT_SINK, DeviceCameraReportSink } from './device-sinks';
 import { decodeSockets } from './sockets';
 
 /**
@@ -47,6 +48,13 @@ const ENTITLEMENT_MONTHS = 12;
  */
 const CAMERA_SECRET_KEYS = ['webcam_pwd', 'webcam_url'];
 
+/**
+ * What a device says about its camera that may change whether the cloud gets in:
+ * a different camera, the password it was just secured with, the P2P id it has
+ * just read off it - or the same again after a reboot.
+ */
+const CAMERA_REPORT_KEYS = ['webcam_did', 'webcam_uid', 'webcam_pwd'];
+
 export interface HardwareInfo {
   key: string;
   value: string;
@@ -57,6 +65,7 @@ export class HardwareReportService {
   constructor(
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @InjectModel(MODEL_V1.camera) private readonly cameras: Model<CameraDocument>,
+    @Optional() @Inject(DEVICE_CAMERA_REPORT_SINK) private readonly cameraReports: DeviceCameraReportSink | null = null,
   ) {}
 
   /**
@@ -75,6 +84,7 @@ export class HardwareReportService {
 
     if (CAMERA_SECRET_KEYS.includes(key)) {
       await this.rememberCameraSecret(device, key, value);
+      if (CAMERA_REPORT_KEYS.includes(key)) this.cameraReports?.cameraReported(device.id);
       return { key, value };
     }
 
@@ -85,6 +95,8 @@ export class HardwareReportService {
     if (key === 'sockets_n' || socketListChunk(key) !== null) await this.noteSocketReport(device, device.state.hardware, hardware);
     if (key === 'webcam_did') await this.reconcileCamera({ ...device, state: { ...device.state, hardware } }, value);
     if (key === 'webcam_ip' || key === 'webcam_uid') await this.updateCamera(device.id, { [key === 'webcam_ip' ? 'ip' : 'uid']: notNone(value) });
+    // After the row is written, so a capture this sets going reads what was reported.
+    if (CAMERA_REPORT_KEYS.includes(key)) this.cameraReports?.cameraReported(device.id);
 
     return { key, value };
   }

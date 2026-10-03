@@ -509,9 +509,6 @@ export const maintenanceCommand = named(
   z.object({ kind: z.literal('maintenance'), forSeconds: z.number().int() }),
 );
 
-/** Asks for a still now. A controller answers for the one Terp Cam it pairs, so it names no camera. */
-export const captureStillCommand = named('CaptureStillCommand', z.object({ kind: z.literal('capture_still') }));
-
 /**
  * Forces one socket, or the controller's own light output, for a while. The
  * subject is `{ type, id }` because the two are addressed differently: a socket
@@ -570,7 +567,6 @@ export const deviceCommand = named(
   z.discriminatedUnion('kind', [
     rebootCommand,
     maintenanceCommand,
-    captureStillCommand,
     socketOverrideCommand,
     socketSetCommand,
   ]),

@@ -1,20 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { execFile } from 'node:child_process';
 import pLimit from 'p-limit';
-import { logger } from '@utils/logger';
 import { withoutCredentials } from '@common/log-path';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
 import { CameraWithSecret } from './cameras.service';
 import { TerpCamDirectService } from './terpcam-direct.service';
-import { TerpCamP2PService } from './terpcam-p2p.service';
 
 /**
  * One still, from whichever camera is asked and by whichever path reaches it.
  * The schedule is the poller's; what a single read costs and which path it takes
  * is here.
  *
- * A Terp Cam is read off its video stream, by this server where a rendezvous is
- * configured and by its controller otherwise. Every other camera is an address
+ * A Terp Cam is read off its video stream by this server, over a relay the
+ * device it is paired at opens to the cloud. Every other camera is an address
  * ffmpeg opens, through the tunnel of a device in the tent where the stream only
  * exists on the tent's own network.
  */
@@ -47,122 +45,27 @@ const FFMPEG_FAST_PROBE_ARGS = ['-probesize', '32', '-analyzeduration', '0'];
 const FFMPEG_FULL_PROBE_ARGS = ['-probesize', '5000000', '-analyzeduration', '5000000'];
 const FFMPEG_MISSING_CODEC_PARAMS_PATTERN = /Could not find codec parameters/i;
 
-/**
- * How many direct captures in a row have to fail before a Terp Cam still is
- * asked of the controller instead. One failure means nothing: a held session
- * goes stale, the camera reboots, a keyframe is missed - all of which the next
- * poll clears by itself, and a single lost still is invisible in a timelapse
- * while a downgraded one is not.
- */
-const DIRECT_FAILURES_BEFORE_FALLBACK = 2;
-
-/**
- * What is known about a Terp Cam's direct path for its controller's current
- * online period, i.e. since the controller last came online. The controller
- * renders through `snapshot.cgi` and tops out at 1280x720 where the direct path
- * takes the full 2304x1296 off the video stream, so its picture is a fallback
- * rather than an equal: for a camera the server does reach, a poll is better
- * left without an image than filled with a downgraded one, which would also
- * stand out in the timelapse it ends up in.
- */
-type DirectState = {
-  /** Online on the last pass; offline -> online starts a new period and clears the rest. */
-  online: boolean;
-  /** A direct still arrived in this online period, so the fallback stays unused. */
-  succeeded: boolean;
-  /** Direct failures in a row, counted within this online period only. */
-  failures: number;
-};
-
 @Injectable()
 export class CaptureService {
   /** ffmpeg is expensive and a camera that hangs holds a run for 90 s; ten at a time is what the box takes. */
   private readonly ffmpegLimit = pLimit(10);
-  private readonly directState = new Map<string, DirectState>();
 
   constructor(
     private readonly tunnel: TunnelService,
-    private readonly terpCamP2P: TerpCamP2PService,
     private readonly terpCamDirect: TerpCamDirectService,
   ) {}
 
   /**
-   * Note whether the camera's controller is online, and forget what an earlier
-   * online period knew about the direct path. A controller that has just come
-   * back may have taken the camera with it (both hang off the same wifi), so the
-   * direct path is worth proving again before its picture is given up on.
+   * One still. A Terp Cam is read in full resolution or not at all: there is no
+   * smaller picture to fall back on, and a poll left without one is better than
+   * a downgraded one in the timelapse.
    */
-  public trackControllerOnlinePeriod(cameraId: string, online: boolean): void {
-    const state = this.directState.get(cameraId);
-    if (!state) {
-      this.directState.set(cameraId, { online, succeeded: false, failures: 0 });
-      return;
-    }
-    if (online && !state.online) {
-      state.succeeded = false;
-      state.failures = 0;
-    }
-    state.online = online;
-  }
-
-  /** A camera that is gone leaves nothing behind to decide a later camera's path by. */
-  public forget(cameraId: string): void {
-    this.directState.delete(cameraId);
-  }
-
-  /**
-   * One still. `alwaysAllowController` is the test-image button, where a picture
-   * now beats the better picture the next poll would store.
-   */
-  public readStill(camera: CameraWithSecret, alwaysAllowController = false): Promise<Buffer> {
-    return this.ffmpegLimit(() => (camera.kind === 'rtsp' ? this.readFromStream(camera) : this.readFromTerpCam(camera, alwaysAllowController)));
-  }
-
-  /**
-   * A Terp Cam: full resolution from the camera itself, and only where that has
-   * produced nothing at all this online period, the controller's smaller
-   * `snapshot.cgi` picture.
-   *
-   * The fallback is never the answer to a single failure. It is taken once the
-   * direct path has failed DIRECT_FAILURES_BEFORE_FALLBACK times running AND has
-   * delivered nothing since the controller came online - a camera that was being
-   * reached until now is having a bad minute, not a bad day, and the poll that
-   * proves it comes soon enough.
-   */
-  private async readFromTerpCam(camera: CameraWithSecret, alwaysAllowController: boolean): Promise<Buffer> {
-    // Where the server reaches no camera of its own - no rendezvous configured,
-    // or one that has reported no P2P id - the controller is the only path and
-    // waiting out failed direct attempts would cost every still a poll or two.
+  public readStill(camera: CameraWithSecret): Promise<Buffer> {
+    if (camera.kind === 'rtsp') return this.ffmpegLimit(() => this.readFromStream(camera));
     if (!this.terpCamDirect.canReach(camera)) {
-      return this.viaController(camera);
+      return Promise.reject(new Error('this camera answers to no device that could bridge it to this server'));
     }
-
-    const state = this.directState.get(camera.id);
-    try {
-      const still = await this.terpCamDirect.captureStill(camera);
-      if (state) {
-        state.succeeded = true;
-        state.failures = 0;
-      }
-      return still;
-    } catch (e) {
-      if (state) state.failures++;
-      const exhausted = !state || (!state.succeeded && state.failures >= DIRECT_FAILURES_BEFORE_FALLBACK);
-      if (!alwaysAllowController && !exhausted) {
-        throw new Error(`direct capture failed (${(e as Error).message}); keeping the full-resolution path`);
-      }
-      logger.info(`Direct capture for camera ${camera.id} failed (${(e as Error).message}); asking the controller`);
-    }
-
-    return this.viaController(camera);
-  }
-
-  /** A standalone camera has no controller to fall back on: the direct path is the only one it has. */
-  private viaController(camera: CameraWithSecret): Promise<Buffer> {
-    if (!camera.deviceId) {
-      return Promise.reject(new Error('this camera answers to no controller, so the server has to reach it itself'));
-    }
-    return this.terpCamP2P.captureViaController(camera.deviceId);
+    return this.terpCamDirect.captureStill(camera);
   }
 
   private async readFromStream(camera: CameraWithSecret): Promise<Buffer> {

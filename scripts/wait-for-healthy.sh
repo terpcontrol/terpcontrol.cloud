@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Waits for a compose service to report healthy, and fails if it does not.
 #
 #   ./scripts/wait-for-healthy.sh server [timeout-seconds]
@@ -10,19 +10,16 @@
 # what turns that into a failed deploy, and it prints the container's own
 # reasons when it fails so the log is in the job rather than only on the host.
 #
-# COMPOSE_OPTIONS and TERPCONTROL_ENV_FILE are read the way the deploy passes
-# them to `docker compose`, so this reads the same project as the deploy did.
+# The project comes from compose.sh, so this reads the same stack the deploy
+# brought up rather than whatever a bare `docker compose` would find here.
 set -eu
 
 SERVICE="${1:?usage: wait-for-healthy.sh <service> [timeout-seconds]}"
 TIMEOUT="${2:-300}"
 
-# shellcheck disable=SC2086 # both are command-line flags, not one argument.
-compose() {
-    docker compose ${COMPOSE_OPTIONS:-} ${TERPCONTROL_ENV_FILE:+--env-file "$TERPCONTROL_ENV_FILE"} "$@"
-}
+. "$(dirname "${BASH_SOURCE[0]}")/compose.sh"
 
-CONTAINER="$(compose ps -q "$SERVICE")"
+CONTAINER="$(terpcontrol_compose ps -q "$SERVICE")"
 if [ -z "$CONTAINER" ]; then
     echo "No container is running for the '$SERVICE' service" >&2
     exit 1
@@ -60,5 +57,5 @@ done
 
 # Whatever it last said for itself, which is the point of failing here at all.
 docker inspect -f '{{if .State.Health}}{{range .State.Health.Log}}{{.Output}}{{end}}{{end}}' "$CONTAINER" >&2 || true
-compose logs --tail 50 "$SERVICE" >&2 || true
+terpcontrol_compose logs --tail 50 "$SERVICE" >&2 || true
 exit 1

@@ -104,7 +104,6 @@ beforeEach(async () => {
     { writeSample: async (deviceId, sample) => void samples.push({ deviceId, sample }) },
     { onSample: async sample => void metrics.push({ deviceId: sample.deviceId, values: sample.values, outputs: sample.outputs }) },
     null,
-    null,
     { onDeviceSeen: deviceId => void seen.push(deviceId), onFirmwareReported: (_, firmwareId) => void firmwareReports.push(firmwareId) },
   );
 });

@@ -1,5 +1,4 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Inject, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
-import { ConfigType } from '@nestjs/config';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 import { z } from 'zod';
@@ -31,15 +30,12 @@ import { AccessContext, Grant } from '@common/v1/access.types';
 import { badRequest, notFound, unprocessable } from '@common/v1/problem';
 import { clampRange } from '@common/v1/range';
 import { V1Query, inOrder, instantQuery, pageQuery } from '@common/v1/validation';
-import { terpCamConfig } from '@config/configuration';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { CamerasService } from './cameras.service';
 import { CameraPollerService } from './camera-poller.service';
-import { CaptureService } from './capture.service';
 import { EntitlementService } from './entitlement.service';
 import { MediaService } from './media.service';
-import { litFromPicture } from './still-light';
 import { coveredBy, TimelapseService } from './timelapse.service';
 import { OptionalSessionGuard } from './optional-session.guard';
 import { changesTheStream } from './stream-url';
@@ -96,12 +92,10 @@ export class CamerasController {
   constructor(
     private readonly cameras: CamerasService,
     private readonly media: MediaService,
-    private readonly capture: CaptureService,
     private readonly poller: CameraPollerService,
     private readonly builder: TimelapseService,
     private readonly entitlement: EntitlementService,
     private readonly access: AccessService,
-    @Inject(terpCamConfig.KEY) private readonly terpCam: ConfigType<typeof terpCamConfig>,
   ) {}
 
   @Get()
@@ -127,15 +121,15 @@ export class CamerasController {
   @ApiOperation({ summary: 'Add a camera' })
   @V1Answer(camera, { status: HttpStatus.CREATED })
   public async create(@Caller() ctx: AccessContext, @V1Body(cameraCreate) body: CameraCreate): Promise<Camera> {
-    // The model, the kind and the path to such a camera are all here, and the
-    // path is the rendezvous the cloud finds a Terp Cam through. An install
-    // that has none cannot reach one at all, so the tab says it is coming
-    // rather than taking a camera it would never read a picture from.
-    if (body.kind === 'terpcam_standalone' && this.terpCam.rendezvousHosts.length === 0) {
-      throw badRequest('not_yet', 'Pairing a standalone Terp Cam is coming: this install has no rendezvous to find one through.');
+    // A Terp Cam is reached over a relay its device opens to the cloud, and one
+    // paired at no device has nobody to open it. The kind stays in the model, but
+    // the tab says it is coming rather than taking a camera it would never read a
+    // picture from.
+    if (body.kind === 'terpcam_standalone') {
+      throw badRequest('not_yet', 'Pairing a standalone Terp Cam is coming: a Terp Cam is reached through the device it is paired at.');
     }
 
-    const deviceId = body.kind === 'terpcam_standalone' ? null : (body.deviceId ?? null);
+    const deviceId = body.deviceId ?? null;
     if (deviceId) await this.access.require(ctx, subjectRef('device', deviceId), 'manage');
     if (body.kind === 'rtsp' && body.tunnel) {
       await this.requireATunnel(deviceId);
@@ -266,16 +260,13 @@ export class CamerasController {
     if (!camera) throw notFound('camera_not_found', 'There is no camera with that id.');
 
     try {
-      // The button asks for a picture to look at right now, so a Terp Cam whose
-      // direct path is unwell answers with the controller's smaller one rather
-      // than with nothing.
-      const still = await this.capture.readStill(camera, true);
-      const capturedAt = new Date();
-      const lit = await litFromPicture(still);
-      const stored = await this.media.storeBytes({ kind: 'still', mime: 'image/jpeg', cameraId: camera.id, capturedAt, lit }, still);
-      await this.cameras.noteCapture(camera.id, capturedAt, null);
+      // A read of this camera that is already under way is waited for rather
+      // than joined by a second one, and its picture is the answer - which can
+      // take minutes where a Terp Cam's relay is slow to open.
+      const stored = await this.poller.readNow(camera);
+      if (!stored) throw notFound('camera_not_found', 'There is no camera with that id.');
 
-      return { succeeded: true, mediaId: stored.id, capturedAt: capturedAt.toISOString(), error: null };
+      return { succeeded: true, mediaId: stored.mediaId, capturedAt: stored.capturedAt.toISOString(), error: null };
     } catch (e) {
       const reason = String((e as Error)?.message ?? e).slice(0, 2000);
       await this.cameras.noteCapture(camera.id, null, reason);
