@@ -180,6 +180,12 @@ export const setRow = (collection: string, where: Record<string, unknown>, set: 
     await database.collection(collection).updateOne(where, { $set: set });
   });
 
+/** Every camera still standing, marked removed - so the poller, which reads only those, leaves them be. */
+export const takeDownCameras = (): Promise<void> =>
+  withDatabase(async database => {
+    await database.collection('cameras').updateMany({ removedAt: null }, { $set: { removedAt: new Date() } });
+  });
+
 /** What is in a collection, for asserting that something is really gone rather than only unlisted. */
 export const rowsIn = (collection: string, filter: Record<string, unknown>): Promise<Record<string, unknown>[]> =>
   withDatabase(database => database.collection(collection).find(filter).toArray());

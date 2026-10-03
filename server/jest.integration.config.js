@@ -11,6 +11,7 @@ module.exports = {
   testMatch: ['**/*.spec.ts'],
   globalSetup: '<rootDir>/test/global-setup.ts',
   globalTeardown: '<rootDir>/test/global-teardown.ts',
+  setupFilesAfterEnv: ['<rootDir>/test/support/spec-setup.ts'],
   // One app process and one database are shared by every spec; serial execution
   // keeps rate limits, MQTT traffic and admin-visible listings predictable.
   maxWorkers: 1,

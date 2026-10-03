@@ -265,7 +265,7 @@ describe('a stream´s address, changed in place', () => {
 /**
  * Answers enough runs of one stream to cover the poller as well as the request:
  * a new camera is due at once, and a run the poller took would otherwise leave
- * the request to the real ffmpeg and an address that never answers.
+ * the request without the answer this spec gave it.
  */
 const failingRuns = (match: string) => Array.from({ length: 4 }, () => ({ match, stderr: 'Connection refused', exit: 1 }));
 
@@ -528,6 +528,10 @@ describe('what somebody the tent is shared with is answered about a camera', () 
     // from the guest who may do most rather than only from the one who may least.
     await joinSpace(owner, tent, guest, 'can_manage');
 
+    // A new camera is read at once, and a read that fails writes its own error
+    // over the one stored below. The host's camera never answers instead, for
+    // longer than these cases take.
+    armFfmpeg([{ match: HOME, delayMs: 60_000 }]);
     theirs = await addCamera(rtsp({ name: 'The host´s canopy cam', url: `rtsp://viewer:hunter2@${HOME}:554/stream1` }));
     await setRow('cameras', { id: theirs }, { did: DID, uid: 'UID-827A1', ip: HOME, 'state.lastError': TUNNEL });
   });

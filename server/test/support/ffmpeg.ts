@@ -4,7 +4,8 @@ import { SERVER_ROOT } from './infra/app';
 
 /**
  * The ffmpeg the app under test runs is a shim (`support/infra/fake-bin/ffmpeg`)
- * that records every run and passes it on to the real ffmpeg. These are the two
+ * that records every run and passes it on to the real ffmpeg, a stream on
+ * another machine excepted, which it answers as unreachable. These are the two
  * sides of it a spec uses: what was run, and what a particular run should
  * answer instead of the camera.
  */

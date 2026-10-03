@@ -29,10 +29,12 @@ Both fakes live in the jest main process, so the specs reach them through an HTT
 (`support/control.ts`): seed measurements, read captured mail, reset between tests.
 
 `ffmpeg` must be on PATH — the camera pipeline shells out to it, exactly as the container does. The app under test finds a shim first (`support/infra/fake-bin/ffmpeg`): it records the arguments of every run
-and hands the run to the real ffmpeg, so stills still come from actual streams. What the server runs ffmpeg with, and
-what it does with a run that failed - or with one that never answers - is not visible in an HTTP answer otherwise;
-`support/ffmpeg.ts` is how a spec reads those runs and, where it needs a particular camera, answers one of them
-itself.
+and hands the run to the real ffmpeg, so stills still come from actual streams. A stream on another machine - the
+10.0.0.x a spec gives a camera on somebody's home network - is answered as unreachable at once instead: handed on, it
+would wait out the network's connect timeout, and the cameras the poller goes on reading would fill the ffmpeg runs the
+server allows itself. What the server runs ffmpeg with, and what it does with a run that failed - or with one that
+never answers - is not visible in an HTTP answer otherwise; `support/ffmpeg.ts` is how a spec reads those runs and,
+where it needs a particular camera, answers one of them itself.
 
 ### Writing a spec
 
@@ -41,6 +43,8 @@ itself.
 - `support/device.ts` registers and claims devices, and `startSimulator` stands in for firmware on the MQTT bus.
 - Every spec makes its own users and devices with unique names: one database and one app process are shared by the
   whole run.
+- The cameras a spec adds are taken down when it ends (`support/spec-setup.ts`). The poller would go on reading them
+  for the rest of the run, and a later spec's own camera would wait its turn behind them.
 
 ### When a test disagrees with the code
 
