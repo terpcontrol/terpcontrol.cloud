@@ -29,3 +29,4 @@ server/test/.tmp/
 /CLAUDE.local.md
 /*.local.sh
 /scripts/*.local.sh
+/.claude/worktrees/
