@@ -180,14 +180,15 @@ export const heldByStage = (step: StepDraft, stage: GrowthStage | null): Pick<St
  */
 export const asWritableBy = (draft: PlanDraft, device: Device): PlanDraft => {
   const dropped = CLIMATE_FIGURES.filter(figure => !figuresFor(device).includes(figure));
-  if (dropped.length === 0) return draft;
+  if (dropped.length === 0 && !draft.steps.some(step => step.stage === 'drying')) return draft;
 
+  // A drying step holds the drying room's two figures and nothing else, so it is opened as it is shown.
   return {
     ...draft,
-    steps: draft.steps.map(step => ({
-      ...step,
-      settings: dropped.reduce((settings, figure) => withFigure(settings, figure, null), step.settings),
-    })),
+    steps: draft.steps.map(step => {
+      const held = step.stage === 'drying' ? { ...step, ...heldByStage(step, 'drying') } : step;
+      return { ...held, settings: dropped.reduce((settings, figure) => withFigure(settings, figure, null), held.settings) };
+    }),
   };
 };
 

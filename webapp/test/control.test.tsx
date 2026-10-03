@@ -655,6 +655,21 @@ describe('the settings a step carries', () => {
 
     expect(asWritableBy(carried, withoutCo2()).steps[0].settings).toEqual({ day: { temperature: 24 } });
     expect(asWritableBy(carried, withCo2()).steps[0].settings).toEqual({ co2: { target: 900 }, day: { temperature: 24 } });
+
+    // A drying step is opened holding what drying holds: the night's two figures, no day, CO₂, light limit or light hours.
+    const drying = {
+      ...carried,
+      steps: [
+        {
+          ...carried.steps[0],
+          stage: 'drying' as const,
+          lightHours: 18,
+          settings: { co2: { target: 900 }, day: { temperature: 24 }, night: { temperature: 18, humidity: 58 }, lights: { limit: 0 } },
+        },
+      ],
+    };
+    expect(asWritableBy(drying, withCo2()).steps[0]).toMatchObject({ lightHours: null, settings: { night: { temperature: 18, humidity: 58 } } });
+    expect(Object.keys(asWritableBy(drying, withCo2()).steps[0].settings)).toEqual(['night']);
   });
 });
 

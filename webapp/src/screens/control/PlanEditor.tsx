@@ -294,13 +294,16 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
           {t('planLight.range', LIGHT_HOURS)}
         </p>
       ) : null}
-      <p className={ui.note}>
-        {writesNothing(step.settings) && step.lightHours === null
-          ? t('space.control.step.writesNothing')
-          : awaiting
-            ? t('space.control.step.writesNowhere')
-            : t(hasCo2Sensor(device) ? 'space.control.step.writesSections' : 'space.control.step.writesSectionsNoCo2')}
-      </p>
+      {/* A drying step says what it writes in its own note above; the day, CO₂ and the light are not among it. */}
+      {drying && !(writesNothing(step.settings) && step.lightHours === null) && !awaiting ? null : (
+        <p className={ui.note}>
+          {writesNothing(step.settings) && step.lightHours === null
+            ? t('space.control.step.writesNothing')
+            : awaiting
+              ? t('space.control.step.writesNowhere')
+              : t(hasCo2Sensor(device) ? 'space.control.step.writesSections' : 'space.control.step.writesSectionsNoCo2')}
+        </p>
+      )}
       {extra.length > 0 ? <p className={ui.note}>{t('space.control.step.alsoWrites', { sections: extra.join(', ') })}</p> : null}
       {device.configuration ? (
         <button type="button" className={`${ui.button} ${styles.wraps}`} onClick={() => onChange(fromController(step, device))}>
