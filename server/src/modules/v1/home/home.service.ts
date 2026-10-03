@@ -137,7 +137,7 @@ export class HomeService {
 
     const trendWindow = { startsAt: new Date(now.getTime() - TREND_HOURS * 3600 * 1000), endsAt: now, stepSeconds: TREND_STEP_SECONDS };
     const [readings, trends, plants, cameras, alerts, reminders, hide] = await Promise.all([
-      this.live.readingsOf(devices),
+      this.live.readingsOf(devices, now),
       this.data.trends(
         devices.map(device => device.id),
         TREND_METRIC,
