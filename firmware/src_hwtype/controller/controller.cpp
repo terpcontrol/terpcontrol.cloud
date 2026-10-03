@@ -964,6 +964,10 @@ namespace fg {
                                                      !controlling);
       socket_states.exhaust_on = exhaust_on;
       socket_states.running = controlling;
+      // The same cut controlHeater applies to the heater output, for the heater
+      // sockets that something other than the output could hold on.
+      const float heater_target = state.is_day ? settings.day.temperature : settings.night.temperature;
+      socket_states.heater_too_warm = state.temperature > heater_target + HEATER_OVERTEMP_MARGIN;
       wifiReportSmartSocketOutputs(socket_states);
 
 	  if(hasCo2Sensor()){

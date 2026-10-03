@@ -707,11 +707,19 @@ static bool socketTimerTarget(SmartSocket& socket) {
 
 // What a socket should be doing, in the order the three answers override each
 // other: a cloud override first, then the row's timer, then the target its role
-// follows. `drive` says whether there is an answer at all — a socket with no
+// follows - except a heater in air that is already far too warm, which is off. `drive` says whether there is an answer at all — a socket with no
 // role and no override is one nobody assigned, so the module leaves it alone
 // and its own watchdog decides what happens to it.
 static bool socketTarget(SmartSocket& socket, bool& drive) {
   drive = true;
+  // The heater is cut once the air is well above its target, however the
+  // control loop ends up, and an override is one more way a heater socket
+  // could be held on - for up to a day, whatever the temperature does. So it
+  // is cut with the rest. The override itself stays, and the socket follows it
+  // again once the air has cooled.
+  if(socket.role == "heater" && smart_socket_output_states.heater_too_warm) {
+    return false;
+  }
   if(socketOverrideHolds(socket)) {
     return socket.override_on;
   }

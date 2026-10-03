@@ -71,6 +71,10 @@ struct SmartSocketOutputStates {
   // Circulation and fan sockets move air whenever the module is controlling at
   // all, so both follow this instead of an output of their own.
   bool running = false;
+  // The air is so far above its target that the module's own heater is cut. A
+  // heater socket is then off whatever else would hold it on, an override from
+  // the cloud included.
+  bool heater_too_warm = false;
 };
 
 // Upper bound on the number of paired smart sockets. Any number of them may

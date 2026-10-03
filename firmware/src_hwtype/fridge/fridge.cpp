@@ -1062,6 +1062,9 @@ namespace fg {
                                                      settings.daynight.targetHumidityDiff, !controlling);
       socket_states.exhaust_on = exhaust_on;
       socket_states.running = controlling;
+      // The same cut controlHeater applies to the heater, for the heater
+      // sockets that something other than the heater output could hold on.
+      socket_states.heater_too_warm = state.temperature > state.target_temperature + HEATER_OVERTEMP_MARGIN;
       wifiReportSmartSocketOutputs(socket_states);
 
       if(state.co2 < CO2_LEVEL_CRITICAL) {
