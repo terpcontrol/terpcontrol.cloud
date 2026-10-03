@@ -265,7 +265,8 @@ function Panel({
   // way, which the locale preset here was not.
   const zone = useZone();
   const plan = useDevicePlan(device.id);
-  const live = useDeviceLive(device.id).data;
+  const liveRead = useDeviceLive(device.id);
+  const live = liveRead.data;
   const save = useSaveConfiguration();
   const move = usePlanTransition(device.id);
   const [edit, setEdit] = useState<Edit | null>(null);
@@ -310,6 +311,7 @@ function Panel({
     stored: baseline,
     live,
     offline: offline !== null,
+    awaiting: liveRead.isPending,
     now,
     clock: seconds => wallClock(seconds, offset),
     instantClock: instant => clock(instant, zone),

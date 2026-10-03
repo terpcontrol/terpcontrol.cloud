@@ -121,7 +121,7 @@ describe('the fine settings themselves', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Germination' }));
     expect(api.patch).not.toHaveBeenCalled();
-    expect(screen.getByText(/^Switch to Germination\? In the dark: no light, no CO₂/)).toBeInTheDocument();
+    expect(screen.getByText(/^Switch to Germination\? In the dark, round the clock: no light, no CO₂/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByText(/^Switch to Germination\?/)).not.toBeInTheDocument();
 

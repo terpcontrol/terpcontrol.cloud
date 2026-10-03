@@ -382,8 +382,9 @@ describe('the targets page', () => {
     at('02:00');
     await drawn();
 
+    // Answered with nothing, the schedule's half stands, called the schedule's.
+    await waitFor(() => expect(holding()[0]).toHaveTextContent('by the schedule'));
     expect(holding()[0]).toHaveTextContent(/^Light off \(night\)/);
-    expect(holding()[0]).toHaveTextContent('by the schedule');
     expect(within(plan_()).getByText('Night now · light on at 06:00')).toBeInTheDocument();
   });
 
@@ -1295,6 +1296,9 @@ describe('what holds now', () => {
   it('is the schedule’s for a device that is not heard, or whose word has not come', () => {
     expect(holdingAt('12:00', { live: live({ active: 'night' }), offline: true })).toMatchObject({ half: 'day', by: 'schedule' });
     expect(holdingAt('02:00')).toMatchObject({ half: 'night', by: 'schedule' });
+    // While the word of a device that is heard is on its way, the schedule stands in without naming itself.
+    expect(holdingAt('02:00', { awaiting: true })).toMatchObject({ half: 'night', by: 'device' });
+    expect(holdingAt('02:00', { awaiting: true, offline: true })).toMatchObject({ half: 'night', by: 'schedule' });
   });
 
   it('is the one column of a regime with one climate, and none with control off', () => {

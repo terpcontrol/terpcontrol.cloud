@@ -197,6 +197,7 @@ export const nowHoldingOf = ({
   stored,
   live,
   offline,
+  awaiting = false,
   now,
   clock,
   instantClock,
@@ -207,6 +208,12 @@ export const nowHoldingOf = ({
   stored: TargetsDraft;
   live: DeviceLive | undefined | null;
   offline: boolean;
+  /**
+   * The device's word is on its way for a device that is heard: the schedule
+   * stands in for it meanwhile, without calling itself the schedule for the
+   * moment it takes - the same read is the one the cockpit already made.
+   */
+  awaiting?: boolean;
   now: DateTime;
   /** Seconds past midnight UTC on the account's wall clock. */
   clock: Clock;
@@ -214,7 +221,7 @@ export const nowHoldingOf = ({
   instantClock: (iso: string) => string;
 }): NowHolding => {
   const said = offline ? null : setpointsOf(live);
-  const by: NowHolding['by'] = said ? 'device' : 'schedule';
+  const by: NowHolding['by'] = said || (awaiting && !offline) ? 'device' : 'schedule';
   const { regime } = shape;
   if (regime === 'off') return { half: null, by, glide: null };
   if (regime === 'always') return { half: 'day', by, glide: null };

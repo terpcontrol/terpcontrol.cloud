@@ -537,8 +537,10 @@
     --cols: minmax(8.5rem, 12rem) minmax(0, 1fr) minmax(0, 1fr);
   }
 
+  /* One climate held round the clock is one figure a row: a column a
+     stepper's width or two, not the rest of a desktop. */
   .table[data-single] {
-    --cols: minmax(8.5rem, 12rem) minmax(0, 1fr);
+    --cols: minmax(8.5rem, 12rem) minmax(0, 22rem);
   }
 
   .th {
