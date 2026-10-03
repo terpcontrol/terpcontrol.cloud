@@ -43,6 +43,7 @@ import { targetsOf } from '../phase/phase-targets';
 import { PhaseWriterService } from '../phase/phase-writer.service';
 import { CLIMATE_PRESETS, ClimatePresets } from './climate-presets.port';
 import { NOTHING_HIDDEN, Redaction, redactionOf, serialiseGrow, serialisePhase, serialisePlacement, serialisePlant } from './grow-serialiser';
+import { growsVisibleTo } from './visible-grows';
 
 /**
  * The `grows` collection and the `plants` beside it: what is growing, where it
@@ -188,18 +189,7 @@ export class GrowsService {
   public async visibleTo(ctx: AccessContext): Promise<FilterQuery<GrowDocument>> {
     if (ctx.isDemo || ctx.userId === null) return { isDemo: true };
 
-    const rows = await this.memberships.find({ userId: ctx.userId }, { spaceId: 1 }).lean();
-    const held = rows.map(row => row.spaceId);
-    if (held.length === 0) return { ownerId: ctx.userId };
-
-    // A membership on a room covers the spaces standing in it, so the rooms are
-    // widened to what is inside them before a grow is looked for by its
-    // placements - which is the rule `access()` decides one grow by, from the
-    // other end.
-    const inside = await this.spaces.find({ roomId: { $in: held } }, { id: 1 }).lean();
-    const spaceIds = [...new Set([...held, ...inside.map(space => space.id)])];
-
-    return { $or: [{ ownerId: ctx.userId }, { 'placements.spaceId': { $in: spaceIds } }] };
+    return growsVisibleTo(ctx.userId, this.memberships, this.spaces);
   }
 
   /** What a grant comes to for the serialisers: the privacy of whoever owns the thing being read. */

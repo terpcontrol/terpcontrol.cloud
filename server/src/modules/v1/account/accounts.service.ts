@@ -11,8 +11,10 @@ import { conflict, notFound } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { StoredPushSubscription } from '@database/schemas/v1/push-subscriptions.schema';
 import { StoredSession } from '@database/schemas/v1/sessions.schema';
+import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredNotificationSettings, StoredUser } from '@database/schemas/v1/users.schema';
 import { authConfig, notificationsConfig, premiumConfig, retentionConfig } from '@config/configuration';
 import { climateWindowOf } from '@modules/retention/climate-window';
@@ -48,6 +50,8 @@ export class AccountsService implements OnModuleInit {
     @InjectModel(MODEL_V1.session) private readonly sessions: Model<StoredSession>,
     @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
     @InjectModel(MODEL_V1.entry) private readonly entries: Model<EntryDocument>,
+    @InjectModel(MODEL_V1.membership) private readonly memberships: Model<MembershipDocument>,
+    @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
     @Inject(authConfig.KEY) private readonly auth: ConfigType<typeof authConfig>,
     @Inject(premiumConfig.KEY) private readonly premium: ConfigType<typeof premiumConfig>,
     @Inject(notificationsConfig.KEY) private readonly notifications: ConfigType<typeof notificationsConfig>,
@@ -377,7 +381,12 @@ export class AccountsService implements OnModuleInit {
       pushPublicKey: this.notifications.pushPrivateKey && this.notifications.pushContact ? this.notifications.pushPublicKey : null,
       telegramAvailable: !!(this.notifications.telegramBotToken && this.notifications.telegramBotUsername),
       pushSubscribed,
-      layers: await layersOf(user.id, user.preferences.diary, this.grows, this.entries),
+      layers: await layersOf(user.id, user.preferences.diary, {
+        grows: this.grows,
+        entries: this.entries,
+        memberships: this.memberships,
+        spaces: this.spaces,
+      }),
     };
   }
 

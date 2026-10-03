@@ -72,6 +72,8 @@ const build = (): void => {
     database.sessions,
     database.grows,
     database.entries,
+    database.memberships,
+    database.spaces,
     { ...auth },
     { ...premium },
     { ...notifications },
@@ -145,6 +147,8 @@ describe('signing up', () => {
       database.sessions,
       database.grows,
       database.entries,
+      database.memberships,
+      database.spaces,
       { ...auth, requireActivation: true },
       { ...premium },
       { ...notifications },
@@ -178,6 +182,8 @@ describe('what is serialised', () => {
       database.sessions,
       database.grows,
       database.entries,
+      database.memberships,
+      database.spaces,
       { ...auth, requireActivation: true },
       { ...premium },
       { ...notifications },
@@ -235,6 +241,8 @@ describe('what is serialised', () => {
         database.sessions,
         database.grows,
         database.entries,
+        database.memberships,
+        database.spaces,
         { ...auth },
         { ...premium },
         { ...notifications },
@@ -489,6 +497,27 @@ describe('the diary layer', () => {
     expect(await layersOf(user.id)).toEqual({ diary: false });
   });
 
+  it('comes on with a grow standing in a place the account was let into, and in a room it was let into', async () => {
+    const guest = await signUp('guest');
+    await database.memberships.create({ id: 'membership-guest', spaceId: 'shared-tent', userId: guest.id, role: 'can_log' });
+    expect(await layersOf(guest.id)).toEqual({ diary: false });
+
+    await grow('host', {
+      placements: [{ id: 'placement-host', spaceId: 'shared-tent', plantIds: null, startedAt: new Date('2026-05-01T08:00:00.000Z'), endedAt: null }],
+    });
+    expect(await layersOf(guest.id)).toEqual({ diary: true });
+
+    const roomGuest = await signUp('room-guest');
+    await database.memberships.create({ id: 'membership-room-guest', spaceId: 'grow-room', userId: roomGuest.id, role: 'can_log' });
+    await database.spaces.create({ id: 'tent-in-room', ownerId: 'room-host', kind: 'tent', name: 'Tent in the room', roomId: 'grow-room' });
+    await grow('room-host', {
+      placements: [
+        { id: 'placement-room-host', spaceId: 'tent-in-room', plantIds: null, startedAt: new Date('2026-05-01T08:00:00.000Z'), endedAt: null },
+      ],
+    });
+    expect(await layersOf(roomGuest.id)).toEqual({ diary: true });
+  });
+
   it('takes an answer over what the account did, in both directions', async () => {
     const user = await signUp('answered');
     await grow(user.id);
@@ -634,6 +663,8 @@ describe('signing in', () => {
       database.sessions,
       database.grows,
       database.entries,
+      database.memberships,
+      database.spaces,
       { ...auth, requireActivation: true },
       { ...premium },
       { ...notifications },
@@ -831,6 +862,8 @@ describe('the account the install seeds', () => {
       database.sessions,
       database.grows,
       database.entries,
+      database.memberships,
+      database.spaces,
       { ...auth, adminPassword: NEW_PASSWORD },
       { ...premium },
       { ...notifications },

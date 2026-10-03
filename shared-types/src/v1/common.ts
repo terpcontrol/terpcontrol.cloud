@@ -300,7 +300,7 @@ export const accountLayers = named(
     diary: z
       .boolean()
       .describe(
-        'Whether the grow diary is shown: grows, diary lines, the invitations to start either. True where the person said `on`, false where they said `off`, and where they said nothing, true once the account has ever had a grow (an ended or archived one included) or written a diary line itself.',
+        'Whether the grow diary is shown: grows, diary lines, the invitations to start either. True where the person said `on`, false where they said `off`, and where they said nothing, true once the account has ever had a grow (an ended or archived one included), sees a grow standing in a place it was let into, or has written a diary line itself.',
       ),
   }),
 );

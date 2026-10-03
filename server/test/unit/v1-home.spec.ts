@@ -87,6 +87,7 @@ const build = (): HomeService => {
     db.reminders,
     db.follows,
     db.users,
+    db.memberships,
     spaces,
     live,
     fakeData,
@@ -358,14 +359,26 @@ describe('the diary layer', () => {
     expect((await home.read(session(OWNER), NOW)).layers).toEqual({ diary: true });
   });
 
-  it('is off for somebody who has kept no diary, though a grow of somebody else´s stands on their card', async () => {
+  // The grow somebody else runs in the tent they were let into is what they
+  // were let in for: without the diary they saw its climate but not the grow,
+  // not the way to every grow, and not the button that writes a line.
+  it('is on for a member who has written nothing, because a grow of somebody else´s stands in the place they were let into', async () => {
     const answer = await home.read(session(LOOKER), NOW);
 
     expect(answer.spaces.map(card => card.grow?.growId)).toEqual([GROW]);
-    expect(answer.layers).toEqual({ diary: false });
+    expect(answer.layers).toEqual({ diary: true });
+  });
+
+  it('is off for somebody who has kept no diary and is let into no place where a grow stands', async () => {
+    await db.memberships.deleteOne({ id: 'membership-looker' });
+
+    expect((await home.read(session(LOOKER), NOW)).layers).toEqual({ diary: false });
   });
 
   it('follows the answer the person gave', async () => {
+    await db.users.updateOne({ id: LOOKER }, { $set: { 'preferences.diary': 'off' } });
+    expect((await home.read(session(LOOKER), NOW)).layers).toEqual({ diary: false });
+
     await db.users.updateOne({ id: LOOKER }, { $set: { 'preferences.diary': 'on' } });
     expect((await home.read(session(LOOKER), NOW)).layers).toEqual({ diary: true });
 

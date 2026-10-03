@@ -60,6 +60,8 @@ const build = (): void => {
     db.sessions,
     db.grows,
     db.entries,
+    db.memberships,
+    db.spaces,
     { ...AUTH },
     { ...PREMIUM },
     { ...NOTIFICATIONS },

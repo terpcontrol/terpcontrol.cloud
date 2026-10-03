@@ -24,6 +24,7 @@ import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { FollowDocument } from '@database/schemas/v1/follows.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
+import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
@@ -85,6 +86,7 @@ export class HomeService {
     @InjectModel(MODEL_V1.reminder) private readonly reminders: Model<ReminderDocument>,
     @InjectModel(MODEL_V1.follow) private readonly follows: Model<FollowDocument>,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
+    @InjectModel(MODEL_V1.membership) private readonly memberships: Model<MembershipDocument>,
     private readonly places: SpacesService,
     private readonly live: SpaceLiveService,
     private readonly data: DataService,
@@ -211,7 +213,12 @@ export class HomeService {
     if (ctx.isDemo || ctx.userId === null) return { diary: true };
 
     const user = await this.users.findOne({ id: ctx.userId }, { 'preferences.diary': 1 }).lean<Pick<StoredUser, 'preferences'>>();
-    return layersOf(ctx.userId, user?.preferences.diary, this.grows, this.entries);
+    return layersOf(ctx.userId, user?.preferences.diary, {
+      grows: this.grows,
+      entries: this.entries,
+      memberships: this.memberships,
+      spaces: this.spaces,
+    });
   }
 
   /**
