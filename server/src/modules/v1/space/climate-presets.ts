@@ -22,7 +22,9 @@ import { lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/da
  * 06:00 UTC where the device has never said - and what a preset says about
  * light is how long it stays on, written the one way every window is written
  * (`lightWindowTimes`). `curing` has no row, and a stage with no row writes
- * nothing at all rather than a climate somebody invented.
+ * nothing at all rather than a climate somebody invented. A figure the row
+ * leaves out is not written: germination names its one temperature, and the
+ * day, the humidity, the lamp and the CO2 stay for the climate after it.
  *
  * The CO2 target is written only where the device says it can measure one. A
  * controller that reports no sensor forces the target to zero as it reads the
@@ -48,13 +50,17 @@ export const presetConfiguration = (
 
   const daynight = section('daynight');
   const { lightsOn } = lightWindowOf(numberOrNull(daynight.day), numberOrNull(daynight.night));
+  const figures = (key: string, named: Record<string, number | null>): DeviceConfiguration => {
+    const set = Object.entries(named).filter(([, value]) => value !== null);
+    return set.length === 0 ? {} : { [key]: { ...section(key), ...Object.fromEntries(set) } };
+  };
 
   return {
-    day: { ...section('day'), temperature: wanted.dayTemperature, humidity: wanted.dayHumidity },
-    night: { ...section('night'), temperature: wanted.nightTemperature, humidity: wanted.nightHumidity },
-    ...(hasCo2Sensor ? { co2: { ...section('co2'), target: wanted.co2 } } : {}),
-    lights: { ...section('lights'), limit: wanted.lightLimit },
-    daynight: wanted.lightHours === null ? daynight : { ...daynight, ...lightWindowTimes({ lightsOn, lightHours: wanted.lightHours }) },
+    ...figures('day', { temperature: wanted.dayTemperature, humidity: wanted.dayHumidity }),
+    ...figures('night', { temperature: wanted.nightTemperature, humidity: wanted.nightHumidity }),
+    ...(hasCo2Sensor ? figures('co2', { target: wanted.co2 }) : {}),
+    ...figures('lights', { limit: wanted.lightLimit }),
+    ...(wanted.lightHours === null ? {} : { daynight: { ...daynight, ...lightWindowTimes({ lightsOn, lightHours: wanted.lightHours }) } }),
   };
 };
 

@@ -25,8 +25,11 @@ export interface ClimatePresets {
   applyToSpace(spaceId: string, stage: GrowthStage, preset: string | null): Promise<AppliedPreset[]>;
   /**
    * What a stage entered without a climate still decides: drying puts every
-   * device standing in the space on drying, and any other stage ends a drying
-   * spell and switches a device that was off on again. The targets stay.
+   * device standing in the space on drying, and any other stage but germination
+   * ends a drying spell or a germination in the dark and switches a device that
+   * was off on again. Germination itself darkens nothing without its climate.
+   * The targets stay, but for the night temperature germination wrote over,
+   * which comes back with the light.
    */
   modeToSpace(spaceId: string, stage: GrowthStage): Promise<void>;
 }

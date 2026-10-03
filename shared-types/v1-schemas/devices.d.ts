@@ -284,12 +284,16 @@ export declare const deviceUpdate: z.ZodObject<{
  * gains one.
  *
  * `drying` is whether the targets saved are a drying room's: true dries, false
- * ends a drying spell, and left out a drying device goes on drying. The work
- * mode in the document is the server's to decide and is not read for it.
+ * ends a drying spell, and left out a drying device goes on drying.
+ * `germination` is the same for germination in the dark: true puts the device
+ * into it, false brings it back to its standard mode, and left out it goes on
+ * as it is. The work mode in the document is the server's to decide and is not
+ * read for either.
  */
 export declare const deviceConfigurationEnvelope: z.ZodObject<{
     configuration: z.ZodRecord<z.ZodString, z.ZodAny>;
     drying: z.ZodOptional<z.ZodBoolean>;
+    germination: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 /**
  * One window of a smart socket's timer, as the firmware keeps it: switched on

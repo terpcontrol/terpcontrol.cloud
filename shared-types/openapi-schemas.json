@@ -2365,6 +2365,9 @@
       },
       "drying": {
         "type": "boolean"
+      },
+      "germination": {
+        "type": "boolean"
       }
     },
     "required": [

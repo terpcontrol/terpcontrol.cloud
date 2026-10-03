@@ -208,12 +208,15 @@ export const deviceUpdate = named(
  * gains one.
  *
  * `drying` is whether the targets saved are a drying room's: true dries, false
- * ends a drying spell, and left out a drying device goes on drying. The work
- * mode in the document is the server's to decide and is not read for it.
+ * ends a drying spell, and left out a drying device goes on drying.
+ * `germination` is the same for germination in the dark: true puts the device
+ * into it, false brings it back to its standard mode, and left out it goes on
+ * as it is. The work mode in the document is the server's to decide and is not
+ * read for either.
  */
 export const deviceConfigurationEnvelope = named(
   'DeviceConfigurationEnvelope',
-  z.object({ configuration: deviceConfiguration, drying: z.boolean().optional() }),
+  z.object({ configuration: deviceConfiguration, drying: z.boolean().optional(), germination: z.boolean().optional() }),
 );
 
 /**

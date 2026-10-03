@@ -906,6 +906,7 @@ export interface DeviceUpdate {
 export interface DeviceConfigurationEnvelope {
   configuration: DeviceConfiguration;
   drying?: boolean;
+  germination?: boolean;
 }
 
 export interface TimerWindow {

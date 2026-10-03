@@ -21,10 +21,18 @@
  * photoperiod plant to bloom. A preset this table has never heard of falls back
  * to its stage, and a stage with no row - curing - writes nothing at all.
  *
- * What is *not* here is as deliberate: the work mode, the heating and
- * dehumidifying behaviour, the fans and the dimming ramps are what the hardware
- * is tuned to and survive a phase change. A preset is a target climate, not a
- * decision about the machine.
+ * What is *not* here is as deliberate: the heating and dehumidifying
+ * behaviour, the fans and the dimming ramps are what the hardware is tuned to
+ * and survive a phase change. A preset is a target climate, not a decision
+ * about the machine - except where the stage is one of the firmware's own
+ * modes: drying dries, and germination germinates in the dark (`breed`), which
+ * the server decides from the stage rather than from this table.
+ *
+ * Germination is the one row that holds less than a whole climate. The dark
+ * mode holds the night's temperature round the clock, with the lamp off, no
+ * CO2 and the humidity left to itself, so the row is that one temperature and
+ * nothing else: every figure it leaves out stays as it is, for the seedling
+ * climate that follows.
  *
  * The alarm bands at the end are derived from the same rows, so that what a
  * stage watches for cannot drift from what it asks for.
@@ -32,20 +40,33 @@
 import type { z } from 'zod';
 import type { growthStage } from './common.js';
 type GrowthStage = z.infer<typeof growthStage>;
+/** A figure that is null is one the stage does not hold, and it is left as it is. */
 export interface ClimatePreset {
-    dayTemperature: number;
+    /** Null where the stage knows no day: germination holds its one temperature in the night's place. */
+    dayTemperature: number | null;
+    /** What every climate holds: drying and germination hold it round the clock. */
     nightTemperature: number;
-    dayHumidity: number;
-    nightHumidity: number;
+    /** Null where the humidity is not held: germination lets it be. */
+    dayHumidity: number | null;
+    nightHumidity: number | null;
     /** How long the light is on, in hours. Null leaves the photoperiod where it is, which is what a stage kept dark does. */
     lightHours: number | null;
-    /** Per cent of the light's own maximum. Zero is a stage that is kept dark. */
-    lightLimit: number;
+    /** Per cent of the light's own maximum. Zero is a stage that is kept dark; null leaves it for when the light comes back. */
+    lightLimit: number | null;
     /** Parts per million. The firmware forces it to zero where no CO2 sensor is fitted, so a tent without one opens no valve. */
-    co2: number;
+    co2: number | null;
 }
 /** What outdoor air holds: the target a stage that does not enrich is written with. */
 export declare const AMBIENT_CO2 = 400;
+/**
+ * What seeds germinate at in the dark, held round the clock. Seeds sprout
+ * fastest between about 22 and 26 °C: colder, they take days longer and rot
+ * more often; warmer, the medium dries out and damping-off sets in. 24 °C is
+ * the middle of that and the day temperature of the seedling climate that
+ * follows, so the step out of the dark brings the light without a change of
+ * warmth.
+ */
+export declare const GERMINATION_TEMPERATURE = 24;
 /** The presets that refine a stage, by the stage they refine. The stage on its own is always an option and is not one of them. */
 export declare const PRESETS_OF_STAGE: Readonly<Partial<Record<GrowthStage, readonly string[]>>>;
 /** The stages that have a climate at all, in the order a grow passes through them. */
@@ -79,8 +100,10 @@ export interface StageAlarmBand {
  */
 export declare const CO2_ALARM_PPM = 1500;
 /**
- * The four rules a stage implies, or null for a stage with no climate: curing
+ * The rules a stage implies, or null for a stage with no climate: curing
  * happens in a jar, and a rule watching a flowering band there is noise.
+ * Germination holds no humidity, so it implies no rule about one: seeds are
+ * kept moist, and a sprouting tray reads far above any band meant for leaves.
  *
  * Each margin is what tells a failure from weather. Five degrees over the day
  * target is a cooler that has failed rather than a warm afternoon, and it is

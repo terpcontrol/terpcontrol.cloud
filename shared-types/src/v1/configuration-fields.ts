@@ -85,6 +85,14 @@ export const OPERATING_MODES = ['standard', 'greenhouse', 'germination'] as cons
 export type OperatingMode = (typeof OPERATING_MODES)[number];
 
 /**
+ * The modes a tent controller is offered. Its firmware runs the greenhouse
+ * mode too, but there the dehumidifier and exhaust sockets become the tent's
+ * cooling - wiring no tent is set up for - so it keeps the standard and dark
+ * germination, the two every grow passes through.
+ */
+export const CONTROLLER_MODES = ['standard', 'germination'] as const satisfies readonly OperatingMode[];
+
+/**
  * Whether the device regulates at all - off is the firmware's `workmode: off`,
  * which is also how a device leaves the factory - and whether it dries, the
  * firmware's `dry`: no day and no night, no light and no CO2. Both are said
@@ -119,7 +127,7 @@ const FRIDGE: ConfigurationFields = {
   innerFans: { kind: 'number', path: 'fans.internal', min: 10, max: 100, step: 5 },
 };
 
-const CONTROLLER: ConfigurationFields = { ...CONTROL, ...RAMPS };
+const CONTROLLER: ConfigurationFields = { ...CONTROL, mode: { kind: 'choice', path: null, options: CONTROLLER_MODES }, ...RAMPS };
 
 /** A time of day as the firmware keeps every one: seconds past midnight UTC. The app writes whole minutes. */
 const TIME_OF_DAY = { kind: 'number', min: 0, max: 86399, step: 60 } as const;

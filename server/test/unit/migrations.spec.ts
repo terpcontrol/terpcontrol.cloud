@@ -32,6 +32,7 @@ import { targetRecord } from '@/migrations/steps/018-target-record';
 import { workModes } from '@/migrations/steps/019-work-modes';
 import { readingsStore, retiredDryersWith } from '@/migrations/steps/020-retired-dryers';
 import { lightWindows } from '@/migrations/steps/021-light-windows';
+import { darkGermination } from '@/migrations/steps/022-dark-germination';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -748,6 +749,101 @@ describe('the light windows', () => {
     expect(again.stats['devices.written'] ?? 0).toBe(0);
     expect(again.stats['plans.written'] ?? 0).toBe(0);
     expect(again.stats['targetChanges.written'] ?? 0).toBe(0);
+  });
+});
+
+describe('germination in the dark', () => {
+  const phase = (id: string, source: string, deviceId: string | null, stage = 'germination') => ({
+    id,
+    stage,
+    preset: null,
+    startedAt: new Date(AT - 10 * DAY),
+    source,
+    plantIds: null,
+    deviceId,
+    targets: null,
+    setBy: null,
+  });
+  const phaseLine = (id: string, phaseId: string) => ({
+    id,
+    growId: 'grow-of-seeds',
+    kind: 'phase',
+    source: 'human',
+    values: { kind: 'phase', phaseId, stage: 'germination', preset: null },
+  });
+  const stagesOf = async (name: string, id: string) =>
+    ((await one<Record<string, any>>(name, { id }))?.[name === 'grows' ? 'phases' : 'steps'] ?? []).map((row: { stage: string }) => row.stage);
+
+  it('names what ran the seedling climate under the light a seedling stage, and keeps germination where it was dark or only written down', async () => {
+    await migrate();
+
+    // The old app's germination step ran the lamp at 20 %: a seedling step, by the light it gave.
+    const tent = await one<Record<string, any>>('plans', { deviceId: LEGACY_DEVICE_IDS.controller });
+    expect(tent?.steps[0]).toMatchObject({ name: 'Germination', stage: 'seedling' });
+    const template = await one<Record<string, any>>('planTemplates', { ownerId: LEGACY_USER_IDS.ada, name: fixture.templates.duplicateName });
+    expect(template?.steps[0]).toMatchObject({ name: 'Germination', stage: 'seedling' });
+
+    await collection('plans').insertMany([
+      {
+        id: 'plan-lit',
+        deviceId: 'device-lit',
+        steps: [
+          { id: 'lit-1', stage: 'germination', preset: null, settings: { night: { temperature: 21 } } },
+          { id: 'lit-2', stage: 'vegetative', preset: null, settings: {} },
+        ],
+      },
+      {
+        id: 'plan-dark',
+        deviceId: 'device-dark',
+        steps: [
+          { id: 'dark-1', stage: 'germination', preset: null, settings: { workmode: 'breed', night: { temperature: 25 } } },
+          { id: 'dark-2', stage: 'seedling', preset: null, settings: {} },
+        ],
+      },
+    ]);
+    await collection('planTemplates').insertOne({
+      id: 'template-lit',
+      steps: [{ id: 'template-1', stage: 'germination', preset: null, settings: {} }],
+    });
+    await collection('grows').insertOne({
+      id: 'grow-of-seeds',
+      phases: [
+        phase('by-hand', 'human', 'device-lit'),
+        phase('by-preset', 'preset', 'device-lit'),
+        phase('by-lit-plan', 'plan', 'device-lit'),
+        phase('by-dark-plan', 'plan', 'device-dark'),
+        phase('in-veg', 'plan', 'device-lit', 'vegetative'),
+      ],
+    });
+    await collection('entries').insertMany([phaseLine('line-by-hand', 'by-hand'), phaseLine('line-by-preset', 'by-preset')]);
+
+    const context = new MigrationContext(db(), false, new Date(AT + DAY));
+    await darkGermination.run(context);
+
+    expect(await stagesOf('plans', 'plan-lit')).toEqual(['seedling', 'vegetative']);
+    expect(await stagesOf('plans', 'plan-dark')).toEqual(['germination', 'seedling']);
+    expect(await stagesOf('planTemplates', 'template-lit')).toEqual(['seedling']);
+    expect(await stagesOf('grows', 'grow-of-seeds')).toEqual(['germination', 'seedling', 'seedling', 'germination', 'vegetative']);
+    expect((await one<Record<string, any>>('entries', { id: 'line-by-preset' }))?.values).toEqual({
+      kind: 'phase',
+      phaseId: 'by-preset',
+      stage: 'seedling',
+      preset: null,
+    });
+    expect((await one<Record<string, any>>('entries', { id: 'line-by-hand' }))?.values.stage).toBe('germination');
+    expect(context.stats).toMatchObject({
+      'plans.germinationAsSeedling': 1,
+      'planTemplates.germinationAsSeedling': 1,
+      'grows.germinationAsSeedling': 2,
+      'entries.germinationAsSeedling': 1,
+    });
+
+    const again = new MigrationContext(db(), false, new Date(AT + 2 * DAY));
+    await darkGermination.run(again);
+    expect(again.stats['plans.written'] ?? 0).toBe(0);
+    expect(again.stats['planTemplates.written'] ?? 0).toBe(0);
+    expect(again.stats['grows.written'] ?? 0).toBe(0);
+    expect(again.stats['entries.written'] ?? 0).toBe(0);
   });
 });
 

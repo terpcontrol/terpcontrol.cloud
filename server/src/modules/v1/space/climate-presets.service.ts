@@ -33,6 +33,11 @@ export class ClimatePresetsService implements ClimatePresets {
   }
 
   public async modeToSpace(spaceId: string, stage: GrowthStage): Promise<void> {
+    // Germination is dark, and a device goes dark for it only where its climate
+    // was asked for: a grow written into germination without one is a record of
+    // the seeds, wherever they sprout, and the device stays as it is.
+    if (stage === 'germination') return;
+
     const here = await this.devices
       .find({ spaceId, type: { $in: WITH_WORK_MODES } }, { id: 1, configuration: 1 })
       .lean<Pick<StoredDevice, 'id' | 'configuration'>[]>();
@@ -40,7 +45,7 @@ export class ClimatePresetsService implements ClimatePresets {
     for (const device of here) {
       const workmode = device.configuration?.workmode;
       // Only where the stage changes something: a write is a document sent to the device.
-      const changes = stage === 'drying' ? workmode !== 'dry' : workmode === 'dry' || workmode === 'off';
+      const changes = stage === 'drying' ? workmode !== 'dry' : workmode === 'dry' || workmode === 'off' || workmode === 'breed';
       if (typeof workmode !== 'string' || !changes) continue;
 
       try {

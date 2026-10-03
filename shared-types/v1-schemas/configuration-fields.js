@@ -24,13 +24,20 @@
  * different places. No schema, so a client imports it without pulling zod in.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEVICE_SETTING_RANGES = exports.co2PlugOf = exports.co2InjectFor = exports.dosesInWindows = exports.co2FanKey = exports.co2FanOf = exports.configurationFieldsOf = exports.CONFIGURATION_FIELDS = exports.FAN_MODES = exports.MOST_TIMER_WINDOWS = exports.CO2_DOSINGS = exports.switchPointName = exports.SWITCH_POINT_RANGE = exports.PLUG_SWITCHING = exports.PLUG_MODES = exports.MIN_COMPRESSOR_REST_SECONDS = exports.OPERATING_MODES = void 0;
+exports.DEVICE_SETTING_RANGES = exports.co2PlugOf = exports.co2InjectFor = exports.dosesInWindows = exports.co2FanKey = exports.co2FanOf = exports.configurationFieldsOf = exports.CONFIGURATION_FIELDS = exports.FAN_MODES = exports.MOST_TIMER_WINDOWS = exports.CO2_DOSINGS = exports.switchPointName = exports.SWITCH_POINT_RANGE = exports.PLUG_SWITCHING = exports.PLUG_MODES = exports.MIN_COMPRESSOR_REST_SECONDS = exports.CONTROLLER_MODES = exports.OPERATING_MODES = void 0;
 /**
  * What a fridge or a controller is set to do as a whole, in a person's words:
  * the standard climate control, temperature only (the firmware's `temp`), or
  * dark germination held at the night temperature (`breed`).
  */
 exports.OPERATING_MODES = ['standard', 'greenhouse', 'germination'];
+/**
+ * The modes a tent controller is offered. Its firmware runs the greenhouse
+ * mode too, but there the dehumidifier and exhaust sockets become the tent's
+ * cooling - wiring no tent is set up for - so it keeps the standard and dark
+ * germination, the two every grow passes through.
+ */
+exports.CONTROLLER_MODES = ['standard', 'germination'];
 /**
  * Whether the device regulates at all - off is the firmware's `workmode: off`,
  * which is also how a device leaves the factory - and whether it dries, the
@@ -62,7 +69,7 @@ const FRIDGE = {
     clipFan: { kind: 'number', path: 'fans.external', min: 0, max: 100, step: 5 },
     innerFans: { kind: 'number', path: 'fans.internal', min: 10, max: 100, step: 5 },
 };
-const CONTROLLER = { ...CONTROL, ...RAMPS };
+const CONTROLLER = { ...CONTROL, mode: { kind: 'choice', path: null, options: exports.CONTROLLER_MODES }, ...RAMPS };
 /** A time of day as the firmware keeps every one: seconds past midnight UTC. The app writes whole minutes. */
 const TIME_OF_DAY = { kind: 'number', min: 0, max: 86399, step: 60 };
 /**

@@ -149,10 +149,13 @@ exports.deviceUpdate = (0, common_js_1.named)('DeviceUpdate', exports.device
  * gains one.
  *
  * `drying` is whether the targets saved are a drying room's: true dries, false
- * ends a drying spell, and left out a drying device goes on drying. The work
- * mode in the document is the server's to decide and is not read for it.
+ * ends a drying spell, and left out a drying device goes on drying.
+ * `germination` is the same for germination in the dark: true puts the device
+ * into it, false brings it back to its standard mode, and left out it goes on
+ * as it is. The work mode in the document is the server's to decide and is not
+ * read for either.
  */
-exports.deviceConfigurationEnvelope = (0, common_js_1.named)('DeviceConfigurationEnvelope', zod_1.z.object({ configuration: exports.deviceConfiguration, drying: zod_1.z.boolean().optional() }));
+exports.deviceConfigurationEnvelope = (0, common_js_1.named)('DeviceConfigurationEnvelope', zod_1.z.object({ configuration: exports.deviceConfiguration, drying: zod_1.z.boolean().optional(), germination: zod_1.z.boolean().optional() }));
 /**
  * One window of a smart socket's timer, as the firmware keeps it: switched on
  * at `ontime`, in seconds past midnight UTC like every time of day a device

@@ -73,6 +73,13 @@ export type ConfigurationFields = Readonly<Record<string, ConfigurationField>>;
  */
 export declare const OPERATING_MODES: readonly ["standard", "greenhouse", "germination"];
 export type OperatingMode = (typeof OPERATING_MODES)[number];
+/**
+ * The modes a tent controller is offered. Its firmware runs the greenhouse
+ * mode too, but there the dehumidifier and exhaust sockets become the tent's
+ * cooling - wiring no tent is set up for - so it keeps the standard and dark
+ * germination, the two every grow passes through.
+ */
+export declare const CONTROLLER_MODES: readonly ["standard", "germination"];
 /** The least the compressor rests between two runs. Below this it is not protected, whatever an older app allowed. */
 export declare const MIN_COMPRESSOR_REST_SECONDS = 240;
 /**

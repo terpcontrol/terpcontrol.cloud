@@ -19,7 +19,9 @@ import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
  * stored figures the mode does not use. A save that ends the mode - drying
  * stopped, a photoperiod set again - writes them as sent, and every other kind
  * of write (a preset, a phase, a plan step, a setting by name) writes what it
- * names: those bring a climate of their own.
+ * names: those bring a climate of their own. Germination keeps them from the
+ * save that begins it, too: it puts aside only the night it writes over, so a
+ * day sent with it would be the day the device wakes up to afterwards.
  */
 
 /**
@@ -63,7 +65,7 @@ const hoursOf = (document: DeviceConfiguration | null): number | null => {
  * decided it; `before`'s is the one it was in.
  */
 export const withIdleFiguresKept = (before: DeviceConfiguration | null, asked: DeviceConfiguration, workmode: string | null): DeviceConfiguration => {
-  const stays = (mode: string) => before?.workmode === mode && workmode === mode;
+  const stays = (mode: string) => workmode === mode && (before?.workmode === mode || mode === 'breed');
   const hours = hoursOf(asked);
   const idle = new Set<string>([
     ...Object.entries(IDLE_IN_MODE).flatMap(([mode, paths]) => (stays(mode) ? paths : [])),

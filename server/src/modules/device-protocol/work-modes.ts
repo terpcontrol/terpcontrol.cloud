@@ -34,14 +34,20 @@ export type WriteIntent =
    * The targets saved by hand: a device that was switched off is switched on
    * again. `drying` says whether they are a drying room's - true dries, false
    * ends a drying spell - and left out a drying device stays drying.
+   * `germination` is the same for germination in the dark, which false ends
+   * for the standard mode.
    */
-  | { kind: 'targets'; drying?: boolean }
+  | { kind: 'targets'; drying?: boolean; germination?: boolean }
   /**
    * A climate preset, a phase, or a plan step, with the stage it is for. Drying
-   * dries; anything else puts the device on its own mode, which switches it on
-   * and ends a drying spell. `requested` is what a plan step carries itself.
+   * dries and germination germinates in the dark; any other stage switches the
+   * device on, ends a drying spell and brings it out of germination into its
+   * standard mode, and otherwise leaves it on its own mode. `requested` is what
+   * a plan step carries itself. `night` says whether the write brings a night
+   * temperature of its own, which coming out of germination otherwise puts
+   * back (see `DeviceConfigurationService.store`).
    */
-  | { kind: 'climate'; stage: GrowthStage | null; requested?: unknown }
+  | { kind: 'climate'; stage: GrowthStage | null; requested?: unknown; night?: boolean }
   /** The settings a person changed one at a time, of which these four are about the work mode. */
   | { kind: 'fields'; control?: boolean; drying?: boolean; mode?: OperatingMode; energySaving?: boolean }
   /** The times of day moved onto the owner's clock, which decides nothing else. */
@@ -91,11 +97,20 @@ export const controlOf = (
   };
 };
 
+/** The standard mode a device comes back to from another: the one it last ran, energy saving included, which is a fridge's alone. */
+const standardFor = (type: string, standard: string | null | undefined): BaseWorkmode =>
+  standard === 'full' && type === 'fridge' ? 'full' : 'small';
+
 /**
  * The work mode a write leaves the device in, and the one it goes back to
  * afterwards. `current` is what the stored document says now; `wanted` is the
  * document the write would store, whose own work mode is what a client sent and
  * is not believed - a page drawn a minute ago sends the mode it was drawn with.
+ *
+ * Germination is the one mode a stage puts a device into besides drying, and
+ * it is dark: no write that is not about germination leaves a device in it.
+ * Any other stage, and targets saved with `germination: false`, bring it back
+ * to the standard mode, whose energy saving stands where it was left.
  */
 export const decideWorkmode = (
   type: string,
@@ -111,16 +126,23 @@ export const decideWorkmode = (
   switch (intent.kind) {
     case 'clock':
       return { workmode: current, base: standing };
-    case 'targets':
-      if (intent.drying !== undefined) return { workmode: intent.drying ? 'dry' : standing, base: standing };
-      return { workmode: isRunning(current) ? current : standing, base: standing };
+    case 'targets': {
+      const next =
+        intent.germination === true ? 'breed' : intent.germination === false && standing === 'breed' ? standardFor(type, standard) : standing;
+      if (intent.drying !== undefined) return { workmode: intent.drying ? 'dry' : next, base: next };
+      if (intent.germination === true) return { workmode: 'breed', base: next };
+      return { workmode: isRunning(current) && current !== 'breed' ? current : next, base: next };
+    }
     case 'climate': {
       // A plan written before the switch carried the old app's whole document,
       // `small` or `full` included, and would put the switch back every hour; a
       // step that turns the device off, dries or runs another mode still does.
       const asked = intent.requested;
       if (typeof asked === 'string' && asked !== 'small' && asked !== 'full') return { workmode: asked, base: isBase(asked) ? asked : standing };
-      return { workmode: intent.stage === 'drying' ? 'dry' : standing, base: standing };
+      if (intent.stage === 'germination') return { workmode: 'breed', base: 'breed' };
+      // A step that names no stage says nothing about germination either.
+      const next = standing === 'breed' && intent.stage !== null ? standardFor(type, standard) : standing;
+      return { workmode: intent.stage === 'drying' ? 'dry' : next, base: next };
     }
     case 'fields': {
       const now = controlOf(type, { workmode: current }, base)!;

@@ -10,6 +10,7 @@ import { DevicePublisherService } from '@modules/device-protocol/device-publishe
 import { HardwareReportService } from '@modules/device-protocol/hardware-report.service';
 import { controlOf, decideWorkmode } from '@modules/device-protocol/work-modes';
 import { MqttClientService } from '@modules/mqtt/mqtt-client.service';
+import { presetConfiguration } from '@modules/v1/space/climate-presets';
 import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
 
 /**
@@ -98,6 +99,41 @@ describe('the work mode a write leaves', () => {
     expect(decideWorkmode('fridge', 'full', null, { kind: 'climate', stage: 'drying' })).toEqual({ workmode: 'dry', base: 'full' });
     expect(decideWorkmode('fridge', 'dry', 'full', { kind: 'climate', stage: 'vegetative' })).toEqual({ workmode: 'full', base: 'full' });
     expect(decideWorkmode('fridge', 'off', 'temp', { kind: 'climate', stage: null })).toEqual({ workmode: 'temp', base: 'temp' });
+  });
+
+  it('germinates in the dark for a germination stage, and brings any other stage back to the standard mode it last ran', () => {
+    expect(decideWorkmode('fridge', 'full', null, { kind: 'climate', stage: 'germination' })).toEqual({ workmode: 'breed', base: 'breed' });
+    expect(decideWorkmode('controller', 'off', 'small', { kind: 'climate', stage: 'germination' })).toEqual({ workmode: 'breed', base: 'breed' });
+    // Out of the dark, the energy-saving switch stands where it was left; a controller has none.
+    expect(decideWorkmode('fridge', 'breed', 'breed', { kind: 'climate', stage: 'seedling' }, 'full')).toEqual({ workmode: 'full', base: 'full' });
+    expect(decideWorkmode('fridge', 'breed', 'breed', { kind: 'climate', stage: 'vegetative' }, null)).toEqual({ workmode: 'small', base: 'small' });
+    expect(decideWorkmode('controller', 'breed', 'breed', { kind: 'climate', stage: 'seedling' }, 'full')).toEqual({
+      workmode: 'small',
+      base: 'small',
+    });
+    expect(decideWorkmode('fridge', 'breed', 'breed', { kind: 'climate', stage: 'drying' }, 'full')).toEqual({ workmode: 'dry', base: 'full' });
+    expect(decideWorkmode('fridge', 'off', 'breed', { kind: 'climate', stage: 'curing' }, 'small')).toEqual({ workmode: 'small', base: 'small' });
+    // A step that names no stage says nothing about germination, and the hourly re-send of a seedling step keeps the light.
+    expect(decideWorkmode('fridge', 'breed', 'breed', { kind: 'climate', stage: null })).toEqual({ workmode: 'breed', base: 'breed' });
+    expect(decideWorkmode('fridge', 'small', 'small', { kind: 'climate', stage: 'seedling' })).toEqual({ workmode: 'small', base: 'small' });
+    expect(decideWorkmode('fridge', 'temp', 'temp', { kind: 'climate', stage: 'seedling' })).toEqual({ workmode: 'temp', base: 'temp' });
+  });
+
+  it('germinates for targets saved for germination, ends it for targets saved otherwise, and goes on as it is where neither is said', () => {
+    expect(decideWorkmode('fridge', 'full', null, { kind: 'targets', germination: true })).toEqual({ workmode: 'breed', base: 'breed' });
+    expect(decideWorkmode('fridge', 'dry', 'small', { kind: 'targets', drying: false, germination: true })).toEqual({
+      workmode: 'breed',
+      base: 'breed',
+    });
+    expect(decideWorkmode('fridge', 'breed', 'breed', { kind: 'targets', germination: false }, 'full')).toEqual({ workmode: 'full', base: 'full' });
+    expect(decideWorkmode('fridge', 'breed', 'breed', { kind: 'targets', drying: true, germination: false }, 'small')).toEqual({
+      workmode: 'dry',
+      base: 'small',
+    });
+    expect(decideWorkmode('fridge', 'breed', 'breed', { kind: 'targets' })).toEqual({ workmode: 'breed', base: 'breed' });
+    // Left out, a drying device goes on drying, and one that is off comes on in the mode it ran.
+    expect(decideWorkmode('fridge', 'dry', 'small', { kind: 'targets', germination: false })).toEqual({ workmode: 'dry', base: 'small' });
+    expect(decideWorkmode('fridge', 'off', 'breed', { kind: 'targets', germination: false }, 'full')).toEqual({ workmode: 'full', base: 'full' });
   });
 
   it('ignores the small and full an old plan step carries, and keeps what else a step asks for', () => {
@@ -288,6 +324,11 @@ describe('a setting changed by name', () => {
     expect(after.beforeGermination).toBeNull();
   });
 
+  it('offers a tent controller germination in the dark beside the standard, and not the greenhouse mode', () => {
+    expect(fieldChangesOf('controller', { mode: 'germination' }).intent).toEqual({ kind: 'fields', mode: 'germination' });
+    expect(refusal('controller', { mode: 'greenhouse' })?.errors).toEqual([expect.objectContaining({ field: 'set.mode', code: 'out_of_range' })]);
+  });
+
   it('refuses a device that has never sent its document', async () => {
     await device({ configuration: null });
 
@@ -391,6 +432,69 @@ describe('every other way a document is written', () => {
       co2: { target: 900 },
       lights: { limit: 100 },
     });
+  });
+
+  /**
+   * Germination is dark and holds one temperature: the night's, round the
+   * clock. The stage writes that one and nothing else, so the day, the
+   * humidity, the lamp and the CO2 are still there for the seedling after it.
+   */
+  it('germinates in the dark for a germination preset, and comes back to the light with the next stage´s climate', async () => {
+    await device({ configuration: fridgeDocument({ workmode: 'full' }) });
+
+    await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, (await stored()).configuration, true)!, 'germination');
+    const germinating = await stored();
+    expect(germinating.configuration).toMatchObject({
+      workmode: 'breed',
+      day: { temperature: 25, humidity: 60 },
+      night: { temperature: 24, humidity: 55 },
+      co2: { target: 900 },
+      lights: { limit: 80 },
+      daynight: { day: 21600, night: 64800 },
+    });
+    expect(germinating.beforeGermination).toEqual({ 'night.temperature': 20 });
+
+    await configuration.applyConfiguration(DEVICE, presetConfiguration('seedling', null, germinating.configuration, true)!, 'seedling');
+    const after = await stored();
+    expect(after.configuration).toMatchObject({
+      workmode: 'full',
+      day: { temperature: 24, humidity: 70 },
+      night: { temperature: 21, humidity: 65 },
+      lights: { limit: 40 },
+    });
+    expect(after.beforeGermination).toBeNull();
+  });
+
+  it('brings the night from before germination back where the next stage comes without a climate, and keeps the light on re-sends', async () => {
+    await device();
+    await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, (await stored()).configuration, true)!, 'germination');
+
+    await configuration.applyConfiguration(DEVICE, {}, 'seedling');
+    expect((await stored()).configuration).toMatchObject({ workmode: 'small', day: { temperature: 25 }, night: { temperature: 20 } });
+
+    // The plan's hourly re-send of a seedling step leaves the light where it is.
+    published = [];
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'seedling');
+    expect((await stored()).configuration?.workmode).toBe('small');
+    expect(published.at(-1)).toMatchObject({ workmode: 'small' });
+  });
+
+  it('germinates for targets saved for germination, and keeps the figures germination does not hold', async () => {
+    await device();
+
+    await configuration.replace(
+      DEVICE,
+      fridgeDocument({ day: { temperature: 30, humidity: 90 }, night: { temperature: 24, humidity: 55 } }),
+      OWNER,
+      false,
+      true,
+    );
+    expect((await stored()).configuration).toMatchObject({ workmode: 'breed', day: { temperature: 25, humidity: 60 }, night: { temperature: 24 } });
+
+    await configuration.replace(DEVICE, fridgeDocument({ night: { temperature: 21, humidity: 65 } }), OWNER, false, false);
+    const after = await stored();
+    expect(after.configuration).toMatchObject({ workmode: 'small', night: { temperature: 21, humidity: 65 } });
+    expect(after.beforeGermination).toBeNull();
   });
 
   it('dries for a drying step that carries no figures at all', async () => {

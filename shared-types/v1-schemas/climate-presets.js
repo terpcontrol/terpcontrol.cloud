@@ -22,25 +22,50 @@
  * photoperiod plant to bloom. A preset this table has never heard of falls back
  * to its stage, and a stage with no row - curing - writes nothing at all.
  *
- * What is *not* here is as deliberate: the work mode, the heating and
- * dehumidifying behaviour, the fans and the dimming ramps are what the hardware
- * is tuned to and survive a phase change. A preset is a target climate, not a
- * decision about the machine.
+ * What is *not* here is as deliberate: the heating and dehumidifying
+ * behaviour, the fans and the dimming ramps are what the hardware is tuned to
+ * and survive a phase change. A preset is a target climate, not a decision
+ * about the machine - except where the stage is one of the firmware's own
+ * modes: drying dries, and germination germinates in the dark (`breed`), which
+ * the server decides from the stage rather than from this table.
+ *
+ * Germination is the one row that holds less than a whole climate. The dark
+ * mode holds the night's temperature round the clock, with the lamp off, no
+ * CO2 and the humidity left to itself, so the row is that one temperature and
+ * nothing else: every figure it leaves out stays as it is, for the seedling
+ * climate that follows.
  *
  * The alarm bands at the end are derived from the same rows, so that what a
  * stage watches for cannot drift from what it asks for.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.stageAlarmBands = exports.CO2_ALARM_PPM = exports.climatePreset = exports.STAGES_WITH_CLIMATE = exports.PRESETS_OF_STAGE = exports.AMBIENT_CO2 = void 0;
+exports.stageAlarmBands = exports.CO2_ALARM_PPM = exports.climatePreset = exports.STAGES_WITH_CLIMATE = exports.PRESETS_OF_STAGE = exports.GERMINATION_TEMPERATURE = exports.AMBIENT_CO2 = void 0;
 /** What outdoor air holds: the target a stage that does not enrich is written with. */
 exports.AMBIENT_CO2 = 400;
+/**
+ * What seeds germinate at in the dark, held round the clock. Seeds sprout
+ * fastest between about 22 and 26 °C: colder, they take days longer and rot
+ * more often; warmer, the medium dries out and damping-off sets in. 24 °C is
+ * the middle of that and the day temperature of the seedling climate that
+ * follows, so the step out of the dark brings the light without a change of
+ * warmth.
+ */
+exports.GERMINATION_TEMPERATURE = 24;
 /** The presets that refine a stage, by the stage they refine. The stage on its own is always an option and is not one of them. */
 exports.PRESETS_OF_STAGE = {
     vegetative: ['autoflower'],
     flowering: ['late_flowering', 'autoflower'],
 };
 const PRESETS = {
-    germination: { dayTemperature: 24, nightTemperature: 21, dayHumidity: 70, nightHumidity: 65, lightHours: 18, lightLimit: 40, co2: exports.AMBIENT_CO2 },
+    germination: {
+        dayTemperature: null,
+        nightTemperature: exports.GERMINATION_TEMPERATURE,
+        dayHumidity: null,
+        nightHumidity: null,
+        lightHours: null,
+        lightLimit: null,
+        co2: null,
+    },
     seedling: { dayTemperature: 24, nightTemperature: 21, dayHumidity: 70, nightHumidity: 65, lightHours: 18, lightLimit: 40, co2: exports.AMBIENT_CO2 },
     vegetative: { dayTemperature: 26, nightTemperature: 22, dayHumidity: 62, nightHumidity: 58, lightHours: 18, lightLimit: 80, co2: 900 },
     'vegetative:autoflower': { dayTemperature: 26, nightTemperature: 22, dayHumidity: 62, nightHumidity: 58, lightHours: 20, lightLimit: 80, co2: 900 },
@@ -71,8 +96,10 @@ exports.climatePreset = climatePreset;
 exports.CO2_ALARM_PPM = 1500;
 const MINUTE = 60;
 /**
- * The four rules a stage implies, or null for a stage with no climate: curing
+ * The rules a stage implies, or null for a stage with no climate: curing
  * happens in a jar, and a rule watching a flowering band there is noise.
+ * Germination holds no humidity, so it implies no rule about one: seeds are
+ * kept moist, and a sprouting tray reads far above any band meant for leaves.
  *
  * Each margin is what tells a failure from weather. Five degrees over the day
  * target is a cooler that has failed rather than a warm afternoon, and it is
@@ -89,17 +116,17 @@ const stageAlarmBands = (stage, preset) => {
     const climate = (0, exports.climatePreset)(stage, preset);
     if (!climate)
         return null;
-    return [
-        { key: 'too_hot', watch: reading('temperature', climate.dayTemperature + 5, null), forSeconds: 10 * MINUTE, severity: 'critical' },
-        {
-            key: 'too_humid',
-            watch: reading('humidity', Math.max(climate.dayHumidity, climate.nightHumidity) + 10, null),
-            forSeconds: 20 * MINUTE,
-            severity: 'warning',
-        },
+    const warmest = climate.dayTemperature ?? climate.nightTemperature;
+    const humidities = [climate.dayHumidity, climate.nightHumidity].filter((value) => value !== null);
+    const bands = [
+        { key: 'too_hot', watch: reading('temperature', warmest + 5, null), forSeconds: 10 * MINUTE, severity: 'critical' },
+        humidities.length === 0
+            ? null
+            : { key: 'too_humid', watch: reading('humidity', Math.max(...humidities) + 10, null), forSeconds: 20 * MINUTE, severity: 'warning' },
         { key: 'too_cold', watch: reading('temperature', null, climate.nightTemperature - 4), forSeconds: 15 * MINUTE, severity: 'critical' },
         { key: 'co2_high', watch: reading('co2', exports.CO2_ALARM_PPM, null), forSeconds: 10 * MINUTE, severity: 'warning' },
     ];
+    return bands.filter((band) => band !== null);
 };
 exports.stageAlarmBands = stageAlarmBands;
 const reading = (metric, upper, lower) => ({

@@ -72,7 +72,8 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * line the timeline could not say who moved it or when. A save that changed
    * nothing writes nothing. A device whose control was switched off is switched
    * on again by it: somebody who sets targets wants them held. `drying` is
-   * whether they are a drying room's (see `WriteIntent`).
+   * whether they are a drying room's, and `germination` whether they are for
+   * germinating in the dark (see `WriteIntent`).
    *
    * What is stored is answered, because it is not always what was sent: the
    * work mode is the server's, the figures a mode leaves alone are kept
@@ -83,8 +84,9 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     configuration: DeviceConfiguration,
     by: string | null = null,
     drying?: boolean,
+    germination?: boolean,
   ): Promise<DeviceConfiguration | null> {
-    const written = await this.store(deviceId, { kind: 'targets', drying }, () => configuration);
+    const written = await this.store(deviceId, { kind: 'targets', drying, germination }, () => configuration);
     if (written) await this.writeDown(deviceId, written, by);
 
     return written?.after ?? null;
@@ -103,15 +105,16 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * seconds, a list - is replaced as it always was.
    *
    * `stage` is the stage the climate is for, which decides the work mode: a
-   * drying stage dries, and anything else puts a device that was off or drying
-   * back on its own mode.
+   * drying stage dries, germination germinates in the dark, and anything else
+   * puts a device that was off, drying or germinating back on its own mode.
    */
   public async applyConfiguration(deviceId: string, settings: DeviceConfiguration, stage: GrowthStage | null = null): Promise<boolean> {
     // Nothing to merge, or nothing to merge into, is no write: the firmware reads
     // every key a document leaves out as its compile-time default, so sending
     // either would reset tuning the cloud has no copy of. A stage with no
     // figures still decides the work mode, so it writes what the device runs.
-    const written = await this.store(deviceId, { kind: 'climate', stage, requested: settings.workmode }, current =>
+    const intent: WriteIntent = { kind: 'climate', stage, requested: settings.workmode, night: statesNight(settings) };
+    const written = await this.store(deviceId, intent, current =>
       !current || Object.keys(current).length === 0 || (Object.keys(settings).length === 0 && stage === null)
         ? null
         : mergeSections(current, settings),
@@ -243,8 +246,11 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     const asked = next(before);
     if (asked === null) return null;
 
-    const mode = decideWorkmode(device.type, before?.workmode, device.baseWorkmode, intent, device.standardWorkmode);
-    const standard = standardOf(mode?.base);
+    // The standard mode last run, which a return from another mode comes back to:
+    // the one kept for it, or - where none was kept yet - the one it runs or rests on.
+    const lastStandard = standardOf(device.standardWorkmode) ?? standardOf(standingNow(before)) ?? standardOf(device.baseWorkmode);
+    const mode = decideWorkmode(device.type, before?.workmode, device.baseWorkmode, intent, lastStandard);
+    const standard = standardOf(mode?.base) ?? lastStandard;
     // A spell that begins keeps what it writes over; one ended by itself - its
     // own button, or control switched off - brings that back, since nothing else
     // that ends it brings a climate with it. A preset, a phase or a step does.
@@ -252,16 +258,18 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     const dries = mode?.workmode === 'dry';
     // Germination holds the night's temperature round the clock, so what is set
     // for it lands there. The night it wrote over is kept when it begins, and
-    // put back when the device goes back to a day and a night by itself - a
-    // preset, a phase or a step brings a night of its own.
+    // put back when the device goes back to a day and a night without a night
+    // of its own: by itself, or by a stage entered without its climate. A
+    // preset, a phase or a step with a climate brings its own night.
     const germinated = device.beforeGermination ?? null;
     const germinates = mode?.workmode === 'breed' && before?.workmode !== 'breed' && germinated === null;
     const backFromGermination = germinated !== null && ['small', 'full', 'temp'].includes(mode?.workmode ?? '');
+    const nightBack = intent.kind === 'fields' || (intent.kind === 'climate' && !intent.night);
     const returned =
       dried && !dries && intent.kind === 'fields'
         ? withFigures(asked, Object.entries(await this.keptFor(deviceId, device.beforeDrying, before)))
         : asked;
-    const wanted = backFromGermination && intent.kind === 'fields' ? withFigures(returned, Object.entries(germinated)) : returned;
+    const wanted = backFromGermination && nightBack ? withFigures(returned, Object.entries(germinated)) : returned;
     const kept = intent.kind === 'targets' && mode ? withIdleFiguresKept(before, wanted, mode.workmode) : wanted;
     const held = heldTo(device.type, mode ? { ...kept, workmode: mode.workmode } : kept);
 
@@ -342,6 +350,13 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
 }
 
 const isSection = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const standingNow = (configuration: DeviceConfiguration | null): string | null =>
+  typeof configuration?.workmode === 'string' ? configuration.workmode : null;
+
+/** Whether settings name a night temperature, nested as the firmware writes it or flat as an older client did. */
+const statesNight = (settings: DeviceConfiguration): boolean =>
+  (isSection(settings.night) && settings.night.temperature !== undefined) || settings['night.temperature'] !== undefined;
 
 /** A diary line is read, not scrolled: past this many figures the rest are counted rather than listed. */
 const MOST_FIGURES = 12;
