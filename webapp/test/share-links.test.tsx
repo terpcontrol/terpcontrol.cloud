@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, Me, ShareLink, ShareLinkCreate, Space } from '@fg2/shared-types/v1';
 import { ShareLinks } from '@/screens/me/sharing/ShareLinks';
 
@@ -29,7 +29,18 @@ vi.mock('@/api/session', async importOriginal => {
   return { ...(await importOriginal<object>()), useSession: () => (session.demo ? ON_THE_DEMO : SIGNED_IN) };
 });
 
-/** The page sorts a card by comparing its end with the clock, so the fixtures sit relative to now, at midday where no zone moves the day. */
+/**
+ * The page sorts a card by comparing its end with the clock, so the fixtures
+ * sit relative to now, at midday where no zone moves the day. The clock itself
+ * is held on one day in September: a link revoked 20 days ago is dated with its
+ * year once that falls in the year before, which a case run in the first weeks
+ * of January would read as a wrong date. Only Date is faked, so every timer
+ * still runs.
+ */
+vi.useFakeTimers({ toFake: ['Date'] });
+vi.setSystemTime(DateTime.fromISO('2026-09-24T12:00:00').toJSDate());
+afterAll(() => vi.useRealTimers());
+
 const NOW = DateTime.now();
 const daysFromNow = (days: number) => NOW.plus({ days }).set({ hour: 12, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()!;
 const dayOf = (at: string) => DateTime.fromISO(at).toFormat('d LLL');

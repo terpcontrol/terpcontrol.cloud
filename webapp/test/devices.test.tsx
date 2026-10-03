@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Camera, Device, DeviceCapabilities, DeviceConfiguration, PlanTransition, Socket, Space } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { DeviceList } from '@/screens/devices/DeviceList';
@@ -1086,9 +1086,19 @@ describe('what the Devices tab calls a device', () => {
  * the hardware itself - a restart and a quarter of an hour of maintenance - each
  * asked first, and neither offered to a device nobody is listening on.
  *
- * Liveness is read against the wall clock, so the devices here are dated by it.
+ * Liveness is read against the wall clock, so the devices here are dated by it,
+ * and it is held at midday where the suite runs. A device quiet for 25 minutes
+ * is dated by the hour alone only while those minutes fall on today: run just
+ * after midnight, the pill rightly gains yesterday's date. Only Date is faked,
+ * so every timer still runs.
  */
 describe('the device panel', () => {
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(DateTime.fromISO('2026-09-19T12:00:00').toJSDate());
+  });
+  afterAll(() => vi.useRealTimers());
+
   const heard = (minutesAgo: number) => DateTime.now().minus({ minutes: minutesAgo }).toISO()!;
 
   const fridge = (over: Partial<Device['state']> = {}): Device =>
@@ -1184,7 +1194,7 @@ describe('the device panel', () => {
     fireEvent.click(await screen.findByText('Fridge module'));
 
     // The row's pill and the panel's connection line, in the same words.
-    expect(screen.getAllByText(/^offline since \d\d:\d\d$/)).toHaveLength(2);
+    expect(screen.getAllByText('offline since 11:35')).toHaveLength(2);
     expect(screen.getByRole('button', { name: /^Restart/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /^MaintenancePause/ })).toBeDisabled();
     expect(screen.getByText(/^Restart and maintenance work again once the device is connected. Anything else you change here/)).toBeInTheDocument();

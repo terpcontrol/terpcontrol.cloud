@@ -605,11 +605,11 @@ describe('what the camera is set to', () => {
  * floor rather than drawn as the day's total.
  */
 describe('the films and the pictures behind the first page', () => {
-  const drawPage = () =>
+  const drawPage = (over: Partial<Camera> = {}) =>
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <MemoryRouter>
-          <CameraScreen camera={{ ...camera, ownerId: YOU }} />
+          <CameraScreen camera={{ ...camera, ownerId: YOU, ...over }} />
         </MemoryRouter>
       </QueryClientProvider>,
     );
@@ -690,7 +690,10 @@ describe('the films and the pictures behind the first page', () => {
    * the most recent complete window, and is what the button now asks for.
    */
   it('asks for a week the server has already finished rather than the one that opened today', () => {
-    drawPage();
+    // A camera that is delivering, dated by the clock the page reads rather than
+    // by the fixture's own hour, which falls further behind it every day: a
+    // camera dark for a fortnight is refused the week, below.
+    drawPage({ state: { ...camera.state, lastStillAt: serverNow().toISO()! } });
 
     fireEvent.click(screen.getByRole('button', { name: /Week film/ }));
 

@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, ShareLink } from '@fg2/shared-types/v1';
 import { ShareSheet } from '@/screens/grow/ShareSheet';
 
@@ -60,8 +60,16 @@ vi.mock('@/api/grows', async importOriginal => ({
 /**
  * The sheet reads the wall clock, because a link's counters age against it, so
  * the ages here are relative to now and the fixed dates sit at midday - where
- * no timezone can move them onto the day before.
+ * no timezone can move them onto the day before. The clock itself is held on
+ * one day, at midday where the suite runs: a fixed date is only on the side of
+ * now its case says it is - a link that runs out on 10 October has not run out
+ * yet - while the wall clock has not overtaken it. Only Date is faked, so every
+ * timer still runs.
  */
+vi.useFakeTimers({ toFake: ['Date'] });
+vi.setSystemTime(DateTime.fromISO('2026-09-24T12:00:00').toJSDate());
+afterAll(() => vi.useRealTimers());
+
 const NOW = DateTime.now();
 
 const grow = {

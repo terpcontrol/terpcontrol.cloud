@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Device, Plan, PlanStep, PlanTransition } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
 import { Control } from '@/screens/control/Control';
@@ -40,7 +40,19 @@ import { climateLanding } from '@/ui/climate-hardware';
  * section the controller runs, so the tuning beside it is never sent at all.
  */
 
-const NOW = DateTime.fromISO('2026-09-19T12:00:00.000Z');
+/*
+ * The screen reads the browser's clock for every age on it, and that clock is
+ * held at midday where the suite runs, which is the instant the arithmetic is
+ * checked at too. A controller quiet for two hours is dated by the hour alone
+ * only while those two hours fall on today: run between midnight and two in
+ * the morning, the line rightly gains yesterday's date, and the case would fail
+ * for the time of night rather than for anything the panel did. Only Date is
+ * faked, so every timer still runs.
+ */
+const NOW = DateTime.fromISO('2026-09-19T12:00:00');
+vi.useFakeTimers({ toFake: ['Date'] });
+vi.setSystemTime(NOW.toJSDate());
+afterAll(() => vi.useRealTimers());
 
 const state = vi.hoisted(() => ({
   plan: null as Plan | null,
@@ -135,12 +147,7 @@ const plan = (over: Partial<Plan> = {}, stateOver: Partial<Plan['state']> = {}):
 /** What the controller is running now: two sections, each with a figure beside the ones a step edits. */
 const CONFIGURATION = { day: { temperature: 25, humidity: 60, heating: 'hard' }, lights: { limit: 80, sunrise: 15 } };
 
-/**
- * The screen reads the browser's clock for every age on it, so a device under
- * test is placed against that clock rather than against the fixed instant the
- * arithmetic is checked at.
- */
-const device = (lastSeenAt = DateTime.now().minus({ seconds: 20 })): Device => ({
+const device = (lastSeenAt = NOW.minus({ seconds: 20 })): Device => ({
   id: 'device-1',
   createdAt: NOW.minus({ days: 60 }).toISO()!,
   type: 'controller',
@@ -413,7 +420,7 @@ describe('the clock under a running step', () => {
   it('leaves a step that has barely begun the whole length it states', () => {
     state.plan = plan(
       { steps: [step({ stage: null, duration: { value: 7, unit: 'days' } })] },
-      { stepStartedAt: DateTime.now().minus({ minutes: 25 }).toISO()! },
+      { stepStartedAt: NOW.minus({ minutes: 25 }).toISO()! },
     );
 
     draw();
@@ -426,7 +433,7 @@ describe('the clock under a running step', () => {
   it('still counts what has been served the way every other age is counted', () => {
     state.plan = plan(
       { steps: [step({ stage: null, duration: { value: 7, unit: 'days' } })] },
-      { stepStartedAt: DateTime.now().minus({ days: 3, hours: 23 }).toISO()! },
+      { stepStartedAt: NOW.minus({ days: 3, hours: 23 }).toISO()! },
     );
 
     draw();
@@ -444,7 +451,7 @@ describe('the clock under a running step', () => {
   it('counts an extension into what is left, rather than freezing the line for its length', () => {
     state.plan = plan(
       { steps: [step({ stage: null, duration: { value: 10, unit: 'minutes' } })] },
-      { stepStartedAt: DateTime.now().plus({ hours: 5 }).toISO()! },
+      { stepStartedAt: NOW.plus({ hours: 5 }).toISO()! },
     );
 
     draw();
@@ -455,7 +462,7 @@ describe('the clock under a running step', () => {
   it('calls a step that has only just been started started, not extended', () => {
     state.plan = plan(
       { steps: [step({ stage: null, duration: { value: 2, unit: 'minutes' } })] },
-      { stepStartedAt: DateTime.now().plus({ seconds: 1 }).toISO()! },
+      { stepStartedAt: NOW.plus({ seconds: 1 }).toISO()! },
     );
 
     draw();
@@ -722,18 +729,18 @@ describe('the plan panel', () => {
   });
 
   it('dates the last time the step reached the controller rather than claiming it is running it', () => {
-    state.plan = plan({}, { lastAppliedAt: DateTime.now().minus({ minutes: 20 }).toISO()! });
+    state.plan = plan({}, { lastAppliedAt: NOW.minus({ minutes: 20 }).toISO()! });
     draw();
 
     expect(screen.getByText(/Step sent to the device 20 min ago/)).toBeInTheDocument();
   });
 
   it('dims that line and says so when the controller itself has gone quiet', () => {
-    state.plan = plan({}, { lastAppliedAt: DateTime.now().minus({ minutes: 20 }).toISO()! });
-    draw(device(DateTime.now().minus({ hours: 2 })));
+    state.plan = plan({}, { lastAppliedAt: NOW.minus({ minutes: 20 }).toISO()! });
+    draw(device(NOW.minus({ hours: 2 })));
 
     // In the one wording the app has for a device gone quiet, rather than "the controller has said nothing for 2 h" about a fridge module.
-    const line = screen.getByText(/offline since \d\d:\d\d · what the device is really running may be older than this/);
+    const line = screen.getByText(/offline since 10:00 · what the device is really running may be older than this/);
     expect(line).toHaveAttribute('data-age', 'offline');
   });
 });
