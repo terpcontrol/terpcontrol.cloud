@@ -25,6 +25,9 @@ import {
   TIMED_SOCKET_ROLES,
   socketListKey,
 } from '../shared-types/v1-schemas/socket-report.js';
+// Day and night as the firmware keeps them: the clock window and the work mode.
+// The same module the server judges by, so the stack shows what hardware does.
+import { DAY_SECONDS, cycleAt, cycleKindOf, cycleOf, glidingTarget, isDayAt, rampsAt, utcSecondsOf } from '../shared-types/v1-schemas/day-night.js';
 
 const STATE_DIR = '.simulated-devices';
 const API_URL = process.env.SIM_API_URL.replace(/\/$/, '');
@@ -376,13 +379,42 @@ const makeRandom = seed => {
 
 const configValue = (config, path, fallback) => path.split('.').reduce((node, key) => node?.[key], config) ?? fallback;
 
-// Light level in percent at an instant, following the configured day window
-// with a linear sunrise/sunset ramp.
+// How far a module's ramps let its lamp come up at this second of a day it is
+// in, the way each firmware works it out. The fridge takes the evening ramp
+// over the morning one. The controller does too, but works the evening one out
+// unsigned on every second its night is less than a ramp away - which, for a
+// window past midnight UTC, is every second of the morning ramp, so its lamp
+// comes on at full there. Both are what the hardware does.
+const rampShareOf = (type, cycle, seconds) => {
+  if (type !== 'controller') {
+    const { sunrise, sunset } = rampsAt(cycle, seconds);
+    return sunset < 1 ? sunset : sunrise < 1 ? sunrise : 1;
+  }
+  const up = cycle.sunrise * 60;
+  const down = cycle.sunset * 60;
+  let share = 1;
+  if (cycle.sunrise > 0 && seconds + DAY_SECONDS < cycle.day + DAY_SECONDS + up) share = ((seconds - cycle.day) >>> 0) / up;
+  if (cycle.sunset > 0 && seconds + DAY_SECONDS > cycle.night + DAY_SECONDS - down) share = ((cycle.night - seconds) >>> 0) / down;
+  return clamp(share, 0, 1);
+};
+
+// Light level in percent at an instant.
 //
-// The window is seconds after midnight UTC, as the firmware reads it: the cloud
+// A fridge and a controller light their lamp in the day their clock window and
+// work mode make (`day-night.ts`): never while drying, germinating or switched
+// off, always with 24 hours, with the dimming ramps inside the window. The
+// window is seconds after midnight UTC, as the firmware reads it: the cloud
 // stores the owner's wall-clock times converted to UTC, so reading them on the
 // host's own clock would light a 08-20 Berlin window two hours early in summer.
-const lightPercent = (config, at) => {
+const lightPercent = (config, at, type = 'controller') => {
+  const cycle = cycleOf(type, config);
+  if (cycle) {
+    const kind = cycleKindOf(cycle);
+    const seconds = utcSecondsOf(at.getTime());
+    const share = kind === 'always_day' ? 1 : kind === 'schedule' && isDayAt(cycle, seconds) ? rampShareOf(type, cycle, seconds) : 0;
+    return clamp(configValue(config, 'lights.limit', 100) * share, 0, 100);
+  }
+
   const secondsOfDay = at.getUTCHours() * 3600 + at.getUTCMinutes() * 60 + at.getUTCSeconds();
   // A LIGHT keeps its times, its limit and its ramps at the top of its document.
   const flat = typeof config.day === 'number';
@@ -404,33 +436,80 @@ const lightPercent = (config, at) => {
   return clamp(limit * ramp, 0, 100);
 };
 
+// What the module aims at, as its firmware decides it.
+//
+// A fridge and a controller hold the half their clock and work mode make, a
+// fridge gliding between the halves' figures along the ramps. The work mode
+// decides the rest: drying holds the night's temperature and humidity in the
+// dark without CO2, germination the night's temperature alone, the greenhouse
+// mode no humidity and a compressor that only cools, and switched off nothing
+// at all. CO2 is dosed in the day only, and on a fridge not while the lamp
+// goes down. Every other type is lit by its light and holds that half.
+const aimOf = (config, at, type) => {
+  const day = { temperature: configValue(config, 'day.temperature', 25), humidity: configValue(config, 'day.humidity', 60) };
+  const night = { temperature: configValue(config, 'night.temperature', 21), humidity: configValue(config, 'night.humidity', 55) };
+  const co2 = configValue(config, 'co2.target', 900);
+  const cycle = cycleOf(type, config);
+  if (!cycle) {
+    const isDay = lightPercent(config, at, type) > 0.5;
+    const half = isDay ? day : night;
+    return { kind: 'schedule', mode: 'small', isDay, temperature: half.temperature, humidity: half.humidity, co2: isDay ? co2 : null };
+  }
+
+  const moment = cycleAt(cycle, at.getTime());
+  const mode = cycle.workmode ?? 'small';
+  const kind = moment.kind;
+  const glide = moment.transition?.glide ?? null;
+  const aimed = metric => (glide === null ? (moment.active === 'day' ? day : night)[metric] : glidingTarget(day[metric], night[metric], glide));
+  const setting = type === 'fridge' && Number(configValue(config, 'co2.sunsetOff', 0)) > 0 && rampsAt(cycle, utcSecondsOf(at.getTime())).sunset < 1;
+  const isDay = moment.active === 'day' && kind !== 'off';
+
+  return {
+    kind,
+    mode,
+    isDay,
+    temperature: kind === 'off' ? null : aimed('temperature'),
+    humidity: kind === 'off' || kind === 'germination' || mode === 'temp' ? null : aimed('humidity'),
+    co2: isDay && !setting ? co2 : null,
+  };
+};
+
+// Where the air drifts to with nothing holding it.
+const AMBIENT = { temperature: 21, humidity: 62, co2: 430 };
+
 // One climate step. `state` is carried between steps so temperature, humidity
 // and CO2 drift instead of jumping, both live and while backfilling history.
-const step = (state, config, at, stepSeconds, random) => {
-  const light = lightPercent(config, at);
-  const isDay = light > 0.5;
-
-  const targetTemperature = configValue(config, isDay ? 'day.temperature' : 'night.temperature', isDay ? 25 : 21);
-  const targetHumidity = configValue(config, isDay ? 'day.humidity' : 'night.humidity', isDay ? 60 : 55);
-  const targetCo2 = configValue(config, 'co2.target', 900);
+const step = (state, config, at, stepSeconds, random, type = 'controller') => {
+  const light = lightPercent(config, at, type);
+  const lit = light > 0.5;
+  const aim = aimOf(config, at, type);
+  const off = aim.kind === 'off';
 
   // First-order approach to the target, so a settings change is visible as a
-  // curve bending over minutes rather than a step.
+  // curve bending over minutes rather than a step. Nothing held drifts slower,
+  // towards the room the box stands in.
   const rate = clamp(stepSeconds / 1800, 0, 0.6);
-  state.temperature += (targetTemperature + (isDay ? 0.6 : -0.4) - state.temperature) * rate + (random() - 0.5) * 0.25;
-  state.humidity += (targetHumidity - state.humidity) * rate + (random() - 0.5) * 1.4;
-  const co2Target = isDay ? targetCo2 : 430;
-  state.co2 += (co2Target - state.co2) * rate + (random() - 0.5) * 25;
+  const drift = rate / 4;
+  const heldTemperature = aim.temperature === null ? null : aim.temperature + (lit ? 0.6 : -0.4);
+  state.temperature +=
+    (heldTemperature === null ? (AMBIENT.temperature - state.temperature) * drift : (heldTemperature - state.temperature) * rate) + (random() - 0.5) * 0.25;
+  state.humidity += (aim.humidity === null ? (AMBIENT.humidity - state.humidity) * drift : (aim.humidity - state.humidity) * rate) + (random() - 0.5) * 1.4;
+  state.co2 += ((aim.co2 ?? AMBIENT.co2) - state.co2) * rate + (random() - 0.5) * 25;
 
   state.temperature = clamp(state.temperature, 5, 45);
   state.humidity = clamp(state.humidity, 15, 95);
   state.co2 = clamp(state.co2, 380, 2000);
 
-  const heater = clamp((targetTemperature - state.temperature) * 0.9, 0, 1);
-  const dehumidifier = state.humidity > targetHumidity + 2 ? 1 : 0;
-  const co2Valve = isDay && state.co2 < targetCo2 - 40 ? 1 : 0;
-  const internal = configValue(config, 'fans.internal', 60) / 100;
-  const external = clamp(configValue(config, 'fans.external', 40) / 100 + dehumidifier * 0.4, 0, 1);
+  const heater = aim.temperature === null ? 0 : clamp((aim.temperature - state.temperature) * 0.9, 0, 1);
+  // The compressor dehumidifies in the standard modes and drying, and only
+  // cools in the greenhouse mode and germination.
+  const cools = aim.mode === 'temp' || aim.kind === 'germination';
+  const target = cools ? aim.temperature : aim.humidity;
+  const reading = cools ? state.temperature : state.humidity;
+  const dehumidifier = !off && target !== null && reading > target + (cools ? 0.8 : 2) ? 1 : 0;
+  const co2Valve = aim.co2 !== null && state.co2 < aim.co2 - 40 ? 1 : 0;
+  const internal = off ? 0 : configValue(config, 'fans.internal', 60) / 100;
+  const external = off ? 0 : clamp(configValue(config, 'fans.external', 40) / 100 + dehumidifier * 0.4, 0, 1);
 
   return {
     sensors: {
@@ -438,10 +517,10 @@ const step = (state, config, at, stepSeconds, random) => {
       humidity: round(state.humidity),
       co2: round(state.co2, 0),
       sensor_type: 1,
-      leaf_temperature: round(state.temperature - (isDay ? 2 : 0.2)),
+      leaf_temperature: round(state.temperature - (lit ? 2 : 0.2)),
       lux: round(light * 400, 0),
       rpm: round(internal * 3000, 0),
-      day: isDay ? 1 : 0,
+      day: aim.isDay ? 1 : 0,
     },
     outputs: {
       heater: round(heater),
@@ -449,7 +528,7 @@ const step = (state, config, at, stepSeconds, random) => {
       co2: co2Valve,
       light: round(light, 1),
       // An AIR writes its speed in percent, where a fridge writes its fans as a fraction of one.
-      fan: round(configValue(config, isDay ? 'day.fixed_speed' : 'night.fixed_speed', 60), 0),
+      fan: round(configValue(config, aim.isDay ? 'day.fixed_speed' : 'night.fixed_speed', 60), 0),
       relais: heater > 0.1 ? 1 : 0,
       'fan-internal': round(internal),
       'fan-external': round(external),
@@ -470,12 +549,12 @@ const step = (state, config, at, stepSeconds, random) => {
  * humidifier and the exhaust are read off the same sample the outputs are -
  * enough to drive a screen, not a second implementation of the laws.
  */
-const socketFollows = (role, sample, config, at) => {
+const socketFollows = (role, sample, config, at, type = 'controller') => {
   const mode = configValue(config, 'workmode', DEFAULT_CONFIG.workmode);
   const running = mode !== 'off';
-  const isDay = lightPercent(config, at) > 0.5;
-  const targetHumidity = configValue(config, isDay ? 'day.humidity' : 'night.humidity', isDay ? 60 : 55);
-  const targetTemperature = configValue(config, isDay ? 'day.temperature' : 'night.temperature', isDay ? 25 : 21);
+  const aim = aimOf(config, at, type);
+  const targetHumidity = aim.humidity ?? configValue(config, 'night.humidity', 55);
+  const targetTemperature = aim.temperature ?? configValue(config, 'night.temperature', 21);
   const band = Math.max(configValue(config, 'daynight.targetHumidityDiff', 5), HUMIDIFIER_MIN_BAND);
 
   const follows = {
@@ -876,7 +955,7 @@ class SimulatedDevice {
    * reassembly is exercised rather than bypassed.
    */
   #capture() {
-    const light = lightPercent(this.config, new Date());
+    const light = lightPercent(this.config, new Date(), this.type);
     const age = (Date.now() - this.memory.plantedAt) / 86400000;
     const jpeg = encodeJpeg(CAMERA_BLOCKS_X, CAMERA_BLOCKS_Y, growScene(light, clamp(0.45 + age / 40, 0.45, 1), Date.now() / 60000));
 
@@ -954,7 +1033,7 @@ class SimulatedDevice {
     if (left > 0) return socket.override.state;
     if (TIMED_SOCKET_ROLES.includes(socket.role)) return this.#timerState(socket);
     if (!socket.role) return null;
-    return socketFollows(socket.role, sample, this.config, at) ? 'on' : 'off';
+    return socketFollows(socket.role, sample, this.config, at, this.type) ? 'on' : 'off';
   }
 
   // Where in its cycle a timed socket is: on for `onS` out of every `everyS`,
@@ -1237,12 +1316,12 @@ class SimulatedDevice {
   // step where the device was simply switched on again.
   warmUp(at, hours = 6) {
     for (let seconds = hours * 3600; seconds > 0; seconds -= 600) {
-      step(this.state, this.config, new Date(at.getTime() - seconds * 1000), 600, this.random);
+      step(this.state, this.config, new Date(at.getTime() - seconds * 1000), 600, this.random, this.type);
     }
   }
 
   sample(at = new Date(), stepSeconds = 60, overrides = {}) {
-    const sample = shape(step(this.state, this.config, at, stepSeconds, this.random), this.type, overrides);
+    const sample = shape(step(this.state, this.config, at, stepSeconds, this.random, this.type), this.type, overrides);
     if (this.testOutputs) {
       for (const key of Object.keys(sample.outputs)) {
         if (this.testOutputs[key] !== undefined) sample.outputs[key] = this.testOutputs[key];
