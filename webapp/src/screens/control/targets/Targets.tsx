@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } f
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 import { controlPath } from '@/app/places';
-import type { Device, DeviceConfiguration, GrowCard } from '@fg2/shared-types/v1';
+import type { Device, DeviceConfiguration, GrowCard, PlanStep } from '@fg2/shared-types/v1';
 import { useHome } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
 import { serverNow } from '@/api/clock';
@@ -29,7 +29,19 @@ import { DayNightTable } from './DayNightTable';
 import { LightPlan } from './LightPlan';
 import { LeaveGuard, type Unsaved } from './LeaveGuard';
 import { ControlState, EnergySaving } from './Operation';
-import { draftOf, equalsPreset, offsetOf, prefilled, presetOf, sameDraft, wallClock, withDraft, type TargetsDraft } from './targets-draft';
+import { stepLightHours, stepLightsOn } from '../plan-edit';
+import {
+  draftOf,
+  equalsPreset,
+  offsetOf,
+  prefilled,
+  presetOf,
+  sameDraft,
+  wallClock,
+  withDraft,
+  type LightSchedule,
+  type TargetsDraft,
+} from './targets-draft';
 import day from './DayNight.module.css';
 import styles from './Targets.module.css';
 import { deviceName } from '@/screens/devices/naming';
@@ -322,7 +334,9 @@ function Panel({
   // the save; moving what it does not write - the hour the light comes on, as
   // a rule - leaves it running. The errors of either step are the mutations'
   // own and are drawn from there.
-  const owned = ownedBy(runningStep(plan.data));
+  const step = runningStep(plan.data);
+  const owned = ownedBy(step);
+  const planSets = planScheduleOf(step, baseline, plan.data?.name ?? '');
   const pauses = status === 'running' && (dryingChange !== null || changedFields(draft, baseline).some(field => owned.has(field)));
   const commit = async (): Promise<boolean> => {
     try {
@@ -417,6 +431,7 @@ function Panel({
               holding={holding}
               offline={offline}
               owned={owned}
+              planSets={planSets}
             />
             {/* What a running plan writes, said over the figures it marks. */}
             {status === 'running' ? (
@@ -543,6 +558,21 @@ function Panel({
     </section>
   );
 }
+
+/**
+ * The light schedule a running plan's step puts back within the hour, where
+ * it differs from the one that runs: a step's light hours from the device's
+ * hour, or a migrated step's own two times. "Licht an 08:00" with a mark
+ * beside it said nothing of the 07:00 the plan would set again an hour later.
+ */
+const planScheduleOf = (step: PlanStep | null, runs: TargetsDraft, name: string): { name: string; schedule: LightSchedule } | null => {
+  if (!step) return null;
+  const on = stepLightsOn(step.settings);
+  const hours = stepLightHours({ settings: step.settings, lightHours: step.lightHours ?? null });
+  if (on === null && hours === null) return null;
+  const schedule = { lightsOn: on ?? runs.lightsOn, lightHours: hours ?? runs.lightHours };
+  return schedule.lightsOn === runs.lightsOn && schedule.lightHours === runs.lightHours ? null : { name, schedule };
+};
 
 /**
  * Keeps the figure somebody is changing clear of the save bar. The bar stands

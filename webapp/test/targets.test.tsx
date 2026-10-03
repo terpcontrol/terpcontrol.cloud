@@ -695,6 +695,8 @@ describe('the targets page', () => {
     await drawn();
 
     expect(screen.getByText('set by the running plan “Autoflower, 12 weeks” – again every hour.')).toBeInTheDocument();
+    // Its twelve hours from the device's six are what runs already: nothing to put back.
+    expect(screen.queryByText(/sets it back within the hour/)).not.toBeInTheDocument();
     expect(within(screen.getByRole('row', { name: /^Temperature/ })).getByRole('img', { name: 'set by the running plan' })).toBeInTheDocument();
     expect(within(plan_()).getAllByRole('img', { name: 'set by the running plan' })).toHaveLength(1);
     expect(within(lightsOn().closest('div')!).queryByRole('img', { name: 'set by the running plan' })).not.toBeInTheDocument();
@@ -734,6 +736,10 @@ describe('the targets page', () => {
     await drawn();
 
     expect(within(plan_()).getAllByRole('img', { name: 'set by the running plan' })).toHaveLength(2);
+    // What the plan will put back, said before the hour is up rather than found out after it.
+    expect(
+      within(plan_()).getByText('The running plan “Autoflower, 12 weeks” sets it back within the hour: Light on 01:00–14:00 · 13 h.'),
+    ).toBeInTheDocument();
     tap('Light on at: later');
     expect(bar()).toHaveTextContent(/^Saving pauses the plan/);
   });

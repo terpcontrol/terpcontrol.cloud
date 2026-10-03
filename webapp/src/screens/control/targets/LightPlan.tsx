@@ -6,7 +6,7 @@ import { Help } from '@/ui/Help';
 import { halfOf, phaseOf, rampsFor, utcSecondsOf, type Field, type Half, type NowHolding, type Ramps, type Shape } from './day-night';
 import { scheduleTitle, windowWords } from './schedule-words';
 import { ClockStepper, Stepper } from './Stepper';
-import type { TargetsDraft } from './targets-draft';
+import type { LightSchedule, TargetsDraft } from './targets-draft';
 import styles from './DayNight.module.css';
 
 export interface LightPlanProps {
@@ -28,6 +28,8 @@ export interface LightPlanProps {
   offline: string | null;
   /** The figures a running plan writes back every hour. */
   owned: ReadonlySet<Field>;
+  /** The light schedule a running plan puts back within the hour, where it is not the one that runs. */
+  planSets?: { name: string; schedule: LightSchedule } | null;
 }
 
 /**
@@ -80,7 +82,7 @@ export function LightPlan(props: LightPlanProps) {
 }
 
 function Schedule(props: LightPlanProps) {
-  const { device, draft, baseline, set, readOnly, now, offset, owned } = props;
+  const { device, draft, baseline, set, readOnly, now, offset, owned, planSets = null } = props;
   const { t } = useTranslation();
   const changed = draft.lightsOn !== baseline.lightsOn || draft.lightHours !== baseline.lightHours;
   const words = windowWords(draft, offset);
@@ -116,6 +118,12 @@ function Schedule(props: LightPlanProps) {
 
       <NowLine {...props} />
       <Flip {...props} changed={changed} />
+      {/* A step that names its own hours or its own time puts them back within the hour, whatever runs now. */}
+      {planSets ? (
+        <p className={`${styles.note} ${styles.warn}`}>
+          {t('targets.plan.planSets', { name: planSets.name, window: scheduleTitle(t, planSets.schedule, offset) })}
+        </p>
+      ) : null}
 
       <div className={styles.fields}>
         <div className={styles.field} data-keep>

@@ -4013,7 +4013,8 @@
       "dipFridge": "Solange gleiten die Zielwerte kurz Richtung Nachtwerte, und CO₂ pausiert.",
       "neverLine": "Ohne Licht ist rund um die Uhr Nacht: Es gelten die Nachtwerte, CO₂ wird nicht zugegeben.",
       "earlier": "{{name}}: früher",
-      "later": "{{name}}: später"
+      "later": "{{name}}: später",
+      "planSets": "Der laufende Plan „{{name}}“ stellt spätestens in einer Stunde wieder um: {{window}}."
     }
   },
   "notifications": {
