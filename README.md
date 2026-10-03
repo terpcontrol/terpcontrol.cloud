@@ -42,10 +42,9 @@ server url specified in your .env file.
 1. `cd myfolder/terpcontrol.cloud/`
 1. `./backup.sh` — an upgrade may migrate the database, which happens by itself on the next start.
 1. `git pull` (optional: this gets you the latest changes from the repo)
-1. `docker compose run --rm --build --no-deps server npm run migrate:check` — asks whether the database can be
-   migrated at all, and writes nothing. If it lists anything, that has to be cleaned up in the database first:
-   the migration refuses to start on it, so the server would not come up. With `DOCKER_COMPOSE_NAME` set in `.env`,
-   put `COMPOSE_PROJECT_NAME=<that name>` in front of the command, or it looks at a stack that does not exist.
+1. `./migrate-check.sh` — asks whether the database can be migrated at all, and writes nothing. If it lists
+   anything, that has to be cleaned up in the database first: the migration refuses to start on it, so the server
+   would not come up.
 1. `./up.sh` — if it stops and says the MongoDB data is not ready for the image, run `./upgrade-mongodb.sh` first.
    It takes a backup of its own before it changes anything.
 1. `./build-fw.sh` (if you want to update the firmware as well)
