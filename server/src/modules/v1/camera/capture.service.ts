@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { execFile } from 'node:child_process';
-import pLimit from 'p-limit';
 import { withoutCredentials } from '@common/log-path';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
 import { CameraWithSecret } from './cameras.service';
+import { ffmpegSlot } from './ffmpeg-slots';
 import { TerpCamDirectService } from './terpcam-direct.service';
 
 /**
@@ -47,9 +47,6 @@ const FFMPEG_MISSING_CODEC_PARAMS_PATTERN = /Could not find codec parameters/i;
 
 @Injectable()
 export class CaptureService {
-  /** ffmpeg is expensive and a camera that hangs holds a run for 90 s; ten at a time is what the box takes. */
-  private readonly ffmpegLimit = pLimit(10);
-
   constructor(
     private readonly tunnel: TunnelService,
     private readonly terpCamDirect: TerpCamDirectService,
@@ -61,7 +58,7 @@ export class CaptureService {
    * a downgraded one in the timelapse.
    */
   public readStill(camera: CameraWithSecret): Promise<Buffer> {
-    if (camera.kind === 'rtsp') return this.ffmpegLimit(() => this.readFromStream(camera));
+    if (camera.kind === 'rtsp') return ffmpegSlot(() => this.readFromStream(camera));
     if (!this.terpCamDirect.canReach(camera)) {
       return Promise.reject(new Error('this camera answers to no device that could bridge it to this server'));
     }
