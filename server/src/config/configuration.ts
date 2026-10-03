@@ -173,7 +173,8 @@ export const retentionConfig = registerAs('retention', () => ({
  * What the one-off move from the old shapes needs to be told. The language is
  * the only thing the old database cannot answer for itself, and it decides what
  * a migrated grow's measurements are called and what each account's own
- * preference starts as.
+ * preference starts as. docker-compose.yaml defaults it to `en`; the fallback
+ * here is for `npm run migrate`, which runs outside compose.
  */
 export const migrationConfig = registerAs('migration', () => ({
   locale: (process.env.MIGRATION_LOCALE ?? 'en').trim() || 'en',
