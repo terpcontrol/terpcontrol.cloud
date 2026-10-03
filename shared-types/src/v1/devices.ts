@@ -284,6 +284,30 @@ export const adminDeviceCreate = named(
   device.pick({ id: true, type: true, classId: true, serialNumber: true }),
 );
 
+/**
+ * `POST /admin/devices/provisioned`: the row for factory-fresh hardware that is
+ * about to be flashed, made together with what is flashed into it. The class
+ * says which build that is; the id, the serial number on its label and its
+ * broker credentials are the server's to give.
+ */
+export const adminDeviceProvision = named(
+  'AdminDeviceProvision',
+  z.object({ classId: id(), type: z.string().min(1).describe('The firmware’s own type name, as the hardware will register with it.') }),
+);
+
+/**
+ * What provisioning answers: the device, and the one time its broker password
+ * is ever said. Only a hash of it is kept, so the flashed NVS is where the
+ * password lives from then on.
+ */
+export const provisionedDevice = named(
+  'ProvisionedDevice',
+  z.object({
+    device,
+    mqtt: z.object({ username: z.string(), password: z.string() }).describe('Flashed into the device; never answered again.'),
+  }),
+);
+
 /** Which build each channel points at; null where a class has nothing on that channel yet. */
 export const deviceClassFirmwareIds = named(
   'DeviceClassFirmwareIds',

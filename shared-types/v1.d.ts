@@ -954,6 +954,25 @@ export interface AdminDeviceCreate {
   serialNumber: number | null;
 }
 
+export interface AdminDeviceProvision {
+  classId: string;
+  /**
+   * The firmware’s own type name, as the hardware will register with it.
+   */
+  type: string;
+}
+
+export interface ProvisionedDevice {
+  device: Device;
+  /**
+   * Flashed into the device; never answered again.
+   */
+  mqtt: {
+    username: string;
+    password: string;
+  };
+}
+
 export interface DeviceClassFirmwareIds {
   stable: string | null;
   beta: string | null;

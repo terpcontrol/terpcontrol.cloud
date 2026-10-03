@@ -1,5 +1,5 @@
 import { createAccount, loginAsAdmin, Session } from '../support/api';
-import { provisionDevice } from '../support/device';
+import { claimCodeOf, DeviceSimulator, provisionDevice } from '../support/device';
 
 /**
  * The fleet as the install's administrator reads it: every device, whoever
@@ -49,5 +49,59 @@ describe('GET /v1/admin/devices', () => {
 
   it('is refused to anybody else', async () => {
     await customer.client.get('/v1/admin/devices').expect(403);
+  });
+});
+
+describe('POST /v1/admin/devices/provisioned', () => {
+  let fridgeClassId: string;
+
+  beforeAll(async () => {
+    const classes = (await admin.client.get('/v1/admin/device-classes').query({ limit: 200 }).expect(200)).body;
+    fridgeClassId = classes.items.find((entry: { name: string }) => entry.name === 'fridge').id;
+  });
+
+  it('makes a device to flash, with the next serial number and broker credentials it can sign in with', async () => {
+    const before = await allPages(admin, '/v1/admin/devices');
+    const made = (await admin.client.post('/v1/admin/devices/provisioned').send({ classId: fridgeClassId, type: 'fridge' }).expect(201)).body;
+
+    expect(made.device).toMatchObject({ type: 'fridge', classId: fridgeClassId, ownerId: null });
+    expect(made.device.serialNumber).toBeGreaterThan(0);
+    expect(made.mqtt.username).toEqual(expect.any(String));
+    expect(made.mqtt.password).toEqual(expect.any(String));
+    expect(before.some(device => device.id === made.device.id)).toBe(false);
+
+    // What the provisioning tool flashes is what the hardware then signs in with.
+    const hardware = await new DeviceSimulator({
+      deviceId: made.device.id,
+      username: made.mqtt.username,
+      password: made.mqtt.password,
+      deviceType: 'fridge',
+    }).connect();
+    await hardware.close();
+
+    // And it is claimed like any other: its display asks for a code, which is the whole proof.
+    const claimed = (
+      await customer.client
+        .post('/v1/devices/claims')
+        .send({ code: await claimCodeOf(made.device.id) })
+        .expect(201)
+    ).body;
+    expect(claimed.device).toMatchObject({ id: made.device.id, ownerId: customer.userId });
+  });
+
+  it('never answers the password again', async () => {
+    const made = (await admin.client.post('/v1/admin/devices/provisioned').send({ classId: fridgeClassId, type: 'fridge' }).expect(201)).body;
+
+    const read = await admin.client.get(`/v1/devices/${made.device.id}`).expect(200);
+    expect(JSON.stringify(read.body)).not.toContain(made.mqtt.password);
+  });
+
+  it('refuses a class that does not exist, which is what decides the build', async () => {
+    const refused = await admin.client.post('/v1/admin/devices/provisioned').send({ classId: 'no-such-class', type: 'fridge' }).expect(404);
+    expect(refused.body.code).toBe('device_class_not_found');
+  });
+
+  it('is refused to anybody else', async () => {
+    await customer.client.post('/v1/admin/devices/provisioned').send({ classId: fridgeClassId, type: 'fridge' }).expect(403);
   });
 });

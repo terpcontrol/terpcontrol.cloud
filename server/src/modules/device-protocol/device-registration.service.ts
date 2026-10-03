@@ -111,6 +111,36 @@ export class DeviceRegistrationService {
   }
 
   /**
+   * A device row for factory-fresh hardware, made with the credentials that are
+   * then flashed into it: the provisioning tool's half of what `register` is
+   * the hardware's own. The password is answered this once and only its hash is
+   * kept. The hardware is flashed with the build its class has on stable, so it
+   * is pinned there and boots running it rather than being told to update.
+   *
+   * Null where the class does not exist, which is the one thing that decides
+   * what the hardware is flashed with.
+   */
+  public async provision(classId: string, type: string): Promise<{ device: StoredDevice; username: string; password: string } | null> {
+    const deviceClass = await this.deviceClasses.findOne({ id: classId }).lean();
+    if (!deviceClass) return null;
+
+    const username = uuidv4();
+    const password = uuidv4();
+    const created = await this.devices.create({
+      id: uuidv4(),
+      type,
+      classId: deviceClass.id,
+      serialNumber: await this.nextSerialNumber(),
+      mqtt: { username, passwordHash: await hashDevicePassword(password) },
+      firmware: { targetId: deviceClass.firmwareIds.stable },
+    });
+
+    const device = created.toObject<StoredDevice>();
+    logger.info(`Provisioned device ${device.id} of type ${type} with serial number ${device.serialNumber}`);
+    return { device, username, password };
+  }
+
+  /**
    * The same device enrolling again. It is pinned to the build its class runs,
    * because whoever is standing in front of it has just told it which cloud to
    * belong to, and it keeps the channel it follows: pressing "Change server" a

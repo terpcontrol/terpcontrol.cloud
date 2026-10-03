@@ -174,20 +174,22 @@ spassword,data,string,{spassword}
   return os.system(cmd)
 
 def create_device_record(class_id: str, device_type: str):
-  """A device row made by hand, together with the credentials that are flashed
-  into its NVS so it can sign in to the broker.
+  """A device row made for hardware about to be flashed, together with the
+  credentials that are flashed into its NVS so it can sign in to the broker.
 
-  There is no route for this on `/v1`: `POST /admin/devices` is handed an id, a
-  class and a serial number and answers a device, and the broker credentials are
-  deliberately not part of the wire contract - so a device provisioned through it
-  would have nothing to connect with. Whatever route takes this over has to
-  answer `id`, `serialNumber` and the plaintext `mqtt` pair below.
+  `POST /admin/devices/provisioned` answers the password this once; the server
+  keeps only its hash, so the NVS written below is where it lives from then on.
   """
-  fail(
-    "Provisioning has no route on /v1: nothing there creates a device and answers the broker\n"
-    "credentials and serial number that are flashed into it. Flash from a stack that still serves\n"
-    "the old API, or add the route before provisioning hardware here."
-  )
+  response = api_post("/admin/devices/provisioned", json={ "classId": class_id, "type": device_type })
+  if not response.ok:
+    fail("Could not create the device record: " + problem(response))
+  made = response.json()
+  device = made["device"]
+  return {
+    "id": device["id"],
+    "serialNumber": device["serialNumber"],
+    "mqtt": { "username": made["mqtt"]["username"], "password": made["mqtt"]["password"] },
+  }
 
 
 @app.command()
@@ -199,11 +201,7 @@ def version():
 
 @app.command()
 def provision(class_name:str, device_type: str):
-  """Flash a factory-fresh device over USB and print its serial number.
-
-  Unavailable until `/v1` grows a route that answers a new device's broker
-  credentials - see `create_device_record`.
-  """
+  """Flash a factory-fresh device over USB and print its serial number."""
   device_class = find_class(class_name)
   class_id = device_class["id"]
   firmware_id = device_class["firmwareIds"]["stable"]
@@ -332,10 +330,7 @@ def classes():
 
 @app.command()
 def create_device(class_name: str, device_type: str):
-  """Create a device record without flashing anything.
-
-  Unavailable for the same reason `provision` is - see `create_device_record`.
-  """
+  """Create a device record without flashing anything, and print it with its credentials."""
   print(create_device_record(find_class(class_name)["id"], device_type))
 
 if __name__ == "__main__":

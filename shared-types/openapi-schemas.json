@@ -2516,6 +2516,52 @@
       "serialNumber"
     ]
   },
+  "AdminDeviceProvision": {
+    "type": "object",
+    "properties": {
+      "classId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "type": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The firmware’s own type name, as the hardware will register with it."
+      }
+    },
+    "required": [
+      "classId",
+      "type"
+    ]
+  },
+  "ProvisionedDevice": {
+    "type": "object",
+    "properties": {
+      "device": {
+        "$ref": "#/components/schemas/Device"
+      },
+      "mqtt": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "description": "Flashed into the device; never answered again."
+      }
+    },
+    "required": [
+      "device",
+      "mqtt"
+    ]
+  },
   "DeviceClassFirmwareIds": {
     "type": "object",
     "properties": {

@@ -723,6 +723,12 @@ describe('what the admin routes answer', () => {
 
     expectDocumented(response, '/v1/admin/devices', 'post');
   });
+
+  it('matches the declared shape for a device it provisions', async () => {
+    const response = await admin.client.post('/v1/admin/devices/provisioned').send({ classId: fridgeClassId, type: 'fridge' }).expect(201);
+
+    expectDocumented(response, '/v1/admin/devices/provisioned', 'post');
+  });
 });
 
 describe('what the probes and the firmware download answer', () => {
@@ -943,6 +949,14 @@ const bodyCases = (): BodyCase[] => [
     client: () => admin.client,
     accepted: () => ({ id: unique('openapi-by-hand'), type: 'fridge', classId: fridgeClassId, serialNumber: null }),
     refused: () => ({ id: unique('openapi-by-hand'), type: 'fridge', classId: fridgeClassId, serialNumber: 'none' }),
+  },
+  {
+    what: 'POST /v1/admin/devices/provisioned',
+    path: '/v1/admin/devices/provisioned',
+    url: () => '/v1/admin/devices/provisioned',
+    client: () => admin.client,
+    accepted: () => ({ classId: fridgeClassId, type: 'fridge' }),
+    refused: () => ({ classId: fridgeClassId, type: '' }),
   },
 ];
 

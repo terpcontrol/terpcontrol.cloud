@@ -41,6 +41,6 @@ import { ScheduleClockService } from './schedule-clock.service';
     DeviceIngestService,
     ScheduleClockService,
   ],
-  exports: [DevicePublisherService, DeviceConfigurationService, HardwareReportService],
+  exports: [DevicePublisherService, DeviceConfigurationService, HardwareReportService, DeviceRegistrationService],
 })
 export class DeviceProtocolModule {}

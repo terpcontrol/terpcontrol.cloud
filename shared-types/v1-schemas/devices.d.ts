@@ -348,6 +348,91 @@ export declare const adminDeviceCreate: z.ZodObject<{
     classId: z.ZodNullable<z.ZodString>;
     serialNumber: z.ZodNullable<z.ZodNumber>;
 }, z.core.$strip>;
+/**
+ * `POST /admin/devices/provisioned`: the row for factory-fresh hardware that is
+ * about to be flashed, made together with what is flashed into it. The class
+ * says which build that is; the id, the serial number on its label and its
+ * broker credentials are the server's to give.
+ */
+export declare const adminDeviceProvision: z.ZodObject<{
+    classId: z.ZodString;
+    type: z.ZodString;
+}, z.core.$strip>;
+/**
+ * What provisioning answers: the device, and the one time its broker password
+ * is ever said. Only a hash of it is kept, so the flashed NVS is where the
+ * password lives from then on.
+ */
+export declare const provisionedDevice: z.ZodObject<{
+    device: z.ZodObject<{
+        id: z.ZodString;
+        createdAt: z.ZodISODateTime;
+        type: z.ZodString;
+        classId: z.ZodNullable<z.ZodString>;
+        serialNumber: z.ZodNullable<z.ZodNumber>;
+        ownerId: z.ZodNullable<z.ZodString>;
+        spaceId: z.ZodNullable<z.ZodString>;
+        name: z.ZodNullable<z.ZodString>;
+        firmware: z.ZodObject<{
+            channel: z.ZodEnum<{
+                alpha: "alpha";
+                beta: "beta";
+                manual: "manual";
+                stable: "stable";
+            }>;
+            targetId: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>;
+        configuration: z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>;
+        settings: z.ZodObject<{
+            vpdLeafOffsetDay: z.ZodNumber;
+            vpdLeafOffsetNight: z.ZodNumber;
+            ppfdLuxFactor: z.ZodNumber;
+        }, z.core.$strip>;
+        control: z.ZodNullable<z.ZodObject<{
+            running: z.ZodBoolean;
+            drying: z.ZodBoolean;
+            mode: z.ZodEnum<{
+                standard: "standard";
+                germination: "germination";
+                greenhouse: "greenhouse";
+            }>;
+            energySaving: z.ZodBoolean;
+            afterDrying: z.ZodOptional<z.ZodObject<{
+                dayTemperature: z.ZodNullable<z.ZodNumber>;
+                dayHumidity: z.ZodNullable<z.ZodNumber>;
+                nightTemperature: z.ZodNullable<z.ZodNumber>;
+                nightHumidity: z.ZodNullable<z.ZodNumber>;
+                co2: z.ZodNullable<z.ZodNumber>;
+                lightLimit: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>;
+            afterGermination: z.ZodOptional<z.ZodObject<{
+                dayTemperature: z.ZodNullable<z.ZodNumber>;
+                dayHumidity: z.ZodNullable<z.ZodNumber>;
+                nightTemperature: z.ZodNullable<z.ZodNumber>;
+                nightHumidity: z.ZodNullable<z.ZodNumber>;
+                co2: z.ZodNullable<z.ZodNumber>;
+                lightLimit: z.ZodNullable<z.ZodNumber>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>;
+        isDemo: z.ZodBoolean;
+        state: z.ZodObject<{
+            lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
+            claimedAt: z.ZodNullable<z.ZodISODateTime>;
+            firmwareId: z.ZodNullable<z.ZodString>;
+            updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
+            updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
+            updateFailedAt: z.ZodNullable<z.ZodISODateTime>;
+            maintenanceUntil: z.ZodNullable<z.ZodISODateTime>;
+            hardware: z.ZodRecord<z.ZodString, z.ZodString>;
+            socketStateChangedAt: z.ZodRecord<z.ZodString, z.ZodISODateTime>;
+            socketsReportedAt: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>;
+    }, z.core.$strip>;
+    mqtt: z.ZodObject<{
+        username: z.ZodString;
+        password: z.ZodString;
+    }, z.core.$strip>;
+}, z.core.$strip>;
 /** Which build each channel points at; null where a class has nothing on that channel yet. */
 export declare const deviceClassFirmwareIds: z.ZodObject<{
     stable: z.ZodNullable<z.ZodString>;
