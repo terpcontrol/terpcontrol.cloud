@@ -26,6 +26,7 @@ import { statesTargets } from '@/ui/climate-hardware';
 import type { Quiet } from '@/ui/maintenance';
 import { clock } from '@/ui/zone';
 import { nowHoldingOf, setpointsOf, storedShapeOf, type Half } from '../control/targets/day-night';
+import { hoursWritten } from '../control/targets/schedule-words';
 import { draftOf, lightsOffOf, offsetOf } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from '../home/attention';
 import { alertLabel, asWritten, figure, isSilence, UNIT } from '../home/units';
@@ -373,8 +374,8 @@ export const halfNowOf = (device: Device | null, live: DeviceLive | undefined, n
   return nowHoldingOf({ device, shape, stored, live, offline, now, clock: () => '' }).half;
 };
 
-/** "12" or "12,5": the length of the day the way a person says it. */
-export const hoursFigure = (hours: number): number => Math.round(hours * 10) / 10;
+/** "12" or "12,5": the length of the day the way a person says it, in the reader's own decimals. */
+export const hoursFigure = (hours: number): string => hoursWritten(hours);
 
 /**
  * The stretches the lamp was dark, from the light output's own series: the
