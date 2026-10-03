@@ -4264,6 +4264,12 @@
       "pairTheCam": "Terp Cam koppeln",
       "bothCanWait": "Beides hat Zeit: Das Gerät misst den Ort, an dem es steht, auch wenn nichts eingesteckt ist."
     },
+    "camOnly": {
+      "next": "Cam?",
+      "title": "Cam",
+      "text": "Die Terp Cam, für die das Gerät antwortet. Das hat Zeit.",
+      "canWait": "Das hat Zeit: Das Gerät arbeitet auch ohne Cam."
+    },
     "notify": {
       "next": "Benachrichtigung",
       "title": "Wie erfährst du von Problemen?",

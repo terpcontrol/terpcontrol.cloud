@@ -17,6 +17,7 @@ import { useNow } from '@/ui/useNow';
 import { ClaimedFacts, ClaimedTitle, CodeStep } from './CodeStep';
 import { DoingStep } from './DoingStep';
 import { HardwareStep } from './HardwareStep';
+import { pairsACam } from '@/screens/camera/add/pairers';
 import { NotifyStep } from '@/screens/notifications/NotifyNotice';
 import { PlaceStep } from './PlaceStep';
 import { Step } from './Step';
@@ -26,8 +27,13 @@ import styles from './Claim.module.css';
 /** The steps, in order, so the bottom button can carry the next one's name. */
 const STEPS = ['code', 'place', 'doing', 'hardware', 'notify'] as const;
 
-/** The hardware that pairs smart sockets and a Terp Cam of its own, which is what the fourth step is about. */
-const WITH_HARDWARE: readonly string[] = ['fridge', 'controller'];
+/**
+ * The hardware that pairs smart sockets of its own. The fourth step is about
+ * those and the Terp Cam; an AIR fan and a Smart Socket pair a cam the same
+ * way but no sockets, so for them it is about the cam alone, and a LIGHT pairs
+ * neither and is not asked.
+ */
+const PAIRS_SOCKETS: readonly string[] = ['fridge', 'controller'];
 
 /**
  * Which step the address says was open, kept inside the five. Without a device
@@ -108,9 +114,12 @@ export function Claim() {
   // the field again. A server that could not be reached at all is a different
   // thing and keeps its retry.
   const lost = device.error instanceof ApiError && !device.data;
-  // Sockets and a cam are paired at a fridge module or a controller; a smart
-  // socket, an AIR fan and a LIGHT have neither, and are not asked about them.
-  const shown = STEPS.flatMap((name, index) => (name === 'hardware' && claimed && !WITH_HARDWARE.includes(claimed.type) ? [] : [index]));
+  // Sockets and a cam are paired at a fridge module or a controller, a cam alone
+  // at a smart socket or an AIR fan; a LIGHT has neither and is not asked.
+  const camOnly = claimed !== null && !PAIRS_SOCKETS.includes(claimed.type);
+  const shown = STEPS.flatMap((name, index) => (name === 'hardware' && claimed && !pairsACam(claimed) ? [] : [index]));
+  // What a step is called, which for the fourth depends on what the device pairs.
+  const keyOf = (index: number): string => (STEPS[index] === 'hardware' && camOnly ? 'camOnly' : STEPS[index]);
   const hidden = (index: number) => !shown.includes(index);
   const at = lost ? 0 : hidden(step) ? step + 1 : step;
   const seen = lost ? 0 : furthest;
@@ -192,7 +201,7 @@ export function Claim() {
           `aria-current` moves, neither of which is read out. This says what has
           just opened, and stays empty until something has. */}
       <p className={styles.announce} role="status">
-        {at > 0 ? t('claim.opened', { title: t(`claim.${STEPS[at]}.title`), step: position, of: shown.length }) : ''}
+        {at > 0 ? t('claim.opened', { title: t(`claim.${keyOf(at)}.title`), step: position, of: shown.length }) : ''}
       </p>
 
       <div className={styles.progress} aria-hidden>
@@ -257,10 +266,10 @@ export function Claim() {
           state={stateOf(3)}
           onOpen={() => go(3)}
           headingRef={hardwareHeading}
-          title={t('claim.hardware.title')}
-          text={said(3, hardwareSummary(claimed, sockets, t), t('claim.hardware.text'))}
+          title={t(`claim.${keyOf(3)}.title`)}
+          text={said(3, hardwareSummary(claimed, sockets, t, camOnly), t(`claim.${keyOf(3)}.text`))}
         >
-          <HardwareStep device={claimed} sockets={sockets} />
+          <HardwareStep device={claimed} sockets={sockets} camOnly={camOnly} />
         </Step>
       )}
 
@@ -285,7 +294,7 @@ export function Claim() {
           disabled={deviceId === null || lost || apply.isPending}
           onClick={onward}
         >
-          {after !== null ? t('claim.next', { what: t(`claim.${STEPS[after]}.next`) }) : t('claim.finish')}
+          {after !== null ? t('claim.next', { what: t(`claim.${keyOf(after)}.next`) }) : t('claim.finish')}
         </button>
         <p className={`${ui.note} ${styles.laterNote}`}>{t('claim.later')}</p>
       </footer>

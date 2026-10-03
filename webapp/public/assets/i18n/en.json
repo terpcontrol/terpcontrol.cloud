@@ -4256,6 +4256,12 @@
       "pairTheCam": "Pair a Terp Cam",
       "bothCanWait": "Both can wait: the device measures the place it stands in even with nothing plugged into it."
     },
+    "camOnly": {
+      "next": "cam?",
+      "title": "Cam",
+      "text": "The Terp Cam the device answers for. It can wait.",
+      "canWait": "It can wait: the device works without a cam too."
+    },
     "notify": {
       "next": "notifications",
       "title": "How will you hear about problems?",

@@ -10,4 +10,6 @@ import type { Device } from '@fg2/shared-types/v1';
  */
 const PAIRS_AT: string[] = ['fridge', 'controller', 'fan', 'plug'];
 
-export const pairersOf = (devices: Device[]): Device[] => devices.filter(device => PAIRS_AT.includes(device.type));
+export const pairsACam = (device: Pick<Device, 'type'>): boolean => PAIRS_AT.includes(device.type);
+
+export const pairersOf = (devices: Device[]): Device[] => devices.filter(pairsACam);

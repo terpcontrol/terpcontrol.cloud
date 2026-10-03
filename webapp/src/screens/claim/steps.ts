@@ -71,8 +71,10 @@ export const doingSummary = ({ chosen, applied }: Doing, onServer: GrowthStage |
 };
 
 /** What the device reported, rather than anything that was set up in the step. */
-export const hardwareSummary = (device: Device | null, sockets: SocketPage | undefined, t: Translate): string =>
-  `${t('claim.code.sockets', { count: sockets?.items.length ?? 0 })} · ${t('claim.code.camera', { name: cameraName(device, t) })}`;
+export const hardwareSummary = (device: Device | null, sockets: SocketPage | undefined, t: Translate, camOnly = false): string =>
+  camOnly
+    ? t('claim.code.camera', { name: cameraName(device, t) })
+    : `${t('claim.code.sockets', { count: sockets?.items.length ?? 0 })} · ${t('claim.code.camera', { name: cameraName(device, t) })}`;
 
 /** How a critical alarm reaches the account, or that nothing does; nothing at all while the account has yet to answer. */
 export const notifySummary = (me: Me | undefined, t: Translate): string | null => {

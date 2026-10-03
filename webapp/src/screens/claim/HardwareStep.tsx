@@ -8,7 +8,8 @@ import styles from './Claim.module.css';
 
 /**
  * The fourth step, for a fridge module or a controller: the smart sockets it
- * has found, and the camera that answers through it.
+ * has found, and the camera that answers through it. An AIR fan and a Smart
+ * Socket pair a cam but no sockets, so for them it is the camera alone.
  *
  * Nothing is paired here. A Terp Control socket is the device's own search over
  * the network, started at the device; a Tasmota socket is paired by its address
@@ -20,37 +21,39 @@ import styles from './Claim.module.css';
  * the rest happens. It is the one step that can honestly be skipped, because a
  * device with nothing plugged into it still measures.
  */
-export function HardwareStep({ device, sockets }: { device: Device | null; sockets: SocketPage | undefined }) {
+export function HardwareStep({ device, sockets, camOnly = false }: { device: Device | null; sockets: SocketPage | undefined; camOnly?: boolean }) {
   const { t } = useTranslation();
   const rows = sockets?.items ?? [];
 
   return (
     <>
       <ul className={styles.reported}>
-        <li>
-          <span className="label">{t('claim.hardware.sockets')}</span>
-          <span className={`mono ${styles.reportedValue}`}>
-            {!sockets
-              ? t('claim.hardware.notReported')
-              : rows.length === 0
-                ? t('claim.hardware.noSockets')
-                : rows.map(socket => t(`devices.role.${socket.role}`, { defaultValue: socket.role })).join(' · ')}
-          </span>
-        </li>
+        {camOnly ? null : (
+          <li>
+            <span className="label">{t('claim.hardware.sockets')}</span>
+            <span className={`mono ${styles.reportedValue}`}>
+              {!sockets
+                ? t('claim.hardware.notReported')
+                : rows.length === 0
+                  ? t('claim.hardware.noSockets')
+                  : rows.map(socket => t(`devices.role.${socket.role}`, { defaultValue: socket.role })).join(' · ')}
+            </span>
+          </li>
+        )}
         <li>
           <span className="label">{t('claim.hardware.cam')}</span>
           <span className={`mono ${styles.reportedValue}`}>{cameraName(device, t)}</span>
         </li>
       </ul>
 
-      <p className={ui.note}>{t('claim.hardware.socketsAtTheDevice')}</p>
+      {camOnly ? null : <p className={ui.note}>{t('claim.hardware.socketsAtTheDevice')}</p>}
 
       <Link className={`${ui.button} ${styles.aside}`} to="/cameras/add">
         {t('claim.hardware.pairTheCam')}
         <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
       </Link>
 
-      <p className={ui.note}>{t('claim.hardware.bothCanWait')}</p>
+      <p className={ui.note}>{t(camOnly ? 'claim.camOnly.canWait' : 'claim.hardware.bothCanWait')}</p>
     </>
   );
 }

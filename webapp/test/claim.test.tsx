@@ -117,6 +117,8 @@ const answers = (path: string) => {
   if (path === '/devices') return { items: [device], nextCursor: null };
   if (path === '/devices/sim-plug-1') return { ...device, id: 'sim-plug-1', type: 'plug' };
   if (path === '/devices/sim-plug-1/sockets') return { items: [], nextCursor: null, capabilities: CAPABILITIES };
+  if (path === '/devices/sim-light-1') return { ...device, id: 'sim-light-1', type: 'light' };
+  if (path === '/devices/sim-light-1/sockets') return { items: [], nextCursor: null, capabilities: CAPABILITIES };
   if (path === '/devices/sim-controller-7f3a/sockets') return { items: [], nextCursor: null, capabilities: CAPABILITIES };
   if (path === '/devices/sim-controller-7f3a/firmwares') return { items: [BUILD], nextCursor: null };
   if (path === '/spaces') return { items: state.spaces, nextCursor: null };
@@ -267,11 +269,34 @@ describe('adding a device', () => {
     expect(screen.queryByRole('link', { name: /Devices tab/ })).not.toBeInTheDocument();
   });
 
-  it('asks a smart socket nothing about sockets and a cam it cannot have, and counts four steps', async () => {
+  /**
+   * A Smart Socket and an AIR fan pair a Terp Cam at their own display, as a
+   * controller does, and pair no sockets. The step asked a socket's owner
+   * nothing at all, so the one place a new owner is walked through the
+   * hardware left out the cam they can have.
+   */
+  it('asks a smart socket about the cam it can pair and nothing about sockets', async () => {
     draw('/claim?device=sim-plug-1&at=2');
+
+    expect(await screen.findByRole('button', { name: 'Next · cam?' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('3 of 5');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next · cam?' }));
+
+    expect(await screen.findByRole('link', { name: 'Pair a Terp Cam' })).toHaveAttribute('href', '/cameras/add');
+    expect(screen.getByRole('heading', { level: 2, name: 'Cam' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Sockets and cam' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Reported sockets')).not.toBeInTheDocument();
+    expect(screen.queryByText(/A Terp Control socket is paired on the device itself/)).not.toBeInTheDocument();
+    expect(screen.getByText('It can wait: the device works without a cam too.')).toBeInTheDocument();
+  });
+
+  it('asks a light nothing about sockets and a cam it cannot have, and counts four steps', async () => {
+    draw('/claim?device=sim-light-1&at=2');
 
     expect(await screen.findByRole('button', { name: 'Next · notifications' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 2, name: 'Sockets and cam' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Cam' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('3 of 4');
   });
 
