@@ -8,6 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { createMemoryRouter, Link, MemoryRouter, RouterProvider } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import type { Device, DeviceConfiguration, DeviceLive, Me, Plan, PlanStep, Setpoints } from '@fg2/shared-types/v1';
 import { Targets } from '@/screens/control/targets/Targets';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
@@ -86,6 +87,7 @@ const STEP: PlanStep = {
   lightHours: 12,
   waitForConfirmation: false,
   confirmationMessage: null,
+  germinationChoices: null,
 };
 
 const plan = (status: Plan['state']['status']): Plan => ({
@@ -150,6 +152,8 @@ const wire = {
   zone: null as string | null,
   /** What PUT /configuration answers with instead of the document, when a refusal is wanted. */
   refuseSave: null as { status: number; code: string; detail: string } | null,
+  /** The roles of the sockets paired at the device; none answers 404, a device that reports no table. */
+  sockets: null as string[] | null,
   calls: [] as Call[],
 };
 
@@ -173,6 +177,23 @@ vi.stubGlobal(
         ? json({ deviceId: 'device-1', metrics: {}, outputs: {}, setpoints: { day: {}, night: {}, active: 'day', ...wire.live } })
         : problem(404, 'not_found', 'Nothing heard.');
     }
+    if (method === 'GET' && path === '/devices/device-1/sockets') {
+      return wire.sockets
+        ? json({
+            items: wire.sockets.map((role, slot) => ({
+              slot,
+              role,
+              hardwareId: '',
+              address: `10.0.0.${slot + 2}`,
+              state: 'off',
+              override: null,
+              timer: null,
+              stateChangedAt: null,
+            })),
+            nextCursor: null,
+          })
+        : problem(404, 'not_found', 'No socket table.');
+    }
     if (method === 'GET' && path === '/devices/device-1/plan') {
       return wire.plan ? json(wire.plan) : problem(404, 'plan_not_found', 'This device is not being run by a plan.');
     }
@@ -181,7 +202,10 @@ vi.stubGlobal(
       return json(wire.plan);
     }
     if (method === 'PATCH' && path === '/devices/device-1/configuration') {
-      return json({ ...device({ type: 'fridge' }), control: { running: true, drying: false, mode: 'standard', energySaving: false, ...body.set } });
+      return json({
+        ...device({ type: 'fridge' }),
+        control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES, ...body.set },
+      });
     }
     if (method === 'PUT' && path === '/devices/device-1/configuration') {
       return wire.refuseSave ? problem(wire.refuseSave.status, wire.refuseSave.code, wire.refuseSave.detail) : json(body);
@@ -257,6 +281,7 @@ beforeEach(() => {
   wire.live = null;
   wire.zone = null;
   wire.refuseSave = null;
+  wire.sockets = null;
   wire.calls = [];
 });
 
@@ -440,7 +465,7 @@ describe('the targets page', () => {
     draw([
       device({
         type: 'fridge',
-        control: { running: true, drying: true, mode: 'standard', energySaving: false },
+        control: { running: true, drying: true, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
         state: { ...device().state, lastSeenAt: quiet.toISO()! },
       }),
     ]);
@@ -460,6 +485,7 @@ describe('the targets page', () => {
           drying: false,
           mode: 'germination',
           energySaving: false,
+          germinationChoices: GERMINATION_CHOICES,
           afterGermination: { dayTemperature: null, dayHumidity: null, nightTemperature: 20, nightHumidity: null, co2: null, lightLimit: null },
         },
       }),
@@ -477,7 +503,7 @@ describe('the targets page', () => {
    * dark, and the save sends it as germination. Any other chip ends it.
    */
   it('puts a lit fridge into germination in the dark from its chip, and saves it as germination', async () => {
-    const lit = { running: true, drying: false, mode: 'standard' as const, energySaving: false };
+    const lit = { running: true, drying: false, mode: 'standard' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
     await drawn([device({ type: 'fridge', configuration: { ...CONFIGURATION, workmode: 'small' }, control: lit })]);
 
     const chips = screen.getAllByRole('button', { name: / · (dark|with light)$/ }).map(chip => chip.textContent);
@@ -488,21 +514,71 @@ describe('the targets page', () => {
     expect(screen.getByRole('button', { name: 'Germination · dark' })).toHaveAttribute('aria-pressed', 'true');
     expect(field('Temperature while germinating').value).toBe('24');
     expect(screen.queryByRole('spinbutton', { name: 'Day temperature' })).not.toBeInTheDocument();
-    expect(screen.getByText(/^Saving switches to Germination · dark: light off, no CO₂, only the temperature round the clock\./)).toBeInTheDocument();
+    expect(screen.getByText(/^Saving switches to Germination · dark: light off, no CO₂, one temperature round the clock\./)).toBeInTheDocument();
+    // What germination does about the humidity is asked under the table: the alarm alone, where no humidifier is paired.
+    const choices = screen.getByRole('group', { name: 'During germination' });
+    expect(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' })).toHaveAttribute('aria-checked', 'false');
+    expect(within(choices).getByText('“Too humid” rests until germination ends.')).toBeInTheDocument();
+    expect(within(choices).queryByRole('switch', { name: 'Hold the humidity with the humidifier' })).not.toBeInTheDocument();
     // Energy saving belongs to a day and a night, which germination does not have.
     expect(screen.queryByRole('switch', { name: 'Energy saving' })).not.toBeInTheDocument();
 
     tap('Save');
     await waitFor(() => expect(sent('PUT')).toHaveLength(1));
     const body = sent('PUT')[0].body as { configuration: DeviceConfiguration; germination?: boolean; drying?: boolean };
-    expect(body).toMatchObject({ germination: true, drying: false });
+    expect(body).toMatchObject({ germination: true, drying: false, germinationChoices: { warnTooHumid: false } });
+    expect(body).not.toHaveProperty('germinationChoices.humidifierHolds');
     expect(body.configuration.night).toEqual({ temperature: 24, humidity: 55 });
     // The rest stays for the seedling after it.
     expect(body.configuration.day).toEqual({ temperature: 25, humidity: 60, heating: 'hard' });
   });
 
+  /**
+   * Owner's decision G2: in germination the grower chooses whether "Zu feucht"
+   * warns and whether a humidifier socket goes on holding the humidity. Where
+   * it holds, the humidity it holds is a target of germination like its
+   * temperature, and is set in the same table.
+   */
+  it('holds the night humidity with a paired humidifier, and rests it or warns when the grower says so', async () => {
+    wire.sockets = ['heater', 'humidifier'];
+    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
+    draw([device({ type: 'fridge', configuration: { ...CONFIGURATION, night: { temperature: 24, humidity: 55 } }, control: dark })]);
+
+    const humidifier = await screen.findByRole('switch', { name: 'Hold the humidity with the humidifier' });
+    expect(humidifier).toHaveAttribute('aria-checked', 'true');
+    expect(field('Humidity while germinating').value).toBe('55');
+    expect(screen.getByText('The humidifier holds 55 % – it never makes it wetter than that.')).toBeInTheDocument();
+    // Nothing moved yet: nothing to save.
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+
+    type('Humidity while germinating', 80);
+    tap('Save');
+    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+    const held = sent('PUT')[0].body as { configuration: DeviceConfiguration; germination?: boolean; germinationChoices?: unknown };
+    expect(held.configuration.night).toEqual({ temperature: 24, humidity: 80 });
+    expect(held.germinationChoices).toEqual({ warnTooHumid: false, humidifierHolds: true });
+    // Saved from inside germination, it stays there.
+    expect(held.germination).toBeUndefined();
+  });
+
+  it('saves the humidifier resting and the alarm warning as a change of their own, and hides the humidity nothing holds', async () => {
+    wire.sockets = ['humidifier'];
+    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
+    draw([device({ type: 'fridge', configuration: { ...CONFIGURATION, night: { temperature: 24, humidity: 55 } }, control: dark })]);
+
+    fireEvent.click(await screen.findByRole('switch', { name: 'Hold the humidity with the humidifier' }));
+    expect(screen.getByText('The humidifier rests until germination ends.')).toBeInTheDocument();
+    expect(screen.queryByRole('spinbutton', { name: 'Humidity while germinating' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('switch', { name: 'Warn when it gets too humid' }));
+    expect(screen.getByText('“Too humid” warns during germination as well.')).toBeInTheDocument();
+
+    tap('Save');
+    await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+    expect((sent('PUT')[0].body as { germinationChoices?: unknown }).germinationChoices).toEqual({ warnTooHumid: true, humidifierHolds: false });
+  });
+
   it('brings a germinating fridge back into the light with the seedling´s climate', async () => {
-    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false };
+    const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false, germinationChoices: GERMINATION_CHOICES };
     draw([device({ type: 'fridge', configuration: { ...CONFIGURATION, night: { temperature: 24, humidity: 55 } }, control: dark })]);
     await screen.findByRole('spinbutton', { name: 'Temperature while germinating' });
     expect(screen.getByRole('button', { name: 'Germination · dark' })).toHaveAttribute('aria-pressed', 'true');
@@ -1033,7 +1109,12 @@ describe('the targets page', () => {
   });
 
   it('switches energy saving on a fridge on the tap, and leaves the table where it was put', async () => {
-    await drawn([device({ type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } })]);
+    await drawn([
+      device({
+        type: 'fridge',
+        control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      }),
+    ]);
     type('Day temperature', 27);
 
     const toggle = screen.getByRole('switch', { name: 'Energy saving' });
@@ -1048,7 +1129,12 @@ describe('the targets page', () => {
   });
 
   it('holds no humidity in greenhouse mode, says so over the table rather than in a dead row, and offers no energy saving there', async () => {
-    await drawn([device({ type: 'fridge', control: { running: true, drying: false, mode: 'greenhouse', energySaving: false } })]);
+    await drawn([
+      device({
+        type: 'fridge',
+        control: { running: true, drying: false, mode: 'greenhouse', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      }),
+    ]);
 
     expect(screen.queryByRole('switch', { name: 'Energy saving' })).not.toBeInTheDocument();
     // What the mode leaves of the table is said over it, with the way to the mode itself.
@@ -1064,7 +1150,12 @@ describe('the targets page', () => {
 
   it('germinates in one column: the temperature, round the clock, in the dark - and keeps the day it does not hold', async () => {
     wire.live = { active: 'night' };
-    draw([device({ type: 'fridge', control: { running: true, drying: false, mode: 'germination', energySaving: false } })]);
+    draw([
+      device({
+        type: 'fridge',
+        control: { running: true, drying: false, mode: 'germination', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      }),
+    ]);
     await screen.findByRole('spinbutton', { name: 'Temperature while germinating' });
 
     expect(within(screen.getByRole('table')).getAllByRole('columnheader').at(-1)).toHaveTextContent(/^Germination · darkround the clock/);
@@ -1088,13 +1179,20 @@ describe('the targets page', () => {
   });
 
   it('offers a controller no energy saving, because it has no back-wall fan', async () => {
-    await drawn([device({ control: { running: true, drying: false, mode: 'standard', energySaving: false } })]);
+    await drawn([
+      device({ control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES } }),
+    ]);
 
     expect(screen.queryByRole('switch', { name: 'Energy saving' })).not.toBeInTheDocument();
   });
 
   it('says control is off in one line with no table under it, and switches it on from there', async () => {
-    draw([device({ type: 'fridge', control: { running: false, drying: false, mode: 'standard', energySaving: false } })]);
+    draw([
+      device({
+        type: 'fridge',
+        control: { running: false, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      }),
+    ]);
 
     expect(await screen.findByText('Control off.')).toBeInTheDocument();
     expect(
@@ -1117,7 +1215,12 @@ describe('the targets page', () => {
    */
   it('says a drying phase has the device drying, and ends it from there once asked, naming the targets that come back', async () => {
     const afterDrying = { dayTemperature: 26, dayHumidity: 62, nightTemperature: 22, nightHumidity: 58, co2: 900, lightLimit: 80 };
-    draw([device({ type: 'fridge', control: { running: true, drying: true, mode: 'standard', energySaving: false, afterDrying } })]);
+    draw([
+      device({
+        type: 'fridge',
+        control: { running: true, drying: true, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES, afterDrying },
+      }),
+    ]);
     await screen.findByRole('spinbutton', { name: 'Temperature while drying' });
 
     expect(screen.getByText(/^Drying: no day and night, no light, no CO₂/)).toBeInTheDocument();
@@ -1148,7 +1251,12 @@ describe('the targets page', () => {
    * before it when the spell ends.
    */
   it('dries in one column, offers nothing the drying does not hold, and writes it to the night it holds', async () => {
-    draw([device({ type: 'fridge', control: { running: true, drying: true, mode: 'standard', energySaving: false } })]);
+    draw([
+      device({
+        type: 'fridge',
+        control: { running: true, drying: true, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      }),
+    ]);
     await screen.findByRole('spinbutton', { name: 'Temperature while drying' });
 
     expect(within(screen.getByRole('table')).getAllByRole('columnheader').at(-1)).toHaveTextContent(/^Dryinground the clock/);
@@ -1173,7 +1281,12 @@ describe('the targets page', () => {
   });
 
   it('says where the targets come from when the ones from before drying were never kept', async () => {
-    draw([device({ type: 'fridge', control: { running: true, drying: true, mode: 'standard', energySaving: false } })]);
+    draw([
+      device({
+        type: 'fridge',
+        control: { running: true, drying: true, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      }),
+    ]);
 
     fireEvent.click(await screen.findByRole('button', { name: 'End drying …' }));
     const asked = await screen.findByRole('dialog', { name: 'End drying?' });
@@ -1181,7 +1294,12 @@ describe('the targets page', () => {
   });
 
   it('starts drying with the drying preset, says so before it is saved, and shows the one column it will hold', async () => {
-    await drawn([device({ type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } })]);
+    await drawn([
+      device({
+        type: 'fridge',
+        control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      }),
+    ]);
 
     fireEvent.click(screen.getByRole('button', { name: 'Drying' }));
     expect(screen.getByText(/^Saving starts drying/)).toBeInTheDocument();
@@ -1194,7 +1312,12 @@ describe('the targets page', () => {
   });
 
   it('ends a drying spell with any other preset, and leaves it running where only a figure moved', async () => {
-    draw([device({ type: 'fridge', control: { running: true, drying: true, mode: 'standard', energySaving: false } })]);
+    draw([
+      device({
+        type: 'fridge',
+        control: { running: true, drying: true, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      }),
+    ]);
     await screen.findByRole('spinbutton', { name: 'Temperature while drying' });
 
     type('Temperature while drying', 17);
@@ -1395,7 +1518,10 @@ describe('which half holds when', () => {
  */
 describe('the shape of a device’s day', () => {
   const fridge = (control: Partial<NonNullable<Device['control']>>) =>
-    device({ type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false, ...control } });
+    device({
+      type: 'fridge',
+      control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES, ...control },
+    });
   const draft = draftOf(CONFIGURATION);
 
   it('is a day and a night in the standard and greenhouse modes, the greenhouse holding no humidity', () => {

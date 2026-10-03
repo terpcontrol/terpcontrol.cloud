@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { controlPath } from '@/app/places';
 import type { AlarmRule, CardSetpoint, Device, DeviceLive, Me, Metric, OverviewTargets } from '@fg2/shared-types/v1';
+import { restsInGermination } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { awaitingClimate } from '@/ui/climate-hardware';
 import { Waiting } from '@/ui/PageState';
@@ -179,8 +180,13 @@ export function AlarmsSummary({ spaceId, devices, me, mayChange }: { spaceId: st
   const { t } = useTranslation();
   const rules = useAlarmRulesOf(devices.map(device => device.id));
   const watching = [...rules.rules.values()].filter(rule => rule.enabled);
+  // A "too humid" alarm that rests while its device germinates is said to rest, rather than promised.
+  const rests = (rule: AlarmRule) => {
+    const device = devices.find(one => one.id === rule.deviceId);
+    return device ? restsInGermination(rule.watch, device.configuration?.workmode, device.control?.germinationChoices) : false;
+  };
   // Each device keeps its own offline rule, and two of them are one promise to the grower.
-  const lines = [...new Set(watching.map(rule => lineOf(t, rule)))];
+  const lines = [...new Set(watching.map(rule => (rests(rule) ? t('cockpit.alarms.resting', { line: lineOf(t, rule) }) : lineOf(t, rule))))];
 
   return (
     <Summary title={t('cockpit.alarms.title')} change={mayChange ? controlPath(spaceId, 'alarms') : null}>

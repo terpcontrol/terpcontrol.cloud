@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } f
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 import { controlPath } from '@/app/places';
-import type { Device, DeviceConfiguration, GrowCard, PlanStep } from '@fg2/shared-types/v1';
+import type { Device, DeviceConfiguration, GerminationChoices as ChoiceValues, GrowCard, PlanStep } from '@fg2/shared-types/v1';
 import { useHome } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
 import { serverNow } from '@/api/clock';
@@ -29,6 +29,8 @@ import { DayNightTable } from './DayNightTable';
 import { LightPlan } from './LightPlan';
 import { LeaveGuard, type Unsaved } from './LeaveGuard';
 import { ControlState, EnergySaving } from './Operation';
+import { GerminationChoices } from '../germination/GerminationChoices';
+import { choicesOf, choicesSaid, useHumidifier } from '../germination/germination-choices';
 import { stepLightHours, stepLightsOn } from '../plan-edit';
 import {
   draftOf,
@@ -233,6 +235,8 @@ interface Edit {
   draft: TargetsDraft;
   against: DeviceConfiguration;
   chip: ClimateChoice | null;
+  /** What germination is to do about the humidity, where it was changed here. */
+  choices: Partial<ChoiceValues> | null;
 }
 
 /**
@@ -253,6 +257,7 @@ const spellChangeOf = (chip: ClimateChoice | null, device: Device, spell: 'dryin
 interface Sent {
   draft: TargetsDraft;
   at: DateTime;
+  choices: ChoiceValues;
 }
 
 function Panel({
@@ -302,14 +307,31 @@ function Panel({
   const tapped = editing?.chip ?? null;
   const dryingChange = spellChangeOf(tapped, device, 'drying');
   const germinationChange = spellChangeOf(tapped, device, 'germination');
-  const dirty =
-    (!sameDraft(draft, baseline) && !(sent !== null && sameDraft(draft, sent.draft))) || dryingChange !== null || germinationChange !== null;
-  const set = (next: TargetsDraft, chip: ClimateChoice | null = tapped) => setEdit({ draft: next, against: stored, chip });
   // A drying chip starts a drying spell and any other chip ends one, and the
   // germination chip the same for germination in the dark; moving a figure
   // alone leaves both as they are.
   const drying = device.control && tapped ? tapped.stage === 'drying' : undefined;
   const germination = device.control && tapped ? tapped.stage === 'germination' : undefined;
+  // What germination does about the humidity: the device's, with what was
+  // changed here over it. It is a change to save only while the page shows it -
+  // the device germinates, or the germination chip was tapped - and not once a
+  // save has sent it and the device is still being read again.
+  const humidifier = useHumidifier(device);
+  const storedChoices = choicesOf(device);
+  const choices: ChoiceValues = { ...storedChoices, ...(editing?.choices ?? {}) };
+  const germinates = germination ?? (device.control?.mode === 'germination' && !device.control.drying);
+  const differs = (one: ChoiceValues, other: ChoiceValues) =>
+    one.warnTooHumid !== other.warnTooHumid || (humidifier && one.humidifierHolds !== other.humidifierHolds);
+  const choicesChange = germinates && differs(choices, storedChoices) && !(sent !== null && !differs(choices, sent.choices));
+  const dirty =
+    (!sameDraft(draft, baseline) && !(sent !== null && sameDraft(draft, sent.draft))) ||
+    dryingChange !== null ||
+    germinationChange !== null ||
+    choicesChange;
+  const set = (next: TargetsDraft, chip: ClimateChoice | null = tapped) =>
+    setEdit({ draft: next, against: stored, chip, choices: editing?.choices ?? null });
+  const choose = (change: Partial<ChoiceValues>) =>
+    setEdit({ draft, against: stored, chip: tapped, choices: { ...(editing?.choices ?? {}), ...change } });
 
   const hasCo2 = hasCo2Sensor(device);
   // An AIR fan reads a temperature and a humidity, by its own day: no lamp, no
@@ -329,12 +351,14 @@ function Panel({
   // What the targets are made of: what the device holds in the mode it runs,
   // or will hold once the chip tapped last and the light hours typed in are
   // saved - and, beside it, what it runs now, which is what "now" is about.
+  // A humidifier that holds in germination holds the night's humidity, which the table then shows.
   const shape = shapeOf(device, draft, {
     drying: drying ?? device.control?.drying ?? false,
     germination: germination ?? device.control?.mode === 'germination',
     climateOnly,
+    humidified: humidifier && choices.humidifierHolds,
   });
-  const storedShape = shapeOf(device, baseline, { climateOnly });
+  const storedShape = shapeOf(device, baseline, { climateOnly, humidified: humidifier && storedChoices.humidifierHolds });
   const holding = nowHoldingOf({
     device,
     shape: storedShape,
@@ -354,16 +378,29 @@ function Panel({
   const step = runningStep(plan.data);
   const owned = ownedBy(step);
   const planSets = planScheduleOf(step, baseline, plan.data?.name ?? '');
+  // A germination step that says what germination does about the humidity puts that back within the hour too.
   const pauses =
-    status === 'running' && (dryingChange !== null || germinationChange !== null || changedFields(draft, baseline).some(field => owned.has(field)));
+    status === 'running' &&
+    (dryingChange !== null ||
+      germinationChange !== null ||
+      (choicesChange && (step?.germinationChoices ?? null) !== null) ||
+      changedFields(draft, baseline).some(field => owned.has(field)));
   const commit = async (): Promise<boolean> => {
     try {
       if (pauses) await move.mutateAsync({ kind: 'pause', reason: t('targets.pauseReason') });
       // A spell begun from here stores what it holds in both halves; once a
       // fridge is drying the server keeps its stored day, so the day is sent as stored.
       const held = dryingChange === 'starts' ? heldOf(shape.regime) : 'both';
-      await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, draft, climateOnly, held), drying, germination });
-      setSent({ draft, at: serverNow() });
+      // What germination does about the humidity goes with a save that germinates, as the page shows it.
+      const germinationChoices = shape.regime === 'germination' ? choicesSaid(choices, humidifier) : undefined;
+      await save.mutateAsync({
+        deviceId: device.id,
+        configuration: withDraft(stored, draft, climateOnly, held),
+        drying,
+        germination,
+        germinationChoices,
+      });
+      setSent({ draft, at: serverNow(), choices });
       // Saved, the chip has said what it had to: the drying spell or the germination is the device's now.
       setEdit(current => (current ? { ...current, chip: null } : current));
       return true;
@@ -486,6 +523,12 @@ function Panel({
               owned={owned}
               now={now}
             />
+            {/* Germination regulates no humidity of its own; what it does about it is the grower's to say. */}
+            {shape.regime === 'germination' ? (
+              <div className={day.section}>
+                <GerminationChoices value={choices} onChange={choose} humidifier={humidifier} humidity={draft.nightHumidity} disabled={readOnly} />
+              </div>
+            ) : null}
           </>
         )}
       </div>

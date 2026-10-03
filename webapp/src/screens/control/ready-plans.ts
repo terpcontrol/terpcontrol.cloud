@@ -91,6 +91,7 @@ const stepOf = (t: Translate, step: ReadyStep): StepDraft => {
     lightHours: step.lightHours ?? climate?.lightHours ?? null,
     waitForConfirmation: step.asks !== undefined,
     confirmationMessage: step.asks ? t(`growPresets.confirmations.${step.asks}`) : null,
+    germinationChoices: null,
   });
 };
 

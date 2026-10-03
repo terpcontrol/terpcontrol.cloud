@@ -162,7 +162,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
     setSaving(true);
     setFailed(null);
     try {
-      await startPhase(target.growId, { stage, ...climateRequest(climate) });
+      await startPhase(target.growId, { stage, ...climateRequest(climate, stage) });
       diaryChanged(client);
       // A phase moves the devices there too - their targets, work mode and stage alarms - and the phase sheet reads them.
       void client.invalidateQueries({ queryKey: ['devices'] });

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device, GrowthStage, Plan, PlanNotifyMode } from '@fg2/shared-types/v1';
 import { useSavePlan } from '@/api/plans';
 import { Sheet } from '@/log/Sheet';
-import { awaitingClimate, hasCo2Sensor } from '@/ui/climate-hardware';
+import { awaitingClimate, figureOf as documentFigure, hasCo2Sensor } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
 import { presetsOf, stageChoiceName } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
@@ -14,6 +14,8 @@ import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
 import { serverNow } from '@/api/clock';
 import { germinates } from '../grow/phase-climate';
+import { GerminationChoices } from './germination/GerminationChoices';
+import { choicesOf, useHumidifier } from './germination/germination-choices';
 import { DURATION_UNITS } from './plan-clock';
 import { scheduleTitle } from './targets/schedule-words';
 import { draftOf as targetsOf, offsetOf, secondsOf, wallClock } from './targets/targets-draft';
@@ -196,12 +198,21 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
   const presets = step.stage ? presetsOf(step.stage) : [];
   const extra = otherSections(step.settings);
   const awaiting = awaitingClimate(device);
+  const humidifier = useHumidifier(device);
+  // What a germination step does about the humidity: its own, or what the device does now until it says.
+  const choices = step.germinationChoices ?? choicesOf(device);
 
   const pickStage = (stage: GrowthStage | null) => {
     // A preset refines the stage it belongs to, so it does not survive a change of stage.
     const keep = stage !== null && presetsOf(stage).includes(step.preset ?? '');
     // Drying and germination know no day, light or CO2: a step into either writes what it holds and nothing else.
-    onChange({ stage, preset: keep ? step.preset : null, ...(isDarkStage(stage) ? heldByStage(step, stage) : {}) });
+    // A germination step says what it does about the humidity, starting from what the device does now.
+    onChange({
+      stage,
+      preset: keep ? step.preset : null,
+      germinationChoices: stage === 'germination' ? choices : null,
+      ...(isDarkStage(stage) ? heldByStage(step, stage) : {}),
+    });
   };
   // Held round the clock in the dark: drying, or germination.
   const dark = isDarkStage(step.stage) ? (step.stage as 'drying' | 'germination') : null;
@@ -292,6 +303,14 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
         )}
       </div>
       {dark ? <p className={ui.note}>{t(`space.control.step.${dark}Note`)}</p> : null}
+      {step.stage === 'germination' ? (
+        <GerminationChoices
+          value={choices}
+          onChange={change => onChange({ germinationChoices: { ...choices, ...change } })}
+          humidifier={humidifier}
+          humidity={device.configuration ? documentFigure(device.configuration, 'night', 'humidity') : null}
+        />
+      ) : null}
       {step.lightHours !== null && (step.lightHours < LIGHT_HOURS.min || step.lightHours > LIGHT_HOURS.max) ? (
         <p className={ui.note} role="alert">
           {t('planLight.range', LIGHT_HOURS)}

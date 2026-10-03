@@ -592,6 +592,43 @@ describe('the alarm rules page', () => {
     const hot = await card('Too hot');
     expect(within(hot).getByText('preset · for 10 min · critical · goes to you by push + Telegram · announced once')).toBeInTheDocument();
   });
+
+  /**
+   * Owner's decision G2: a "too humid" alarm rests while its device germinates
+   * unless the grower asked to be warned there too. It stays switched on, so
+   * the card says it rests and where that is changed.
+   */
+  it('says a "too humid" alarm rests while the device germinates, and where that is changed', async () => {
+    const humid = rule({ id: 'rule-humid', origin: 'preset', watch: { kind: 'reading', metric: 'humidity', upper: 90, lower: null } });
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(path === '/devices/device-1/alarm-rules' ? { items: [humid, RULES[0]], nextCursor: null } : answers(path)) as never,
+    );
+    const germinating = (warnTooHumid: boolean) =>
+      device({
+        configuration: { workmode: 'breed' },
+        control: {
+          running: true,
+          drying: false,
+          mode: 'germination',
+          energySaving: false,
+          germinationChoices: { warnTooHumid, humidifierHolds: true },
+        },
+      });
+    const view = draw([germinating(false)]);
+
+    const card_ = await card('Too humid');
+    expect(within(card_).getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+    expect(within(card_).getByRole('link', { name: 'rests during germination · change under Control ›' })).toHaveAttribute(
+      'href',
+      '/control?space=space-1',
+    );
+    expect(within(await card('Too hot')).queryByText(/rests during germination/)).not.toBeInTheDocument();
+    view.unmount();
+
+    draw([germinating(true)]);
+    expect(within(await card('Too humid')).queryByText(/rests during germination/)).not.toBeInTheDocument();
+  });
 });
 
 describe('the rule sheet', () => {

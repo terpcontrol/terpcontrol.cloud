@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { controlPath } from '@/app/places';
 import type { AlarmRule, Device, Me, OverviewGrow } from '@fg2/shared-types/v1';
+import { restsInGermination } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useMe } from '@/api/account';
 import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
@@ -439,6 +440,8 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
 
   const missing = missingSensor(rule.watch, device);
   const silenced = rule.silencedUntil !== null && DateTime.fromISO(rule.silencedUntil) > now;
+  // A "too humid" alarm rests while the device germinates, unless the grower asked to be warned there too.
+  const resting = rule.enabled && restsInGermination(rule.watch, device.configuration?.workmode, device.control?.germinationChoices);
   // An output watched for running at all crosses no line, so what it watches is
   // said in words and only the duration it has to run for is a figure; a rule
   // that trips on the first sample has not even that.
@@ -464,6 +467,7 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
         <span className={`mono ${styles.meta}`}>{t('alarms.meta.silencedUntil', { time: clock(rule.silencedUntil!, zoneOf(me)) })}</span>
       ) : null}
       {missing ? <span className={`mono ${styles.reason}`}>{t(`alarms.needs.${missing}`)}</span> : null}
+      {resting && !(mayManage && device.spaceId) ? <span className={`mono ${styles.reason}`}>{t('alarms.meta.restsInGermination')}</span> : null}
     </>
   );
 
@@ -501,7 +505,13 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
           </button>
         ) : null}
       </span>
-      {/* Outside the card's button, which a link cannot stand in, and on a line of its own across it. */}
+      {/* Outside the card's button, which a link cannot stand in, and on a line of its own across it.
+          Where the choice is made is Steuerung, which shows it while the device germinates. */}
+      {resting && mayManage && device.spaceId ? (
+        <Link to={controlPath(device.spaceId)} className={`mono ${styles.fix}`}>
+          {t('alarms.meta.restsInGerminationChange')}
+        </Link>
+      ) : null}
       {!toldAbove && reachesNobody(rule, me, now) ? (
         <Link to="/me/notifications" className={`mono ${styles.fix}`}>
           {t('alarms.meta.reachesNobody')}

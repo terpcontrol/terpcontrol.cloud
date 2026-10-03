@@ -561,13 +561,62 @@ describe('the climate beside a phase', () => {
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Germination · dark' }));
     expect(
       screen.getByText(
-        /^New: Germination · dark – light off, no CO₂, 24 °C round the clock; the device does not control the humidity\..* The alarms Too hot and Too cold follow germination; it has no Too humid alarm\.$/,
+        /^New: Germination · dark – light off, no CO₂, 24 °C round the clock; only a humidifier holds the humidity\..* The alarms Too hot and Too cold follow germination; Too humid is set to above 90 %: It rests until germination ends\.$/,
       ),
     ).toBeInTheDocument();
+    // What germination does about the humidity is asked beside its climate: the alarm, and no humidifier where none is paired.
+    const choices = screen.getByRole('group', { name: 'During germination' });
+    expect(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' })).toHaveAttribute('aria-checked', 'false');
+    expect(within(choices).queryByRole('switch', { name: 'Hold the humidity with the humidifier' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Enter Germination' }));
 
     await waitFor(() => expect(asked.filter(call => call.method === 'POST')).toHaveLength(1));
     expect(asked.find(call => call.method === 'POST')?.body).toMatchObject({ stage: 'germination', preset: null, climate: true });
+    // Nothing moved, so nothing is said: the device keeps what it has.
+    expect(asked.find(call => call.method === 'POST')?.body).not.toHaveProperty('germinationChoices');
+  });
+
+  it('sends what germination is to do about the humidity with its climate, where a switch was moved', async () => {
+    const asked: { method: string; path: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input)).pathname.replace(/^\/v1/, '');
+        asked.push({ method: init?.method ?? 'GET', path, body: init?.body === undefined ? null : JSON.parse(String(init.body)) });
+        // The device has a humidifier paired, which is what offers the second switch.
+        const answer = path.endsWith('/sockets')
+          ? {
+              items: [
+                { slot: 0, role: 'humidifier', hardwareId: '', address: '10.0.0.9', state: 'off', override: null, timer: null, stateChangedAt: null },
+              ],
+              nextCursor: null,
+            }
+          : phase('p3', 'germination', 0);
+        return new Response(JSON.stringify(answer), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }),
+    );
+    hardware.devices = [{ ...tent(), type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } }];
+    draw(<PhaseSheet grow={veg} onClose={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Germination' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Germination · dark' }));
+    const choices = screen.getByRole('group', { name: 'During germination' });
+    const humidifier = await within(choices).findByRole('switch', { name: 'Hold the humidity with the humidifier' });
+    expect(humidifier).toHaveAttribute('aria-checked', 'true');
+    expect(within(choices).getByText(/^The humidifier holds \d+ % – it never makes it wetter than that\.$/)).toBeInTheDocument();
+
+    fireEvent.click(humidifier);
+    fireEvent.click(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' }));
+    expect(within(choices).getByText('The humidifier rests until germination ends.')).toBeInTheDocument();
+    expect(screen.getByText(/Too humid is set to above 90 %: It warns during germination too\.$/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Enter Germination' }));
+
+    await waitFor(() => expect(asked.filter(call => call.method === 'POST')).toHaveLength(1));
+    expect(asked.find(call => call.method === 'POST')?.body).toMatchObject({
+      stage: 'germination',
+      climate: true,
+      germinationChoices: { warnTooHumid: true, humidifierHolds: false },
+    });
   });
 
   it('offers the seedling´s climate first while the device germinates, and says the light comes back either way', () => {

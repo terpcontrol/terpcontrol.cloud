@@ -12,6 +12,7 @@ import type {
   DevicePage,
   DeviceUpdate,
   FirmwarePage,
+  GerminationChoices,
   SocketOverrideUpdate,
   SocketPage,
   SocketUpdate,
@@ -167,12 +168,15 @@ export const useSaveConfiguration = () => {
       configuration,
       drying,
       germination,
+      germinationChoices,
     }: {
       deviceId: string;
       configuration: DeviceConfiguration;
       drying?: boolean;
       germination?: boolean;
-    }) => api.put<DeviceConfigurationEnvelope>(`/devices/${deviceId}/configuration`, { configuration, drying, germination }),
+      /** What germination does about the humidity, where the page shows it; left out it stands as it was. */
+      germinationChoices?: Partial<GerminationChoices>;
+    }) => api.put<DeviceConfigurationEnvelope>(`/devices/${deviceId}/configuration`, { configuration, drying, germination, germinationChoices }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['devices'] }),
   });
 };

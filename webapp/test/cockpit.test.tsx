@@ -8,6 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import type {
   AccessNeed,
   AlarmRule,
@@ -415,6 +416,28 @@ describe('the cockpit of a place that is fine', () => {
     expect(await within(alarms).findByText('Too cold below 16 °C · Humidity below 40 % or above 70 %')).toBeInTheDocument();
   });
 
+  /** A "too humid" alarm that rests while the fridge germinates is said to rest, rather than promised (owner's decision G2). */
+  it('says a "too humid" alarm rests while the fridge germinates', async () => {
+    server.rules = [
+      rule({
+        id: 'humid',
+        name: 'Too humid',
+        origin: 'preset',
+        watch: { kind: 'reading', metric: 'humidity', upper: 90, lower: null, forSeconds: 1200 } as never,
+      }),
+    ];
+    server.devices = [
+      fridge({
+        configuration: { ...fridge().configuration, workmode: 'breed' },
+        control: { running: true, drying: false, mode: 'germination', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      }),
+    ];
+    draw(<PlaceCockpit overview={overviewOf()} />);
+
+    const alarms = await screen.findByRole('region', { name: 'Alarms' });
+    expect(await within(alarms).findByText('Too humid above 90 % (rests during germination)')).toBeInTheDocument();
+  });
+
   it('says where alarms go once something reaches the grower', async () => {
     server.me = me(false, 'login@example.org');
     draw(<PlaceCockpit overview={overviewOf()} />);
@@ -448,7 +471,8 @@ describe('the cockpit of a place that is fine', () => {
 });
 
 describe('a place whose control is switched off', () => {
-  const off = () => fridge({ control: { running: false, drying: false, mode: 'standard', energySaving: false } });
+  const off = () =>
+    fridge({ control: { running: false, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES } });
 
   it('opens on it, and offers to switch it back on with one tap', async () => {
     server.devices = [off()];
@@ -500,7 +524,9 @@ describe('a place whose control is switched off', () => {
   });
 
   it('offers to switch a running one off, beside the maintenance window', async () => {
-    server.devices = [fridge({ control: { running: true, drying: false, mode: 'standard', energySaving: false } })];
+    server.devices = [
+      fridge({ control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES } }),
+    ];
     draw(<PlaceCockpit overview={overviewOf()} />);
 
     expect(await screen.findByRole('button', { name: /^Switch control off/ })).toBeInTheDocument();
@@ -548,7 +574,9 @@ describe('a customer´s place read by support', () => {
 
 describe('a place in another work mode', () => {
   it('says a germinating fridge is dark and holds one temperature, that its light is off for that reason, and where it ends', async () => {
-    server.devices = [fridge({ control: { running: true, drying: false, mode: 'germination', energySaving: false } })];
+    server.devices = [
+      fridge({ control: { running: true, drying: false, mode: 'germination', energySaving: false, germinationChoices: GERMINATION_CHOICES } }),
+    ];
     draw(<PlaceCockpit overview={overviewOf()} />);
 
     expect(await screen.findByText(/^Germination · dark: no light and no CO₂, one temperature round the clock/)).toBeInTheDocument();
@@ -558,7 +586,9 @@ describe('a place in another work mode', () => {
   });
 
   it('says a drying fridge is drying, with the way to end it in Steuerung', async () => {
-    server.devices = [fridge({ control: { running: true, drying: true, mode: 'standard', energySaving: false } })];
+    server.devices = [
+      fridge({ control: { running: true, drying: true, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES } }),
+    ];
     draw(<PlaceCockpit overview={overviewOf()} />);
 
     expect(await screen.findByText(/^Drying: no light and no CO₂/)).toBeInTheDocument();
@@ -566,7 +596,9 @@ describe('a place in another work mode', () => {
   });
 
   it('says a drying fridge holds no CO₂ because it is drying, not because it is night', async () => {
-    server.devices = [fridge({ control: { running: true, drying: true, mode: 'standard', energySaving: false } })];
+    server.devices = [
+      fridge({ control: { running: true, drying: true, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES } }),
+    ];
     const drying = setpoints.map(one => (one.metric === 'co2' ? { ...one, value: null } : one));
     draw(<PlaceCockpit overview={overviewOf({ setpoints: drying })} />);
 
@@ -576,7 +608,9 @@ describe('a place in another work mode', () => {
 
   /** A drying room has no day and no night, and the tiles said "Night target 18.0 °C" under a line saying so. */
   it('calls a drying fridge´s targets the drying targets, not the night´s', async () => {
-    server.devices = [fridge({ control: { running: true, drying: true, mode: 'standard', energySaving: false } })];
+    server.devices = [
+      fridge({ control: { running: true, drying: true, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES } }),
+    ];
     server.live = {
       ...deviceLive(),
       setpoints: { day: { temperature: 18, humidity: 58 }, night: { temperature: 18, humidity: 58 }, active: 'night' },
@@ -591,7 +625,9 @@ describe('a place in another work mode', () => {
   });
 
   it('says nothing of a mode where the fridge runs its standard one', async () => {
-    server.devices = [fridge({ control: { running: true, drying: false, mode: 'standard', energySaving: true } })];
+    server.devices = [
+      fridge({ control: { running: true, drying: false, mode: 'standard', energySaving: true, germinationChoices: GERMINATION_CHOICES } }),
+    ];
     draw(<PlaceCockpit overview={overviewOf()} />);
 
     expect(await screen.findByRole('button', { name: /^Switch control off/ })).toBeInTheDocument();
@@ -631,7 +667,9 @@ describe('day and night on the cockpit', () => {
   });
 
   it('calls a germinating fridge´s target the germination´s, with no night beside it and the light off', async () => {
-    server.devices = [fridge({ control: { running: true, drying: false, mode: 'germination', energySaving: false } })];
+    server.devices = [
+      fridge({ control: { running: true, drying: false, mode: 'germination', energySaving: false, germinationChoices: GERMINATION_CHOICES } }),
+    ];
     server.live = { ...deviceLive(lamp(0)), setpoints: { day: {}, night: { temperature: 24 }, active: 'night' } };
     const germinating = [
       { metric: 'temperature' as const, value: 24, band: 1 },

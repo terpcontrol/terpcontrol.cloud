@@ -325,9 +325,13 @@ function Notes({ device, shape, baseline, hasCo2 }: TableProps) {
       holdsHumidity(shape) ? `${targetFigure(humidity, 'humidity')} ${UNIT.humidity}` : null,
     ].filter((part): part is string => part !== null);
 
-  // What germination gives back to the night, where it is not what germination holds anyway.
-  const before = regime === 'germination' ? (device.control?.afterGermination?.nightTemperature ?? null) : null;
-  const back = before !== null && before !== draft.nightTemperature ? before : null;
+  // What germination gives back to the night, where it is not what germination holds anyway: the
+  // temperature, and the humidity where a humidifier holds one in the dark.
+  const after = regime === 'germination' ? (device.control?.afterGermination ?? null) : null;
+  const before = after?.nightTemperature ?? null;
+  const humidityBefore = shape.humidified ? (after?.nightHumidity ?? null) : null;
+  const backHumidity = humidityBefore !== null && humidityBefore !== draft.nightHumidity ? humidityBefore : null;
+  const back = (before !== null && before !== draft.nightTemperature) || backHumidity !== null ? (before ?? draft.nightTemperature) : null;
   const kept =
     regime === 'always'
       ? { summary: t('targets.table.keptNight'), parts: pair(draft.nightTemperature, draft.nightHumidity) }
@@ -348,7 +352,12 @@ function Notes({ device, shape, baseline, hasCo2 }: TableProps) {
     <>
       {back !== null ? (
         <p className={styles.note}>
-          {t('targets.table.germinationBack', { temperature: `${targetFigure(back, 'temperature')} ${UNIT.temperature}` })}
+          {backHumidity !== null
+            ? t('targets.table.germinationBackHumidity', {
+                temperature: `${targetFigure(back, 'temperature')} ${UNIT.temperature}`,
+                humidity: `${targetFigure(backHumidity, 'humidity')} ${UNIT.humidity}`,
+              })
+            : t('targets.table.germinationBack', { temperature: `${targetFigure(back, 'temperature')} ${UNIT.temperature}` })}
         </p>
       ) : null}
       {kept ? (

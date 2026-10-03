@@ -1,7 +1,13 @@
 import { useTranslation } from 'react-i18next';
+import type { GerminationChoices as Choices } from '@fg2/shared-types/v1';
 import { configurationFieldsOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { useConfigure } from '@/api/devices';
+import { GerminationChoices } from '@/screens/control/germination/GerminationChoices';
+import { choicesOf } from '@/screens/control/germination/germination-choices';
 import { FieldChoice } from '@/ui/advanced/Fields';
+import { figureOf } from '@/ui/climate-hardware';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
+import { Refused } from '@/ui/PageState';
 
 /**
  * Betriebsart: what a fridge or a tent controller does as a whole while its
@@ -10,31 +16,71 @@ import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
  * temperature-only mode is a fridge's for the few who grow that way, which is
  * why they are here and not under Steuerung. Energy saving belongs to a fridge's
  * standard mode and is switched under Steuerung.
+ *
+ * While the device germinates, what germination does about the humidity is
+ * chosen under the mode, as everywhere else germination is set; each switch
+ * goes out on the tap, like the mode above it.
  */
-function OperatingMode({ device, mayManage }: DeviceContext) {
+function OperatingMode({ device, mayManage, sockets }: DeviceContext) {
   const { t } = useTranslation();
   const field = configurationFieldsOf(device.type).mode;
   const modes = field?.kind === 'choice' ? field.options : [];
+  const germinates = device.control?.running === true && !device.control.drying && device.control.mode === 'germination';
 
   return (
-    <FieldChoice
-      device={device}
-      name="mode"
-      label={t('operatingMode.label')}
-      help="advanced.operatingMode"
-      disabled={!mayManage}
-      options={modes.map(mode => ({ value: mode, label: t(`operatingMode.${mode}`), note: t(`operatingMode.${mode}Note`) }))}
-      // Germination darkens the device and the greenhouse mode stops holding its humidity: a tap in bloom
-      // would cost a night of light, so either is asked first. Back to the standard is written at once.
-      ask={mode =>
-        mode === 'standard'
-          ? null
-          : {
-              question: t('operatingMode.ask', { mode: t(`operatingMode.${mode}`), what: t(`operatingMode.${mode}Note`) }),
-              yes: t('operatingMode.yes', { mode: t(`operatingMode.${mode}`) }),
-            }
-      }
-    />
+    <>
+      <FieldChoice
+        device={device}
+        name="mode"
+        label={t('operatingMode.label')}
+        help="advanced.operatingMode"
+        disabled={!mayManage}
+        options={modes.map(mode => ({ value: mode, label: t(`operatingMode.${mode}`), note: t(`operatingMode.${mode}Note`) }))}
+        // Germination darkens the device and the greenhouse mode stops holding its humidity: a tap in bloom
+        // would cost a night of light, so either is asked first. Back to the standard is written at once.
+        ask={mode =>
+          mode === 'standard'
+            ? null
+            : {
+                question: t('operatingMode.ask', { mode: t(`operatingMode.${mode}`), what: t(`operatingMode.${mode}Note`) }),
+                yes: t('operatingMode.yes', { mode: t(`operatingMode.${mode}`) }),
+              }
+        }
+      />
+      {germinates ? (
+        <Choosing device={device} mayManage={mayManage} humidifier={sockets?.items?.some(socket => socket.role === 'humidifier') ?? false} />
+      ) : null}
+    </>
+  );
+}
+
+/** The two choices of germination, each written on the tap through the settings by name. */
+function Choosing({ device, mayManage, humidifier }: Pick<DeviceContext, 'device' | 'mayManage'> & { humidifier: boolean }) {
+  const configure = useConfigure(device.id);
+  const asked = configure.isPending ? configure.variables : undefined;
+  const stored = choicesOf(device);
+  const shown: Choices = {
+    warnTooHumid: typeof asked?.germinationWarnTooHumid === 'boolean' ? asked.germinationWarnTooHumid : stored.warnTooHumid,
+    humidifierHolds: typeof asked?.germinationHumidifier === 'boolean' ? asked.germinationHumidifier : stored.humidifierHolds,
+  };
+  const humidity = device.configuration ? figureOf(device.configuration, 'night', 'humidity') : null;
+
+  return (
+    <>
+      <GerminationChoices
+        value={shown}
+        humidifier={humidifier}
+        humidity={humidity}
+        disabled={!mayManage || configure.isPending}
+        onChange={change =>
+          configure.mutate({
+            ...(change.warnTooHumid !== undefined ? { germinationWarnTooHumid: change.warnTooHumid } : {}),
+            ...(change.humidifierHolds !== undefined ? { germinationHumidifier: change.humidifierHolds } : {}),
+          })
+        }
+      />
+      <Refused error={configure.error} />
+    </>
   );
 }
 

@@ -105,7 +105,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
             className={`${ui.button} ${ui.primary} ${styles.submit}`}
             disabled={add.isPending}
             onClick={() =>
-              add.mutate({ stage, ...climateRequest(pick), startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })
+              add.mutate({ stage, ...climateRequest(pick, stage), startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })
             }
           >
             {add.isPending

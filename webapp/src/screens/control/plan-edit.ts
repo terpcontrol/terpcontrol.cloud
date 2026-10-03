@@ -1,5 +1,15 @@
 import type { DateTime } from 'luxon';
-import type { Device, DeviceConfiguration, GrowthStage, Plan, PlanNotify, PlanReplace, PlanStep, StepDuration } from '@fg2/shared-types/v1';
+import type {
+  Device,
+  DeviceConfiguration,
+  GerminationChoices,
+  GrowthStage,
+  Plan,
+  PlanNotify,
+  PlanReplace,
+  PlanStep,
+  StepDuration,
+} from '@fg2/shared-types/v1';
 import { GERMINATION_TEMPERATURE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { hasCo2Sensor } from '@/ui/climate-hardware';
@@ -36,6 +46,8 @@ export interface StepDraft {
   lightHours: number | null;
   waitForConfirmation: boolean;
   confirmationMessage: string | null;
+  /** What a germination step does about the humidity; null on every other step, and where it leaves the device's own. */
+  germinationChoices: GerminationChoices | null;
 }
 
 export interface PlanDraft {
@@ -56,7 +68,7 @@ export const draftOf = (plan: Plan): PlanDraft => ({
   templateId: plan.templateId,
   loop: plan.loop,
   notify: { ...plan.notify },
-  steps: plan.steps.map(step => keyedStep({ ...step, lightHours: step.lightHours ?? null })),
+  steps: plan.steps.map(step => keyedStep({ ...step, lightHours: step.lightHours ?? null, germinationChoices: step.germinationChoices ?? null })),
 });
 
 /**
@@ -69,7 +81,9 @@ export const draftFromTemplate = (steps: PlanStep[], name: string, templateId: s
   templateId,
   loop: false,
   notify,
-  steps: steps.map(({ id: _id, ...step }) => keyedStep({ ...step, lightHours: step.lightHours ?? null })),
+  steps: steps.map(({ id: _id, ...step }) =>
+    keyedStep({ ...step, lightHours: step.lightHours ?? null, germinationChoices: step.germinationChoices ?? null }),
+  ),
 });
 
 export const emptyDraft = (name: string, notify: PlanNotify): PlanDraft => ({ name, templateId: null, loop: false, notify, steps: [] });
@@ -84,6 +98,7 @@ export const newStep = (name: string): StepDraft =>
     lightHours: null,
     waitForConfirmation: false,
     confirmationMessage: null,
+    germinationChoices: null,
   });
 
 /** The draft as the route takes it. A step that is new goes without an id, which is what asks for one. */

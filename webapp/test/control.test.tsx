@@ -117,6 +117,7 @@ const step = (over: Partial<PlanStep> = {}): PlanStep => ({
   lightHours: null,
   waitForConfirmation: false,
   confirmationMessage: null,
+  germinationChoices: null,
   ...over,
 });
 
@@ -649,6 +650,7 @@ describe('the settings a step carries', () => {
           lightHours: null,
           waitForConfirmation: false,
           confirmationMessage: null,
+          germinationChoices: null,
         },
       ],
     };

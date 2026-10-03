@@ -8,6 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import type { Device, Plan, PlanReplace, PlanStep, PlanTransition } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
 import { planLineOf } from '@/screens/cockpit/plan-line';
@@ -74,6 +75,7 @@ const step = (over: Partial<PlanStep> = {}): PlanStep => ({
   lightHours: 18,
   waitForConfirmation: false,
   confirmationMessage: null,
+  germinationChoices: null,
   ...over,
 });
 
@@ -114,7 +116,7 @@ const device = (type = 'fridge', hardware: Record<string, string> = {}): Device 
     firmware: { channel: 'stable', targetId: null },
     configuration: { day: { temperature: 25, humidity: 60 }, daynight: { day: 6 * 3600, night: 0 }, lights: { limit: 80 } },
     settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
-    control: { running: true, drying: false, mode: 'standard', energySaving: false },
+    control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
     isDemo: false,
     state: {
       lastSeenAt: DateTime.now().toISO()!,
@@ -277,11 +279,32 @@ describe('light hours in a step', () => {
     expect(screen.queryByText('Day · temperature')).not.toBeInTheDocument();
     expect(screen.queryByText('Night · humidity')).not.toBeInTheDocument();
     expect(screen.getByText('Germination · temperature')).toBeInTheDocument();
-    expect(screen.getByText(/^A step into germination switches the device dark: no light, no CO₂, the humidity left alone/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/^A step into germination switches the device dark: no light, no CO₂, only a humidifier holding the humidity/),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
     expect(state.saved[0].steps[0]).toMatchObject({ stage: 'germination', lightHours: null, settings: { night: { temperature: 24 } } });
     expect(Object.keys(state.saved[0].steps[0].settings)).toEqual(['night']);
+    // The step says what germination does about the humidity, starting from what the device does now.
+    expect(state.saved[0].steps[0].germinationChoices).toEqual({ warnTooHumid: false, humidifierHolds: true });
+  });
+
+  /** A germination step carries what it does about the humidity, which the plan puts on the device with it. */
+  it('keep a germination step´s choices about the humidity, and drop them where the step stops germinating', () => {
+    wrap(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
+    const choices = screen.getByRole('group', { name: 'During germination' });
+    fireEvent.click(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' }));
+    expect(within(choices).getByText('“Too humid” warns during germination as well.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
+    expect(state.saved.at(-1)?.steps[0].germinationChoices).toEqual({ warnTooHumid: true, humidifierHolds: true });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Seedling · with light' }));
+    expect(screen.queryByRole('group', { name: 'During germination' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
+    expect(state.saved.at(-1)?.steps[0].germinationChoices).toBeNull();
   });
 
   it('offer a germination step the temperature the device holds only while it germinates', () => {
@@ -294,7 +317,7 @@ describe('light hours in a step', () => {
     unmount();
 
     const dark = { ...lit, configuration: { ...lit.configuration, workmode: 'breed', night: { temperature: 23, humidity: 55 } } };
-    dark.control = { running: true, drying: false, mode: 'germination', energySaving: false };
+    dark.control = { running: true, drying: false, mode: 'germination', energySaving: false, germinationChoices: GERMINATION_CHOICES };
     wrap(<PlanEditor device={dark} plan={null} draft={draft()} onClose={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
     fireEvent.click(screen.getByRole('button', { name: 'Take what the device holds now' }));

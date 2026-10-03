@@ -39,6 +39,8 @@ export interface Shape {
   regime: Regime;
   /** Greenhouse mode: the temperature is held, the humidity is not. */
   greenhouse: boolean;
+  /** Germination with a humidifier socket that holds the night's humidity: the one humidity held in the dark. */
+  humidified?: boolean;
 }
 
 /**
@@ -54,13 +56,14 @@ export const shapeOf = (
     drying = device.control?.drying ?? false,
     germination = device.control?.mode === 'germination',
     climateOnly = device.type === 'fan',
-  }: { drying?: boolean; germination?: boolean; climateOnly?: boolean } = {},
+    humidified = false,
+  }: { drying?: boolean; germination?: boolean; climateOnly?: boolean; humidified?: boolean } = {},
 ): Shape => {
   const greenhouse = device.control?.mode === 'greenhouse';
   if (climateOnly) return { regime: 'sensor', greenhouse: false };
   if (device.control?.running === false) return { regime: 'off', greenhouse };
   if (drying) return { regime: 'drying', greenhouse: false };
-  if (germination) return { regime: 'germination', greenhouse: false };
+  if (germination) return { regime: 'germination', greenhouse: false, humidified };
   if (draft.lightHours >= 24) return { regime: 'always', greenhouse };
   if (draft.lightHours <= 0) return { regime: 'never', greenhouse };
   return { regime: 'cycle', greenhouse };
@@ -91,8 +94,12 @@ export const hasSchedule = (regime: Regime): boolean => regime === 'cycle' || re
 /** Whether the regime has a day in which the lamp shines and CO2 is dosed. */
 export const hasDay = (regime: Regime): boolean => regime === 'cycle' || regime === 'always';
 
-/** Whether the humidity is held: not in greenhouse mode, and not by germination, which holds a temperature alone. */
-export const holdsHumidity = (shape: Shape): boolean => !shape.greenhouse && shape.regime !== 'germination';
+/**
+ * Whether the humidity is held: not in greenhouse mode, and not by germination,
+ * which holds a temperature alone - unless a humidifier socket goes on holding
+ * the night's humidity there, as the grower chose.
+ */
+export const holdsHumidity = (shape: Shape): boolean => !shape.greenhouse && (shape.regime !== 'germination' || shape.humidified === true);
 
 /** Where the figures of a save come from (`HeldHalves`). */
 export const heldOf = (regime: Regime): HeldHalves => (regime === 'drying' ? 'drying' : 'both');

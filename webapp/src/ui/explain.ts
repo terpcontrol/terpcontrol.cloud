@@ -107,6 +107,8 @@ export const HELP_TOPICS = [
   'readyPlans',
   'drying',
   'germination',
+  'germinationAlarm',
+  'germinationHumidifier',
 ] as const;
 
 /**

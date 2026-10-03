@@ -1,0 +1,29 @@
+/* The two switches germination offers about the humidity: one column, each
+   switch on the right of what it does, as every other switch in the app. */
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.toggleText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+/* The help mark runs on after the last word, as it does beside every other label, rather than standing apart from a label that wraps. */
+.toggleLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}

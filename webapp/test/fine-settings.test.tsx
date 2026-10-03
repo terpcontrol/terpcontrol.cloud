@@ -141,6 +141,54 @@ describe('the fine settings themselves', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { mode: 'standard' } }));
   });
 
+  /**
+   * While the device germinates, what germination does about the humidity is
+   * chosen under the mode, each switch on the tap like the mode itself; the
+   * humidifier's only where a socket is paired as one.
+   */
+  it('offer what germination does about the humidity while the device germinates, and write each choice on the tap', async () => {
+    vi.mocked(api.patch).mockResolvedValue(device() as never);
+    const Mode = itemsFor('device', { device: device(), mayManage: true, offline: false }).find(one => one.id === 'operating-mode')!.Item;
+    const view = wrap(<Mode device={device()} mayManage offline={false} />);
+    // Standard says nothing of germination.
+    expect(screen.queryByRole('group', { name: 'During germination' })).not.toBeInTheDocument();
+    view.unmount();
+
+    const germinating = device('fridge', {}, {
+      configuration: { workmode: 'breed', night: { temperature: 24, humidity: 62 } },
+      control: {
+        running: true,
+        drying: false,
+        mode: 'germination',
+        energySaving: false,
+        germinationChoices: { warnTooHumid: false, humidifierHolds: true },
+      },
+    } as Partial<Device>);
+    const humidifier = {
+      items: [
+        {
+          slot: 0,
+          role: 'humidifier' as const,
+          hardwareId: '',
+          address: '10.0.0.2',
+          state: 'off' as const,
+          override: null,
+          timer: null,
+          stateChangedAt: null,
+        },
+      ],
+      nextCursor: null,
+      capabilities: { socketOverride: true, socketTimer: true, lightOverride: true, roles: ['humidifier' as const], pulseSeconds: {} },
+    };
+    wrap(<Mode device={germinating} mayManage offline={false} sockets={humidifier} />);
+
+    expect(screen.getByText('The humidifier holds 62 % – it never makes it wetter than that.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('switch', { name: 'Warn when it gets too humid' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { germinationWarnTooHumid: true } }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Hold the humidity with the humidifier' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { germinationHumidifier: false } }));
+  });
+
   it('offer a tent controller the standard and germination in the dark, and not the greenhouse mode a fridge has', () => {
     const tent = device('controller');
     const Mode = itemsFor('device', { device: tent, mayManage: true, offline: false }).find(one => one.id === 'operating-mode')!.Item;
