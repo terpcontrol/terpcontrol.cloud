@@ -35,20 +35,32 @@ interface Cause {
 const CAUSES: Cause[] = [
   // The camera was reached and delivered, and what arrived was not a picture.
   { key: 'damaged', says: /corrupt|truncat|produced no output|size limit/i },
-  // The far end gave up on purpose, which is what a Terp Cam says through its controller.
+  // The far end gave up on purpose, which is what a Terp Cam said through its device before the relay.
   { key: 'aborted', says: /abort|superseded/i },
+  // Before the login, because the id it names may carry digits a status code is read from.
+  { key: 'otherCamera', says: /belongs to a different camera/i },
+  // Turned away once, the camera is left alone for a while rather than asked on every poll.
+  { key: 'refusedRecently', says: /refused this server recently/i },
   // Reached, opened, and then cut off: the tunnel or the camera dropped it mid-frame.
-  { key: 'stoppedEarly', says: /end of file|reading rtsp|econnreset|connection reset|no keyframe|did not accept the session/i },
-  { key: 'refusedLogin', says: /401|403|unauthori|forbidden|authenticat/i },
+  {
+    key: 'stoppedEarly',
+    says: /end of file|reading rtsp|econnreset|connection reset|no keyframe|did not accept the session|did not say which camera/i,
+  },
+  { key: 'refusedLogin', says: /401|403|unauthori|forbidden|authenticat|rejected the password/i },
+  // The device was asked to open the way to its Terp Cam and did not: busy, not finding the cam on its network, or gone.
+  { key: 'relayNotOpened', says: /did not open the relay/i },
   // Nothing answered at all: no power, no network, or an address that leads nowhere any more.
   {
     key: 'noAnswer',
     says: /econnrefused|connection refused|refused|timed out|timeout|etimedout|unreachable|ehostunreach|enetunreach|no route to host|did not answer/i,
   },
   // The tent's own device is the way to this camera, and it is not there.
-  { key: 'noDevice', says: /not connected to the broker|nothing is speaking to the devices|answers to no controller/i },
+  {
+    key: 'noDevice',
+    says: /not connected to the broker|nothing is speaking to the devices|answers to no (controller|device)|could not ask the controller/i,
+  },
   // Nothing to reach it at, which is a setting rather than a fault.
-  { key: 'noAddress', says: /no stream address|no p2p id|not a p2p device id|rendezvous/i },
+  { key: 'noAddress', says: /no stream address|no p2p id|not a p2p device id|rendezvous|no relay configured|has not reported a camera/i },
   // Something answered and it was not a stream: a wrong path, a web page, a closed port behind a proxy.
   { key: 'noStream', says: /invalid data|error opening input|protocol not found|404|no such file/i },
 ];

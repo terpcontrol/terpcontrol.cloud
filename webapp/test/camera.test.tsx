@@ -487,6 +487,17 @@ describe('what a failed capture is called', () => {
     ['timed out waiting for the device to deliver an image', 'noAnswer'],
     ['the device is not connected to the broker', 'noDevice'],
     ['this camera has no stream address', 'noAddress'],
+    // What the server says of a Terp Cam it reaches over its device's relay.
+    ['the controller did not open the relay in time', 'relayNotOpened'],
+    ['could not ask the controller for a relay', 'noDevice'],
+    ['this camera answers to no device that could bridge it to this server', 'noDevice'],
+    ['no relay configured, so the server cannot reach a Terp Cam', 'noAddress'],
+    ['this device has not reported a camera we can reach', 'noAddress'],
+    ['camera rejected the password', 'refusedLogin'],
+    ['the camera refused this server recently', 'refusedRecently'],
+    ['UID belongs to a different camera than AAC4014031SCAQ', 'otherCamera'],
+    ['camera did not accept the session (only 41x2 in 10s)', 'stoppedEarly'],
+    ['no keyframe arrived', 'stoppedEarly'],
     ['Error opening input: Invalid data found when processing input', 'noStream'],
     ['ffmpeg exited with status 251', 'unknown'],
   ];

@@ -3112,6 +3112,9 @@
       "noAnswer": "the camera did not answer",
       "noAddress": "there is no address to reach this camera at",
       "noStream": "what answered was not a video stream",
+      "otherCamera": "a different camera answered than the one paired at the device",
+      "refusedRecently": "the camera turned this server away and is not asked again for up to half an hour",
+      "relayNotOpened": "the device did not open the way to the camera in time",
       "unknown": "the camera could not be read",
       "noDevice": "the device this camera answers through was not reachable"
     },

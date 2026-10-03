@@ -25,13 +25,14 @@ export const CAMERAS_REFRESH_MS = 30_000;
 
 /**
  * How long a test picture is waited for. The server's longest honest answer to
- * a Terp Cam is its whole direct path - rendezvous, login and transfer, 48 s -
- * followed by the controller's 30 s, and it may queue behind a read the poller
- * is making. Abandoned at the 30 s every other request gets, the press said the
- * camera was never reached while the server was still reading it, and the
- * picture landed a minute later.
+ * a Terp Cam is three attempts over the device's relay, each of them the
+ * device's dial-in (45 s), the login (15 s), the transfer (60 s) and the close
+ * (10 s) - six and a half minutes - and a press that finds the poller reading
+ * the camera waits for that read instead. Abandoned any sooner, the press said
+ * the camera was never reached while the server was still reading it, and the
+ * picture landed minutes later.
  */
-const CAPTURE_WAIT_MS = 120_000;
+const CAPTURE_WAIT_MS = 7 * 60_000;
 
 /** Whether a call was given up on by this side rather than answered by the other. */
 export const gaveUp = (error: unknown): boolean => error instanceof DOMException && error.name === 'TimeoutError';

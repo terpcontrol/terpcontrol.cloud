@@ -3120,6 +3120,9 @@
       "noAnswer": "die Kamera hat nicht geantwortet",
       "noAddress": "es gibt keine Adresse, unter der diese Kamera erreichbar wäre",
       "noStream": "was geantwortet hat, war kein Videostream",
+      "otherCamera": "es hat eine andere Kamera geantwortet als die am Gerät gekoppelte",
+      "refusedRecently": "die Kamera hat diesen Server abgewiesen und wird bis zu einer halben Stunde nicht mehr gefragt",
+      "relayNotOpened": "das Gerät hat den Weg zur Kamera nicht rechtzeitig geöffnet",
       "unknown": "die Kamera konnte nicht gelesen werden",
       "noDevice": "das Gerät, über das diese Kamera antwortet, war nicht erreichbar"
     },

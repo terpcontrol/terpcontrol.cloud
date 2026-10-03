@@ -402,7 +402,7 @@ describe('a camera at a stream address', () => {
       tunnel: true,
       ...plainStream,
     });
-    expect(api.post).toHaveBeenNthCalledWith(2, '/cameras/camera-rtsp/test-captures', undefined, 120_000);
+    expect(api.post).toHaveBeenNthCalledWith(2, '/cameras/camera-rtsp/test-captures', undefined, 7 * 60_000);
     // A wrong address is an ordinary outcome of this button, so the reason the
     // camera gave is what is drawn.
     expect(await screen.findByRole('alert')).toHaveTextContent('No picture: Connection refused');
