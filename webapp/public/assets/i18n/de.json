@@ -848,7 +848,6 @@
     "claiming": "Wird übernommen…",
     "claimLabel": "Der Code auf dem Display",
     "claimFailed": "Dieser Code wurde nicht angenommen.",
-    "addCameraLater": "Eine Kamera wird auf einem eigenen Bildschirm hinzugefügt: eine Terp Cam koppelt am Controller, eine eigenständige kommt per Handy ins WLAN, jede andere bekommt eine Stream-Adresse. Los geht es über der Kameraliste in diesem Tab.",
     "controllers_one": "Gerät",
     "controllers_other": "Geräte",
     "cameras": "Kameras",
@@ -1259,10 +1258,6 @@
           "subtitle": "Beliebige Stream-URL"
         }
       },
-      "terpCamFound": "Terp Control Cam erkannt — dein Controller hat die Stream-URL gemeldet.",
-      "terpCamConnected": "Kamera verbunden — Bilder werden über deinen Controller abgerufen.",
-      "terpCamUse": "Kamera übernehmen",
-      "terpCamMissing": "Noch keine Terp Control Cam gemeldet. Verbinde sie zuerst an deinem Controller: Einstellungen → Terp Cam → connect cam.",
       "user": "Kamera-Benutzername",
       "password": "Kamera-Passwort",
       "host": "IP-Adresse oder Hostname",
@@ -1275,8 +1270,7 @@
       "fillPlaceholders": "Platzhalter ausfüllen",
       "placeholderHint": "Ersetze <user>, <password> und <ip> in der URL durch die Werte deiner Kamera.",
       "customHint": "Format: rtsp://benutzer:passwort@ip-oder-hostname:554/pfad — den Stream-Pfad findest du im Handbuch deiner Kamera. Auch HTTP(S)-Snapshot- oder MJPEG-URLs funktionieren.",
-      "customHintTunnel": "Steht die Kamera bei deinem Gerät im selben Netzwerk, aktiviere „Webcam Stream tunneln“ und nutze ihre lokale IP.",
-      "terpCamTunnelNote": "Die Terp Control Cam wird immer über dein Gerät getunnelt — die lokale Adresse reicht."
+      "customHintTunnel": "Steht die Kamera bei deinem Gerät im selben Netzwerk, aktiviere „Webcam Stream tunneln“ und nutze ihre lokale IP."
     },
     "sockets": {
       "title": "Smart Sockets",
@@ -1469,7 +1463,7 @@
     },
     "addDevice": {
       "title": "Gerät hinzufügen",
-      "text": "Controller oder Kühlschrankmodul, auch mit Terp Cam. Der Claim-Code steht auf dem Display oder der Verpackung.",
+      "text": "Kühlschrankmodul, Controller, Lüfter oder Steckdose, auch mit Terp Cam – oder ein Licht. Der Claim-Code steht auf dem Display oder der Verpackung.",
       "scan": "QR scannen",
       "code": "Claim-Code",
       "orScan": "oder scannen",
@@ -3294,13 +3288,13 @@
         "at": {
           "fridge": "Am Kühlschrank­modul",
           "controller": "Am Controller",
-          "fan": "Am AIR-Lüfter",
-          "plug": "An der smarten Steckdose",
+          "fan": "Am Lüfter",
+          "plug": "An der Steckdose",
           "device": "Am Gerät"
         },
         "noDevice": {
           "label": "Noch kein Gerät",
-          "text": "Eine Terp Cam wird am Display eines Terp-Control-Geräts gekoppelt – Kühlschrankmodul, Controller, AIR-Lüfter oder smarte Steckdose –, und dieses Konto hat noch keins übernommen. Übernimm zuerst eins, dann führt dich dieser Reiter durch das Koppeln.",
+          "text": "Eine Terp Cam wird am Display eines Terp-Control-Geräts gekoppelt – Kühlschrankmodul, Controller, Lüfter oder Steckdose –, und dieses Konto hat noch keins übernommen. Übernimm zuerst eins, dann führt dich dieser Reiter durch das Koppeln.",
           "claim": "Gerät übernehmen"
         }
       },

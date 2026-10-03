@@ -848,7 +848,6 @@
     "claiming": "Claiming…",
     "claimLabel": "The code on the display",
     "claimFailed": "That code was not taken.",
-    "addCameraLater": "A camera is added on a screen of its own: a Terp Cam pairs at the controller, a standalone one joins Wi-Fi from your phone, and any other camera takes a stream address. Add one from the camera list on this tab.",
     "controllers_one": "Device",
     "controllers_other": "Devices",
     "cameras": "Cameras",
@@ -1259,10 +1258,6 @@
           "subtitle": "Any stream URL"
         }
       },
-      "terpCamFound": "Terp Control Cam detected — your controller reported its stream URL.",
-      "terpCamConnected": "Camera connected — stills are pulled through your controller.",
-      "terpCamUse": "Use this camera",
-      "terpCamMissing": "No Terp Control Cam reported yet. Connect it on your controller first: Settings → Terp Cam → connect cam.",
       "user": "Camera username",
       "password": "Camera password",
       "host": "IP address or hostname",
@@ -1275,8 +1270,7 @@
       "fillPlaceholders": "Fill in placeholders",
       "placeholderHint": "Replace <user>, <password> and <ip> in the URL with your camera's values.",
       "customHint": "Format: rtsp://user:password@ip-or-hostname:554/path — you can find the stream path in your camera’s manual. HTTP(S) snapshot or MJPEG URLs work too.",
-      "customHintTunnel": "If the camera sits on the same network as your device, enable “Tunnel webcam stream” and use its local IP.",
-      "terpCamTunnelNote": "The Terp Control Cam is always tunnelled through your device — its local address is all it needs."
+      "customHintTunnel": "If the camera sits on the same network as your device, enable “Tunnel webcam stream” and use its local IP."
     },
     "sockets": {
       "title": "Smart Sockets",
@@ -1469,7 +1463,7 @@
     },
     "addDevice": {
       "title": "Add a device",
-      "text": "A controller or a fridge module, with a Terp Cam too. The claim code is on the display or the box.",
+      "text": "A fridge module, a controller, a fan or a plug, with a Terp Cam too – or a light. The claim code is on the display or the box.",
       "scan": "scan QR",
       "code": "Claim code",
       "orScan": "or scan",
@@ -3286,13 +3280,13 @@
         "at": {
           "fridge": "At the fridge module",
           "controller": "At the controller",
-          "fan": "At the AIR fan",
-          "plug": "At the Smart Socket",
+          "fan": "At the fan",
+          "plug": "At the plug",
           "device": "At the device"
         },
         "noDevice": {
           "label": "No device yet",
-          "text": "A Terp Cam is paired at the display of a Terp Control device – a fridge module, a controller, an AIR fan or a Smart Socket – and this account has none claimed. Claim one first and this tab will walk you through the pairing.",
+          "text": "A Terp Cam is paired at the display of a Terp Control device – a fridge module, a controller, a fan or a plug – and this account has none claimed. Claim one first and this tab will walk you through the pairing.",
           "claim": "Claim a device"
         }
       },
