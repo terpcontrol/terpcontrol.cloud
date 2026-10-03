@@ -27,6 +27,7 @@ export const HELP_TOPICS = [
   'phaseCorrection',
   'autoflower',
   'growEnds',
+  'myGrows',
   'dayNightAverages',
   'feedStrength',
   'waterEc',

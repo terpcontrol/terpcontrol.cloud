@@ -6,13 +6,15 @@ import { Link, useNavigate } from 'react-router';
 import { useMe } from '@/api/account';
 import { useCameras } from '@/api/cameras';
 import { APP_VERSION, BUILD_MODE } from '@/api/config';
-import { useGrows } from '@/api/grows';
+import { useGrows, useMyGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
 import { useOwnSchemes, useSchemes } from '@/api/schemes';
 import { session, useSession } from '@/api/session';
 import { useFollows, useShareLinks } from '@/api/sharing';
+import { MY_GROWS } from '@/app/places';
 import { initials } from '@/app/shell/tabs';
 import { ownsCamera } from '@/screens/devices/cameras';
+import { countsOf } from '@/screens/grow/my-grows';
 import { useTheme } from '@/theme/theme-context';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -31,8 +33,8 @@ import {
 import styles from './Me.module.css';
 
 /**
- * Where the avatar leads: who is signed in, and a door to each of the ten
- * things an account is made of.
+ * Where the avatar leads: who is signed in, the way to every grow for whoever
+ * keeps a diary, and a door to each of the ten things an account is made of.
  *
  * Every door says under its title what the page behind it currently holds,
  * read from the server and never guessed - how many grows are public, which
@@ -84,14 +86,18 @@ function AccountDoors({ handle }: { handle: string }) {
   const zone = useZone();
   const me = useMe();
   const grows = useGrows();
+  const mine = useMyGrows();
   const follows = useFollows(true);
   const links = useShareLinks();
   const cameras = useCameras();
   const { devices, ready } = useShape();
   const shipped = useSchemes();
   const own = useOwnSchemes();
+  const diary = useDiaryLayer();
   // Feeding schemes are what a grow's feed lines are dosed from, so they are a door of the diary's - kept for whoever wrote one of their own.
-  const feeds = useDiaryLayer() || (own.data?.items.length ?? 0) > 0;
+  const feeds = diary || (own.data?.items.length ?? 0) > 0;
+  // Every grow is a door of the diary's as well, and stays one for whoever has a grow and has since turned the diary off.
+  const hasGrows = diary || (mine.data?.items.length ?? 0) > 0;
 
   /**
    * One door's line, drawn only once every read it is worked out from has
@@ -116,6 +122,17 @@ function AccountDoors({ handle }: { handle: string }) {
       <Identity handle={handle}>
         {line([me], () => [me.data!.email, t(me.data!.publicProfile ? 'me.identity.profileOn' : 'me.identity.profileOff')].join(' · '))}
       </Identity>
+
+      {/* What the account has grown is its own content rather than a setting, so it stands apart from the doors below. */}
+      {hasGrows ? (
+        <div className={ui.group}>
+          <Door
+            to={MY_GROWS}
+            title={t('grow.mine.title')}
+            line={line([mine], () => (mine.data!.items.length > 0 ? countsOf(t, mine.data!.items) : t('grow.mine.none')))}
+          />
+        </div>
+      ) : null}
 
       <div className={ui.group}>
         {/* What reaches the grower when something goes wrong comes first: for

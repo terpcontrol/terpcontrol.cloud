@@ -1,8 +1,8 @@
 import { ChevronLeft, CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, Navigate, useParams, useSearchParams } from 'react-router';
-import { placePath, useBackToPlace } from '@/app/places';
+import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router';
+import { MY_GROWS, openedFromMyGrows, placePath, useBackToPlace } from '@/app/places';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
@@ -38,7 +38,9 @@ const isTab = (value: string | undefined): value is GrowTab => (TABS as readonly
  */
 export function GrowPage() {
   const { growId = '', tab } = useParams();
-  if (!isTab(tab)) return <Navigate to={`/grows/${growId}/weeks`} replace />;
+  // Where the grow was opened from goes along to the tab it lands on, so its way back is the same.
+  const { state } = useLocation();
+  if (!isTab(tab)) return <Navigate to={`/grows/${growId}/weeks`} replace state={state} />;
 
   return <GrowScreen growId={growId} tab={tab} />;
 }
@@ -50,6 +52,7 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
   const plants = useGrowPlants(growId);
   const spaces = useSpaces();
   const mayWith = useMayWith();
+  const { state } = useLocation();
   // "Grow teilen" in a place's ⋯ menu opens the grow on its share sheet.
   const [params] = useSearchParams();
   const [sharing, setSharing] = useState(params.get('share') === '1');
@@ -84,7 +87,8 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
       />
       {!mayManage && enough(youMay, 'log') ? <p className={`mono ${styles.role}`}>{t('grow.youMayLog')}</p> : null}
       <RefreshFailed failedAt={grow.isError ? grow.dataUpdatedAt : null} now={now} />
-      <Tabs items={tabs} label={t('grow.tabsLabel')} />
+      {/* Switching tabs keeps where the page was opened from, so its way back stays the same. */}
+      <Tabs items={tabs} label={t('grow.tabsLabel')} state={state} />
       {tab === 'weeks' ? <Weeks grow={grow.data} now={now} /> : null}
       {tab === 'plants' ? <Plants grow={grow.data} plants={plants} spaces={spaces.data?.items ?? []} /> : null}
       {tab === 'feeding' ? <Feeding grow={grow.data} mayManage={mayManage} /> : null}
@@ -153,8 +157,13 @@ export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null 
     ) : (
       label
     );
-  // Back to the cockpit whose grow block this was opened from: the place the grow stands in, else the one it last stood in.
-  const back = useBackToPlace(places.find(place => place.spaceId !== null)?.spaceId ?? stood?.spaceId ?? null);
+  // Back to where the grow was found: "My grows" for a grow opened there and
+  // for a finished one, which no cockpit shows any more; otherwise the cockpit
+  // whose grow block it was opened from - the place it stands in, else the one
+  // it last stood in.
+  const toPlace = useBackToPlace(places.find(place => place.spaceId !== null)?.spaceId ?? stood?.spaceId ?? null);
+  const { state } = useLocation();
+  const back = openedFromMyGrows(state) || endedOn ? { to: MY_GROWS, name: t('grow.mine.title') } : toPlace;
   const said: ReactNode[] = [
     ...(plants.length > 0 ? [strainsOf(plants)] : []),
     ...places.map(place => placeLink(place.spaceId, place.name)),

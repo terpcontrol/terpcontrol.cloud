@@ -13,8 +13,8 @@ export interface Tab {
   owns?: string[];
 }
 
-/** A grow and the task list are opened from a cockpit's grow block, so they are Start's pages as a place is. */
-const HOME: Tab = { path: '/', labelKey: 'shell.tabs.home', Icon: House, owns: ['/spaces/', '/grows/', '/tasks'] };
+/** A grow, the list of every grow and the task list are reached from Start, so they are Start's pages as a place is. */
+const HOME: Tab = { path: '/', labelKey: 'shell.tabs.home', Icon: House, owns: ['/spaces/', '/grows', '/tasks'] };
 const TIMELINE: Tab = { path: '/timeline', labelKey: 'shell.tabs.timeline', Icon: ChartLine, owns: ['/charts'] };
 const LOG: Tab = { path: '/log', labelKey: 'shell.tabs.log', Icon: Plus, raised: true };
 const CONTROL: Tab = { path: '/control', labelKey: 'shell.tabs.control', Icon: SlidersHorizontal };

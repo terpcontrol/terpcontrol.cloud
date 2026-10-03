@@ -17,6 +17,7 @@ import type {
   HomeAnswer,
   HomeSpaceCard,
   Me,
+  MyGrowCard,
   SpaceOverview,
   SpaceTimeline,
 } from '@fg2/shared-types/v1';
@@ -253,6 +254,8 @@ const server = {
   plan: null as Record<string, unknown> | null,
   /** Devices that are not the account's own: a customer's, which support reads one by one. */
   customers: [] as Device[],
+  /** Every grow of the account, as "My grows" reads it. */
+  mine: [] as MyGrowCard[],
 };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -283,6 +286,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   }
   if (/^\/spaces\/[^/]+\/timeline$/.test(path)) return json(timeline());
   if (path === '/home' && server.home) return json(server.home);
+  if (path === '/home/grows') return json({ items: server.mine, nextCursor: null });
   const overview = /^\/spaces\/([^/]+)\/overview$/.exec(path);
   if (overview && server.overviews.has(overview[1])) return json(server.overviews.get(overview[1]));
   const live = /^\/spaces\/([^/]+)\/live$/.exec(path);
@@ -318,6 +322,7 @@ beforeEach(() => {
   server.live = deviceLive();
   server.rules = rules();
   server.home = null;
+  server.mine = [];
   server.overviews = new Map();
   server.plan = null;
   server.customers = [];
@@ -905,6 +910,27 @@ describe('Start', () => {
     expect(await screen.findByRole('heading', { name: 'Fridge 1' })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /^Temperature/ })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('All on target');
+  });
+
+  it('leads to every grow from under the cockpit, for an account that keeps a diary and only once there is a grow', async () => {
+    const grows = [{ endedAt: null }, { endedAt: '2026-06-01T10:00:00.000Z' }, { endedAt: '2026-01-10T10:00:00.000Z' }] as MyGrowCard[];
+    server.home = { ...answer(card('space-1', 'Fridge 1')), layers: { diary: true } };
+    server.overviews.set('space-1', overviewOf());
+    server.me = me(true);
+    server.mine = grows;
+    const kept = draw(<Home />);
+
+    const line = await screen.findByRole('link', { name: /^My grows/ });
+    expect(line).toHaveAttribute('href', '/grows');
+    expect(line).toHaveTextContent('1 running · 2 finished');
+    kept.unmount();
+
+    // Without the diary the cockpit is the whole of Start.
+    server.home = answer(card('space-1', 'Fridge 1'));
+    server.me = me(false);
+    draw(<Home />);
+    expect(await screen.findByRole('heading', { name: 'Fridge 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^My grows/ })).not.toBeInTheDocument();
   });
 
   it('is a card per place once there are several, each opening that place´s cockpit', async () => {

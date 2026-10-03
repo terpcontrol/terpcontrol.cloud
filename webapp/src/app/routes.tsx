@@ -16,8 +16,8 @@ import { DeviceDiagnosis } from '@/screens/admin/DeviceDiagnosis';
 import { Devices } from '@/screens/devices/Devices';
 import { FirmwareScreen } from '@/screens/admin/Firmware';
 import { Fleet } from '@/screens/admin/Fleet';
-import { GrowArchive } from '@/screens/grow/Archive';
 import { GrowPage } from '@/screens/grow/GrowPage';
+import { MyGrows } from '@/screens/grow/MyGrows';
 import { Home } from '@/screens/Home';
 import { JoinRoute } from '@/screens/join/JoinRoute';
 import { LogRoute } from '@/log/LogRoute';
@@ -89,8 +89,10 @@ export const screens: RouteObject[] = [
     ],
   },
   { path: 'alerts', element: <Alerts /> },
+  { path: 'grows', element: <MyGrows /> },
   { path: 'grows/new', element: <NewGrowRoute /> },
-  { path: 'grows/archive', element: <GrowArchive /> },
+  // Where finished grows were listed before "My grows" held them all; bookmarks still point here.
+  { path: 'grows/archive', element: <Navigate to="/grows" replace /> },
   { path: 'grows/:growId/measurements', element: <Measurements /> },
   { path: 'grows/:growId/plants/:plantId', element: <PlantPage /> },
   { path: 'grows/:growId/:tab?', element: <GrowPage /> },
@@ -144,11 +146,13 @@ export const screens: RouteObject[] = [
  * page of its own above it: a static segment outranks the parameter beside it,
  * so `/cameras/add` is never read as a camera called "add".
  *
- * A grow that has ended is not on the home, which draws the places and what
- * stands in them today, so the diaries that are over have an address of their
- * own: `/grows/archive`, reached from under the home's cards. It is a static
- * segment beside the grow parameter and therefore outranks it, exactly as
- * `/grows/new` does, so it is never read as a grow called "archive".
+ * The home draws the places and what stands in them today, so every grow -
+ * running or finished, the account's own or one in a tent it was let into -
+ * has a page of its own: `/grows`, "My grows", reached from under the home's
+ * cards and from Me. The address the finished ones had before it,
+ * `/grows/archive`, is sent on to it; as a static segment it outranks the
+ * grow parameter beside it, exactly as `/grows/new` does, so it is never read
+ * as a grow called "archive".
  *
  * A grow has two pages below it rather than tabs: what it measures, and one of
  * its plants. Both are about something narrower than the grow and are reached

@@ -11,6 +11,7 @@ import type {
   GrowSeriesRange,
   GrowUpdate,
   GrowWeekCardPage,
+  MyGrowCard,
   Phase,
   PhaseCreate,
   Plant,
@@ -127,6 +128,19 @@ export const useEveryGrow = () =>
   useRead({
     queryKey: ['grows', 'every'],
     queryFn: ({ signal }) => readEvery<GrowListItem>('/grows', signal),
+  });
+
+/**
+ * "My grows": every grow the account can see, each with what its card draws -
+ * its picture, the place's name, the strains, the harvest - read to the end
+ * like the other lists a screen shows whole. It is kept under the home's key
+ * because whatever changes Start changes it too: a grow started, moved,
+ * harvested or renamed, a photo written into a diary.
+ */
+export const useMyGrows = () =>
+  useRead({
+    queryKey: ['home', 'grows'],
+    queryFn: ({ signal }) => readEvery<MyGrowCard>('/home/grows', signal),
   });
 
 /**

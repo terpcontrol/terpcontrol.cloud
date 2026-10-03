@@ -13,7 +13,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { EmptyHome } from './EmptyHome';
 import { NotifyNotice } from './notifications/NotifyNotice';
-import { ArchiveLink } from './grow/Archive';
+import { MyGrowsLine } from './grow/MyGrows';
 import { NewGrowRow } from './grow/new/NewGrowRow';
 import { NewGrowSheet } from './grow/new/NewGrowSheet';
 import { LooseGrowCard, PlaceCard } from './cockpit/PlaceCard';
@@ -27,7 +27,9 @@ import styles from './Home.module.css';
  * Start. With one place it is that place's cockpit, the same page the place
  * opens at its own address; with several it is one compact card per place,
  * each opening that cockpit. A grow standing in no place is a card of its own
- * under either, because there is no place page for it to be part of.
+ * under either, because there is no place page for it to be part of. For
+ * whoever keeps a diary, a line under them leads to every grow at once,
+ * finished ones included.
  *
  * It waits in its own shape, and once it has answered it never goes blank
  * again: a refresh that fails keeps the last answer with its ages.
@@ -81,13 +83,14 @@ export function Home() {
 /** The empty home, and under it whatever is being followed from it. */
 function Nothing({ grows, onStartGrow }: { grows: HomeAnswer['followedGrows']; onStartGrow: () => void }) {
   const now = useNow();
+  const diary = useDiaryLayer();
 
   return (
     <>
       <EmptyHome onStartGrow={onStartGrow} />
       {/* An account whose only grow has ended owns no place and lands here, so
-          the way into the archive belongs on this half of the home as well. */}
-      <ArchiveLink />
+          the way to its grows belongs on this half of the home as well. */}
+      {diary ? <MyGrowsLine /> : null}
       <FollowingStrip grows={grows} now={now} />
     </>
   );
@@ -108,7 +111,7 @@ function OnePlace({ place, loose, answer }: { place: Place; loose: HomeSpaceCard
           ))}
         </div>
       ) : null}
-      {diary ? <ArchiveLink /> : null}
+      {diary ? <MyGrowsLine /> : null}
       <FollowingStrip grows={answer.followedGrows} now={now} />
     </div>
   );
@@ -165,7 +168,7 @@ function Places({
       </div>
 
       {diary ? <NewGrowRow onOpen={onStartGrow} /> : null}
-      {diary ? <ArchiveLink /> : null}
+      {diary ? <MyGrowsLine /> : null}
       <FollowingStrip grows={answer.followedGrows} now={now} />
       {offerDiary ? <DiaryOffer /> : null}
     </section>

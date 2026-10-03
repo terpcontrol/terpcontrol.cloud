@@ -23,6 +23,14 @@ const withQuery = (path: string, query: Record<string, string>): string => `${pa
 
 export const placePath = (spaceId: string): string => `/spaces/${spaceId}`;
 
+/** "My grows", every grow of the account, which Start and Me lead to. */
+export const MY_GROWS = '/grows';
+
+/** What a grow page is told when it is opened from "My grows", so its way back leads there. */
+export const FROM_MY_GROWS = { from: 'grows' } as const;
+
+export const openedFromMyGrows = (state: unknown): boolean => (state as { from?: unknown } | null)?.from === FROM_MY_GROWS.from;
+
 export const membersPath = (spaceId: string): string => `/spaces/${spaceId}/members`;
 
 /** The pages below Steuerung: the targets it opens on where a plan runs, the alarm rules, and the plan where none does. */

@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Camera, GrowListItem, Me, Scheme, ShareLink } from '@fg2/shared-types/v1';
+import type { Camera, GrowListItem, Me, MyGrowCard, Scheme, ShareLink } from '@fg2/shared-types/v1';
 import { About } from '@/screens/me/about/About';
 import { premiumLine, shareLinksLine } from '@/screens/me/doors';
 import { Me as MeScreen } from '@/screens/Me';
@@ -169,6 +169,7 @@ const server = {
   cameras: [camera({})],
   own: [OWN],
   follows: 2,
+  mine: [] as MyGrowCard[],
   asked: [] as string[],
   failing: [] as string[],
   held: {} as Record<string, Promise<Response> | undefined>,
@@ -185,6 +186,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
 
   if (pathname === '/v1/me') return json(server.me);
   if (pathname === '/v1/grows') return json({ items: server.grows, nextCursor: null });
+  if (pathname === '/v1/home/grows') return json({ items: server.mine, nextCursor: null });
   if (pathname === '/v1/follows')
     return json({ items: Array.from({ length: server.follows }, (_, index) => ({ id: `f${index}`, growId: `g${index}` })), nextCursor: null });
   if (pathname === '/v1/share-links') return json({ items: server.links, nextCursor: null });
@@ -229,6 +231,7 @@ beforeEach(() => {
   server.cameras = [camera({})];
   server.own = [OWN];
   server.follows = 2;
+  server.mine = [{ endedAt: null }, { endedAt: null }, { endedAt: '2025-12-01T00:00:00.000Z' }] as MyGrowCard[];
   server.asked = [];
   server.failing = [];
   server.held = {};
@@ -413,6 +416,30 @@ describe('what is empty', () => {
     server.own = [OWN];
     draw();
     expect(await lineUnder('Feeding schemes')).toContain('1 own');
+  });
+
+  /**
+   * Every grow, finished ones included, is a door of the diary's: an account
+   * that keeps none and never had a grow is not shown a page that could only
+   * say it is empty, while one that has grows keeps the way to them even with
+   * the diary turned off.
+   */
+  it('has a door to every grow for a diary, or for whoever has grows', async () => {
+    const shown = draw();
+    expect(await lineUnder('My grows')).toBe('2 running · 1 finished');
+    expect(screen.getByRole('link', { name: /^My grows/ })).toHaveAttribute('href', '/grows');
+    shown.unmount();
+
+    server.mine = [];
+    const empty = draw();
+    expect(await lineUnder('My grows')).toBe('no grows yet');
+    empty.unmount();
+
+    server.me = me({ layers: { diary: false } });
+    draw();
+    expect(await lineUnder('Notifications')).toBeTruthy();
+    await waitFor(() => expect(server.asked).toContain('/v1/home/grows'));
+    expect(screen.queryByRole('link', { name: /^My grows/ })).not.toBeInTheDocument();
   });
 
   /**

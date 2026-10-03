@@ -292,6 +292,16 @@ describe('the bar', () => {
     await waitFor(() => expect(within(bar()).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page'));
   });
 
+  it('keeps Start marked on "My grows", and sends the address the finished grows had there', async () => {
+    server.diary = true;
+    server.me = meOf(true, { diary: true, places: false });
+    const router = open('/grows/archive');
+
+    await waitFor(() => expect(where(router)).toBe('/grows'));
+    expect(await screen.findByRole('heading', { level: 1, name: 'My grows' })).toBeInTheDocument();
+    expect(within(bar()).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+  });
+
   it('leads back from the task list to the place it was opened from, which is Start with one place', async () => {
     server.diary = true;
     server.me = meOf(true, { diary: true, places: false });

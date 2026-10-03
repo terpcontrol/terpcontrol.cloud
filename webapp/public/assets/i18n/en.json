@@ -2151,12 +2151,28 @@
     "earlierWeeks": "Earlier weeks",
     "ended": "ended {{date}}",
     "finalDay": "final day",
-    "archive": {
-      "title": "Archive",
-      "count_one": "{{count}} finished grow",
-      "count_other": "{{count}} finished grows",
-      "none": "Nothing finished yet · a grow appears here once you end it",
-      "partial": "There are more than could be read in one go; open the archive again to read on."
+    "mine": {
+      "title": "My grows",
+      "running": "Running",
+      "finished": "Finished",
+      "runningCount_one": "{{count}} running",
+      "runningCount_other": "{{count}} running",
+      "finishedCount_one": "{{count}} finished",
+      "finishedCount_other": "{{count}} finished",
+      "none": "no grows yet",
+      "new": "New grow",
+      "noPlace": "no place",
+      "sharedTag": "shared",
+      "sharedBy": "by @{{handle}}",
+      "ran": "{{from}} – {{to}}",
+      "ranDays_one": "{{count}} day",
+      "ranDays_other": "{{count}} days",
+      "harvest": "Harvest",
+      "noneRunning": "No grow is running right now.",
+      "noneFinished": "Nothing finished yet · a grow appears here once you harvest or end it.",
+      "emptyTitle": "No grow yet",
+      "emptyText": "All your grows live here – the running ones and the finished ones, each with its picture, place and harvest. Start a grow and it appears here.",
+      "partial": "There are more than could be read in one go; open the page again to read on."
     },
     "phaseBarEndedLabel": "Phase progress, ended in {{stage}}",
     "noWeeks": "No phase yet · the weeks start with the first phase",
@@ -4607,6 +4623,10 @@
     "growEnds": {
       "title": "Ending the grow",
       "text": "Once the last plants are harvested the grow ends on this day: nothing can be dated after it, and it cannot be reopened in the app. Enter drying and curing first if they belong in the diary."
+    },
+    "myGrows": {
+      "title": "My grows",
+      "text": "Every grow you can see is here: your own, and those in places somebody invited you into. Running grows come first, finished ones below, newest first. A grow is finished once its last plants are harvested or you end it. Its picture is the newest camera picture taken with the light on while the grow stood in front of the camera – otherwise the newest photo from its diary."
     },
     "dayNightAverages": {
       "title": "Day / night",

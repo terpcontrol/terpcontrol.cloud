@@ -11,11 +11,9 @@ import { LogProvider } from '@/log/LogProvider';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, GrowListItem, GrowWeekCard, Media, MediaRenderStatus } from '@fg2/shared-types/v1';
 import { exportFilename } from '@/api/exports';
-import { GrowArchive } from '@/screens/grow/Archive';
 import { GrowHeader } from '@/screens/grow/GrowPage';
 import { PhaseBar } from '@/screens/grow/PhaseBar';
 import { Report } from '@/screens/grow/Report';
-import { NoLongerHere } from '@/ui/PageState';
 import { WeekCard } from '@/screens/grow/WeekCard';
 import { ON_THE_DEMO, SIGNED_IN } from './session';
 
@@ -673,48 +671,6 @@ describe('the days of a week without a camera', () => {
     expect(container.querySelector('ul[data-pictureless]')).toBeNull();
     const tiles = container.querySelectorAll('li img');
     expect([...tiles].some(img => img.getAttribute('src')?.startsWith('/media/media-photo'))).toBe(true);
-  });
-});
-
-describe('the archive', () => {
-  const finished: GrowListItem = { ...grow, id: 'grow-old', name: 'Autumn run', endedAt: at(20, 15), summary: { ...grow.summary, dayNumber: 14 } };
-
-  it('lists a grow that has ended and links to its diary, which nothing else in the app does', async () => {
-    wire.grows = [grow, finished];
-    draw(<GrowArchive />);
-
-    const row = await screen.findByRole('link', { name: /Autumn run/ });
-    expect(row).toHaveAttribute('href', '/grows/grow-old/weeks');
-    expect(row).toHaveTextContent('15 Aug 2026 → 29 Aug 2026');
-    // The grow that is still running belongs on the home, not here.
-    expect(screen.queryByText('Spring run')).not.toBeInTheDocument();
-    expect(screen.getByText('1 finished grow')).toBeInTheDocument();
-  });
-
-  it('says an account with nothing finished has nothing rather than drawing an empty list', async () => {
-    wire.grows = [grow];
-    draw(<GrowArchive />);
-
-    expect(await screen.findByText(/Nothing finished yet/)).toBeInTheDocument();
-  });
-
-  it('is what stops the page for a grow somebody cannot reach blaming the grow for having ended', async () => {
-    // The archive is one tap away and opens a finished grow in full, so a page
-    // that explained a 404 by the grow having ended would be contradicted by
-    // the screen beside it - and would point the person who was really taken
-    // out of a tent at a cause this app does not have.
-    wire.grows = [grow, finished];
-    draw(
-      <>
-        <NoLongerHere what="grow" />
-        <GrowArchive />
-      </>,
-    );
-
-    expect(screen.getByRole('alert')).toHaveTextContent('This grow cannot be opened.');
-    expect(screen.getByText(/Either there is nothing at this address, or whoever shared it with you has taken you out/)).toBeInTheDocument();
-    expect(screen.queryByText(/has ended/)).not.toBeInTheDocument();
-    expect(await screen.findByRole('link', { name: /Autumn run/ })).toBeInTheDocument();
   });
 });
 

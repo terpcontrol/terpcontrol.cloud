@@ -2159,12 +2159,28 @@
     "earlierWeeks": "Frühere Wochen",
     "ended": "beendet {{date}}",
     "finalDay": "letzter Tag",
-    "archive": {
-      "title": "Archiv",
-      "count_one": "{{count}} abgeschlossener Grow",
-      "count_other": "{{count}} abgeschlossene Grows",
-      "none": "Noch nichts abgeschlossen · ein Grow erscheint hier, sobald du ihn beendest",
-      "partial": "Es sind mehr, als auf einmal gelesen werden konnten; öffne das Archiv erneut, um weiterzulesen."
+    "mine": {
+      "title": "Meine Grows",
+      "running": "Laufend",
+      "finished": "Abgeschlossen",
+      "runningCount_one": "{{count}} laufend",
+      "runningCount_other": "{{count}} laufend",
+      "finishedCount_one": "{{count}} abgeschlossen",
+      "finishedCount_other": "{{count}} abgeschlossen",
+      "none": "noch keine Grows",
+      "new": "Neuer Grow",
+      "noPlace": "ohne Ort",
+      "sharedTag": "geteilt",
+      "sharedBy": "von @{{handle}}",
+      "ran": "{{from}} – {{to}}",
+      "ranDays_one": "{{count}} Tag",
+      "ranDays_other": "{{count}} Tage",
+      "harvest": "Ernte",
+      "noneRunning": "Gerade läuft kein Grow.",
+      "noneFinished": "Noch nichts abgeschlossen · ein Grow erscheint hier, sobald du ihn erntest oder beendest.",
+      "emptyTitle": "Noch kein Grow",
+      "emptyText": "Hier stehen alle deine Grows – die laufenden und die abgeschlossenen, jeder mit Bild, Ort und Ernte. Starte einen Grow, und er erscheint hier.",
+      "partial": "Es sind mehr, als auf einmal gelesen werden konnten; öffne die Seite erneut, um weiterzulesen."
     },
     "phaseBarEndedLabel": "Phasenverlauf, beendet in {{stage}}",
     "noWeeks": "Noch keine Phase · die Wochen beginnen mit der ersten Phase",
@@ -4615,6 +4631,10 @@
     "growEnds": {
       "title": "Den Grow beenden",
       "text": "Sind die letzten Pflanzen geerntet, endet der Grow an diesem Tag: Danach lässt sich nichts mehr datieren, und in der App kann er nicht wieder geöffnet werden. Trag Trocknung und Reifung vorher ein, wenn sie ins Tagebuch gehören."
+    },
+    "myGrows": {
+      "title": "Meine Grows",
+      "text": "Hier stehen alle Grows, die du siehst: deine eigenen und die an Orten, zu denen dich jemand eingeladen hat. Laufende stehen oben, abgeschlossene darunter, die neuesten zuerst. Abgeschlossen ist ein Grow, sobald die letzten Pflanzen geerntet sind oder du ihn beendest. Das Bild ist das neueste Kamerabild bei Licht aus der Zeit, in der der Grow vor der Kamera stand – sonst das neueste Foto aus seinem Tagebuch."
     },
     "dayNightAverages": {
       "title": "Tag / Nacht",
