@@ -126,6 +126,9 @@ export class HardwareReportService {
 
     if (paired === null) {
       await this.cameras.updateOne({ deviceId: device.id, kind: 'terpcam_controller', removedAt: null }, { $set: { removedAt: new Date() } });
+      // Unpairing resets the device's copy of the password as it resets the
+      // camera's: the next camera starts on the default until it is secured.
+      await this.devices.updateOne({ id: device.id }, { $set: { cameraSecret: null } });
       return;
     }
 
@@ -153,8 +156,20 @@ export class HardwareReportService {
       // because nothing it said about where it stood outlived being taken away.
       // A live one is left where its owner put it, which is not always the
       // controller's own tent.
-      const placed = existing.removedAt === null ? {} : { spaceId: device.spaceId };
-      await this.cameras.updateOne({ id: existing.id }, { $set: { deviceId: device.id, did: paired, removedAt: null, ...placed } });
+      const revived = existing.removedAt !== null;
+      const placed = revived ? { spaceId: device.spaceId } : {};
+      // A camera that is not the one this row last answered for - brought back,
+      // or another one paired in its place - is entered with the password the
+      // device reported for it, which pairing sends before the id. The row's own
+      // would be the previous camera's, or none: a buried row lost its way in.
+      // The same camera reported again (every boot) keeps what the row holds.
+      const entered = revived || existing.did !== paired ? { secret: await this.reportedSecret(device.id) } : {};
+      // Where it answers, too, for a camera a claim brings back: nothing reports that again until the device restarts.
+      const reached = revived ? { uid: notNone(device.state.hardware.webcam_uid), ip: notNone(device.state.hardware.webcam_ip) } : {};
+      await this.cameras.updateOne(
+        { id: existing.id },
+        { $set: { deviceId: device.id, did: paired, removedAt: null, ...placed, ...entered, ...reached } },
+      );
       return;
     }
 
@@ -171,6 +186,7 @@ export class HardwareReportService {
       did: paired,
       uid: notNone(device.state.hardware.webcam_uid),
       ip: notNone(device.state.hardware.webcam_ip),
+      secret: await this.reportedSecret(device.id),
       model: 'terp_cam',
       entitlement: { validUntil, grant: 'included' },
       isDemo: device.isDemo,
@@ -179,11 +195,32 @@ export class HardwareReportService {
     logger.info(`Device ${device.id} reported a paired camera`);
   }
 
-  /** Reported on every attempt to secure the camera, including the failed ones, where it is empty. */
+  /**
+   * Reported on every attempt to secure the camera, including the failed ones,
+   * where it is empty, and again on every boot.
+   *
+   * Kept on the device as well as on the camera row, because the row is not
+   * always there to take it: pairing reports the password before the camera's
+   * id, which is what makes the row, and a device nobody has claimed yet has no
+   * camera at all. Dropped there, the password of a freshly secured camera was
+   * gone until the device next restarted, and every capture until then was
+   * turned away for the default one.
+   */
   private async rememberCameraSecret(device: StoredDevice, key: string, value: string): Promise<void> {
     if (key !== 'webcam_pwd') return;
 
-    await this.updateCamera(device.id, { secret: value.length > 0 ? value : null });
+    const secret = value.length > 0 ? value : null;
+    await this.devices.updateOne({ id: device.id }, { $set: { cameraSecret: secret } });
+    await this.updateCamera(device.id, { secret });
+  }
+
+  /** The password the device last reported for its camera, null for the default. */
+  private async reportedSecret(deviceId: string): Promise<string | null> {
+    const device = await this.devices
+      .findOne({ id: deviceId }, { cameraSecret: 1 })
+      .select('+cameraSecret')
+      .lean<Pick<StoredDevice, 'cameraSecret'>>();
+    return device?.cameraSecret ?? null;
   }
 
   private async updateCamera(deviceId: string, fields: Partial<CameraDocument>): Promise<void> {

@@ -31,6 +31,8 @@ import { MigrationContext, MigrationStep } from '../migration';
  *   way and nowhere else: a stream URL carries its credentials in it, which is
  *   why the old server redacts the key rather than serving it, and nothing in
  *   the model reads it - a camera is reached by its id or by `cameras.url`.
+ *   The password is also kept on the device, unserved, for a camera row made
+ *   later - at a claim, or by a pairing that reports the password before the id.
  */
 
 const HIDDEN_HARDWARE_KEYS = ['webcam_pwd', 'webcam_url'];
@@ -80,6 +82,7 @@ export const devices: MigrationStep = {
           ppfdLuxFactor: numberOf(cloud.ppfdLuxFactor) ?? DEFAULT_SETTINGS.ppfdLuxFactor,
         },
         isDemo: flagOf(device.demoDevice),
+        cameraSecret: cameraSecretOf(device.hardwareInfo),
         state: {
           lastSeenAt: instantOf(device.lastseen),
           claimedAt: null,
@@ -128,3 +131,9 @@ const configurationOf = (context: MigrationContext, id: string, stored: string |
 
 const hardwareOf = (reported: Record<string, string> | undefined): Record<string, string> =>
   Object.fromEntries(Object.entries(reported ?? {}).filter(([key]) => !HIDDEN_HARDWARE_KEYS.includes(key)));
+
+/** What the device last said its camera is secured with; empty and `none` are the default. */
+const cameraSecretOf = (reported: Record<string, string> | undefined): string | null => {
+  const secret = textOf(reported?.webcam_pwd);
+  return secret === 'none' ? null : secret;
+};

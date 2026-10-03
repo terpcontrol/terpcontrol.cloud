@@ -56,8 +56,8 @@ beforeEach(async () => {
   codes = 0;
 
   const access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-  devices = new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access);
   hardware = new HardwareReportService(db.devices, db.cameras);
+  devices = new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access, null, hardware);
 
   await db.devices.create([
     { id: DEVICE, type: 'controller', ownerId: null },
@@ -162,6 +162,80 @@ describe('the camera a controller reports', () => {
     // The pairing id stays: it opens nothing on its own and it is what gives the
     // same person their camera back when they claim the device again.
     expect(buried?.did).toBe(PAIRED);
+  });
+});
+
+describe('the password the cloud signs in to the camera with', () => {
+  const secretOn = async (deviceId: string): Promise<string | null | undefined> =>
+    (await db.cameras.findOne({ deviceId, removedAt: null }).select('+secret').lean())?.secret;
+
+  it('is the one pairing secured the camera with, although it is reported before the camera´s id', async () => {
+    await claim(ALICE, DEVICE);
+
+    // The order the firmware reports a pairing in: secured, then paired, then its P2P id.
+    await reports(DEVICE, 'webcam_pwd=freshly-set');
+    await reports(DEVICE, `webcam_did=${PAIRED}`);
+    await reports(DEVICE, 'webcam_uid=UID-OF-THE-CAM');
+
+    expect(await secretOn(DEVICE)).toBe('freshly-set');
+  });
+
+  it('is the new one when the same camera is paired again, not the one its buried row held', async () => {
+    await claim(ALICE, DEVICE);
+    await reports(DEVICE, `webcam_did=${PAIRED}`);
+    await reports(DEVICE, 'webcam_pwd=the-old-one');
+
+    // Unpaired at the device, reset, and paired again: a camera reset is on the
+    // default password until it is secured afresh.
+    await reports(DEVICE, 'webcam_did=none');
+    await reports(DEVICE, 'webcam_pwd=the-new-one');
+    await reports(DEVICE, `webcam_did=${PAIRED}`);
+
+    expect(await secretOn(DEVICE)).toBe('the-new-one');
+    expect(await db.cameras.countDocuments()).toBe(1);
+  });
+
+  it('is the default for a camera that could not be secured, rather than the previous camera´s', async () => {
+    await claim(ALICE, DEVICE);
+    await reports(DEVICE, `webcam_did=${PAIRED}`);
+    await reports(DEVICE, 'webcam_pwd=the-first-cams');
+
+    // Another camera paired in its place, and securing it failed.
+    await reports(DEVICE, 'webcam_pwd=');
+    await reports(DEVICE, 'webcam_did=TERPCAM02');
+
+    expect(await secretOn(DEVICE)).toBeNull();
+  });
+
+  it('stays as it is when a restart reports the same camera before its password', async () => {
+    await claim(ALICE, DEVICE);
+    await reports(DEVICE, 'webcam_pwd=kept');
+    await reports(DEVICE, `webcam_did=${PAIRED}`);
+
+    await reports(DEVICE, `webcam_did=${PAIRED}`);
+
+    expect(await secretOn(DEVICE)).toBe('kept');
+  });
+
+  it('reaches a camera paired before the device was claimed, from the claim on', async () => {
+    // Paired while the device was nobody's: there was no one to make a camera for.
+    await reports(DEVICE, 'webcam_pwd=before-the-claim');
+    await reports(DEVICE, `webcam_did=${PAIRED}`);
+    await reports(DEVICE, 'webcam_uid=UID-OF-THE-CAM');
+    expect(await db.cameras.countDocuments()).toBe(0);
+
+    const claimed = await claim(ALICE, DEVICE);
+
+    const camera = await db.cameras.findOne({ deviceId: DEVICE, removedAt: null }).select('+secret').lean();
+    expect(camera).toMatchObject({ ownerId: ALICE, did: PAIRED, uid: 'UID-OF-THE-CAM', secret: 'before-the-claim', spaceId: claimed.device.spaceId });
+  });
+
+  it('is never served with the device', async () => {
+    await claim(ALICE, DEVICE);
+    await reports(DEVICE, 'webcam_pwd=hunter2');
+
+    expect(JSON.stringify(devices.serialise(await devices.require(DEVICE)))).not.toContain('hunter2');
+    expect(JSON.stringify(await devices.require(DEVICE))).not.toContain('hunter2');
   });
 });
 

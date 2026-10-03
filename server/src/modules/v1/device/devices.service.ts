@@ -19,6 +19,7 @@ import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { demoDevice } from '@utils/demo';
 import { logger } from '@utils/logger';
+import { HardwareReportService } from '@modules/device-protocol/hardware-report.service';
 import { controlOf } from '@modules/device-protocol/work-modes';
 import { DEVICE_PLACEMENT, DevicePlacement } from './placement.port';
 
@@ -51,6 +52,7 @@ export class DevicesService {
     @InjectModel(MODEL_V1.alarmRule) private readonly alarmRules: Model<StoredAlarmRule>,
     private readonly access: AccessService,
     @Optional() @Inject(DEVICE_PLACEMENT) private readonly placement: DevicePlacement | null = null,
+    @Optional() private readonly hardwareReport: HardwareReportService | null = null,
   ) {}
 
   public byId(id: string): Promise<StoredDevice | null> {
@@ -196,11 +198,28 @@ export class DevicesService {
     // and a live row belonging to somebody else is not a claim's to take, with
     // every picture ever taken under it.
     await this.cameras.updateMany({ deviceId: device.id, ownerId, removedAt: null }, { $set: { spaceId } });
+    // A camera the device paired while it was nobody's has no row yet: a report
+    // makes one only for a device somebody owns, and the device does not say
+    // its camera again until it restarts. So the claim makes it from what was
+    // reported, and the camera is read from the first pass after the claim.
+    await this.cameraOf({ ...claimed, spaceId });
     // A space made for the claim has nothing standing in it yet; one that was
     // named may be a tent in the middle of a grow.
     if (body.spaceId) await this.stoodIn(device.id, body.spaceId);
 
     return { device: this.serialise({ ...claimed, spaceId }, ctx.isDemo), spaceCreated: made !== null };
+  }
+
+  private async cameraOf(device: StoredDevice): Promise<void> {
+    const paired = device.state.hardware.webcam_did?.trim();
+    if (!this.hardwareReport || !paired || paired === 'none') return;
+
+    try {
+      await this.hardwareReport.reconcileCamera(device, paired);
+    } catch (error) {
+      // The claim has happened; the camera follows from the device's next report.
+      logger.error(`Could not make the camera device ${device.id} reported: ${error}`);
+    }
   }
 
   /**

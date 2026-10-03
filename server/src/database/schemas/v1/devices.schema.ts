@@ -90,6 +90,14 @@ export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'cont
    * germinating, and on a device that began before this was kept.
    */
   beforeGermination?: Record<string, number> | null;
+  /**
+   * The password the device last said its Terp Cam is secured with, null for
+   * the manufacturer's default. The camera row keeps its own copy, and this one
+   * is for the moments there is no row to write it to: pairing reports the
+   * password before the camera's id, and a device nobody owns has no camera at
+   * all until it is claimed. Never served, like the camera's own.
+   */
+  cameraSecret?: string | null;
   state: StoredDeviceState;
 }
 
@@ -180,6 +188,8 @@ export const devicesSchema = new Schema<StoredDevice>(
     standardWorkmode: { type: String, default: null },
     beforeDrying: { type: Schema.Types.Mixed, default: null },
     beforeGermination: { type: Schema.Types.Mixed, default: null },
+    // Never served, and not read unless asked for: the camera's password.
+    cameraSecret: { type: String, default: null, select: false },
     firmware: { type: firmwareTargetSchema, required: true, default: () => ({}) },
     // The device's own configuration document, null until it reports one. Its
     // schema belongs to the firmware of that type and is not restated here.
