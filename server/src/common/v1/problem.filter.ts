@@ -29,6 +29,15 @@ const CODES: Readonly<Record<number, string>> = {
   [HttpStatus.INTERNAL_SERVER_ERROR]: 'internal_error',
 };
 
+/**
+ * How loud a refusal is in the log. Only a 5xx is the server failing; a 4xx is
+ * the answer it meant to give, and a 404 is often the expected one - "this
+ * device is not running a plan" is asked several times on every cockpit - so
+ * it is left to the request line, which already carries the status.
+ */
+const levelOf = (status: number): 'error' | 'warn' | 'debug' =>
+  status >= HttpStatus.INTERNAL_SERVER_ERROR ? 'error' : status === HttpStatus.NOT_FOUND ? 'debug' : 'warn';
+
 // Compared the way the router matches, which ignores case: `/V1/devices` reaches
 // the same handler, and a refusal answered in the other half's shape there would
 // be a way around every promise this filter makes.
@@ -57,7 +66,10 @@ export class ProblemExceptionFilter extends ApiExceptionFilter {
     }
 
     const problem = this.asProblem(exception);
-    logger.error(`[${request.method}] ${loggablePath(request.url)} >> StatusCode:: ${problem.status}, Message:: ${problem.detail}`);
+    logger.log(
+      levelOf(problem.status),
+      `[${request.method}] ${loggablePath(request.url)} >> StatusCode:: ${problem.status}, Message:: ${problem.detail}`,
+    );
 
     void context.getResponse<FastifyReply>().status(problem.status).type('application/problem+json; charset=utf-8').send(problem);
   }
