@@ -3288,11 +3288,13 @@
         "at": {
           "fridge": "Am Kühlschrank­modul",
           "controller": "Am Controller",
+          "fan": "Am AIR-Lüfter",
+          "plug": "An der smarten Steckdose",
           "device": "Am Gerät"
         },
         "noDevice": {
           "label": "Noch kein Gerät",
-          "text": "Eine Terp Cam wird am Display eines Kühlschrankmoduls oder Controllers gekoppelt, und dieses Konto hat noch keins übernommen. Übernimm zuerst eins, dann führt dich dieser Reiter durch das Koppeln.",
+          "text": "Eine Terp Cam wird am Display eines Terp-Control-Geräts gekoppelt – Kühlschrankmodul, Controller, AIR-Lüfter oder smarte Steckdose –, und dieses Konto hat noch keins übernommen. Übernimm zuerst eins, dann führt dich dieser Reiter durch das Koppeln.",
           "claim": "Gerät übernehmen"
         }
       },

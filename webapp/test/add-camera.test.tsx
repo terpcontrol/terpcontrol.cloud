@@ -85,6 +85,8 @@ const coldController = device({ id: 'device-3', name: 'Old controller', seenSeco
 const fridge = device({ id: 'device-4', name: 'fridge', type: 'fridge', spaceId: 'space-2' });
 /** A socket stands in a place too, and has no display to pair a cam at. */
 const plug = device({ id: 'device-6', name: 'Lamp socket', type: 'plug', spaceId: 'space-2' });
+const fan = device({ id: 'device-7', name: 'Exhaust', type: 'fan', spaceId: 'space-2' });
+const lamp = device({ id: 'device-8', name: 'Lamp', type: 'light', spaceId: 'space-2' });
 
 /** What every stream body says beyond the place, the name and the address, where nothing else was chosen. */
 const plainStream = { username: '', password: '', transport: 'tcp' };
@@ -210,6 +212,19 @@ describe('pairing a Terp Cam at a device', () => {
     expect(screen.queryByText(/controller/)).not.toBeInTheDocument();
   });
 
+  it.each([
+    ['Smart Socket', plug, 'At the Smart Socket'],
+    ['AIR fan', fan, 'At the AIR fan'],
+  ])('pairs a cam at a %s as it does at a controller, the only device some accounts have', async (_kind, only, at) => {
+    state.devices = [only];
+    draw();
+
+    // Both carry the Terp Cam entry in their menu and bridge the cam the same way.
+    expect(await screen.findByText(`${at}: press the knob, then Terp Cam › connect cam`)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Terp Cam' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByText('No device yet')).not.toBeInTheDocument();
+  });
+
   it('says "at the device" only to an account with both kinds', async () => {
     state.devices = [controller, fridge];
     await drawPairing();
@@ -310,7 +325,8 @@ describe('pairing a Terp Cam at a device', () => {
 
 describe('an account with no device to pair a cam at', () => {
   beforeEach(() => {
-    state.devices = [plug];
+    // A light module has no Terp Cam entry in its menu.
+    state.devices = [lamp];
   });
 
   it('opens on the address form rather than on steps nobody can follow', async () => {
@@ -325,7 +341,7 @@ describe('an account with no device to pair a cam at', () => {
     await openTab('Terp Cam');
 
     expect(panel().getByText('No device yet')).toBeInTheDocument();
-    expect(panel().getByText(/paired at the display of a fridge module or a controller/)).toBeInTheDocument();
+    expect(panel().getByText(/a fridge module, a controller, an AIR fan or a Smart Socket/)).toBeInTheDocument();
     expect(panel().getByRole('link', { name: /Claim a device/ })).toHaveAttribute('href', '/claim');
     // A watch that nothing could ever cross is not left running.
     expect(panel().queryByText('Nothing new yet. This list fills itself for as long as it is open.')).not.toBeInTheDocument();

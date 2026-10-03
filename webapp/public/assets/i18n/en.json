@@ -3280,11 +3280,13 @@
         "at": {
           "fridge": "At the fridge module",
           "controller": "At the controller",
+          "fan": "At the AIR fan",
+          "plug": "At the Smart Socket",
           "device": "At the device"
         },
         "noDevice": {
           "label": "No device yet",
-          "text": "A Terp Cam is paired at the display of a fridge module or a controller, and this account has none claimed. Claim one first and this tab will walk you through the pairing.",
+          "text": "A Terp Cam is paired at the display of a Terp Control device – a fridge module, a controller, an AIR fan or a Smart Socket – and this account has none claimed. Claim one first and this tab will walk you through the pairing.",
           "claim": "Claim a device"
         }
       },

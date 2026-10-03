@@ -19,7 +19,7 @@ const STEPS = ['one', 'two', 'three'] as const;
 
 /**
  * Pairing the Terp Cam a device answers for, which this screen does not do:
- * the knob on a fridge module or a controller does it, the device reports the
+ * the knob on the device does it, the device reports the
  * pairing over MQTT, and the cloud makes the camera's row from that report. So
  * the app's part is to say what to press and then to notice what arrives.
  *
