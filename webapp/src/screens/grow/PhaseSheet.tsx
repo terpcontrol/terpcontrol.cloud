@@ -8,7 +8,7 @@ import { Sheet } from '@/log/Sheet';
 import { nextStage } from '@/log/defaults';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
-import { climateChoiceName, presetsOf, stageChoiceName } from '@/ui/presets';
+import { climateChoiceName, presetsOf } from '@/ui/presets';
 import { standsIn } from '@/ui/session-access';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES, weekOfGrowDay } from '@/ui/stages';
@@ -84,7 +84,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           <Choices label={t('grow.lifecycle.phase.stageLabel')}>
             {STAGES.map(one => (
               <Choice key={one} chosen={one === stage} onChoose={() => pickStage(one)}>
-                {stageChoiceName(t, one)}
+                {t(`home.stage.${one}`)}
                 {!ended && one === grow.summary.stage ? ` · ${t('log.now')}` : ''}
               </Choice>
             ))}
@@ -268,7 +268,7 @@ function PhaseEditor({ grow, phase, onDone }: { grow: GrowListItem; phase: Phase
               setPreset(current => (presetsOf(one).includes(current ?? '') ? current : null));
             }}
           >
-            {stageChoiceName(t, one)}
+            {t(`home.stage.${one}`)}
           </Choice>
         ))}
       </Choices>

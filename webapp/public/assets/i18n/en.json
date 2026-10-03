@@ -2315,6 +2315,7 @@
       "tells": {
         "occupied": "{{grow}} is already growing in {{place}}.",
         "occupiedSteered": "{{grow}} is already growing in {{place}}: its climate goes to the {{stage}} preset now, and a plan running there pauses.",
+        "occupiedKeepsLight": "{{grow}} is already growing in {{place}}, so the light there stays on: the germination is only recorded. If the seeds are to sprout there in the dark, choose “Germination · dark” under Control – though {{grow}} then gets no light either.",
         "preset": "The targets in {{place}} go onto the {{stage}} climate with it.",
         "presetDark": "{{place}} goes onto {{stage}} with it: light off, no CO₂, one temperature round the clock – until the grow moves on to seedling.",
         "noController": "Nothing in {{place}} steers a climate, so the stage is recorded and nothing is written to anything.",
@@ -2654,7 +2655,7 @@
         "remove": "Remove",
         "add": "Add a step",
         "dryingNote": "A step into drying switches the device into its drying mode: the light stays off, no CO₂ is dosed, and it holds these two figures round the clock.",
-        "germinationNote": "A step into germination switches the device dark: no light, no CO₂, the humidity left alone, and it holds this one temperature round the clock. The next step with another stage brings the light back."
+        "germinationNote": "A step into germination switches the device dark: no light, no CO₂, the humidity left alone, and it holds this one temperature round the clock. The next step brings the light back, one without a stage too – unless it is a germination itself."
       },
       "figure": {
         "dayTemperature": "Day · temperature",
@@ -4604,7 +4605,7 @@
     },
     "stage": {
       "title": "Stage and phase",
-      "text": "The stage is where the plants are, from germination to curing. Germination means the same everywhere: seeds sprouting in the dark, and with its climate the device goes dark; seedling is the first stage with light. Entering one writes a phase on the grow: the date it began, a diary line, and the stage's alarm rules on the devices where the plants stand (curing has none)."
+      "text": "The stage is where the plants are, from germination to curing. Germination means the same everywhere: seeds sprouting in the dark, and with its climate the device goes dark; seedling is the first stage with light. Entering one writes a phase on the grow: the date it began, a diary line, and the stage's alarm rules on the devices where the plants stand (curing has none). Only a germination recorded without its climate beside a device with its light on leaves that device's alarms as they are."
     },
     "stepPreset": {
       "title": "A preset in a step",
@@ -4648,7 +4649,7 @@
     },
     "phasePreset": {
       "title": "Targets with the phase",
-      "text": "Leave as they are records only the phase: light, temperature and humidity stay as they are under Control. Choosing a climate switches the targets of the devices there right away – for Flower, for instance, the light goes to 12 hours, for “Germination · dark” the light goes off. Out of germination, any other phase brings the light back. Auto is for autoflowers, which keep long days."
+      "text": "Leave as they are records only the phase: light, temperature and humidity stay as they are under Control. Choosing a climate switches the targets of the devices there right away – for Flower, for instance, the light goes to 12 hours, for “Germination · dark” the light goes off. A germination that is only recorded beside a device with its light on leaves the alarms as they are too. Out of germination, any other phase brings the light back. Auto is for autoflowers, which keep long days."
     },
     "phaseCorrection": {
       "title": "Correct or withdraw",
@@ -4909,7 +4910,7 @@
     "advanced": {
       "operatingMode": {
         "title": "Operating mode",
-        "text": "What the device does as a whole while control is on. Standard holds temperature, humidity, light and CO₂ by day and night. Germination · dark keeps it dark round the clock without CO₂ and heats and cools to one temperature – the one in the “Germination · dark” column under Targets; the “Germination · dark” climate and the germination phase set the same germination. A fridge also has greenhouse: the temperature only, light and CO₂ keep running by the light plan, the compressor only cools and does not dehumidify on purpose. Energy saving applies to standard only. A drying phase takes precedence and returns to the operating mode afterwards."
+        "text": "What the device does as a whole while control is on. Standard holds temperature, humidity, light and CO₂ by day and night. Germination · dark keeps it dark round the clock without CO₂ and heats and cools to one temperature – the one in the “Germination · dark” column under Targets; in a tent the exhaust does the cooling, and a dehumidifier stays off. The “Germination · dark” climate and the germination phase set the same germination. A fridge also has greenhouse: the temperature only, light and CO₂ keep running by the light plan, the compressor only cools and does not dehumidify on purpose. Energy saving applies to standard only. A drying phase takes precedence and returns to the operating mode afterwards."
       },
       "chartStep": {
         "title": "Interval",
@@ -5042,7 +5043,7 @@
     },
     "germination": {
       "title": "Germination · dark",
-      "text": "Seeds germinate in the dark: the device goes into its germination mode – no light, no CO₂, the humidity left alone – and heats and cools to one temperature round the clock. 24 °C is suggested, the middle of the 22–26 °C seeds sprout fastest at. Germination starts with “Germination · dark” under Control, as the climate of the germination phase, during setup or with a germination plan step. Any other climate, phase or plan step ends it: the device holds day and night with light again, on standard with its energy saving. Entering the germination phase without a climate changes nothing on the device."
+      "text": "Seeds germinate in the dark: the device goes into its germination mode – no light, no CO₂, the humidity left alone – and heats and cools to one temperature round the clock. In a tent the exhaust does the cooling; a dehumidifier stays off, as it would warm the tent and dry out the medium the seeds sprout in. 24 °C is suggested, the middle of the 22–26 °C seeds sprout fastest at. Germination starts with “Germination · dark” under Control, as the climate of the germination phase, during setup or with a germination plan step. Any other climate, phase or plan step – one without a stage too – ends it: the device holds day and night with light again, on standard with its energy saving. Entering the germination phase without a climate changes nothing on the device, its alarms included."
     },
     "socketTimer": {
       "title": "Timer",
@@ -5293,6 +5294,8 @@
     "dries": "The device starts drying: no light and no CO₂.",
     "endsDrying": "Drying ends, and the device holds day and night again.",
     "alarms": "The alarms Too hot, Too cold and Too humid follow the phase.",
+    "alarmsGermination": "The alarms Too hot and Too cold follow germination; it has no Too humid alarm.",
+    "alarmsKept": "The alarms stay as they are: they belong to the climate the device goes on holding.",
     "noClimate": "{{stage}} has no climate of its own – the targets stay as they are.",
     "keepsDrying": "Drying holds the night figures as they are, round the clock: {{temperature}} °C · {{humidity}} % – no light and no CO₂.",
     "setsDark": "New: {{figures}} – replaces the targets under Control.",
@@ -5382,7 +5385,7 @@
     "greenhouse": "Greenhouse",
     "greenhouseNote": "Temperature only: light and CO₂ run, the compressor only cools, humidity is not controlled.",
     "germination": "Germination · dark",
-    "germinationNote": "For seeds germinating in the dark: no light, no CO₂, one temperature round the clock – the night temperature at first, to be changed under Targets. Back on standard, the night temperature from before holds again. “Germination · dark” under Control sets the same, at 24 °C straight away.",
+    "germinationNote": "For seeds germinating in the dark: no light, no CO₂, one temperature round the clock – the night temperature at first, to be changed under Targets. A dehumidifier stays off; in a tent the exhaust does the cooling. Back on standard, the night temperature from before holds again. “Germination · dark” under Control sets the same, at 24 °C straight away.",
     "ask": "Switch to {{mode}}? {{what}} Standard here switches it back.",
     "yes": "Switch to {{mode}}"
   },

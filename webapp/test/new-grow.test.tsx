@@ -192,12 +192,12 @@ describe('the new-grow sheet', () => {
     // The run after the last one *here*, offered rather than filled in - the
     // account's newest run stands on the balcony and is not what the tent is counted from.
     expect(screen.getByRole('button', { name: 'Spring run #2' })).toBeInTheDocument();
-    // Under the chips, and again beside the button, where it cannot have scrolled away: germination is dark.
+    // Beside the button, where it cannot have scrolled away, and only there: germination is dark.
     expect(
       screen.getAllByText(
         'Blue Dream tent goes onto Germination · dark with it: light off, no CO₂, one temperature round the clock – until the grow moves on to seedling.',
       ),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
   });
 
   it('counts the suggestion over the place that is chosen, not over the account', async () => {
@@ -355,9 +355,30 @@ describe('where the plants go', () => {
 
     press('Blue Dream tent · Controller + Cam');
 
+    // Seeds beside plants that are growing are only recorded: the light stays theirs, and the chip says no darkness.
+    const keepsLight =
+      'Spring run is already growing in Blue Dream tent, so the light there stays on: the germination is only recorded. If the seeds are to sprout there in the dark, choose “Germination · dark” under Control – though Spring run then gets no light either.';
+    expect(screen.getAllByText(keepsLight)).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Germination · today' })).toBeInTheDocument();
+    expect(screen.queryByText(/goes onto Germination · dark with it/)).not.toBeInTheDocument();
+
+    // Any other stage still puts the place on its climate, and says so once beside the button.
+    press('Seedling · with light');
     const warning =
-      'Spring run is already growing in Blue Dream tent: its climate goes to the Germination · dark preset now, and a plan running there pauses.';
-    expect(screen.getAllByText(warning)).toHaveLength(2);
+      'Spring run is already growing in Blue Dream tent: its climate goes to the Seedling · with light preset now, and a plan running there pauses.';
+    expect(screen.getAllByText(warning)).toHaveLength(1);
+  });
+
+  it('starts a grow beside one already growing without darkening the place', async () => {
+    stack.grows = [{ ...spring, endedAt: null, placements: [placement('space-1', null)] } as GrowListItem, tomatoes];
+    await drawLoaded();
+    press('Blue Dream tent · Controller + Cam');
+
+    press('Start the grow · Day 1');
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+    expect(api.post).toHaveBeenNthCalledWith(2, '/grows/grow-new/phases', { stage: 'germination', preset: null, startedAt: expect.any(String) });
+    expect(api.post).not.toHaveBeenCalledWith('/spaces/space-1/preset-applications', expect.anything());
   });
 
   it('honours the place it was opened for, and falls back where that place is gone', async () => {

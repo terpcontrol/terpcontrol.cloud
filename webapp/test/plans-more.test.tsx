@@ -284,6 +284,24 @@ describe('light hours in a step', () => {
     expect(Object.keys(state.saved[0].steps[0].settings)).toEqual(['night']);
   });
 
+  it('offer a germination step the temperature the device holds only while it germinates', () => {
+    const lit = device();
+    lit.configuration = { ...lit.configuration, night: { temperature: 21, humidity: 55 } };
+    const { unmount } = wrap(<PlanEditor device={lit} plan={null} draft={draft()} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
+    // A night with the light on is no temperature to sprout seeds at, so 24 °C stays.
+    expect(screen.queryByRole('button', { name: 'Take what the device holds now' })).not.toBeInTheDocument();
+    unmount();
+
+    const dark = { ...lit, configuration: { ...lit.configuration, workmode: 'breed', night: { temperature: 23, humidity: 55 } } };
+    dark.control = { running: true, drying: false, mode: 'germination', energySaving: false };
+    wrap(<PlanEditor device={dark} plan={null} draft={draft()} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Take what the device holds now' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
+    expect(state.saved.at(-1)?.steps[0]).toMatchObject({ stage: 'germination', settings: { night: { temperature: 23 } } });
+  });
+
   it('take the hours the controller holds now along with its figures', () => {
     wrap(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
 

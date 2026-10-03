@@ -21,7 +21,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { DAY_IN_YEAR } from '@/ui/zone';
 import { useCreateSpace } from './create-space';
-import { dayNumber, growBody, growIn, presetFor, START_STAGES, suggestedName, tells, type Draft, type PlantRow } from './new-grow';
+import { dayNumber, growBody, growIn, presetFor, recordsOnly, START_STAGES, suggestedName, tells, type Draft, type PlantRow } from './new-grow';
 import styles from './NewGrow.module.css';
 
 /** The kinds of place a grow can be started in. A room holds other places rather than plants, so it is not one of them. */
@@ -190,16 +190,15 @@ function Form({
   const day = dayNumber(draft.startedAt, now);
   // The phase writes the tent's climate only where it carries a preset, so the
   // stage that carries none is applied to the place on its own - unless the
-  // sheet that opened this one has just written that very stage there. A place
-  // whose hardware could not be read is not written to at all: guessing there
-  // is a controller is the one mistake that cannot be taken back.
-  const alsoClimate =
-    place !== null &&
-    preset === null &&
-    writesClimate(draft.stage) &&
-    standing !== null &&
-    standing.length > 0 &&
-    !(stage !== null && draft.stage === stage);
+  // sheet that opened this one has just written that very stage there, or the
+  // seeds would darken the plants already growing there (`recordsOnly`). A
+  // place whose hardware could not be read is not written to at all: guessing
+  // there is a controller is the one mistake that cannot be taken back.
+  const steers = (one: GrowthStage): boolean =>
+    place !== null && writesClimate(one) && standing !== null && standing.length > 0 && !recordsOnly(one, already);
+  const alsoClimate = preset === null && steers(draft.stage) && !(stage !== null && draft.stage === stage);
+  // "Keimung · dunkel" where starting the grow puts the place on it, and the plain stage where it is only recorded.
+  const stageName = (one: GrowthStage): string => (steers(one) ? stageChoiceName(t, one) : t(`home.stage.${one}`));
   const busy = createGrow.isPending || startingPhase.isPending || applyPreset.isPending;
   const refused = createGrow.error ?? startingPhase.error ?? applyPreset.error;
   const ready = draft.schemeId === null || scheme.data !== undefined;
@@ -218,9 +217,12 @@ function Form({
           standing: already?.name ?? null,
           writesClimate: alsoClimate,
         },
-    stageChoiceName(t, draft.stage),
+    stageName(draft.stage),
   );
+  // The one line beside the button is not repeated in the list under the chips;
+  // a reader who may not start a grow has no button, and reads it in the list.
   const warning = told.find(one => one.warns) ?? null;
+  const listed = mayManage ? told.filter(one => one !== warning) : told;
 
   const start = async () => {
     const body = growBody(
@@ -392,7 +394,7 @@ function Form({
           <Choices label={t('grow.new.startingAt')}>
             {START_STAGES.map(one => (
               <Choice key={one} chosen={draft.stage === one} onChoose={() => change({ stage: one })}>
-                {stageChoiceName(t, one)}
+                {stageName(one)}
                 {draft.stage === one ? ` · ${backdating ? DateTime.fromJSDate(draft.startedAt).toFormat(DAY_IN_YEAR) : t('grow.new.today')}` : ''}
               </Choice>
             ))}
@@ -432,7 +434,7 @@ function Form({
         </Block>
 
         <ul className={styles.tells}>
-          {told.map(one => (
+          {listed.map(one => (
             <li key={one.key}>{t(one.key, one.values)}</li>
           ))}
         </ul>

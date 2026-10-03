@@ -13,6 +13,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
 import { serverNow } from '@/api/clock';
+import { germinates } from '../grow/phase-climate';
 import { DURATION_UNITS } from './plan-clock';
 import { scheduleTitle } from './targets/schedule-words';
 import { draftOf as targetsOf, offsetOf, secondsOf, wallClock } from './targets/targets-draft';
@@ -307,7 +308,10 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
         </p>
       )}
       {extra.length > 0 ? <p className={ui.note}>{t('space.control.step.alsoWrites', { sections: extra.join(', ') })}</p> : null}
-      {device.configuration ? (
+      {/* A germination step holds the temperature seeds sprout at. What a device
+          holds with its light on is no such figure, so it is offered only by a
+          device that germinates now. */}
+      {device.configuration && (step.stage !== 'germination' || germinates(device)) ? (
         <button type="button" className={`${ui.button} ${styles.wraps}`} onClick={() => onChange(fromController(step, device))}>
           {t('space.control.step.takeFromController')}
         </button>

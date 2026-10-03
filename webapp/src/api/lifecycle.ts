@@ -35,10 +35,13 @@ import { api } from './client';
 /**
  * One move touches the grow, the plants, both tents it is between, the diary
  * and the home card that draws all of it, so the answer is "read it again"
- * rather than a list of what each caller changed.
+ * rather than a list of what each caller changed. A phase or a preset also
+ * writes the devices there - their targets, their work mode, the alarms the
+ * stage binds and a plan it pauses - and a sheet opened right after reads
+ * those, so the devices are read again with the rest.
  */
 export const growChanged = (client: QueryClient): void => {
-  for (const key of ['grow', 'grows', 'home', 'space', 'spaces', 'entries']) void client.invalidateQueries({ queryKey: [key] });
+  for (const key of ['grow', 'grows', 'home', 'space', 'spaces', 'entries', 'devices']) void client.invalidateQueries({ queryKey: [key] });
 };
 
 const useLifecycleMutation = <T, V>(mutationFn: (variables: V) => Promise<T>) => {

@@ -549,15 +549,20 @@ describe('the climate beside a phase', () => {
     hardware.devices = [{ ...tent(), type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } }];
     draw(<PhaseSheet grow={veg} onClose={() => {}} />);
 
-    // The stage chip, ahead of the climate of the same name.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Germination · dark' })[0]);
+    // The stage chip records the stage and is called by it; the one choice that darkens is the climate beside it.
+    expect(screen.queryAllByRole('button', { name: 'Germination · dark' })).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Germination' }));
     expect(
-      screen.getByText(/^Stay: Light on 06:00–00:00 · 18 h · .* The light stays on: only “Germination · dark” makes it dark\./),
+      screen.getByText(
+        /^Stay: Light on 06:00–00:00 · 18 h · .* The light stays on: only “Germination · dark” makes it dark\. The alarms stay as they are: they belong to the climate the device goes on holding\.$/,
+      ),
     ).toBeInTheDocument();
 
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Germination · dark' }));
     expect(
-      screen.getByText(/^New: Germination · dark – light off, no CO₂, 24 °C round the clock; the device does not control the humidity\./),
+      screen.getByText(
+        /^New: Germination · dark – light off, no CO₂, 24 °C round the clock; the device does not control the humidity\..* The alarms Too hot and Too cold follow germination; it has no Too humid alarm\.$/,
+      ),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Enter Germination' }));
 

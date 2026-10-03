@@ -61,8 +61,13 @@ export const CLIMATE_CHOICES: readonly ClimateChoice[] = (() => {
 /**
  * The stages whose name alone does not say what they do to a place: germination
  * is dark - the device's germination mode, no light and no CO2 - and the
- * seedling stage the first climate with light. Wherever one is chosen it says
- * which, so "Keimung" means one thing on every screen.
+ * seedling stage the first climate with light. Wherever choosing one puts a
+ * device on its climate it says which, so "Keimung" means one thing on every
+ * screen: the Steuerung chips, the claim, a new grow in a place it steers, a
+ * plan step and the climate row of a phase. Where a stage is only recorded -
+ * the stage row of the phase sheet, the Eintrag and the split, whose climate is
+ * a choice of its own beside it - the plain stage stands, and "Keimung · dunkel"
+ * is the one choice that darkens.
  */
 const NAMED_BY_LIGHT: readonly GrowthStage[] = ['germination', 'seedling'];
 

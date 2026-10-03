@@ -24,7 +24,6 @@ import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { ClimatePick } from '@/screens/grow/ClimatePick';
 import { assetTitle } from '@/screens/grow/scheme';
 import { climateRequest, defaultPick, KEEP_CLIMATE, usePlaceController, type PhaseClimate } from '@/screens/grow/phase-climate';
-import { stageChoiceName } from '@/ui/presets';
 import { dayOf, momentOn } from '@/ui/days';
 import { readingFigure } from '@/ui/entries';
 import { parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
@@ -165,6 +164,8 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
     try {
       await startPhase(target.growId, { stage, ...climateRequest(climate) });
       diaryChanged(client);
+      // A phase moves the devices there too - their targets, work mode and stage alarms - and the phase sheet reads them.
+      void client.invalidateQueries({ queryKey: ['devices'] });
       onClose();
     } catch {
       setSaving(false);
@@ -541,7 +542,7 @@ function Stages({
     <div className={styles.stages} role="group" aria-label={t('log.tile.phase')}>
       {STAGES.map(one => (
         <button key={one} type="button" className={ui.chip} data-chosen={one === stage} aria-pressed={one === stage} onClick={() => onPick(one)}>
-          {stageChoiceName(t, one)}
+          {t(`home.stage.${one}`)}
           {one === current ? ` · ${t('log.now')}` : ''}
         </button>
       ))}

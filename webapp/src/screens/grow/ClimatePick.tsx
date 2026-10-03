@@ -116,13 +116,22 @@ export function ClimatePick({
         {stage !== 'drying' && controller.control?.drying ? `${t('climatePick.endsDrying')} ` : null}
         {/* Any other stage ends germination, and the light comes back. */}
         {endsGermination ? `${t('climatePick.endsGermination')} ` : null}
-        {t('climatePick.alarms')}
+        {t(alarmsLine(stage, value.climate || germinates(controller)))}
       </p>
     </Block>
   );
 }
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/**
+ * What the phase does to the alarms its stage binds. Germination watches the
+ * one temperature it holds in the dark and no humidity; entered without its
+ * climate beside a device that keeps its light, it leaves the alarms that
+ * light is watched by, as the server does.
+ */
+const alarmsLine = (stage: GrowthStage, dark: boolean): string =>
+  stage !== 'germination' ? 'climatePick.alarms' : dark ? 'climatePick.alarmsGermination' : 'climatePick.alarmsKept';
 
 /** A climate kept dark: a drying room's, which leaves the light alone, or one with the lamp at nothing. */
 const darkOf = (figures: Figures, preset: ClimatePreset | null): boolean => preset?.lightHours === null || figures.lightLimit === 0;

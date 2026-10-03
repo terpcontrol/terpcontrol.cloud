@@ -125,6 +125,15 @@ export const growBody = (draft: Draft, name: string, scheme: GrowScheme | null, 
   scheme,
 });
 
+/**
+ * Whether the stage a new grow begins in is only recorded in a place that
+ * already holds a grow. Germination is dark, and the plants growing there need
+ * their light: the seeds' darkness is not the default for them. The grower who
+ * means it sets "Keimung · dunkel" under Steuerung, where the plants already
+ * there are in view.
+ */
+export const recordsOnly = (stage: GrowthStage, standing: unknown): boolean => stage === 'germination' && standing !== null;
+
 export interface Told {
   key: string;
   values?: Record<string, string>;
@@ -155,25 +164,29 @@ export const tells = (draft: Draft, place: TellPlace | null, stageName: string):
 
   if (place === null) told.push({ key: 'grow.new.tells.nowhere' });
   else {
+    // A germination beside plants that are already growing leaves their light on, and says so in the one line.
+    const keepsLight = place.steered === true && recordsOnly(draft.stage, place.standing);
     if (place.standing !== null) {
       told.push({
-        key: place.writesClimate ? 'grow.new.tells.occupiedSteered' : 'grow.new.tells.occupied',
+        key: keepsLight ? 'grow.new.tells.occupiedKeepsLight' : place.writesClimate ? 'grow.new.tells.occupiedSteered' : 'grow.new.tells.occupied',
         values: { grow: place.standing, place: place.name, stage: stageName },
         warns: true,
       });
     }
     if (place.steered === null) told.push({ key: 'grow.new.tells.hardwareUnknown', values: { place: place.name } });
-    // Said beside the button as well as under the chips: starting the grow
+    else if (!place.steered) told.push({ key: 'grow.new.tells.noController', values: { place: place.name } });
+    // The first line that warns is said beside the button: starting the grow
     // changes the targets, and the sentence that says so used to scroll away
-    // below the fold on a phone while the button stayed in view.
-    // Germination is dark, which is worth more than the climate's name.
-    else if (place.steered) {
+    // below the fold on a phone while the button stayed in view. Germination
+    // is dark, which is worth more than the climate's name. Where the seeds
+    // only join a grow, the line about that grow has said what happens.
+    else if (!keepsLight) {
       told.push({
         key: draft.stage === 'germination' ? 'grow.new.tells.presetDark' : 'grow.new.tells.preset',
         values: { place: place.name, stage: stageName },
         warns: true,
       });
-    } else told.push({ key: 'grow.new.tells.noController', values: { place: place.name } });
+    }
   }
 
   if (place !== null) told.push({ key: 'grow.new.tells.auto' });
