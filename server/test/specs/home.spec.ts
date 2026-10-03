@@ -41,3 +41,41 @@ it('is one request: every card carries its readings and its day of temperature',
   const balcony = cards.find((card: { name: string }) => card.name === 'The balcony');
   expect(balcony).toMatchObject({ deviceIds: [], values: [], trend: null, grow: null });
 });
+
+/**
+ * "My grows" over HTTP: the route the page reads, made of what the account
+ * wrote through the grow routes - a grow that is running and one that was
+ * harvested, which is the one way a grow leaves the home for good.
+ */
+it('lists every grow of the account, the running one first and the harvested one after it with what came down', async () => {
+  const grower = await createAccount('home-grows');
+  const start = (name: string, startedAt: string) =>
+    grower.client
+      .post('/v1/grows')
+      .send({ name, type: 'photoperiod', plants: [{ strain: 'Gelato', count: 2 }], startedAt })
+      .expect(201);
+
+  const done = (await start('Spring', new Date(Date.now() - 120 * 86_400_000).toISOString())).body;
+  await grower.client
+    .post(`/v1/grows/${done.id}/harvests`)
+    .send({ harvestedAt: new Date(Date.now() - 20 * 86_400_000).toISOString(), wetWeightG: 900, dryWeightG: 210 })
+    .expect(201);
+  const running = (await start('Autumn', new Date(Date.now() - 10 * 86_400_000).toISOString())).body;
+
+  const page = (await grower.client.get('/v1/home/grows').expect(200)).body;
+
+  expect(page.nextCursor).toBeNull();
+  expect(page.items.map((card: { growId: string }) => card.growId)).toEqual([running.id, done.id]);
+  expect(page.items[0]).toMatchObject({ endedAt: null, harvest: null, owner: null, places: [{ spaceId: null, name: null }] });
+  expect(page.items[1]).toMatchObject({
+    name: 'Spring',
+    strains: [{ strain: 'Gelato', count: 2 }],
+    harvest: { wetWeightG: 900, dryWeightG: 210 },
+    coverMediaId: null,
+  });
+  expect(page.items[1].endedAt).toEqual(expect.any(String));
+
+  const first = (await grower.client.get('/v1/home/grows').query({ limit: 1 }).expect(200)).body;
+  const second = (await grower.client.get('/v1/home/grows').query({ limit: 1, cursor: first.nextCursor }).expect(200)).body;
+  expect([...first.items, ...second.items].map((card: { growId: string }) => card.growId)).toEqual([running.id, done.id]);
+});

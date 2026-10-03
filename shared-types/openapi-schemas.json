@@ -13444,6 +13444,226 @@
       "people"
     ]
   },
+  "MyGrowPlace": {
+    "type": "object",
+    "properties": {
+      "spaceId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null is “no fixed place”."
+      },
+      "name": {
+        "description": "The place’s name, a removed place’s included; null for no fixed place.",
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "spaceId",
+      "name"
+    ]
+  },
+  "StrainCount": {
+    "type": "object",
+    "properties": {
+      "strain": {
+        "type": "string"
+      },
+      "count": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null where the owner hides counts."
+      }
+    },
+    "required": [
+      "strain",
+      "count"
+    ]
+  },
+  "MyGrowCard": {
+    "type": "object",
+    "properties": {
+      "growId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "name": {
+        "type": "string"
+      },
+      "type": {
+        "$ref": "#/components/schemas/GrowType"
+      },
+      "startedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "endedAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "dayNumber": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The day the grow is on, or for a finished grow the day it ended on, which is how long it ran."
+      },
+      "stage": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/GrowthStage"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "stageWeek": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Which week of its stage the grow is in, as its own page states it."
+      },
+      "places": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/MyGrowPlace"
+        },
+        "description": "Where the plants stand now; for a grow whose placements are all closed, the place it stood in last. A place that is gone altogether, not even kept as a tombstone, is left out."
+      },
+      "owner": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/Person"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Whose grow it is, where it is not the reader’s own; null for the reader’s own grows."
+      },
+      "plantCount": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null where the owner hides counts."
+      },
+      "strains": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/StrainCount"
+        },
+        "description": "Each strain once, in the order it was sown."
+      },
+      "coverMediaId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The picture the card is drawn over; null where the grow has none."
+      },
+      "harvest": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/GrowHarvest"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "What came down, where a harvest was recorded."
+      }
+    },
+    "required": [
+      "growId",
+      "name",
+      "type",
+      "startedAt",
+      "endedAt",
+      "dayNumber",
+      "stage",
+      "stageWeek",
+      "places",
+      "owner",
+      "plantCount",
+      "strains",
+      "coverMediaId",
+      "harvest"
+    ]
+  },
+  "MyGrowPage": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/MyGrowCard"
+        }
+      },
+      "nextCursor": {
+        "description": "Pass back as `cursor` for the next page; null on the last one.",
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "items",
+      "nextCursor"
+    ]
+  },
   "GrowSeriesPoint": {
     "type": "object",
     "properties": {

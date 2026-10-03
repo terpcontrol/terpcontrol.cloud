@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.exportAccepted = exports.media = exports.mediaExportJob = exports.exportScope = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.growReadingNames = exports.readingName = exports.entryReading = void 0;
 exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputLevel = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputLevel = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -1449,6 +1449,51 @@ exports.growReport = (0, common_js_1.named)('GrowReport', zod_1.z.object({
     totals: exports.growTotals,
     people: zod_1.z.array(common_js_1.person).describe('Everyone the chapters name, so an entry can say who wrote it without another read.'),
 }));
+/** A place a grow on "My grows" stands in, or stood in last, by the name it has. */
+exports.myGrowPlace = (0, common_js_1.named)('MyGrowPlace', zod_1.z.object({
+    spaceId: (0, common_js_1.id)().nullable().describe('Null is “no fixed place”.'),
+    name: zod_1.z.string().nullable().describe('The place’s name, a removed place’s included; null for no fixed place.'),
+}));
+/** One strain of a grow and how many plants of it were sown. */
+exports.strainCount = (0, common_js_1.named)('StrainCount', zod_1.z.object({
+    strain: zod_1.z.string(),
+    count: zod_1.z.number().int().nullable().describe('Null where the owner hides counts.'),
+}));
+/**
+ * One grow as "My grows" draws it: running or finished, the account's own or
+ * one standing in a place somebody let the account into.
+ *
+ * Its picture is worked out here, because the rule for it needs reads a list
+ * of grows would otherwise make once per card: the grow's own cover where one
+ * was chosen, else the newest picture a camera took with the light on while
+ * the grow stood in front of it, else the newest photo written into its diary.
+ * A camera that never saw the tent lit gives no picture: a dark frame reads as
+ * one that failed to load.
+ */
+exports.myGrowCard = (0, common_js_1.named)('MyGrowCard', zod_1.z.object({
+    growId: (0, common_js_1.id)(),
+    name: zod_1.z.string(),
+    type: common_js_1.growType,
+    startedAt: (0, common_js_1.instant)(),
+    endedAt: (0, common_js_1.instant)().nullable(),
+    dayNumber: zod_1.z.number().int().nullable().describe('The day the grow is on, or for a finished grow the day it ended on, which is how long it ran.'),
+    stage: common_js_1.growthStage.nullable(),
+    stageWeek: zod_1.z.number().int().nullable().describe('Which week of its stage the grow is in, as its own page states it.'),
+    places: zod_1.z
+        .array(exports.myGrowPlace)
+        .describe('Where the plants stand now; for a grow whose placements are all closed, the place it stood in last. A place that is gone altogether, not even kept as a tombstone, is left out.'),
+    owner: common_js_1.person.nullable().describe('Whose grow it is, where it is not the reader’s own; null for the reader’s own grows.'),
+    plantCount: zod_1.z.number().int().nullable().describe('Null where the owner hides counts.'),
+    strains: zod_1.z.array(exports.strainCount).describe('Each strain once, in the order it was sown.'),
+    coverMediaId: (0, common_js_1.id)().nullable().describe('The picture the card is drawn over; null where the grow has none.'),
+    harvest: exports.growHarvest.nullable().describe('What came down, where a harvest was recorded.'),
+}));
+/**
+ * `GET /home/grows`: every grow the account can see. The running ones come
+ * first, newest first, then the finished ones by the day they ended, newest
+ * first - one order, so a cursor continues it across the two.
+ */
+exports.myGrowPage = (0, common_js_1.named)('MyGrowPage', (0, common_js_1.page)(exports.myGrowCard));
 /**
  * One reading, as a chart draws it. Unlike a climate point, which summarises a
  * window and is null where the window held nothing, this is the reading itself:

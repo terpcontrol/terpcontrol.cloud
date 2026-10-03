@@ -1899,6 +1899,64 @@ export const growReport = named(
   }),
 );
 
+/** A place a grow on "My grows" stands in, or stood in last, by the name it has. */
+export const myGrowPlace = named(
+  'MyGrowPlace',
+  z.object({
+    spaceId: id().nullable().describe('Null is “no fixed place”.'),
+    name: z.string().nullable().describe('The place’s name, a removed place’s included; null for no fixed place.'),
+  }),
+);
+
+/** One strain of a grow and how many plants of it were sown. */
+export const strainCount = named(
+  'StrainCount',
+  z.object({
+    strain: z.string(),
+    count: z.number().int().nullable().describe('Null where the owner hides counts.'),
+  }),
+);
+
+/**
+ * One grow as "My grows" draws it: running or finished, the account's own or
+ * one standing in a place somebody let the account into.
+ *
+ * Its picture is worked out here, because the rule for it needs reads a list
+ * of grows would otherwise make once per card: the grow's own cover where one
+ * was chosen, else the newest picture a camera took with the light on while
+ * the grow stood in front of it, else the newest photo written into its diary.
+ * A camera that never saw the tent lit gives no picture: a dark frame reads as
+ * one that failed to load.
+ */
+export const myGrowCard = named(
+  'MyGrowCard',
+  z.object({
+    growId: id(),
+    name: z.string(),
+    type: growType,
+    startedAt: instant(),
+    endedAt: instant().nullable(),
+    dayNumber: z.number().int().nullable().describe('The day the grow is on, or for a finished grow the day it ended on, which is how long it ran.'),
+    stage: growthStage.nullable(),
+    stageWeek: z.number().int().nullable().describe('Which week of its stage the grow is in, as its own page states it.'),
+    places: z
+      .array(myGrowPlace)
+      .describe('Where the plants stand now; for a grow whose placements are all closed, the place it stood in last. A place that is gone altogether, not even kept as a tombstone, is left out.'),
+    owner: person.nullable().describe('Whose grow it is, where it is not the reader’s own; null for the reader’s own grows.'),
+    plantCount: z.number().int().nullable().describe('Null where the owner hides counts.'),
+    strains: z.array(strainCount).describe('Each strain once, in the order it was sown.'),
+    coverMediaId: id().nullable().describe('The picture the card is drawn over; null where the grow has none.'),
+    harvest: growHarvest.nullable().describe('What came down, where a harvest was recorded.'),
+  }),
+);
+
+/**
+ * `GET /home/grows`: every grow the account can see. The running ones come
+ * first, newest first, then the finished ones by the day they ended, newest
+ * first - one order, so a cursor continues it across the two.
+ */
+export const myGrowPage = named('MyGrowPage', page(myGrowCard));
+
 /**
  * One reading, as a chart draws it. Unlike a climate point, which summarises a
  * window and is null where the window held nothing, this is the reading itself:

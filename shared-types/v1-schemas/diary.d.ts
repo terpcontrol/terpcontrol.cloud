@@ -5213,6 +5213,113 @@ export declare const growReport: z.ZodObject<{
         handle: z.ZodString;
     }, z.core.$strip>>;
 }, z.core.$strip>;
+/** A place a grow on "My grows" stands in, or stood in last, by the name it has. */
+export declare const myGrowPlace: z.ZodObject<{
+    spaceId: z.ZodNullable<z.ZodString>;
+    name: z.ZodNullable<z.ZodString>;
+}, z.core.$strip>;
+/** One strain of a grow and how many plants of it were sown. */
+export declare const strainCount: z.ZodObject<{
+    strain: z.ZodString;
+    count: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>;
+/**
+ * One grow as "My grows" draws it: running or finished, the account's own or
+ * one standing in a place somebody let the account into.
+ *
+ * Its picture is worked out here, because the rule for it needs reads a list
+ * of grows would otherwise make once per card: the grow's own cover where one
+ * was chosen, else the newest picture a camera took with the light on while
+ * the grow stood in front of it, else the newest photo written into its diary.
+ * A camera that never saw the tent lit gives no picture: a dark frame reads as
+ * one that failed to load.
+ */
+export declare const myGrowCard: z.ZodObject<{
+    growId: z.ZodString;
+    name: z.ZodString;
+    type: z.ZodEnum<{
+        photoperiod: "photoperiod";
+        autoflower: "autoflower";
+    }>;
+    startedAt: z.ZodISODateTime;
+    endedAt: z.ZodNullable<z.ZodISODateTime>;
+    dayNumber: z.ZodNullable<z.ZodNumber>;
+    stage: z.ZodNullable<z.ZodEnum<{
+        germination: "germination";
+        seedling: "seedling";
+        vegetative: "vegetative";
+        flowering: "flowering";
+        drying: "drying";
+        curing: "curing";
+    }>>;
+    stageWeek: z.ZodNullable<z.ZodNumber>;
+    places: z.ZodArray<z.ZodObject<{
+        spaceId: z.ZodNullable<z.ZodString>;
+        name: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>;
+    owner: z.ZodNullable<z.ZodObject<{
+        id: z.ZodString;
+        handle: z.ZodString;
+    }, z.core.$strip>>;
+    plantCount: z.ZodNullable<z.ZodNumber>;
+    strains: z.ZodArray<z.ZodObject<{
+        strain: z.ZodString;
+        count: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>>;
+    coverMediaId: z.ZodNullable<z.ZodString>;
+    harvest: z.ZodNullable<z.ZodObject<{
+        harvestedAt: z.ZodNullable<z.ZodISODateTime>;
+        wetWeightG: z.ZodNullable<z.ZodNumber>;
+        dryWeightG: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/**
+ * `GET /home/grows`: every grow the account can see. The running ones come
+ * first, newest first, then the finished ones by the day they ended, newest
+ * first - one order, so a cursor continues it across the two.
+ */
+export declare const myGrowPage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        growId: z.ZodString;
+        name: z.ZodString;
+        type: z.ZodEnum<{
+            photoperiod: "photoperiod";
+            autoflower: "autoflower";
+        }>;
+        startedAt: z.ZodISODateTime;
+        endedAt: z.ZodNullable<z.ZodISODateTime>;
+        dayNumber: z.ZodNullable<z.ZodNumber>;
+        stage: z.ZodNullable<z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>>;
+        stageWeek: z.ZodNullable<z.ZodNumber>;
+        places: z.ZodArray<z.ZodObject<{
+            spaceId: z.ZodNullable<z.ZodString>;
+            name: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>>;
+        owner: z.ZodNullable<z.ZodObject<{
+            id: z.ZodString;
+            handle: z.ZodString;
+        }, z.core.$strip>>;
+        plantCount: z.ZodNullable<z.ZodNumber>;
+        strains: z.ZodArray<z.ZodObject<{
+            strain: z.ZodString;
+            count: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>;
+        coverMediaId: z.ZodNullable<z.ZodString>;
+        harvest: z.ZodNullable<z.ZodObject<{
+            harvestedAt: z.ZodNullable<z.ZodISODateTime>;
+            wetWeightG: z.ZodNullable<z.ZodNumber>;
+            dryWeightG: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    nextCursor: z.ZodNullable<z.ZodString>;
+}, z.core.$strip>;
 /**
  * One reading, as a chart draws it. Unlike a climate point, which summarises a
  * window and is null where the window held nothing, this is the reading itself:

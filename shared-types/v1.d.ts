@@ -4001,6 +4001,74 @@ export interface GrowReport {
   people: Person[];
 }
 
+export interface MyGrowPlace {
+  /**
+   * Null is “no fixed place”.
+   */
+  spaceId: string | null;
+  /**
+   * The place’s name, a removed place’s included; null for no fixed place.
+   */
+  name: string | null;
+}
+
+export interface StrainCount {
+  strain: string;
+  /**
+   * Null where the owner hides counts.
+   */
+  count: number | null;
+}
+
+export interface MyGrowCard {
+  growId: string;
+  name: string;
+  type: GrowType;
+  startedAt: string;
+  endedAt: string | null;
+  /**
+   * The day the grow is on, or for a finished grow the day it ended on, which is how long it ran.
+   */
+  dayNumber: number | null;
+  stage: GrowthStage | null;
+  /**
+   * Which week of its stage the grow is in, as its own page states it.
+   */
+  stageWeek: number | null;
+  /**
+   * Where the plants stand now; for a grow whose placements are all closed, the place it stood in last. A place that is gone altogether, not even kept as a tombstone, is left out.
+   */
+  places: MyGrowPlace[];
+  /**
+   * Whose grow it is, where it is not the reader’s own; null for the reader’s own grows.
+   */
+  owner: Person | null;
+  /**
+   * Null where the owner hides counts.
+   */
+  plantCount: number | null;
+  /**
+   * Each strain once, in the order it was sown.
+   */
+  strains: StrainCount[];
+  /**
+   * The picture the card is drawn over; null where the grow has none.
+   */
+  coverMediaId: string | null;
+  /**
+   * What came down, where a harvest was recorded.
+   */
+  harvest: GrowHarvest | null;
+}
+
+export interface MyGrowPage {
+  items: MyGrowCard[];
+  /**
+   * Pass back as `cursor` for the next page; null on the last one.
+   */
+  nextCursor: string | null;
+}
+
 export interface GrowSeriesPoint {
   measuredAt: string;
   value: number;
