@@ -375,7 +375,7 @@ function Panel({
   }, [unsaved, device.id, report]);
 
   const bar = useRef<HTMLDivElement>(null);
-  const touched = useKeepInView(bar, dirty);
+  const touched = useKeepInView(bar, dirty, editing?.draft ?? null);
 
   const chosen = (chip: ClimateChoice): boolean => {
     const preset = presetOf(chip);
@@ -578,11 +578,11 @@ const planScheduleOf = (step: PlanStep | null, runs: TargetsDraft, name: string)
  * Keeps the figure somebody is changing clear of the save bar. The bar stands
  * over the foot of a phone's screen from the first change on, which is where a
  * row tapped near the bottom was: its own − and + went under the bar that its
- * first tap brought up. After every redraw while there is something to save,
- * the row last touched is scrolled up out from under the bar if it is behind
- * it.
+ * first tap brought up. After each change the row last touched is scrolled up
+ * out from under the bar if it is behind it - after a change only, so a page
+ * scrolled on by hand is not pulled back on the next redraw.
  */
-function useKeepInView(bar: React.RefObject<HTMLDivElement | null>, dirty: boolean) {
+function useKeepInView(bar: React.RefObject<HTMLDivElement | null>, dirty: boolean, change: unknown) {
   const touched = useRef<HTMLElement | null>(null);
   const remember = (event: React.SyntheticEvent) => {
     const target = event.target as HTMLElement;
@@ -594,7 +594,7 @@ function useKeepInView(bar: React.RefObject<HTMLDivElement | null>, dirty: boole
     const covers = bar.current.getBoundingClientRect().top;
     const bottom = touched.current.getBoundingClientRect().bottom;
     if (bottom > covers - 8) window.scrollBy({ top: bottom - covers + 16 });
-  });
+  }, [bar, dirty, change]);
 
   return { onPointerDownCapture: remember, onFocusCapture: remember };
 }
