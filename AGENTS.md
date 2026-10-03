@@ -24,7 +24,7 @@
 - Roll out new firmware with `./build-fw.sh`. Pass one or more device types (`fridge`, `controller`, `plug`, `fan`, `light`) to limit the build, otherwise all are built.
 - After a rollout, wait ~7 minutes for the update to complete, then verify the device reconnects successfully.
 - When testing firmware-related behavior end-to-end, run the test against the `fridge` device first before any other device. (Unless the change doesn't apply to `fridge`.)
-- Before rolling out, confirm the target devices are online. Log in to the API and `GET /device`; each device's `lastseen` (epoch ms) is online when it is within the last 10 minutes (`ONLINE_TIMEOUT`). To compile-check without touching any device, build in the container with `FW_NO_UPLOAD=1 FW_VERSION_ID=<any> ./build-fw.sh <types>`.
+- Before rolling out, confirm the target devices are online. Log in to the API and `GET /v1/devices` (`GET /v1/admin/devices` with the automation token for every device); a device is online while its `state.lastSeenAt` (ISO 8601) is within the last 10 minutes (`VALUE_AGE.staleSeconds`). To compile-check without touching any device, build in the container with `FW_NO_UPLOAD=1 FW_VERSION_ID=<any> ./build-fw.sh <types>`.
 
 ## Garmin viewer app
 - The Connect IQ widget lives in `garmin/`. Build it with `./build-garmin.sh`; the packaged app lands in `garmin/bin/`.

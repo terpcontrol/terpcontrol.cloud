@@ -804,7 +804,7 @@ const growScene = (light, growth, phase) => {
 
 /**
  * The camera's side of its P2P protocol, as far as the cloud's client uses it
- * (server/src/modules/camera/terpcam-direct.service.ts). The real controller
+ * (server/src/modules/v1/camera/terpcam-direct.service.ts). The real controller
  * only shovels datagrams between the cloud and the camera on its LAN, so the
  * simulator plays both: the relay in SimulatedDevice#relay, and the camera
  * here, answering the datagrams in-process instead of over UDP.

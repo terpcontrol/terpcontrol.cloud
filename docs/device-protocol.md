@@ -394,21 +394,21 @@ The messages current firmware sends:
 
 | Key | Severity | Emitted by | Where |
 | --- | --- | --- | --- |
-| `message-device-booted:<reason>` | 0 | every type, at init | `fridgecloud.cpp:39-53,157-162` |
-| `message-device-firmware-update` | 0 | every type, before an OTA | `fridgecloud.cpp:190,210` |
-| `message-buffer-overflow` | 1 | every type, reading buffer full | `fridgecloud.cpp:490` |
-| `message-co2-low` | 0 | controller, fridge | `controller.cpp:931-944`, `fridge.cpp:981-992` |
-| `message-ext-sensor-deviate`, `message-ext-sensor-fail` | 0 | fridge, when the fault appears and **at most once per 15 min** each (`SENSOR_FAULT_LOG_INTERVAL`, `fridge.cpp:64-78`) | `fridge.cpp:174,188` |
-| `message-maintenance-mode-activated:<min>` | 0 | controller, fridge | `controller.cpp:1069`, `fridge.cpp:1062` |
-| `message-maintenance-mode-activated-remote:<min>` | 0 | controller, fridge | `controller.cpp:574`, `fridge.cpp:634` |
-| `message-smart-socket-connected:<role>` | 0 | pairing or `socket_set` | `wifi.cpp:3021,3347` |
-| `message-smart-socket-disconnected:<role>` | 0 | removal | `wifi.cpp:2899` |
-| `message-smart-socket-tested:<role>` | 0 | `socket_test` | `wifi.cpp:3175` |
-| `message-smart-socket-readdressed:<role>` | 0 | LAN search found it elsewhere | `wifi.cpp:2494` |
-| `message-smart-socket-address-lost:<role>` | 1 | identity probe mismatch | `wifi.cpp:553,595` |
-| `message-smart-socket-cmd-failed:<role>:<on\|off\|test>` | 1 | a socket HTTP command failed | `wifi.cpp:646,3171` |
-| `message-aux-command-failed:<what>` | 1 | a failed `socket_*`; `cam_capture` on firmware older than the relay | `wifi.cpp:3180,3202,3215` |
-| `message-terp-cam-connected` | 0 | camera pairing | `wifi.cpp:1357` |
+| `message-device-booted:<reason>` | 0 | every type, at init | `fridgecloud.cpp:45-59,165-169` |
+| `message-device-firmware-update` | 0 | every type, before an OTA | `fridgecloud.cpp:197,217` |
+| `message-buffer-overflow` | 1 | every type, reading buffer full | `fridgecloud.cpp:497` |
+| `message-co2-low` | 0 | controller, fridge | `controller.cpp:973-986`, `fridge.cpp:1096-1107` |
+| `message-ext-sensor-deviate`, `message-ext-sensor-fail` | 0 | fridge, when the fault appears and **at most once per 15 min** each (`SENSOR_FAULT_LOG_INTERVAL`, `fridge.cpp:90-104`) | `fridge.cpp:206,220` |
+| `message-maintenance-mode-activated:<min>` | 0 | controller, fridge | `controller.cpp:1111`, `fridge.cpp:1177` |
+| `message-maintenance-mode-activated-remote:<min>` | 0 | controller, fridge | `controller.cpp:579`, `fridge.cpp:724` |
+| `message-smart-socket-connected:<role>` | 0 | pairing or `socket_set` | `wifi.cpp:3073,3408` |
+| `message-smart-socket-disconnected:<role>` | 0 | removal | `wifi.cpp:2951` |
+| `message-smart-socket-tested:<role>` | 0 | `socket_test` | `wifi.cpp:3236` |
+| `message-smart-socket-readdressed:<role>` | 0 | LAN search found it elsewhere | `wifi.cpp:2526` |
+| `message-smart-socket-address-lost:<role>` | 1 | identity probe mismatch | `wifi.cpp:555,597` |
+| `message-smart-socket-cmd-failed:<role>:<on\|off\|test>` | 1 | a socket HTTP command failed | `wifi.cpp:648,3232` |
+| `message-aux-command-failed:<what>` | 1 | a failed `socket_*`; `cam_capture` on firmware older than the relay | `wifi.cpp:3188,3210,3223` |
+| `message-terp-cam-connected` | 0 | camera pairing | `wifi.cpp:1374` |
 | `message-terp-cam-found` / `-not-found` | 0 / 1 | background camera search | `terpcam.cpp:525` |
 | `message-cam-reset:ok` / `:no-response` | 0 / 1 | camera factory reset | `terpcam.cpp:703` |
 | `message-cam-capture:…` | 1 | a failed capture, on firmware older than the relay only | — |

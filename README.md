@@ -1,4 +1,4 @@
-# Fridge Grow Software Stack - Forked from Plantalytix
+# Terp Control Software Stack - Forked from Plantalytix
 
 See also:
 - [Running on Raspberry PI](RASPBERRY-PI.md)
