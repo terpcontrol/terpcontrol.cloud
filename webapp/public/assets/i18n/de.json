@@ -1540,7 +1540,9 @@
     "empty": {
       "title": "Noch nichts hier.",
       "text": "Beide Türen führen zum selben Ziel: einem Ort mit Tagebuch und, wenn du einen hast, einem Controller.",
-      "following": "Folgst du jemandem? Öffne den geteilten Link und tippe auf Folgen; der Grow erscheint hier."
+      "following": "Folgst du jemandem? Öffne den geteilten Link und tippe auf Folgen; der Grow erscheint hier.",
+      "pastTitle": "Gerade läuft kein Grow.",
+      "pastText": "Deine bisherigen Grows stehen unter „Meine Grows“. Für den nächsten führen beide Türen zum selben Ziel: einem Ort mit Tagebuch und, wenn du einen hast, einem Controller."
     },
     "demoEmpty": {
       "title": "Die Demo ist leer.",
@@ -2169,12 +2171,9 @@
       "finishedCount_other": "{{count}} abgeschlossen",
       "none": "noch keine Grows",
       "new": "Neuer Grow",
-      "noPlace": "ohne Ort",
-      "sharedTag": "geteilt",
       "sharedBy": "von @{{handle}}",
       "ran": "{{from}} – {{to}}",
-      "ranDays_one": "{{count}} Tag",
-      "ranDays_other": "{{count}} Tage",
+      "toDay": "bis Tag {{day}}",
       "harvest": "Ernte",
       "noneRunning": "Gerade läuft kein Grow.",
       "noneFinished": "Noch nichts abgeschlossen · ein Grow erscheint hier, sobald du ihn erntest oder beendest.",
@@ -4634,7 +4633,7 @@
     },
     "myGrows": {
       "title": "Meine Grows",
-      "text": "Hier stehen alle Grows, die du siehst: deine eigenen und die an Orten, zu denen dich jemand eingeladen hat. Laufende stehen oben, abgeschlossene darunter, die neuesten zuerst. Abgeschlossen ist ein Grow, sobald die letzten Pflanzen geerntet sind oder du ihn beendest. Das Bild ist das neueste Kamerabild bei Licht aus der Zeit, in der der Grow vor der Kamera stand – sonst das neueste Foto aus seinem Tagebuch."
+      "text": "Hier stehen alle Grows, die du siehst: deine eigenen und die an Orten, zu denen dich jemand eingeladen hat – diese tragen den Namen dessen, dem sie gehören („von @…“). Laufende stehen oben, abgeschlossene darunter, die neuesten zuerst. Abgeschlossen ist ein Grow, sobald die letzten Pflanzen geerntet sind oder du ihn beendest; dann steht dort, von wann bis wann er lief und bis zu welchem Grow-Tag. Grow-Tage zählen wie auf der Grow-Seite je 24 Stunden ab dem Start und können deshalb um einen von den Kalendertagen abweichen. Das Bild ist das neueste Kamerabild bei Licht aus der Zeit, in der der Grow vor der Kamera stand – sonst das neueste Foto aus seinem Tagebuch."
     },
     "dayNightAverages": {
       "title": "Tag / Nacht",

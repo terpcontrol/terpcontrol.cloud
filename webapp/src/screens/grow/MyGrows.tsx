@@ -1,9 +1,9 @@
-import { ChevronLeft, ChevronRight, Leaf, Plus, Sprout } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Leaf, Plus, Sprout, Users } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import type { MyGrowCard } from '@fg2/shared-types/v1';
-import { FROM_MY_GROWS, MY_GROWS } from '@/app/places';
+import { FROM_MY_GROWS, MY_GROWS, openedFromMe } from '@/app/places';
 import { useMyGrows } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { Help } from '@/ui/Help';
@@ -13,7 +13,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { DAY, DAY_IN_YEAR, useZone, zoned } from '@/ui/zone';
 import { NewGrowSheet } from './new/NewGrowSheet';
-import { countsOf } from './my-grows';
+import { countsOf, whole } from './my-grows';
 import styles from './MyGrows.module.css';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -38,6 +38,9 @@ export function MyGrows() {
   const grows = useMyGrows();
   const mayManage = useMayManage();
   const [starting, setStarting] = useState(false);
+  // Back to where the page was opened from: Ich has a door to it, and Start the rest of the ways in.
+  const { state } = useLocation();
+  const back = openedFromMe(state) ? { to: '/me', label: t('me.title') } : { to: '/', label: t('shell.tabs.home') };
 
   if (grows.isPending) {
     return (
@@ -56,7 +59,7 @@ export function MyGrows() {
   return (
     <section className={styles.page}>
       <header className={styles.head}>
-        <Link to="/" className={ui.back} aria-label={t('shell.tabs.home')}>
+        <Link to={back.to} className={ui.back} aria-label={back.label}>
           <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
         </Link>
         <h1 className={styles.title}>{t('grow.mine.title')}</h1>
@@ -140,12 +143,8 @@ function Shelf({ title, grows, none, more = null }: { title: string; grows: MyGr
 function GrowCard({ grow }: { grow: MyGrowCard }) {
   const { t } = useTranslation();
   const zone = useZone();
-  // How long a finished grow ran opens the line under its dates, which on a phone is as wide as the dates alone.
-  const where = [
-    grow.endedAt && grow.dayNumber !== null ? t('grow.mine.ranDays', { count: grow.dayNumber }) : null,
-    placeOf(t, grow),
-    grow.owner ? t('grow.mine.sharedBy', { handle: grow.owner.handle }) : null,
-  ]
+  // The grow day a finished grow got to opens the line under its dates, which on a phone is as wide as the dates alone.
+  const where = [grow.endedAt && grow.dayNumber !== null ? whole(t('grow.mine.toDay', { day: grow.dayNumber })) : null, placeOf(t, grow)]
     .filter(Boolean)
     .join(' · ');
   const plants = plantsOf(grow);
@@ -158,11 +157,17 @@ function GrowCard({ grow }: { grow: MyGrowCard }) {
         <span className={styles.text}>
           <span className={styles.nameRow}>
             <span className={`name ${styles.name}`}>{grow.name}</span>
-            {grow.owner ? <span className={`${ui.tag} ${ui.tagSmall} ${styles.shared}`}>{t('grow.mine.sharedTag')}</span> : null}
+            {/* Whose it is, as the tag itself: it moves under the name where both do not fit, so neither is cut off on a phone. */}
+            {grow.owner ? (
+              <span className={`${ui.tag} ${ui.tagSmall} ${styles.owner}`}>
+                <Users size={11} strokeWidth={2} aria-hidden />
+                {t('grow.mine.sharedBy', { handle: grow.owner.handle })}
+              </span>
+            ) : null}
           </span>
           <span className={styles.status}>{grow.endedAt ? spanOf(t, grow.startedAt, grow.endedAt, zone) : progressOf(t, grow)}</span>
-          {where ? <span className={styles.meta}>{where}</span> : null}
-          {plants ? <span className={styles.meta}>{plants}</span> : null}
+          {where ? <span className={`${styles.meta} ${styles.twoLines}`}>{where}</span> : null}
+          {plants ? <span className={`${styles.meta} ${styles.twoLines}`}>{plants}</span> : null}
           {harvest ? <span className={`mono ${styles.harvest}`}>{harvest}</span> : null}
         </span>
         <ChevronRight size={16} strokeWidth={1.75} className={styles.chevron} aria-hidden />
@@ -188,7 +193,7 @@ function Cover({ mediaId }: { mediaId: string | null }) {
         <img
           src={large}
           srcSet={`${small} ${THUMBNAIL_WIDTH.still}w, ${large} ${THUMBNAIL_WIDTH.frame}w`}
-          sizes="(min-width: 700px) 400px, 112px"
+          sizes="(min-width: 900px) 400px, 112px"
           alt=""
           loading="lazy"
           onError={() => setFailed(true)}
@@ -210,9 +215,6 @@ const progressOf = (t: Translate, grow: MyGrowCard): string =>
     .filter(Boolean)
     .join(' · ');
 
-/** Spaces that do not break, so a narrow card breaks a line between two dates and never inside one. */
-const whole = (text: string): string => text.replace(/ /g, '\u00a0');
-
 /** "2. Feb – 8. Jun 2026": the days it began and ended where the account is, the year once where both fall in it. */
 const spanOf = (t: Translate, startedAt: string, endedAt: string, zone: string | null): string => {
   const from = zoned(startedAt, zone);
@@ -221,33 +223,43 @@ const spanOf = (t: Translate, startedAt: string, endedAt: string, zone: string |
   return t('grow.mine.ran', { from: whole(from.toFormat(from.year === to.year ? DAY_IN_YEAR : DAY)), to: whole(to.toFormat(DAY)) });
 };
 
-/** Where the grow stands, or stood last; "ohne Ort" for a grow that stands in none. */
+/**
+ * Where the grow stands, or stood last; "Kein fester Ort" for a grow that
+ * stands in none, as the grow page and Start call it. Each name whole, so a
+ * narrow card moves it to the next line rather than leaving its last word there.
+ */
 const placeOf = (t: Translate, grow: MyGrowCard): string | null =>
-  grow.places.length === 0 ? null : grow.places.map(place => place.name ?? t('grow.mine.noPlace')).join(', ');
+  grow.places.length === 0 ? null : grow.places.map(place => whole(place.name ?? t('grow.noFixedPlace'))).join(', ');
 
 /** "Gelato ×2 · Amnesia Haze": each strain once, with its count where there is more than one - as the grow page writes it. */
 const plantsOf = (grow: MyGrowCard): string =>
-  grow.strains.map(({ strain, count }) => (count !== null && count > 1 ? `${strain} ×${count}` : strain)).join(' · ');
+  grow.strains.map(({ strain, count }) => (count !== null && count > 1 ? `${strain}\u00a0×${count}` : strain)).join(' · ');
 
 /** What came down, where it was weighed; a harvest with no weight says nothing the dates above do not. */
 const harvestOf = (t: Translate, grow: MyGrowCard): string | null => {
   const harvest = grow.harvest;
   if (!harvest || (harvest.dryWeightG === null && harvest.wetWeightG === null)) return null;
 
+  // Each weight whole, so a narrow card breaks the line between two weights and never between a number and its unit.
   return [
     t('grow.mine.harvest'),
-    harvest.dryWeightG !== null ? t('grow.report.dry', { grams: harvest.dryWeightG }) : null,
-    harvest.wetWeightG !== null ? t('grow.report.wet', { grams: harvest.wetWeightG }) : null,
+    harvest.dryWeightG !== null ? whole(t('grow.report.dry', { grams: harvest.dryWeightG })) : null,
+    harvest.wetWeightG !== null ? whole(t('grow.report.wet', { grams: harvest.wetWeightG })) : null,
   ]
     .filter(Boolean)
     .join(' · ');
 };
 
 /**
- * The way from Start to this page: one quiet line under the cards, "Meine
- * Grows · 2 laufend · 3 abgeschlossen", for whoever keeps a diary. It appears
- * once there is a grow behind it, which is Start's rule for its strips, and
- * its read is the page's own, so the page opens on an answer already there.
+ * The way from Start to this page where Start is a list - several places, or
+ * none: one quiet line, "Meine Grows · 2 laufend · 3 abgeschlossen", for
+ * whoever keeps a diary. With one place the cockpit's grow block leads here
+ * instead. It appears once there is a grow behind it, which is Start's rule
+ * for its strips, and its read is the page's own, so the page opens on an
+ * answer already there.
+ *
+ * The counts are what it says at a glance, so on a phone too narrow for the
+ * title and both of them they move under the title rather than being cut off.
  */
 export function MyGrowsLine() {
   const { t } = useTranslation();
@@ -259,8 +271,10 @@ export function MyGrowsLine() {
   return (
     <Link to={MY_GROWS} className={styles.line}>
       <Sprout size={16} strokeWidth={1.75} className={styles.lineIcon} aria-hidden />
-      <span className={styles.lineTitle}>{t('grow.mine.title')}</span>
-      <span className={`mono ${styles.lineCounts}`}>{countsOf(t, items)}</span>
+      <span className={styles.lineText}>
+        <span className={styles.lineTitle}>{t('grow.mine.title')}</span>
+        <span className={`mono ${styles.lineCounts}`}>{countsOf(t, items)}</span>
+      </span>
       <ChevronRight size={16} strokeWidth={1.75} className={styles.chevron} aria-hidden />
     </Link>
   );

@@ -137,10 +137,11 @@ export const useEveryGrow = () =>
  * because whatever changes Start changes it too: a grow started, moved,
  * harvested or renamed, a photo written into a diary.
  */
-export const useMyGrows = () =>
+export const useMyGrows = (enabled = true) =>
   useRead({
     queryKey: ['home', 'grows'],
     queryFn: ({ signal }) => readEvery<MyGrowCard>('/home/grows', signal),
+    enabled,
   });
 
 /**

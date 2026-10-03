@@ -1,5 +1,5 @@
 import { ChevronRight } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { claimCodeOf } from '@/api/claims';
@@ -22,8 +22,12 @@ import styles from './EmptyHome.module.css';
  * grow was handed a brand-new grower's first-run screen instead, told to start
  * a grow and add a device, and then refused both in the same breath. The demo
  * is told what it actually found.
+ *
+ * `past` is the way to the grows of an account whose grows have all ended:
+ * it is then not told that nothing is here, and the way to what it grew
+ * comes before the doors to the next grow.
  */
-export function EmptyHome({ onStartGrow }: { onStartGrow: () => void }) {
+export function EmptyHome({ onStartGrow, past = null }: { onStartGrow: () => void; past?: ReactNode }) {
   const { t } = useTranslation();
   const { user } = useSession();
 
@@ -32,9 +36,10 @@ export function EmptyHome({ onStartGrow }: { onStartGrow: () => void }) {
   return (
     <section className={styles.screen}>
       <header className={styles.intro}>
-        <h1 className={styles.title}>{t('home.empty.title')}</h1>
-        <p className={styles.text}>{t('home.empty.text')}</p>
+        <h1 className={styles.title}>{t(past ? 'home.empty.pastTitle' : 'home.empty.title')}</h1>
+        <p className={styles.text}>{t(past ? 'home.empty.pastText' : 'home.empty.text')}</p>
       </header>
+      {past}
 
       <StartGrow onOpen={onStartGrow} />
       <AddDevice />

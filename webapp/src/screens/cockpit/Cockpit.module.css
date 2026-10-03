@@ -828,11 +828,20 @@
   color: var(--muted);
 }
 
+/* The block's two ways on: every grow at the start, every task at the end. */
+.growFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
 .allTasks {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  align-self: flex-end;
+  margin-left: auto;
 }
 
 .done {

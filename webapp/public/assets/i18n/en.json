@@ -1540,7 +1540,9 @@
     "empty": {
       "title": "Nothing here yet.",
       "text": "Both doors lead to the same thing: a place with a diary and, if you have one, a controller.",
-      "following": "Following someone? Open their share link and tap Follow; their grow appears here."
+      "following": "Following someone? Open their share link and tap Follow; their grow appears here.",
+      "pastTitle": "No grow is running right now.",
+      "pastText": "Your earlier grows are under “My grows”. For the next one, both doors lead to the same thing: a place with a diary and, if you have one, a controller."
     },
     "demoEmpty": {
       "title": "The demo is empty.",
@@ -2161,12 +2163,9 @@
       "finishedCount_other": "{{count}} finished",
       "none": "no grows yet",
       "new": "New grow",
-      "noPlace": "no place",
-      "sharedTag": "shared",
       "sharedBy": "by @{{handle}}",
       "ran": "{{from}} – {{to}}",
-      "ranDays_one": "{{count}} day",
-      "ranDays_other": "{{count}} days",
+      "toDay": "to day {{day}}",
       "harvest": "Harvest",
       "noneRunning": "No grow is running right now.",
       "noneFinished": "Nothing finished yet · a grow appears here once you harvest or end it.",
@@ -4626,7 +4625,7 @@
     },
     "myGrows": {
       "title": "My grows",
-      "text": "Every grow you can see is here: your own, and those in places somebody invited you into. Running grows come first, finished ones below, newest first. A grow is finished once its last plants are harvested or you end it. Its picture is the newest camera picture taken with the light on while the grow stood in front of the camera – otherwise the newest photo from its diary."
+      "text": "Every grow you can see is here: your own, and those in places somebody invited you into – those carry the name of whoever they belong to (“by @…”). Running grows come first, finished ones below, newest first. A grow is finished once its last plants are harvested or you end it; its card then says from when to when it ran and up to which grow day. Grow days count 24 hours each from the start, as on the grow page, so they can differ by one from the calendar days. Its picture is the newest camera picture taken with the light on while the grow stood in front of the camera – otherwise the newest photo from its diary."
     },
     "dayNightAverages": {
       "title": "Day / night",

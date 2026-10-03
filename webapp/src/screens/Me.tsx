@@ -11,7 +11,7 @@ import { useDiaryLayer } from '@/api/layers';
 import { useOwnSchemes, useSchemes } from '@/api/schemes';
 import { session, useSession } from '@/api/session';
 import { useFollows, useShareLinks } from '@/api/sharing';
-import { MY_GROWS } from '@/app/places';
+import { FROM_ME, MY_GROWS } from '@/app/places';
 import { initials } from '@/app/shell/tabs';
 import { ownsCamera } from '@/screens/devices/cameras';
 import { countsOf } from '@/screens/grow/my-grows';
@@ -128,6 +128,7 @@ function AccountDoors({ handle }: { handle: string }) {
         <div className={ui.group}>
           <Door
             to={MY_GROWS}
+            state={FROM_ME}
             title={t('grow.mine.title')}
             line={line([mine], () => (mine.data!.items.length > 0 ? countsOf(t, mine.data!.items) : t('grow.mine.none')))}
           />
@@ -227,9 +228,9 @@ function Identity({ handle, children }: { handle: string; children: ReactNode })
 }
 
 /** A door: the title, the mono line saying what is behind it, the state word the board sets at the right, and the chevron. */
-function Door({ to, title, line, aside = null }: { to: string; title: string; line: ReactNode; aside?: string | null }) {
+function Door({ to, title, line, aside = null, state }: { to: string; title: string; line: ReactNode; aside?: string | null; state?: unknown }) {
   return (
-    <Link to={to} className={`${styles.row} ${styles.link}`}>
+    <Link to={to} state={state} className={`${styles.row} ${styles.link}`}>
       <span className={styles.doorText}>
         <span className={styles.rowTitle}>{title}</span>
         <span className={`mono ${styles.doorLine}`}>{line}</span>

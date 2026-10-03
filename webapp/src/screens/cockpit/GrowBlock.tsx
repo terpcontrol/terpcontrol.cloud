@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { OverviewCamera, OverviewGrow, OverviewTask, SpaceOverview } from '@fg2/shared-types/v1';
+import { useMyGrows } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
+import { MY_GROWS } from '@/app/places';
 import { useLog, useMayLog } from '@/log/log-context';
 import { ageLabel } from '@/ui/age';
 import { authorOf, headlineOf } from '@/ui/entries';
@@ -29,20 +31,31 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * to look at, and the page shows the picture once rather than as a camera, a
  * grow's thumbnail and a photo line under each other.
  *
- * Without one, a grow is shown by the newest photo written into its diary.
+ * Without one, a grow is shown by the picture its card on "Meine Grows" has,
+ * so the same plants look the same in both places; failing that, by the
+ * newest photo among the lines the page has.
+ *
+ * `mine` is whether the reader's own grows go with the block: the way to
+ * "Meine Grows" beside "Alle Aufgaben", which is how somebody with one place
+ * finds the grows that have ended and the ones that stand elsewhere, and the
+ * cards' pictures. Support reading a customer's place has none of its own.
  */
 export function GrowBlock({
   overview,
   camera = null,
   still,
   now,
+  mine = false,
 }: {
   overview: SpaceOverview;
   camera?: OverviewCamera | null;
   still: string | null;
   now: DateTime;
+  mine?: boolean;
 }) {
   const { t } = useTranslation();
+  const cards = useMyGrows(mine).data?.items ?? [];
+  const pictureOf = (growId: string): string | null => cards.find(card => card.growId === growId)?.coverMediaId ?? null;
   const first = overview.grows[0] ?? null;
   const label = first
     ? [
@@ -66,7 +79,7 @@ export function GrowBlock({
             key={grow.growId}
             grow={grow}
             overview={overview}
-            still={camera ? null : (still ?? photoOf(overview, grow.growId))}
+            still={camera ? null : (still ?? pictureOf(grow.growId) ?? photoOf(overview, grow.growId))}
             bare={camera !== null}
             now={now}
           />
@@ -79,10 +92,18 @@ export function GrowBlock({
           ))}
         </ul>
       ) : null}
-      <Link to="/tasks" className={`mono ${ui.headLink} ${styles.allTasks}`}>
-        {t('cockpit.grow.tasks')}
-        <ChevronRight size={12} strokeWidth={2} aria-hidden />
-      </Link>
+      <div className={styles.growFoot}>
+        {mine && cards.length > 0 ? (
+          <Link to={MY_GROWS} className={`mono ${ui.headLink}`}>
+            {t('grow.mine.title')}
+            <ChevronRight size={12} strokeWidth={2} aria-hidden />
+          </Link>
+        ) : null}
+        <Link to="/tasks" className={`mono ${ui.headLink} ${styles.allTasks}`}>
+          {t('cockpit.grow.tasks')}
+          <ChevronRight size={12} strokeWidth={2} aria-hidden />
+        </Link>
+      </div>
     </section>
   );
 }

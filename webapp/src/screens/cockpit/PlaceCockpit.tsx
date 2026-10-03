@@ -145,7 +145,7 @@ export function PlaceCockpit({
         <div className={styles.columns} data-single>
           <div className={styles.column}>
             <NotifyNotice later />
-            <GrowBlock overview={overview} still={null} now={now} />
+            <GrowBlock overview={overview} still={null} now={now} mine={!visiting} />
             <Latest overview={overview} now={now} count={LATEST_BY_HAND} />
             {offerDevice ? <DeviceOffer /> : null}
           </div>
@@ -187,7 +187,7 @@ export function PlaceCockpit({
                 offline={offline}
               />
             ) : null}
-            {growUp && camera ? <GrowBlock overview={overview} camera={camera} still={pictured?.mediaId ?? null} now={now} /> : null}
+            {growUp && camera ? <GrowBlock overview={overview} camera={camera} still={pictured?.mediaId ?? null} now={now} mine={!visiting} /> : null}
             {camera && !growUp ? <CameraPicture overview={overview} camera={camera} now={now} /> : null}
             {/* Offered only where it can do what it says: an offline device would not hear it, and a plug parks nothing.
                 The control switch stays offered offline, because the device is handed it when it is back. */}
@@ -210,7 +210,7 @@ export function PlaceCockpit({
             {hasDevice && here.length > 0 ? (
               <AlarmsSummary spaceId={spaceId} devices={here} me={visiting ? undefined : me.data} mayChange={mayManage} />
             ) : null}
-            {diary && !growUp ? <GrowBlock overview={overview} still={shown?.mediaId ?? null} now={now} /> : null}
+            {diary && !growUp ? <GrowBlock overview={overview} still={shown?.mediaId ?? null} now={now} mine={!visiting} /> : null}
             <Latest overview={overview} now={now} pictured={growUp ? (pictured?.mediaId ?? null) : null} />
             {offerDiary ? <DiaryOffer /> : null}
             <AdvancedSection scope="place" context={{ spaceId, devices: here, mayManage }} />

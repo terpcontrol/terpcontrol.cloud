@@ -149,34 +149,49 @@ describe('the page', () => {
     expect(autumn).toHaveTextContent('Gelato ×2 · Amnesia Haze');
     expect(autumn.querySelector('img')).toHaveAttribute('src', '/media/still-1?width=720');
 
-    // A grow standing in no place says so rather than leaving the line out.
-    expect(screen.getByRole('link', { name: /Cuttings/ })).toHaveTextContent('no place');
+    // A grow standing in no place says so rather than leaving the line out, in the words the grow page and Start use.
+    expect(screen.getByRole('link', { name: /Cuttings/ })).toHaveTextContent('No fixed place');
   });
 
-  it('marks a grow somebody else runs in a place the grower was let into, and says whose it is', async () => {
+  // Whose it is is the tag itself rather than the end of the place's line, where a phone cut it off first;
+  // "shared" alone read like a grow shared by link.
+  it('marks a grow somebody else runs in a place the grower was let into with whose it is', async () => {
     draw(<MyGrows />);
 
     const lenas = await screen.findByRole('link', { name: /Lena´s tent run/ });
-    expect(within(lenas).getByText('shared')).toBeInTheDocument();
-    expect(lenas).toHaveTextContent('Lena´s tent · by @lena');
-    expect(screen.getByRole('link', { name: /Autumn run/ })).not.toHaveTextContent('shared');
+    expect(within(lenas).getByText('by @lena')).toBeInTheDocument();
+    expect(within(lenas).getByText('Lena´s tent')).toBeInTheDocument();
+    expect(lenas).not.toHaveTextContent('shared');
+    expect(screen.getByRole('link', { name: /Autumn run/ })).not.toHaveTextContent('by @');
   });
 
-  it('says of a finished grow when it ran, for how long, and what came down where it was weighed', async () => {
+  it('says of a finished grow when it ran, the grow day it got to, and what came down where it was weighed', async () => {
     draw(<MyGrows />);
 
     const spring = await screen.findByRole('link', { name: /Spring run/ });
     // The year once, where both days fall in it.
     expect(spring).toHaveTextContent('1 Feb – 1 Jun 2026');
-    expect(spring).toHaveTextContent('121 days · Fridge 1');
+    // The grow day the grow page calls its last, not a count of calendar days that differs from the dates by one now and then.
+    expect(spring).toHaveTextContent('to day 121 · Fridge 1');
     expect(spring).toHaveTextContent('Harvest · dry 386 g · wet 1700 g');
+    // A weight breaks as a whole or not at all.
+    expect(spring.textContent).toContain('wet\u00a01700\u00a0g');
 
     const windowsill = screen.getByRole('link', { name: /Windowsill/ });
     expect(windowsill).toHaveTextContent('20 Nov 2025 – 10 Jan 2026');
-    expect(windowsill).toHaveTextContent('52 days · no place');
+    expect(windowsill).toHaveTextContent('to day 52 · No fixed place');
     expect(windowsill).not.toHaveTextContent('Harvest');
     // No picture: the quiet frame rather than a broken image.
     expect(windowsill.querySelector('img')).toBeNull();
+  });
+
+  it('leads back to Start, or to Ich where its door there opened it', async () => {
+    const start = draw(<MyGrows />);
+    expect(await screen.findByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    start.unmount();
+
+    draw(<MyGrows />, [{ pathname: '/grows', state: { from: 'me' } }]);
+    expect(await screen.findByRole('link', { name: 'Me' })).toHaveAttribute('href', '/me');
   });
 
   it('says what an empty half would hold rather than dropping it', async () => {

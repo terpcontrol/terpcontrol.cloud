@@ -5,6 +5,7 @@ import { isPlace, type PlaceCard as Place } from '@/app/places';
 import { useMe } from '@/api/account';
 import { fetchedAt } from '@/api/clock';
 import { useDevices } from '@/api/devices';
+import { useMyGrows } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
 import { useSession } from '@/api/session';
@@ -28,8 +29,10 @@ import styles from './Home.module.css';
  * opens at its own address; with several it is one compact card per place,
  * each opening that cockpit. A grow standing in no place is a card of its own
  * under either, because there is no place page for it to be part of. For
- * whoever keeps a diary, a line under them leads to every grow at once,
- * finished ones included.
+ * whoever keeps a diary, every grow at once, finished ones included, is a tap
+ * away: from the cockpit's grow block with one place, from a line under the
+ * cards with several, and from the top of an empty Start whose grows have all
+ * ended.
  *
  * It waits in its own shape, and once it has answered it never goes blank
  * again: a refresh that fails keeps the last answer with its ages.
@@ -80,26 +83,35 @@ export function Home() {
   );
 }
 
-/** The empty home, and under it whatever is being followed from it. */
+/**
+ * The empty home, and under it whatever is being followed from it.
+ *
+ * An account whose grows have all ended owns no running grow and may own no
+ * place, and lands here too: it is told that nothing runs right now rather
+ * than that nothing is here, and the way to its grows stands at the top
+ * rather than under three offers made to somebody new.
+ */
 function Nothing({ grows, onStartGrow }: { grows: HomeAnswer['followedGrows']; onStartGrow: () => void }) {
   const now = useNow();
   const diary = useDiaryLayer();
+  const mine = useMyGrows(diary);
+  const past = diary && (mine.data?.items.length ?? 0) > 0;
 
   return (
     <>
-      <EmptyHome onStartGrow={onStartGrow} />
-      {/* An account whose only grow has ended owns no place and lands here, so
-          the way to its grows belongs on this half of the home as well. */}
-      {diary ? <MyGrowsLine /> : null}
+      <EmptyHome onStartGrow={onStartGrow} past={past ? <MyGrowsLine /> : null} />
       <FollowingStrip grows={grows} now={now} />
     </>
   );
 }
 
-/** One place: its cockpit is Start, and the diary's account-wide doors stand under it for whoever keeps one. */
+/**
+ * One place: its cockpit is Start, and the grows without a place stand under
+ * it. The way to every grow is the cockpit's grow block, beside its tasks,
+ * rather than a line under the last of the cockpit's sections.
+ */
 function OnePlace({ place, loose, answer }: { place: Place; loose: HomeSpaceCard[]; answer: HomeAnswer }) {
   const now = useNow();
-  const diary = useDiaryLayer();
 
   return (
     <div className={styles.one}>
@@ -111,7 +123,6 @@ function OnePlace({ place, loose, answer }: { place: Place; loose: HomeSpaceCard
           ))}
         </div>
       ) : null}
-      {diary ? <MyGrowsLine /> : null}
       <FollowingStrip grows={answer.followedGrows} now={now} />
     </div>
   );

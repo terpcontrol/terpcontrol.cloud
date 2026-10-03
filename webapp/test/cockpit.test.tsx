@@ -746,6 +746,22 @@ describe('the diary on a place', () => {
     ],
   });
 
+  /** The same plants look the same on Start and on "Meine Grows": the block takes the picture the grow´s card has. */
+  it('shows a grow by the picture its card on "My grows" has, before the newest photo among the lines here', async () => {
+    server.me = me(true);
+    server.mine = [{ growId: 'grow-1', endedAt: null, coverMediaId: 'diary-photo-older' }] as MyGrowCard[];
+    draw(<PlaceCockpit overview={growing} />);
+
+    const grow = await screen.findByRole('region', { name: 'Grow' });
+    await waitFor(() =>
+      expect(
+        within(grow)
+          .getByRole('link', { name: /Spring run/ })
+          .querySelector('img'),
+      ).toHaveAttribute('src', '/media/diary-photo-older'),
+    );
+  });
+
   it('draws the grow with its day and phase, the last line and what is due, for whoever keeps one', async () => {
     server.me = me(true);
     draw(<PlaceCockpit overview={growing} />);
@@ -912,7 +928,12 @@ describe('Start', () => {
     expect(screen.getByRole('status')).toHaveTextContent('All on target');
   });
 
-  it('leads to every grow from under the cockpit, for an account that keeps a diary and only once there is a grow', async () => {
+  /**
+   * With one place the way to every grow is the cockpit's grow block, beside
+   * its tasks: a line under the cockpit stood below "Zuletzt" and the folded
+   * "Erweitert", two screens down on a phone, and read as part of the latter.
+   */
+  it('leads to every grow from the cockpit´s grow block, for an account that keeps a diary and only once there is a grow', async () => {
     const grows = [{ endedAt: null }, { endedAt: '2026-06-01T10:00:00.000Z' }, { endedAt: '2026-01-10T10:00:00.000Z' }] as MyGrowCard[];
     server.home = { ...answer(card('space-1', 'Fridge 1')), layers: { diary: true } };
     server.overviews.set('space-1', overviewOf());
@@ -920,16 +941,59 @@ describe('Start', () => {
     server.mine = grows;
     const kept = draw(<Home />);
 
-    const line = await screen.findByRole('link', { name: /^My grows/ });
-    expect(line).toHaveAttribute('href', '/grows');
-    expect(line).toHaveTextContent('1 running · 2 finished');
+    const block = await screen.findByRole('region', { name: 'Grow' });
+    expect(await within(block).findByRole('link', { name: /^My grows/ })).toHaveAttribute('href', '/grows');
+    expect(within(block).getByRole('link', { name: /^All tasks/ })).toHaveAttribute('href', '/tasks');
+    // Once, in the block, and not a second time at the foot of the page.
+    expect(screen.getAllByRole('link', { name: /^My grows/ })).toHaveLength(1);
     kept.unmount();
 
+    // A diary with no grow yet has nothing behind the way, and is not offered it.
+    server.mine = [];
+    const none = draw(<Home />);
+    const empty = await screen.findByRole('region', { name: 'Grow' });
+    await waitFor(() => expect(fetchStub).toHaveBeenCalledWith(expect.stringContaining('/home/grows'), expect.anything()));
+    expect(within(empty).queryByRole('link', { name: /^My grows/ })).not.toBeInTheDocument();
+    none.unmount();
+
     // Without the diary the cockpit is the whole of Start.
+    server.mine = grows;
     server.home = answer(card('space-1', 'Fridge 1'));
     server.me = me(false);
     draw(<Home />);
     expect(await screen.findByRole('heading', { name: 'Fridge 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^My grows/ })).not.toBeInTheDocument();
+  });
+
+  it('leads to every grow from under the cards where there are several places', async () => {
+    server.home = { ...answer(card('space-1', 'Fridge 1'), card('space-2', 'Tent 2')), layers: { diary: true } };
+    server.me = me(true);
+    server.mine = [{ endedAt: null }, { endedAt: '2026-06-01T10:00:00.000Z' }] as MyGrowCard[];
+    draw(<Home />);
+
+    const line = await screen.findByRole('link', { name: /^My grows/ });
+    expect(line).toHaveAttribute('href', '/grows');
+    expect(line).toHaveTextContent('1 running · 1 finished');
+  });
+
+  /** An account whose grows have all ended owns no place and lands on the empty Start, which must not say that nothing is here. */
+  it('tells an account whose grows have all ended that none is running, with the way to them first', async () => {
+    server.home = { ...answer(), layers: { diary: true } };
+    server.me = me(true);
+    server.mine = [{ endedAt: '2026-08-15T10:00:00.000Z' }] as MyGrowCard[];
+    const kept = draw(<Home />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'No grow is running right now.' })).toBeInTheDocument();
+    const line = screen.getByRole('link', { name: /^My grows/ });
+    expect(line).toHaveTextContent('1 finished');
+    // Before the doors to the next grow, not under them.
+    const start = screen.getByRole('heading', { name: 'Start a grow' });
+    expect(line.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    kept.unmount();
+
+    server.mine = [];
+    draw(<Home />);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Nothing here yet.' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^My grows/ })).not.toBeInTheDocument();
   });
 

@@ -31,6 +31,11 @@ export const FROM_MY_GROWS = { from: 'grows' } as const;
 
 export const openedFromMyGrows = (state: unknown): boolean => (state as { from?: unknown } | null)?.from === FROM_MY_GROWS.from;
 
+/** What "My grows" is told when Ich's door opens it, so its way back leads to Ich rather than to Start. */
+export const FROM_ME = { from: 'me' } as const;
+
+export const openedFromMe = (state: unknown): boolean => (state as { from?: unknown } | null)?.from === FROM_ME.from;
+
 export const membersPath = (spaceId: string): string => `/spaces/${spaceId}/members`;
 
 /** The pages below Steuerung: the targets it opens on where a plan runs, the alarm rules, and the plan where none does. */
