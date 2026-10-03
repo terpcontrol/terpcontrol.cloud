@@ -2,12 +2,12 @@ import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
-import { DateTime } from 'luxon';
+import { DateTime, Settings } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Device, GrowListItem, Plant } from '@fg2/shared-types/v1';
 import { HarvestSheet } from '@/screens/grow/HarvestSheet';
 import { GrowLifecycle } from '@/screens/grow/Lifecycle';
@@ -470,6 +470,14 @@ describe('the climate beside a phase', () => {
   });
   const veg: GrowListItem = { ...grow, phases: [phase('p1', 'vegetative', 20)], summary: { ...grow.summary, stage: 'vegetative' } };
 
+  // The window is said on the account's clock; with no account read, that is the browser's, held at UTC here.
+  beforeAll(() => {
+    Settings.defaultZone = 'utc';
+  });
+  afterAll(() => {
+    Settings.defaultZone = 'system';
+  });
+
   it('leaves the targets as they are unless a climate is chosen, and says what they stay at', () => {
     hardware.devices = [tent()];
     draw(<PhaseSheet grow={veg} onClose={() => {}} />);
@@ -480,7 +488,8 @@ describe('the climate beside a phase', () => {
     expect(within(choices).getByRole('button', { name: 'Flower' })).toBeInTheDocument();
     expect(within(choices).getByRole('button', { name: 'Late flower' })).toBeInTheDocument();
     expect(within(choices).getByRole('button', { name: 'Auto · Flower' })).toBeInTheDocument();
-    expect(screen.getByText(/Stay: light 18 h · day 26 °C · night 22 °C · 62 %/)).toBeInTheDocument();
+    // Eighteen hours from six in the morning: said as the window it makes, which ends at midnight.
+    expect(screen.getByText(/Stay: Light on 06:00–00:00 · 18 h · day 26 °C · night 22 °C · 62 %/)).toBeInTheDocument();
   });
 
   it('puts the tent on the stage´s own climate with the phase when that is chosen, and says what it sets', async () => {
@@ -496,7 +505,8 @@ describe('the climate beside a phase', () => {
     draw(<PhaseSheet grow={veg} onClose={() => {}} />);
 
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Flower' }));
-    expect(screen.getByText(/New: light 12 h · day 25 °C · night 20 °C · 50 %/)).toBeInTheDocument();
+    // A preset moves how long the light is on, never when it comes on: twelve hours from the device's six.
+    expect(screen.getByText(/New: Light on 06:00–18:00 · 12 h · day 25 °C · night 20 °C · 50 % – replaces the targets/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Enter Flower' }));
 
     await waitFor(() => expect(asked.filter(call => call.method === 'POST')).toHaveLength(1));

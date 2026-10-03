@@ -36,6 +36,7 @@ import {
 import { draftOf, emptyDraft, type PlanDraft } from './plan-edit';
 import { offersReadyPlans } from './ready-plans';
 import { durationLabel, stepMeta } from './plan-labels';
+import { offsetOf } from './targets/targets-draft';
 import styles from './Control.module.css';
 import { deviceName } from '@/screens/devices/naming';
 
@@ -275,7 +276,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
             </span>
             <span className={styles.stepName}>{step.name}</span>
           </p>
-          <p className={`mono ${styles.stepMeta}`}>{stepMeta(t, step)}</p>
+          <p className={`mono ${styles.stepMeta}`}>{stepMeta(t, step, offsetOf(serverNow(), zone))}</p>
 
           {through === null || !going ? null : (
             <span className={styles.track} aria-hidden>
@@ -535,6 +536,8 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
 /** Every step in order, with the one the device is standing on marked as the one it is. */
 function Steps({ plan, now }: { plan: Plan; now: DateTime }) {
   const { t } = useTranslation();
+  const zone = useZone();
+  const offset = offsetOf(serverNow(), zone);
   const running = plan.state.status === 'running' || plan.state.status === 'paused';
 
   if (plan.steps.length === 0) return null;
@@ -552,7 +555,7 @@ function Steps({ plan, now }: { plan: Plan; now: DateTime }) {
             <span className={`mono ${styles.stepIndex}`}>{index + 1}</span>
             <span className={styles.stepText}>
               <span className={styles.stepTitle}>{step.name}</span>
-              <span className={`mono ${styles.stepNote}`}>{stepMeta(t, step)}</span>
+              <span className={`mono ${styles.stepNote}`}>{stepMeta(t, step, offset)}</span>
             </span>
             {active ? (
               <span className={`mono ${styles.here}`} data-status={how}>

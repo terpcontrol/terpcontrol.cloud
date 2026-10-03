@@ -114,6 +114,7 @@ const state = { spaces: [] as Space[], grows: [] as GrowListItem[], me: meWith(U
 
 const answers = (path: string) => {
   if (path === '/devices/sim-controller-7f3a') return device;
+  if (path === '/devices') return { items: [device], nextCursor: null };
   if (path === '/devices/sim-plug-1') return { ...device, id: 'sim-plug-1', type: 'plug' };
   if (path === '/devices/sim-plug-1/sockets') return { items: [], nextCursor: null, capabilities: CAPABILITIES };
   if (path === '/devices/sim-controller-7f3a/sockets') return { items: [], nextCursor: null, capabilities: CAPABILITIES };
@@ -334,6 +335,31 @@ describe('adding a device', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'flowering' }));
     expect(await screen.findByRole('link', { name: /Start a grow here/ })).toHaveAttribute('href', '/grows/new?space=space-new&stage=flowering');
     expect(screen.getByText('The targets went to 1 controller.')).toBeInTheDocument();
+  });
+
+  /**
+   * A stage sets how long the light is on from the hour the device already
+   * has: a new fridge put on Veg burnt until two at night, and the step said
+   * only that the targets had gone to it. The window is said before the write
+   * and again after it.
+   */
+  it('says the light window a stage puts the controller on, before it is written and after', async () => {
+    const configured = { ...device, configuration: { daynight: { day: 6 * 3600, night: 22 * 3600 }, day: { temperature: 25 } } };
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices' ? { items: [configured], nextCursor: null } : answers(path)) as never,
+    );
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Veg' }));
+    const line = 'Light on 06:00–00:00 · 18 h – when it comes on is changed under Control › Targets.';
+    expect(await screen.findByText(line)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    expect(await screen.findByText('Light on 06:00–18:00 · 12 h – when it comes on is changed under Control › Targets.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
+
+    expect(await screen.findByText('The targets went to 1 controller.')).toBeInTheDocument();
+    expect(screen.getByText('Light on 06:00–18:00 · 12 h – when it comes on is changed under Control › Targets.').tagName).toBe('LI');
   });
 
   it('offers monitoring without writing anything to the controller', async () => {

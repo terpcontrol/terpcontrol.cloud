@@ -358,6 +358,19 @@
   color: var(--label);
 }
 
+/* A time of day in the grid of figures: the browser's own time field, with
+   room for "07:00". */
+.figureClock {
+  width: 76px;
+}
+
+/* A line that belongs to the figures but takes the grid's whole width: the
+   light window a step's hours make. */
+.figureWide {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 /* A figure the hardware standing here cannot run: the row keeps its place in
    the grid, so the six read as the two halves of the cycle they are, and says
    what is missing where the number would have been - the same words the manual

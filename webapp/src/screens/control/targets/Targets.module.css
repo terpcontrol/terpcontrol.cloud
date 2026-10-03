@@ -1,7 +1,7 @@
-/* The targets page: the rows of sliders, the chips, the card that says what a
-   save does to the plan, and the bar that holds the save. The card, the
-   chips and the buttons are the app's own; what is drawn here is the slider,
-   which the browser would otherwise draw in its own colours. */
+/* The targets page around its card (DayNight.module.css): the chips, the
+   card of a paused plan, and the bar that holds the save - and the slider
+   rows the panels of a socket, a lamp and a fan are set with, which the
+   browser would otherwise draw in its own colours. */
 
 .page {
   display: flex;
@@ -125,65 +125,11 @@
   text-align: right;
 }
 
-/* "Light on at": a time rather than a slider, so the name takes the slider's
-   room and the time stands where the figures stand, with when the light goes
-   off under it as the VPD stands under the humidity. */
-.clockRow {
-  grid-template-areas: 'label label value';
-}
-
-.clockValue {
-  grid-area: value;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--space-1);
-}
-
-.clock {
-  width: 7rem;
-  padding-inline: var(--space-2);
-  font-size: var(--text-md);
-  text-align: right;
-}
-
-.clock:disabled {
-  opacity: 0.6;
-}
-
-/* A finger's height on a phone; beside a mouse the field is a chip's, so the
-   row is no taller than the humidity's with its VPD under the figure. */
-@media (max-width: 599px) {
-  .clockRow {
-    grid-template-areas: 'label value';
-  }
-}
-
-@media (min-width: 600px) {
-  .clock {
-    height: var(--chip-height);
-  }
-}
-
-.needs {
-  grid-column: 2 / -1;
-  justify-self: end;
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
 /* The app's one slider, at a finger's height. `--filled` is set per row from
    the value. */
 .slider {
   width: 100%;
   height: var(--control-height);
-}
-
-/* Where "night ›" lands, a little above the block so its label is not under the top bar. */
-.anchor {
-  display: block;
-  height: 0;
-  scroll-margin-top: calc(var(--topbar-height) + var(--space-3));
 }
 
 /* What a save does to the plan. Amber: a plan that is running or paused is a
@@ -213,22 +159,6 @@
 .sentNote {
   font-family: var(--font-text);
   font-size: var(--text-sm);
-}
-
-/* Control switched off is said in the plan card's amber. */
-.planCard[data-status='off'] strong {
-  font-weight: var(--weight-semibold);
-}
-
-/* A drying spell and another operating mode are what the grow or the grower
-   asked for, so their cards keep the quiet border rather than the amber. */
-.planCard[data-status='drying'],
-.planCard[data-status='mode'] {
-  border-color: var(--rule);
-}
-
-.drying {
-  margin: 0;
 }
 
 /* The energy-saving switch: one row, in a card of its own under the chips. */
@@ -287,6 +217,18 @@
   grid-column: 1 / -1;
 }
 
+/* Saving pauses a running plan: said in the bar, in the amber of a state
+   somebody chose, so it is read before the button rather than under the
+   table. */
+.bar[data-pauses] {
+  border-top-color: var(--warning);
+}
+
+.bar[data-pauses] .barText {
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+
 /* The way out of a tent with nothing to set, inside the dashed note: underlined
    rather than coloured, because the note is a quiet one and the green is the
    Save's. */
@@ -317,6 +259,10 @@
     flex: 1;
     font-size: var(--text-sm);
     color: var(--ink);
+  }
+
+  .bar[data-pauses] {
+    border-color: var(--warning);
   }
 
   .bar > p {

@@ -3168,7 +3168,11 @@
     "camSince": "Kein Cam-Bild um {{time}} – die Cam filmt seit {{since}}",
     "noFrameAt": "Kein Cam-Bild um {{time}}",
     "photoAt": "Foto · {{time}}",
-    "visiting": "Support-Ansicht eines Kundenorts"
+    "visiting": "Support-Ansicht eines Kundenorts",
+    "bandDay": "Tagesziel {{low}}–{{high}}",
+    "bandNight": "Nachtziel {{low}}–{{high}}",
+    "noTargetNight": "nachts kein Ziel",
+    "nightLegend": "Grau hinterlegt: die Nacht"
   },
   "camera": {
     "never": "nie",
@@ -3873,17 +3877,7 @@
     "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin ein Klima stehen könnte. Wird am Gerät selbst eine beliebige Einstellung geändert, schickt es sie; ein neuer Verbindungsaufbau allein tut das nicht, und was hier stünde, kann sie nicht ersetzen.",
     "prefill": "Oder ein Klima-Preset übernehmen und anpassen – es gilt erst, was gespeichert ist:",
     "presets": "Vorlagen",
-    "day": "Tag",
-    "night": "Nacht",
-    "toNight": "Nacht ›",
-    "temperature": "Temperatur",
-    "humidity": "Luftfeuchte",
     "light": "Lichtgrenze",
-    "lightHours": "Licht an für",
-    "lightsOn": "Licht an um",
-    "lightsOff": "aus um {{time}}",
-    "co2": "CO₂-Ziel",
-    "vpd": "VPD {{value}} kPa",
     "needsCo2": "braucht einen CO₂-Sensor",
     "typed": "{{name}}, eingetippt",
     "aria": {
@@ -3893,7 +3887,11 @@
       "nightHumidity": "Luftfeuchte in der Nacht",
       "lightLimit": "Lichtgrenze",
       "lightHours": "Licht an für",
-      "co2": "CO₂-Ziel"
+      "co2": "CO₂-Ziel",
+      "lightsOn": "Licht an um",
+      "dryingTemperature": "Temperatur in der Trocknung",
+      "germinationTemperature": "Temperatur beim Keimen",
+      "dryingHumidity": "Luftfeuchte in der Trocknung"
     },
     "unit": {
       "temperature": "°C",
@@ -3902,7 +3900,6 @@
       "hours": "Std",
       "co2": "ppm"
     },
-    "planRunning": "Speichern pausiert den laufenden Plan, der sonst innerhalb einer Stunde seine eigenen Zielwerte zurücksetzen würde.",
     "planPaused": "Der Plan ist pausiert, solange diese Zielwerte gelten.",
     "planPausedFor": "Der Plan ist pausiert: {{reason}}",
     "resume": "Plan fortsetzen",
@@ -3925,6 +3922,98 @@
     "drying": {
       "starts": "Speichern schaltet die Trocknung ein: kein Licht und kein CO₂, das Gerät entfeuchtet und heizt nur.",
       "ends": "Speichern beendet die Trocknung: Das Gerät hält wieder Tag und Nacht, Licht und CO₂."
+    },
+    "table": {
+      "label": "Zielwerte",
+      "figure": "Wert",
+      "dayTitle": "Licht an",
+      "dayWhat": "(Tag)",
+      "nightTitle": "Licht aus",
+      "nightWhat": "(Nacht)",
+      "hours": "{{hours}} Std",
+      "alwaysTitle": "Durchgehend Licht",
+      "alwaysSub": "24 Std · Tageswerte",
+      "neverTitle": "Durchgehend dunkel",
+      "neverSub": "0 Std · Nachtwerte",
+      "dryingTitle": "Trocknung",
+      "germinationTitle": "Keimung",
+      "roundTheClock": "rund um die Uhr",
+      "brightTitle": "Hell",
+      "brightSub": "Tag, laut Lichtsensor",
+      "darkTitle": "Dunkel",
+      "darkSub": "Nacht",
+      "now": "gilt jetzt",
+      "bySchedule": "laut Zeitplan",
+      "temperature": "Temperatur",
+      "humidity": "Luftfeuchte",
+      "co2": "CO₂-Ziel",
+      "light": "Lichtgrenze",
+      "vpd": "VPD {{value}}",
+      "co2Night": "kein CO₂",
+      "lightNight": "Lampe aus",
+      "planMark": "setzt der laufende Plan",
+      "zeroLimit": "Lichtgrenze 0 %: Die Lampe bleibt dunkel, der Tag gilt aber weiter – mit den Tageswerten und mit CO₂.",
+      "keptNight": "Nachtwerte – gelten wieder, sobald es eine Nacht gibt",
+      "keptNightHow": "Mit weniger als 24 Std Licht stehen sie wieder in der Tabelle.",
+      "keptDay": "Tageswerte – gelten wieder, sobald es einen Tag gibt",
+      "keptDayHow": "Mit mehr als 0 Std Licht stehen sie wieder in der Tabelle.",
+      "keptLight": "Lichtgrenze {{percent}} %"
+    },
+    "stepLess": "{{name}}: weniger",
+    "stepMore": "{{name}}: mehr",
+    "planTable": {
+      "legend": "setzt der laufende Plan „{{name}}“ – jede Stunde neu.",
+      "ownsNothing": "Der laufende Plan „{{name}}“ setzt keinen dieser Werte.",
+      "pauses": "Speichern pausiert den Plan „{{name}}“ – er setzt einen der geänderten Werte.",
+      "keeps": "Der Plan „{{name}}“ läuft weiter – er setzt nichts davon."
+    },
+    "plan": {
+      "label": "Lichtplan",
+      "window": "Licht an {{on}}–{{off}} · {{hours}} Std",
+      "always": "Licht durchgehend an · 24 Std",
+      "never": "Licht durchgehend aus · 0 Std",
+      "alwaysShort": "durchgehend an",
+      "neverShort": "durchgehend aus",
+      "drying": "Licht aus · Trocknung",
+      "germination": "Licht aus · Keimung",
+      "dryingLine": "Das Licht bleibt aus, solange die Trocknung läuft. Danach gilt wieder der Lichtplan: {{window}}.",
+      "germinationLine": "In der Keimung bleibt das Licht rund um die Uhr aus. Der Lichtplan – {{window}} – gilt wieder in der Betriebsart Standard oder Gewächshaus.",
+      "sensor": "Tag ist, solange der Lichtsensor des Lüfters Licht sieht.",
+      "draft": "Entwurf",
+      "was": "bisher: {{window}}",
+      "draftBarAlt": "Entwurf: {{window}}",
+      "now": {
+        "day": "Jetzt ist Tag · Licht aus um {{time}}",
+        "night": "Jetzt ist Nacht · Licht an um {{time}}",
+        "always": "Jetzt ist Tag · das Licht bleibt an",
+        "never": "Jetzt ist Nacht · das Licht bleibt aus",
+        "glide": {
+          "day": "Sonnenaufgang · die Zielwerte gleiten bis {{time}} zum Tag",
+          "night": "Sonnenuntergang · Licht aus um {{time}}, bis dahin gleiten die Zielwerte zur Nacht"
+        },
+        "offline": "{{offline}} · laut Zeitplan wäre jetzt {{half}}",
+        "sensor": {
+          "day": "Jetzt hell · es gelten die Tageswerte",
+          "night": "Jetzt dunkel · es gelten die Nachtwerte"
+        }
+      },
+      "half": {
+        "day": "Tag",
+        "night": "Nacht"
+      },
+      "flips": {
+        "day": "Nach dem Speichern ist sofort Tag: Das Licht geht an, und es gelten die Tageswerte.",
+        "night": "Nach dem Speichern ist sofort Nacht: Das Licht geht aus, und es gelten die Nachtwerte."
+      },
+      "lightsOn": "Licht an um",
+      "hours": "Dauer",
+      "night": "Die Nacht ergibt sich daraus: {{from}}–{{to}} · {{hours}} Std.",
+      "dip": "Durchgehend heißt: Einmal am Tag, um {{time}}, dimmt die Lampe {{down}} Min ab und {{up}} Min wieder auf – ganz ohne Nacht kommt das Gerät nicht aus.",
+      "blink": "Durchgehend heißt: Einmal am Tag, um {{time}}, geht die Lampe für zwei Sekunden aus – ganz ohne Nacht kommt das Gerät nicht aus.",
+      "dipFridge": "Solange gleiten die Zielwerte kurz Richtung Nachtwerte, und CO₂ pausiert.",
+      "neverLine": "Ohne Licht ist rund um die Uhr Nacht: Es gelten die Nachtwerte, CO₂ wird nicht zugegeben.",
+      "earlier": "{{name}}: früher",
+      "later": "{{name}}: später"
     }
   },
   "notifications": {
@@ -4207,7 +4296,8 @@
       "whichGrow": "Welcher Grow zieht hierher",
       "onStage": "auf {{stage}}",
       "measuring": "nur messen",
-      "nothingYet": "noch nichts gesetzt"
+      "nothingYet": "noch nichts gesetzt",
+      "window": "{{light}} – wann es angeht, änderst du unter Steuerung › Zielwerte."
     },
     "hardware": {
       "next": "Steckdosen und Cam?",
@@ -4561,7 +4651,7 @@
     },
     "band": {
       "title": "Im Ziel",
-      "text": "Nah genug am Zielwert, um als getroffen zu gelten: bis ±1 °C, ±5 % Feuchte oder ±200 ppm CO₂. Nachts hat CO₂ kein Band, weil der Controller CO₂ nur bei Licht zugibt."
+      "text": "Nah genug am Zielwert, um als getroffen zu gelten: bis ±1 °C, ±5 % Feuchte oder ±200 ppm CO₂. Nachts hat CO₂ kein Band, weil das Gerät CO₂ nur am Tag zugibt."
     },
     "verdict": {
       "title": "Im Zielband über 24 Stunden",
@@ -4589,15 +4679,15 @@
     },
     "dayNight": {
       "title": "Tag und Nacht",
-      "text": "Tag ist, solange das Licht an ist, keine Uhrzeit: Der Controller schaltet Lampe und Tag- und Nachtzielwerte gemeinsam und gibt CO₂ nur tagsüber zu. „Licht an um“ legt fest, wann der Tag beginnt, „Licht an für“, wie lange er dauert."
+      "text": "Tag und Nacht richtet das Gerät nach der Uhr, nicht danach, ob die Lampe leuchtet: Ab „Licht an um“ ist für die eingestellte Dauer Tag – die Lampe fährt bis zur Lichtgrenze hoch, es gelten die Werte der Spalte „Licht an“, und CO₂ wird zugegeben. Danach ist Nacht mit den Werten der Spalte „Licht aus“. Die grün hinterlegte Spalte gilt gerade. Licht von Hand gehalten, Lichtgrenze 0 % oder eine Lampe, die bei Hitze herunterdimmt, ändern daran nichts. Trocknung und Keimung kennen keinen Tag: Sie halten ihre Werte rund um die Uhr, im Dunkeln."
     },
     "lightLimit": {
       "title": "Lichtgrenze",
-      "text": "Das Maximum, das die Lampe geben darf, als Anteil ihrer vollen Leistung: Bei Sonnenaufgang fährt sie darauf hoch, bei Sonnenuntergang wieder herunter. 0 % hält die Lampe dunkel, so wie das Trocknungs-Preset."
+      "text": "Das Maximum, das die Lampe am Tag geben darf, als Anteil ihrer vollen Leistung: Bei Sonnenaufgang fährt sie darauf hoch, bei Sonnenuntergang wieder herunter. Mit 0 % bleibt sie dunkel, der Tag gilt aber weiter – mit den Tageswerten und mit CO₂. Ganz dunkel und ohne Tag sind die Trocknung und die Betriebsart Keimung."
     },
     "lightsOn": {
       "title": "Licht an um",
-      "text": "Wann das Licht angeht und der Tag beginnt, nach der Uhr deines Kontos (Ich › Darstellung). Bei der Umstellung auf Sommer- oder Winterzeit bleibt es bei dieser Uhrzeit – die Cloud stellt das Gerät in der Nacht der Umstellung selbst um. Für Nachtstrom oder gegen Sommerhitze den Tag in die Nacht legen, zum Beispiel ab 22:00."
+      "text": "Wann das Licht angeht und der Tag beginnt, nach der Uhr deines Kontos (Ich › Darstellung). Bei der Umstellung auf Sommer- oder Winterzeit bleibt es bei dieser Uhrzeit – die Cloud stellt das Gerät in der Nacht der Umstellung selbst um. Für Nachtstrom oder gegen Sommerhitze den Tag in die Nacht legen, zum Beispiel ab 22:00. Ein laufender Plan behält diese Uhrzeit, außer sein Schritt bringt eine eigene mit."
     },
     "resumePlan": {
       "title": "Plan fortsetzen",
@@ -4637,7 +4727,7 @@
     },
     "dayNightAverages": {
       "title": "Tag / Nacht",
-      "text": "Durchschnitte über die Stunden mit und ohne Licht, so wie der Controller es geschaltet hat – nicht nach der Uhr. Wo kein Licht aufgezeichnet wurde, steht stattdessen ein einziger Durchschnitt."
+      "text": "Durchschnitte über den Tag und über die Nacht: die Stunden, in denen die Tageswerte galten, und die, in denen die Nachtwerte galten. Wo das Gerät keinen Tag und keine Nacht kennt – in der Trocknung zum Beispiel –, steht ein einziger Durchschnitt."
     },
     "feedStrength": {
       "title": "Stärke",
@@ -4741,7 +4831,7 @@
     },
     "lightHold": {
       "title": "Auto, an, aus",
-      "text": "An lässt die Lampe mit ihrer Lichtgrenze leuchten, auch nachts; Aus hält sie dunkel – für die angezeigte Zeit oder bis das Gerät neu startet. Das Gerät meldet das Halten nicht zurück: Markiert ist, was von hier zuletzt gesendet wurde, bis seine Zeit um ist. Auto beendet es."
+      "text": "An lässt die Lampe mit ihrer Lichtgrenze leuchten, auch nachts; Aus hält sie dunkel – für die angezeigte Zeit oder bis das Gerät neu startet. Tag und Nacht bleiben dabei, wie der Lichtplan sie legt: Es gelten dieselben Zielwerte, und CO₂ gibt es weiter nur am Tag. Das Gerät meldet das Halten nicht zurück: Markiert ist, was von hier zuletzt gesendet wurde, bis seine Zeit um ist. Auto beendet es."
     },
     "firmwareChannel": {
       "title": "Updates",
@@ -4845,7 +4935,7 @@
     },
     "dayCurve": {
       "title": "Die letzten 24 Stunden",
-      "text": "Die kleine Kurve zeigt, wie der Wert in den letzten 24 Stunden lief. Grau hinterlegt ist die Nacht, grün der Zielbereich – nachts gilt das Nachtziel, deshalb springt das grüne Band mit dem Licht. Ein Tipp auf die Kachel öffnet den Verlauf."
+      "text": "Die kleine Kurve zeigt, wie der Wert in den letzten 24 Stunden lief. Grau hinterlegt ist die Nacht, grün der Zielbereich – nachts gilt das Nachtziel, deshalb springt das grüne Band, wenn die Nacht beginnt und endet. Ein Tipp auf die Kachel öffnet den Verlauf."
     },
     "ppfd": {
       "title": "PPFD",
@@ -4878,7 +4968,7 @@
     "advanced": {
       "operatingMode": {
         "title": "Betriebsart",
-        "text": "Was der Kühlschrank als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂. Gewächshaus regelt nur die Temperatur: Licht und CO₂ laufen weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Keimung hält es dunkel und heizt und kühlt auf die Nachttemperatur. Der Energiespar-Modus gilt nur im Standard. Eine Trocknungsphase geht vor und kehrt danach zur Betriebsart zurück."
+        "text": "Was der Kühlschrank als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂ nach Tag und Nacht. Gewächshaus regelt nur die Temperatur: Licht und CO₂ laufen nach dem Lichtplan weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Keimung hält es rund um die Uhr dunkel und heizt und kühlt auf eine Temperatur – die der Spalte „Keimung“ unter Zielwerte. Der Energiespar-Modus gilt nur im Standard. Eine Trocknungsphase geht vor und kehrt danach zur Betriebsart zurück."
       },
       "chartStep": {
         "title": "Intervall",
@@ -4886,7 +4976,7 @@
       },
       "chartVpdHalf": {
         "title": "VPD für Tag oder Nacht",
-        "text": "Tag und Nacht werden auf verschiedene VPD-Werte geregelt, deshalb sieht eine Linie über beide aus wie eine Säge. Hier lässt du nur die Tag- oder nur die Nachtwerte zeichnen. Was Tag ist, sagt das Licht, wie bei der Schattierung der Kurven."
+        "text": "Tag und Nacht werden auf verschiedene VPD-Werte geregelt, deshalb sieht eine Linie über beide aus wie eine Säge. Hier lässt du nur die Tag- oder nur die Nachtwerte zeichnen. Tag und Nacht sind dieselben wie bei der grauen Schattierung der Kurven."
       },
       "chartLive": {
         "title": "Automatisch aktualisieren",
@@ -4999,7 +5089,7 @@
     },
     "stepLightHours": {
       "title": "Licht an für (im Schritt)",
-      "text": "Wie viele Stunden am Tag das Licht brennt, solange dieser Schritt läuft. Es geht zur gewohnten Uhrzeit an („Licht an um“ unter Zielwerte) und so viele Stunden später aus. 12 Stunden lösen bei photoperiodischen Pflanzen die Blüte aus. Leer gelassen bleibt die Lichtdauer, wie sie ist."
+      "text": "Wie viele Stunden am Tag das Licht brennt, solange dieser Schritt läuft. Es geht zur gewohnten Uhrzeit an („Licht an um“ unter Zielwerte) – außer der Schritt bringt eine eigene Uhrzeit mit – und so viele Stunden später aus; die Nacht ist der Rest des Tages. 12 Stunden lösen bei photoperiodischen Pflanzen die Blüte aus. Leer gelassen bleibt die Lichtdauer, wie sie ist."
     },
     "readyPlans": {
       "title": "Fertige Pläne",
@@ -5044,6 +5134,10 @@
     "chartOutputs": {
       "title": "Ausgänge im Graphen",
       "text": "Licht, Lüfter und Heizung zeigen, wie stark sie liefen: 0 % ist aus, 100 % volle Leistung, und beim Licht sieht man Dimmung, Sonnenauf- und -untergang. Das CO₂-Ventil zeigt, wie viel es dosiert hat: Das Gerät zählt, wie lange das Ventil offen war, in Takten seiner Uhr, und die Linie zeigt die Summe je Intervall. Je höher, desto mehr CO₂ – Gramm sind das nicht. Entfeuchter und Steckdosen kennen nur an und aus."
+    },
+    "nightBand": {
+      "title": "Grau hinterlegt: die Nacht",
+      "text": "Grau hinterlegt sind die Nächte: die Stunden, in denen nach dem Lichtplan Nacht ist – das Licht aus, die Nachtwerte gelten, CO₂ wird nicht zugegeben. Das grüne Band ist der Zielbereich, nachts der der Nachtwerte; deshalb springt es, wenn die Nacht beginnt und endet. Trocknung und Keimung kennen keinen Tag: Dann ist durchgehend Nacht."
     }
   },
   "place": {
@@ -5109,7 +5203,8 @@
         "day": "Tagesziel {{target}}",
         "night": "Nachtziel {{target}}",
         "any": "Ziel {{target}}",
-        "drying": "Trocknungsziel {{target}}"
+        "drying": "Trocknungsziel {{target}}",
+        "germination": "Keimungsziel {{target}}"
       },
       "noTarget": "kein Ziel",
       "co2Night": "nachts kein Ziel",
@@ -5126,7 +5221,8 @@
       "vpd": "VPD {{value}}",
       "since": "seit {{time}}",
       "day": "24 Std",
-      "curveAlt": "{{metric}} der letzten 24 Stunden"
+      "curveAlt": "{{metric}} der letzten 24 Stunden",
+      "co2Dark": "ohne Licht kein Ziel"
     },
     "light": {
       "on": "An",
@@ -5142,7 +5238,11 @@
       "onAt": "an um {{time}}",
       "barAlt": "Licht an von {{on}} bis {{off}}",
       "wasOn": "War an",
-      "wasOff": "War aus"
+      "wasOff": "War aus",
+      "always": "durchgehend an · 24 Std",
+      "never": "durchgehend aus · 0 Std",
+      "dayUntil": "Tag bis {{time}}",
+      "nightUntil": "Nacht bis {{time}}"
     },
     "leaf": {
       "leaf": "Blatttemperatur",
@@ -5186,7 +5286,10 @@
       "limit": "höchstens {{percent}} %",
       "none": "Noch keine Zielwerte.",
       "controlOff": "Regelung aus: Das Gerät hält gerade keine Zielwerte.",
-      "awaiting": "Wartet auf die Einstellungen des Geräts."
+      "awaiting": "Wartet auf die Einstellungen des Geräts.",
+      "roundTheClock": "Rund um die Uhr",
+      "now": "jetzt",
+      "bySchedule": "laut Zeitplan"
     },
     "alarms": {
       "title": "Alarme",
@@ -5214,12 +5317,14 @@
       "lightOn": "Licht an",
       "lightOff": "Licht aus",
       "lightOnUntil": "Licht an bis {{time}}",
-      "lightOffUntil": "Licht aus bis {{time}}"
+      "lightOffUntil": "Licht aus bis {{time}}",
+      "lightAlways": "Licht durchgehend an",
+      "lightNever": "Licht durchgehend aus"
     },
     "mode": {
       "drying": "Trocknung läuft: kein Licht und kein CO₂, gehalten werden Temperatur und Luftfeuchte der Trocknung.",
       "greenhouse": "Betriebsart Gewächshaus: Geregelt wird nur die Temperatur, die Luftfeuchte nicht.",
-      "germination": "Betriebsart Keimung: dunkel und ohne CO₂, gehalten wird die Nachttemperatur.",
+      "germination": "Betriebsart Keimung: dunkel und ohne CO₂, rund um die Uhr auf eine Temperatur.",
       "change": "Ändern"
     },
     "visiting": "Support-Ansicht eines Kundenorts: nur lesen. Zeiten stehen in deiner Zeitzone."
@@ -5228,8 +5333,8 @@
     "label": "Zielwerte",
     "keep": "Lassen, wie sie sind",
     "keeps": "Bleiben: {{figures}}.",
-    "sets": "Neu: {{figures}} – ersetzt die Zielwerte unter Steuerung.",
-    "figures": "Licht {{hours}} Std · Tag {{day}} °C · Nacht {{night}} °C · {{humidity}} %",
+    "sets": "Neu: {{figures}} – ersetzt die Zielwerte unter Steuerung; wann das Licht angeht, bleibt.",
+    "figures": "{{light}} · Tag {{day}} °C · Nacht {{night}} °C · {{humidity}} %",
     "dark": "Licht aus · {{day}} °C · {{humidity}} %",
     "dries": "Das Gerät geht in die Trocknung: kein Licht und kein CO₂.",
     "endsDrying": "Die Trocknung endet, das Gerät hält wieder Tag und Nacht.",
@@ -5277,13 +5382,11 @@
     "done": "Die Regelung ist aus.",
     "unheard": "Das Gerät ist gerade nicht erreichbar und übernimmt es, sobald es sich wieder meldet.",
     "pauseReason": "Die Regelung wurde ausgeschaltet.",
-    "offTargets": "Das Gerät hält keine Zielwerte. Speichern schaltet die Regelung wieder ein.",
-    "offTargetsRead": "Das Gerät hält gerade keine Zielwerte.",
     "dryingNote": "Trocknung läuft: kein Tag und keine Nacht, kein Licht, kein CO₂. Das Gerät entfeuchtet und heizt nur.",
     "endDrying": "Trocknung beenden",
     "modeNote": {
-      "greenhouse": "Betriebsart Gewächshaus: Das Gerät regelt nur die Temperatur. Die Luftfeuchte unten wird nicht gehalten, Licht und CO₂ laufen wie eingestellt.",
-      "germination": "Betriebsart Keimung: dunkel, ohne CO₂. Das Gerät heizt und kühlt auf die Nachttemperatur; Tagwerte, Luftfeuchte, Licht und CO₂ unten gelten nicht."
+      "greenhouse": "Betriebsart Gewächshaus: Das Gerät regelt nur die Temperatur, die Luftfeuchte hält es nicht. Licht und CO₂ laufen nach dem Lichtplan.",
+      "germination": "Betriebsart Keimung: dunkel und ohne CO₂, rund um die Uhr. Das Gerät heizt und kühlt nur auf die Temperatur unten."
     },
     "modeChange": "Betriebsart ändern",
     "offTitle": "Regelung aus.",
@@ -5298,7 +5401,13 @@
       "night": "Nacht {{values}}",
       "light": "Licht {{percent}} %",
       "co2": "CO₂ {{value}}"
-    }
+    },
+    "offLine": {
+      "fridge": "Das Gerät misst nur noch: Heizung, Kompressor, Licht und CO₂ stehen still, Zielwerte hält es keine. Schalte die Regelung ein, damit es sie wieder hält.",
+      "controller": "Das Gerät misst nur noch: Heizung, Entfeuchter, Licht und CO₂ stehen still, Zielwerte hält es keine. Schalte die Regelung ein, damit es sie wieder hält.",
+      "other": "Das Gerät misst nur noch und hält keine Zielwerte. Schalte die Regelung ein, damit es sie wieder hält."
+    },
+    "offLineRead": "Das Gerät misst nur noch und hält gerade keine Zielwerte."
   },
   "energySaving": {
     "label": "Energiespar-Modus",
@@ -5312,7 +5421,7 @@
     "greenhouse": "Gewächshaus",
     "greenhouseNote": "Nur die Temperatur: Licht und CO₂ laufen, der Kompressor kühlt nur, die Luftfeuchte wird nicht geregelt.",
     "germination": "Keimung",
-    "germinationNote": "Im Dunkeln: kein Licht, kein CO₂. Heizt und kühlt auf die Nachttemperatur.",
+    "germinationNote": "Im Dunkeln, rund um die Uhr: kein Licht, kein CO₂. Heizt und kühlt auf eine Temperatur – erst die bisherige Nachttemperatur, unter Zielwerte zu ändern.",
     "ask": "Auf {{mode}} umstellen? {{what}} Zurück geht es hier mit Standard.",
     "yes": "Auf {{mode}} umstellen"
   },
@@ -5394,8 +5503,8 @@
     },
     "vpdHalfNote": {
       "all": "Eine Linie über beide Hälften des Tages.",
-      "day": "Nur die Punkte bei Licht an - die Nacht bleibt eine Lücke.",
-      "night": "Nur die Punkte bei Licht aus - der Tag bleibt eine Lücke."
+      "day": "Nur die Punkte am Tag - die Nacht bleibt eine Lücke.",
+      "night": "Nur die Punkte in der Nacht - der Tag bleibt eine Lücke."
     },
     "live": "Automatisch aktualisieren",
     "liveHeld": "Folgt nur einem Zeitraum, der jetzt endet - zurückgeblättert oder gezoomt bleibt er stehen."
@@ -5404,7 +5513,12 @@
     "label": "Licht an für",
     "unit": "Std",
     "short": "{{hours}} Std Licht",
-    "range": "Licht an für: {{min}} bis {{max}} Stunden, oder leer lassen."
+    "range": "Licht an für: {{min}} bis {{max}} Stunden, oder leer lassen.",
+    "lightsOn": "Licht an um",
+    "windowOwn": "{{light}} – die Uhrzeit bringt dieser Schritt mit und stellt sie jede Stunde neu.",
+    "windowDevice": "{{light}} – ab der Uhrzeit unter Zielwerte.",
+    "useDevice": "Uhrzeit von Zielwerte nehmen",
+    "shortFrom": "{{hours}} Std Licht ab {{time}}"
   },
   "readyPlans": {
     "label": "Fertige Pläne",

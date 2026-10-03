@@ -655,6 +655,26 @@
   margin: 0;
 }
 
+/* The half that holds now, as Steuerung shades its column: a small green
+   word after its name, grey where only the schedule says so. */
+.nowMark {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 0 6px;
+  background: var(--green-wash);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  color: var(--green-ink);
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+.nowMark[data-by='schedule'] {
+  background: var(--card-2);
+  color: var(--muted);
+}
+
 /* A figure and its unit stay together when the line wraps. */
 .part {
   white-space: nowrap;

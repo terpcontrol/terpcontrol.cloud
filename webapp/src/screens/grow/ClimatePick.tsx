@@ -1,16 +1,21 @@
 import type { GrowthStage } from '@fg2/shared-types/v1';
 import { climatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useTranslation } from 'react-i18next';
+import { serverNow } from '@/api/clock';
 import { useDevices } from '@/api/devices';
 import { statesTargets } from '@/ui/climate-hardware';
 import { climateChoiceName, presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { draftOf } from '../control/targets/targets-draft';
+import { useZone } from '@/ui/zone';
+import { scheduleTitle } from '../control/targets/schedule-words';
+import { draftOf, offsetOf } from '../control/targets/targets-draft';
 import { targetFigure } from '../home/units';
 import { KEEP_CLIMATE, type PhaseClimate } from './phase-climate';
 
 interface Figures {
+  /** When the light comes on, in seconds past midnight UTC: the device's, which no preset moves. */
+  lightsOn: number;
   lightHours: number | null;
   lightLimit: number;
   dayTemperature: number;
@@ -47,6 +52,7 @@ export function ClimatePick({
   onChange: (value: PhaseClimate) => void;
 }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const devices = useDevices();
   const controller =
     spaceId === null
@@ -58,7 +64,10 @@ export function ClimatePick({
 
   const options = [null, ...presetsOf(stage)].map(preset => ({ stage, preset }));
   const now = draftOf(controller.configuration);
-  const chosen = value.climate ? climatePreset(stage, value.preset) : null;
+  const preset = value.climate ? climatePreset(stage, value.preset) : null;
+  // A preset sets how long the light is on, never when it comes on: the window it makes starts at the device's hour.
+  const chosen = preset ? { ...preset, lightsOn: now.lightsOn } : null;
+  const offset = offsetOf(serverNow(), zone);
 
   return (
     <Block label={t('climatePick.label')} help="phasePreset">
@@ -77,7 +86,7 @@ export function ClimatePick({
         ))}
       </Choices>
       <p className={ui.note} role="status">
-        {chosen ? t('climatePick.sets', { figures: summary(t, chosen) }) : t('climatePick.keeps', { figures: summary(t, now) })}{' '}
+        {chosen ? t('climatePick.sets', { figures: summary(t, chosen, offset) }) : t('climatePick.keeps', { figures: summary(t, now, offset) })}{' '}
         {/* The stage decides the drying spell whatever is chosen here: entering drying dries, leaving it ends it. */}
         {stage === 'drying' && !controller.control?.drying ? `${t('climatePick.dries')} ` : null}
         {stage !== 'drying' && controller.control?.drying ? `${t('climatePick.endsDrying')} ` : null}
@@ -89,10 +98,15 @@ export function ClimatePick({
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
-/** "Licht 12 Std · Tag 25 °C · Nacht 20 °C · 50 %", or the dark of a drying room. */
-const summary = (t: Translate, figures: Figures): string =>
+/**
+ * "Licht an 08:00–02:00 · 18 Std · Tag 25 °C · Nacht 20 °C · 50 %", or the
+ * dark of a drying room. The window is said whole: a preset of eighteen hours
+ * from the device's eight in the morning burns until two at night, which "18
+ * Std" alone never told anybody.
+ */
+const summary = (t: Translate, figures: Figures, offset: number): string =>
   t(figures.lightHours === null || figures.lightLimit === 0 ? 'climatePick.dark' : 'climatePick.figures', {
-    hours: figures.lightHours,
+    light: figures.lightHours === null ? '' : scheduleTitle(t, { lightsOn: figures.lightsOn, lightHours: figures.lightHours }, offset),
     day: targetFigure(figures.dayTemperature, 'temperature'),
     night: targetFigure(figures.nightTemperature, 'temperature'),
     humidity: targetFigure(figures.dayHumidity, 'humidity'),

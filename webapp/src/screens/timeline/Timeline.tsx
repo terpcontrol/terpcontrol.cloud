@@ -10,6 +10,7 @@ import { useGrow } from '@/api/grows';
 import type { Picture } from '@/api/public';
 import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
 import { useCorrecting } from '@/log/corrections';
+import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { ageLabel, sinceLabel } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
@@ -255,6 +256,15 @@ function TimelineFor({ spaceId, heading, shared }: TimelineProps & { shared: Sha
       {recordingSince !== null ? (
         <p className={`mono ${styles.recording}`} role="note">
           {t('timeline.recordingSince', { time: sinceLabel(DateTime.fromMillis(recordingSince).toISO()!, now, zone) })}
+        </p>
+      ) : null}
+
+      {/* The grey under every curve, said once over them: which hours are the
+          night, and that the band steps with it. */}
+      {data.panels.length + readings.length > 0 && heardNights.some(night => at(night.startsAt) < to && at(night.endsAt) > from) ? (
+        <p className={styles.legend}>
+          <span className={styles.nightSwatch} aria-hidden />
+          <Term topic="nightBand">{t('timeline.nightLegend')}</Term>
         </p>
       ) : null}
 

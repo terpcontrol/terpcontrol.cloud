@@ -12,7 +12,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
 import { Timeline } from '@/screens/timeline/Timeline';
 import { figure, targetFigure } from '@/screens/home/units';
-import { frameNear, scaleOf, stretchesOf } from '@/screens/timeline/window';
+import { frameNear, scaleOf, splitByNight, stretchesOf } from '@/screens/timeline/window';
 
 const state = vi.hoisted(() => ({ answer: null as SpaceTimeline | null, asked: [] as string[] }));
 
@@ -210,15 +210,23 @@ describe('the timeline', () => {
 
     // The end of the window: light on, the day's band, the newest picture.
     expect(header()).toHaveTextContent(`${clock(24)}26.0 °C62 %Light on`);
-    expect(screen.getByText(/target 25–27/i)).toBeInTheDocument();
+    // Named by its half, as the tile it was opened from names it.
+    expect(screen.getByText('day target 25–27')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Canopy cam at the cursor' })).toHaveAttribute('src', '/media/media-late');
 
     // Back into the night: the other band, the other readings, the other picture.
     scrubTo(3);
     expect(header()).toHaveTextContent(`${clock(3)}21.0 °C58 %Heater on`);
-    expect(screen.getByText(/target 20–22/i)).toBeInTheDocument();
+    expect(screen.getByText('night target 20–22')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Canopy cam at the cursor' })).toHaveAttribute('src', '/media/media-early');
     expect(screen.getByRole('img', { name: 'Canopy cam at the cursor' }).parentElement).toHaveTextContent(`Canopy cam · ${stamp(2)} · day 34`);
+  });
+
+  /** The grey under every curve was nowhere explained: it is the night, and the band steps with it. */
+  it('says once what the grey under the curves is', () => {
+    draw();
+
+    expect(screen.getByRole('button', { name: 'Shaded grey: the night' })).toBeInTheDocument();
   });
 
   it('opens the line a mark stands for, and moves the cursor onto it', () => {
@@ -627,6 +635,14 @@ describe('what a panel is drawn against', () => {
     // grow was moved on in the middle of a lit half, which is where it steps.
     expect(stretches.map(one => one.target.setpoint)).toEqual([21, 26, 23]);
     expect(stretches[1].to).toBe(DateTime.fromISO(at(15)).toMillis());
+  });
+
+  it('names a band by its half only where the window holds a day and a night', () => {
+    const nights = answer.nights;
+    expect(splitByNight(nights, from, to)).toBe(true);
+    // Night throughout - a drying room - or never: one target, and no other to tell it from.
+    expect(splitByNight([{ startsAt: FROM.minus({ hours: 1 }).toISO()!, endsAt: TO.plus({ hours: 1 }).toISO()! }], from, to)).toBe(false);
+    expect(splitByNight([], from, to)).toBe(false);
   });
 
   it('leaves out the half of a metric that is not steered in it', () => {

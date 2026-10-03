@@ -363,7 +363,7 @@ describe('what the Control tab opens on', () => {
     noPlan();
     drawTab();
 
-    expect(await screen.findByRole('slider', { name: 'Day temperature' })).toBeInTheDocument();
+    expect(await screen.findByRole('spinbutton', { name: 'Day temperature' })).toBeInTheDocument();
     expect(screen.getByText('Targets')).toBeInTheDocument();
     expect(screen.queryByText('No plan yet.')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
@@ -375,7 +375,7 @@ describe('what the Control tab opens on', () => {
     state.plan = plan({}, { status: 'paused' });
     drawTab();
 
-    expect(await screen.findByRole('slider', { name: 'Day temperature' })).toBeInTheDocument();
+    expect(await screen.findByRole('spinbutton', { name: 'Day temperature' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Grow plan “Autoflower, 12 weeks”/ })).toHaveTextContent('Paused');
   });

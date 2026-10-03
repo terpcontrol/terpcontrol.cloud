@@ -11,8 +11,11 @@ import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { useZone } from '@/ui/zone';
+import { serverNow } from '@/api/clock';
 import { DURATION_UNITS } from './plan-clock';
-import { draftOf as targetsOf } from './targets/targets-draft';
+import { scheduleTitle } from './targets/schedule-words';
+import { draftOf as targetsOf, offsetOf, secondsOf, wallClock } from './targets/targets-draft';
 import {
   asWritableBy,
   editEffect,
@@ -24,7 +27,11 @@ import {
   newStep,
   otherSections,
   replaceBody,
+  stepLightHours,
+  stepLightsOn,
   withFigure,
+  withoutStepLightsOn,
+  withStepLightsOn,
   writesNothing,
   type Figure,
   type PlanDraft,
@@ -55,6 +62,7 @@ import styles from './Control.module.css';
 export function PlanEditor({ device, plan, draft: opened, onClose }: { device: Device; plan: Plan | null; draft: PlanDraft; onClose: () => void }) {
   const { t } = useTranslation();
   const now = useNow();
+  const zone = useZone();
   const save = useSavePlan(device.id);
   // The draft is taken as this controller could run it: a figure its hardware
   // is known to throw away is dropped on the way in, so what the fields show is
@@ -108,7 +116,7 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
                   <span className={`mono ${styles.stepIndex}`}>{index + 1}</span>
                   <span className={styles.stepText}>
                     <span className={styles.stepTitle}>{step.name}</span>
-                    <span className={`mono ${styles.stepNote}`}>{stepMeta(t, step)}</span>
+                    <span className={`mono ${styles.stepNote}`}>{stepMeta(t, step, offsetOf(now, zone))}</span>
                   </span>
                   <span className={styles.editButtons}>
                     <button
@@ -264,7 +272,7 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
         {figuresFor(device).map(figure => (
           <FigureField key={figure.key} figure={figure} step={step} onChange={onChange} />
         ))}
-        <LightHoursField step={step} onChange={onChange} />
+        <LightHoursField step={step} device={device} onChange={onChange} />
         {/* The figure this controller cannot run keeps its place and says what
             it needs, rather than leaving a gap that reads as a screen that
             forgot it. It is the row the manual targets page draws, in the same
@@ -332,32 +340,80 @@ const fromController = (step: StepDraft, device: Device): Partial<StepDraft> => 
 /**
  * How long the light is on while the step runs: what turns a vegetative tent
  * into a flowering one. The light keeps the hour it comes on, so the step says
- * hours rather than times of day. Empty leaves the photoperiod as it is.
+ * hours and the window they make from the device's hour is written under them;
+ * empty leaves the photoperiod as it is.
+ *
+ * A recipe migrated from the old app carries the hour too, as two fixed times
+ * of day the engine sends every hour: its hours are those times' and its time
+ * stands beside them to be moved, or handed back to the device so the hour set
+ * under Zielwerte holds again.
  */
-function LightHoursField({ step, onChange }: { step: StepDraft; onChange: (over: Partial<StepDraft>) => void }) {
+function LightHoursField({ step, device, onChange }: { step: StepDraft; device: Device; onChange: (over: Partial<StepDraft>) => void }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const id = `step-light-${step.key}`;
+  const offset = offsetOf(serverNow(), zone);
+  const own = stepLightsOn(step.settings);
+  const hours = stepLightHours(step);
+  const lightsOn = own ?? (device.configuration ? targetsOf(device.configuration).lightsOn : null);
+  const [typing, setTyping] = useState<string | null>(null);
 
   return (
-    <span className={styles.figure}>
-      <span className={styles.figureLabel}>
-        <label htmlFor={id}>{t('planLight.label')}</label>
-        <Help topic="stepLightHours" />
+    <>
+      <span className={styles.figure}>
+        <span className={styles.figureLabel}>
+          <label htmlFor={id}>{t('planLight.label')}</label>
+          <Help topic="stepLightHours" />
+        </span>
+        <input
+          id={id}
+          className={`mono ${styles.figureInput}`}
+          type="number"
+          inputMode="numeric"
+          min={LIGHT_HOURS.min}
+          max={LIGHT_HOURS.max}
+          step={1}
+          placeholder="—"
+          value={hours ?? ''}
+          onChange={event => onChange({ lightHours: event.target.value === '' ? null : Number(event.target.value) })}
+        />
+        <span className={`mono ${styles.figureUnit}`}>{t('planLight.unit')}</span>
       </span>
-      <input
-        id={id}
-        className={`mono ${styles.figureInput}`}
-        type="number"
-        inputMode="numeric"
-        min={LIGHT_HOURS.min}
-        max={LIGHT_HOURS.max}
-        step={1}
-        placeholder="—"
-        value={step.lightHours ?? ''}
-        onChange={event => onChange({ lightHours: event.target.value === '' ? null : Number(event.target.value) })}
-      />
-      <span className={`mono ${styles.figureUnit}`}>{t('planLight.unit')}</span>
-    </span>
+      {own !== null ? (
+        <span className={styles.figure}>
+          <span className={styles.figureLabel}>
+            <label htmlFor={`${id}-on`}>{t('planLight.lightsOn')}</label>
+          </span>
+          <input
+            id={`${id}-on`}
+            className={`mono ${styles.figureInput} ${styles.figureClock}`}
+            type="time"
+            value={typing ?? wallClock(own, offset)}
+            onChange={event => {
+              setTyping(event.target.value);
+              const seconds = secondsOf(event.target.value, offset);
+              if (seconds !== null) onChange(withStepLightsOn(step, seconds));
+            }}
+            onBlur={() => setTyping(null)}
+          />
+        </span>
+      ) : null}
+      {hours !== null && lightsOn !== null ? (
+        <p className={`${ui.note} ${styles.figureWide}`}>
+          {t(own !== null ? 'planLight.windowOwn' : 'planLight.windowDevice', {
+            light: scheduleTitle(t, { lightsOn, lightHours: hours }, offset),
+          })}
+          {own !== null ? (
+            <>
+              {' '}
+              <button type="button" className={ui.headLink} onClick={() => onChange(withoutStepLightsOn(step))}>
+                {t('planLight.useDevice')}
+              </button>
+            </>
+          ) : null}
+        </p>
+      ) : null}
+    </>
   );
 }
 

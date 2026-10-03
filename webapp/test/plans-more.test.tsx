@@ -2,12 +2,12 @@ import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
-import { DateTime } from 'luxon';
+import { DateTime, Settings } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, Plan, PlanReplace, PlanStep, PlanTransition } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
 import { planLineOf } from '@/screens/cockpit/plan-line';
@@ -187,6 +187,50 @@ describe('light hours in a step', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Light on for: 1 to 24 hours, or leave it empty.');
     expect(screen.getByRole('button', { name: 'Save the plan' })).toBeDisabled();
+  });
+
+  describe('said as the window they make', () => {
+    // The window is said on the account's clock; with no account read, the browser's, held at UTC here.
+    beforeAll(() => {
+      Settings.defaultZone = 'utc';
+    });
+    afterAll(() => {
+      Settings.defaultZone = 'system';
+    });
+
+    it('from the hour the device´s light comes on', () => {
+      wrap(<PlanEditor device={device()} plan={null} draft={draft()} onClose={() => {}} />);
+
+      fireEvent.change(screen.getByRole('spinbutton', { name: 'Light on for' }), { target: { value: '12' } });
+      expect(screen.getByText('Light on 06:00–18:00 · 12 h – from the time under Targets.')).toBeInTheDocument();
+    });
+
+    /**
+     * A recipe migrated from the old app carries two fixed times of day and no
+     * light hours. The editor said "Light on for —", as though the step left
+     * the light alone, and named the section by its firmware key - while the
+     * engine set the light to those times every hour.
+     */
+    it('from a step´s own time where it brings one, which can be moved or handed back to the targets page', () => {
+      const migrated = draft({ lightHours: null, settings: { daynight: { day: 7 * 3600, night: 19 * 3600 } } });
+      wrap(<PlanEditor device={device()} plan={null} draft={migrated} onClose={() => {}} />);
+
+      expect(screen.getByRole('spinbutton', { name: 'Light on for' })).toHaveValue(12);
+      expect(screen.getByLabelText('Light on at')).toHaveValue('07:00');
+      expect(screen.getByText(/^Light on 07:00–19:00 · 12 h – this step brings the time with it/)).toBeInTheDocument();
+      expect(screen.queryByText(/daynight/)).not.toBeInTheDocument();
+      expect(stepMeta(t, { ...step({ lightHours: null }), settings: migrated.steps[0].settings }, 0)).toBe('Veg · 2 wk · 12 h light from 07:00');
+
+      fireEvent.change(screen.getByLabelText('Light on at'), { target: { value: '08:00' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
+      expect(state.saved[0].steps[0]).toMatchObject({ lightHours: null, settings: { daynight: { day: 8 * 3600, night: 20 * 3600 } } });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Use the time under Targets' }));
+      expect(screen.queryByLabelText('Light on at')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
+      expect(state.saved[1].steps[0].lightHours).toBe(12);
+      expect(state.saved[1].steps[0].settings).not.toHaveProperty('daynight');
+    });
   });
 
   it('take the hours the controller holds now along with its figures', () => {

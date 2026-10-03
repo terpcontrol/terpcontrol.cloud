@@ -1,5 +1,6 @@
+import { CalendarRange } from 'lucide-react';
 import type { DateTime } from 'luxon';
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 import { controlPath } from '@/app/places';
@@ -11,35 +12,25 @@ import { useDevices, useHeardAt, useSaveConfiguration } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { ageAttribute, deviceLiveness, offlineLabel } from '@/ui/age';
 import { awaitingClimate, hasCo2Sensor, statesTargets } from '@/ui/climate-hardware';
-import { Help, Term } from '@/ui/Help';
+import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { CLIMATE_CHOICES, climateChoiceName, type ClimateChoice } from '@/ui/presets';
-import { Block, Choice, Choices } from '@/ui/SheetParts';
+import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { nowThere, CLOCK, useZone } from '@/ui/zone';
+import { clock, nowThere, CLOCK, useZone } from '@/ui/zone';
 import { deviceTitle } from '../../devices/naming';
-import { figure } from '../../home/units';
 import { FanPanel } from '../devices/FanPanel';
 import { LightPanel } from '../devices/LightPanel';
 import { PlugPanel } from '../devices/PlugPanel';
+import { useDeviceLive } from '../../cockpit/reads';
+import { changedFields, heldOf, nowHoldingOf, ownedBy, runningStep, shapeOf } from './day-night';
+import { DayNightTable } from './DayNightTable';
+import { LightPlan } from './LightPlan';
 import { LeaveGuard, type Unsaved } from './LeaveGuard';
-import { LightsOnRow } from './LightsOnRow';
 import { ControlState, EnergySaving } from './Operation';
-import { TargetRow } from './TargetRow';
-import {
-  draftOf,
-  equalsPreset,
-  leafOffset,
-  lightsOffOf,
-  offsetOf,
-  prefilled,
-  presetOf,
-  sameDraft,
-  vpdOf,
-  withDraft,
-  type TargetsDraft,
-} from './targets-draft';
+import { draftOf, equalsPreset, offsetOf, prefilled, presetOf, sameDraft, wallClock, withDraft, type TargetsDraft } from './targets-draft';
+import day from './DayNight.module.css';
 import styles from './Targets.module.css';
 import { deviceName } from '@/screens/devices/naming';
 import { fieldValue } from '@/ui/advanced/field-values';
@@ -48,12 +39,14 @@ import { fieldValue } from '@/ui/advanced/field-values';
  * The targets a tent is held at: what the Control tab opens on, unless a plan
  * is running and setting them itself.
  *
- * A stage's figures are only a starting point here, so the chips under the
- * sliders prefill them and write nothing, and one Save sends the whole
- * document. A plan that is running would put its own targets back within the
- * hour - the engine re-applies the step it stands on - so saving over one
- * pauses it first and says so beforehand, in the amber the app keeps for a
- * state somebody chose. Every device standing here that states
+ * The figures stand in one table, the day's beside the night's under the light
+ * schedule that decides between them (`DayNightTable`). A stage's figures are
+ * only a starting point here, so the chips under the table prefill them and
+ * write nothing, and one Save sends the whole document. A plan that is running
+ * would put back what its step writes within the hour - the engine re-applies
+ * the step it stands on - so saving one of those figures pauses it first and
+ * says so beforehand, in the amber the app keeps for a state somebody chose;
+ * moving what the step does not write leaves it running. Every device standing here that states
  * a climate gets a panel of its own, because the targets are that device's
  * document and a tent with two controllers holds two.
  *
@@ -87,7 +80,7 @@ export function Targets({
   // states a climate and offered a second device it has no use for. The
   // Devices tab of the same tent has always said this correctly.
   const waiting = devices.filter(awaitingClimate);
-  // The panels whose sliders stand somewhere nobody has saved, so that leaving the page asks first.
+  // The panels whose figures stand somewhere nobody has saved, so that leaving the page asks first.
   const [unsaved, setUnsaved] = useState<ReadonlyMap<string, Unsaved>>(new Map());
   const report = useCallback((deviceId: string, entry: Unsaved | null) => {
     setUnsaved(current => {
@@ -219,9 +212,9 @@ function OwnPanelOf(props: React.ComponentProps<typeof PlugPanel>) {
 }
 
 /**
- * The state of one panel's editing: what the sliders stand at, which stored
+ * The state of one panel's editing: what the figures stand at, which stored
  * document they were moved against, and the preset chip tapped last - which
- * says whether the targets are a drying room's, however the sliders were moved
+ * says whether the targets are a drying room's, however the figures were moved
  * after it.
  */
 interface Edit {
@@ -230,14 +223,14 @@ interface Edit {
   chip: ClimateChoice | null;
 }
 
-/** Whether saving the edit would start or end a drying spell, which is something to save even where the sliders did not move. */
+/** Whether saving the edit would start or end a drying spell, which is something to save even where the figures did not move. */
 const dryingChangeOf = (chip: ClimateChoice | null, device: Device): 'starts' | 'ends' | null => {
   if (!chip || !device.control) return null;
   const dries = chip.stage === 'drying';
   return dries === device.control.drying ? null : dries ? 'starts' : 'ends';
 };
 
-/** What the last save sent, so the sliders stay where they were put until the device's document catches up. */
+/** What the last save sent, so the figures stay where they were put until the device's document catches up. */
 interface Sent {
   draft: TargetsDraft;
   at: DateTime;
@@ -272,24 +265,25 @@ function Panel({
   // way, which the locale preset here was not.
   const zone = useZone();
   const plan = useDevicePlan(device.id);
+  const live = useDeviceLive(device.id).data;
   const save = useSaveConfiguration();
   const move = usePlanTransition(device.id);
   const [edit, setEdit] = useState<Edit | null>(null);
   const [sent, setSent] = useState<Sent | null>(null);
 
   // A draft holds until the stored targets move - so a save in flight does
-  // not snap the sliders back, and a figure dialled in on the device itself
+  // not snap the figures back, and a figure dialled in on the device itself
   // takes them over as soon as it arrives. A change to the rest of the
-  // document - the energy-saving switch beside them - leaves the sliders where
+  // document - the energy-saving switch beside them - leaves the figures where
   // they were put.
   const baseline = draftOf(stored);
-  const live = edit && sameDraft(draftOf(edit.against), baseline) ? edit : null;
-  const draft = live ? live.draft : baseline;
+  const editing = edit && sameDraft(draftOf(edit.against), baseline) ? edit : null;
+  const draft = editing ? editing.draft : baseline;
   const dirty =
-    (!sameDraft(draft, baseline) && !(sent !== null && sameDraft(draft, sent.draft))) || dryingChangeOf(live?.chip ?? null, device) !== null;
-  const tapped = live?.chip ?? null;
+    (!sameDraft(draft, baseline) && !(sent !== null && sameDraft(draft, sent.draft))) || dryingChangeOf(editing?.chip ?? null, device) !== null;
+  const tapped = editing?.chip ?? null;
   const set = (next: TargetsDraft, chip: ClimateChoice | null = tapped) => setEdit({ draft: next, against: stored, chip });
-  // A drying chip starts a drying spell and any other chip ends one; moving a slider alone leaves it as it is.
+  // A drying chip starts a drying spell and any other chip ends one; moving a figure alone leaves it as it is.
   const drying = device.control && tapped ? tapped.stage === 'drying' : undefined;
   const dryingChange = dryingChangeOf(tapped, device);
 
@@ -300,16 +294,38 @@ function Panel({
   const status = plan.data?.state.status ?? null;
   const heard = useHeardAt(device);
   const liveness = deviceLiveness(heard, now);
+  const offline = liveness === 'offline' ? offlineLabel(heard, now, zone, true) : null;
   const busy = save.isPending || move.isPending;
   const name = deviceName(device, t);
+  const offset = offsetOf(now, zone);
 
-  // Saving over a running plan pauses it first: a plan that kept running would
-  // write its step's targets over these within the hour. The errors of either
-  // step are the mutations' own and are drawn from there.
+  // What the targets are made of: what the device holds in the mode it runs,
+  // or will hold once the chip tapped last and the light hours typed in are
+  // saved - and, beside it, what it runs now, which is what "now" is about.
+  const shape = shapeOf(device, draft, { drying: drying ?? device.control?.drying ?? false, climateOnly });
+  const storedShape = shapeOf(device, baseline, { climateOnly });
+  const holding = nowHoldingOf({
+    device,
+    shape: storedShape,
+    stored: baseline,
+    live,
+    offline: offline !== null,
+    now,
+    clock: seconds => wallClock(seconds, offset),
+    instantClock: instant => clock(instant, zone),
+  });
+
+  // A running plan puts back what its step writes, within the hour - and only
+  // that. Saving a figure it writes pauses it first, or the plan would undo
+  // the save; moving what it does not write - the hour the light comes on, as
+  // a rule - leaves it running. The errors of either step are the mutations'
+  // own and are drawn from there.
+  const owned = ownedBy(runningStep(plan.data));
+  const pauses = status === 'running' && (dryingChange !== null || changedFields(draft, baseline).some(field => owned.has(field)));
   const commit = async (): Promise<boolean> => {
     try {
-      if (status === 'running') await move.mutateAsync({ kind: 'pause', reason: t('targets.pauseReason') });
-      await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, draft, climateOnly), drying });
+      if (pauses) await move.mutateAsync({ kind: 'pause', reason: t('targets.pauseReason') });
+      await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, draft, climateOnly, heldOf(shape.regime)), drying });
       setSent({ draft, at: serverNow() });
       // Saved, the chip has said what it had to: the drying spell is the device's now.
       setEdit(current => (current ? { ...current, chip: null } : current));
@@ -342,22 +358,13 @@ function Panel({
     return () => report(device.id, null);
   }, [unsaved, device.id, report]);
 
+  const bar = useRef<HTMLDivElement>(null);
+  const touched = useKeepInView(bar, dirty);
+
   const chosen = (chip: ClimateChoice): boolean => {
     const preset = presetOf(chip);
     return preset !== null && equalsPreset(draft, preset, hasCo2, climateOnly);
   };
-
-  /**
-   * The deficit the pair of sliders beside it amounts to. It is a reading like
-   * any other the app writes, so it goes through the writer every other reading
-   * goes through: written straight it was decimated in English whatever
-   * language the panel was in, so a German grower set "Luftfeuchte 58 %" and
-   * was answered "VPD 1.0" on a screen that writes "0,98 kPa" for the same
-   * quantity on the card they came from. The decimals are the metric's own, and
-   * a deficit is written to two of them everywhere else in the app.
-   */
-  const vpd = (temperature: number, humidity: number, when: 'day' | 'night') =>
-    t('targets.vpd', { value: figure(vpdOf(temperature, humidity, leafOffset(device.settings, when)), 'vpd') });
 
   if (plan.isPending) {
     return (
@@ -381,166 +388,67 @@ function Panel({
   }
 
   const readOnly = !mayManage;
-  const nightId = `targets-${device.id}-night`;
+  const off = shape.regime === 'off';
+  const planName = plan.data?.name ?? '';
 
   return (
     <section className={styles.panel} aria-label={name}>
       {titled ? <h2 className={styles.deviceName}>{name}</h2> : null}
       <RefreshFailed failedAt={plan.isError && plan.data ? plan.dataUpdatedAt : null} now={now} />
-      <ControlState device={device} mayManage={mayManage} />
 
-      <Block grouped label={t('targets.day')} help="dayNight" aside={<a href={`#${nightId}`}>{t('targets.toNight')}</a>}>
-        <TargetRow
-          id={`targets-${device.id}-day-temperature`}
-          label={t('targets.temperature')}
-          name={t('targets.aria.dayTemperature')}
-          value={draft.dayTemperature}
-          min={15}
-          max={35}
-          step={0.5}
-          unit={t('targets.unit.temperature')}
-          disabled={readOnly}
-          onChange={dayTemperature => set({ ...draft, dayTemperature })}
-        />
-        <TargetRow
-          id={`targets-${device.id}-day-humidity`}
-          label={t('targets.humidity')}
-          name={t('targets.aria.dayHumidity')}
-          value={draft.dayHumidity}
-          min={30}
-          max={90}
-          step={1}
-          unit={t('targets.unit.humidity')}
-          aside={<Term topic="vpd">{vpd(draft.dayTemperature, draft.dayHumidity, 'day')}</Term>}
-          disabled={readOnly}
-          onChange={dayHumidity => set({ ...draft, dayHumidity })}
-        />
-        {climateOnly ? null : (
+      {/* One card: what the mode leaves of the day, the light plan, and the
+          figures under it. Switched off it is the line that says so alone. */}
+      <div className={day.card} {...touched}>
+        <ControlState device={device} mayManage={mayManage} />
+        {off ? null : (
           <>
-            <TargetRow
-              id={`targets-${device.id}-light`}
-              label={t('targets.light')}
-              name={t('targets.aria.lightLimit')}
-              value={draft.lightLimit}
-              min={0}
-              max={100}
-              step={5}
-              unit={t('targets.unit.percent')}
-              help="lightLimit"
-              disabled={readOnly}
-              onChange={lightLimit => set({ ...draft, lightLimit })}
+            <LightPlan
+              device={device}
+              shape={shape}
+              storedShape={storedShape}
+              draft={draft}
+              baseline={baseline}
+              set={next => set(next)}
+              readOnly={readOnly}
+              now={now}
+              offset={offset}
+              holding={holding}
+              offline={offline}
+              owned={owned}
             />
-            <LightsOnRow
-              id={`targets-${device.id}-lights-on`}
-              lightsOn={draft.lightsOn}
-              lightsOff={lightsOffOf(draft)}
-              offset={offsetOf(now, zone)}
-              disabled={readOnly}
-              onChange={lightsOn => set({ ...draft, lightsOn })}
-            />
-            <TargetRow
-              id={`targets-${device.id}-light-hours`}
-              label={t('targets.lightHours')}
-              name={t('targets.aria.lightHours')}
-              value={draft.lightHours}
-              min={1}
-              max={24}
-              step={1}
-              unit={t('targets.unit.hours')}
-              disabled={readOnly}
-              onChange={lightHours => set({ ...draft, lightHours })}
-            />
-            {hasCo2 ? (
-              <TargetRow
-                id={`targets-${device.id}-co2`}
-                label={t('targets.co2')}
-                name={t('targets.aria.co2')}
-                value={draft.co2}
-                min={400}
-                max={1500}
-                step={50}
-                unit={t('targets.unit.co2')}
-                disabled={readOnly}
-                onChange={co2 => set({ ...draft, co2 })}
-              />
-            ) : (
-              <div className={styles.row}>
-                <span className={styles.rowLabel}>{t('targets.co2')}</span>
-                <span className={`mono ${styles.needs}`}>{t('targets.needsCo2')}</span>
+            {/* What a running plan writes, said over the figures it marks. */}
+            {status === 'running' ? (
+              <div className={day.section}>
+                <p className={day.legend}>
+                  {owned.size > 0 ? (
+                    <>
+                      <CalendarRange size={13} strokeWidth={2} className={day.planMark} aria-hidden />
+                      <span>{t('targets.planTable.legend', { name: planName })}</span>
+                    </>
+                  ) : (
+                    <span>{t('targets.planTable.ownsNothing', { name: planName })}</span>
+                  )}
+                </p>
               </div>
-            )}
+            ) : null}
+            <DayNightTable
+              device={device}
+              shape={shape}
+              storedShape={storedShape}
+              draft={draft}
+              baseline={baseline}
+              set={next => set(next)}
+              hasCo2={hasCo2}
+              readOnly={readOnly}
+              offset={offset}
+              holding={holding}
+              owned={owned}
+            />
           </>
         )}
-      </Block>
-
-      <span id={nightId} className={styles.anchor} aria-hidden />
-      <Block grouped label={t('targets.night')}>
-        <TargetRow
-          id={`targets-${device.id}-night-temperature`}
-          label={t('targets.temperature')}
-          name={t('targets.aria.nightTemperature')}
-          value={draft.nightTemperature}
-          min={15}
-          max={35}
-          step={0.5}
-          unit={t('targets.unit.temperature')}
-          disabled={readOnly}
-          onChange={nightTemperature => set({ ...draft, nightTemperature })}
-        />
-        <TargetRow
-          id={`targets-${device.id}-night-humidity`}
-          label={t('targets.humidity')}
-          name={t('targets.aria.nightHumidity')}
-          value={draft.nightHumidity}
-          min={30}
-          max={90}
-          step={1}
-          unit={t('targets.unit.humidity')}
-          aside={vpd(draft.nightTemperature, draft.nightHumidity, 'night')}
-          disabled={readOnly}
-          onChange={nightHumidity => set({ ...draft, nightHumidity })}
-        />
-      </Block>
-
-      {/* Under the sliders rather than over them: what the tab is opened for is
-          the figures the tent holds now, and a stage is one way of setting them. */}
-      <div className={styles.presets} ref={anchor ? presets : undefined} id={anchor ? 'presets' : undefined}>
-        <p className={ui.note}>
-          {t('targets.prefill')}
-          <Help topic="climatePreset" />
-        </p>
-        <Choices label={t('targets.presets')}>
-          {CLIMATE_CHOICES.map(chip => (
-            <Choice
-              key={`${chip.stage}:${chip.preset ?? ''}`}
-              chosen={chosen(chip)}
-              disabled={readOnly}
-              onChoose={() => {
-                const preset = presetOf(chip);
-                if (preset) set(prefilled(draft, preset), chip);
-              }}
-            >
-              {climateChoiceName(t, chip)}
-            </Choice>
-          ))}
-        </Choices>
-        {/* The chips move the targets and nothing else; the grow's phase is
-            moved in the grow, where the climate is offered beside it. */}
-        {dryingChange ? (
-          <p className={ui.note} role="status">
-            {t(`targets.drying.${dryingChange}`)}
-          </p>
-        ) : null}
-        {grow?.stage ? <p className={ui.note}>{t('targets.growStays', { name: grow.name, stage: t(`home.stage.${grow.stage}`) })}</p> : null}
       </div>
 
-      <EnergySaving device={device} mayManage={mayManage} />
-
-      {status === 'running' ? (
-        <div className={`${ui.card} ${styles.planCard}`} data-status="running" role="status">
-          <p className={styles.planText}>{t('targets.planRunning')}</p>
-        </div>
-      ) : status === 'paused' ? (
+      {status === 'paused' ? (
         <div className={`${ui.card} ${styles.planCard}`} data-status="paused" role="status">
           <p className={styles.planText}>
             {plan.data?.state.pauseReason ? t('targets.planPausedFor', { reason: plan.data.state.pauseReason }) : t('targets.planPaused')}
@@ -557,6 +465,44 @@ function Panel({
       ) : null}
       {!dirty ? <Refused error={move.error} /> : null}
 
+      {/* Under the table rather than over it: what the tab is opened for is
+          the figures the tent holds now, and a stage is one way of setting
+          them. Switched off there is nothing to prefill. */}
+      {off ? null : (
+        <div className={styles.presets} ref={anchor ? presets : undefined} id={anchor ? 'presets' : undefined}>
+          <p className={ui.note}>
+            {t('targets.prefill')}
+            <Help topic="climatePreset" />
+          </p>
+          <Choices label={t('targets.presets')}>
+            {CLIMATE_CHOICES.map(chip => (
+              <Choice
+                key={`${chip.stage}:${chip.preset ?? ''}`}
+                chosen={chosen(chip)}
+                disabled={readOnly}
+                onChoose={() => {
+                  const preset = presetOf(chip);
+                  if (preset) set(prefilled(draft, preset), chip);
+                }}
+              >
+                {climateChoiceName(t, chip)}
+              </Choice>
+            ))}
+          </Choices>
+          {/* The chips move the targets and nothing else; the grow's phase is
+              moved in the grow, where the climate is offered beside it. */}
+          {dryingChange ? (
+            <p className={ui.note} role="status">
+              {t(`targets.drying.${dryingChange}`)}
+            </p>
+          ) : null}
+          {grow?.stage ? <p className={ui.note}>{t('targets.growStays', { name: grow.name, stage: t(`home.stage.${grow.stage}`) })}</p> : null}
+        </div>
+      )}
+
+      {/* Energy saving belongs to a day and night of the standard mode, which neither a drying spell nor control off is. */}
+      {off || shape.regime === 'drying' ? null : <EnergySaving device={device} mayManage={mayManage} />}
+
       {readOnly ? <p className={ui.note}>{t('targets.readOnly')}</p> : null}
 
       {sent ? (
@@ -566,15 +512,23 @@ function Panel({
         </p>
       ) : null}
 
-      {liveness === 'offline' ? (
+      {offline !== null ? (
         <p className={`mono ${styles.quiet}`} {...ageAttribute(liveness)}>
-          {t('space.control.applied.quiet', { offline: offlineLabel(heard, now, zone, true) })}
+          {t('space.control.applied.quiet', { offline })}
         </p>
       ) : null}
 
       {dirty && mayManage && !asking ? (
-        <div className={`${ui.card} ${styles.bar}`}>
-          <span className={styles.barText}>{busy ? t('targets.saving') : t('targets.unsaved')}</span>
+        // What a save does to a running plan stands in the bar beside the
+        // button, where it is read before the tap rather than under the table.
+        <div ref={bar} className={`${ui.card} ${styles.bar}`} data-pauses={(status === 'running' && pauses) || undefined}>
+          <span className={styles.barText}>
+            {busy
+              ? t('targets.saving')
+              : status === 'running'
+                ? t(pauses ? 'targets.planTable.pauses' : 'targets.planTable.keeps', { name: planName })
+                : t('targets.unsaved')}
+          </span>
           <button type="button" className={ui.button} disabled={busy} onClick={() => setEdit(null)}>
             {t('targets.discard')}
           </button>
@@ -586,4 +540,29 @@ function Panel({
       ) : null}
     </section>
   );
+}
+
+/**
+ * Keeps the figure somebody is changing clear of the save bar. The bar stands
+ * over the foot of a phone's screen from the first change on, which is where a
+ * row tapped near the bottom was: its own − and + went under the bar that its
+ * first tap brought up. After every redraw while there is something to save,
+ * the row last touched is scrolled up out from under the bar if it is behind
+ * it.
+ */
+function useKeepInView(bar: React.RefObject<HTMLDivElement | null>, dirty: boolean) {
+  const touched = useRef<HTMLElement | null>(null);
+  const remember = (event: React.SyntheticEvent) => {
+    const target = event.target as HTMLElement;
+    touched.current = target.closest<HTMLElement>('[role="row"], [data-keep]') ?? target;
+  };
+
+  useLayoutEffect(() => {
+    if (!dirty || !bar.current || !touched.current?.isConnected) return;
+    const covers = bar.current.getBoundingClientRect().top;
+    const bottom = touched.current.getBoundingClientRect().bottom;
+    if (bottom > covers - 8) window.scrollBy({ top: bottom - covers + 16 });
+  });
+
+  return { onPointerDownCapture: remember, onFocusCapture: remember };
 }

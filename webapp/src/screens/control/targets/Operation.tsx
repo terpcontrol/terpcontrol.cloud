@@ -1,4 +1,4 @@
-import { Power } from 'lucide-react';
+import { Power, Sprout, Sun, Wind } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -12,6 +12,7 @@ import { useSwitchOn } from '../../devices/switch-on';
 import { targetFigure, UNIT } from '../../home/units';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
+import day from './DayNight.module.css';
 import styles from './Targets.module.css';
 
 /**
@@ -21,56 +22,69 @@ import styles from './Targets.module.css';
  */
 
 /**
- * "Regelung aus" over the sliders, in the amber of a state somebody chose, with
- * the way back on beside it - and the save under the sliders does the same,
- * which is said too: somebody who sets targets wants them held. A drying spell
- * is said in a quiet card, because it is what the grow asked for, with the way
- * out of it beside: a drying fridge has no light and no CO2, and somebody who
- * keeps no diary has no phase to end it with.
+ * The first line of the targets card where the device is not on its standard
+ * day and night: switched off, drying, or in another operating mode - each
+ * with the one way to change it beside it.
+ *
+ * Switched off, the card is this line alone, in the amber of a state somebody
+ * chose: there is no table, because the device holds none of it, and the line
+ * says what that means and switches it back on. A drying spell is said with
+ * the way out of it - somebody who keeps no diary has no phase to end it with -
+ * and another operating mode with the way to the device panel it was chosen
+ * in. What the mode leaves of the targets is what the table under it shows.
  */
 export function ControlState({ device, mayManage }: { device: Device; mayManage: boolean }) {
-  // The question outlives the card it is asked from: ending the spell takes the
-  // card away, and what happened is still to be read in the sheet.
+  // The question outlives the line it is asked from: ending the spell takes the
+  // line away, and what happened is still to be read in the sheet.
   const [ending, setEnding] = useState<DryingReturn | null | undefined>(undefined);
 
   return (
     <>
-      <ControlCard device={device} mayManage={mayManage} onEndDrying={() => setEnding(device.control?.afterDrying ?? null)} />
+      <ModeLine device={device} mayManage={mayManage} onEndDrying={() => setEnding(device.control?.afterDrying ?? null)} />
       {ending !== undefined ? <EndDryingSheet device={device} back={ending} onClose={() => setEnding(undefined)} /> : null}
     </>
   );
 }
 
-function ControlCard({ device, mayManage, onEndDrying }: { device: Device; mayManage: boolean; onEndDrying: () => void }) {
+const MODE_ICON = { greenhouse: Sun, germination: Sprout } as const;
+
+function ModeLine({ device, mayManage, onEndDrying }: { device: Device; mayManage: boolean; onEndDrying: () => void }) {
   const { t } = useTranslation();
   const on = useSwitchOn(device);
   const control = device.control;
   if (!control) return null;
-  if (control.running && !control.drying && control.mode !== 'standard') {
-    // Another operating mode holds only part of what the sliders set, which is
-    // said over them rather than left to the device panel it was chosen in.
+
+  if (!control.running) {
+    const kind = device.type === 'fridge' || device.type === 'controller' ? device.type : 'other';
     return (
-      <div className={`${ui.card} ${styles.planCard}`} data-status="mode" role="status">
-        <p className={styles.planText}>
-          {t(`climateControl.modeNote.${control.mode}`)}
-          <Help topic="advanced.operatingMode" />
+      <div className={day.mode} data-mode="off" role="status">
+        <p className={day.modeText}>
+          <Power size={16} strokeWidth={2} aria-hidden />
+          <span>
+            <strong>{t('climateControl.offTitle')}</strong> {t(mayManage ? `climateControl.offLine.${kind}` : 'climateControl.offLineRead')}
+            <Help topic="climateControl" />
+          </span>
         </p>
         {mayManage ? (
-          <Link to={devicesPath(device.spaceId)} className={ui.headLink}>
-            {t('climateControl.modeChange')} ›
-          </Link>
+          <button type="button" className={`${ui.button} ${ui.primary}`} disabled={on.pending} onClick={() => void on.switchOn()}>
+            <Power size={16} strokeWidth={1.75} aria-hidden />
+            {t(on.pending ? 'climateControl.switching' : 'climateControl.onAction')}
+          </button>
         ) : null}
+        <Refused error={on.error} />
       </div>
     );
   }
-  if (control.running && !control.drying) return null;
 
   if (control.drying) {
     return (
-      <div className={`${ui.card} ${styles.planCard}`} data-status="drying" role="status">
-        <p className={`${styles.planText} ${styles.drying}`}>
-          {t('climateControl.dryingNote')}
-          <Help topic="drying" />
+      <div className={day.mode} data-mode="drying" role="status">
+        <p className={day.modeText}>
+          <Wind size={16} strokeWidth={2} aria-hidden />
+          <span>
+            {t('climateControl.dryingNote')}
+            <Help topic="drying" />
+          </span>
         </p>
         {mayManage ? (
           <button type="button" className={ui.button} onClick={onEndDrying}>
@@ -81,19 +95,23 @@ function ControlCard({ device, mayManage, onEndDrying }: { device: Device; mayMa
     );
   }
 
+  if (control.mode === 'standard') return null;
+  const Icon = MODE_ICON[control.mode];
+
   return (
-    <div className={`${ui.card} ${styles.planCard}`} data-status="off" role="status">
-      <p className={styles.planText}>
-        <strong>{t('climateControl.offTitle')}</strong> {t(mayManage ? 'climateControl.offTargets' : 'climateControl.offTargetsRead')}
-        <Help topic="climateControl" />
+    <div className={day.mode} data-mode={control.mode} role="status">
+      <p className={day.modeText}>
+        <Icon size={16} strokeWidth={2} aria-hidden />
+        <span>
+          {t(`climateControl.modeNote.${control.mode}`)}
+          <Help topic="advanced.operatingMode" />
+        </span>
       </p>
       {mayManage ? (
-        <button type="button" className={`${ui.button} ${ui.primary}`} disabled={on.pending} onClick={() => void on.switchOn()}>
-          <Power size={16} strokeWidth={1.75} aria-hidden />
-          {t(on.pending ? 'climateControl.switching' : 'climateControl.onAction')}
-        </button>
+        <Link to={devicesPath(device.spaceId)} className={ui.headLink}>
+          {t('climateControl.modeChange')} ›
+        </Link>
       ) : null}
-      <Refused error={on.error} />
     </div>
   );
 }

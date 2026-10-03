@@ -14,6 +14,7 @@ import { DayBar } from './DayBar';
 import { MiniCurve, type Tone } from './MiniCurve';
 import {
   focusLink,
+  halfNowOf,
   hoursFigure,
   judgedPanel,
   darkReasonOf,
@@ -31,6 +32,7 @@ import {
   type TileKey,
   type Verdict,
 } from './place';
+import { storedShapeOf, type Half } from '../control/targets/day-night';
 import { useDaySeries } from './reads';
 import styles from './Cockpit.module.css';
 
@@ -160,7 +162,7 @@ function ClimateTile({
                   low: targetFigure(range.low, metric),
                   high: `${targetFigure(range.high, metric)} ${UNIT[metric] ?? ''}`.trim(),
                 })
-              : targetLabel(t, metric, setpoint, live, device)}
+              : targetLabel(t, metric, setpoint, halfNowOf(device, live, now, offline), device)}
           </span>
           <VerdictWords verdict={verdict} metric={metric} now={now} explain={explainBand} />
         </p>
@@ -191,21 +193,27 @@ const unheldBy = (device: Device | null): 'off' | 'drying' | 'germination' | 'gr
 };
 
 /**
- * "Tagesziel 25 °C": the target of the half of the cycle the device says it is
- * in, which is the target the verdict beside it is judged by. CO2 is raised
- * only while the lamp is on, so at night it says it has none rather than
- * looking unset. A drying fridge's is the drying target.
+ * "Tagesziel 25 °C": the target of the half the device holds now - by its
+ * clock and its mode, never by whether the lamp shines - which is the target
+ * the verdict beside it is judged by. CO2 is dosed by day only, so at night it
+ * says it has none rather than looking unset. Where the device has no day and
+ * night the target is named by what it holds instead: a drying room's, a
+ * germination's, and at 24 hours of light the day's and with none the night's
+ * - there is no other half to tell it from.
  */
-const targetLabel = (t: Translate, metric: Steered, setpoint: CardSetpoint | null, live: DeviceLive | undefined, device: Device | null): string => {
-  const half = live?.setpoints?.active ?? null;
+const targetLabel = (t: Translate, metric: Steered, setpoint: CardSetpoint | null, half: Half | null, device: Device | null): string => {
+  const regime = storedShapeOf(device)?.regime ?? null;
   // A fridge that is drying, germinating or switched off holds no target here because of what it is doing,
   // which is said: "nachts kein Ziel" over a drying room's CO2 read as though night were the reason.
   const by = unheldBy(device);
   if (setpoint?.value == null && by) return t('cockpit.tile.noTargetBy', { mode: t(`cockpit.tile.mode.${by}`) });
+  if (setpoint?.value == null && metric === 'co2' && regime === 'never') return t('cockpit.tile.co2Dark');
   if (setpoint?.value == null) return t(metric === 'co2' && half === 'night' ? 'cockpit.tile.co2Night' : 'cockpit.tile.noTarget');
   const target = `${targetFigure(setpoint.value, metric)} ${UNIT[metric] ?? ''}`.trim();
-  // A drying room has no day and no night: the device holds one climate, whatever half its clock says it is in.
-  if (device?.control?.drying) return t('cockpit.tile.target.drying', { target });
+  if (regime === 'drying') return t('cockpit.tile.target.drying', { target });
+  if (regime === 'germination') return t('cockpit.tile.target.germination', { target });
+  if (regime === 'always') return t('cockpit.tile.target.day', { target });
+  if (regime === 'never') return t('cockpit.tile.target.night', { target });
   return t(half ? `cockpit.tile.target.${half}` : 'cockpit.tile.target.any', { target });
 };
 
@@ -254,7 +262,14 @@ function Outputs({ outputs, now, age, explainCompressor }: { outputs: OutputStat
   );
 }
 
-/** The lamp: on or off and how bright, today's window as a bar with now on it, and when it next switches. */
+/**
+ * The lamp: on or off and how bright, today's window as a bar with now on it,
+ * and when it next switches. 24 hours and none have no time to switch at and
+ * say so. Where the lamp is dark by day - held off, at a limit of 0 %, cut by
+ * the heat - or lit by night, the day or the night still runs by the clock,
+ * which is what the line says rather than a switch time the lamp is not
+ * keeping.
+ */
 function LightTile({ spaceId, device, live, now, offline }: TilesProps) {
   const { t } = useTranslation();
   const zone = useZone();
@@ -264,6 +279,15 @@ function LightTile({ spaceId, device, live, now, offline }: TilesProps) {
   const age = level ? valueAge(level, now) : 'offline';
   const known = level?.value != null;
   const on = known && level.value! > 0;
+  const half = device?.type === 'light' ? null : halfNowOf(device, live, now, offline);
+  const next =
+    !window || window.always || window.never || !known || offline
+      ? null
+      : on && half === 'night'
+        ? t('cockpit.light.nightUntil', { time: window.on })
+        : !on && half === 'day'
+          ? t('cockpit.light.dayUntil', { time: window.off })
+          : t(on ? 'cockpit.light.offAt' : 'cockpit.light.onAt', { time: on ? window.off : window.on });
 
   return (
     <Frame spaceId={spaceId} tileKey="light">
@@ -282,7 +306,14 @@ function LightTile({ spaceId, device, live, now, offline }: TilesProps) {
         <p className={`mono ${styles.targetLine}`}>
           {window ? (
             <span>
-              <Term topic="dayNight">{t('cockpit.light.window', { on: window.on, off: window.off, hours: hoursFigure(window.hours) })}</Term>
+              <Term topic="dayNight">
+                {/* A day-long light goes off a second before it comes on, which is no time to name. */}
+                {window.always
+                  ? t('cockpit.light.always')
+                  : window.never
+                    ? t('cockpit.light.never')
+                    : t('cockpit.light.window', { on: window.on, off: window.off, hours: hoursFigure(window.hours) })}
+              </Term>
             </span>
           ) : (
             <span>{t(dark ? `cockpit.light.dark.${dark}` : 'cockpit.light.noWindow')}</span>
@@ -291,8 +322,8 @@ function LightTile({ spaceId, device, live, now, offline }: TilesProps) {
             <span className={styles.lastValue}>
               <LastValue measuredAt={level.measuredAt} now={now} />
             </span>
-          ) : window && known && !offline ? (
-            <span>{t(on ? 'cockpit.light.offAt' : 'cockpit.light.onAt', { time: on ? window.off : window.on })}</span>
+          ) : next ? (
+            <span>{next}</span>
           ) : null}
         </p>
       </div>

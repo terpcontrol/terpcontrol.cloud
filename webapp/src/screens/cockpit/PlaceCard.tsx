@@ -18,6 +18,7 @@ import {
   climateDeviceOf,
   controlOffOf,
   KIND_ICON,
+  halfNowOf,
   lightWindowOf,
   outputsFor,
   setpointOf,
@@ -140,16 +141,24 @@ function DeviceLine({
     ...outputsFor(device, live, undefined, 'humidity'),
     ...outputsFor(device, live, undefined, 'co2'),
   ].filter((state, index, all) => all.findIndex(other => other.output === state.output) === index);
+  // Until when, only where the lamp keeps to its schedule: a day-long light has
+  // no time to go off, and a lamp dark by day or lit by night switches when
+  // somebody lets it, not at the end of the half.
+  const half = halfNowOf(device, live, now, false);
   const parts = [
     light == null
       ? null
-      : light > 0
-        ? window
-          ? t('cockpit.card.lightOnUntil', { time: window.off })
-          : t('cockpit.card.lightOn')
-        : window
-          ? t('cockpit.card.lightOffUntil', { time: window.on })
-          : t('cockpit.card.lightOff'),
+      : window?.always && light > 0
+        ? t('cockpit.card.lightAlways')
+        : window?.never && light <= 0
+          ? t('cockpit.card.lightNever')
+          : light > 0
+            ? window && !window.always && half !== 'night'
+              ? t('cockpit.card.lightOnUntil', { time: window.off })
+              : t('cockpit.card.lightOn')
+            : window && !window.never && half !== 'day'
+              ? t('cockpit.card.lightOffUntil', { time: window.on })
+              : t('cockpit.card.lightOff'),
     ...outputs.map(
       state =>
         `${t(`cockpit.output.${state.word}`)} ${t(`cockpit.outputs.${state.word === 'co2' ? (state.on ? 'open' : 'closed') : state.on ? 'running' : 'off'}`)}`,

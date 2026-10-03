@@ -266,6 +266,26 @@
   color: var(--muted);
 }
 
+/* What the grey under the curves is: a swatch of the night's shade and its
+   name, which explains itself. */
+.legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.nightSwatch {
+  flex: none;
+  width: 18px;
+  height: 10px;
+  background: var(--night);
+  border: var(--rule-solid);
+  border-radius: 2px;
+}
+
 /* --------------------------------------------------------------- a panel */
 
 .panel {

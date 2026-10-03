@@ -35,6 +35,9 @@ export interface TargetsDraft {
   co2: number;
 }
 
+/** The two figures of a light schedule, which is all the light window is worked out from. */
+export type LightSchedule = Pick<TargetsDraft, 'lightsOn' | 'lightHours'>;
+
 const DAY_SECONDS = 24 * 60 * 60;
 const HOUR_SECONDS = 60 * 60;
 
@@ -54,22 +57,41 @@ const DEFAULTS: TargetsDraft = {
 const roundTheClock = (seconds: number): number => ((seconds % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
 
 /**
- * How long the light is on from when it comes on and goes off. A day-long light
- * is written one second short of a day (see `lightsOffOf`); off at the very
- * second it comes on is read the same way, as an older client wrote it.
+ * How long the light is on from when it comes on and goes off, to the minute.
+ *
+ * The firmware is the judge of what a pair of times means: it compares the
+ * clock with them strictly, so a light that goes off the very second it comes
+ * on never comes on at all - no hours, always night. A day-long light is
+ * written one second short of a day (see `lightsOffOf`) and read back as the 24
+ * hours it is, and a night moved a second off midnight reads whole again.
  */
-const hoursBetween = (on: number, off: number): number => {
+export const hoursBetween = (on: number, off: number): number => {
   const seconds = roundTheClock(off - on);
-  return (seconds === 0 || seconds >= DAY_SECONDS - 60 ? DAY_SECONDS : seconds) / HOUR_SECONDS;
+  if (seconds === 0) return 0;
+  if (seconds >= DAY_SECONDS - 60) return 24;
+  return Math.round(seconds / 60) / 60;
 };
 
 /**
- * When the light goes off, in the document's seconds past midnight UTC. A whole
- * day is one second short of it: the firmware reads a light that goes off the
- * second it comes on as one that never comes on, so 24 hours kept the tent dark.
+ * When the light goes off, in the document's seconds past midnight UTC.
+ *
+ * Three things the firmware's arithmetic asks for. A whole day is one second
+ * short of it, because off at the second it comes on is no light at all. No
+ * hours at all is exactly that - on and off at the same second. And a light
+ * that would go off at midnight UTC on the dot goes off a second before it: the
+ * firmware works the evening ramp out as "off minus now" without wrapping round
+ * midnight, so an off at zero dimmed nothing and cut the lamp hard instead -
+ * which 06:00 UTC plus the eighteen hours of the veg presets lands on every
+ * summer evening in Berlin.
  */
-export const lightsOffOf = (draft: TargetsDraft): number =>
-  roundTheClock(draft.lightsOn + Math.min(Math.round(draft.lightHours * HOUR_SECONDS), DAY_SECONDS - 1));
+export const lightsOffOf = (draft: LightSchedule): number => {
+  if (draft.lightHours <= 0) return roundTheClock(draft.lightsOn);
+  const off = roundTheClock(draft.lightsOn + Math.min(Math.round(draft.lightHours * HOUR_SECONDS), DAY_SECONDS - 1));
+  return off === 0 ? DAY_SECONDS - 1 : off;
+};
+
+/** Whether the light never goes off: 24 hours, which the firmware still dims once a day through its ramps. */
+export const isContinuous = (draft: LightSchedule): boolean => draft.lightHours >= 24;
 
 export const draftOf = (configuration: DeviceConfiguration): TargetsDraft => {
   const lightsOn = figureOf(configuration, 'daynight', 'day') ?? DEFAULTS.lightsOn;
@@ -88,6 +110,21 @@ export const draftOf = (configuration: DeviceConfiguration): TargetsDraft => {
 };
 
 /**
+ * Where the figures a save writes come from.
+ *
+ * - `both`: the day's and the night's, each as the draft has them. A half the
+ *   page does not show - the night at 24 hours of light, the day at none or in
+ *   germination - is written as it was stored, so it is still there when a
+ *   night or a day comes back: the server keeps no copy of either.
+ * - `drying`: the night's figures, which a drying fridge holds round the
+ *   clock, written into the day as well. The dehumidifier tuning the server
+ *   works out follows the day's humidity, so it then follows the humidity
+ *   really held; the day the spell put aside is the server's to bring back
+ *   when the spell ends (`afterDrying`).
+ */
+export type HeldHalves = 'both' | 'drying';
+
+/**
  * The document to send for a draft: the old one, with the figures put into
  * their sections and the flat spelling of each removed where it was used, so
  * one document never states the same figure twice.
@@ -95,8 +132,17 @@ export const draftOf = (configuration: DeviceConfiguration): TargetsDraft => {
  * `climateOnly` is an AIR fan's document, which holds a temperature and a
  * humidity and nothing of a light or of CO2: its day is what its light sensor
  * sees, so those sections would be keys it never reads.
+ *
+ * `held` says where the figures come from (`HeldHalves`). The light schedule
+ * and the lamp are written as the draft has them either way: a drying spell
+ * keeps them for when it ends.
  */
-export const withDraft = (configuration: DeviceConfiguration, draft: TargetsDraft, climateOnly = false): DeviceConfiguration => {
+export const withDraft = (
+  configuration: DeviceConfiguration,
+  draft: TargetsDraft,
+  climateOnly = false,
+  held: HeldHalves = 'both',
+): DeviceConfiguration => {
   const next: DeviceConfiguration = { ...configuration };
   for (const flat of [
     'day.temperature',
@@ -108,8 +154,10 @@ export const withDraft = (configuration: DeviceConfiguration, draft: TargetsDraf
     delete next[flat];
   }
 
-  next.day = { ...sectionOf(configuration, 'day'), temperature: draft.dayTemperature, humidity: draft.dayHumidity };
-  next.night = { ...sectionOf(configuration, 'night'), temperature: draft.nightTemperature, humidity: draft.nightHumidity };
+  const day = { temperature: draft.dayTemperature, humidity: draft.dayHumidity };
+  const night = { temperature: draft.nightTemperature, humidity: draft.nightHumidity };
+  next.day = { ...sectionOf(configuration, 'day'), ...(held === 'drying' ? night : day) };
+  next.night = { ...sectionOf(configuration, 'night'), ...night };
   if (climateOnly) return next;
 
   next.co2 = { ...sectionOf(configuration, 'co2'), target: draft.co2 };
@@ -125,7 +173,7 @@ export const withDraft = (configuration: DeviceConfiguration, draft: TargetsDraf
 export const presetOf = (chip: ClimateChoice): ClimatePreset | null => climatePreset(chip.stage, chip.preset);
 
 /**
- * The draft with a preset's figures in it. Only the sliders move: nothing is
+ * The draft with a preset's figures in it. Only the figures move: nothing is
  * written until it is saved. A preset that says nothing about the light hours
  * - drying - leaves the photoperiod where it is, as it does on the server.
  */
@@ -142,7 +190,7 @@ export const prefilled = (draft: TargetsDraft, preset: ClimatePreset): TargetsDr
 
 /**
  * Whether the draft is what a preset would prefill, which is what draws its
- * chip chosen. A tent without a CO2 sensor has no CO2 slider, so its figure is
+ * chip chosen. A tent without a CO2 sensor has no CO2 field, so its figure is
  * not held against the draft there: the firmware forces it to nothing anyway.
  */
 export const equalsPreset = (draft: TargetsDraft, preset: ClimatePreset, hasCo2: boolean, climateOnly = false): boolean =>
@@ -190,9 +238,13 @@ export const offsetOf = (now: DateTime, zone: string | null): number => (zone ? 
 
 const twoDigits = (value: number): string => String(value).padStart(2, '0');
 
-/** "08:00": seconds past midnight UTC on the account's wall clock. */
+/**
+ * "08:00": seconds past midnight UTC on the account's wall clock, to the
+ * nearest minute - a light written to go off a second before midnight goes off
+ * at midnight as far as anybody reading a clock is concerned.
+ */
 export const wallClock = (seconds: number, offset: number): string => {
-  const there = roundTheClock(Math.round(seconds) + offset);
+  const there = roundTheClock(Math.round((seconds + offset) / 60) * 60);
   return `${twoDigits(Math.floor(there / HOUR_SECONDS))}:${twoDigits(Math.floor((there % HOUR_SECONDS) / 60))}`;
 };
 

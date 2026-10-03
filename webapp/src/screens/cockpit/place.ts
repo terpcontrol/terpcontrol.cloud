@@ -25,6 +25,7 @@ import { offlineLabel, sinceLabel, valueAge } from '@/ui/age';
 import { statesTargets } from '@/ui/climate-hardware';
 import type { Quiet } from '@/ui/maintenance';
 import { clock } from '@/ui/zone';
+import { nowHoldingOf, setpointsOf, storedShapeOf, type Half } from '../control/targets/day-night';
 import { draftOf, lightsOffOf, offsetOf } from '../control/targets/targets-draft';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from '../home/attention';
 import { alertLabel, asWritten, figure, isSilence, UNIT } from '../home/units';
@@ -267,12 +268,17 @@ export interface LightWindow {
   off: string;
   /** The lamp's own maximum, in per cent. */
   limit: number;
+  /** 24 hours of light: no time it goes off, bar the daily dip. */
+  always: boolean;
+  /** No hours of light: dark round the clock. */
+  never: boolean;
 }
 
 const twoDigits = (value: number): string => String(value).padStart(2, '0');
 
+/** To the nearest minute: a light written to go off a second before midnight UTC goes off on the hour. */
 const clockOf = (seconds: number): string => {
-  const there = ((Math.round(seconds) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
+  const there = (((Math.round(seconds / 60) * 60) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
   return `${twoDigits(Math.floor(there / 3600))}:${twoDigits(Math.floor((there % 3600) / 60))}`;
 };
 
@@ -310,6 +316,8 @@ export const lightWindowOf = (device: Device | null, now: DateTime, zone: string
     on: clockOf(draft.lightsOn + offset),
     off: clockOf(lightsOffOf(draft) + offset),
     limit: draft.lightLimit,
+    always: draft.lightHours >= 24,
+    never: draft.lightHours <= 0,
   };
 };
 
@@ -328,7 +336,23 @@ const lampWindowOf = (device: Device, now: DateTime, zone: string | null): Light
     on: clockOf(on + offset),
     off: clockOf(off + offset),
     limit: typeof document?.limit === 'number' ? document.limit : 100,
+    always: false,
+    never: seconds === 0,
   };
+};
+
+/**
+ * Which half of its day a device holds now: what the server says for a device
+ * that is heard - the half its clock and its mode put it in - and, for one
+ * that is not, the half its schedule puts it in, which is what it would be
+ * running. Never the lamp: a lamp held off at noon, dimmed to 0 % or cut by
+ * the heat leaves the device in its day, holding its day's figures.
+ */
+export const halfNowOf = (device: Device | null, live: DeviceLive | undefined, now: DateTime, offline: boolean): Half | null => {
+  const shape = storedShapeOf(device);
+  if (!device?.configuration || !shape) return offline ? null : (setpointsOf(live)?.active ?? null);
+  const stored = draftOf(device.configuration);
+  return nowHoldingOf({ device, shape, stored, live, offline, now, clock: () => '', instantClock: () => '' }).half;
 };
 
 /** "12" or "12,5": the length of the day the way a person says it. */

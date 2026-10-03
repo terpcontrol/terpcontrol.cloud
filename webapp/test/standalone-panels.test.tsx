@@ -174,17 +174,17 @@ describe('an AIR fan under Steuerung', () => {
   it('sets only the temperature and humidity it reads, once it follows them', async () => {
     draw([device('fan-1', 'fan', { ...FAN, mode: 3 })]);
 
-    expect(await screen.findByRole('slider', { name: 'Day temperature' })).toBeInTheDocument();
+    expect(await screen.findByRole('spinbutton', { name: 'Day temperature' })).toBeInTheDocument();
     // A fan has no lamp and no CO2 of its own.
     expect(screen.queryByLabelText('Light on at')).not.toBeInTheDocument();
-    expect(screen.queryByRole('slider', { name: /CO₂/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('spinbutton', { name: /CO₂/ })).not.toBeInTheDocument();
   });
 
   it('starts with what its speed follows, offers no targets at a fixed speed, and sets its speeds by what they follow', async () => {
     draw([device('fan-1', 'fan', FAN)]);
 
     expect(await screen.findByRole('slider', { name: 'Speed by day' })).toHaveValue('70');
-    expect(screen.queryByRole('slider', { name: 'Day temperature' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('spinbutton', { name: 'Day temperature' })).not.toBeInTheDocument();
     expect(screen.getByText(/^In “Fixed” mode the fan runs at the speeds above and follows no target/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'By humidity' }));
@@ -262,6 +262,8 @@ describe('what the cockpit and the device panel say about them', () => {
       on: '08:00',
       off: '00:00',
       limit: 80,
+      always: false,
+      never: false,
     });
     expect(lightWindowOf(device('fan-1', 'fan', FAN), now, null)).toBeNull();
 

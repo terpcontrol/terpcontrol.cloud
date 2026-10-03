@@ -3,14 +3,20 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowthStage, PresetApplication } from '@fg2/shared-types/v1';
-import { STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { climatePreset, STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { serverNow } from '@/api/clock';
+import { useDevices } from '@/api/devices';
 import { useApplyPreset } from '@/api/lifecycle';
 import { useSetPresetPrompt } from '@/api/spaces';
 import { Refused } from '@/ui/PageState';
 import { Choice, Choices } from '@/ui/SheetParts';
 import { GrowPicker } from '@/screens/space/GrowPicker';
 import { useMovableGrows } from '@/screens/space/movable-grows';
+import { statesTargets } from '@/ui/climate-hardware';
 import ui from '@/ui/ui.module.css';
+import { useZone } from '@/ui/zone';
+import { scheduleTitle } from '../control/targets/schedule-words';
+import { draftOf, offsetOf } from '../control/targets/targets-draft';
 import { MEASURE, type Doing } from './steps';
 import styles from './Claim.module.css';
 
@@ -61,6 +67,7 @@ export function DoingStep({
   // climate write to report.
   const wrote = (applied?.deviceIds.length ?? 0) > 0;
   const asking = applied?.growDecisionNeeded === true && answeredFor !== applied;
+  const window = useWindowOf(spaceId, applied?.stage ?? stage);
 
   return (
     <>
@@ -91,6 +98,10 @@ export function DoingStep({
       </Choices>
 
       {chosen === MEASURE ? <p className={ui.note}>{t('claim.doing.measureNote')}</p> : null}
+      {/* A stage sets how long the light is on from the hour the device already
+          has, so the hours are said as the window they make before anything is
+          written - eighteen of them from eight in the morning burn until two. */}
+      {stage && !applied && window ? <p className={ui.note}>{t('claim.doing.window', { light: window })}</p> : null}
 
       <Refused error={apply.error} />
 
@@ -108,6 +119,7 @@ export function DoingStep({
       {applied ? (
         <ul className={styles.effect}>
           <li>{wrote ? t('claim.doing.wroteTo', { count: applied.deviceIds.length }) : t('claim.doing.wroteNothing')}</li>
+          {wrote && window ? <li>{t('claim.doing.window', { light: window })}</li> : null}
           <li>
             {applied.phaseId
               ? t('claim.doing.phaseWritten', { stage: t(`home.stage.${applied.stage}`) })
@@ -128,6 +140,24 @@ export function DoingStep({
     </>
   );
 }
+
+/**
+ * "Licht an 08:00–02:00 · 18 Std": the light window a stage puts the place's
+ * climate device on - the stage's hours from the hour the light comes on now,
+ * which a preset never moves - or null where the stage sets no hours or
+ * nothing here takes a climate.
+ */
+const useWindowOf = (spaceId: string | null, stage: GrowthStage | null): string | null => {
+  const { t } = useTranslation();
+  const zone = useZone();
+  const devices = useDevices();
+  const hours = stage ? (climatePreset(stage, null)?.lightHours ?? null) : null;
+  const device = devices.data?.items.find(
+    one => one.spaceId === spaceId && one.configuration && statesTargets(one.configuration) && one.type !== 'fan',
+  );
+  if (hours === null || !device?.configuration) return null;
+  return scheduleTitle(t, { lightsOn: draftOf(device.configuration).lightsOn, lightHours: hours }, offsetOf(serverNow(), zone));
+};
 
 /**
  * What to do about the grow, once a stage has been applied to a tent with none

@@ -89,6 +89,8 @@ export interface Stretch {
   from: number;
   to: number;
   target: TimelineTarget;
+  /** In a night, whose target it is. */
+  dark: boolean;
 }
 
 export const stretchesOf = (panel: TimelinePanel, nights: TimelineSpan[], from: number, to: number): Stretch[] =>
@@ -96,8 +98,18 @@ export const stretchesOf = (panel: TimelinePanel, nights: TimelineSpan[], from: 
     const targets = panel.targets.find(one => at(one.startsAt) <= piece.from && at(one.endsAt) >= piece.to);
     const target = targets ? (piece.dark ? targets.night : targets.day) : null;
 
-    return target ? [{ from: piece.from, to: piece.to, target }] : [];
+    return target ? [{ from: piece.from, to: piece.to, target, dark: piece.dark }] : [];
   });
+
+/**
+ * Whether the window holds both a day and a night, which is when a band is
+ * worth naming by its half: a window that is night throughout - a drying room,
+ * a fridge kept dark - or never is, has one target and no other to tell it
+ * from.
+ */
+export const splitByNight = (nights: TimelineSpan[], from: number, to: number): boolean =>
+  nights.some(night => at(night.startsAt) < to && at(night.endsAt) > from) &&
+  !nights.some(night => at(night.startsAt) <= from && at(night.endsAt) >= to);
 
 /**
  * The window split where the light went off and on again, and where one phase
@@ -114,7 +126,11 @@ const cut = (from: number, to: number, nights: TimelineSpan[], targets: Timeline
 
 /** The target that held at the cursor, which is the band the panel header names. */
 export const targetAt = (panel: TimelinePanel, nights: TimelineSpan[], from: number, to: number, time: number): TimelineTarget | null =>
-  stretchesOf(panel, nights, from, to).find(stretch => stretch.from <= time && time <= stretch.to)?.target ?? null;
+  stretchAt(stretchesOf(panel, nights, from, to), time)?.target ?? null;
+
+/** The stretch the cursor stands in. */
+export const stretchAt = (stretches: Stretch[], time: number): Stretch | null =>
+  stretches.find(stretch => stretch.from <= time && time <= stretch.to) ?? null;
 
 /** Only what this panel is about: an alarm the health loop raised without a metric belongs on the rail, not over a curve. */
 export const alarmsOf = (alarms: TimelineAlarm[], metric: Metric): TimelineAlarm[] => alarms.filter(alarm => alarm.metric === metric);

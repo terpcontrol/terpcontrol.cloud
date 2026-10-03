@@ -23,7 +23,17 @@ export function DayBar({ window, now, zone }: { window: LightWindow; now: DateTi
   const current = here.hour + here.minute / 60;
 
   return (
-    <div className={styles.dayBar} role="img" aria-label={t('cockpit.light.barAlt', { on: window.on, off: window.off })}>
+    <div
+      className={styles.dayBar}
+      role="img"
+      aria-label={
+        window.always
+          ? t('cockpit.light.always')
+          : window.never
+            ? t('cockpit.light.never')
+            : t('cockpit.light.barAlt', { on: window.on, off: window.off })
+      }
+    >
       <div className={styles.dayTrack}>
         {pieces.map(([from, to]) => (
           <span key={from} className={styles.dayLit} style={{ left: `${(from / 24) * 100}%`, width: `${((to - from) / 24) * 100}%` }} />

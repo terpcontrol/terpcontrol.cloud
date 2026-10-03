@@ -5,7 +5,7 @@ import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { controlPath } from '@/app/places';
-import type { AlarmRule, CardSetpoint, Device, Me, Metric, OverviewTargets } from '@fg2/shared-types/v1';
+import type { AlarmRule, CardSetpoint, Device, DeviceLive, Me, Metric, OverviewTargets } from '@fg2/shared-types/v1';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { awaitingClimate } from '@/ui/climate-hardware';
 import { Waiting } from '@/ui/PageState';
@@ -16,7 +16,8 @@ import { targetFigure, UNIT } from '../home/units';
 import { alarmsReach, reachedBy } from '../notifications/reach';
 import { fanSummaryOf, plugSummaryOf } from '../control/devices/own-summary';
 import { offsetOf } from '../control/targets/targets-draft';
-import { darkReasonOf, hoursFigure, lightWindowOf } from './place';
+import { holdsHumidity, storedShapeOf, type Half } from '../control/targets/day-night';
+import { darkReasonOf, halfNowOf, hoursFigure, lightWindowOf } from './place';
 import { PlanLine } from './PlanLine';
 import styles from './Cockpit.module.css';
 
@@ -46,50 +47,81 @@ function Summary({ title, change, children }: { title: string; change: string | 
 
 const withUnit = (value: number, metric: Metric): string => `${targetFigure(value, metric)} ${UNIT[metric] ?? ''}`.trim();
 
-const halfOf = (row: CardSetpoint[], withCo2: boolean): string[] =>
-  (['temperature', 'humidity', ...(withCo2 ? ['co2'] : [])] as Metric[]).flatMap(metric => {
+const halfOf = (row: CardSetpoint[], withCo2: boolean, withHumidity: boolean): string[] =>
+  (['temperature', ...(withHumidity ? ['humidity'] : []), ...(withCo2 ? ['co2'] : [])] as Metric[]).flatMap(metric => {
     const value = row.find(setpoint => setpoint.metric === metric)?.value;
     if (value == null) return [];
     return [metric === 'co2' ? `CO₂ ${withUnit(value, metric)}` : withUnit(value, metric)];
   });
 
+interface Row {
+  label: string;
+  parts: string[];
+  /** The half this row's figures hold in, which is marked while it holds. */
+  half?: Half;
+}
+
 /**
  * "Tag 25 °C · 60 % · CO₂ 900 ppm / Nacht 21 °C · 55 % / Licht 08:00–20:00 ·
- * 12 Std". CO2 is in the day's line because it is only raised while the lamp
- * is on, which the night's line would otherwise seem to contradict.
+ * 12 Std", the half that holds now marked. CO2 is in the day's line because it
+ * is only dosed by day, which the night's line would otherwise seem to
+ * contradict. Where the device has no day and night there is one line, named
+ * by what it holds: a drying room's, a germination's, or the one climate held
+ * round the clock at 24 hours of light or none.
  */
 export function TargetsSummary({
   spaceId,
   targets,
   device,
+  live,
   now,
+  offline = false,
   mayChange,
 }: {
   spaceId: string;
   targets: OverviewTargets | null;
   device: Device | null;
+  live?: DeviceLive;
   now: DateTime;
+  offline?: boolean;
   mayChange: boolean;
 }) {
   const { t } = useTranslation();
   const zone = useZone();
   const light = lightWindowOf(device, now, zone);
   const dark = darkReasonOf(device);
+  const shape = storedShapeOf(device);
+  const regime = shape?.regime ?? 'cycle';
+  const humidity = shape ? holdsHumidity(shape) : true;
+  const holding = halfNowOf(device, live, now, offline);
   // A smart socket has no targets but switch points of its own, which are what it is set to.
   const plug = device ? (plugSummaryOf(t, device, offsetOf(now, zone)) ?? fanSummaryOf(t, device)) : null;
-  // Drying and germination know no day: what they hold is named by the mode rather than called a night.
-  const nightLabel = dark === 'drying' || dark === 'germination' ? t(`cockpit.targets.${dark}`) : t('cockpit.targets.night');
-  const rows = plug
-    ? plug
-    : targets
-      ? [
-          { label: t('cockpit.targets.day'), parts: halfOf(targets.day, true) },
-          { label: nightLabel, parts: halfOf(targets.night, false) },
-        ].filter(row => row.parts.length > 0)
-      : [];
+  const rows: Row[] = (
+    plug
+      ? plug
+      : !targets
+        ? []
+        : regime === 'drying' || regime === 'germination'
+          ? [{ label: t(`cockpit.targets.${regime}`), parts: halfOf(targets.night, false, humidity) }]
+          : regime === 'always'
+            ? [{ label: t('cockpit.targets.roundTheClock'), parts: halfOf(targets.day, true, humidity) }]
+            : regime === 'never'
+              ? [{ label: t('cockpit.targets.roundTheClock'), parts: halfOf(targets.night, false, humidity) }]
+              : [
+                  { label: t('cockpit.targets.day'), parts: halfOf(targets.day, true, humidity), half: 'day' as const },
+                  { label: t('cockpit.targets.night'), parts: halfOf(targets.night, false, humidity), half: 'night' as const },
+                ]
+  ).filter((row: Row) => row.parts.length > 0);
   if (light) {
-    const parts = [t('cockpit.light.window', { on: light.on, off: light.off, hours: hoursFigure(light.hours) })];
-    if (light.limit < 100) parts.push(t('cockpit.targets.limit', { percent: light.limit }));
+    // A day-long light goes off a second before it comes on, which is no time to name.
+    const parts = [
+      light.always
+        ? t('cockpit.light.always')
+        : light.never
+          ? t('cockpit.light.never')
+          : t('cockpit.light.window', { on: light.on, off: light.off, hours: hoursFigure(light.hours) }),
+    ];
+    if (light.limit < 100 && !light.never) parts.push(t('cockpit.targets.limit', { percent: light.limit }));
     rows.push({ label: t('cockpit.targets.light'), parts });
   } else if (dark && dark !== 'off') {
     rows.push({ label: t('cockpit.targets.light'), parts: [t(`cockpit.light.dark.${dark}`)] });
@@ -105,7 +137,14 @@ export function TargetsSummary({
         <dl className={styles.facts}>
           {rows.map(row => (
             <div key={row.label}>
-              <dt>{row.label}</dt>
+              <dt>
+                {row.label}
+                {row.half && row.half === holding ? (
+                  <span className={styles.nowMark} data-by={offline ? 'schedule' : undefined}>
+                    {t(offline ? 'cockpit.targets.bySchedule' : 'cockpit.targets.now')}
+                  </span>
+                ) : null}
+              </dt>
               <dd className="mono">
                 {row.parts.map((part, index) => (
                   <Fragment key={part}>

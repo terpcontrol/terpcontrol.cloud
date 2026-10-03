@@ -5,7 +5,7 @@ import { Chart, type ChartOption } from '@/charts/Chart';
 import { nightColour } from '@/charts/series';
 import type { ChartPalette, ChartToken } from '@/charts/tokens';
 import { figure, targetFigure, UNIT } from '../home/units';
-import { alarmsOf, at, fractionOf, pointAt, scaleOf, stretchesOf, targetAt, type Stretch } from './window';
+import { alarmsOf, at, fractionOf, pointAt, scaleOf, spans, splitByNight, stretchAt, stretchesOf, type Stretch } from './window';
 import { Term } from '@/ui/Help';
 import styles from './Timeline.module.css';
 
@@ -59,12 +59,20 @@ export function Panel({ panel, nights, alarms, from, to, heardUntil = null, curs
   );
 
   const value = pointAt(panel, cursor);
-  const target = targetAt(panel, nights, from, to, cursor);
+  const stretch = stretchAt(stretches, cursor);
+  const target = stretch?.target ?? null;
   const left = `${fractionOf(cursor, from, to) * 100}%`;
   const unit = UNIT[panel.metric] ?? '';
-  const bandLabel = target
-    ? t('timeline.band', { low: targetFigure(target.band.low, panel.metric), high: targetFigure(target.band.high, panel.metric) })
-    : null;
+  // The band is named by its half where the window has both, as the tile it was opened from names it.
+  const split = splitByNight(nights, from, to);
+  const bandLabel =
+    stretch && target
+      ? t(split ? (stretch.dark ? 'timeline.bandNight' : 'timeline.bandDay') : 'timeline.band', {
+          low: targetFigure(target.band.low, panel.metric),
+          high: targetFigure(target.band.high, panel.metric),
+        })
+      : null;
+  const none = stretches.length === 0 ? 'timeline.noTarget' : split && spans(nights, cursor) ? 'timeline.noTargetNight' : 'timeline.noTargetNow';
   const name = t(`timeline.metric.${panel.metric}`, { defaultValue: panel.metric });
   const term = UNSTEERED[panel.metric];
 
@@ -80,15 +88,7 @@ export function Panel({ panel, nights, alarms, from, to, heardUntil = null, curs
           <span className={`label ${styles.band}`}>
             {/* A panel that has a band elsewhere in the window - CO₂ by day - has
                 none at the cursor, which is not the same as having none at all. */}
-            {target && bandLabel ? (
-              explain ? (
-                <Term topic="band">{bandLabel}</Term>
-              ) : (
-                bandLabel
-              )
-            ) : (
-              t(stretches.length > 0 ? 'timeline.noTargetNow' : 'timeline.noTarget')
-            )}
+            {target && bandLabel ? explain ? <Term topic="band">{bandLabel}</Term> : bandLabel : t(none)}
           </span>
         )}
       </header>

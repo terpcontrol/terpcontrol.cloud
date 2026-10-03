@@ -79,7 +79,7 @@ describe('Steuerung of a customer´s place, read by support', () => {
     );
 
     expect(await screen.findByText('Targets')).toBeInTheDocument();
-    const day = await screen.findByRole('slider', { name: 'Day temperature' });
+    const day = await screen.findByRole('spinbutton', { name: 'Day temperature' });
     expect(day).toHaveValue('25');
     expect(day).toBeDisabled();
     expect(screen.getByText('This session may look and not set.')).toBeInTheDocument();
@@ -101,7 +101,7 @@ describe('Steuerung of a customer´s place, read by support', () => {
     );
 
     expect(await screen.findByRole('heading', { name: /Control · Kundenzelt/ })).toHaveTextContent("support view of a customer's place");
-    expect(await screen.findByRole('slider', { name: 'Day temperature' })).toHaveValue('25');
+    expect(await screen.findByRole('spinbutton', { name: 'Day temperature' })).toHaveValue('25');
     expect(screen.queryByText(/Nothing to control yet/)).not.toBeInTheDocument();
   });
 });

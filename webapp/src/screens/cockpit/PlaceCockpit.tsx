@@ -205,7 +205,17 @@ export function PlaceCockpit({
           </div>
 
           <div className={styles.column}>
-            {hasDevice ? <TargetsSummary spaceId={spaceId} targets={overview.targets} device={device} now={now} mayChange={mayManage} /> : null}
+            {hasDevice ? (
+              <TargetsSummary
+                spaceId={spaceId}
+                targets={overview.targets}
+                device={device}
+                live={live}
+                now={now}
+                offline={offline}
+                mayChange={mayManage}
+              />
+            ) : null}
             {/* Whether alarms reach somebody is said of the reader's own account, which for support is not the customer's. */}
             {hasDevice && here.length > 0 ? (
               <AlarmsSummary spaceId={spaceId} devices={here} me={visiting ? undefined : me.data} mayChange={mayManage} />

@@ -593,6 +593,90 @@ describe('a place in another work mode', () => {
   });
 });
 
+/**
+ * Day and night are the device's clock and its mode, never its lamp, and a
+ * mode without them has no day or night target to name. The tiles, the
+ * targets card and the light tile say it the way Steuerung shades it.
+ */
+describe('day and night on the cockpit', () => {
+  const lamp = (value: number) => ({ light: { value, measuredAt: ago(0.2), state: 'live' as const } });
+  const targetsCard = () => screen.getByRole('region', { name: 'Targets' });
+
+  /** A lamp held off at noon, dimmed to 0 % or cut by the heat leaves the device in its day, heating to its day target. */
+  it('names the half the device says it holds, whatever the lamp is doing, and marks it in the targets card', async () => {
+    server.live = { ...deviceLive(lamp(0)), setpoints: { ...deviceLive().setpoints!, active: 'day' } };
+    draw(<PlaceCockpit overview={overviewOf()} />);
+
+    const temperature = await tile('Temperature');
+    await waitFor(() => expect(temperature).toHaveTextContent('Day target 25 °C'));
+    const light = await tile('Light');
+    await waitFor(() => expect(light).toHaveTextContent('day until 18:00'));
+    expect(light).not.toHaveTextContent('on at 06:00');
+    await waitFor(() => expect(within(targetsCard()).getByText('now').closest('dt')).toHaveTextContent(/^Daynow$/));
+  });
+
+  it('names the night where the device says it is in one, the lamp held on through it', async () => {
+    server.live = { ...deviceLive(lamp(100)), setpoints: { ...deviceLive().setpoints!, active: 'night' } };
+    draw(<PlaceCockpit overview={overviewOf({ setpoints: [{ metric: 'temperature', value: 21, band: 1 }] })} />);
+
+    await waitFor(async () => expect(await tile('Temperature')).toHaveTextContent('Night target 21 °C'));
+    await waitFor(async () => expect(await tile('Light')).toHaveTextContent('night until 06:00'));
+    await waitFor(() => expect(within(targetsCard()).getByText('now').closest('dt')).toHaveTextContent(/^Nightnow$/));
+  });
+
+  it('calls a germinating fridge´s target the germination´s, with no night beside it and the light off', async () => {
+    server.devices = [fridge({ control: { running: true, drying: false, mode: 'germination', energySaving: false } })];
+    server.live = { ...deviceLive(lamp(0)), setpoints: { day: {}, night: { temperature: 24 }, active: 'night' } };
+    const germinating = [
+      { metric: 'temperature' as const, value: 24, band: 1 },
+      { metric: 'humidity' as const, value: null, band: null },
+      { metric: 'co2' as const, value: null, band: null },
+    ];
+    draw(
+      <PlaceCockpit
+        overview={overviewOf({ setpoints: germinating, targets: { day: germinating, night: [{ metric: 'temperature', value: 24, band: 1 }] } })}
+      />,
+    );
+
+    await waitFor(async () => expect(await tile('Temperature')).toHaveTextContent('Germination target 24 °C'));
+    expect(await tile('Humidity')).toHaveTextContent('no target · germination');
+    await waitFor(() => expect(targetsCard()).toHaveTextContent('Germination24 °C'));
+    expect(targetsCard()).toHaveTextContent('Lightoff · germination');
+    expect(targetsCard()).not.toHaveTextContent(/Day|Night/);
+  });
+
+  /** "06:00–05:59" read as a lamp that goes off a minute before it comes on. */
+  it('says a day-long light is on round the clock, and sums the one climate it holds', async () => {
+    server.devices = [fridge({ configuration: { ...fridge().configuration, daynight: { day: 6 * 3600, night: 6 * 3600 - 1 } } })];
+    draw(<PlaceCockpit overview={overviewOf()} />);
+
+    const light = await tile('Light');
+    await waitFor(() => expect(light).toHaveTextContent('on round the clock · 24 h'));
+    expect(light).not.toHaveTextContent(/off at|05:59/);
+    expect(within(light).getByRole('img', { name: 'on round the clock · 24 h' })).toBeInTheDocument();
+    await waitFor(() => expect(targetsCard()).toHaveTextContent('Round the clock25 °C · 60 % · CO₂ 900 ppm'));
+    expect(targetsCard()).toHaveTextContent('Lighton round the clock · 24 h');
+    expect(targetsCard()).not.toHaveTextContent('Night');
+    await waitFor(async () => expect(await tile('Temperature')).toHaveTextContent('Day target 25 °C'));
+  });
+
+  it('says a light that never comes on is off round the clock, and that its CO₂ has no target without light', async () => {
+    server.devices = [fridge({ configuration: { ...fridge().configuration, daynight: { day: 6 * 3600, night: 6 * 3600 } } })];
+    server.live = { ...deviceLive(lamp(0)), setpoints: { ...deviceLive().setpoints!, active: 'night' } };
+    const dark = [
+      { metric: 'temperature' as const, value: 21, band: 1 },
+      { metric: 'humidity' as const, value: 55, band: 5 },
+      { metric: 'co2' as const, value: null, band: null },
+    ];
+    draw(<PlaceCockpit overview={overviewOf({ setpoints: dark })} />);
+
+    await waitFor(async () => expect(await tile('Light')).toHaveTextContent('off round the clock · 0 h'));
+    await waitFor(async () => expect(await tile('CO₂')).toHaveTextContent('no target without light'));
+    await waitFor(() => expect(targetsCard()).toHaveTextContent('Round the clock21 °C · 55 %'));
+    expect(targetsCard()).toHaveTextContent('Lightoff round the clock · 0 h');
+  });
+});
+
 describe('a reading off its target', () => {
   it('says how far and since when, once the day´s verdict holds an open run outside the band', async () => {
     const startedAt = ago(40);
@@ -1013,6 +1097,17 @@ describe('Start', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument();
     // Neither card is a cockpit of its own.
     expect(screen.queryByRole('link', { name: /^Temperature/ })).not.toBeInTheDocument();
+  });
+
+  it('says on a place´s card that a day-long light is on round the clock rather than until a time', async () => {
+    const day = { day: 6 * 3600, night: 6 * 3600 - 1 };
+    server.devices = [fridge({ configuration: { ...fridge().configuration, daynight: day } })];
+    server.home = answer(card('space-1', 'Fridge 1'), card('space-2', 'Tent 2'));
+    draw(<Home />);
+
+    const fridgeCard = (await screen.findByRole('link', { name: 'Fridge 1' })).closest('article')!;
+    await waitFor(() => expect(fridgeCard).toHaveTextContent('Light on round the clock · Compressor running'));
+    expect(fridgeCard).not.toHaveTextContent('until');
   });
 });
 

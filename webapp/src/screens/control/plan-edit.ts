@@ -2,6 +2,7 @@ import type { DateTime } from 'luxon';
 import type { Device, DeviceConfiguration, GrowthStage, Plan, PlanNotify, PlanReplace, PlanStep, StepDuration } from '@fg2/shared-types/v1';
 import { hasCo2Sensor } from '@/ui/climate-hardware';
 import { elapsedMs } from './plan-clock';
+import { hoursBetween } from './targets/targets-draft';
 
 /**
  * The recipe while it is being written, and what saving it would do to the tent
@@ -218,8 +219,72 @@ export const withFigure = (settings: DeviceConfiguration, figure: Figure, value:
   return next;
 };
 
+/* -------------------------------------------------------------- the light */
+
+const LIGHTS_ON: Figure = { key: 'lightsOn', section: 'daynight', field: 'day' };
+const LIGHTS_OFF: Figure = { key: 'lightsOff', section: 'daynight', field: 'night' };
+
+/**
+ * The hour the light comes on that a step brings with it, in seconds past
+ * midnight UTC, or null where it keeps the device's. A recipe migrated from
+ * the old app carries two fixed times of day in its settings, and the engine
+ * sends them every hour: the step then decides when the light comes on, not
+ * the targets page.
+ */
+export const stepLightsOn = (settings: DeviceConfiguration): number | null => figureOf(settings, LIGHTS_ON);
+
+/** How long the light is on while a step runs: its light hours, or the hours its own two times make; null where it leaves them. */
+export const stepLightHours = (step: Pick<StepDraft, 'settings' | 'lightHours'>): number | null => {
+  if (step.lightHours !== null && step.lightHours !== undefined) return step.lightHours;
+  const on = figureOf(step.settings, LIGHTS_ON);
+  const off = figureOf(step.settings, LIGHTS_OFF);
+  return on !== null && off !== null ? hoursBetween(on, off) : null;
+};
+
+/**
+ * A step's own light-on time moved, keeping the hours it lights for: the
+ * server puts a step's light hours after its own time where it has one, and a
+ * step that names no hours sends its two times as they are, so the second one
+ * moves with the first.
+ */
+export const withStepLightsOn = (step: StepDraft, seconds: number): Partial<StepDraft> => {
+  const daynight = { ...((step.settings.daynight as Record<string, unknown> | undefined) ?? {}) };
+  const off = figureOf(step.settings, LIGHTS_OFF);
+  const on = figureOf(step.settings, LIGHTS_ON);
+  daynight.day = seconds;
+  if (step.lightHours === null && off !== null && on !== null) daynight.night = (((off + seconds - on) % 86400) + 86400) % 86400;
+  const settings: DeviceConfiguration = { ...step.settings, daynight };
+  delete settings['daynight.day'];
+  delete settings['daynight.night'];
+  return { settings };
+};
+
+/**
+ * A step without times of its own: the light then comes on at the device's
+ * hour, as a step written in this app does, for as long as the step's times
+ * made it - so taking the time away changes when the light comes on and
+ * nothing else.
+ */
+export const withoutStepLightsOn = (step: StepDraft): Partial<StepDraft> => {
+  const hours = stepLightHours(step);
+  const settings: DeviceConfiguration = { ...step.settings };
+  const daynight = { ...((settings.daynight as Record<string, unknown> | undefined) ?? {}) };
+  delete daynight.day;
+  delete daynight.night;
+  delete settings['daynight.day'];
+  delete settings['daynight.night'];
+  if (Object.keys(daynight).length > 0) settings.daynight = daynight;
+  else delete settings.daynight;
+  return { settings, lightHours: hours === null ? step.lightHours : Math.round(hours * 10) / 10 };
+};
+
+/** Whether a section carries nothing but the light's two times, which the light hours field shows rather than names. */
+const onlyTimes = (section: unknown): boolean =>
+  typeof section === 'object' && section !== null && Object.keys(section).every(key => key === 'day' || key === 'night');
+
 /** What a step writes besides the climate - a migrated recipe carries whole documents - said rather than silently kept. */
-export const otherSections = (settings: DeviceConfiguration): string[] => Object.keys(settings).filter(key => !CLIMATE_SECTIONS.includes(key));
+export const otherSections = (settings: DeviceConfiguration): string[] =>
+  Object.keys(settings).filter(key => !CLIMATE_SECTIONS.includes(key) && !(key === 'daynight' && onlyTimes(settings[key])));
 
 export const writesNothing = (settings: DeviceConfiguration): boolean => Object.keys(settings).length === 0;
 

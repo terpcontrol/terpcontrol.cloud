@@ -89,6 +89,7 @@ export const HELP_TOPICS = [
   'follow',
   'compressor',
   'dayCurve',
+  'nightBand',
   'ppfd',
   'leafTemperature',
   'lux',

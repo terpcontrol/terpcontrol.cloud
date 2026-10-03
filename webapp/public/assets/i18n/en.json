@@ -3160,7 +3160,11 @@
     "camSince": "No camera picture at {{time}} – the camera has filmed since {{since}}",
     "noFrameAt": "No camera picture at {{time}}",
     "photoAt": "Photo · {{time}}",
-    "visiting": "support view of a customer's place"
+    "visiting": "support view of a customer's place",
+    "bandDay": "day target {{low}}–{{high}}",
+    "bandNight": "night target {{low}}–{{high}}",
+    "noTargetNight": "no target at night",
+    "nightLegend": "Shaded grey: the night"
   },
   "camera": {
     "never": "never",
@@ -3865,17 +3869,7 @@
     "waiting": "{{device}} has not sent its settings yet, so there is nothing to write a climate into. Changing any setting on the device itself sends them; connecting alone does not, and nothing written here can stand in for them.",
     "prefill": "Or take a climate preset and adjust it – only what is saved applies:",
     "presets": "Presets",
-    "day": "Day",
-    "night": "Night",
-    "toNight": "night ›",
-    "temperature": "Temperature",
-    "humidity": "Humidity",
     "light": "Light limit",
-    "lightHours": "Light on for",
-    "lightsOn": "Light on at",
-    "lightsOff": "off at {{time}}",
-    "co2": "CO₂ target",
-    "vpd": "VPD {{value}} kPa",
     "needsCo2": "needs a CO₂ sensor",
     "typed": "{{name}}, typed",
     "aria": {
@@ -3885,7 +3879,11 @@
       "nightHumidity": "Night humidity",
       "lightLimit": "Light limit",
       "lightHours": "Light on for",
-      "co2": "CO₂ target"
+      "co2": "CO₂ target",
+      "lightsOn": "Light on at",
+      "dryingTemperature": "Temperature while drying",
+      "germinationTemperature": "Temperature while germinating",
+      "dryingHumidity": "Humidity while drying"
     },
     "unit": {
       "temperature": "°C",
@@ -3894,7 +3892,6 @@
       "hours": "h",
       "co2": "ppm"
     },
-    "planRunning": "Saving pauses the running plan, which would otherwise put its own targets back within the hour.",
     "planPaused": "The plan is paused while these targets hold.",
     "planPausedFor": "The plan is paused: {{reason}}",
     "resume": "Resume plan",
@@ -3917,6 +3914,98 @@
     "drying": {
       "starts": "Saving starts drying: no light and no CO₂, the device only dehumidifies and heats.",
       "ends": "Saving ends drying: the device holds day and night, light and CO₂ again."
+    },
+    "table": {
+      "label": "Targets",
+      "figure": "Figure",
+      "dayTitle": "Light on",
+      "dayWhat": "(day)",
+      "nightTitle": "Light off",
+      "nightWhat": "(night)",
+      "hours": "{{hours}} h",
+      "alwaysTitle": "Light round the clock",
+      "alwaysSub": "24 h · day figures",
+      "neverTitle": "Dark round the clock",
+      "neverSub": "0 h · night figures",
+      "dryingTitle": "Drying",
+      "germinationTitle": "Germination",
+      "roundTheClock": "round the clock",
+      "brightTitle": "Bright",
+      "brightSub": "day, by its sensor",
+      "darkTitle": "Dark",
+      "darkSub": "night",
+      "now": "holds now",
+      "bySchedule": "by the schedule",
+      "temperature": "Temperature",
+      "humidity": "Humidity",
+      "co2": "CO₂ target",
+      "light": "Light limit",
+      "vpd": "VPD {{value}}",
+      "co2Night": "no CO₂",
+      "lightNight": "lamp off",
+      "planMark": "set by the running plan",
+      "zeroLimit": "Light limit 0 %: the lamp stays dark, but the day still holds – with the day figures and with CO₂.",
+      "keptNight": "Night figures – hold again as soon as there is a night",
+      "keptNightHow": "With less than 24 h of light they are back in the table.",
+      "keptDay": "Day figures – hold again as soon as there is a day",
+      "keptDayHow": "With more than 0 h of light they are back in the table.",
+      "keptLight": "light limit {{percent}} %"
+    },
+    "stepLess": "{{name}}: less",
+    "stepMore": "{{name}}: more",
+    "planTable": {
+      "legend": "set by the running plan “{{name}}” – again every hour.",
+      "ownsNothing": "The running plan “{{name}}” sets none of these figures.",
+      "pauses": "Saving pauses the plan “{{name}}” – it sets one of the figures you changed.",
+      "keeps": "The plan “{{name}}” keeps running – it sets none of them."
+    },
+    "plan": {
+      "label": "Light plan",
+      "window": "Light on {{on}}–{{off}} · {{hours}} h",
+      "always": "Light on round the clock · 24 h",
+      "never": "Light off round the clock · 0 h",
+      "alwaysShort": "on round the clock",
+      "neverShort": "off round the clock",
+      "drying": "Light off · drying",
+      "germination": "Light off · germination",
+      "dryingLine": "The light stays off while drying runs. Afterwards the light plan holds again: {{window}}.",
+      "germinationLine": "Germination keeps the light off round the clock. The light plan – {{window}} – holds again in the standard or greenhouse mode.",
+      "sensor": "It is day while the fan’s light sensor sees light.",
+      "draft": "Draft",
+      "was": "so far: {{window}}",
+      "draftBarAlt": "Draft: {{window}}",
+      "now": {
+        "day": "Day now · light off at {{time}}",
+        "night": "Night now · light on at {{time}}",
+        "always": "Day now · the light stays on",
+        "never": "Night now · the light stays off",
+        "glide": {
+          "day": "Sunrise · the targets glide towards the day until {{time}}",
+          "night": "Sunset · light off at {{time}}, the targets gliding towards the night until then"
+        },
+        "offline": "{{offline}} · by the schedule it would be {{half}} now",
+        "sensor": {
+          "day": "Bright now · the day figures hold",
+          "night": "Dark now · the night figures hold"
+        }
+      },
+      "half": {
+        "day": "day",
+        "night": "night"
+      },
+      "flips": {
+        "day": "Once saved it is day at once: the light comes on and the day figures hold.",
+        "night": "Once saved it is night at once: the light goes off and the night figures hold."
+      },
+      "lightsOn": "Light on at",
+      "hours": "Lasts",
+      "night": "The night follows from it: {{from}}–{{to}} · {{hours}} h.",
+      "dip": "Round the clock means: once a day, at {{time}}, the lamp dims down for {{down}} min and back up for {{up}} min – the device cannot do entirely without a night.",
+      "blink": "Round the clock means: once a day, at {{time}}, the lamp goes off for two seconds – the device cannot do entirely without a night.",
+      "dipFridge": "Meanwhile the targets glide briefly towards the night figures, and CO₂ pauses.",
+      "neverLine": "With no light it is night round the clock: the night figures hold and no CO₂ is dosed.",
+      "earlier": "{{name}}: earlier",
+      "later": "{{name}}: later"
     }
   },
   "notifications": {
@@ -4199,7 +4288,8 @@
       "whichGrow": "Which grow moves here",
       "onStage": "on {{stage}}",
       "measuring": "measuring only",
-      "nothingYet": "nothing set yet"
+      "nothingYet": "nothing set yet",
+      "window": "{{light}} – when it comes on is changed under Control › Targets."
     },
     "hardware": {
       "next": "sockets and cam?",
@@ -4553,7 +4643,7 @@
     },
     "band": {
       "title": "In band",
-      "text": "Close enough to the target to count as on it: within ±1 °C, ±5 % humidity or ±200 ppm CO₂. At night CO₂ has no band, because the controller only adds CO₂ while the light is on."
+      "text": "Close enough to the target to count as on it: within ±1 °C, ±5 % humidity or ±200 ppm CO₂. At night CO₂ has no band, because the device only adds CO₂ by day."
     },
     "verdict": {
       "title": "In band over 24 hours",
@@ -4581,15 +4671,15 @@
     },
     "dayNight": {
       "title": "Day and night",
-      "text": "Day is while the light is on, not a time of day: the controller switches the lamp and the day and night targets together, and adds CO₂ only by day. Light on at sets when the day begins, Light on for how long it lasts."
+      "text": "The device takes day and night from the clock, not from whether the lamp shines: from “Light on at” it is day for the set length – the lamp ramps up to its light limit, the figures of the “Light on” column hold and CO₂ is dosed. Then it is night, with the figures of the “Light off” column. The column shaded green holds now. A light held by hand, a light limit of 0 % or a lamp dimmed by heat change none of that. Drying and germination have no day: they hold their figures round the clock, in the dark."
     },
     "lightLimit": {
       "title": "Light limit",
-      "text": "The most the lamp may give, as a share of its full output: it ramps up to it at sunrise and down again at sunset. 0 % keeps the lamp dark, as the drying preset does."
+      "text": "The most the lamp may give by day, as a share of its full output: it ramps up to it at sunrise and down again at sunset. At 0 % it stays dark, but the day still holds - with the day figures and with CO₂. Dark with no day at all are drying and the germination mode."
     },
     "lightsOn": {
       "title": "Light on at",
-      "text": "When the light comes on and the day begins, on your account's clock (Me › Appearance). When the clocks change for summer or winter time it stays at this time - the cloud resets the device itself on the night of the change. For cheaper night power or a cooler summer tent, move the day into the night, from 22:00 for example."
+      "text": "When the light comes on and the day begins, on your account’s clock (Me › Appearance). When the clocks change for summer or winter time it stays at this time - the cloud resets the device itself on the night of the change. For cheaper night power or a cooler summer tent, move the day into the night, from 22:00 for example. A running plan keeps this time unless its step brings one of its own."
     },
     "resumePlan": {
       "title": "Resume the plan",
@@ -4629,7 +4719,7 @@
     },
     "dayNightAverages": {
       "title": "Day / night",
-      "text": "Averages over the hours the light was on and the hours it was off, as the controller switched it – not by the clock. Where no light was recorded, one average is shown instead."
+      "text": "Averages over the day and over the night: the hours the day figures held and the hours the night figures held. Where the device has no day and night – while drying, for one – a single average is shown."
     },
     "feedStrength": {
       "title": "Strength",
@@ -4733,7 +4823,7 @@
     },
     "lightHold": {
       "title": "Auto, on, off",
-      "text": "On keeps the lamp lit at its light limit, at night too; Off keeps it dark – for the time shown or until the device restarts. The device does not report a hold back: what was last sent from here is marked until its time is up. Auto ends it."
+      "text": "On keeps the lamp lit at its light limit, at night too; Off keeps it dark – for the time shown or until the device restarts. Day and night stay where the light plan puts them: the same targets hold, and CO₂ is still dosed by day only. The device does not report a hold back: what was last sent from here is marked until its time is up. Auto ends it."
     },
     "firmwareChannel": {
       "title": "Updates",
@@ -4837,7 +4927,7 @@
     },
     "dayCurve": {
       "title": "The last 24 hours",
-      "text": "The small curve shows how the reading went over the last 24 hours. The grey stretch is the night, the green band the target range – at night the night target applies, which is why the band steps with the light. Tapping the tile opens the Timeline."
+      "text": "The small curve shows how the reading went over the last 24 hours. The grey stretch is the night, the green band the target range – at night the night target applies, which is why the band steps when the night begins and ends. Tapping the tile opens the Timeline."
     },
     "ppfd": {
       "title": "PPFD",
@@ -4870,7 +4960,7 @@
     "advanced": {
       "operatingMode": {
         "title": "Operating mode",
-        "text": "What the fridge does as a whole while control is on. Standard holds temperature, humidity, light and CO₂. Greenhouse holds the temperature only: light and CO₂ keep running, the compressor only cools and does not dehumidify on purpose. Germination keeps it dark and heats and cools to the night temperature. Energy saving applies to standard only. A drying phase takes precedence and returns to the operating mode afterwards."
+        "text": "What the fridge does as a whole while control is on. Standard holds temperature, humidity, light and CO₂ by day and night. Greenhouse holds the temperature only: light and CO₂ keep running by the light plan, the compressor only cools and does not dehumidify on purpose. Germination keeps it dark round the clock and heats and cools to one temperature – the one in the “Germination” column under Targets. Energy saving applies to standard only. A drying phase takes precedence and returns to the operating mode afterwards."
       },
       "chartStep": {
         "title": "Interval",
@@ -4878,7 +4968,7 @@
       },
       "chartVpdHalf": {
         "title": "VPD by day or night",
-        "text": "Day and night are steered to different VPD values, so one line across both looks like a saw. Here you draw only the day or only the night values. What counts as day is what the light says, as for the shading of the curves."
+        "text": "Day and night are steered to different VPD values, so one line across both looks like a saw. Here you draw only the day or only the night values. Day and night are the same as in the grey shading of the curves."
       },
       "chartLive": {
         "title": "Update automatically",
@@ -4991,7 +5081,7 @@
     },
     "stepLightHours": {
       "title": "Light on for (in a step)",
-      "text": "How many hours a day the light is on while this step runs. It comes on at the usual time (“Light on at” under Targets) and goes off that many hours later. Twelve hours is what makes photoperiod plants flower. Left empty, the light keeps the hours it has."
+      "text": "How many hours a day the light is on while this step runs. It comes on at the usual time (“Light on at” under Targets) – unless the step brings a time of its own – and goes off that many hours later; the night is the rest of the day. Twelve hours is what makes photoperiod plants flower. Left empty, the light keeps the hours it has."
     },
     "readyPlans": {
       "title": "Ready-made plans",
@@ -5036,6 +5126,10 @@
     "chartOutputs": {
       "title": "Outputs on the chart",
       "text": "Light, fans and heater show how hard they ran: 0 % is off, 100 % full output, and the light shows its dimming, sunrise and sunset. The CO₂ valve shows how much it dosed: the device counts how long the valve was open, in ticks of its clock, and the line shows the sum per interval. Higher means more CO₂ – it is not grams. Dehumidifiers and sockets only know on and off."
+    },
+    "nightBand": {
+      "title": "Shaded grey: the night",
+      "text": "The grey stretches are the nights: the hours the light plan makes night – the light off, the night figures holding, no CO₂ dosed. The green band is the target range, at night the night figures’ one; which is why it steps when the night begins and ends. Drying and germination have no day: then it is night throughout."
     }
   },
   "place": {
@@ -5101,7 +5195,8 @@
         "day": "Day target {{target}}",
         "night": "Night target {{target}}",
         "any": "Target {{target}}",
-        "drying": "Drying target {{target}}"
+        "drying": "Drying target {{target}}",
+        "germination": "Germination target {{target}}"
       },
       "noTarget": "no target",
       "co2Night": "no target at night",
@@ -5118,7 +5213,8 @@
       "vpd": "VPD {{value}}",
       "since": "since {{time}}",
       "day": "24 h",
-      "curveAlt": "{{metric}} over the last 24 hours"
+      "curveAlt": "{{metric}} over the last 24 hours",
+      "co2Dark": "no target without light"
     },
     "light": {
       "on": "On",
@@ -5134,7 +5230,11 @@
       "onAt": "on at {{time}}",
       "barAlt": "Light on from {{on}} to {{off}}",
       "wasOn": "Was on",
-      "wasOff": "Was off"
+      "wasOff": "Was off",
+      "always": "on round the clock · 24 h",
+      "never": "off round the clock · 0 h",
+      "dayUntil": "day until {{time}}",
+      "nightUntil": "night until {{time}}"
     },
     "leaf": {
       "leaf": "Leaf temperature",
@@ -5178,7 +5278,10 @@
       "limit": "at most {{percent}} %",
       "none": "No targets yet.",
       "controlOff": "Control off: the device holds no targets right now.",
-      "awaiting": "Waiting for the device's settings."
+      "awaiting": "Waiting for the device's settings.",
+      "roundTheClock": "Round the clock",
+      "now": "now",
+      "bySchedule": "by the schedule"
     },
     "alarms": {
       "title": "Alarms",
@@ -5206,12 +5309,14 @@
       "lightOn": "Light on",
       "lightOff": "Light off",
       "lightOnUntil": "Light on until {{time}}",
-      "lightOffUntil": "Light off until {{time}}"
+      "lightOffUntil": "Light off until {{time}}",
+      "lightAlways": "Light on round the clock",
+      "lightNever": "Light off round the clock"
     },
     "mode": {
       "drying": "Drying: no light and no CO₂; the drying temperature and humidity are held.",
       "greenhouse": "Operating mode greenhouse: only the temperature is held, not the humidity.",
-      "germination": "Operating mode germination: dark and without CO₂; the night temperature is held.",
+      "germination": "Operating mode germination: dark and without CO₂, one temperature round the clock.",
       "change": "Change"
     },
     "visiting": "Support view of a customer's place: read only. Times are in your time zone."
@@ -5220,8 +5325,8 @@
     "label": "Targets",
     "keep": "Leave as they are",
     "keeps": "Stay: {{figures}}.",
-    "sets": "New: {{figures}} – replaces the targets under Control.",
-    "figures": "light {{hours}} h · day {{day}} °C · night {{night}} °C · {{humidity}} %",
+    "sets": "New: {{figures}} – replaces the targets under Control; when the light comes on stays as it is.",
+    "figures": "{{light}} · day {{day}} °C · night {{night}} °C · {{humidity}} %",
     "dark": "light off · {{day}} °C · {{humidity}} %",
     "dries": "The device starts drying: no light and no CO₂.",
     "endsDrying": "Drying ends, and the device holds day and night again.",
@@ -5269,13 +5374,11 @@
     "done": "Control is off.",
     "unheard": "The device cannot be reached right now and takes it as soon as it is back.",
     "pauseReason": "Control was switched off.",
-    "offTargets": "The device holds no targets. Saving switches control back on.",
-    "offTargetsRead": "The device holds no targets right now.",
     "dryingNote": "Drying: no day and night, no light, no CO₂. The device only dehumidifies and heats.",
     "endDrying": "End drying",
     "modeNote": {
-      "greenhouse": "Operating mode greenhouse: the device holds the temperature only. The humidity below is not held; light and CO₂ run as set.",
-      "germination": "Operating mode germination: dark, no CO₂. The device heats and cools to the night temperature; the day figures, humidity, light and CO₂ below do not apply."
+      "greenhouse": "Operating mode greenhouse: the device holds the temperature only, not the humidity. Light and CO₂ run by the light plan.",
+      "germination": "Operating mode germination: dark and without CO₂, round the clock. The device only heats and cools to the temperature below."
     },
     "modeChange": "Change operating mode",
     "offTitle": "Control off.",
@@ -5290,7 +5393,13 @@
       "night": "night {{values}}",
       "light": "light {{percent}} %",
       "co2": "CO₂ {{value}}"
-    }
+    },
+    "offLine": {
+      "fridge": "The device only measures: heater, compressor, light and CO₂ stand still, and it holds no targets. Switch control on for it to hold them again.",
+      "controller": "The device only measures: heater, dehumidifier, light and CO₂ stand still, and it holds no targets. Switch control on for it to hold them again.",
+      "other": "The device only measures and holds no targets. Switch control on for it to hold them again."
+    },
+    "offLineRead": "The device only measures and holds no targets right now."
   },
   "energySaving": {
     "label": "Energy saving",
@@ -5304,7 +5413,7 @@
     "greenhouse": "Greenhouse",
     "greenhouseNote": "Temperature only: light and CO₂ run, the compressor only cools, humidity is not controlled.",
     "germination": "Germination",
-    "germinationNote": "In the dark: no light, no CO₂. Heats and cools to the night temperature.",
+    "germinationNote": "In the dark, round the clock: no light, no CO₂. Heats and cools to one temperature – the night temperature at first, to be changed under Targets.",
     "ask": "Switch to {{mode}}? {{what}} Standard here switches it back.",
     "yes": "Switch to {{mode}}"
   },
@@ -5386,8 +5495,8 @@
     },
     "vpdHalfNote": {
       "all": "One line across both halves of the day.",
-      "day": "Only the points with the light on - the night is left as a gap.",
-      "night": "Only the points with the light off - the day is left as a gap."
+      "day": "Only the points by day - the night is left as a gap.",
+      "night": "Only the points at night - the day is left as a gap."
     },
     "live": "Update automatically",
     "liveHeld": "Follows only a window that ends now - stepped back or zoomed, it stands still."
@@ -5396,7 +5505,12 @@
     "label": "Light on for",
     "unit": "h",
     "short": "{{hours}} h light",
-    "range": "Light on for: {{min}} to {{max}} hours, or leave it empty."
+    "range": "Light on for: {{min}} to {{max}} hours, or leave it empty.",
+    "lightsOn": "Light on at",
+    "windowOwn": "{{light}} – this step brings the time with it and sets it again every hour.",
+    "windowDevice": "{{light}} – from the time under Targets.",
+    "useDevice": "Use the time under Targets",
+    "shortFrom": "{{hours}} h light from {{time}}"
   },
   "readyPlans": {
     "label": "Ready-made plans",
