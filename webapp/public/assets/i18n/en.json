@@ -3163,6 +3163,7 @@
     "visiting": "support view of a customer's place",
     "bandDay": "day target {{low}}–{{high}}",
     "bandNight": "night target {{low}}–{{high}}",
+    "bandChanging": "changing over {{low}}–{{high}}",
     "noTargetNight": "no target at night",
     "nightLegend": "Shaded grey: the night"
   },
@@ -4000,9 +4001,7 @@
       "lightsOn": "Light on at",
       "hours": "Lasts",
       "night": "The night follows from it: {{from}}–{{to}} · {{hours}} h.",
-      "dip": "Round the clock means: once a day, at {{time}}, the lamp dims down for {{down}} min and back up for {{up}} min – the device cannot do entirely without a night.",
-      "blink": "Round the clock means: once a day, at {{time}}, the lamp goes off for two seconds – the device cannot do entirely without a night.",
-      "dipFridge": "Meanwhile the targets glide briefly towards the night figures, and CO₂ pauses.",
+      "alwaysLine": "The lamp stays at its light limit round the clock – no dimming down and up once a day. The day figures hold throughout.",
       "neverLine": "With no light it is night round the clock: the night figures hold and no CO₂ is dosed.",
       "earlier": "{{name}}: earlier",
       "later": "{{name}}: later",
@@ -4644,7 +4643,7 @@
     },
     "band": {
       "title": "In band",
-      "text": "Close enough to the target to count as on it: within ±1 °C, ±5 % humidity or ±200 ppm CO₂. At night CO₂ has no band, because the device only adds CO₂ by day."
+      "text": "Close enough to the target to count as on it: within ±1 °C, ±5 % humidity or ±200 ppm CO₂. At night CO₂ has no band, because the device only adds CO₂ by day. After every switch between day and night the climate is given an hour to follow the new figures – on a fridge, plus the minutes its lamp and targets glide. Meanwhile anything between the day band and the night band counts as on target, and the tile says “changing over”."
     },
     "verdict": {
       "title": "In band over 24 hours",
@@ -4928,7 +4927,7 @@
     },
     "dayCurve": {
       "title": "The last 24 hours",
-      "text": "The small curve shows how the reading went over the last 24 hours. The grey stretch is the night, the green band the target range – at night the night target applies, which is why the band steps when the night begins and ends. Tapping the tile opens the Timeline."
+      "text": "The small curve shows how the reading went over the last 24 hours. The grey stretch is the night, the green band the target range – at night the night target applies. For the hour after each switch the band spans both targets, which is how long the climate is given to follow. Tapping the tile opens the Timeline."
     },
     "ppfd": {
       "title": "PPFD",
@@ -5130,7 +5129,7 @@
     },
     "nightBand": {
       "title": "Shaded grey: the night",
-      "text": "The grey stretches are the nights: the hours the light plan makes night – the light off, the night figures holding, no CO₂ dosed. The green band is the target range, at night the night figures’ one; which is why it steps when the night begins and ends. Drying and germination have no day: then it is night throughout."
+      "text": "The grey stretches are the nights: the hours the light plan makes night – the light off, the night figures holding, no CO₂ dosed. The green band is the target range, at night the night figures’ one; for the hour after each switch – on a fridge, from the start of its dimming – it spans both bands: that is how long the climate is given to follow the new figures. Drying and germination have no day: then it is night throughout."
     }
   },
   "place": {
@@ -5211,6 +5210,7 @@
       "switches": "switches at {{low}}–{{high}}",
       "high": "{{delta}} too high",
       "low": "{{delta}} too low",
+      "settling": "changing over until {{time}}",
       "vpd": "VPD {{value}}",
       "since": "since {{time}}",
       "day": "24 h",

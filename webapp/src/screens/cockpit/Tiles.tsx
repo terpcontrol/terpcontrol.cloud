@@ -7,7 +7,7 @@ import type { CardSetpoint, CardValue, Device, DeviceLive, Metric, OverviewTarge
 import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 import { Term } from '@/ui/Help';
-import { useZone } from '@/ui/zone';
+import { clock, useZone } from '@/ui/zone';
 import { LastValue } from '../home/OfflineHelp';
 import { figure, targetFigure, UNIT } from '../home/units';
 import { DayBar } from './DayBar';
@@ -171,6 +171,7 @@ function ClimateTile({
         <MiniCurve
           panel={panel}
           nights={timeline?.nights ?? []}
+          transitions={timeline?.transitions ?? []}
           from={timeline ? Date.parse(timeline.startsAt) : 0}
           to={timeline ? Date.parse(timeline.endsAt) : 0}
           tone={TONE[metric]}
@@ -219,7 +220,15 @@ const targetLabel = (t: Translate, metric: Steered, setpoint: CardSetpoint | nul
 
 function VerdictWords({ verdict, metric, now, explain }: { verdict: Verdict; metric: Metric; now: DateTime; explain: boolean }) {
   const { t } = useTranslation();
+  const zone = useZone();
   if (!verdict) return null;
+  if (verdict.kind === 'settling') {
+    return (
+      <span className={styles.settling}>
+        <Term topic="band">{t('cockpit.tile.settling', { time: clock(verdict.until, zone) })}</Term>
+      </span>
+    );
+  }
   if (verdict.kind === 'last') {
     return (
       <span className={styles.lastValue}>

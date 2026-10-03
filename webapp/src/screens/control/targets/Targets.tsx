@@ -18,7 +18,7 @@ import { CLIMATE_CHOICES, climateChoiceName, type ClimateChoice } from '@/ui/pre
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { clock, nowThere, CLOCK, useZone } from '@/ui/zone';
+import { nowThere, CLOCK, useZone } from '@/ui/zone';
 import { deviceTitle } from '../../devices/naming';
 import { FanPanel } from '../devices/FanPanel';
 import { LightPanel } from '../devices/LightPanel';
@@ -326,7 +326,6 @@ function Panel({
     awaiting: liveRead.isPending,
     now,
     clock: seconds => wallClock(seconds, offset),
-    instantClock: instant => clock(instant, zone),
   });
 
   // A running plan puts back what its step writes, within the hour - and only

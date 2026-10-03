@@ -16,6 +16,8 @@ export type Tone = 'temperature' | 'humidity' | 'co2' | 'leaf';
 interface MiniCurveProps {
   panel: TimelinePanel | null;
   nights: TimelineSpan[];
+  /** When the device was changing between day and night: the band then is both halves' together. */
+  transitions?: TimelineSpan[];
   from: number;
   to: number;
   tone: Tone;
@@ -35,7 +37,7 @@ interface MiniCurveProps {
  * the right of an empty day, so the curve begins where the record does and
  * says since when - in place of the "24 h" an older curve is captioned with.
  */
-export function MiniCurve({ panel, nights, from: windowFrom, to, tone, label, explain = false }: MiniCurveProps) {
+export function MiniCurve({ panel, nights, transitions = [], from: windowFrom, to, tone, label, explain = false }: MiniCurveProps) {
   const { t } = useTranslation();
   const zone = useZone();
   const clip = useId();
@@ -46,7 +48,7 @@ export function MiniCurve({ panel, nights, from: windowFrom, to, tone, label, ex
   const young = first - windowFrom > (to - windowFrom) * 0.1;
   const from = young ? first : windowFrom;
 
-  const stretches = stretchesOf(panel, nights, from, to);
+  const stretches = stretchesOf(panel, nights, from, to, transitions);
   const values = points.map(point => point.value as number);
   const edges = stretches.flatMap(stretch => [stretch.target.band.low, stretch.target.band.high]);
   let low = Math.min(...values, ...edges);

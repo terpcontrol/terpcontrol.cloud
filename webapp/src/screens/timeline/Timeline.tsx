@@ -283,6 +283,7 @@ function TimelineFor({ spaceId, heading, shared }: TimelineProps & { shared: Sha
           key={panel.metric}
           panel={panel}
           nights={heardNights}
+          transitions={data.transitions}
           alarms={data.alarms}
           from={from}
           to={to}

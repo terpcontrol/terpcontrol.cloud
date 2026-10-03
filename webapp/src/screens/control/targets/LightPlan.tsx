@@ -87,7 +87,6 @@ function Schedule(props: LightPlanProps) {
   const changed = draft.lightsOn !== baseline.lightsOn || draft.lightHours !== baseline.lightHours;
   const words = windowWords(draft, offset);
   const ramps = rampsFor(device, device.configuration, baseline);
-  const draftRamps = rampsFor(device, device.configuration, draft);
   const mark = (field: Field) =>
     owned.has(field) ? (
       <CalendarRange size={13} strokeWidth={2} className={styles.planMark} role="img" aria-label={t('targets.table.planMark')} />
@@ -166,14 +165,7 @@ function Schedule(props: LightPlanProps) {
       </div>
 
       {words.always ? (
-        <p className={styles.note}>
-          {/* The ramps either side of the two-second night are the dip; without ramps the lamp only blinks. */}
-          {draftRamps.up + draftRamps.down > 0
-            ? t('targets.plan.dip', { time: words.on, down: draftRamps.down, up: draftRamps.up })
-            : t('targets.plan.blink', { time: words.on })}
-          {/* Only a fridge glides its targets over the ramps, and stops its CO₂ over the sunset one (the server always writes both). */}
-          {device.type === 'fridge' && draftRamps.down > 0 ? ` ${t('targets.plan.dipFridge')}` : null}
-        </p>
+        <p className={styles.note}>{t('targets.plan.alwaysLine')}</p>
       ) : words.never ? (
         <p className={styles.note}>{t('targets.plan.neverLine')}</p>
       ) : (
@@ -254,6 +246,8 @@ interface Piece {
 /** A window from midnight to midnight, in minutes: one piece, or two where it runs past midnight. */
 const piecesOf = (startMinutes: number, minutes: number): Piece[] => {
   if (minutes <= 0) return [];
+  // A day that never ends has no ramp anywhere: the lamp stays at its limit.
+  if (minutes >= 1440) return [{ from: 0, to: 1440, up: false, down: false }];
   const end = startMinutes + minutes;
   return end <= 1440
     ? [{ from: startMinutes, to: end, up: true, down: true }]
@@ -267,7 +261,7 @@ const piecesOf = (startMinutes: number, minutes: number): Piece[] => {
  * Today from midnight to midnight on the account's clock: lit while the light
  * is on, fading in and out over the dimming ramps, with now marked. A window
  * that runs past midnight is two pieces, one at each end; 24 hours is the
- * whole bar with the one dip the ramps make. A draft is a thin outlined track
+ * whole bar, without a ramp. A draft is a thin outlined track
  * under it, so what is being typed is never drawn as what runs.
  */
 function Bar({

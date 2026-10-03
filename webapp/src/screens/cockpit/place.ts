@@ -90,7 +90,13 @@ export const reports = (values: CardValue[], key: TileKey): boolean => {
  * is no longer live: a green "in band" under a figure from an hour ago would be
  * a claim about a tent nobody has heard from since.
  */
-export type Verdict = { kind: 'in' } | { kind: 'high' | 'low'; delta: number } | { kind: 'last'; at: string | null } | null;
+export type Verdict =
+  | { kind: 'in' }
+  | { kind: 'high' | 'low'; delta: number }
+  | { kind: 'last'; at: string | null }
+  /** Changing between day and night: on its way from one half's band to the other's, given until `until`. */
+  | { kind: 'settling'; until: string }
+  | null;
 
 export const verdictOf = (value: CardValue | null, setpoint: CardSetpoint | null, now: DateTime): Verdict => {
   if (!value || value.value === null) return null;
@@ -102,6 +108,18 @@ export const verdictOf = (value: CardValue | null, setpoint: CardSetpoint | null
   const delta = value.value - setpoint.value;
   const off = asWritten(Math.abs(delta), value.metric);
   if (off <= setpoint.band) return { kind: 'in' };
+
+  // For the hour after a switch between day and night - and while a fridge
+  // glides along its ramp before it - anything between the two halves' bands
+  // is on target, as the server judges it: a fridge cooling into its night is
+  // on its way there and not "zu warm". It is said as that rather than as "im
+  // Ziel" beside a target it has not reached. Where one half holds no target
+  // (CO2 at night) nothing is judged until the hour is over.
+  const transition = setpoint.transition;
+  if (transition) {
+    if (transition.low === null || transition.high === null) return { kind: 'settling', until: transition.until };
+    if (value.value >= transition.low && value.value <= transition.high) return { kind: 'settling', until: transition.until };
+  }
   return { kind: delta > 0 ? 'high' : 'low', delta: off };
 };
 
@@ -268,7 +286,7 @@ export interface LightWindow {
   off: string;
   /** The lamp's own maximum, in per cent. */
   limit: number;
-  /** 24 hours of light: no time it goes off, bar the daily dip. */
+  /** 24 hours of light: no time it goes off, and no dimming. */
   always: boolean;
   /** No hours of light: dark round the clock. */
   never: boolean;
@@ -352,7 +370,7 @@ export const halfNowOf = (device: Device | null, live: DeviceLive | undefined, n
   const shape = storedShapeOf(device);
   if (!device?.configuration || !shape) return offline ? null : (setpointsOf(live)?.active ?? null);
   const stored = draftOf(device.configuration);
-  return nowHoldingOf({ device, shape, stored, live, offline, now, clock: () => '', instantClock: () => '' }).half;
+  return nowHoldingOf({ device, shape, stored, live, offline, now, clock: () => '' }).half;
 };
 
 /** "12" or "12,5": the length of the day the way a person says it. */

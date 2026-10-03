@@ -3171,6 +3171,7 @@
     "visiting": "Support-Ansicht eines Kundenorts",
     "bandDay": "Tagesziel {{low}}–{{high}}",
     "bandNight": "Nachtziel {{low}}–{{high}}",
+    "bandChanging": "Übergang {{low}}–{{high}}",
     "noTargetNight": "nachts kein Ziel",
     "nightLegend": "Grau hinterlegt: die Nacht"
   },
@@ -4008,9 +4009,7 @@
       "lightsOn": "Licht an um",
       "hours": "Dauer",
       "night": "Die Nacht ergibt sich daraus: {{from}}–{{to}} · {{hours}} Std.",
-      "dip": "Durchgehend heißt: Einmal am Tag, um {{time}}, dimmt die Lampe {{down}} Min ab und {{up}} Min wieder auf – ganz ohne Nacht kommt das Gerät nicht aus.",
-      "blink": "Durchgehend heißt: Einmal am Tag, um {{time}}, geht die Lampe für zwei Sekunden aus – ganz ohne Nacht kommt das Gerät nicht aus.",
-      "dipFridge": "Solange gleiten die Zielwerte kurz Richtung Nachtwerte, und CO₂ pausiert.",
+      "alwaysLine": "Die Lampe bleibt rund um die Uhr auf der Lichtgrenze – kein tägliches Ab- und Aufdimmen. Es gelten durchgehend die Tageswerte.",
       "neverLine": "Ohne Licht ist rund um die Uhr Nacht: Es gelten die Nachtwerte, CO₂ wird nicht zugegeben.",
       "earlier": "{{name}}: früher",
       "later": "{{name}}: später",
@@ -4652,7 +4651,7 @@
     },
     "band": {
       "title": "Im Ziel",
-      "text": "Nah genug am Zielwert, um als getroffen zu gelten: bis ±1 °C, ±5 % Feuchte oder ±200 ppm CO₂. Nachts hat CO₂ kein Band, weil das Gerät CO₂ nur am Tag zugibt."
+      "text": "Nah genug am Zielwert, um als getroffen zu gelten: bis ±1 °C, ±5 % Feuchte oder ±200 ppm CO₂. Nachts hat CO₂ kein Band, weil das Gerät CO₂ nur am Tag zugibt. Nach jedem Wechsel zwischen Tag und Nacht hat das Klima eine Stunde Zeit, den neuen Werten zu folgen – beim Kühlschrank dazu die Minuten, in denen Lampe und Zielwerte gleiten. Solange zählt alles zwischen dem Tag- und dem Nachtband als im Ziel, und die Kachel sagt „im Übergang“."
     },
     "verdict": {
       "title": "Im Zielband über 24 Stunden",
@@ -4936,7 +4935,7 @@
     },
     "dayCurve": {
       "title": "Die letzten 24 Stunden",
-      "text": "Die kleine Kurve zeigt, wie der Wert in den letzten 24 Stunden lief. Grau hinterlegt ist die Nacht, grün der Zielbereich – nachts gilt das Nachtziel, deshalb springt das grüne Band, wenn die Nacht beginnt und endet. Ein Tipp auf die Kachel öffnet den Verlauf."
+      "text": "Die kleine Kurve zeigt, wie der Wert in den letzten 24 Stunden lief. Grau hinterlegt ist die Nacht, grün der Zielbereich – nachts gilt das Nachtziel. In der Stunde nach jedem Wechsel reicht das Band über beide Ziele, so lange hat das Klima Zeit zu folgen. Ein Tipp auf die Kachel öffnet den Verlauf."
     },
     "ppfd": {
       "title": "PPFD",
@@ -5138,7 +5137,7 @@
     },
     "nightBand": {
       "title": "Grau hinterlegt: die Nacht",
-      "text": "Grau hinterlegt sind die Nächte: die Stunden, in denen nach dem Lichtplan Nacht ist – das Licht aus, die Nachtwerte gelten, CO₂ wird nicht zugegeben. Das grüne Band ist der Zielbereich, nachts der der Nachtwerte; deshalb springt es, wenn die Nacht beginnt und endet. Trocknung und Keimung kennen keinen Tag: Dann ist durchgehend Nacht."
+      "text": "Grau hinterlegt sind die Nächte: die Stunden, in denen nach dem Lichtplan Nacht ist – das Licht aus, die Nachtwerte gelten, CO₂ wird nicht zugegeben. Das grüne Band ist der Zielbereich, nachts der der Nachtwerte. In der Stunde nach jedem Wechsel – beim Kühlschrank ab Beginn des Dimmens – reicht es über beide Bänder: So lange hat das Klima Zeit, den neuen Werten zu folgen. Trocknung und Keimung kennen keinen Tag: Dann ist durchgehend Nacht."
     }
   },
   "place": {
@@ -5219,6 +5218,7 @@
       "switches": "schaltet bei {{low}}–{{high}}",
       "high": "{{delta}} zu hoch",
       "low": "{{delta}} zu niedrig",
+      "settling": "im Übergang bis {{time}}",
       "vpd": "VPD {{value}}",
       "since": "seit {{time}}",
       "day": "24 Std",

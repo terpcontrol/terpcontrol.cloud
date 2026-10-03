@@ -23,6 +23,8 @@ export interface ChartData {
   lastReadingAt: string | null;
   outputs: TimelineOutputLane[];
   nights: TimelineSpan[];
+  /** When the steering device was changing between day and night, the band then being both halves' together. */
+  transitions?: TimelineSpan[];
   cameras: TimelineCamera[];
   measurements: GrowMeasurementSeries[];
   /** The instant day 1 of the grow began; null where no grow is charted. */

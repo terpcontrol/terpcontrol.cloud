@@ -373,6 +373,10 @@
   color: var(--warning);
 }
 
+.settling {
+  color: var(--muted);
+}
+
 .lastValue {
   display: inline-flex;
   gap: 4px;

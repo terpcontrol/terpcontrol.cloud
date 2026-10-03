@@ -637,6 +637,21 @@ describe('what a panel is drawn against', () => {
     expect(stretches[1].to).toBe(DateTime.fromISO(at(15)).toMillis());
   });
 
+  it('widens the band over both halves for the hour after a switch, as the reading is judged then, and names it so', () => {
+    const transitions = [{ startsAt: at(6), endsAt: at(7) }];
+    const stretches = stretchesOf(temperature, answer.nights, from, to, transitions);
+
+    // The night, the hour after the light came on, and the rest of the day.
+    expect(stretches.map(one => [one.target.setpoint, one.target.band.low, one.target.band.high, one.changing])).toEqual([
+      [21, 20, 22, false],
+      [26, 20, 27, true],
+      [26, 25, 27, false],
+    ]);
+    // A metric one half holds no target for is not judged while it changes.
+    const unlit = { ...temperature, targets: [{ ...temperature.targets[0], night: null }] };
+    expect(stretchesOf(unlit, answer.nights, from, to, transitions).map(one => one.changing)).toEqual([false]);
+  });
+
   it('names a band by its half only where the window holds a day and a night', () => {
     const nights = answer.nights;
     expect(splitByNight(nights, from, to)).toBe(true);

@@ -1,5 +1,6 @@
 import type { DateTime } from 'luxon';
-import type { Device, DeviceConfiguration, DeviceLive, Plan, PlanStep } from '@fg2/shared-types/v1';
+import type { Device, DeviceConfiguration, DeviceLive, Plan, PlanStep, Setpoints } from '@fg2/shared-types/v1';
+import { isDayAt, lightWindowTimes, rampsAt } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { figureOf } from '@/ui/climate-hardware';
 import { draftOf, lightsOffOf, type HeldHalves, type TargetsDraft } from './targets-draft';
 
@@ -17,10 +18,6 @@ import { draftOf, lightsOffOf, type HeldHalves, type TargetsDraft } from './targ
  */
 
 export type Half = 'day' | 'night';
-
-const DAY_SECONDS = 24 * 60 * 60;
-
-const roundTheClock = (seconds: number): number => ((seconds % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
 
 /**
  * What a device's day is made of, by the mode it runs and its light schedule:
@@ -131,46 +128,33 @@ export const rampsOf = (configuration: DeviceConfiguration | null): Ramps => ({
  */
 export const rampsFor = (device: Device, configuration: DeviceConfiguration | null, draft: TargetsDraft): Ramps => {
   const ramps = rampsOf(configuration);
-  return device.type === 'controller' && draft.lightsOn > lightsOffOf(draft) ? { ...ramps, up: 0 } : ramps;
+  const { day, night } = lightWindowTimes(draft);
+  return device.type === 'controller' && day > night ? { ...ramps, up: 0 } : ramps;
 };
 
 /**
- * The phase at `t` seconds past midnight UTC, compared the way the firmware
- * compares: strictly, a window that runs past midnight wrapping round it, and
- * "on" at the very second of "off" never being day.
+ * The phase a draft's schedule puts the device in at `now`, worked out from
+ * the two times the draft is written as and with the firmware's own arithmetic
+ * (`day-night.ts` in the contract): strict comparisons, a window past midnight
+ * UTC wrapping round it, a day that never ends being day on every second, and
+ * ramps that do not go round the clock. While a fridge's ramps overlap it is
+ * the morning one it glides along.
  */
-export const phaseAt = (on: number, off: number, t: number, ramps: Ramps): Phase => {
-  const day = on > off ? t > on || t < off : on < off ? t > on && t < off : false;
-  if (!day) return 'night';
-  if (ramps.up > 0 && roundTheClock(t - on) < ramps.up * 60) return 'sunrise';
-  if (ramps.down > 0 && roundTheClock(off - t) < ramps.down * 60) return 'sunset';
-  return 'day';
+export const phaseOf = (draft: TargetsDraft, ramps: Ramps, now: DateTime): Phase => {
+  const cycle = { ...lightWindowTimes(draft), sunrise: ramps.up, sunset: ramps.down, workmode: null, glides: false };
+  const t = utcSecondsOf(now);
+  if (!isDayAt(cycle, t)) return 'night';
+  const { sunrise, sunset } = rampsAt(cycle, t);
+  return sunrise < 1 ? 'sunrise' : sunset < 1 ? 'sunset' : 'day';
 };
-
-/** The phase a draft's schedule puts the device in at `now`. */
-export const phaseOf = (draft: TargetsDraft, ramps: Ramps, now: DateTime): Phase =>
-  phaseAt(draft.lightsOn, lightsOffOf(draft), utcSecondsOf(now), ramps);
 
 /** The half a phase holds: a ramp is part of the day it belongs to. */
 export const halfOf = (phase: Phase): Half => (phase === 'night' ? 'night' : 'day');
 
 /* ------------------------------------------------------------- what holds now */
 
-/**
- * What the server adds to a device's setpoints beyond `active`, where it says
- * more: whether the device is in a day, a night or a regime with one climate
- * round the clock, and - while a fridge glides between its two sets of
- * figures - towards which and until when. Read as optional, because an older
- * server says neither, and `active` is then the word.
- */
-export interface SetpointsSaid {
-  active: Half;
-  period?: Half | 'constant' | null;
-  transition?: { until?: string | null; from?: Half | null; to?: Half | null } | null;
-}
-
-export const setpointsOf = (live: DeviceLive | undefined | null): SetpointsSaid | null =>
-  (live?.setpoints as SetpointsSaid | null | undefined) ?? null;
+/** What the server answers for the targets a device holds now: whose half, by its clock and mode, and whether it is changing over. */
+export const setpointsOf = (live: DeviceLive | undefined | null): Setpoints | null => live?.setpoints ?? null;
 
 /**
  * Which column holds now, and on whose word.
@@ -200,7 +184,6 @@ export const nowHoldingOf = ({
   awaiting = false,
   now,
   clock,
-  instantClock,
 }: {
   device: Device;
   shape: Shape;
@@ -217,8 +200,6 @@ export const nowHoldingOf = ({
   now: DateTime;
   /** Seconds past midnight UTC on the account's wall clock. */
   clock: Clock;
-  /** An instant the server names, on the account's wall clock. */
-  instantClock: (iso: string) => string;
 }): NowHolding => {
   const said = offline ? null : setpointsOf(live);
   const by: NowHolding['by'] = said || (awaiting && !offline) ? 'device' : 'schedule';
@@ -233,17 +214,17 @@ export const nowHoldingOf = ({
   const half = said ? (said.period === 'day' || said.period === 'night' ? said.period : said.active) : local;
 
   // A tent controller switches its targets at once; a fridge glides them over the ramps.
+  // The server's transition runs on for the hour the climate is given after the
+  // switch; only while the targets are still on the move is it a glide, and it
+  // glides until the ramp ends - the lamp's switch - rather than until then.
+  // Where the answer says nothing of a transition at all (not even none), or
+  // there is no answer, the stored ramps say it.
   let glide: NowHolding['glide'] = null;
   if (device.type === 'fridge' && half !== null) {
-    const to = said?.transition?.to;
-    if (said?.transition && (to === 'day' || to === 'night')) {
-      glide = {
-        to,
-        until: said.transition.until
-          ? instantClock(said.transition.until)
-          : clock(to === 'day' ? stored.lightsOn + ramps.up * 60 : lightsOffOf(stored)),
-      };
-    } else if (!said?.transition && local === half && (phase === 'sunrise' || phase === 'sunset')) {
+    const gliding = said?.transition?.gliding ? said.transition.to : null;
+    if (gliding) {
+      glide = { to: gliding, until: clock(gliding === 'day' ? stored.lightsOn + ramps.up * 60 : lightsOffOf(stored)) };
+    } else if (said?.transition === undefined && local === half && (phase === 'sunrise' || phase === 'sunset')) {
       glide = phase === 'sunrise' ? { to: 'day', until: clock(stored.lightsOn + ramps.up * 60) } : { to: 'night', until: clock(lightsOffOf(stored)) };
     }
   }

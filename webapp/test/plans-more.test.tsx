@@ -182,10 +182,17 @@ describe('light hours in a step', () => {
     expect(state.saved[1].steps[0].lightHours).toBeNull();
   });
 
+  it('may be none at all, which is the night round the clock', () => {
+    wrap(<PlanEditor device={device()} plan={null} draft={draft({ lightHours: 0 })} onClose={() => {}} />);
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save the plan' })).toBeEnabled();
+  });
+
   it('are not saved outside a day, and the step says why', () => {
     wrap(<PlanEditor device={device()} plan={null} draft={draft({ lightHours: 30 })} onClose={() => {}} />);
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Light on for: 1 to 24 hours, or leave it empty.');
+    expect(screen.getByRole('alert')).toHaveTextContent('Light on for: 0 to 24 hours, or leave it empty.');
     expect(screen.getByRole('button', { name: 'Save the plan' })).toBeDisabled();
   });
 

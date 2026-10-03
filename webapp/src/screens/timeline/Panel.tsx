@@ -25,9 +25,13 @@ const METRIC_TOKEN: Partial<Record<Metric, ChartToken>> = {
  */
 const UNSTEERED: Partial<Record<Metric, 'leafTemperature' | 'lux'>> = { leafTemperature: 'leafTemperature', lux: 'lux' };
 
+const NONE: TimelineSpan[] = [];
+
 interface PanelProps {
   panel: TimelinePanel;
   nights: TimelineSpan[];
+  /** When the device was changing between day and night: the band then is both halves' together. */
+  transitions?: TimelineSpan[];
   /** Where the place fell silent, after which no band is drawn; null while it is still heard. */
   heardUntil?: number | null;
   alarms: TimelineAlarm[];
@@ -47,10 +51,25 @@ interface PanelProps {
  * drawn once per answer and the cursor is an overlay over it, so scrubbing
  * costs no redraw.
  */
-export function Panel({ panel, nights, alarms, from, to, heardUntil = null, cursor, scrub, explain, focused = false }: PanelProps) {
+export function Panel({
+  panel,
+  nights,
+  transitions = NONE,
+  alarms,
+  from,
+  to,
+  heardUntil = null,
+  cursor,
+  scrub,
+  explain,
+  focused = false,
+}: PanelProps) {
   const { t } = useTranslation();
   // The band stops where the place fell silent, as the nights do: nothing was aimed at that anybody heard.
-  const stretches = useMemo(() => stretchesOf(panel, nights, from, heardUntil ?? to), [panel, nights, from, to, heardUntil]);
+  const stretches = useMemo(
+    () => stretchesOf(panel, nights, from, heardUntil ?? to, transitions),
+    [panel, nights, from, to, heardUntil, transitions],
+  );
   const scale = useMemo(() => scaleOf(panel, stretches), [panel, stretches]);
   const mine = useMemo(() => alarmsOf(alarms, panel.metric), [alarms, panel.metric]);
   const option = useMemo(
@@ -67,7 +86,7 @@ export function Panel({ panel, nights, alarms, from, to, heardUntil = null, curs
   const split = splitByNight(nights, from, to);
   const bandLabel =
     stretch && target
-      ? t(split ? (stretch.dark ? 'timeline.bandNight' : 'timeline.bandDay') : 'timeline.band', {
+      ? t(stretch.changing ? 'timeline.bandChanging' : split ? (stretch.dark ? 'timeline.bandNight' : 'timeline.bandDay') : 'timeline.band', {
           low: targetFigure(target.band.low, panel.metric),
           high: targetFigure(target.band.high, panel.metric),
         })

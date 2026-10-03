@@ -400,7 +400,7 @@ const metricDrawn = (t: Translate, metric: Metric, panel: TimelinePanel, series:
   const from = at(series.startsAt);
   const to = at(series.endsAt);
   const aimed = metric === 'vpd' && panel.targets.length === 0 && leaf ? { ...panel, targets: vpdTargetsOf(series, leaf) } : panel;
-  const stretches = stretchesOf(aimed, series.nights, from, to);
+  const stretches = stretchesOf(aimed, series.nights, from, to, series.transitions ?? []);
   const points = panel.points.map(point => [at(point.measuredAt), point.value] as [number, number | null]);
   const title = t(`charts.metric.${metric}`, { defaultValue: metric });
   const unit = UNIT[metric] ?? '';

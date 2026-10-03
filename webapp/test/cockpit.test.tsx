@@ -730,6 +730,42 @@ describe('the edge of the band', () => {
   });
 });
 
+/**
+ * For the hour after a switch between day and night - and while a fridge glides
+ * along its ramp before it - the server judges a reading by both halves' bands
+ * together, and the card says so: a fridge cooling into its night is on its
+ * way, not "too warm", and not "in band" beside a target it has not reached.
+ */
+describe('a device changing between day and night', () => {
+  const until = DateTime.now().plus({ minutes: 40 });
+  const changing: SpaceOverview['setpoints'] = [
+    { metric: 'temperature', value: 21, band: 1, transition: { from: 'day', to: 'night', until: until.toISO()!, low: 20, high: 26 } },
+    { metric: 'humidity', value: 60, band: 5 },
+    { metric: 'co2', value: null, band: null, transition: { from: 'day', to: 'night', until: until.toISO()!, low: null, high: null } },
+  ];
+  const warm = (value: number) => values().map(one => (one.metric === 'temperature' ? { ...one, value } : one));
+
+  it('is on target anywhere between the two bands, and off it outside both', () => {
+    const now = DateTime.now();
+    expect(statusOf({ values: warm(24.6), setpoints: changing, deviceIds: ['device-1'], openAlerts: [], quiet: null }, now).kind).toBe('good');
+    expect(statusOf({ values: warm(27.5), setpoints: changing, deviceIds: ['device-1'], openAlerts: [], quiet: null }, now)).toMatchObject({
+      kind: 'off',
+      metric: 'temperature',
+      high: true,
+    });
+  });
+
+  it('says on the tile that it is changing over, and until when, and judges CO₂ not at all meanwhile', async () => {
+    draw(<PlaceCockpit overview={overviewOf({ values: warm(24.6), setpoints: changing })} />);
+
+    const temperature = await tile('Temperature');
+    expect(temperature).toHaveTextContent(`changing over until ${until.toFormat('HH:mm')}`);
+    expect(temperature).not.toHaveTextContent('in band');
+    expect(temperature).not.toHaveAttribute('data-verdict');
+    expect(await tile('CO₂')).not.toHaveTextContent('too');
+  });
+});
+
 describe('a place that has gone quiet', () => {
   it('says since when and what to try, calls every figure its last value, and claims nothing about the hardware', async () => {
     const overview = overviewOf({ values: values(180) });

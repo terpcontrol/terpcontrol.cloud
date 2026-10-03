@@ -8,10 +8,10 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { createMemoryRouter, Link, MemoryRouter, RouterProvider } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Device, DeviceConfiguration, DeviceLive, Me, Plan, PlanStep } from '@fg2/shared-types/v1';
+import type { Device, DeviceConfiguration, DeviceLive, Me, Plan, PlanStep, Setpoints } from '@fg2/shared-types/v1';
 import { Targets } from '@/screens/control/targets/Targets';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
-import { nowHoldingOf, ownedBy, phaseAt, shapeOf, type SetpointsSaid } from '@/screens/control/targets/day-night';
+import { nowHoldingOf, ownedBy, phaseOf, shapeOf } from '@/screens/control/targets/day-night';
 import { draftOf, lightWindowLabel, secondsOf, vpdOf, wallClock, withDraft } from '@/screens/control/targets/targets-draft';
 import { CLIMATE_CHOICES, presetsOf, STAGES_WITH_CLIMATE } from '@/ui/presets';
 
@@ -145,7 +145,7 @@ interface Call {
 const wire = {
   plan: null as Plan | null,
   /** What the server says of the device right now; none answers 404, which leaves the page to the schedule. */
-  live: null as Partial<SetpointsSaid> | null,
+  live: null as Partial<Setpoints> | null,
   /** The account's zone; none leaves the page on the browser's, which the test keeps on UTC. */
   zone: null as string | null,
   /** What PUT /configuration answers with instead of the document, when a refusal is wanted. */
@@ -390,7 +390,11 @@ describe('the targets page', () => {
 
   it('says a fridge is in its sunset while the lamp dims, and that its targets glide towards the night', async () => {
     at('17:50');
-    wire.live = { active: 'day', transition: { until: '2026-09-19T18:00:00.000Z', from: 'day', to: 'night' } };
+    // The server's transition runs on for the hour after the switch; the glide is the ramp before it.
+    wire.live = {
+      active: 'day',
+      transition: { until: '2026-09-19T19:00:00.000Z', from: 'day', to: 'night', gliding: true, targets: { temperature: 21.2 } },
+    };
     await drawn([device({ type: 'fridge' })]);
 
     await waitFor(() =>
@@ -606,12 +610,13 @@ describe('the targets page', () => {
   });
 
   /**
-   * 24 hours has no night: one column, held round the clock, and the one
-   * dimming dip the firmware still makes said with the hour it falls on. The
-   * night's figures are kept, not overwritten - they are back as soon as there
-   * is a night again - and said behind a line that says so.
+   * 24 hours has no night: one column, held round the clock, without the
+   * daily dimming dip a window a second short of a day made - it is written as
+   * a day that never ends. The night's figures are kept, not overwritten -
+   * they are back as soon as there is a night again - and said behind a line
+   * that says so.
    */
-  it('has one column at 24 hours, says when the lamp dips, and keeps the night’s figures for later', async () => {
+  it('has one column at 24 hours, writes a day that never ends, and keeps the night’s figures for later', async () => {
     await drawn([device({ type: 'fridge' })]);
 
     for (let i = 0; i < 12; i += 1) tap('Light on for: more');
@@ -620,9 +625,11 @@ describe('the targets page', () => {
     const heads = within(screen.getByRole('table')).getAllByRole('columnheader');
     expect(heads.at(-1)).toHaveTextContent(/^Light round the clock24 h · day figures/);
     expect(screen.queryByRole('spinbutton', { name: 'Night temperature' })).not.toBeInTheDocument();
-    expect(within(plan_()).getByText(/^Round the clock means: once a day, at 06:00, the lamp dims down for 15 min/)).toHaveTextContent(
-      'Meanwhile the targets glide briefly towards the night figures, and CO₂ pauses.',
-    );
+    expect(
+      within(plan_()).getByText(
+        'The lamp stays at its light limit round the clock – no dimming down and up once a day. The day figures hold throughout.',
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText('Night figures – hold again as soon as there is a night')).toBeInTheDocument();
     expect(screen.getByText('20 °C · 55 %')).toBeInTheDocument();
 
@@ -630,7 +637,8 @@ describe('the targets page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(sent('PUT')).toHaveLength(1));
     const written = (sent('PUT')[0].body as { configuration: DeviceConfiguration }).configuration;
-    expect(written.daynight).toMatchObject({ day: 21600, night: 21599 });
+    // Both times past any second of the clock, the night one before the day: day on every second, and the hour kept.
+    expect(written.daynight).toMatchObject({ day: 2 * 86400 + 21600 + 1, night: 2 * 86400 + 21600 });
     expect(written.day).toMatchObject({ temperature: 25.5, humidity: 60 });
     expect(written.night).toEqual({ temperature: 20, humidity: 55 });
   });
@@ -1146,12 +1154,14 @@ describe('the document a draft becomes', () => {
     expect(wallClock(86399, 7200)).toBe('02:00');
   });
 
-  it('writes a day-long light one second short of a day, which the firmware would otherwise read as no light at all', () => {
+  it('writes a day-long light as a day that never ends, keeping the hour it came on, and reads the older form as 24 hours too', () => {
     const draft = { ...draftOf(CONFIGURATION), lightHours: 24 };
     const written = withDraft(CONFIGURATION, draft);
 
-    expect(written.daynight).toMatchObject({ day: 21600, night: 21599 });
-    expect(draftOf(written).lightHours).toBe(24);
+    expect(written.daynight).toMatchObject({ day: 2 * 86400 + 21601, night: 2 * 86400 + 21600 });
+    expect(draftOf(written)).toMatchObject({ lightHours: 24, lightsOn: 21600 });
+    // One second short of a day, as 24 hours was written before.
+    expect(draftOf({ daynight: { day: 21600, night: 21599 } })).toMatchObject({ lightHours: 24, lightsOn: 21600 });
   });
 
   /** The firmware compares strictly: off at the second it comes on is never day. An older client wrote that for "24 hours" and kept the tent dark. */
@@ -1213,31 +1223,36 @@ describe('the document a draft becomes', () => {
 describe('which half holds when', () => {
   const ramps = { up: 15, down: 15 };
   const H = 3600;
+  /** The phase a schedule of `hours` from `on` (seconds past midnight UTC) is in at `t` seconds past midnight UTC. */
+  const phaseAt = (on: number, hours: number, t: number, with_ = ramps) =>
+    phaseOf({ ...draftOf(CONFIGURATION), lightsOn: on, lightHours: hours }, with_, DateTime.fromISO('2026-09-19T00:00:00.000Z').plus({ seconds: t }));
 
   it('is day strictly between on and off, and night otherwise', () => {
-    expect(phaseAt(6 * H, 18 * H, 12 * H, ramps)).toBe('day');
-    expect(phaseAt(6 * H, 18 * H, 6 * H, ramps)).toBe('night');
-    expect(phaseAt(6 * H, 18 * H, 18 * H, ramps)).toBe('night');
-    expect(phaseAt(6 * H, 18 * H, 2 * H, ramps)).toBe('night');
+    expect(phaseAt(6 * H, 12, 12 * H)).toBe('day');
+    expect(phaseAt(6 * H, 12, 6 * H)).toBe('night');
+    expect(phaseAt(6 * H, 12, 18 * H)).toBe('night');
+    expect(phaseAt(6 * H, 12, 2 * H)).toBe('night');
   });
 
   it('wraps a window that runs past midnight', () => {
-    expect(phaseAt(22 * H, 10 * H, 2 * H, ramps)).toBe('day');
-    expect(phaseAt(22 * H, 10 * H, 23 * H, ramps)).toBe('day');
-    expect(phaseAt(22 * H, 10 * H, 12 * H, ramps)).toBe('night');
+    expect(phaseAt(22 * H, 12, 2 * H)).toBe('day');
+    expect(phaseAt(22 * H, 12, 23 * H)).toBe('day');
+    expect(phaseAt(22 * H, 12, 12 * H)).toBe('night');
   });
 
-  it('is never day where on and off are the same second, and only two seconds night at 24 hours', () => {
-    expect(phaseAt(6 * H, 6 * H, 12 * H, ramps)).toBe('night');
-    expect(phaseAt(6 * H, 6 * H - 1, 6 * H, ramps)).toBe('night');
-    expect(phaseAt(6 * H, 6 * H - 1, 18 * H, ramps)).toBe('day');
+  it('is never day with no hours of light, and day on every second at 24 hours, without a dip', () => {
+    expect(phaseAt(6 * H, 0, 12 * H)).toBe('night');
+    expect(phaseAt(6 * H, 24, 6 * H)).toBe('day');
+    expect(phaseAt(6 * H, 24, 6 * H - 300)).toBe('day');
+    expect(phaseAt(6 * H, 24, 6 * H + 300)).toBe('day');
+    expect(phaseAt(6 * H, 24, 18 * H)).toBe('day');
   });
 
-  it('names the ramps inside the day, the dip at 24 hours included', () => {
-    expect(phaseAt(6 * H, 18 * H, 6 * H + 600, ramps)).toBe('sunrise');
-    expect(phaseAt(6 * H, 18 * H, 18 * H - 600, ramps)).toBe('sunset');
-    expect(phaseAt(6 * H, 6 * H - 1, 6 * H - 300, ramps)).toBe('sunset');
-    expect(phaseAt(22 * H, 10 * H, 10 * H - 60, { up: 30, down: 15 })).toBe('sunset');
+  it('names the ramps inside the day, the evening one before a light that goes off at midnight UTC included', () => {
+    expect(phaseAt(6 * H, 12, 6 * H + 600)).toBe('sunrise');
+    expect(phaseAt(6 * H, 12, 18 * H - 600)).toBe('sunset');
+    expect(phaseAt(6 * H, 18, 24 * H - 600)).toBe('sunset');
+    expect(phaseAt(22 * H, 12, 10 * H - 60, { up: 30, down: 15 })).toBe('sunset');
   });
 });
 
@@ -1289,7 +1304,6 @@ describe('what holds now', () => {
       offline: false,
       now: DateTime.fromISO(`2026-09-19T${time}:00.000Z`),
       clock: seconds => wallClock(seconds, 0),
-      instantClock: iso => DateTime.fromISO(iso).toUTC().toFormat('HH:mm'),
       ...over,
     });
 
@@ -1314,12 +1328,16 @@ describe('what holds now', () => {
   });
 
   it('glides a fridge over its ramps, by the server’s word where it gives one', () => {
-    expect(holdingAt('17:50', { live: live({ transition: { until: '2026-09-19T18:00:00.000Z', from: 'day', to: 'night' } }) }).glide).toEqual({
-      to: 'night',
-      until: '18:00',
-    });
+    const transition = { until: '2026-09-19T19:00:00.000Z', from: 'day', to: 'night', gliding: true, targets: {} };
+    // Until the lamp's switch, not until the hour the climate is given after it.
+    expect(holdingAt('17:50', { live: live({ transition }) }).glide).toEqual({ to: 'night', until: '18:00' });
+    // The hour after the switch is no glide: the targets have arrived.
+    expect(holdingAt('18:30', { live: live({ active: 'night', period: 'night', transition: { ...transition, gliding: false } }) }).glide).toBeNull();
+    // A device whose answer says no transition is not gliding; one that says nothing of it, or is not heard yet, glides by the schedule.
+    expect(holdingAt('06:05', { live: live({ transition: null }) }).glide).toBeNull();
     expect(holdingAt('06:05', { live: live({}) }).glide).toEqual({ to: 'day', until: '06:15' });
-    expect(holdingAt('06:05', { live: live({}), device: device() }).glide).toBeNull();
+    expect(holdingAt('06:05').glide).toEqual({ to: 'day', until: '06:15' });
+    expect(holdingAt('06:05', { device: device() }).glide).toBeNull();
   });
 });
 

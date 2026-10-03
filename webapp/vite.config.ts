@@ -97,6 +97,7 @@ export default defineConfig({
       '@fg2/shared-types/v1-schemas/vpd.js',
       '@fg2/shared-types/v1-schemas/maintenance.js',
       '@fg2/shared-types/v1-schemas/configuration-fields.js',
+      '@fg2/shared-types/v1-schemas/day-night.js',
     ],
   },
   server: { port: 4200 },

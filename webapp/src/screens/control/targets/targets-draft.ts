@@ -1,6 +1,7 @@
 import type { DateTime } from 'luxon';
 import type { DeviceConfiguration, DeviceSettings } from '@fg2/shared-types/v1';
 import { climatePreset, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { lightsOffOf as lightsOffAt, lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { serverNow } from '@/api/clock';
 import { oClock } from '@/ui/age';
@@ -41,15 +42,13 @@ export type LightSchedule = Pick<TargetsDraft, 'lightsOn' | 'lightHours'>;
 const DAY_SECONDS = 24 * 60 * 60;
 const HOUR_SECONDS = 60 * 60;
 
-/** The firmware's own defaults, for a document that has never stated a figure. */
-const DEFAULTS: TargetsDraft = {
+/** The firmware's own defaults, for a document that has never stated a figure. Its light window's are the shared module's. */
+const DEFAULTS: Omit<TargetsDraft, 'lightsOn' | 'lightHours'> = {
   dayTemperature: 25,
   dayHumidity: 60,
   nightTemperature: 25,
   nightHumidity: 60,
   lightLimit: 100,
-  lightsOn: 6 * HOUR_SECONDS,
-  lightHours: 16,
   co2: 400,
 };
 
@@ -57,45 +56,20 @@ const DEFAULTS: TargetsDraft = {
 const roundTheClock = (seconds: number): number => ((seconds % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
 
 /**
- * How long the light is on from when it comes on and goes off, to the minute.
- *
- * The firmware is the judge of what a pair of times means: it compares the
- * clock with them strictly, so a light that goes off the very second it comes
- * on never comes on at all - no hours, always night. A day-long light is
- * written one second short of a day (see `lightsOffOf`) and read back as the 24
- * hours it is, and a night moved a second off midnight reads whole again.
+ * When the light goes off, in seconds past midnight UTC, for saying it and for
+ * drawing it: the hour it comes on again for a light that never goes off, or
+ * never comes on. The times a document is written with are another matter -
+ * a whole day, no day and a light off at midnight UTC each have their own form
+ * there (`lightWindowTimes`) - and are worked out in the one place the server
+ * writes them from.
  */
-export const hoursBetween = (on: number, off: number): number => {
-  const seconds = roundTheClock(off - on);
-  if (seconds === 0) return 0;
-  if (seconds >= DAY_SECONDS - 60) return 24;
-  return Math.round(seconds / 60) / 60;
-};
-
-/**
- * When the light goes off, in the document's seconds past midnight UTC.
- *
- * Three things the firmware's arithmetic asks for. A whole day is one second
- * short of it, because off at the second it comes on is no light at all. No
- * hours at all is exactly that - on and off at the same second. And a light
- * that would go off at midnight UTC on the dot goes off a second before it: the
- * firmware works the evening ramp out as "off minus now" without wrapping round
- * midnight, so an off at zero dimmed nothing and cut the lamp hard instead -
- * which 06:00 UTC plus the eighteen hours of the veg presets lands on every
- * summer evening in Berlin.
- */
-export const lightsOffOf = (draft: LightSchedule): number => {
-  if (draft.lightHours <= 0) return roundTheClock(draft.lightsOn);
-  const off = roundTheClock(draft.lightsOn + Math.min(Math.round(draft.lightHours * HOUR_SECONDS), DAY_SECONDS - 1));
-  return off === 0 ? DAY_SECONDS - 1 : off;
-};
-
-/** Whether the light never goes off: 24 hours, which the firmware still dims once a day through its ramps. */
-export const isContinuous = (draft: LightSchedule): boolean => draft.lightHours >= 24;
+export const lightsOffOf = (draft: LightSchedule): number => lightsOffAt(draft);
 
 export const draftOf = (configuration: DeviceConfiguration): TargetsDraft => {
-  const lightsOn = figureOf(configuration, 'daynight', 'day') ?? DEFAULTS.lightsOn;
-  const lightsOff = figureOf(configuration, 'daynight', 'night');
+  // Read the way the firmware reads the two times: a day that never ends is 24
+  // hours, the light going off the second it comes on none at all, and the
+  // times a document leaves out are the firmware's own.
+  const { lightsOn, lightHours } = lightWindowOf(figureOf(configuration, 'daynight', 'day'), figureOf(configuration, 'daynight', 'night'));
 
   return {
     dayTemperature: figureOf(configuration, 'day', 'temperature') ?? DEFAULTS.dayTemperature,
@@ -104,7 +78,7 @@ export const draftOf = (configuration: DeviceConfiguration): TargetsDraft => {
     nightHumidity: figureOf(configuration, 'night', 'humidity') ?? DEFAULTS.nightHumidity,
     lightLimit: figureOf(configuration, 'lights', 'limit') ?? DEFAULTS.lightLimit,
     lightsOn,
-    lightHours: lightsOff === null ? DEFAULTS.lightHours : hoursBetween(lightsOn, lightsOff),
+    lightHours,
     co2: figureOf(configuration, 'co2', 'target') ?? DEFAULTS.co2,
   };
 };
@@ -115,12 +89,12 @@ export const draftOf = (configuration: DeviceConfiguration): TargetsDraft => {
  * - `both`: the day's and the night's, each as the draft has them. A half the
  *   page does not show - the night at 24 hours of light, the day at none or in
  *   germination - is written as it was stored, so it is still there when a
- *   night or a day comes back: the server keeps no copy of either.
+ *   night or a day comes back; the server keeps it through the save as well.
  * - `drying`: the night's figures, which a drying fridge holds round the
- *   clock, written into the day as well. The dehumidifier tuning the server
- *   works out follows the day's humidity, so it then follows the humidity
- *   really held; the day the spell put aside is the server's to bring back
- *   when the spell ends (`afterDrying`).
+ *   clock, written into the day as well, so a spell started from the page
+ *   stores what it holds. Once a fridge is drying the server keeps its stored
+ *   day through any save of the targets, and the day the spell put aside is
+ *   the server's to bring back when the spell ends (`afterDrying`).
  */
 export type HeldHalves = 'both' | 'drying';
 
@@ -162,7 +136,7 @@ export const withDraft = (
 
   next.co2 = { ...sectionOf(configuration, 'co2'), target: draft.co2 };
   next.lights = { ...sectionOf(configuration, 'lights'), limit: draft.lightLimit };
-  next.daynight = { ...sectionOf(configuration, 'daynight'), day: draft.lightsOn, night: lightsOffOf(draft) };
+  next.daynight = { ...sectionOf(configuration, 'daynight'), ...lightWindowTimes(draft) };
 
   return next;
 };

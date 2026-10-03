@@ -1,8 +1,8 @@
 import type { DateTime } from 'luxon';
 import type { Device, DeviceConfiguration, GrowthStage, Plan, PlanNotify, PlanReplace, PlanStep, StepDuration } from '@fg2/shared-types/v1';
+import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { hasCo2Sensor } from '@/ui/climate-hardware';
 import { elapsedMs } from './plan-clock';
-import { hoursBetween } from './targets/targets-draft';
 
 /**
  * The recipe while it is being written, and what saving it would do to the tent
@@ -95,7 +95,7 @@ export const replaceBody = (draft: PlanDraft): PlanReplace => ({
 });
 
 /** The light hours a step may name: the targets page's own range. */
-export const LIGHT_HOURS = { min: 1, max: 24 } as const;
+export const LIGHT_HOURS = { min: 0, max: 24 } as const;
 
 /** Whether every step names light hours the server takes, or none at all. */
 export const lightHoursFit = (steps: StepDraft[]): boolean =>
@@ -238,7 +238,7 @@ export const stepLightHours = (step: Pick<StepDraft, 'settings' | 'lightHours'>)
   if (step.lightHours !== null && step.lightHours !== undefined) return step.lightHours;
   const on = figureOf(step.settings, LIGHTS_ON);
   const off = figureOf(step.settings, LIGHTS_OFF);
-  return on !== null && off !== null ? hoursBetween(on, off) : null;
+  return on !== null && off !== null ? lightWindowOf(on, off).lightHours : null;
 };
 
 /**

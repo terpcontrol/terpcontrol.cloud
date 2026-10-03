@@ -82,7 +82,7 @@ export const pointAt = (panel: TimelinePanel, time: number): number | null => {
 
 /**
  * One stretch of the window over which the same target held: a phase's targets
- * cut by the light. Day and night are aimed at differently, so a window drawn
+ * cut by the night. Day and night are aimed at differently, so a window drawn
  * against one of them would show half of it as a long fall out of band.
  */
 export interface Stretch {
@@ -91,14 +91,26 @@ export interface Stretch {
   target: TimelineTarget;
   /** In a night, whose target it is. */
   dark: boolean;
+  /**
+   * In the hour after a switch between day and night (and a fridge's ramp
+   * before it): the band is both halves' together, which is what the reading
+   * is judged by then - a fridge cooling into its night is on its way, not out
+   * of band.
+   */
+  changing: boolean;
 }
 
-export const stretchesOf = (panel: TimelinePanel, nights: TimelineSpan[], from: number, to: number): Stretch[] =>
-  cut(from, to, nights, panel.targets).flatMap(piece => {
-    const targets = panel.targets.find(one => at(one.startsAt) <= piece.from && at(one.endsAt) >= piece.to);
-    const target = targets ? (piece.dark ? targets.night : targets.day) : null;
+/** Both halves' bands as one, around the setpoint of the half the device is changing to; none where either half has none. */
+const changingTarget = (to: TimelineTarget | null, other: TimelineTarget | null): TimelineTarget | null =>
+  to && other ? { setpoint: to.setpoint, band: { low: Math.min(to.band.low, other.band.low), high: Math.max(to.band.high, other.band.high) } } : null;
 
-    return target ? [{ from: piece.from, to: piece.to, target, dark: piece.dark }] : [];
+export const stretchesOf = (panel: TimelinePanel, nights: TimelineSpan[], from: number, to: number, transitions: TimelineSpan[] = []): Stretch[] =>
+  cut(from, to, nights, panel.targets, transitions).flatMap(piece => {
+    const targets = panel.targets.find(one => at(one.startsAt) <= piece.from && at(one.endsAt) >= piece.to);
+    const own = targets ? (piece.dark ? targets.night : targets.day) : null;
+    const target = targets && piece.changing ? changingTarget(own, piece.dark ? targets.day : targets.night) : own;
+
+    return target ? [{ from: piece.from, to: piece.to, target, dark: piece.dark, changing: piece.changing }] : [];
   });
 
 /**
@@ -112,21 +124,39 @@ export const splitByNight = (nights: TimelineSpan[], from: number, to: number): 
   !nights.some(night => at(night.startsAt) <= from && at(night.endsAt) >= to);
 
 /**
- * The window split where the light went off and on again, and where one phase
- * handed over to the next. Both edges have to cut it: a band that only moved
- * with the lamp would carry the old phase's target through the half of the
- * cycle the grow was moved on in.
+ * The window split where the night began and ended, where one phase handed
+ * over to the next, and where a change between day and night began and was
+ * over. Each edge has to cut it: a band that only moved with the night would
+ * carry the old phase's target through the half of the cycle the grow was
+ * moved on in.
  */
-const cut = (from: number, to: number, nights: TimelineSpan[], targets: TimelineTargets[]): { from: number; to: number; dark: boolean }[] => {
-  const inside = [...nights, ...targets].flatMap(span => [at(span.startsAt), at(span.endsAt)]).filter(edge => edge > from && edge < to);
+const cut = (
+  from: number,
+  to: number,
+  nights: TimelineSpan[],
+  targets: TimelineTargets[],
+  transitions: TimelineSpan[],
+): { from: number; to: number; dark: boolean; changing: boolean }[] => {
+  const inside = [...nights, ...targets, ...transitions]
+    .flatMap(span => [at(span.startsAt), at(span.endsAt)])
+    .filter(edge => edge > from && edge < to);
   const edges = [...new Set([from, ...inside, to])].sort((one, other) => one - other);
 
-  return edges.slice(0, -1).map((edge, index) => ({ from: edge, to: edges[index + 1], dark: spans(nights, (edge + edges[index + 1]) / 2) }));
+  return edges.slice(0, -1).map((edge, index) => {
+    const middle = (edge + edges[index + 1]) / 2;
+    return { from: edge, to: edges[index + 1], dark: spans(nights, middle), changing: spans(transitions, middle) };
+  });
 };
 
 /** The target that held at the cursor, which is the band the panel header names. */
-export const targetAt = (panel: TimelinePanel, nights: TimelineSpan[], from: number, to: number, time: number): TimelineTarget | null =>
-  stretchAt(stretchesOf(panel, nights, from, to), time)?.target ?? null;
+export const targetAt = (
+  panel: TimelinePanel,
+  nights: TimelineSpan[],
+  from: number,
+  to: number,
+  time: number,
+  transitions: TimelineSpan[] = [],
+): TimelineTarget | null => stretchAt(stretchesOf(panel, nights, from, to, transitions), time)?.target ?? null;
 
 /** The stretch the cursor stands in. */
 export const stretchAt = (stretches: Stretch[], time: number): Stretch | null =>
