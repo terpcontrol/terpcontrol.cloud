@@ -86,5 +86,11 @@
     "tsconfig-paths": "^3.10.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.70.0"
+  },
+  "allowScripts": {
+    "bcrypt@6.0.0": true,
+    "mongodb-memory-server@11.2.0": true,
+    "@scarf/scarf": false,
+    "nodemon": false
   }
 }
