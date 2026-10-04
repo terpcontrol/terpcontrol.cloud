@@ -21,6 +21,11 @@ WORKDIR /app/server
 # built with the dev dependencies but must not carry one.
 ENV MONGOMS_DISABLE_POSTINSTALL=1
 
+# npm's audit and funding footers and its notice of a newer npm read the same
+# on every build, the audit counting the dev tools with the rest; CI's audit
+# job checks what ships.
+ENV NPM_CONFIG_AUDIT=false NPM_CONFIG_FUND=false NPM_CONFIG_UPDATE_NOTIFIER=false
+
 RUN npm ci
 
 # The shared package is linked with `file:`, and npm hoists a linked package's

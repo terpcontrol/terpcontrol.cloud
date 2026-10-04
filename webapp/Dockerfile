@@ -10,6 +10,9 @@ WORKDIR /usr/src
 COPY shared-types ./shared-types
 COPY webapp/package.json webapp/package-lock.json ./app/
 WORKDIR /usr/src/app
+# npm's audit and funding footers and its notice of a newer npm read the same
+# on every build; CI's audit job checks what ships.
+ENV NPM_CONFIG_AUDIT=false NPM_CONFIG_FUND=false NPM_CONFIG_UPDATE_NOTIFIER=false
 RUN npm ci
 
 # The build type-checks against the contract, which is linked with `file:`, and
