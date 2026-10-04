@@ -13,7 +13,10 @@ FROM golang:1.25-bookworm AS sdkmanager
 # to log in and fetch the per-device compiler definitions.
 ARG SDK_MANAGER_VERSION=v0.8.4
 ENV CGO_ENABLED=0
-RUN go install "github.com/lindell/connect-iq-sdk-manager-cli@${SDK_MANAGER_VERSION}"
+# go and apt report every module and package they fetch; each step keeps that
+# in a log and prints all of it only if the step fails.
+RUN go install "github.com/lindell/connect-iq-sdk-manager-cli@${SDK_MANAGER_VERSION}" >/tmp/go.log 2>&1 \
+ || { cat /tmp/go.log; exit 1; }
 
 
 FROM eclipse-temurin:21-jre-noble
@@ -27,13 +30,13 @@ ENV DEBIAN_FRONTEND=noninteractive
 # device cache through $HOME, which build-garmin.sh mounts at this exact path.
 ENV HOME=/root
 
-RUN apt-get update -qq && \
-    apt-get install -y -qq --no-install-recommends \
+RUN { apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates \
       curl \
       openssl \
-      unzip \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+      unzip; } >/tmp/apt.log 2>&1 \
+ || { cat /tmp/apt.log; exit 1; }; \
+    rm /tmp/apt.log && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=sdkmanager /go/bin/connect-iq-sdk-manager-cli /usr/local/bin/connect-iq-sdk-manager
 

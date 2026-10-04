@@ -82,6 +82,15 @@ class TerpControlUtils {
         return moment.add(new Time.Duration(tzOffset));
     }
 
+    // What the API expects an instant to look like: ISO 8601 in UTC, which is
+    // also what it answers.
+    (:glance)
+    static function toISODate(moment as Time.Moment) as String {
+        var at = Gregorian.utcInfo(moment, Time.FORMAT_SHORT);
+        return at.year.format("%04d") + "-" + at.month.format("%02d") + "-" + at.day.format("%02d")
+            + "T" + at.hour.format("%02d") + ":" + at.min.format("%02d") + ":" + at.sec.format("%02d") + "Z";
+    }
+
     (:glance)
     static function valueToDisplay(value as Number, type as String, longUnit as Boolean) as String {
         var unit = TYPE_TO_UNIT[type] as String;

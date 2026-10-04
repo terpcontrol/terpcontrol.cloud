@@ -778,6 +778,49 @@ namespace fg {
     // actuated via a smart socket, so there is nothing to do per fast tick.
   }
 
+  // The humidifier is the dehumidifier's rule read the other way round: it runs
+  // while the air is drier than the target by more than a band and stops once it
+  // is back at the target. It drives no output of the module's own, only a
+  // socket, so it is decided here rather than in a control pass.
+  //
+  // The band is the dehumidifier's, but never narrower than the five points it
+  // defaults to: a humidifier switched at the target itself would chatter on and
+  // off around it.
+  static constexpr float HUMIDIFIER_MIN_BAND = 5.0f;
+
+  static bool humidifierTarget(float humidity, float target, float band, bool stopped) {
+    band = band < HUMIDIFIER_MIN_BAND ? HUMIDIFIER_MIN_BAND : band;
+    static bool humidify = false;
+    if(stopped) {
+      humidify = false;
+    }
+    else if(humidify) {
+      humidify = humidity < target;
+    }
+    else {
+      humidify = humidity < (target - band);
+    }
+    return humidify;
+  }
+
+  // An exhaust socket runs while the tent is too warm. The standard mode runs
+  // the dehumidifier only to dry the air, so there it takes the rule the
+  // temperature mode cools by on its own: on above the target by 0.8 °C, off
+  // again below 0.3 °C over it.
+  static bool exhaustTarget(float temperature, float target, bool stopped) {
+    static bool exhaust = false;
+    if(stopped) {
+      exhaust = false;
+    }
+    else if(temperature > target + 0.8f) {
+      exhaust = true;
+    }
+    else if(temperature < target + 0.3f) {
+      exhaust = false;
+    }
+    return exhaust;
+  }
+
   void ControllerController::loop() {
     updateSensors();
     checkDayCycle();
@@ -807,6 +850,10 @@ namespace fg {
       }
     }
 
+    // What an exhaust socket follows: the cooling decision where a mode cools,
+    // the over-temperature rule in the standard mode, nothing otherwise.
+    bool exhaust_on = false;
+
 	if(sensors_valid == false) {
       Serial.println("SENSOR ERROR!!! FAILSAVE MODE!!!");
       state.out_heater = 0;
@@ -833,11 +880,15 @@ namespace fg {
         controlLight();
         controlDehumidifier();
         controlHeater();
+        exhaust_on = exhaustTarget(state.temperature,
+                                   state.is_day ? settings.day.temperature : settings.night.temperature,
+                                   isPaused());
       }
       else if(settings.workmode == ControllerControllerSettings::MODE_TEMP) {
         Serial.println("MODE TEMP");
         controlLight();
         controlCooling();
+        exhaust_on = state.out_dehumidifier > 0;
         controlHeater();
 		
         if(hasCo2Sensor()) {
@@ -863,7 +914,13 @@ namespace fg {
       else if(settings.workmode == ControllerControllerSettings::MODE_BREED) {
         Serial.println("MODE BREED");
         controlHeater();
-        controlCooling();
+        // A tent has no compressor, so germination does not cool with the
+        // dehumidifier output as the temperature mode does: a dehumidifier
+        // warms the tent and dries the medium the seeds sprout in. The exhaust
+        // cools, by the rule the standard mode gives it, and the dehumidifier
+        // sockets rest.
+        state.out_dehumidifier = 0;
+        exhaust_on = exhaustTarget(state.temperature, settings.night.temperature, isPaused());
         co2_valve_open = false;
         state.out_co2 = 0;
         out_light.set(0);
@@ -884,12 +941,33 @@ namespace fg {
           out_light.set(255.0f * (state.out_light / 100.0f));
       }
 
+      // An override from the cloud holds the light for as long as it lasts, at
+      // the brightness the grower allows. The light sockets follow the output,
+      // so they are held with it.
+      bool light_forced_on = false;
+      if(wifiLightOutputOverride(light_forced_on)) {
+        state.out_light = light_forced_on ? settings.lights.limit : 0;
+        out_light.set(255.0f * (state.out_light / 100.0f));
+      }
+
+      const bool controlling = settings.workmode != ControllerControllerSettings::MODE_OFF && !isPaused();
+
       SmartSocketOutputStates socket_states;
       socket_states.dehumidifier_on = state.out_dehumidifier > 0;
       socket_states.heater_on = state.out_heater > 0;
       socket_states.light_on = state.out_light > 0;
       socket_states.secondary_light_on = state.out_light > 0;
       socket_states.co2_on = co2_valve_open;
+      socket_states.humidifier_on = humidifierTarget(state.humidity,
+                                                     state.is_day ? settings.day.humidity : settings.night.humidity,
+                                                     settings.daynight.targetHumidityDiff,
+                                                     !controlling);
+      socket_states.exhaust_on = exhaust_on;
+      socket_states.running = controlling;
+      // The same cut controlHeater applies to the heater output, for the heater
+      // sockets that something other than the output could hold on.
+      const float heater_target = state.is_day ? settings.day.temperature : settings.night.temperature;
+      socket_states.heater_too_warm = state.temperature > heater_target + HEATER_OVERTEMP_MARGIN;
       wifiReportSmartSocketOutputs(socket_states);
 
 	  if(hasCo2Sensor()){

@@ -5,7 +5,8 @@
 Running this stack on a Raspberry Pi 3 or older is **not supported** due to the following technical limitations:
 
 ### 1. Architecture (64-bit / ARM64)
-Modern Docker images for **MongoDB** and **InfluxDB** have dropped support for 32-bit (ARMv7) architectures. 
+Modern Docker images for **MongoDB** and **InfluxDB** have dropped support for 32-bit (ARMv7) architectures, and so
+has **Node.js 24**, which the server and the web app are built on.
 * **Issue:** Raspberry Pi 3 often runs on a 32-bit OS, leading to `no matching manifest` errors.
 * **Solution:** A Raspberry Pi 4 (or 5) running **64-bit Raspberry Pi OS** is required for full compatibility.
 
@@ -27,7 +28,7 @@ This stack runs multiple resource-heavy database services (MongoDB + InfluxDB) s
 
 1. `cd myfolder`
 1. `git clone https://github.com/terpcontrol/terpcontrol.cloud`
-1. `cd fg2/`
+1. `cd terpcontrol.cloud/`
 1. `cp .env.sample .env`
 1. `vi .env` (or edit this file in any other way)
 1. `wget https://github.com/themattman/mongodb-raspberrypi-docker/releases/download/r7.0.4-mongodb-raspberrypi-docker-unofficial/mongodb.ce.pi4.r7.0.4-mongodb-raspberrypi-docker-unofficial.tar.gz`

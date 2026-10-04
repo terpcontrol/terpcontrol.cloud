@@ -10,11 +10,24 @@ export interface ParsedFlux {
   start: string;
   stop: string;
   measurement?: string;
-  field?: string;
+  /** Empty means the query names no field, which is every field the device wrote. */
+  fields: string[];
   deviceId?: string;
+  /** Several devices in one query, which answers one series per device. */
+  deviceIds?: string[];
   every?: string;
   fn: AggregateFn;
   createEmpty: boolean;
+  /** A bare `|> last()`, which the live read uses instead of a window. */
+  last: boolean;
+  /**
+   * The switchings read: a windowed `max` mapped to on-or-off and then run
+   * through `difference`, which answers the state each field is found in and
+   * every crossing after it rather than one row per window.
+   */
+  switchings: boolean;
+  /** `timeSrc: "_start"` stamps a window at its start rather than at its stop, which is what the switchings read asks for. */
+  timeAtStart: boolean;
 }
 
 export type AggregateFn = 'mean' | 'min' | 'max' | 'sum' | 'last' | 'first' | 'count';
@@ -69,11 +82,17 @@ export const parseFlux = (query: string): ParsedFlux => ({
   start: literal(query, /range\(start:\s*([^,)\s]+)/) ?? '-1h',
   stop: literal(query, /range\([^)]*stop:\s*([^,)\s]+)/) ?? 'now()',
   measurement: literal(query, /r\["_measurement"\]\s*==\s*"([^"]*)"/),
-  field: literal(query, /r\["_field"\]\s*==\s*"([^"]*)"/),
+  fields: [...query.matchAll(/r\["_field"\]\s*==\s*"([^"]*)"/g)].map(match => match[1]),
   deviceId: literal(query, /r\["device_id"\]\s*==\s*"([^"]*)"/),
+  deviceIds: literal(query, /contains\(value:\s*r\["device_id"\],\s*set:\s*\[([^\]]*)\]/)
+    ?.match(/"([^"]*)"/g)
+    ?.map(quoted => quoted.slice(1, -1)),
   every: literal(query, /aggregateWindow\([^)]*every:\s*([^,)\s]+)/),
   fn: (literal(query, /aggregateWindow\([^)]*fn:\s*([a-zA-Z]+)/) ?? 'mean') as AggregateFn,
   createEmpty: /createEmpty:\s*true/.test(query),
+  last: /\|>\s*last\(\)/.test(query),
+  switchings: /\|>\s*difference\(/.test(query),
+  timeAtStart: /timeSrc:\s*"_start"/.test(query),
 });
 
 const aggregate = (values: number[], fn: AggregateFn): number | null => {
@@ -120,61 +139,95 @@ export const runQuery = (points: InfluxPoint[], parsed: ParsedFlux, now: number)
       point.time <= stop &&
       (!parsed.measurement || point.measurement === parsed.measurement) &&
       (!parsed.deviceId || point.tags.device_id === parsed.deviceId) &&
-      (!parsed.field || parsed.field in point.fields),
+      (!parsed.deviceIds || parsed.deviceIds.includes(point.tags.device_id)),
   );
 
-  const field = parsed.field ?? '';
+  // A device is a series of its own, as the tag makes it in Influx; a query
+  // over several devices answers each one's windows, not one aggregate of all.
+  const series = parsed.deviceIds
+    ? parsed.deviceIds.map(deviceId => matching.filter(point => point.tags.device_id === deviceId)).filter(own => own.length > 0)
+    : [matching];
+
+  const rows = series.flatMap(own => {
+    // A query that names no field reads every field the device has written, which
+    // is what the live read does: one row per field rather than one per point.
+    const fields = parsed.fields.length > 0 ? parsed.fields : [...new Set(own.flatMap(point => Object.keys(point.fields)))];
+    return fields.flatMap(field => fieldRows(own, field, parsed, start, stop));
+  });
+  return { rows, start, stop };
+};
+
+const fieldRows = (matching: InfluxPoint[], field: string, parsed: ParsedFlux, start: number, stop: number): ResultRow[] => {
   const measurement = parsed.measurement ?? 'status';
-  const tagsOf = (index: number) => matching[index]?.tags ?? {};
+  const written = matching.filter(point => field in point.fields);
+  const identity = {
+    field,
+    measurement,
+    deviceId: parsed.deviceId ?? written[0]?.tags.device_id ?? '',
+    userId: written[0]?.tags.user_id ?? '',
+  };
 
   const every = parsed.every ? parseDuration(parsed.every) : NaN;
   if (!Number.isFinite(every) || every <= 0) {
-    return {
-      start,
-      stop,
-      rows: matching.map(point => ({
-        time: point.time,
-        value: point.fields[field] ?? null,
-        field,
-        measurement,
-        deviceId: point.tags.device_id ?? '',
-        userId: point.tags.user_id ?? '',
-      })),
-    };
+    const points = parsed.last ? written.slice(-1) : written;
+    return points.map(point => ({ time: point.time, value: point.fields[field] ?? null, ...identity }));
   }
 
   const buckets = new Map<number, number[]>();
-  for (const point of matching) {
+  for (const point of written) {
     // Windows cover (windowStart, windowStop], so a point exactly on a boundary
     // belongs to the window that ends there.
     const windowStop = Math.ceil(point.time / every) * every;
-    if (!buckets.has(windowStop)) buckets.set(windowStop, []);
-    buckets.get(windowStop).push(point.fields[field]);
+    let bucket = buckets.get(windowStop);
+    if (!bucket) {
+      bucket = [];
+      buckets.set(windowStop, bucket);
+    }
+    bucket.push(point.fields[field]);
   }
 
   const rows: ResultRow[] = [];
   // The first window is the one that ends strictly after the range start.
   const firstWindow = Math.floor(start / every) * every + every;
-  const identity = { deviceId: parsed.deviceId ?? tagsOf(0).device_id ?? '', userId: tagsOf(0).user_id ?? '' };
+  // Influx truncates the final window to the end of the range, and `timeSrc`
+  // decides which end of a window a row is stamped at.
+  const stamp = (windowStop: number): number => (parsed.timeAtStart ? Math.max(start, windowStop - every) : Math.min(windowStop, stop));
 
   if (parsed.createEmpty) {
     for (let windowStop = firstWindow; rows.length < MAX_ROWS; windowStop += every) {
-      // Influx truncates the final window to the end of the range.
-      const time = Math.min(windowStop, stop);
-      rows.push({ time, value: aggregate(buckets.get(windowStop) ?? [], parsed.fn), field, measurement, ...identity });
+      rows.push({ time: stamp(windowStop), value: aggregate(buckets.get(windowStop) ?? [], parsed.fn), ...identity });
       if (windowStop >= stop) break;
     }
   } else {
     for (const windowStop of [...buckets.keys()].sort((a, b) => a - b)) {
       rows.push({
-        time: Math.min(windowStop, stop),
-        value: aggregate(buckets.get(windowStop), parsed.fn),
-        field,
-        measurement,
+        time: stamp(windowStop),
+        // The loop walks the buckets' own keys.
+        value: aggregate(buckets.get(windowStop)!, parsed.fn),
         ...identity,
       });
     }
   }
 
-  return { rows, start, stop };
+  return parsed.switchings ? crossings(rows) : rows;
+};
+
+/**
+ * What `difference()` over a mapped series leaves: the first row as the state
+ * the window opens in, and after it only the rows where the state changed,
+ * carrying the change itself. Both read the same way - above zero is running -
+ * which is what lets one query answer them together.
+ */
+const crossings = (rows: ResultRow[]): ResultRow[] => {
+  let last: boolean | null = null;
+
+  return rows.flatMap(row => {
+    const on = (row.value ?? 0) > 0;
+    if (on === last) return [];
+
+    const written = last === null ? (on ? 1 : 0) : on ? 1 : -1;
+    last = on;
+
+    return [{ ...row, value: written }];
+  });
 };

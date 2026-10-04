@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv } from 'node:crypto';
 import http from 'node:http';
 import net, { AddressInfo } from 'node:net';
 import { jest } from '@jest/globals';
-import { CameraRefusedError, checkStatusReply, TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
+import { CameraRefusedError, checkStatusReply, TerpCamDirectService } from '@modules/v1/camera/terpcam-direct.service';
 
 /**
  * A camera uid that points at the wrong camera: the controller had cached the
@@ -13,6 +13,8 @@ import { CameraRefusedError, checkStatusReply, TerpCamDirectService } from '@mod
 
 const PAIRED = 'AAC4004902SCAQ';
 const DEVICE = 'terpcam-device';
+/** The camera row a device's pairing made: whose relay it is read over, and the id printed on it. */
+const CAMERA = { id: 'camera-1', kind: 'terpcam_controller' as const, deviceId: DEVICE, did: PAIRED, secret: null };
 
 describe('checkStatusReply', () => {
   it('accepts the paired camera once it took the password', () => {
@@ -40,7 +42,7 @@ describe('checkStatusReply', () => {
 });
 
 type Internals = {
-  readStill: (deviceId: string, camera: unknown) => Promise<Buffer | null>;
+  readStill: (deviceId: string, label: string, secret: string | null, deadline: number) => Promise<Buffer | null>;
   relayConnect: (deviceId: string) => Promise<RelaySocketLike>;
   onUpgrade: (req: http.IncomingMessage, conn: net.Socket, head: Buffer) => void;
 };
@@ -53,11 +55,10 @@ type RelaySocketLike = {
 
 const RELAY_CONFIG = { relayUrl: 'http://relay.invalid/terpcam/relay' };
 
-function serviceFor(publish: (topic: string, message: string) => boolean = () => true): TerpCamDirectService {
-  const devices = {
-    findOne: async () => ({ hardwareInfo: { webcam_did: PAIRED, webcam_uid: 'VSTH828707TXVEW', webcam_pwd: '' } }),
-  };
-  return new TerpCamDirectService(devices as never, {} as never, { publish } as never, RELAY_CONFIG as never, {} as never);
+type RelayAsked = { url: string; token: string; key: string };
+
+function serviceFor(requestRelay: (deviceId: string, relay: RelayAsked) => boolean = () => true): TerpCamDirectService {
+  return new TerpCamDirectService({} as never, { requestRelay } as never, RELAY_CONFIG as never, {} as never);
 }
 
 describe('a camera that refused the server', () => {
@@ -71,17 +72,17 @@ describe('a camera that refused the server', () => {
   });
 
   it('is not asked again on every poll', async () => {
-    await expect(service.capture(DEVICE)).rejects.toThrow('different camera');
+    await expect(service.capture(CAMERA)).rejects.toThrow('different camera');
 
-    await expect(service.capture(DEVICE)).rejects.toThrow('refused');
+    await expect(service.capture(CAMERA)).rejects.toThrow('refused');
     expect(readStill).toHaveBeenCalledTimes(1);
   });
 
   it('is tried again as soon as the device reports something new about it', async () => {
-    await expect(service.capture(DEVICE)).rejects.toThrow();
+    await expect(service.capture(CAMERA)).rejects.toThrow();
 
     service.cameraReported(DEVICE);
-    await expect(service.capture(DEVICE)).rejects.toThrow('different camera');
+    await expect(service.capture(CAMERA)).rejects.toThrow('different camera');
     expect(readStill).toHaveBeenCalledTimes(2);
   });
 });
@@ -96,14 +97,24 @@ describe('a controller that does not open the relay', () => {
     (service as unknown as Internals).readStill = readStill;
   });
 
-  it('is an ordinary failed attempt: retried, and asked again on the next poll', async () => {
+  it('is an ordinary failed attempt: retried while the budget leaves room, and asked again on the next poll', async () => {
     // A slow link, a controller still ending the previous relay, a camera it did
     // not find on its LAN this time: none of them is a reason to stop asking.
-    await expect(service.capture(DEVICE)).rejects.toThrow('in time');
-    expect(readStill).toHaveBeenCalledTimes(3);
+    jest.useFakeTimers();
+    try {
+      const first = expect(service.capture(CAMERA)).rejects.toThrow('in time');
+      await jest.advanceTimersByTimeAsync(180_000);
+      await first;
+      // One that fails at once is tried every ten seconds, for as long as twenty are left: at 0, 10, ... 160.
+      expect(readStill).toHaveBeenCalledTimes(17);
 
-    await expect(service.capture(DEVICE)).rejects.toThrow('in time');
-    expect(readStill).toHaveBeenCalledTimes(6);
+      const second = expect(service.capture(CAMERA)).rejects.toThrow('in time');
+      await jest.advanceTimersByTimeAsync(180_000);
+      await second;
+      expect(readStill).toHaveBeenCalledTimes(34);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('is not asked at all while the broker is down', async () => {
@@ -112,16 +123,32 @@ describe('a controller that does not open the relay', () => {
   });
 });
 
-it("asks for a relay before the controller has reported the camera's P2P id", async () => {
-  // The controller learns the id on its LAN before it opens the relay, so the
-  // id is not the server's to wait for.
-  for (const webcam_uid of [undefined, 'none']) {
-    const devices = { findOne: async () => ({ hardwareInfo: { webcam_did: PAIRED, webcam_uid } }) };
-    const service = new TerpCamDirectService(devices as never, {} as never, { publish: () => true } as never, RELAY_CONFIG as never, {} as never);
-    const readStill = jest.fn<Internals['readStill']>().mockResolvedValue(Buffer.from('keyframe'));
-    (service as unknown as Internals).readStill = readStill;
-    await expect(service.capture(DEVICE)).resolves.toEqual(Buffer.from('keyframe'));
-  }
+it("asks for a relay before the device has reported the camera's P2P id", async () => {
+  // The device learns the id on its LAN before it opens the relay, so the id is
+  // not the server's to wait for: the camera row may carry none.
+  const service = serviceFor();
+  expect(service.canReach(CAMERA)).toBe(true);
+  const readStill = jest.fn<Internals['readStill']>().mockResolvedValue(Buffer.from('keyframe'));
+  (service as unknown as Internals).readStill = readStill;
+  await expect(service.capture(CAMERA)).resolves.toEqual(Buffer.from('keyframe'));
+  // The camera's own record says who it is and what to log in with, never the caller.
+  expect(readStill).toHaveBeenCalledWith(DEVICE, PAIRED, null, expect.any(Number));
+});
+
+describe('a camera the relay cannot reach', () => {
+  it('is one paired at no device, or a stream', () => {
+    const service = serviceFor();
+    expect(service.canReach({ ...CAMERA, deviceId: null })).toBe(false);
+    expect(service.canReach({ ...CAMERA, did: null })).toBe(false);
+    expect(service.canReach({ ...CAMERA, kind: 'terpcam_standalone' })).toBe(false);
+    expect(service.canReach({ ...CAMERA, kind: 'rtsp' })).toBe(false);
+  });
+
+  it('is every camera where no relay is configured', async () => {
+    const service = new TerpCamDirectService({} as never, { requestRelay: () => true } as never, { relayUrl: '' } as never, {} as never);
+    expect(service.canReach(CAMERA)).toBe(false);
+    await expect(service.capture(CAMERA)).rejects.toThrow('no relay configured');
+  });
 });
 
 it('runs one capture per device however many callers ask at once', async () => {
@@ -131,8 +158,8 @@ it('runs one capture per device however many callers ask at once', async () => {
   (service as unknown as Internals).readStill = readStill;
   (service as unknown as { stills: unknown }).stills = { decodeKeyframeToJpeg: async (data: Buffer) => data };
 
-  const poll = service.captureStill(DEVICE);
-  const button = service.captureStill(DEVICE);
+  const poll = service.captureStill(CAMERA, Date.now() + 180_000);
+  const button = service.captureStill(CAMERA, Date.now() + 180_000);
   finish(Buffer.from('keyframe'));
 
   await expect(poll).resolves.toEqual(Buffer.from('keyframe'));
@@ -177,13 +204,14 @@ describe('the relay connection', () => {
   });
 
   it('enciphers both directions and tells the controller when the cloud is done', async () => {
-    const published: string[] = [];
-    const service = serviceFor((_topic, message) => published.push(message) > 0);
+    const asked: RelayAsked[] = [];
+    const service = serviceFor((deviceId, relay) => deviceId === DEVICE && asked.push(relay) > 0);
     const internals = service as unknown as Internals;
     const port = await listen(internals);
 
     const relay = internals.relayConnect(DEVICE);
-    const { token, key } = JSON.parse(published[0]) as { token: string; key: string };
+    const { url, token, key } = asked[0];
+    expect(url).toBe(RELAY_CONFIG.relayUrl);
     const keys = Buffer.from(key, 'hex');
     const up = createCipheriv('aes-128-ctr', keys.subarray(0, 16), Buffer.alloc(16));
     const down = createDecipheriv('aes-128-ctr', keys.subarray(16), Buffer.alloc(16));
@@ -233,5 +261,58 @@ describe('the relay connection', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+/**
+ * One capture has three minutes, every attempt included: the poller's read and
+ * the test button's are the same read, and the button promises no longer.
+ */
+describe('the capture budget', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it('ends a capture whose relay never opens at three minutes, having asked for one while there was time', async () => {
+    const asked: RelayAsked[] = [];
+    const service = serviceFor((_deviceId, relay) => asked.push(relay) > 0);
+    let settled = false;
+    const capture = service.capture(CAMERA).finally(() => (settled = true));
+    const failed = expect(capture).rejects.toThrow('did not open the relay in time');
+
+    await jest.advanceTimersByTimeAsync(179_000);
+    expect(settled).toBe(false);
+    await jest.advanceTimersByTimeAsync(1_000);
+    await failed;
+    // A dial-in of 45 s at 0, 45, 90 and 135 s; none is started with less than 20 s left.
+    expect(asked).toHaveLength(4);
+  });
+
+  it('gives a dial-in only what is left of the budget', async () => {
+    const asked: RelayAsked[] = [];
+    const service = serviceFor((_deviceId, relay) => asked.push(relay) > 0);
+    let settled = false;
+    const capture = service.capture(CAMERA, Date.now() + 30_000).finally(() => (settled = true));
+    const failed = expect(capture).rejects.toThrow('did not open the relay in time');
+
+    await jest.advanceTimersByTimeAsync(29_000);
+    expect(settled).toBe(false);
+    await jest.advanceTimersByTimeAsync(1_000);
+    await failed;
+    expect(asked).toHaveLength(1);
+  });
+
+  it('hands every attempt the same deadline', async () => {
+    const service = serviceFor();
+    const readStill = jest
+      .fn<Internals['readStill']>()
+      .mockRejectedValueOnce(new Error('no keyframe arrived'))
+      .mockResolvedValue(Buffer.from('keyframe'));
+    (service as unknown as Internals).readStill = readStill;
+    const deadline = Date.now() + 180_000;
+
+    const capture = service.capture(CAMERA, deadline);
+    await jest.advanceTimersByTimeAsync(10_000);
+    await expect(capture).resolves.toEqual(Buffer.from('keyframe'));
+    expect(readStill.mock.calls.map(call => call[3])).toEqual([deadline, deadline]);
   });
 });

@@ -1,0 +1,685 @@
+/* The stacked timeline. Every plot and every lane leaves the same gutter on the
+   left - set once here as `--gutter`, which the canvas of each plot is moved
+   over by - so one cursor runs straight down through the whole stack. It holds
+   a lane's name written out ("Entfeuchter", "Rückwandlüfter") without cutting
+   it, and widens where the screen does. */
+
+.screen {
+  --gutter: 88px;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+/* The window a chip asked for is still coming: the one on screen is the one
+   before it, dimmed rather than thrown away. */
+.screen[aria-busy='true'] {
+  opacity: 0.6;
+}
+
+.subject {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* The chips and, beside them, the days they asked for. The chips scroll because
+   six of them do not fit a phone; the range must not, because it is the only
+   place on this screen that names the window the panels are about - and a
+   sentence like "nothing heard in this window" is unreadable without it. So the
+   range is held out of the scroller and given the room it needs first. */
+.rangeBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* On a phone the chips are the row and the grow's days take a line of their
+   own under it, rather than squeezing the last chip to a fade beside them. */
+@media (max-width: 599px) {
+  .rangeBar {
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+  }
+
+  .rangeBar > .chips {
+    flex-basis: 100%;
+  }
+
+  .rangeBar > .days {
+    margin-left: 0;
+    padding-left: 0;
+  }
+}
+
+/* A row wider than the phone scrolls, veiled at the edge there is more of, as
+   the tabs above it are. */
+.chips {
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/*
+ * Which grow the two stretch chips are about. The name is what is read and the
+ * select over it is what is operated, the same way the tab's own place picker
+ * is built; the chip keeps its shape while the names inside it vary.
+ */
+.growChip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 14rem;
+}
+
+.growChip svg {
+  flex-shrink: 0;
+}
+
+.growChip select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+}
+
+.growName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.days {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: var(--space-2);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------ the frame */
+
+/* The picture at the cursor on the shared mat, and under it the shared
+   transport that walks the window, both on one card: the transport sits under
+   the picture rather than over it, so nothing covers the plant. */
+.frame {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* Beside the rail the picture took the whole first screen and pushed the first
+   curve under its edge; it keeps a glance's size there, about two fifths of
+   the height, and the curves start on the first screen. */
+@media (min-width: 900px) {
+  .frame {
+    width: min(100%, calc(40vh * 16 / 9 + 2px));
+  }
+}
+
+.dots {
+  position: absolute;
+  right: var(--space-2);
+  top: var(--space-2);
+  display: flex;
+  gap: var(--space-1);
+}
+
+.camDot {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+.camDot::after {
+  content: '';
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin: auto;
+  background: var(--on-overlay);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 0 0 1px var(--overlay);
+  opacity: 0.5;
+}
+
+.camDot[aria-current='true']::after {
+  opacity: 1;
+}
+
+.play {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: var(--brand);
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--on-brand);
+}
+
+.play svg {
+  /* The triangle's weight is on its left, so it is nudged right to sit centred. */
+  translate: 1px 0;
+}
+
+.transportTime {
+  flex-shrink: 0;
+  min-width: 3.5em;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-align: right;
+  color: var(--ink);
+}
+
+/* ------------------------------------------------- the pinned scrub header */
+
+.scrubHead {
+  position: sticky;
+  top: calc(var(--topbar-height) + env(safe-area-inset-top));
+  z-index: 3;
+  display: flex;
+  /* A wide window writes the date as well as the clock, and the readings of
+     three metrics follow it: on a phone the line gives way between its parts
+     rather than inside a timestamp. */
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: color-mix(in srgb, var(--card) 90%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-raised);
+  font-size: var(--text-sm);
+}
+
+/* With nothing heard in the window the header holds only the time, and a
+   card around one clock read as a reading gone missing. It stands as a plain
+   line instead, over the empty box that says why. */
+.scrubHead:not(:has(.scrubValue, .scrubOutputs)) {
+  position: static;
+  padding: 0 var(--space-1);
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 0;
+  box-shadow: none;
+  color: var(--muted);
+}
+
+.scrubTime {
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.scrubValue {
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.scrubUnit {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+/* Written out, five outputs running at once are wider than a phone: the line
+   breaks between them rather than pushing the page sideways. */
+.scrubOutputs {
+  margin-left: auto;
+  padding-left: var(--space-2);
+  font-size: var(--text-xs);
+  text-align: right;
+  text-wrap: balance;
+  color: var(--muted);
+}
+
+/* Nothing heard in the window, said where the panels would stand: the app's
+   empty state, one sentence left at the card's padding in a box its own
+   height, over the lanes that may still hold something. */
+.empty {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+/* "Recording since 10:23": why the curves start part of the way in. */
+.recording {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* What the grey under the curves is: a swatch of the night's shade and its
+   name, which explains itself. */
+.legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.nightSwatch {
+  flex: none;
+  width: 18px;
+  height: 10px;
+  background: var(--night);
+  border: var(--rule-solid);
+  border-radius: 2px;
+}
+
+/* --------------------------------------------------------------- a panel */
+
+.panel {
+  padding: var(--space-3) var(--space-4) var(--space-4) var(--space-3);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* The reading a tile was tapped on: framed in the brand colour, so the eye lands on it. */
+.panel[data-focus] {
+  border-color: var(--brand);
+  box-shadow:
+    inset 0 0 0 1px var(--brand),
+    var(--shadow);
+}
+
+/* The metric's name in its line's colour, the reading at the cursor as a
+   figure, and the band it was held to at the far end. */
+.panelHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 0 0 var(--space-3) var(--space-1);
+}
+
+.metric {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+
+.panelValue {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-figure);
+}
+
+.panelUnit {
+  margin-left: -4px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--muted);
+}
+
+.band {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.metric[data-metric='temperature'],
+.scrubValue[data-metric='temperature'] {
+  color: var(--temperature);
+}
+
+.metric[data-metric='humidity'],
+.scrubValue[data-metric='humidity'] {
+  color: var(--humidity);
+}
+
+.metric[data-metric='co2'],
+.scrubValue[data-metric='co2'] {
+  color: var(--co2);
+}
+
+.metric[data-metric='leafTemperature'],
+.scrubValue[data-metric='leafTemperature'] {
+  color: var(--green-ink);
+}
+
+.metric[data-metric='lux'],
+.scrubValue[data-metric='lux'] {
+  color: var(--warning);
+}
+
+.plot {
+  position: relative;
+  /* Three panels and the lanes fit a phone without scrolling past the camera. */
+  height: 104px;
+  /* The faint rules to read a curve across, at the top, the middle and the
+     foot, where the scale's two figures sit - the same three the Charts draw. */
+  background:
+    linear-gradient(var(--grid), var(--grid)) var(--gutter) 0 / calc(100% - var(--gutter)) 1px no-repeat,
+    linear-gradient(var(--grid), var(--grid)) var(--gutter) 50% / calc(100% - var(--gutter)) 1px no-repeat,
+    linear-gradient(var(--grid), var(--grid)) var(--gutter) 100% / calc(100% - var(--gutter)) 1px no-repeat;
+}
+
+/* The canvas starts where the gutter ends. */
+.plot > [role='img'] {
+  margin-left: var(--gutter);
+}
+
+.scaleHigh,
+.scaleLow {
+  position: absolute;
+  left: 0;
+  width: var(--gutter);
+  padding-right: var(--space-2);
+  font-size: var(--text-xs);
+  text-align: right;
+  color: var(--label);
+}
+
+.scaleHigh {
+  top: 0;
+}
+
+.scaleLow {
+  bottom: 0;
+}
+
+/* The surface the cursor is dragged over. It claims sideways gestures only, so
+   the page still scrolls under a thumb moving up or down. */
+.overlay {
+  position: absolute;
+  inset: 0 0 0 var(--gutter);
+  touch-action: pan-y;
+}
+
+.cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--ink);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  background: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+}
+
+/* ------------------------------------------------ the lanes and the rail */
+
+.lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-4) var(--space-4) var(--space-3) var(--space-3);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.lane {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.lane[data-focus] {
+  margin-inline: -6px;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-wash);
+}
+
+.lane[data-focus] .laneName {
+  font-weight: var(--weight-semibold);
+  color: var(--brand);
+}
+
+/*
+ * The label keeps the mark's own overhang clear of itself. A mark is centred on
+ * the moment it stands for, which for one at the very start of the window puts
+ * half of it - the 10px `.mark` pulls itself left by - outside the rail and over
+ * the label: the grow range's first mark covered the last pixels of "EVENTS".
+ * The room comes out of the gutter the label already has to itself, so nothing
+ * else on the stack moves.
+ */
+.laneName {
+  flex-shrink: 0;
+  width: var(--gutter);
+  /* A lane's name lives in the plot's gutter, which has no room for the
+     tracked capitals a section label takes: it is a caption instead. The one
+     name too long for it ("Rückwandlüfter") breaks at its soft hyphen onto a
+     second line rather than being cut. */
+  padding-right: 12px;
+  text-align: right;
+  hyphens: manual;
+}
+
+.track {
+  position: relative;
+  flex: 1;
+  height: 10px;
+  min-width: 0;
+  background: var(--card-2);
+  border-radius: var(--radius-pill);
+  touch-action: pan-y;
+}
+
+/* When an output ran: a bar in the output blue, a little inside the lane's
+   height, so the lanes say when things ran without outweighing the climate
+   lines they explain. Not the amber - running is not a warning. */
+.bar {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  /* Softened, not rounded away: a run of a few minutes reads as a tick rather than as a dot. */
+  min-width: 3px;
+  background: var(--output);
+  border-radius: 3px;
+}
+
+.rail {
+  position: relative;
+  flex: 1;
+  height: 30px;
+  min-width: 0;
+}
+
+.mark {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  padding: 0;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+}
+
+.mark[aria-pressed='true'] {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.mark[data-severity='warning'] {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.mark[data-severity='critical'] {
+  border-color: var(--alarm);
+  color: var(--alarm);
+}
+
+/*
+ * How many lines the mark stands for, beside the kind it stands for rather than
+ * over it. The badge is opaque and the glyph is 12px, so sitting inside the
+ * circle it covered almost all of it: a mark of 28 notes drew a "28" and no note
+ * at all, and the mark's own hit test answered the badge. Anchored off the top
+ * right corner it clears the glyph, and it is drawn as the app's count badge -
+ * a filled pill, as the rail's Alerts count is - in the muted ink rather than
+ * the alarm red or the brand, because a count of notes is neither a warning
+ * nor a choice, and a lane of twenty green dots shouted over the lines. A ring
+ * in the card's colour lifts it off the circle it overlaps.
+ */
+.markCount {
+  position: absolute;
+  top: -7px;
+  right: -9px;
+  display: inline-grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  background: var(--muted);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 0 0 1.5px var(--card);
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  color: var(--card);
+}
+
+.noEvents {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  margin-left: var(--gutter);
+  padding-top: var(--space-1);
+}
+
+/* What the rail could not fit, said under it rather than left to be guessed at. */
+.capped {
+  margin-left: var(--gutter);
+  padding-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.stop {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* A week's stops stand on its midnights, each centred under the line it names. */
+.axisDays {
+  position: relative;
+  display: block;
+  min-height: calc(var(--text-xs) * 1.6 + var(--space-1));
+}
+
+.dayStop {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.dayStopEnd {
+  position: absolute;
+  right: 0;
+  white-space: nowrap;
+}
+
+/* The first and the last stop sit on the ends of the track rather than centred under them. */
+.stop:first-child {
+  margin-left: calc(var(--space-2) * -1);
+}
+
+.stop:last-child {
+  margin-right: calc(var(--space-2) * -1);
+}
+
+.opened {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) 0 0;
+  border-top: var(--rule-solid);
+  list-style: none;
+}
+
+@media (min-width: 900px) {
+  .screen {
+    --gutter: 96px;
+
+    max-width: var(--reading-width);
+    padding-top: 0;
+  }
+
+  .scrubHead {
+    top: var(--space-2);
+    font-size: var(--text-md);
+  }
+
+  /* The mat gives up height on a wide column, and the picture keeps its
+     shape on it rather than the card turning into a letterbox. */
+  .frame > :first-child {
+    max-height: 380px;
+  }
+
+  .panelValue {
+    font-size: var(--text-xl);
+  }
+
+  .plot {
+    height: 140px;
+  }
+}
+
+/* A plot is read along its width: on a wide screen the Timeline takes the page. */
+@media (min-width: 1200px) {
+  .screen {
+    max-width: var(--page-width);
+  }
+
+  .frame > :first-child {
+    max-height: 420px;
+  }
+
+  .plot {
+    height: 160px;
+  }
+}
+
+/* Whose place it is, where support reads a customer's. */
+.visiting {
+  margin-left: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}

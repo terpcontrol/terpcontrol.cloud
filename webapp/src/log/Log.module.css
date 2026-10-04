@@ -1,0 +1,364 @@
+/* The sheet's own parts: the target row, the eight tiles, and the fields the
+   details ask for. Dense, because a phone in a tent has one thumb. */
+
+/* The places to log to, as the shared row that scrolls, veiled into the
+   sheet's own surface. */
+.targets {
+  --veil-colour: var(--card);
+
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-1);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 92px;
+  padding: var(--space-3) var(--space-1);
+  text-align: center;
+}
+
+/* Maintenance says what it is and what it stops, which two narrow lines of a
+   tile cannot hold; it takes two columns rather than a cut-off sentence. */
+.tile[data-wide] {
+  grid-column: span 2;
+}
+
+/* The instant before the tiles know what they would write. */
+.tile:disabled {
+  opacity: 0.5;
+}
+
+.tile:hover:not(:disabled) {
+  border-color: var(--rule-strong);
+  background: var(--card-2);
+}
+
+.tileIcon {
+  margin-bottom: 2px;
+  color: var(--ink);
+}
+
+.tileName {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.tileCaption {
+  font-size: var(--text-xs);
+  line-height: var(--line-tight);
+  color: var(--muted);
+  /* Two lines at most, broken between words and cut with an ellipsis after
+     that: hyphenated, a tile's list of measurement names ran to five broken
+     lines and made every tile in its row as tall. A word too long for the
+     tile on its own still breaks rather than running out of it. */
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  text-wrap: balance;
+}
+
+/* What the details are about: the same line the toast will say. */
+.subject {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.waterRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
+.waterLabel {
+  flex: 1;
+  font-size: var(--text-md);
+}
+
+/* The day the line is about, drawn as the water row is: the question on the
+   left, the figure on the right. */
+.whenRow {
+  composes: waterRow;
+}
+
+.whenInput {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-family: var(--font-figure);
+}
+
+/* The browser draws the picker glyph itself, in whichever mode `color-scheme`
+   put it in; all it is told here is to look like something to press. */
+.whenInput::-webkit-calendar-picker-indicator {
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.waterFigure {
+  min-width: 64px;
+  font-size: var(--text-lg);
+  text-align: right;
+}
+
+.step {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  background: var(--card-2);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  color: var(--ink);
+}
+
+.doses {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+}
+
+.dose {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+}
+
+.dose[data-off='true'] {
+  color: var(--muted);
+}
+
+.doseName {
+  flex: 1;
+  font-size: var(--text-md);
+}
+
+.doseRate {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.doseAmount {
+  min-width: 56px;
+  font-size: var(--text-md);
+  text-align: right;
+}
+
+.mixNote {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: var(--space-2);
+}
+
+.field {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.fieldName {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.fieldInput {
+  width: 100%;
+  min-width: 0;
+  background: none;
+  border: 0;
+  font-size: var(--text-lg);
+  text-align: right;
+}
+
+.fieldInput:focus {
+  outline: none;
+}
+
+.more {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  font-size: var(--text-xs);
+}
+
+/* The label heads the chips it names, on a line of its own, rather than
+   standing in the row as if it were the first of them. */
+.more > .label {
+  flex-basis: 100%;
+}
+
+.addField {
+  color: var(--muted);
+}
+
+.text {
+  height: auto;
+  padding: var(--space-3);
+  line-height: var(--line-body);
+  resize: vertical;
+}
+
+.stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Whether the phase moves the climate too, set apart from the stages it follows. */
+.climate {
+  margin-top: var(--space-4);
+}
+
+.save {
+  width: 100%;
+  margin-top: var(--space-4);
+}
+
+/* Taking a line back, under everything the line still is. It is the alarm
+   colour and only ever an outline: it is offered, not urged. */
+.takingBack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
+}
+
+.takeBackRow {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.danger,
+.dangerButton {
+  color: var(--alarm);
+}
+
+.dangerButton {
+  border-color: var(--alarm);
+}
+
+.picture {
+  position: relative;
+  margin-bottom: var(--space-3);
+  background: var(--card-2);
+  border: var(--rule-dashed);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+}
+
+.picture:has(img) {
+  border-color: transparent;
+}
+
+.picture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pictureEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  height: 100%;
+  background: none;
+  border: 0;
+  color: var(--muted);
+}
+
+.file {
+  display: none;
+}
+
+.retake {
+  width: 100%;
+  margin-bottom: var(--space-3);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 var(--space-3);
+}
+
+.ownTag {
+  width: 96px;
+  color: var(--muted);
+}
+
+.ownTag:focus {
+  outline: none;
+  border-color: var(--brand);
+  color: var(--ink);
+}
+
+/* A phase asked for where nothing grows: the sentence, and under it the one
+   thing that would make the question answerable. */
+.noGrow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+/* What stepping in is about to quieten: the sentence, the devices it names, and
+   what Undo will and will not take back. The list is indented under the
+   sentence so that it reads as that sentence's own enumeration. */
+.quietens {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.quietensList {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-xs);
+  line-height: 1.7;
+  list-style: disc;
+}
+
+/* What that one device will stop, beside the name of that one device. The list
+   is set in the face the app keeps for figures, because a device is known by an
+   id; this half is a sentence about it and reads in the text face, dimmed, so
+   that the eye still finds the name first. */
+.quietensParks {
+  font-family: var(--font-text);
+  color: var(--muted);
+}

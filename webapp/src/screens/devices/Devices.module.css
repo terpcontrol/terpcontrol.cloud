@@ -1,0 +1,462 @@
+/* The Devices tab: three lists of dense rows. A row is one card with a head
+   that never wraps and, where there is more to say, a panel under it. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  line-height: var(--line-tight);
+}
+
+.list,
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* An account whose devices drive nothing this list draws leaves the second
+   column with nothing in it; it then takes no room. */
+.outputs:empty {
+  display: none;
+}
+
+/* What a reader who may not switch anything is told, once, at the top of the
+   list rather than beside each row it is true of. */
+.role {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* A list's label, and beside it the one way of adding to that list, on the
+   hairline every section head in the app stands on. */
+.sectionHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.row,
+.socket {
+  padding: var(--space-3) var(--space-4);
+}
+
+/* A row that is a door lights up under the pointer, as the doors under Me do. */
+.row:has(> a.rowHead):hover {
+  background: var(--card-2);
+}
+
+.rowHead,
+.socketHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  color: inherit;
+}
+
+.rowIcon,
+.socketIcon {
+  flex: none;
+  color: var(--label);
+}
+
+/* The last picture, in the place the icon would be. */
+.thumb {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 36px;
+  object-fit: cover;
+  background: var(--card-2);
+  border: var(--rule-solid);
+  border-radius: var(--radius-xs);
+  color: var(--label);
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 1px;
+  min-width: 0;
+}
+
+.rowTitle {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowNote {
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  color: var(--muted);
+  /* One line: a row is a row, and everything that does not fit is in the panel
+     the chevron opens. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* On a phone the pill and the chevron leave a name about 140 px: cut there,
+   two devices with the same maker's name read alike. A name and its line may
+   take two lines each there, and only past that are they cut. */
+@media (max-width: 599px) {
+  .rowTitle,
+  .rowNote {
+    display: -webkit-box;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    /* A compound that does not fit breaks where the language would break it -
+       "Kühlschrank-modul" - before it breaks anywhere at all ("Kühlschrankmod
+       / ul" beside an offline pill). */
+    hyphens: auto;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
+
+.since,
+.socketState {
+  flex: none;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* What a socket is doing gives way before its name does: the name is what the
+   row is, and the rest of the line is in the panel behind the chevron. A
+   socket's row carries a control as well, so the name keeps a floor and the
+   state is the one that shrinks into its ellipsis - "forced on · 42 min" and
+   "no answer · 4 min" are long enough to squeeze a name off the row otherwise. */
+.socketState {
+  flex: 0 1 auto;
+  max-width: 55%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.socket .rowText {
+  min-width: 6rem;
+}
+
+.socketHead {
+  gap: var(--space-2);
+}
+
+.chevron,
+.expand {
+  flex: none;
+  color: var(--label);
+}
+
+.expand {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-right: calc(var(--space-1) * -1);
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+/* A row whose head opens its panel answers a tap anywhere on it, not only on
+   the chevron. */
+.rowHead[data-opens] {
+  cursor: pointer;
+}
+
+/* An offline pill stands under the name, as wide as its words. */
+.rowLive {
+  align-self: flex-start;
+  margin-top: var(--space-1);
+}
+
+/* The opened device: the facts, what is standing on it, the two things done to
+   the hardware, the way to rename it, and the technical details folded away. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.panel > .facts:first-child {
+  margin-bottom: var(--space-1);
+}
+
+/* A window that is standing, in the amber every held thing in the app wears. */
+/* Whether the device updates itself: the one fact of the panel a manager can
+   switch, under the facts and parted from them by their own rule. */
+.autoUpdate {
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
+}
+
+.quiet {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--warning-wash);
+  border: var(--rule-width) solid var(--warning-edge);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-3);
+}
+
+/* Why the two are greyed out, under them. */
+.actions + p {
+  margin-top: var(--space-2);
+}
+
+/* A two-line action and the (i) that says more about it. Two share a line
+   where the card is wide enough, and stack on a phone. */
+.withHelp {
+  display: flex;
+  flex: 1 1 15rem;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.technical {
+  margin-top: var(--space-3);
+}
+
+.technical > summary {
+  cursor: pointer;
+  width: fit-content;
+}
+
+.technical .facts {
+  margin-top: var(--space-2);
+}
+
+/* With no camera yet, the way to add one is a line of small print under the
+   way to add a device, rather than a box of its own. */
+.addCamera {
+  align-self: center;
+  margin-top: calc(var(--space-3) * -1);
+}
+
+/* What a row has to say once it is opened: one fact per line, label left. */
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
+}
+
+.fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* The name of a fact keeps its line, (i) and all; a long value wraps instead. */
+.fact > dt {
+  flex: none;
+}
+
+.factValue {
+  margin: 0;
+  font-size: var(--text-sm);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.placeLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--brand);
+}
+
+/* Auto, on, off: the app's one segmented control, the pressed one filled with
+   the brand. The words are one each, so capitalising them is sentence case.
+   Holding the light output on or off is three plain actions rather than a
+   control drawn in a position nobody checked: the device reports no override
+   of its own output, so none of them is ever drawn pressed. */
+.threeWayOption,
+.forceOption {
+  text-transform: capitalize;
+}
+
+/* Why the chips above it are grey, on its own line under them rather than
+   between two of them. */
+.whyGrey {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.socketWhy {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+/* The controller's own light output. It is a card of the same list, but it
+   carries a dimmer rather than a switch, so it is a line taller than a plug's
+   row and says so by having a rule under its head. */
+.dimmer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
+}
+
+/* The light limit of a device that states targets: the figure, and the way to Steuerung where it is set and saved. */
+.limitLine {
+  display: inline-flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.limitLink {
+  white-space: nowrap;
+}
+
+.slider {
+  flex: 1 1 140px;
+  min-width: 120px;
+  height: var(--chip-height);
+}
+
+/* The figure the slider stands at, in the width its widest reading needs, so
+   dragging it does not shift everything beside it. */
+.level {
+  flex: none;
+  min-width: 3.5rem;
+  font-size: var(--text-sm);
+  text-align: right;
+}
+
+/* How long ON and OFF hold the output for, beside the buttons that send it. The
+   duration is a mandatory part of the command - the server refuses a hold with
+   no end - so it belongs on the row and not only behind the chevron where it is
+   chosen. It is drawn as quietly as the rest of the row's second rank, because
+   it is the length of a hold and never the lamp's own reading. */
+.holdLength {
+  flex: none;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.socketPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* The time the light output is held for is chosen here rather than sent, so one
+   of its chips is always the one in force and has to look it. That is the
+   app's own pressed chip, the one the Timeline and the Charts draw, because a
+   chip carrying a choice should not change its manners between screens. A
+   socket's times need nothing more either: there a chip is a command, and
+   nothing is standing. */
+.holds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* What dragging the dimmer does to a plan that is running this device. Amber,
+   and worded the same, as on the Manual targets page: it is the same figure,
+   the same plan and the same cost, reached by the shorter road. */
+.planCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  margin-block: var(--space-3) var(--space-2);
+  padding: var(--space-3);
+  background: var(--warning-wash);
+  border-color: var(--warning-edge);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+.planText {
+  flex: 1 1 200px;
+  font-size: var(--text-sm);
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: var(--reading-width);
+    padding-top: 0;
+  }
+}
+
+/* A wide Devices tab puts what the account has beside what it drives, rather
+   than one 760 px column three screens tall. A tent's own Devices tab is the
+   same list in its own page and keeps one column. */
+@media (min-width: 1200px) {
+  .page {
+    max-width: var(--page-width);
+  }
+
+  .page .list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-5) var(--space-6);
+  }
+
+  /* Whatever is said about the whole list spans both columns. */
+  .page .list > :not(.column) {
+    grid-column: 1 / -1;
+  }
+
+  .page .list:has(> .outputs:empty) {
+    grid-template-columns: minmax(0, var(--reading-width));
+  }
+}

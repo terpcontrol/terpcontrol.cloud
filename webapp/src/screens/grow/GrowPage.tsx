@@ -1,0 +1,285 @@
+import { ChevronLeft, CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router';
+import { MY_GROWS, openedFromMyGrows, placePath, useBackToPlace } from '@/app/places';
+import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
+import { useGrow, useGrowPlants } from '@/api/grows';
+import { noLongerThere } from '@/api/problem';
+import { useSpaces } from '@/api/spaces';
+import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
+import { enough, standsIn, useMayWith } from '@/ui/session-access';
+import { Tabs } from '@/ui/Tabs';
+import { Term } from '@/ui/Help';
+import ui from '@/ui/ui.module.css';
+import { useNow } from '@/ui/useNow';
+import { calendarDay, useZone } from '@/ui/zone';
+import { Feeding } from './Feeding';
+import { GrowLifecycle } from './Lifecycle';
+import { PhaseBar } from './PhaseBar';
+import { PhaseTips } from './PhaseTips';
+import { lastPlaceOf } from './placement';
+import { Plants } from './Plants';
+import { Report } from './Report';
+import { ShareSheet } from './ShareSheet';
+import { Weeks } from './Weeks';
+import styles from './GrowPage.module.css';
+
+const TABS = ['weeks', 'plants', 'feeding', 'report'] as const;
+type GrowTab = (typeof TABS)[number];
+
+const isTab = (value: string | undefined): value is GrowTab => (TABS as readonly string[]).includes(value ?? '');
+
+/**
+ * The grow page: its name, its day counter and its phase above a bar of the
+ * stages, then the tab it opened on. It lands on Weeks. The grow is one read
+ * and the tabs read their own; a refresh that fails keeps what was known on
+ * the screen and says so.
+ */
+export function GrowPage() {
+  const { growId = '', tab } = useParams();
+  // Where the grow was opened from goes along to the tab it lands on, so its way back is the same.
+  const { state } = useLocation();
+  if (!isTab(tab)) return <Navigate to={`/grows/${growId}/weeks`} replace state={state} />;
+
+  return <GrowScreen growId={growId} tab={tab} />;
+}
+
+function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
+  const { t } = useTranslation();
+  const now = useNow();
+  const grow = useGrow(growId);
+  const plants = useGrowPlants(growId);
+  const spaces = useSpaces();
+  const mayWith = useMayWith();
+  const { state } = useLocation();
+  // "Grow teilen" in a place's ⋯ menu opens the grow on its share sheet.
+  const [params] = useSearchParams();
+  const [sharing, setSharing] = useState(params.get('share') === '1');
+
+  if (grow.isPending) {
+    return (
+      <section className={styles.page}>
+        <Waiting lines={2} />
+        <Waiting lines={4} />
+      </section>
+    );
+  }
+  if (!grow.data) return noLongerThere(grow.error) ? <NoLongerHere what="grow" /> : <LoadFailed retry={() => void grow.refetch()} />;
+
+  // A grow is written to through the place it stands in today, which is what
+  // `access()` widens a membership over; the lifecycle moves are `manage` there
+  // and putting the diary on the open web is the owner's alone.
+  const youMay = mayWith({ ownerId: grow.data.ownerId, spaceId: standsIn(grow.data) });
+  const mayManage = enough(youMay, 'manage');
+  const mayOwn = enough(youMay, 'own');
+  const tabs = TABS.map(key => ({ key, label: t(`grow.tabs.${key}`), to: `/grows/${growId}/${key}` }));
+
+  return (
+    <section className={styles.page} data-tab={tab}>
+      <GrowHeader
+        grow={grow.data}
+        plants={plants.data?.items ?? []}
+        spaces={spaces.data?.items ?? []}
+        now={now}
+        onShare={mayOwn ? () => setSharing(true) : null}
+        actions={mayManage ? <GrowLifecycle grow={grow.data} plants={plants.data?.items ?? []} spaces={spaces.data?.items ?? []} /> : null}
+      />
+      {!mayManage && enough(youMay, 'log') ? <p className={`mono ${styles.role}`}>{t('grow.youMayLog')}</p> : null}
+      <RefreshFailed failedAt={grow.isError ? grow.dataUpdatedAt : null} now={now} />
+      {/* Switching tabs keeps where the page was opened from, so its way back stays the same. */}
+      <Tabs items={tabs} label={t('grow.tabsLabel')} state={state} />
+      {tab === 'weeks' ? <Weeks grow={grow.data} now={now} /> : null}
+      {tab === 'plants' ? <Plants grow={grow.data} plants={plants} spaces={spaces.data?.items ?? []} /> : null}
+      {tab === 'feeding' ? <Feeding grow={grow.data} mayManage={mayManage} /> : null}
+      {tab === 'report' ? <Report grow={grow.data} spaces={spaces.data?.items ?? []} mayOwn={mayOwn} now={now} /> : null}
+      {sharing && mayOwn ? <ShareSheet grow={grow.data} onClose={() => setSharing(false)} /> : null}
+    </section>
+  );
+}
+
+/** "Amnesia ×2 · Gelato": each strain once, with its count where there is more than one. */
+const strainsOf = (plants: Plant[]): string =>
+  [...new Set(plants.map(plant => plant.strain))]
+    .map(strain => {
+      const count = plants.filter(plant => plant.strain === strain).length;
+      return count > 1 ? `${strain} ×${count}` : strain;
+    })
+    .join(' · ');
+
+interface HeaderProps {
+  grow: GrowListItem;
+  plants: Plant[];
+  spaces: Space[];
+  now: ReturnType<typeof useNow>;
+  /** Null for a session that may only look: sharing a diary is the owner's, and a button that would be refused is not offered. */
+  onShare: (() => void) | null;
+  /**
+   * The lifecycle row, for a session that may move the grow. It is drawn in
+   * the header's own row of ways out rather than as a second row under it, so
+   * the page opens on one line of chips instead of three stacked ones.
+   */
+  actions?: ReactNode;
+}
+
+/**
+ * The head of the page: what the grow is called, where it stands, how far it
+ * has come and how to share it.
+ *
+ * A grow that has ended says so here rather than drawing the shape of a running
+ * one. Its counters are frozen at the day it ended, which is honest only while
+ * the reader is told which day that was - undated, "218 DAY" beside a phase bar
+ * reads as a grow that is still curing today. So the date it ended stands beside
+ * the name and the figure is labelled as the last day rather than as the count
+ * so far.
+ */
+export function GrowHeader({ grow, plants, spaces, now, onShare, actions = null }: HeaderProps) {
+  const { t } = useTranslation();
+  const zone = useZone();
+  const { summary } = grow;
+  // The date is read where the account is and the comparison is not, because
+  // the day a grow ended on moves with the zone while the fact that it ended
+  // does not.
+  const endedOn = grow.endedAt ? calendarDay(grow.endedAt, zone) : null;
+  const nameOf = (spaceId: string | null) => (spaceId ? (spaces.find(space => space.id === spaceId)?.name ?? '…') : t('grow.noFixedPlace'));
+  // Where the plants are now, which a grow whose placements have all been
+  // closed no longer has. Its report names the tent on every chapter and the
+  // move sheet lists the span it stood there, so a header with nothing at all
+  // in that slot is the one screen that forgets it - the closed placement
+  // answers for it, said as the past tense it is.
+  const places = summary.locations.map(location => ({ spaceId: location.spaceId, name: nameOf(location.spaceId) }));
+  const stood = places.length > 0 ? null : lastPlaceOf(grow);
+  const placeLink = (spaceId: string | null, label: string) =>
+    spaceId ? (
+      <Link to={placePath(spaceId)} className={styles.place}>
+        {label}
+      </Link>
+    ) : (
+      label
+    );
+  // Back to where the grow was found: "My grows" for a grow opened there and
+  // for a finished one, which no cockpit shows any more; otherwise the cockpit
+  // whose grow block it was opened from - the place it stands in, else the one
+  // it last stood in.
+  const toPlace = useBackToPlace(places.find(place => place.spaceId !== null)?.spaceId ?? stood?.spaceId ?? null);
+  const { state } = useLocation();
+  const back = openedFromMyGrows(state) || endedOn ? { to: MY_GROWS, name: t('grow.mine.title') } : toPlace;
+  const said: ReactNode[] = [
+    ...(plants.length > 0 ? [strainsOf(plants)] : []),
+    ...places.map(place => placeLink(place.spaceId, place.name)),
+    ...(stood ? [placeLink(stood.spaceId, t('grow.stoodIn', { name: nameOf(stood.spaceId) }))] : []),
+  ];
+
+  return (
+    <header className={styles.header}>
+      <div className={styles.titleRow}>
+        <Link
+          to={back.to}
+          className={`${ui.back} ${styles.back}`}
+          aria-label={back.name ? t('place.backTo', { name: back.name }) : t('shell.tabs.home')}
+        >
+          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
+        </Link>
+        <div className={styles.titles}>
+          <h1 className={styles.name}>{grow.name}</h1>
+          <p className={styles.subtitle}>
+            {/* Joined rather than each prefixed with its own separator, so a
+                grow with no strains recorded does not open its subtitle with a
+                dot in front of the tent. */}
+            {said.map((part, index) => (
+              <span key={index}>
+                {index > 0 ? ' · ' : ''}
+                {part}
+              </span>
+            ))}
+            {endedOn ? (
+              <span className={`mono ${styles.endedChip}`}>
+                <CircleCheck size={12} strokeWidth={1.75} aria-hidden />
+                {t('grow.ended', { date: endedOn })}
+              </span>
+            ) : null}
+            {grow.visibility === 'public' ? (
+              <Link to={`/g/${grow.slug}`} className={`mono ${styles.publicChip}`}>
+                <Globe size={12} strokeWidth={1.75} aria-hidden />
+                {t('sharing.publicChip')}
+              </Link>
+            ) : null}
+          </p>
+        </div>
+        {summary.dayNumber !== null ? (
+          <div className={styles.day}>
+            <span className={`figure ${styles.dayFigure}`}>{summary.dayNumber}</span>
+            <span className="caption">
+              <Term topic="growDay">{t(endedOn ? 'grow.finalDay' : 'home.card.day')}</Term>
+            </span>
+          </div>
+        ) : null}
+      </div>
+
+      <PhaseBar grow={grow} now={now} />
+
+      <p className={styles.phaseLine}>
+        {summary.stage ? (
+          <span className={styles.phase}>
+            {t(`home.stage.${summary.stage}`)}
+            {summary.stageWeek !== null ? (
+              <>
+                {' · '}
+                <Term topic="growWeek">{t('grow.week', { week: summary.stageWeek })}</Term>
+              </>
+            ) : null}
+            {/* How long it has stood in the stage, in days rather than as a second "Tag", which is the grow's own count. */}
+            {summary.phaseDay !== null ? ` · ${t('grow.phaseFor', { count: summary.phaseDay })}` : ''}
+          </span>
+        ) : (
+          <span className={styles.phase}>{t('home.card.noPhase')}</span>
+        )}
+        {summary.isAuto ? (
+          <span className={`mono ${styles.auto}`}>
+            <Term topic="autoTag">{t('home.card.auto')}</Term>
+          </span>
+        ) : null}
+        {summary.groups.length > 0 ? (
+          <span className={styles.muted}>
+            {' · '}
+            {summary.groups.map(group => `${group.plantIds.length} ${t(`home.stage.${group.stage}`).toLowerCase()}`).join(', ')}
+          </span>
+        ) : null}
+        {/* A grow whose record carries no plants says so on its Plants tab, in
+            words. A count of zero in the header says something else: that the
+            plants were entered and are all gone. */}
+        {plants.length > 0 ? <span className={styles.muted}> · {t('home.card.plants', { count: plants.length })}</span> : null}
+      </p>
+
+      {/* An ended grow has no phase to be in, so it has nothing to be told about one. */}
+      {endedOn ? null : <PhaseTips stage={summary.stage} />}
+
+      {/* What the grow measures is the grow's own, not a week's and not a
+          plant's, so the way in is a row of the header rather than a tab. It is
+          drawn for everybody: reading what a grow measures is reading.
+
+          Charts opens from the timeline and from a tent page. A grow that
+          stands in no tent has neither, and would otherwise be told its
+          measurements are drawn on a view it can never reach. */}
+      <div className={`${ui.scrollRowNarrow} ${styles.ways}`} data-print="omit">
+        <Link to={`/grows/${grow.id}/measurements`} className={ui.chip}>
+          <Ruler size={13} strokeWidth={1.75} aria-hidden />
+          {t('grow.measurements.title')}
+        </Link>
+        {places.length === 0 || places.every(place => place.spaceId === null) ? (
+          <Link to={`/charts?grow=${grow.id}`} className={ui.chip}>
+            <LineChart size={13} strokeWidth={1.75} aria-hidden />
+            {t('charts.title')}
+          </Link>
+        ) : null}
+        {actions}
+        {onShare ? (
+          <button type="button" className={`${ui.chip} ${styles.share}`} onClick={onShare}>
+            <Share2 size={13} strokeWidth={1.75} aria-hidden />
+            {t('sharing.share')}
+          </button>
+        ) : null}
+      </div>
+    </header>
+  );
+}

@@ -1,0 +1,234 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+@media (min-width: 900px) {
+  .card {
+    gap: var(--space-4);
+    padding: var(--space-5);
+  }
+}
+
+/* The header is the fold: tapping it opens the week or closes it. */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+}
+
+.title {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.weekName {
+  font-size: 20px;
+}
+
+.range {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--label);
+  transition: transform 150ms;
+}
+
+.chevron[data-open='true'] {
+  transform: rotate(180deg);
+}
+
+/* Seven of them, however narrow the screen. */
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dayTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: var(--rule-solid);
+  border-radius: var(--radius-sm);
+  background: var(--card-2);
+}
+
+button.thumb {
+  padding: 0;
+  cursor: zoom-in;
+}
+
+.thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumb:has(img) {
+  border-color: transparent;
+}
+
+/* A week no camera and no photo pictured: the days, without seven empty squares. */
+.days[data-pictureless] .thumb {
+  display: none;
+}
+
+.dayTile[data-future='true'] .thumb {
+  background: transparent;
+  border: var(--rule-dashed);
+}
+
+.dayName {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--label);
+}
+
+/* A day still to come is told by its dashed, empty tile, and a past day with
+   no picture by a filled one on a solid hairline - two different edges, so in
+   a dark tent the two are not the same faint grey square. The name keeps the
+   label ink so it still reads. */
+.dayTile[data-future='true'] .dayName {
+  font-weight: var(--weight-regular);
+}
+
+/* The week's three figures, a strip on a hairline under the days. */
+.stats {
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
+}
+
+/* The scheme's row for the week, with how much of it is done at the right. */
+.feeding {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--card-2);
+}
+
+.feedingIcon {
+  flex-shrink: 0;
+  color: var(--green);
+}
+
+.feedingText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.feedingTitle {
+  font-weight: var(--weight-semibold);
+}
+
+.feedingAmounts {
+  color: var(--muted);
+}
+
+.done {
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--muted);
+}
+
+.done[data-complete='true'] {
+  color: var(--green-ink);
+}
+
+.noClimate {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+.readings {
+  font-size: var(--text-sm);
+}
+
+.readingName {
+  color: var(--muted);
+}
+
+.change {
+  color: var(--green-ink);
+}
+
+.entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--rule-solid);
+}
+
+.noEntries,
+.more {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* "+ 87 more": a control rather than a sentence, because the lines it counts
+   are drawn on no other screen and a week that has ended can be pointed at from
+   nowhere else. */
+.more {
+  align-self: flex-start;
+  padding: var(--space-1) 0;
+  font-size: var(--text-xs);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.more:disabled {
+  text-decoration: none;
+  color: var(--label);
+}
+
+.weekFilm {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 16 / 9;
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card-2);
+}
+
+.weekFilmButton {
+  align-self: flex-start;
+}

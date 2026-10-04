@@ -1,0 +1,6 @@
+/* An account with a dozen running grows would otherwise push the button that
+   spends the pick off the screen, so the names scroll rather than grow. */
+.list {
+  max-height: 12rem;
+  overflow-y: auto;
+}

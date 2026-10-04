@@ -1,0 +1,982 @@
+/* The few shapes every screen is built from: the bordered card and its dashed
+   sibling, the two buttons, the chip and the field. A screen composes these and
+   adds its own layout; it never restates a colour or a radius. */
+
+.card {
+  padding: var(--card-padding);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* The lesser option beside bordered ones: outlined, not filled. */
+.cardDashed {
+  padding: var(--card-padding);
+  background: transparent;
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+}
+
+/* A list read top to bottom - a section's devices, a plan's steps, a camera's
+   settings: one card, its rows a hairline apart, rather than a pile of cards
+   each as loud as the next. A row may itself carry `.card` for its padding;
+   inside a group it gives up its own edge, corners and shadow. The card clips
+   its rows, so a row's hover fill keeps the rounded corner, and a focus ring
+   is drawn inside the row rather than cut off at the card's edge.
+
+   A row that marks where something stands now - the step a plan is on - says
+   `data-current`, and is tinted with a bar down its edge in the green; one
+   held where it stands, paused or waiting, says `data-current='held'` and
+   takes the warning colour instead. */
+.group {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* A list with nothing in it yet draws nothing, not an empty card. */
+.group:empty {
+  display: none;
+}
+
+.group > * {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.group > * + * {
+  border-top: var(--rule-solid);
+}
+
+.group :focus-visible {
+  outline-offset: -2px;
+}
+
+.group > [data-current] {
+  background: var(--green-wash);
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
+.group > [data-current='held'] {
+  background: var(--warning-wash);
+  box-shadow: inset 3px 0 0 var(--warning-edge);
+}
+
+/* The same, for cards that stand in a page's own column with no list round
+   them - the rows of a settings page: each `.joined` card closes up on the
+   one before it, and the run reads as one card. The page's gap is taken back
+   in `--join-gap`, 12 px unless the column round it says otherwise. A card
+   whose outcome cannot be taken back says `data-danger` and stands on its own,
+   a little apart. */
+.joined:not([data-danger]):has(+ .joined:not([data-danger])) {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.joined:not([data-danger]) + .joined:not([data-danger]) {
+  margin-top: calc(var(--join-gap, var(--space-3)) * -1);
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* The row whose outcome cannot be taken back wears the alarm colour on its
+   rule, the only place a settings page colours anything at all. */
+.joined[data-danger] {
+  margin-top: var(--space-2);
+  border-color: var(--alarm);
+}
+
+/* Where a thing is, as a word on a green wash: a grow's stage - "Flower wk 5"
+   on a week's card, "Veg" under the day it began. `.tagSmall` is the one that
+   fits under a seventh of a card, reaching a little into the gutter either
+   side and cut rather than wrapped. */
+.tag {
+  display: inline-block;
+  flex: none;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--green-wash);
+  font-family: var(--font-figure);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  color: var(--green-ink);
+  white-space: nowrap;
+}
+
+.tagSmall {
+  max-width: calc(100% + 6px);
+  overflow: hidden;
+  padding: 0 4px;
+  font-size: 11px;
+  line-height: var(--line-body);
+  text-align: center;
+  text-overflow: ellipsis;
+}
+
+/* How recently a device or a camera was heard from, as a pill with a dot: the
+   green wash and a ringed green dot while it is live, the warning ink once it
+   is late, and quiet grey when it has gone offline. `data-liveness` says
+   which; the dot is `.liveDot`. */
+.live {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  height: 26px;
+  padding: 0 var(--space-3) 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--card-2);
+  font-family: var(--font-figure);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.liveDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.live[data-liveness='live'] {
+  background: var(--green-wash);
+  color: var(--green-ink);
+}
+
+.live[data-liveness='live'] .liveDot {
+  background: var(--green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 25%, transparent);
+}
+
+.live[data-liveness='stale'] {
+  color: var(--warning);
+}
+
+/* A camera's picture shown whole: 16:9, as most cameras take it, with the
+   picture inside at whatever shape it has on the dark of a viewer - never
+   cropped, because a camera burns its clock into a corner and a grower checks
+   a frame against it. The mat is the positioned element its caption and
+   buttons are laid on. Where there is no picture to show, the mat is the
+   inset surface and `.matNote` says why. */
+.mat {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--overlay-solid);
+}
+
+/* Laid over the whole mat rather than sized by it, so a mat a page caps in
+   height still shows the whole picture instead of the middle of it. */
+.mat > img,
+.mat > video {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.mat:not(:has(> img, > video)) {
+  background: var(--card-2);
+}
+
+.matNote {
+  margin: 0;
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-align: center;
+}
+
+/* The row that walks a day of pictures, under the mat: play where there is
+   one, the one slider, and the ends or the time at the cursor beside it. */
+.transport {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
+/* What a picture is, laid on the picture: its time, its age, how many there
+   are. Smoked glass in the corner, the same in both modes because the picture
+   under it does not change with the theme; it sits bottom left, and is cut
+   with an ellipsis rather than run off a narrow picture. The picture's frame
+   is the positioned element. */
+.photoCaption {
+  position: absolute;
+  bottom: var(--space-2);
+  left: var(--space-2);
+  max-width: calc(100% - var(--space-4));
+  overflow: hidden;
+  padding: var(--space-1) 10px;
+  background: var(--overlay);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-figure);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  color: var(--on-overlay);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A row wider than its screen that scrolls sideways - tabs, chips, a day's
+   stills - and says so: its far edge is veiled while there is more to reach.
+   The veil is laid over the row rather than a mask put on it, because a mask
+   clips everything painted inside its element, a fixed sheet opened from a
+   chip in the row included. It is the row's last item and sticks to the right
+   edge while there is more to scroll; at the end of the row it stands in a
+   space of its own after the last item, and a row that fits pushes it into
+   the empty space at its end, so it never covers what nobody can scroll to.
+   It fades into `--veil-colour`, the page unless the row stands on a card.
+   `.scrollRowNarrow` scrolls only on a phone and a tablet and wraps from the
+   rail's width up. */
+.scrollRow,
+.scrollRowNarrow {
+  --veil-colour: var(--bg);
+}
+
+.scrollRow {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.scrollRow::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollRow > * {
+  flex-shrink: 0;
+}
+
+.scrollRow::after {
+  content: '';
+  position: sticky;
+  right: 0;
+  flex: none;
+  width: 40px;
+  margin-left: auto;
+  background: linear-gradient(to right, transparent, var(--veil-colour));
+  pointer-events: none;
+}
+
+.scrollRowNarrow {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 899px) {
+  .scrollRowNarrow {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .scrollRowNarrow::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollRowNarrow > * {
+    flex-shrink: 0;
+  }
+
+  .scrollRowNarrow::after {
+    content: '';
+    position: sticky;
+    right: 0;
+    flex: none;
+    width: 40px;
+    margin-left: auto;
+    background: linear-gradient(to right, transparent, var(--veil-colour));
+    pointer-events: none;
+  }
+}
+
+/* A few figures read as one strip, a hairline between each, the way a tent's
+   readouts stand on Home: a week's light and climate, a grow's totals, a
+   plant's size. Each item is a figure over its caption; a figure takes
+   `.stripValue`, which a page may set larger, and its unit `.stripUnit`. A
+   strip that shares its width equally on a phone - five counts across a
+   report - adds `.stripEven`; from the rail's width up each item is as wide as
+   its figure again. Written for a `<dl>`, so a term and its value carry no
+   margin of their own. */
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+}
+
+.strip > * {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 var(--space-4);
+  border-left: var(--rule-solid);
+}
+
+.strip > :first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.strip dt,
+.strip dd {
+  margin: 0;
+}
+
+.stripEven > * {
+  flex: 1 1 0;
+  padding-inline: var(--space-3);
+}
+
+.stripValue {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-family: var(--font-figure);
+  font-size: 20px;
+  font-weight: var(--weight-figure);
+  letter-spacing: -0.01em;
+  line-height: var(--line-tight);
+}
+
+.stripUnit {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  .strip > * {
+    padding: 0 var(--space-5);
+  }
+
+  .stripEven > * {
+    flex: none;
+  }
+
+  .stripValue {
+    font-size: 22px;
+  }
+}
+
+/* The way to add one more to a list - a device, a camera, a grow: a dashed
+   row that closes the list it adds to, its words in the middle. */
+.addRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out;
+}
+
+.addRow:hover {
+  background: color-mix(in srgb, var(--card) 60%, transparent);
+  color: var(--ink);
+}
+
+/* The secondary button, as the site draws its own: white, its words in the
+   brand blue, an edge that turns blue under the pointer. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: var(--control-height);
+  padding: 0 var(--space-4);
+  background: var(--card);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  color: var(--brand);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  transition:
+    background-color 120ms ease-out,
+    border-color 120ms ease-out;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--brand);
+}
+
+/* An icon keeps its size when a narrow row squeezes the words beside it. */
+.button svg,
+.chip svg {
+  flex-shrink: 0;
+}
+
+/* Out of reach, at the one strength the app uses for it: the outlined chips
+   turn down this far too, so "not now" looks the same wherever it is met. */
+.button:disabled {
+  opacity: 0.45;
+}
+
+/* The one primary action on a screen. */
+.primary,
+.primary:hover:not(:disabled) {
+  background: var(--green-fill);
+  border-color: var(--green-fill);
+  color: var(--on-green);
+  box-shadow: var(--shadow);
+}
+
+/* A quiet action inside a card - the Photo, Note and Alarms off a card
+   repeats: a filled tint with no outline, a step shorter than a field, so a
+   row of them sits under the readings rather than over them. It only works on
+   a card; on the bare page a tint is the page, and the outlined button above
+   is the one to use there. */
+.quiet {
+  height: var(--action-height);
+  padding: 0 var(--space-3);
+  background: var(--tint);
+  border-color: transparent;
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+.quiet:hover:not(:disabled) {
+  background: var(--tint-hover);
+  border-color: transparent;
+}
+
+/* A primary that cannot be pressed gives the green up rather than fading it.
+   Turning green down works in the light theme, where it washes towards a pale
+   page, and fails in the dark one, where it lands on a still-saturated green
+   that is the brightest thing on the screen; the card's own surface under muted
+   ink is dead in both, because both of those tokens flip with the theme. This
+   rule follows `.button:disabled` so that it wins the tie on equal weight. */
+.primary:disabled {
+  background: var(--card-2);
+  border-color: var(--rule);
+  color: var(--muted);
+  box-shadow: none;
+  opacity: 1;
+}
+
+/* A small action - Measurements, Share, Silence 1 h, Save view - drawn at
+   the site's control radius like every other button. A chip that is a
+   choice - a range, a place, a line on a chart, anything pressed or not - is
+   the pill, as the site keeps pills for badges and filters. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--chip-height);
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: var(--rule-solid);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-family: var(--font-figure);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.chip:is([aria-pressed], [aria-checked], [data-chosen], [data-colour]) {
+  border-radius: var(--radius-pill);
+}
+
+/* A chip that is on: filled with the brand, so "which one is on" is answered
+   from across the room - in dark mode the navy choice with its pale-blue
+   ring (tokens.css). A chip that stands for a line on a chart names the
+   line's colour in `data-colour` and carries a mark of it, on or off, which
+   is what makes the chip its own legend; in light mode the pressed one is
+   filled with that colour too. */
+.chip[aria-pressed='true'],
+.chip[data-chosen='true'] {
+  background: var(--selected);
+  border-color: var(--selected-edge);
+  color: var(--on-selected);
+}
+
+.chip[aria-pressed='true'][data-colour] {
+  background: var(--series-fill, var(--chip-colour));
+  border-color: var(--series-edge, var(--chip-colour));
+  color: var(--series-ink, var(--on-signal));
+}
+
+.chip[aria-pressed][data-colour]::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  margin-right: 2px;
+  border-radius: 50%;
+  background: var(--chip-colour);
+}
+
+.chip[aria-pressed='true'][data-colour]::before {
+  background: var(--series-mark, var(--chip-colour));
+}
+
+.chip[data-colour] {
+  --chip-colour: var(--ink);
+}
+
+.chip[data-colour='temperature'] {
+  --chip-colour: var(--temperature);
+}
+
+.chip[data-colour='humidity'] {
+  --chip-colour: var(--humidity);
+}
+
+.chip[data-colour='co2'] {
+  --chip-colour: var(--co2);
+}
+
+.chip[data-colour='output'] {
+  --chip-colour: var(--output);
+}
+
+/* A chip out of reach, turned down as far as every other control the app
+   refuses. The rule above says the outlined chips do this, and until now they
+   did not: a chip never carries `.button`, so the only thing that reached a
+   disabled one was the cursor, which a thumb does not have. The camera page
+   draws four films to ask for in one row, two of which cannot be made while
+   nothing grows in the tent, and all four were drawn alike - the reason sits
+   under the row, so the row has to show which two it is about. */
+.chip:disabled {
+  opacity: 0.45;
+}
+
+/* The title of a page below a tab - Manual targets, Alarms - with the way
+   back to the tab beside it. It names the page, so it is set as a name, not
+   as one more section label on a rule over the section labels under it. */
+.subhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0 0;
+  border-bottom: 0;
+}
+
+.subhead > :first-child {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-tight);
+  text-transform: none;
+  color: var(--heading);
+}
+
+/* What a head offers besides its title - "Timeline ›", "+ Grow", "‹ back to
+   the plan": one small link, in the muted ink at a semibold weight, never
+   underlined. A link that goes somewhere carries the trailing chevron; one
+   that makes something leads with its "+". It is the same whether it sits on
+   a section's rule, beside a page's subhead or in the line under a form. */
+.headLink {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.headLink:hover {
+  color: var(--ink);
+}
+
+/* The way back up, in front of a page's title. On a phone it stands in the
+   title's row; from the rail's width up it hangs in the gutter to the left
+   of the column, so every page's title starts on the column's own edge
+   whether or not it has a way back. The header puts `--space-2` between it
+   and the title - a header with a wider gap says so in `--back-gap`. */
+.back {
+  --back-gap: var(--space-2);
+
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin-left: calc(var(--space-2) * -1);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+}
+
+.back:hover {
+  background: var(--tint);
+  color: var(--ink);
+}
+
+@media (min-width: 900px) {
+  .back {
+    margin-left: calc(-32px - var(--back-gap));
+  }
+}
+
+/* A line of short items joined by middle dots - "Nothing growing here yet ·
+   Start a grow · Move a grow here" - that breaks between items and never
+   leaves a dot hanging at either end of a line. Every item after the first
+   is a `.dot` starting with its own " · ", kept on one line. A line
+   always starts in the strip left of the column, `--dot-lead` wide, which
+   is cut away: a wrapped item's dot falls in it and is not drawn, and the
+   first line is pushed past it. The strip is a little wider than the dot
+   and narrower than the dot and its space, so no letter is ever cut. */
+.dots {
+  --dot-lead: 0.4em;
+  --dot-gap: 0.26em;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--dot-gap);
+  margin-inline-start: calc(var(--dot-lead) * -1);
+  clip-path: inset(-4px -4px -4px var(--dot-lead));
+}
+
+.dots::before {
+  content: '';
+  flex: none;
+  width: calc(var(--dot-lead) - var(--dot-gap));
+}
+
+/* An item after the first: its own " · " and what follows, on one line. */
+.dot {
+  white-space: nowrap;
+}
+
+/* One answer out of two or three, as one control: a track, the chosen
+   option filled with the brand, in sentence case at a chip's height. Every
+   such choice in the app is this one - a screen composes it and adds only its
+   own layout, such as a track that runs the width of its card. */
+.segments {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  background: var(--card-2);
+  border: var(--rule-solid);
+  border-radius: calc(var(--radius-sm) + 2px);
+}
+
+/* A track that runs the width of what it sits in - where the choice decides
+   what the card under it shows. Each option takes the width its label needs
+   and the rest of the track is shared out between them, so a long option
+   beside two short ones gets the room it needs instead of a third it spills
+   out of. */
+.segmentsFill {
+  display: grid;
+  grid-auto-columns: auto;
+  grid-auto-flow: column;
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 0;
+  height: var(--chip-height);
+  padding: 0 var(--space-3);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-xs);
+  color: var(--muted);
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  text-align: center;
+  white-space: nowrap;
+  /* A label never paints outside its own option, whatever the track does. */
+  overflow: hidden;
+}
+
+.segment:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.segment[aria-pressed='true'],
+.segment[aria-checked='true'],
+.segment[aria-selected='true'],
+.segment[aria-current='page'],
+.segment[data-chosen='true'] {
+  background: var(--selected);
+  box-shadow: inset 0 0 0 var(--rule-width) var(--selected-edge);
+  color: var(--on-selected);
+}
+
+/* Out of reach, the options that cannot be chosen drop to the label ink, and
+   the one in force keeps a tint and the full ink: a locked control still says
+   what it is set to, which a faded one did not. */
+.segment:disabled {
+  color: var(--label);
+  cursor: default;
+}
+
+.segment:disabled:is([aria-pressed='true'], [aria-checked='true'], [data-chosen='true']) {
+  background: var(--brand-wash);
+  color: var(--ink);
+}
+
+/* A value dragged along a line: the app's one slider, wherever it is - a
+   target, a brightness, the cursor over a day of pictures. The part up to the
+   thumb is the green, the rest a rule, and the thumb a green dot ringed in
+   the card. The surface green rather than the button's darker fill: on the
+   dark card the fill came to 2.7:1, under the 3:1 a control's state needs. The page says how far along it is in `--filled`, a percentage. */
+.range {
+  --filled: 0%;
+
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  appearance: none;
+}
+
+.range::-webkit-slider-runnable-track {
+  height: 4px;
+  background: linear-gradient(to right, var(--green) var(--filled), var(--rule-strong) var(--filled));
+  border-radius: var(--radius-pill);
+}
+
+.range::-moz-range-track {
+  height: 4px;
+  background: linear-gradient(to right, var(--green) var(--filled), var(--rule-strong) var(--filled));
+  border-radius: var(--radius-pill);
+}
+
+.range::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  background: var(--green);
+  border: 3px solid var(--card);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-raised);
+  appearance: none;
+}
+
+.range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: var(--green);
+  border: 3px solid var(--card);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-raised);
+}
+
+.range:focus-visible {
+  outline: none;
+}
+
+.range:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.range:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Out of reach, the green gives way to the ink it would otherwise stand for. */
+.range:disabled {
+  cursor: default;
+}
+
+.range:disabled::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--label) var(--filled), var(--rule) var(--filled));
+}
+
+.range:disabled::-moz-range-track {
+  background: linear-gradient(to right, var(--label) var(--filled), var(--rule) var(--filled));
+}
+
+.range:disabled::-webkit-slider-thumb {
+  background: var(--label);
+  box-shadow: none;
+}
+
+.range:disabled::-moz-range-thumb {
+  background: var(--label);
+  box-shadow: none;
+}
+
+/* A comparison table - what each tier or each role may do - on a card of its
+   own, its label outside it like every other section's. A yes is a check in
+   the green that means "may" and a no a dash in the label ink, both at a size
+   that reads. */
+.tableCard {
+  padding: var(--space-3) var(--space-4) var(--space-1);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow-x: auto;
+}
+
+.yes,
+.no {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
+}
+
+.yes {
+  color: var(--green-ink);
+}
+
+.no {
+  color: var(--label);
+  font-size: var(--text-md);
+}
+
+.input {
+  width: 100%;
+  height: var(--control-height);
+  padding: 0 var(--space-3);
+  background: var(--card-2);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+}
+
+.input::placeholder {
+  color: var(--label);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+
+/* A field with something inside its right edge, such as "or scan". */
+.fieldRow {
+  position: relative;
+}
+
+.fieldRow .input {
+  padding-right: 96px;
+}
+
+.fieldAction {
+  position: absolute;
+  inset: 0 var(--space-3) 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+/* What went wrong, under the control it belongs to. */
+.problem {
+  font-size: var(--text-sm);
+  color: var(--alarm);
+}
+
+/* What is not possible yet, or not here. Muted, never hidden. */
+.note {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* The switch: what something is doing, and a tap that forces it the other way.
+   It is here rather than on a screen because a socket row, an overlay in the
+   composer and every later setting are the same control. */
+.switch {
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 24px;
+  padding: 0;
+  background: var(--card-2);
+  border: var(--rule-width) solid var(--control-edge);
+  border-radius: var(--radius-pill);
+}
+
+/* On, the surface green - the button's darker fill fell under 3:1 on the
+   dark card. */
+.switch[aria-checked='true'] {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+/* A switch that cannot be moved is turned down, not recoloured: the outline stays
+   the ordinary rule so an off one is still visibly a switch on a light card, and
+   an on one fades far enough to read as held rather than as a second green. */
+.switch:disabled {
+  border-color: var(--rule);
+  opacity: 0.6;
+}
+
+/* The knob is the muted ink while the switch is off, because in dark mode the
+   track, the card and the card's own colour are within a shade of each other
+   and an off switch drawn in them is an empty pill with nothing on it. Once it
+   is on, the green track does the telling and the knob goes back to the card's
+   colour so it reads as a hole in the green rather than a second mark. */
+.knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: var(--muted);
+  border-radius: 50%;
+  transition: transform 120ms ease-out;
+}
+
+.switch[aria-checked='true'] .knob {
+  background: var(--card);
+  transform: translateX(18px);
+}

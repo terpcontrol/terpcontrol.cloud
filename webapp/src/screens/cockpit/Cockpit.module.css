@@ -1,0 +1,1016 @@
+/* The cockpit of one place, and the card that stands for a place on a Start
+   with several. Cards, buttons, chips and the live pill are the app's own
+   (ui.module.css); what is drawn here is the status line, the tiles with their
+   small curves, the summaries and the place cards. */
+
+.cockpit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------- the head */
+
+/*
+ * Name, pill and ⋯ on one row while the name leaves room for them; a name that
+ * does not wraps in full on its own row beside the way back, and the pill and
+ * the ⋯ go together to the row under it. The name may be as wide as the row
+ * less the arrow, which is what lets a flex line put the arrow and the name
+ * together and break before the pill.
+ */
+.head {
+  --head-lead: 0px;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.head[data-back] {
+  --head-lead: calc(32px + var(--space-2));
+}
+
+.name {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: calc(100% - var(--head-lead));
+  font-size: var(--text-xl);
+  font-weight: var(--weight-title);
+  line-height: var(--line-tight);
+}
+
+/*
+ * The name wraps rather than trailing off: beside the pill and the ⋯ a phone
+ * left "Growsch…" of "Growschrank im Keller", the one word on the page that
+ * says which place this is. Every line of it is kept, hyphenated in the
+ * reader's language where a word is longer than the row.
+ */
+.name > span {
+  min-width: 0;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.name svg {
+  flex: none;
+  color: var(--label);
+}
+
+.headEnd {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.menu {
+  position: relative;
+  flex: none;
+}
+
+.menuButton {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.menuButton:hover,
+.menuButton[aria-expanded='true'] {
+  background: var(--tint);
+  color: var(--ink);
+}
+
+.menuList {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 230px;
+  padding: var(--space-1);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-raised);
+}
+
+.menuList > a,
+.menuList > button {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--text-md);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menuList > a:hover,
+.menuList > button:hover {
+  background: var(--tint);
+}
+
+/* What an item changes besides its name, under it, so a tap is never a surprise. */
+.menuLine {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* -------------------------------------------------------------- columns */
+
+.columns {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Desktop: the readings on the left, what the place is set to and what
+   happened on the right, so neither half is a card on empty space. */
+@media (min-width: 900px) {
+  .columns {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    align-items: start;
+    gap: var(--space-5);
+  }
+
+  /* A diary kept by hand has one column's worth of page: the grow, its lines
+     and the offer under them, at a width a line still reads at - rather than
+     an empty left column beside a half-width card. The place's name and its
+     menu keep to the same width. */
+  .columns[data-single] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cockpit[data-single] {
+    max-width: 760px;
+  }
+}
+
+/* ----------------------------------------------------------- the status */
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 6px var(--space-3);
+  min-height: 36px;
+  border: var(--rule-width) solid transparent;
+  border-radius: var(--radius);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.status > svg {
+  flex: none;
+}
+
+.statusText {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.status[data-tone='good'] {
+  background: var(--green-wash);
+  color: var(--green-ink);
+}
+
+.status[data-tone='warn'] {
+  background: var(--warning-wash);
+  border-color: var(--warning-edge);
+  color: var(--warning);
+}
+
+.status[data-tone='alarm'] {
+  background: var(--alarm-wash);
+  border-color: var(--alarm-edge);
+  color: var(--alarm);
+}
+
+.status[data-tone='quiet'] {
+  background: var(--card-2);
+  color: var(--muted);
+  font-weight: var(--weight-medium);
+}
+
+/* ------------------------------------------------------------ the tiles */
+
+.tiles {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+/* Two across once a tile has room for its curve beside its words, and a last
+   tile on its own takes the row rather than leaving half of it empty. */
+@media (min-width: 600px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tile:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+.tile {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40%;
+  grid-template-areas:
+    'name curve'
+    'text curve'
+    'foot foot';
+  column-gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-2) var(--space-3);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: border-color 120ms ease-out;
+}
+
+.tile:hover {
+  border-color: var(--rule-strong);
+}
+
+.tile[data-verdict='off'] {
+  border-color: var(--warning-edge);
+  box-shadow:
+    inset 3px 0 0 var(--warning-edge),
+    var(--shadow);
+}
+
+/* The name is the tile's one link, stretched over all of it; anything inside
+   that explains a word stands above the stretch and keeps its own press. */
+.tileName {
+  grid-area: name;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 20px;
+  color: var(--label);
+}
+
+.tileName::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.tileName:focus-visible {
+  outline: none;
+}
+
+.tileName:focus-visible::after {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.tileChevron {
+  color: var(--control-edge);
+}
+
+.tile button {
+  position: relative;
+  z-index: 1;
+}
+
+.tileText {
+  grid-area: text;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.tileCurve {
+  grid-area: curve;
+  position: relative;
+  align-self: center;
+  min-width: 0;
+}
+
+.figureLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 4px;
+}
+
+.figure {
+  font-size: 28px;
+  font-weight: var(--weight-figure);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.unit {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--muted);
+}
+
+.second {
+  margin-left: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--muted);
+}
+
+.targetLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--label);
+}
+
+.inBand {
+  font-weight: var(--weight-semibold);
+  color: var(--green-ink);
+}
+
+.offBand {
+  font-weight: var(--weight-semibold);
+  color: var(--warning);
+}
+
+.settling {
+  color: var(--muted);
+}
+
+.lastValue {
+  display: inline-flex;
+  gap: 4px;
+  color: var(--muted);
+}
+
+.outputs {
+  grid-area: foot;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--space-3);
+  margin: var(--space-1) 0 0;
+  padding: var(--space-1) 0 0;
+  list-style: none;
+  border-top: var(--rule-solid);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.output {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.outputDot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--control-edge);
+  border-radius: 50%;
+}
+
+.output[data-on] {
+  color: var(--ink);
+}
+
+.output[data-on] .outputDot {
+  background: var(--output);
+  border-color: var(--output);
+}
+
+/* The small curve: a day of one reading, the night shaded, the band behind it. */
+.curve {
+  position: relative;
+  height: 52px;
+}
+
+.curve svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.curveNight {
+  fill: var(--night);
+}
+
+.curveBand {
+  fill: var(--band);
+}
+
+.curveLine {
+  fill: none;
+  stroke: var(--temperature);
+  stroke-width: 1.7;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.curveLine[data-tone='humidity'] {
+  stroke: var(--humidity);
+}
+
+.curveLine[data-tone='co2'] {
+  stroke: var(--co2);
+}
+
+.curveLine[data-tone='leaf'] {
+  stroke: var(--green);
+}
+
+.curveDot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background: var(--temperature);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--card);
+  transform: translate(-50%, -50%);
+}
+
+.curveDot[data-tone='humidity'] {
+  background: var(--humidity);
+}
+
+.curveDot[data-tone='co2'] {
+  background: var(--co2);
+}
+
+.curveDot[data-tone='leaf'] {
+  background: var(--green);
+}
+
+.curveSince,
+.curveCaption {
+  position: absolute;
+  bottom: -13px;
+  font-size: 10.5px;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--label);
+}
+
+.curveSince {
+  left: 0;
+}
+
+.curveCaption {
+  right: 0;
+}
+
+/* The light's day, midnight to midnight, lit where the lamp is on. */
+.dayBar {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dayTrack {
+  position: relative;
+  height: 14px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--heading) 12%, var(--card));
+  border-radius: var(--radius-pill);
+}
+
+.dayLit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--warning-edge) 85%, var(--card));
+}
+
+.dayNow {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ink);
+}
+
+.dayTicks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  line-height: 1;
+  color: var(--label);
+}
+
+/* ------------------------------------------------------------ the camera */
+
+.camera {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background: var(--overlay-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* Under the grow block's own corners the picture is the top of the card. */
+.grow[data-pictured] > .camera {
+  margin: calc(-1 * var(--card-padding)) calc(-1 * var(--card-padding)) 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  box-shadow: none;
+}
+
+.cameraLabel {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--overlay);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--on-overlay);
+}
+
+.camera img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cameraEmpty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: var(--text-sm);
+  color: var(--on-overlay);
+}
+
+.cameraCaption {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-3) var(--space-2);
+  background: linear-gradient(transparent, var(--overlay));
+  font-size: var(--text-xs);
+  color: var(--on-overlay);
+}
+
+.cameraCaption > span {
+  flex: 1 1 auto;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* A two-line action and the (i) that says more about it, as on a device's panel. */
+.withHelp {
+  display: flex;
+  flex: 1 1 15rem;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* --------------------------------------------------------- the summaries */
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.summaryHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.change {
+  height: var(--chip-height);
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px var(--space-3);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.facts > div {
+  display: contents;
+}
+
+.facts dt {
+  color: var(--label);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+/* The half that holds now, as Steuerung shades its column: a small green
+   word after its name, grey where only the schedule says so. */
+.nowMark {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 0 6px;
+  background: var(--green-wash);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  color: var(--green-ink);
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+.nowMark[data-by='schedule'] {
+  background: var(--card-2);
+  color: var(--muted);
+}
+
+/* A figure and its unit stay together when the line wraps. */
+.part {
+  white-space: nowrap;
+}
+
+.alarmLine {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+/* Where a running plan stands, under the targets it sets: one line that leads to it. */
+.planLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.planLine > svg:first-child {
+  flex: none;
+  color: var(--label);
+}
+
+.planLine > svg:last-child {
+  flex: none;
+  margin-left: auto;
+  color: var(--label);
+}
+
+.planWord {
+  color: var(--label);
+}
+
+.reach {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--text-xs);
+}
+
+.reach[data-reach='yes'] {
+  color: var(--green-ink);
+}
+
+.reach[data-reach='no'] {
+  font-weight: var(--weight-semibold);
+  color: var(--warning);
+}
+
+/* --------------------------------------------------------------- the grow */
+
+.grow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.growRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.cover {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  background: var(--card-2);
+  border-radius: var(--radius-sm);
+  color: var(--green);
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.growText {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.growName {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.growDay {
+  flex: none;
+  font-size: var(--text-sm);
+  color: var(--green-ink);
+}
+
+.growLine {
+  overflow: hidden;
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.auto {
+  margin-left: var(--space-1);
+  padding: 0 5px;
+  border-radius: var(--radius-xs);
+  background: var(--card-2);
+  font-size: 10.5px;
+}
+
+.chevron {
+  flex: none;
+  color: var(--control-edge);
+}
+
+.nothingGrows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.growActions {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.due {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) 0 0;
+  list-style: none;
+  border-top: var(--rule-solid);
+}
+
+.dueRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dueCircle {
+  flex: none;
+  color: var(--control-edge);
+}
+
+.dueText {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.dueMeta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* The block's two ways on: every grow at the start, every task at the end. */
+.growFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.allTasks {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.done {
+  height: var(--chip-height);
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+}
+
+/* ------------------------------------------------------------- the latest */
+
+.latest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.latestHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.entries {
+  margin: 0;
+  padding-block: var(--space-1);
+  list-style: none;
+}
+
+/* -------------------------------------------------- a place on a list */
+
+.placeCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.placeCard:hover {
+  border-color: var(--rule-strong);
+}
+
+.placeCard[data-tone='warn'] {
+  box-shadow:
+    inset 3px 0 0 var(--warning-edge),
+    var(--shadow);
+}
+
+.placeCard[data-tone='alarm'] {
+  box-shadow:
+    inset 3px 0 0 var(--alarm),
+    var(--shadow);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.cardName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--text-name);
+  font-weight: var(--weight-heading);
+  color: var(--heading);
+}
+
+.cardName::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.cardName svg {
+  flex: none;
+  color: var(--label);
+}
+
+.cardStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.cardStatus[data-tone='good'] {
+  color: var(--green-ink);
+}
+
+.cardStatus[data-tone='warn'] {
+  color: var(--warning);
+}
+
+.cardStatus[data-tone='alarm'] {
+  color: var(--alarm);
+}
+
+.cardStatus[data-tone='quiet'] {
+  color: var(--muted);
+}
+
+.cardValues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-5);
+}
+
+.cardValue {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  color: var(--ink);
+}
+
+.cardValue > .figure,
+.cardValue > :first-child {
+  font-size: var(--text-figure);
+  font-weight: var(--weight-figure);
+  line-height: 1.2;
+}
+
+.cardValue > :last-child {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.cardValue[data-verdict='high'] > :first-child,
+.cardValue[data-verdict='low'] > :first-child {
+  color: var(--warning);
+}
+
+.cardLine {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}

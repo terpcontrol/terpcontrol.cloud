@@ -1,0 +1,233 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  line-height: var(--line-tight);
+}
+
+/* The mute, top right: a chip, and while it holds the hour it holds until above it. */
+.corner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+/* The chip with the (i) that explains it beside it rather than under it. */
+.cornerChip {
+  display: flex;
+  align-items: center;
+}
+
+.mutedUntil {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.group + .group {
+  margin-top: var(--space-3);
+}
+
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.aside {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.list {
+  --join-gap: var(--space-2);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--join-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The severity is the card's left edge, the only place it is drawn in colour:
+   an inside stripe, so the card keeps its rounded corner. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.card[data-severity='critical'] {
+  box-shadow:
+    inset 4px 0 0 var(--alarm),
+    var(--shadow);
+}
+
+.card[data-severity='warning'] {
+  box-shadow:
+    inset 4px 0 0 var(--warning),
+    var(--shadow);
+}
+
+.card[data-severity='info'] {
+  box-shadow:
+    inset 4px 0 0 var(--label),
+    var(--shadow);
+}
+
+/* What is over is a record rather than a call to act, so the resolved cards
+   of a day are joined into one card split by hairlines, each a row: what
+   happened and when on the left, the way to the timeline at the right. The
+   stripe stays, in the strong rule (below), and the line under the event
+   says in words which severity it had. Over is said by
+   the ink rather than by fading the row: the card is `data-age='stale'`, so
+   its title takes the stale ink the global age rule gives it. */
+.card[data-age] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+}
+
+.card[data-age] .lines {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+
+.card[data-age] .what {
+  min-height: 0;
+}
+
+/* A finished event gives its signal colour up for the strong rule, so the
+   one still open above it is the only coloured edge on the page. A signal at
+   half strength was a tan or a mauve, neither of them the brand. */
+.card[data-age][data-severity] {
+  box-shadow:
+    inset 4px 0 0 var(--rule-strong),
+    var(--shadow);
+}
+
+/* The ways on from an event are a card's quiet actions - a tint rather than
+   an outline - open or finished alike, so "Open timeline" is one control down
+   the whole page and eleven of them do not outweigh what happened. */
+.chips > * {
+  background: var(--tint);
+  border-color: transparent;
+}
+
+.chips > :hover:not(:disabled) {
+  background: var(--tint-hover);
+}
+
+/* Where and what, and under it when and for how long; on a wide screen the
+   second line stands beside the first. */
+.lines {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  align-items: start;
+}
+
+/* Two lines' worth of room from the start. The figures in a title are re-read
+   on the refresh beat and a longer one wraps a line further, and a card that
+   grows while it is being read moves every card below it. */
+.what {
+  min-height: calc(2 * var(--text-md) * var(--line-tight));
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  /* No figure or unit left alone on a last line ("5" over "d"). */
+  text-wrap: pretty;
+}
+
+/* What to check on a device gone quiet: across both columns of a wide card,
+   so "Das kannst du prüfen:" is not left in one with its list in the other. */
+.steps {
+  grid-column: 1 / -1;
+}
+
+.meta {
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+  color: var(--muted);
+}
+
+/* "Nobody was listening": the one part of the line that can be fixed, so the
+   way to fix it, in the warning's colour. */
+.fix {
+  font-weight: var(--weight-semibold);
+  color: var(--warning);
+  text-decoration: none;
+}
+
+.fix:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The id something is known by, where the list that holds its name could not be
+   read. It is not a name, so it is not set like one - and an id is long enough
+   to need a break anywhere rather than a line of its own. */
+.unnamed {
+  color: var(--muted);
+  font-weight: var(--weight-regular);
+  overflow-wrap: anywhere;
+}
+
+/* That the names could not be read, said once above the cards rather than on each. */
+.namesFailed {
+  font-size: var(--text-xs);
+  color: var(--warning);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* What the server answered a command with, under the chip that sent it. */
+.answer {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* On a phone the card's "when" goes under its "what" rather than beside it,
+   where a 42 % column wrapped a short sentence onto four lines. */
+/* The title has the first claim on the row; the meta beside it takes what is
+   left, up to a third, and wraps under its own column. */
+@media (min-width: 600px) {
+  .lines {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 33%);
+  }
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: var(--reading-width);
+    padding-top: 0;
+  }
+}

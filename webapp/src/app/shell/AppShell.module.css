@@ -1,0 +1,44 @@
+.shell {
+  display: flex;
+  min-height: 100%;
+}
+
+.column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.main {
+  flex: 1;
+  padding: 0 var(--space-4) var(--space-4);
+  /* Room for the tab bar and whatever the phone puts below it. */
+  padding-bottom: calc(var(--tabbar-height) + var(--log-button) / 2 + var(--space-4) + env(safe-area-inset-bottom));
+  padding-left: max(var(--space-4), env(safe-area-inset-left));
+  padding-right: max(var(--space-4), env(safe-area-inset-right));
+}
+
+/* A screen's column sits in the middle of the width it is given - what the
+   rail leaves on a desktop, the whole screen on a tablet held upright - and
+   never against its left edge. */
+.main > * {
+  margin-inline: auto;
+}
+
+/* The gutter is wide enough for a page's way back to hang in, left of the
+   column, so a title starts on the column's edge with or without one. */
+@media (min-width: 900px) {
+  .main {
+    padding: var(--space-6) var(--space-7);
+  }
+
+  /* Beside the rail there is one frame, the page's width, centred in what
+     the rail leaves. A wide page fills it; a reading-width page - a list, a
+     settings screen - starts on the frame's left edge rather than in the
+     middle, so every page's title stands at the same place and moving from
+     Home to Tasks does not throw the title sideways. */
+  .main > * {
+    margin-inline: max(0px, calc((100% - var(--page-width)) / 2)) auto;
+  }
+}

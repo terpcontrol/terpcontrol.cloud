@@ -30,3 +30,4 @@ server/test/.tmp/
 /*.local.sh
 /scripts/*.local.sh
 /.claude/worktrees/
+/.claude/launch.json

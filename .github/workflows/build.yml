@@ -17,43 +17,58 @@ jobs:
       garmin: ${{ steps.changes.outputs.garmin }}
     steps:
       - uses: actions/checkout@v7
-      - uses: dorny/paths-filter@v4
-        id: changes
         with:
-          filters: |
-            webapp:
-              - 'webapp/**'
-              - 'shared-types/**'
-              - '.github/workflows/build.yml'
-            server:
-              - 'server/**'
-              - 'shared-types/**'
-              - '.github/workflows/build.yml'
-            shared_types:
-              - 'shared-types/**'
-              - '.github/workflows/build.yml'
-            docker_webapp:
-              - 'webapp/**'
-              - 'shared-types/**'
-              - 'docker-compose.yaml'
-              - '.dockerignore'
-              - '.github/workflows/build.yml'
-            docker_server:
-              - 'server/**'
-              - 'shared-types/**'
-              - 'docker-compose.yaml'
-              - '.dockerignore'
-              - '.github/workflows/build.yml'
-            firmware:
-              - 'firmware/**'
-              - 'fw-buildcontainer/**'
-              - 'build-fw.sh'
-              - '.github/workflows/build.yml'
-            garmin:
-              - 'garmin/**'
-              - 'garmin-buildcontainer/**'
-              - 'build-garmin.sh'
-              - '.github/workflows/build.yml'
+          # A pull request is checked out as its merge commit, whose first
+          # parent is the tip of the base branch: what lies between the two is
+          # what the pull request changes.
+          fetch-depth: 2
+      # Each job runs when the pull request touches one of its paths; this
+      # workflow is among the paths of every job. Old and new paths of a moved
+      # file both count, and a path is listed as it is spelled - git would
+      # otherwise quote one with a non-ASCII character in it, which then
+      # matches nothing. Only the outcome is printed, not the files.
+      - id: changes
+        run: |
+          changed=$(git -c core.quotePath=false diff --name-only --no-renames HEAD^1 HEAD)
+          touches() { grep -qE "^($1)" <<<"$changed" && echo true || echo false; }
+          ci='\.github/workflows/build\.yml$'
+          shared="shared-types/|$ci"
+          compose='docker-compose\.yaml$|\.dockerignore$'
+          {
+            echo "webapp=$(touches "webapp/|$shared")"
+            echo "server=$(touches "server/|$shared")"
+            echo "shared_types=$(touches "$shared")"
+            echo "docker_webapp=$(touches "webapp/|$shared|$compose")"
+            echo "docker_server=$(touches "server/|$shared|$compose")"
+            echo "firmware=$(touches "firmware/|fw-buildcontainer/|build-fw\.sh$|$ci")"
+            echo "garmin=$(touches "garmin/|garmin-buildcontainer/|build-garmin\.sh$|$ci")"
+          } | tee -a "$GITHUB_OUTPUT"
+
+  # Runs on every pull request, whatever it touches: an advisory is published
+  # against code that did not change. It audits what ships and fails on a high
+  # or critical finding, printing npm's report only then. --omit=dev is what
+  # ships: the server image's runtime stage installs the server and
+  # shared-types with it (server/Dockerfile), and the webapp's production
+  # dependencies are what its bundle is built from; the tools that build and
+  # test them ship in neither. The lockfiles are all npm audit reads, so
+  # nothing is installed.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Use Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: |
+          status=0
+          for package in shared-types server webapp; do
+            if ! report=$(cd "$package" && npm audit --omit=dev --audit-level=high 2>&1); then
+              printf '%s: npm audit --omit=dev --audit-level=high\n\n%s\n\n' "$package" "$report" >&2
+              status=1
+            fi
+          done
+          exit "$status"
 
   shared-types:
     needs: detect
@@ -64,16 +79,20 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: shared-types/package-lock.json
-      # index.d.ts and openapi-schemas.json are generated from src/schemas.ts and
-      # committed, because the server and the webapp link this package with
-      # `file:` and no build of it runs for them. This is what keeps the two in
-      # step: regenerate, and the tree has to be unchanged.
+      # v1.d.ts, openapi-schemas.json and v1-schemas/ are generated from
+      # src/v1/ and committed, because the server and the webapp link this
+      # package with `file:` and no build of it runs for them. This is what keeps
+      # the two in step: regenerate, and the tree has to be unchanged.
+      #
+      # Every npm ci in this workflow skips the funding and audit footers,
+      # which read the same on every run and count the build and test tools'
+      # advisories with the rest. The audit job checks what ships.
       - run: |
           cd shared-types/
-          npm ci
+          npm ci --no-audit --no-fund
           npm run generate
           if [ -n "$(git status --porcelain)" ]; then
             echo 1>&2 'The generated types are out of date - run "npm run generate" in shared-types/ and commit the result'
@@ -90,18 +109,35 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          # 24, as the image the bundle is built in (docker-compose.yaml:
+          # DOCKER_NODE_BUILD_IMAGE). The tests need 24.15 or newer: jsdom's
+          # undici uses worker_threads.markAsUncloneable, and every test file
+          # fails to load without it.
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: webapp/package-lock.json
+      # The contract is linked with `file:`, and node - the compiler as much as
+      # the runtime - resolves a linked package's own imports from the package,
+      # never from whoever linked it. The app reads only the flat `/v1` types
+      # today and would type-check without this; the day it reads a value out of
+      # `/v1-schemas`, the types behind it would silently widen to `any` instead.
+      # The server's job below spells the same reason out.
+      - run: npm --prefix shared-types ci --omit=dev --no-audit --no-fund
       - run: |
           cd webapp/
-          npm ci
+          npm ci --no-audit --no-fund
           npm run lint:fix
           if [ -n "$(git status --porcelain)" ]; then
             echo 1>&2 'You need run "npm run lint:fix" before committing'
             exit 1
           fi
+          # Type-checks and then bundles. There is no root .env here, so the
+          # bundle names the fallback API; nothing serves it, the point is that
+          # it compiles.
           npm run build
+          # Only the tests that need nothing but the checkout; `npm run test:live`
+          # wants a running stack and belongs to whoever has one.
+          npm test
 
   server:
     needs: detect
@@ -109,20 +145,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      # 20, as the container the server ships in runs (docker-compose.yaml:
+      # 24, as the container the server ships in runs (docker-compose.yaml:
       # DOCKER_NODE_SERVER_IMAGE). This used to read a matrix that was never
       # declared, so the job ran on whatever the runner happened to have.
       - name: Use Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
-      # The integration suite shells out to these the way the container does.
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends imagemagick ffmpeg
+      # The camera pipeline shells out to ffmpeg the way the container does.
+      # apt's progress is printed only if the install fails.
+      - run: |
+          { sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg; } \
+            >"$RUNNER_TEMP/apt.log" 2>&1 || { cat "$RUNNER_TEMP/apt.log"; exit 1; }
+      # The shared package is linked with `file:`, and node - the compiler as
+      # much as the runtime - resolves a linked package's own imports from the
+      # package, never from whoever linked it. Its schemas import zod, so
+      # without this the types behind them resolve to `any` and the server
+      # compiles against a contract that says nothing. The image installs them
+      # for the same reason (server/Dockerfile).
+      - run: npm --prefix shared-types ci --omit=dev --no-audit --no-fund
       - run: |
           cd server/
-          npm ci
+          npm ci --no-audit --no-fund
           npm run lint:fix
           if [ -n "$(git status --porcelain)" ]; then
             echo 1>&2 'You need run "npm run lint:fix" before committing'
@@ -143,11 +189,42 @@ jobs:
         with:
           context: .
           file: server/Dockerfile
-          push: false
+          # Nothing is pushed: the image is loaded into the runner's docker for
+          # the step below, and its layers go to the cache. Without an
+          # attestation, the build's metadata is a few lines instead of some 650.
+          load: true
+          tags: terpcontrol-server:ci
+          provenance: false
           build-args: |
-            DOCKER_NODE_SERVER_IMAGE=node:20-alpine
+            DOCKER_NODE_SERVER_IMAGE=node:24-alpine
           cache-from: type=gha,scope=docker-server
           cache-to: type=gha,mode=max,scope=docker-server
+      # The image installs the production dependencies only. An import that
+      # resolves through a dev dependency's tree compiles and passes the server
+      # job's tests, and then stops the container at its first require. Every
+      # require("…") in the compiled server - swc turns each import, dynamic
+      # ones too, into one - and in the shared-types files it reaches has to
+      # resolve inside the image; only those that do not are printed.
+      - name: Resolve the compiled server's requires in the image
+        run: |
+          docker run --rm -i --entrypoint node terpcontrol-server:ci - <<'EOF'
+          const fs = require('fs'), path = require('path'), { createRequire } = require('module');
+          const files = fs.readdirSync('dist', { recursive: true }).filter((f) => f.endsWith('.js')).map((f) => path.resolve('dist', f));
+          let missing = 0;
+          for (const file of files) {
+            const { resolve } = createRequire(file);
+            for (const [, spec] of fs.readFileSync(file, 'utf8').matchAll(/\brequire\("([^"]+)"\)/g)) {
+              try {
+                const target = resolve(spec);
+                if (target.endsWith('.js') && !target.includes('/node_modules/') && !files.includes(target)) files.push(target);
+              } catch {
+                console.error(`${path.relative('.', file)}: cannot resolve ${spec}`);
+                missing++;
+              }
+            }
+          }
+          process.exitCode = missing && 1;
+          EOF
 
   docker-webapp:
     needs: detect
@@ -160,9 +237,10 @@ jobs:
         with:
           context: .
           file: webapp/Dockerfile
-          push: false
+          outputs: type=cacheonly
+          provenance: false
           build-args: |
-            DOCKER_NODE_WEBAPP_IMAGE=node:20-alpine
+            DOCKER_NODE_WEBAPP_IMAGE=node:24-alpine
             DOCKER_NGINX_IMAGE=nginx:1-alpine
             API_URL_EXTERNAL=http://localhost
             CUSTOM_LINKS_HTML=

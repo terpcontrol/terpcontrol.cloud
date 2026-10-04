@@ -1,0 +1,148 @@
+/* Nothing reaches this account when something goes wrong: the amber the app
+   keeps for a state somebody has to act on, kept to three short lines so it
+   sits over the readings rather than in their place. */
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--rule-width) solid var(--warning-edge);
+  border-radius: var(--radius);
+  background: var(--warning-wash);
+}
+
+/* What is wrong, and "Later" on the same row: beside it rather than at the far
+   edge, which on a wide screen is a page away from what it puts off, and at
+   the row's end on a phone, where the two are a thumb apart anyway. */
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.title {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  color: var(--ink);
+}
+
+.title svg {
+  flex-shrink: 0;
+  color: var(--warning);
+}
+
+.offer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.button {
+  height: var(--action-height);
+}
+
+.later {
+  flex: none;
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 599px) {
+  .later {
+    margin-left: auto;
+  }
+}
+
+/* The address the tap writes to, which may be long: it breaks rather than
+   pushing the page sideways. */
+.address {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.to {
+  font-size: var(--text-xs);
+}
+
+.done,
+.reached {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.done {
+  padding: var(--space-3) var(--space-4);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--green-wash);
+  color: var(--green-ink);
+}
+
+.done svg,
+.reached svg {
+  flex-shrink: 0;
+  color: var(--green-ink);
+}
+
+.doneText {
+  flex: 1 1 200px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Over a cockpit's readings: two rows rather than three, and the frame and its
+ * gaps drawn tighter. The tap and the address it writes to share a row - the
+ * address wraps beside the button rather than under it - so the first screen
+ * keeps a tile it would otherwise give up to the notice.
+ */
+.notice[data-compact] {
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+}
+
+.offer[data-compact] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.offer[data-compact] .actions {
+  flex: none;
+}
+
+.offer[data-compact] .button {
+  height: 32px;
+  font-size: var(--text-sm);
+}
+
+.offer[data-compact] .address {
+  flex: 1 1 140px;
+  min-width: 0;
+  line-height: var(--line-tight);
+}
+
+/* The narrowest phones keep the title on one line beside "Later". */
+@media (max-width: 379px) {
+  .notice[data-compact] .title {
+    font-size: var(--text-sm);
+  }
+}

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # One firmware-check cycle: pre-create a firmware record per hardware type,
-# build each one with that fixed id, then update each device class to point
-# at the new firmware (rollout).
+# build each one with that fixed id, then point each device class at the new
+# firmware (rollout).
 #
-# Caller is responsible for polling /device until devices report the new id
+# Caller is responsible for polling the fleet until devices report the new id
 # (see verify.py).
 #
 # Usage:
@@ -40,21 +40,43 @@ fi
 : "${API_URL_EXTERNAL:?must be set}"
 : "${AUTOMATION_TOKEN:?must be set}"
 
+# Everything below is the versioned API; only the device's own routes are
+# unversioned, and the build container is the only thing that calls those.
+API="${API_URL_EXTERNAL}/v1"
+
 get_admin() {
-  curl -s -X POST "$API_URL_EXTERNAL/tokenlogin" -H 'Content-Type: application/json' \
+  curl -s -X POST "$API/sessions/automation" -H 'Content-Type: application/json' \
     -d "{\"token\":\"$AUTOMATION_TOKEN\"}" \
     | python3 -c "import json,sys; print(json.load(sys.stdin)['userToken']['token'])"
+}
+
+# The id of the device class with this name. There are a handful of classes, so
+# one page holds them all and the name is matched here.
+class_id() {
+  curl -s "$API/admin/device-classes?limit=200" -H "Authorization: Bearer $ADMIN" \
+    | python3 -c "
+import json,sys
+for c in json.load(sys.stdin)['items']:
+    if c['name'] == sys.argv[1]:
+        print(c['id'])
+        break
+" "$1"
 }
 
 ADMIN=$(get_admin)
 
 for HW in $HARDWARES; do
-  RESP=$(curl -s -X POST "$API_URL_EXTERNAL/device/firmware" \
+  CLASS=$(class_id "$HW")
+  if [ -z "$CLASS" ]; then
+    echo "[$HW] no device class of that name" >&2
+    exit 1
+  fi
+  RESP=$(curl -s -X POST "$API/admin/firmwares" \
     -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
-    -d "{\"name\":\"$HW\",\"version\":\"$TAG\"}")
-  ID=$(echo "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin)['firmware_id'])")
+    -d "{\"classId\":\"$CLASS\",\"name\":\"$HW\",\"version\":\"$TAG\"}")
+  ID=$(echo "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
   echo "$HW $ID" >> "$STATE"
-  echo "[$HW] pre-created firmware_id=$ID"
+  echo "[$HW] pre-created firmware id=$ID"
 done
 
 # Build sequentially. The </dev/null is mandatory — build-fw.sh uses
@@ -71,23 +93,14 @@ done < "$STATE"
 ADMIN=$(get_admin)
 
 while read HW ID; do
-  CLASS=$(curl -s "$API_URL_EXTERNAL/device/class/find/$HW" \
-    -H "Authorization: Bearer $ADMIN")
-  CLASS_ID=$(echo "$CLASS" | python3 -c "import json,sys; print(json.load(sys.stdin)['class_id'])")
+  CLASS=$(class_id "$HW")
   # All three channels get the same id: a device is only offered an update from
-  # the channel its cloudSettings.firmwareChannel names, so leaving one unset
-  # means devices on that channel silently sit on their old firmware while the
-  # cycle waits for them.
-  BODY=$(echo "$CLASS" | python3 -c "
-import json,sys
-c=json.load(sys.stdin)
-c['firmware_id']='$ID'
-c['beta_firmware_id']='$ID'
-c['alpha_firmware_id']='$ID'
-print(json.dumps({k:c[k] for k in ('name','description','firmware_id','beta_firmware_id','alpha_firmware_id','concurrent','maxfails')}))
-")
-  RESP=$(curl -s -X POST "$API_URL_EXTERNAL/device/class/$CLASS_ID" \
-    -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' -d "$BODY")
+  # the channel its `firmware.channel` names, so leaving one alone means devices
+  # on that channel silently sit on their old firmware while the cycle waits for
+  # them. `firmwareIds` is written whole, which is what sets all three at once.
+  RESP=$(curl -s -X PATCH "$API/admin/device-classes/$CLASS" \
+    -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+    -d "{\"firmwareIds\":{\"stable\":\"$ID\",\"beta\":\"$ID\",\"alpha\":\"$ID\"}}")
   echo "[$HW] rollout: $RESP target=$ID"
 done < "$STATE"
 

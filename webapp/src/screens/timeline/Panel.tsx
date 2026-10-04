@@ -1,0 +1,199 @@
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { Metric, TimelineAlarm, TimelinePanel, TimelineSpan } from '@fg2/shared-types/v1';
+import { Chart, type ChartOption } from '@/charts/Chart';
+import { nightColour } from '@/charts/series';
+import type { ChartPalette, ChartToken } from '@/charts/tokens';
+import { figure, targetFigure, UNIT } from '../home/units';
+import { alarmsOf, at, fractionOf, pointAt, scaleOf, spans, splitByNight, stretchAt, stretchesOf, type Stretch } from './window';
+import { Term } from '@/ui/Help';
+import styles from './Timeline.module.css';
+
+/** The signal colour a curve is drawn in: the leaf in the green its tile draws it in, the light in the lamp's amber. */
+const METRIC_TOKEN: Partial<Record<Metric, ChartToken>> = {
+  temperature: 'temperature',
+  humidity: 'humidity',
+  co2: 'co2',
+  leafTemperature: 'green',
+  lux: 'warning',
+};
+
+/**
+ * The readings that are measured and never steered. Nothing aims a controller
+ * at the leaf or the light, so their panels have no target to miss and do not
+ * say "no target"; their name explains what is measured instead.
+ */
+const UNSTEERED: Partial<Record<Metric, 'leafTemperature' | 'lux'>> = { leafTemperature: 'leafTemperature', lux: 'lux' };
+
+const NONE: TimelineSpan[] = [];
+
+interface PanelProps {
+  panel: TimelinePanel;
+  nights: TimelineSpan[];
+  /** When the device was changing between day and night: the band then is both halves' together. */
+  transitions?: TimelineSpan[];
+  /** Where the place fell silent, after which no band is drawn; null while it is still heard. */
+  heardUntil?: number | null;
+  alarms: TimelineAlarm[];
+  from: number;
+  to: number;
+  cursor: number;
+  scrub: React.HTMLAttributes<HTMLDivElement>;
+  /** The first panel, whose band says what a band is. */
+  explain?: boolean;
+  /** The reading the Timeline was opened on, marked so the eye lands on it. */
+  focused?: boolean;
+}
+
+/**
+ * One metric over the window: the band that was aimed at behind a thin line,
+ * the setpoint dashed, the night shaded and the alarms marked. The chart is
+ * drawn once per answer and the cursor is an overlay over it, so scrubbing
+ * costs no redraw.
+ */
+export function Panel({
+  panel,
+  nights,
+  transitions = NONE,
+  alarms,
+  from,
+  to,
+  heardUntil = null,
+  cursor,
+  scrub,
+  explain,
+  focused = false,
+}: PanelProps) {
+  const { t } = useTranslation();
+  // The band stops where the place fell silent, as the nights do: nothing was aimed at that anybody heard.
+  const stretches = useMemo(
+    () => stretchesOf(panel, nights, from, heardUntil ?? to, transitions),
+    [panel, nights, from, to, heardUntil, transitions],
+  );
+  const scale = useMemo(() => scaleOf(panel, stretches), [panel, stretches]);
+  const mine = useMemo(() => alarmsOf(alarms, panel.metric), [alarms, panel.metric]);
+  const option = useMemo(
+    () => (palette: ChartPalette) => optionOf(palette, panel, stretches, mine, nights, scale, from, to),
+    [panel, stretches, mine, nights, scale, from, to],
+  );
+
+  const value = pointAt(panel, cursor);
+  const stretch = stretchAt(stretches, cursor);
+  const target = stretch?.target ?? null;
+  const left = `${fractionOf(cursor, from, to) * 100}%`;
+  const unit = UNIT[panel.metric] ?? '';
+  // The band is named by its half where the window has both, as the tile it was
+  // opened from names it - and by what was held where one climate held round
+  // the clock: a drying room's band is not the night's.
+  const split = splitByNight(nights, from, to);
+  const bandLabel =
+    stretch && target
+      ? t(
+          stretch.changing
+            ? 'timeline.bandChanging'
+            : stretch.held
+              ? `timeline.bandHeld.${stretch.held}`
+              : split
+                ? stretch.dark
+                  ? 'timeline.bandNight'
+                  : 'timeline.bandDay'
+                : 'timeline.band',
+          { low: targetFigure(target.band.low, panel.metric), high: targetFigure(target.band.high, panel.metric) },
+        )
+      : null;
+  const none = stretches.length === 0 ? 'timeline.noTarget' : split && spans(nights, cursor) ? 'timeline.noTargetNight' : 'timeline.noTargetNow';
+  const name = t(`timeline.metric.${panel.metric}`, { defaultValue: panel.metric });
+  const term = UNSTEERED[panel.metric];
+
+  return (
+    <section className={styles.panel} data-focus={focused || undefined}>
+      <header className={styles.panelHead}>
+        <span className={styles.metric} data-metric={panel.metric}>
+          {term ? <Term topic={term}>{name}</Term> : name}
+        </span>
+        <span className={`figure ${styles.panelValue}`}>{value === null ? '—' : figure(value, panel.metric)}</span>
+        <span className={`mono ${styles.panelUnit}`}>{unit}</span>
+        {term ? null : (
+          <span className={`label ${styles.band}`}>
+            {/* A panel that has a band elsewhere in the window - CO₂ by day - has
+                none at the cursor, which is not the same as having none at all. */}
+            {target && bandLabel ? explain ? <Term topic="band">{bandLabel}</Term> : bandLabel : t(none)}
+          </span>
+        )}
+      </header>
+      <div className={styles.plot}>
+        <Chart option={option} height="100%" ariaLabel={t('timeline.panelAlt', { metric: t(`timeline.metric.${panel.metric}`) })} />
+        <span className={`mono ${styles.scaleHigh}`}>{targetFigure(scale.high, panel.metric)}</span>
+        <span className={`mono ${styles.scaleLow}`}>{targetFigure(scale.low, panel.metric)}</span>
+        <div className={styles.overlay} {...scrub}>
+          <span className={styles.cursor} style={{ left }} />
+          {value === null ? null : (
+            <span className={styles.dot} style={{ left, top: `${(1 - (value - scale.low) / (scale.high - scale.low)) * 100}%` }} />
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** A token at a fraction of itself; the areas behind the line are all washes of one. */
+const wash = (colour: string, alpha: string): string => `${colour}${alpha}`;
+
+const optionOf = (
+  palette: ChartPalette,
+  panel: TimelinePanel,
+  stretches: Stretch[],
+  alarms: TimelineAlarm[],
+  nights: TimelineSpan[],
+  scale: { low: number; high: number },
+  from: number,
+  to: number,
+): ChartOption => ({
+  animation: false,
+  // The gutter the corner figures sit in is left by the stylesheet, which
+  // moves the canvas itself over by it: one width, written once, that every
+  // panel and every lane reads, and that a wide screen can widen.
+  grid: { left: 0, right: 0, top: 0, bottom: 0 },
+  xAxis: { type: 'time', min: from, max: to, show: false },
+  yAxis: { type: 'value', min: scale.low, max: scale.high, show: false },
+  series: [
+    {
+      type: 'line',
+      data: panel.points.map(point => [at(point.measuredAt), point.value]),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { width: 1.6, color: palette[METRIC_TOKEN[panel.metric] ?? 'ink'] },
+      // Drawn in this order, so the night sits behind the band and the alarm over both.
+      markArea: {
+        silent: true,
+        data: [
+          ...nights.map(night => [
+            { xAxis: at(night.startsAt), itemStyle: { color: nightColour(palette, nights.length) } },
+            { xAxis: at(night.endsAt) },
+          ]),
+          ...stretches.map(stretch => [
+            { xAxis: stretch.from, yAxis: stretch.target.band.low, itemStyle: { color: palette.band } },
+            { xAxis: stretch.to, yAxis: stretch.target.band.high },
+          ]),
+          ...alarms.map(alarm => [
+            { xAxis: at(alarm.startedAt), itemStyle: { color: wash(palette.alarm, '30') } },
+            { xAxis: alarm.endedAt ? at(alarm.endedAt) : to },
+          ]),
+        ],
+      },
+    },
+    {
+      type: 'line',
+      // A break after each stretch, so the setpoint steps down into the night rather than sloping into it.
+      data: stretches.flatMap(stretch => [
+        [stretch.from, stretch.target.setpoint],
+        [stretch.to, stretch.target.setpoint],
+        [stretch.to, null],
+      ]),
+      showSymbol: false,
+      connectNulls: false,
+      silent: true,
+      lineStyle: { width: 1, type: 'dashed', color: palette.muted },
+    },
+  ],
+});

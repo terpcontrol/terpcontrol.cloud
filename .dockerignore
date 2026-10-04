@@ -1,12 +1,15 @@
 **/node_modules
 **/dist
+**/dev-dist
+# Written by webapp/scripts/set-env.mjs from a developer's .env. The image is
+# told which API to compile against through a build argument, and must never
+# inherit one.
+webapp/.env.local
 # The server's integration harness, and whatever a local run left behind in it.
 server/test
 server/jest.integration.config.js
 server/jest.unit.config.js
 server/tsconfig.unit.json
-**/.angular
-**/www
 .git
 .gitignore
 .DS_Store

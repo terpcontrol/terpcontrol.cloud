@@ -45,7 +45,23 @@ then
   exit 1;
 fi
 
-pio run -e ${BUILD_TYPE}
+# Everything pio says goes to a log: what it fetched, the platform, every
+# package and library with the version it resolved, and each file it compiled.
+# Several libraries float on `^` and one is a git branch, so those versions are
+# what tells a build broken upstream from one broken here, and a failed build
+# prints the whole log. A green one prints only what the compiler wrote to
+# stderr - its warnings - and the line further down. The libraries are fetched
+# first, on their own, because a fetch inside `pio run` writes git's progress
+# to stderr as well.
+BUILD_LOG=$(mktemp)
+COMPILER_LOG=$(mktemp)
+set -o pipefail
+if ! pio pkg install -e "${BUILD_TYPE}" >"$BUILD_LOG" 2>&1 \
+  || ! { pio run -e "${BUILD_TYPE}" 2>&1 1>&3 | tee -a "$BUILD_LOG" >"$COMPILER_LOG"; } 3>>"$BUILD_LOG"; then
+  cat "$BUILD_LOG" >&2
+  exit 1
+fi
+cat "$COMPILER_LOG" >&2
 
 FIRMWARE_BIN=".pio/build/${BUILD_TYPE}/firmware.bin"
 MAX_OTA_FIRMWARE_BINARY_BYTES=$((2 * 1024 * 1024))
@@ -66,7 +82,7 @@ if ! grep -a -F -q "$FW_VERSION_ID" "$FIRMWARE_BIN"; then
   exit 1
 fi
 
-echo "${FW_VERSION_ID}"
+echo "${BUILD_TYPE}: firmware ${FW_VERSION_ID}, ${FIRMWARE_SIZE} bytes ($((FIRMWARE_SIZE * 100 / MAX_OTA_FIRMWARE_BINARY_BYTES))% of the OTA partition)"
 
 if [ -z "$FW_NO_UPLOAD" ]; then
   fgcli.py upload-fw "${FW_VERSION_ID}" firmware.bin .pio/build/${BUILD_TYPE}/firmware.bin
