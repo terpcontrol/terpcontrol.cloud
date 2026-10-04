@@ -766,13 +766,13 @@ describe('replacing the steps', () => {
     await engine.run(NOW);
     expect(applied).toEqual([{ deviceId: DEVICE, settings: { workmode: 'small' } }]);
 
-    await transitions.replace(DEVICE, replacement([step({ id: 'a', name: 'Veg', settings: { workmode: 'large' } })]));
+    await transitions.replace(DEVICE, replacement([step({ id: 'a', name: 'Veg', settings: { workmode: 'temp' } })]));
 
     // Without the cleared `lastAppliedAt` the tent would keep the old settings
     // for the rest of the hour the engine's re-apply covers.
     expect((await stored()).state.lastAppliedAt).toBeNull();
     await engine.run(at(MINUTE));
-    expect(applied[1]).toEqual({ deviceId: DEVICE, settings: { workmode: 'large' } });
+    expect(applied[1]).toEqual({ deviceId: DEVICE, settings: { workmode: 'temp' } });
   });
 
   it('starts the step standing at its place when the running one is deleted', async () => {

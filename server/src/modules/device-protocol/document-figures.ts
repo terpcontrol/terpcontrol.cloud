@@ -41,9 +41,15 @@ interface FlagFigure {
   kind: 'flag';
 }
 
-/** A word: a work mode, a dosing mode, or a string the firmware keeps without reading it. */
+/**
+ * A word: a work mode, a dosing mode, or a string the firmware keeps without
+ * reading it. Where the firmware compares it with words of its own, `words`
+ * names them: a work mode it does not know is one none of its branches takes,
+ * and the device regulates nothing.
+ */
 interface WordFigure {
   kind: 'word';
+  words?: readonly string[];
 }
 
 /** A smart socket's timer: a list of windows, each a time of day and a length in minutes. */
@@ -64,6 +70,7 @@ const DAY_SECONDS = 24 * 60 * 60;
 const number = (min: number, max: number): NumberFigure => ({ kind: 'number', min, max });
 const FLAG: FlagFigure = { kind: 'flag' };
 const WORD: WordFigure = { kind: 'word' };
+const oneOf = (...words: string[]): WordFigure => ({ kind: 'word', words });
 
 /** A time of day as every firmware keeps one: unsigned seconds, which a day of light writes two days on. */
 const TIME = number(0, UINT32_MAX);
@@ -74,9 +81,14 @@ const RAMP = number(0, 60);
 /** Seconds the firmware counts in a day's terms: a dehumidifier run, the compressor's rest. */
 const SECONDS = number(0, DAY_SECONDS);
 
-/** What a fridge and a tent controller read under the same keys. */
+/**
+ * What a fridge and a tent controller read under the same keys. The work modes
+ * are the ones their firmware regulates in (`MODE_*` in fridge.h and
+ * controller.h; a controller reads `full` as `small`). A fridge's `exp` is a
+ * word too, but its branch is commented out and it regulates nothing.
+ */
 const CLIMATE: DocumentFigures = {
-  workmode: WORD,
+  workmode: oneOf('off', 'small', 'full', 'temp', 'breed', 'dry'),
   'daynight.day': TIME,
   'daynight.night': TIME,
   'daynight.maxDehumidifySeconds': SECONDS,
@@ -111,7 +123,8 @@ const SWITCH_TEMPERATURE = TEMPERATURE;
 
 const PLUG: DocumentFigures = {
   mqttcontrol: FLAG,
-  workmode: WORD,
+  // The socket's own modes (`MODE_*` in plug.h).
+  workmode: oneOf('off', 'heater', 'cooler', 'humidify', 'dehumidify', 'co2', 'timer', 'watering'),
   usedaynight: FLAG,
   'daynight.day': TIME,
   'daynight.night': TIME,
@@ -124,7 +137,7 @@ const PLUG: DocumentFigures = {
       ]),
     ),
   ),
-  'co2.mode': WORD,
+  'co2.mode': oneOf('const', 'periodic'),
   // Minutes; the firmware divides by the period, so a period of nothing is none it can run.
   'co2.period': number(1, 120),
   'co2.duration': number(0, 60),
@@ -217,7 +230,7 @@ const sectionsOf = (figures: DocumentFigures): string[] => [
   ),
 ];
 
-type Fault = { code: 'invalid_type' | 'too_small' | 'too_big'; detail: string };
+type Fault = { code: 'invalid_type' | 'invalid_value' | 'too_small' | 'too_big'; detail: string };
 
 const windowFault = (window: unknown, figure: WindowsFigure): boolean =>
   !isSection(window) ||
@@ -242,7 +255,12 @@ const faultOf = (value: unknown, figure: DocumentFigure, type: string, ranged: b
         ? null
         : { code: 'invalid_type', detail: `The ${type} reads this as on or off: true or false.` };
     case 'word':
-      return typeof value === 'string' ? null : { code: 'invalid_type', detail: `The ${type} reads this as a word.` };
+      if (typeof value !== 'string') return { code: 'invalid_type', detail: `The ${type} reads this as a word.` };
+      // A word the firmware does not know is asked about only where a client writes it: one a device runs, or a
+      // newer build sent, is the device's, and the firmware keeps its own where a document leaves it out.
+      return ranged && figure.words && !figure.words.includes(value)
+        ? { code: 'invalid_value', detail: `The ${type} knows this as one of: ${figure.words.join(', ')}.` }
+        : null;
     case 'windows':
       if (!Array.isArray(value) || (ranged && value.length > figure.most)) {
         return { code: 'invalid_type', detail: `The ${type} reads this as a list of at most ${figure.most} windows.` };

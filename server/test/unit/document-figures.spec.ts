@@ -64,6 +64,35 @@ describe('a document a client sends', () => {
     ]);
   });
 
+  /**
+   * The firmware compares its work mode with words of its own, and a word none
+   * of its branches takes regulates nothing: a plan step written with
+   * `workmode: "banana"` reached a fridge, and nothing was held.
+   */
+  it('is refused a work mode or a dosing mode the firmware does not know, and not one the device already runs', () => {
+    expect(figureRefusals('fridge', fridge({ workmode: 'banana' }))).toEqual([
+      {
+        field: 'configuration.workmode',
+        code: 'invalid_value',
+        detail: 'The fridge knows this as one of: off, small, full, temp, breed, dry.',
+      },
+    ]);
+    expect(fieldsOf(figureRefusals('controller', fridge({ workmode: 'exp' })))).toEqual(['configuration.workmode']);
+    expect(fieldsOf(figureRefusals('plug', { workmode: 'humidifier', co2: { mode: 'sometimes' } }))).toEqual([
+      'configuration.workmode',
+      'configuration.co2.mode',
+    ]);
+    for (const workmode of ['off', 'small', 'full', 'temp', 'breed', 'dry']) {
+      expect(figureRefusals('fridge', fridge({ workmode }))).toEqual([]);
+      expect(figureRefusals('controller', fridge({ workmode }))).toEqual([]);
+    }
+    expect(figureRefusals('plug', { workmode: 'watering', co2: { mode: 'periodic' } })).toEqual([]);
+    // A fridge's own `exp`, set before any of this, is the device's; so is a word a newer build sends.
+    const experimental = fridge({ workmode: 'exp' });
+    expect(figureRefusals('fridge', experimental, { stored: experimental })).toEqual([]);
+    expect(withFiguresHeld('fridge', fridge({ workmode: 'future' }), null).dropped).toEqual([]);
+  });
+
   it('keeps every key the firmware does not read as it came, and takes a switch as true or false or a figure', () => {
     expect(figureRefusals('fridge', fridge({ futureKey: { anything: [1, 'two'] }, 'day.temperature': EJSON }))).toEqual([]);
     expect(figureRefusals('fridge', fridge({ daynight: { day: 21600, night: 64800, useLongHumidityAvg: true, linearChange: 1 } }))).toEqual([]);
@@ -107,6 +136,15 @@ describe('a document a client sends', () => {
   it('takes in everything a setting by name may be set to, every climate a stage writes, and a resting humidifier', () => {
     for (const [type, fields] of Object.entries(CONFIGURATION_FIELDS)) {
       for (const field of Object.values(fields)) {
+        // A choice the device keeps as a word is one of the words its firmware knows.
+        const word = field.kind === 'choice' && field.path ? (DOCUMENT_FIGURES[type][field.path] as DocumentFigure | undefined) : undefined;
+        if (word?.kind === 'word' && field.kind === 'choice') {
+          expect({ type, path: field.path, options: field.options.filter(option => !(word.words ?? [option]).includes(option)) }).toEqual({
+            type,
+            path: field.path,
+            options: [],
+          });
+        }
         if (field.kind !== 'number') continue;
         const figure = DOCUMENT_FIGURES[type][field.path] as DocumentFigure | undefined;
         expect({ type, path: field.path, kind: figure?.kind }).toEqual({ type, path: field.path, kind: 'number' });
@@ -142,6 +180,9 @@ describe('a document a client sends', () => {
         ),
       ),
     ).toEqual(['steps.0.settings.day.fixed_speed', 'steps.0.settings.night.temperature']);
+    expect(fieldsOf(figureRefusals('device', { workmode: 'banana' }, { field: 'steps.0.settings', figures: TEMPLATE_FIGURES }))).toEqual([
+      'steps.0.settings.workmode',
+    ]);
   });
 });
 
@@ -271,10 +312,17 @@ describe('every way a document reaches a device', () => {
     const body = { templateId: null, name: 'Plan', loop: false, notify: { mode: 'off' as const, email: null, writeEntries: false } };
 
     const refused = await plans
-      .replace(DEVICE, { ...body, steps: [step, { ...step, settings: { night: { temperature: EJSON }, lights: { limit: 140 } } }] })
+      .replace(DEVICE, {
+        ...body,
+        steps: [step, { ...step, settings: { workmode: 'banana', night: { temperature: EJSON }, lights: { limit: 140 } } }],
+      })
       .catch((error: unknown) => error as ProblemException);
     expect((refused as ProblemException).problem).toMatchObject({ status: 400, code: 'validation_failed' });
-    expect(fieldsOf((refused as ProblemException).problem.errors)).toEqual(['steps.1.settings.night.temperature', 'steps.1.settings.lights.limit']);
+    expect(fieldsOf((refused as ProblemException).problem.errors)).toEqual([
+      'steps.1.settings.workmode',
+      'steps.1.settings.night.temperature',
+      'steps.1.settings.lights.limit',
+    ]);
     expect(await db.plans.countDocuments({ deviceId: DEVICE })).toBe(0);
 
     await plans.replace(DEVICE, { ...body, steps: [step] });
