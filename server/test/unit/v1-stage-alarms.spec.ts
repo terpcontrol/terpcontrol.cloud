@@ -335,4 +335,32 @@ describe('a device stood in a space', () => {
 
     expect(applied.map(call => call.deviceId).sort()).toEqual([DEVICE, OTHER]);
   });
+
+  /**
+   * A germination taken back left the alarms at germination's bands - "Zu
+   * kalt" under 20 °C, "Zu feucht" over 90 % - over a grow that stood in Veg
+   * again. The stage left standing binds them, as a correction makes it.
+   */
+  it('gives the alarms back to the phase left standing when the one the grow stood in is taken back', async () => {
+    await aGrow(
+      [
+        { id: 'p1', stage: 'vegetative', preset: null, startedAt: at(2), source: 'human', plantIds: null },
+        { id: 'p2', stage: 'germination', preset: null, startedAt: at(4), source: 'human', plantIds: null },
+        { id: 'p3', stage: 'germination', preset: null, startedAt: at(3), source: 'human', plantIds: null },
+      ],
+      [{ id: 'pl1', spaceId: TENT, startedAt: at(1), endedAt: null, plantIds: null }],
+    );
+    await db.devices.create({ id: DEVICE, type: 'controller', ownerId: 'user-owner', spaceId: TENT, configuration: { workmode: 'small' } });
+
+    // An earlier phase taken back leaves the one standing, and its alarms, alone.
+    await phases.removePhase(GROW, 'p3');
+    expect(applied).toEqual([]);
+
+    await phases.removePhase(GROW, 'p2');
+    expect(applied).toEqual([{ deviceId: DEVICE, stage: 'vegetative', preset: null }]);
+
+    // The last one taken back leaves the grow no phase, and the alarms as they are.
+    await phases.removePhase(GROW, 'p1');
+    expect(applied).toHaveLength(1);
+  });
 });

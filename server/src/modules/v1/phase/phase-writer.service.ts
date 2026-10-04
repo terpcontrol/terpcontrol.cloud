@@ -190,19 +190,30 @@ export class PhaseWriterService implements DevicePlacement {
    * The day counter follows where the grow's start stood on that phase, so
    * withdrawing the first one is how a grow whose start was recorded wrongly
    * gets its days back.
+   *
+   * Withdrawing the phase the grow stands in puts it back in the one before,
+   * and the alarms follow: the thresholds of that phase are read again, as a
+   * correction reads them. A germination taken back left "Zu kalt" at 20 °C
+   * and "Zu feucht" at 90 % over a tent that stood in Veg again.
    */
   public async removePhase(growId: string, phaseId: string): Promise<void> {
     // Asked of the document rather than of the write: a grow carries timestamps,
     // so a `$pull` that matched no phase still counts as a modification.
-    const grow = await this.grows.findOne({ id: growId }, { phases: 1, startedAt: 1 }).lean<Pick<GrowDocument, 'phases' | 'startedAt'>>().exec();
+    const grow = await this.grows.findOne({ id: growId }).lean<GrowDocument>().exec();
     if (!grow?.phases.some(phase => phase.id === phaseId)) throw notFound('phase_not_found', 'There is no phase of that grow with that id.');
 
-    const startedAt = startCarriedBy(
-      grow,
-      grow.phases.filter(phase => phase.id !== phaseId),
-    );
+    const left = grow.phases.filter(phase => phase.id !== phaseId);
+    const startedAt = startCarriedBy(grow, left);
     await this.grows.updateOne({ id: growId }, { $pull: { phases: { id: phaseId } }, ...(startedAt ? { $set: { startedAt } } : {}) }).exec();
     await this.entryRows.deleteMany({ growId, kind: 'phase', 'values.phaseId': phaseId }).exec();
+
+    // Only where its plants stood in it, and only where a phase is left for
+    // them to stand in: a grow with none keeps the alarms it has. Nothing
+    // writes a climate.
+    const removed = grow.phases.find(phase => phase.id === phaseId)!;
+    const standingOf = (phases: StoredPhase[]) => latestOf(phases.filter(phase => overlap(phase.plantIds, removed.plantIds)));
+    const standing = standingOf(left);
+    if (standingOf(grow.phases)?.id === phaseId && standing) await this.rereadThresholds({ ...grow, phases: left }, standing, false);
   }
 
   /**
