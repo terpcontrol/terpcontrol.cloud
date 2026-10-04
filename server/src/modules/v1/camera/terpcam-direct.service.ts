@@ -653,7 +653,9 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
         const next = Math.max(Date.now(), startedAt + ATTEMPT_SPACING_MS);
         if (deadline - next < MIN_ATTEMPT_MS) throw error;
         logger.info(`[terpcam] ${deviceId}: capture attempt ${attempt} failed (${(error as Error).message}); retrying on a fresh session`);
-        await new Promise(resolve => setTimeout(resolve, next - Date.now()));
+        // `next` may be now already, and a millisecond later than that is a
+        // negative wait, which node rounds up to one and warns about.
+        await new Promise(resolve => setTimeout(resolve, Math.max(0, next - Date.now())));
       }
     }
   }
