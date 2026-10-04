@@ -7,6 +7,7 @@ import { useLatestStills } from '@/api/cameras';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { useCameraCalled } from '@/ui/camera-name';
+import { StillStamp } from '@/ui/StillStamp';
 import { clock, useZone } from '@/ui/zone';
 import { shownStill } from './place';
 import styles from './Cockpit.module.css';
@@ -50,6 +51,7 @@ export function CameraPicture({
         <span className={styles.cameraEmpty}>{t('cockpit.camera.none')}</span>
       )}
       {label ? <span className={`figure ${styles.cameraLabel}`}>{label}</span> : null}
+      {src && takenAt ? <StillStamp at={takenAt} /> : null}
       <span className={`mono ${styles.cameraCaption}`}>
         <Camera size={14} strokeWidth={1.75} aria-hidden />
         <span>{caption}</span>

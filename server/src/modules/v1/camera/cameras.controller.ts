@@ -490,6 +490,7 @@ const settingsOf = (body: CameraCreate): CameraUpdate => ({
   looksAt: body.looksAt,
   plantIds: body.plantIds,
   stillIntervalSeconds: body.stillIntervalSeconds,
+  orientation: body.orientation,
   nightOff: body.nightOff,
   maintenanceOff: body.maintenanceOff,
   logErrors: body.logErrors,

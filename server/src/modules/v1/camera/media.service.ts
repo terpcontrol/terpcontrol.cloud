@@ -43,6 +43,7 @@ export interface MediaDraft {
   render?: MediaDocument['render'];
   exportJob?: MediaDocument['exportJob'];
   lit?: boolean | null;
+  orientation?: MediaDocument['orientation'];
 }
 
 /** What a camera holds of one kind, which is what an export says about the stills it cannot carry. */
@@ -213,6 +214,7 @@ export class MediaService {
       render: draft.render ?? null,
       exportJob: draft.exportJob ?? null,
       lit: draft.lit ?? null,
+      orientation: draft.orientation ?? null,
     };
 
     await this.media.create(row);
@@ -366,6 +368,7 @@ const serialise = (row: MediaDocument, redacted = false): Media => ({
   window: row.window,
   quality: row.quality,
   lengthSeconds: row.lengthSeconds,
+  orientation: row.orientation ?? null,
   exportJob: row.exportJob
     ? { ...row.exportJob, startedAt: row.exportJob.startedAt?.toISOString() ?? null, endedAt: row.exportJob.endedAt?.toISOString() ?? null }
     : null,

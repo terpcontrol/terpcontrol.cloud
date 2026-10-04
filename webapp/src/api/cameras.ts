@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
 import { useRead, useReadPages } from './read';
 import type {
@@ -389,4 +389,18 @@ export const useLatestStills = (cameraIds: string[]) =>
       refetchInterval: CAMERAS_REFRESH_MS,
     })),
     combine: results => new Map(cameraIds.map((cameraId, index) => [cameraId, results[index]?.data?.items[0]?.id ?? null])),
+  });
+
+/**
+ * The newest picture of one camera, whole rather than its id: what the
+ * orientation preview turns, which needs to know how the picture was stored.
+ * The same read as above, so the two share what they fetched.
+ */
+export const useLatestStill = (cameraId: string, enabled = true) =>
+  useQuery({
+    queryKey: ['camera', cameraId, 'latest-still'],
+    queryFn: ({ signal }) => api.get<MediaPage>(`/cameras/${cameraId}/frames`, { limit: 1 }, signal),
+    refetchInterval: CAMERAS_REFRESH_MS,
+    enabled,
+    select: page => page.items[0] ?? null,
   });

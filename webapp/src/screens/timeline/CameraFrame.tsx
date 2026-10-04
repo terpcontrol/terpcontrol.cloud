@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { SpaceTimeline } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useCameraCalled } from '@/ui/camera-name';
+import { StillStamp } from '@/ui/StillStamp';
 import { DATED_CLOCK, useZone, zonedAt } from '@/ui/zone';
 import { at, captureOf, fractionOf, frameNear, stampOf } from './window';
 import styles from './Timeline.module.css';
@@ -69,6 +70,7 @@ export function CameraFrame({ cameras, from, to, cursor, day, photos = [], onScr
         ) : (
           <p className={`mono ${ui.matNote}`}>{camera.frames.length === 0 ? t('timeline.noFrames') : missing}</p>
         )}
+        {frame ? <StillStamp at={frame.capturedAt} className={styles.stamp} /> : null}
         <span className={ui.photoCaption}>
           {frame
             ? `${called(camera.name)} · ${caption}`

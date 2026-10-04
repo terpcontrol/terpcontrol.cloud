@@ -349,6 +349,24 @@ export const entryUpdate = named('EntryUpdate', entryCreate.omit({ kind: true })
 // ---------------------------------------------------------------------------
 
 /**
+ * How a camera's pictures are turned before they are stored: mirrored first,
+ * then rotated clockwise. A camera mounted on its side, upside down or looking
+ * through a mirror is set right once, here, rather than on every screen.
+ *
+ * It applies to the pictures taken after it is set. Each still keeps the
+ * orientation it was stored with, so a setting that turned out wrong can be
+ * taken back off the pictures it was applied to.
+ */
+export const cameraOrientation = named(
+  'CameraOrientation',
+  z.object({
+    rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]).describe('Degrees clockwise, after the flips.'),
+    flipHorizontal: z.boolean().describe('Mirrored left to right.'),
+    flipVertical: z.boolean().describe('Mirrored top to bottom.'),
+  }),
+);
+
+/**
  * What a timelapse covers. `day`, `week` and `month` are the rolling films the
  * builder keeps by itself; `phase`, `grow` and `custom` are the composer's
  * ranges, and each of them names both of its ends, because only the client
@@ -461,6 +479,11 @@ export const media = named(
     window: mediaWindow.nullable(),
     quality: mediaQuality.nullable(),
     lengthSeconds: z.number().int().nullable(),
+    orientation: cameraOrientation
+      .nullable()
+      .describe(
+        "How a camera's still was turned before it was stored, which is what it takes to turn it back. Null on everything else and on the stills from before a camera could be turned, which are as the camera delivered them.",
+      ),
     render: mediaRender.nullable(),
     exportJob: mediaExportJob.nullable().describe('Set on an `export` row and on nothing else; it is what the export is polled by.'),
   }),
@@ -519,6 +542,7 @@ export const cameraTransport = named('CameraTransport', z.enum(['tcp', 'udp', 'h
 
 /** A hint for the URL template a stream was built from, never how it is read. */
 export const cameraModel = named('CameraModel', z.enum(['terp_cam', 'tapo_c200', 'reolink', 'hikvision', 'custom']));
+
 
 /** `free` is what an install with `PREMIUM_ENFORCED` unset never sees, because nothing is gated then. */
 export const entitlementTier = named('EntitlementTier', z.enum(['free', 'premium']));
@@ -596,6 +620,7 @@ export const camera = named(
       ),
     model: cameraModel.nullable(),
     stillIntervalSeconds: z.number().int(),
+    orientation: cameraOrientation,
     nightOff: z.boolean(),
     maintenanceOff: z.boolean(),
     logErrors: z.boolean(),
@@ -626,6 +651,7 @@ const cameraSettings = camera
     looksAt: true,
     plantIds: true,
     stillIntervalSeconds: true,
+    orientation: true,
     nightOff: true,
     maintenanceOff: true,
     logErrors: true,
@@ -636,6 +662,7 @@ const cameraSettings = camera
     looksAt: true,
     plantIds: true,
     stillIntervalSeconds: true,
+    orientation: true,
     nightOff: true,
     maintenanceOff: true,
     logErrors: true,
