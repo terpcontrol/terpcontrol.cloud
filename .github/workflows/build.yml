@@ -189,15 +189,42 @@ jobs:
         with:
           context: .
           file: server/Dockerfile
-          # Nothing is pushed or loaded: the image is built to see that it
-          # builds, and its layers go to the cache. Without an attestation, the
-          # build's metadata is a few lines instead of some 650.
-          outputs: type=cacheonly
+          # Nothing is pushed: the image is loaded into the runner's docker for
+          # the step below, and its layers go to the cache. Without an
+          # attestation, the build's metadata is a few lines instead of some 650.
+          load: true
+          tags: terpcontrol-server:ci
           provenance: false
           build-args: |
             DOCKER_NODE_SERVER_IMAGE=node:24-alpine
           cache-from: type=gha,scope=docker-server
           cache-to: type=gha,mode=max,scope=docker-server
+      # The image installs the production dependencies only. An import that
+      # resolves through a dev dependency's tree compiles and passes the server
+      # job's tests, and then stops the container at its first require. Every
+      # require("…") in the compiled server - swc turns each import, dynamic
+      # ones too, into one - and in the shared-types files it reaches has to
+      # resolve inside the image; only those that do not are printed.
+      - name: Resolve the compiled server's requires in the image
+        run: |
+          docker run --rm -i --entrypoint node terpcontrol-server:ci - <<'EOF'
+          const fs = require('fs'), path = require('path'), { createRequire } = require('module');
+          const files = fs.readdirSync('dist', { recursive: true }).filter((f) => f.endsWith('.js')).map((f) => path.resolve('dist', f));
+          let missing = 0;
+          for (const file of files) {
+            const { resolve } = createRequire(file);
+            for (const [, spec] of fs.readFileSync(file, 'utf8').matchAll(/\brequire\("([^"]+)"\)/g)) {
+              try {
+                const target = resolve(spec);
+                if (target.endsWith('.js') && !target.includes('/node_modules/') && !files.includes(target)) files.push(target);
+              } catch {
+                console.error(`${path.relative('.', file)}: cannot resolve ${spec}`);
+                missing++;
+              }
+            }
+          }
+          process.exitCode = missing && 1;
+          EOF
 
   docker-webapp:
     needs: detect
