@@ -1,0 +1,747 @@
+import '@testing-library/jest-dom/vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import i18next from 'i18next';
+import { DateTime } from 'luxon';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { initReactI18next } from 'react-i18next';
+import { MemoryRouter, useLocation } from 'react-router';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Device, DeviceCapabilities, GrowListItem, Me, NotificationSettings, Space } from '@fg2/shared-types/v1';
+import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { api } from '@/api/client';
+import { ApiError } from '@/api/problem';
+import { Claim } from '@/screens/claim/Claim';
+import { spaceWhere } from './session';
+
+/**
+ * Adding a device: what the five steps ask, what each answer puts on the wire,
+ * what a code the server will not take says, and what the demo is offered.
+ *
+ * Every request goes through the app's own client, mocked at that one seam, so
+ * what is asserted is what would leave the browser: a claim carries exactly the
+ * code that was read, a rename touches the space the claim made rather than
+ * making another, and a stage is applied to that space and nothing else.
+ */
+vi.mock('@/api/client', () => ({
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+}));
+
+const who = vi.hoisted(() => ({ demo: false }));
+
+vi.mock('@/api/session', async importOriginal => {
+  const { SIGNED_IN, ON_THE_DEMO } = await import('./session');
+
+  return { ...(await importOriginal<object>()), useSession: () => (who.demo ? ON_THE_DEMO : SIGNED_IN) };
+});
+
+/** The age on the first step is counted from the server's instant, so the clock is a fixture. */
+const NOW = DateTime.fromISO('2026-09-22T10:00:00.000Z');
+
+const CAPABILITIES: DeviceCapabilities = {
+  socketOverride: true,
+  socketTimer: true,
+  lightOverride: true,
+  roles: ['heater', 'light'],
+  pulseSeconds: {},
+};
+
+const device: Device = {
+  id: 'sim-controller-7f3a',
+  createdAt: NOW.minus({ days: 2 }).toISO()!,
+  type: 'controller',
+  classId: 'class-1',
+  serialNumber: 42,
+  ownerId: 'user-1',
+  spaceId: 'space-new',
+  name: 'Terp Controller',
+  firmware: { channel: 'stable', targetId: null },
+  configuration: null,
+  settings: { vpdLeafOffsetDay: 0, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
+  control: null,
+  isDemo: false,
+  state: {
+    lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!,
+    claimedAt: NOW.toISO()!,
+    firmwareId: 'build-uuid',
+    updateStartedAt: null,
+    updateEndedAt: null,
+    updateFailedAt: null,
+    maintenanceUntil: null,
+    hardware: { firmware_version: '2.4.1', webcam_did: 'none' },
+    socketStateChangedAt: {},
+    socketsReportedAt: NOW.toISO()!,
+  },
+};
+
+// A device is moved into a place by managing it, so every place here says so.
+const space: Space = spaceWhere('own', { id: 'space-new', kind: 'other', name: 'Terp Controller' });
+
+/** The build the device reports, which is a uuid until the build list gives it a name. */
+// As production holds them: the name is the device class, and the version is
+// what the build container stamped - which is the half that says which build.
+const BUILD = { id: 'build-uuid', createdAt: NOW.toISO()!, classId: 'class-1', name: 'controller', version: '082eda0-stable', wasStable: true };
+
+/** Day 35 of a flowering run in a tent of its own, which is what a move out of it would cost. */
+const spring: GrowListItem = {
+  id: 'grow-1',
+  ownerId: 'user-1',
+  name: 'Spring run',
+  endedAt: null,
+  placements: [{ id: 'placement-1', spaceId: 'space-other', startedAt: NOW.minus({ days: 35 }).toISO()!, endedAt: null, plantIds: null }],
+  summary: { locations: [{ spaceId: 'space-other', plantIds: [] }] },
+} as unknown as GrowListItem;
+
+/** No way to reach the account at all, which is what every account starts with. */
+const UNREACHED: NotificationSettings = {
+  channels: { email: null, telegram: null, webhook: null },
+  routing: { alerts: [], warnings: [], tasks: [], plan: [], weekly_timelapse: [] },
+  quietHours: null,
+  mutedUntil: null,
+};
+
+const meWith = (notifications: NotificationSettings): Me =>
+  ({
+    id: 'user-1',
+    email: 'grower@example.org',
+    handle: 'you',
+    preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'UTC', notifyLaterUntil: null },
+    notifications,
+    pushSubscribed: false,
+  }) as unknown as Me;
+
+const state = { spaces: [] as Space[], grows: [] as GrowListItem[], me: meWith(UNREACHED) };
+
+const answers = (path: string) => {
+  if (path === '/devices/sim-controller-7f3a') return device;
+  if (path === '/devices') return { items: [device], nextCursor: null };
+  if (path === '/devices/sim-plug-1') return { ...device, id: 'sim-plug-1', type: 'plug' };
+  if (path === '/devices/sim-plug-1/sockets') return { items: [], nextCursor: null, capabilities: CAPABILITIES };
+  if (path === '/devices/sim-light-1') return { ...device, id: 'sim-light-1', type: 'light' };
+  if (path === '/devices/sim-light-1/sockets') return { items: [], nextCursor: null, capabilities: CAPABILITIES };
+  if (path === '/devices/sim-controller-7f3a/sockets') return { items: [], nextCursor: null, capabilities: CAPABILITIES };
+  if (path === '/devices/sim-controller-7f3a/firmwares') return { items: [BUILD], nextCursor: null };
+  if (path === '/spaces') return { items: state.spaces, nextCursor: null };
+  if (path === '/grows') return { items: state.grows, nextCursor: null };
+  if (path === '/me') return state.me;
+  throw new Error(`nothing mocked for ${path}`);
+};
+
+/** Where the flow has put itself, because what survives a reload is the address and nothing else. */
+function Watch() {
+  const location = useLocation();
+
+  return <span data-testid="address">{`${location.pathname}${location.search}`}</span>;
+}
+
+const address = () => screen.getByTestId('address').textContent;
+
+const draw = (at = '/claim') =>
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={[at]}>
+        <Claim />
+        <Watch />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+
+/** The screen with a device claimed on it, which is every step after the first. */
+const drawClaimed = async () => {
+  draw();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+  await screen.findByRole('heading', { level: 2, name: /Claimed/ });
+  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Name of the place' })).toHaveValue('Terp Controller'));
+};
+
+beforeAll(async () => {
+  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
+  await i18next
+    .use(initReactI18next)
+    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+
+  vi.useFakeTimers({ toFake: ['Date'] });
+});
+
+afterAll(() => vi.useRealTimers());
+
+beforeEach(() => {
+  vi.setSystemTime(NOW.toJSDate());
+  who.demo = false;
+  state.spaces = [space];
+  state.grows = [];
+  state.me = meWith(UNREACHED);
+  vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
+  vi.mocked(api.post).mockImplementation((path: string) =>
+    path === '/devices/claims'
+      ? (Promise.resolve({ device, spaceCreated: true }) as never)
+      : path === '/me/email-alarms'
+        ? (Promise.resolve(
+            meWith({
+              ...UNREACHED,
+              channels: { ...UNREACHED.channels, email: 'grower@example.org' },
+              routing: { ...UNREACHED.routing, alerts: ['email'] },
+            }),
+          ) as never)
+        : (Promise.resolve({
+            spaceId: 'space-new',
+            stage: 'flowering',
+            preset: null,
+            appliedAt: NOW.toISO(),
+            deviceIds: ['sim-controller-7f3a'],
+            growId: null,
+            phaseId: null,
+            growDecisionNeeded: true,
+            decisions: ['start_grow', 'move_grow', 'climate_only'],
+            planEffect: 'none',
+          }) as never),
+  );
+  vi.mocked(api.patch).mockResolvedValue({ ...space, name: 'Tent 1' } as never);
+});
+
+describe('adding a device', () => {
+  it('asks for the code first and offers nothing to skip ahead with', () => {
+    draw();
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 1 of 5');
+    expect(screen.getByRole('textbox', { name: 'Claim code' })).toHaveValue('');
+    expect(screen.getByRole('button', { name: /Next/ })).toBeDisabled();
+    expect(screen.queryByRole('textbox', { name: 'Name of the place' })).not.toBeInTheDocument();
+  });
+
+  it('folds the way across from the old cloud under the code it asks for', () => {
+    draw();
+    expect(screen.getByText('Coming from the old Fridge Grow 2.0 / Plantalytix cloud?').closest('details')).not.toHaveAttribute('open');
+  });
+
+  it('takes the code the empty home already read', () => {
+    draw('/claim?code=ABCD1234');
+
+    expect(screen.getByRole('textbox', { name: 'Claim code' })).toHaveValue('ABCD1234');
+  });
+
+  it('claims exactly the code that was read', async () => {
+    draw();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: ' abcd1234 ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'abcd1234' }));
+  });
+
+  it('reports what the device itself says, and opens the place', async () => {
+    await drawClaimed();
+
+    expect(screen.getByRole('heading', { level: 2, name: /Claimed/ })).toHaveTextContent('Claimed · Terp Controller · 7F3A');
+    expect(screen.getByText(/online 20 s ago/)).toHaveTextContent('online 20 s ago · firmware 082eda0-stable · 0 sockets · Cam: none');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 2 of 5');
+    expect(screen.getByRole('button', { name: /Next/ })).toHaveTextContent('Next · what is it doing?');
+  });
+
+  it('draws the five steps the board names, and says the rest can wait', async () => {
+    await drawClaimed();
+
+    const steps = screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent);
+    expect(steps).toEqual([
+      'Claimed · Terp Controller · 7F3A',
+      'Where is it?',
+      'What is it doing right now?',
+      'Sockets and cam',
+      'How will you hear about problems?',
+    ]);
+    expect(
+      screen.getByText('The preset can be changed later from Control, the sockets and the cam from Devices, notifications from Me.'),
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * The step named two things and sent both to a tent's Devices tab, which
+   * pairs neither: a socket has no control there at all, and the chip that
+   * pairs a cam is drawn only on the account-wide list. The cam is the half the
+   * app can help with, so that is the half it links.
+   */
+  it('sends the last step to the screen that really pairs a cam, and says where a socket is paired', async () => {
+    draw('/claim?device=sim-controller-7f3a&at=3');
+
+    expect(await screen.findByRole('link', { name: 'Pair a Terp Cam' })).toHaveAttribute('href', '/cameras/add');
+    expect(screen.getByText(/A Terp Control socket is paired on the device itself – press the button, then Smart Sockets/)).toBeInTheDocument();
+    expect(screen.getByText(/A Tasmota socket you pair later under Devices › your device › Advanced/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Devices tab/ })).not.toBeInTheDocument();
+  });
+
+  /**
+   * A Smart Socket and an AIR fan pair a Terp Cam at their own display, as a
+   * controller does, and pair no sockets. The step asked a socket's owner
+   * nothing at all, so the one place a new owner is walked through the
+   * hardware left out the cam they can have.
+   */
+  it('asks a smart socket about the cam it can pair and nothing about sockets', async () => {
+    draw('/claim?device=sim-plug-1&at=2');
+
+    expect(await screen.findByRole('button', { name: 'Next · cam?' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('3 of 5');
+    // What the first step says it found names the cam and no sockets a plug cannot have.
+    expect(screen.getByText(/Cam: none/)).toBeInTheDocument();
+    expect(screen.queryByText(/0 sockets/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next · cam?' }));
+
+    expect(await screen.findByRole('link', { name: 'Pair a Terp Cam' })).toHaveAttribute('href', '/cameras/add');
+    expect(screen.getByRole('heading', { level: 2, name: 'Cam' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Sockets and cam' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Reported sockets')).not.toBeInTheDocument();
+    expect(screen.queryByText(/A Terp Control socket is paired on the device itself/)).not.toBeInTheDocument();
+    expect(screen.getByText('It can wait: the device works without a cam too.')).toBeInTheDocument();
+  });
+
+  it('asks a light nothing about sockets and a cam it cannot have, and counts four steps', async () => {
+    draw('/claim?device=sim-light-1&at=2');
+
+    expect(await screen.findByRole('button', { name: 'Next · notifications' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Sockets and cam' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Cam' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('3 of 4');
+    expect(screen.queryByText(/Cam: none|0 sockets/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * A new device arms the offline rule the cloud keeps, and a new account has
+   * no way to be told about it. The flow ends on that, with the one tap that
+   * mails critical alarms to the address the account signs in with - written
+   * by the server from the tap alone, so nothing of the address is sent.
+   */
+  it('ends on how alarms will reach anybody, and mails critical ones to the login address in one tap', async () => {
+    draw('/claim?device=sim-controller-7f3a&at=4');
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'How will you hear about problems?' })).toBeInTheDocument();
+    expect(await screen.findByText('to grower@example.org')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Done · open the place' })).toBeEnabled();
+    // The bottom button stays the one green action of the screen.
+    expect(screen.getByRole('button', { name: 'Notify me by e-mail' }).className).not.toMatch(/primary/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Notify me by e-mail' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/me/email-alarms'));
+    expect(await screen.findByText('Critical alarms now come by e-mail to grower@example.org.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Change ›' })).toHaveAttribute('href', '/me/notifications');
+  });
+
+  it('says how alarms already reach an account that has a way, and offers nothing to tap', async () => {
+    state.me = meWith({
+      ...UNREACHED,
+      channels: { ...UNREACHED.channels, telegram: { chatId: '1', linkedAt: NOW.toISO()! } },
+      routing: { ...UNREACHED.routing, alerts: ['telegram'] },
+    });
+    draw('/claim?device=sim-controller-7f3a&at=4');
+
+    expect(await screen.findByText('Critical alarms reach you by Telegram.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Notify me by e-mail' })).not.toBeInTheDocument();
+  });
+
+  it('renames the space the claim already made rather than making another', async () => {
+    await drawClaimed();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name of the place' }), { target: { value: 'Blue room' } });
+    fireEvent.click(screen.getByRole('button', { name: 'rename' }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/space-new', { name: 'Blue room' }));
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('puts the kind of place on the same space', async () => {
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: 'Tent' }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/space-new', { kind: 'tent' }));
+  });
+
+  it('applies a stage to the place, and asks about the grow the way the server does', async () => {
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'flowering' }));
+    expect(await screen.findByRole('link', { name: /Start a grow here/ })).toHaveAttribute('href', '/grows/new?space=space-new&stage=flowering');
+    expect(screen.getByText('The targets went to 1 controller.')).toBeInTheDocument();
+  });
+
+  /**
+   * A stage sets how long the light is on from the hour the device already
+   * has: a new fridge put on Veg burnt until two at night, and the step said
+   * only that the targets had gone to it. The window is said before the write
+   * and again after it.
+   */
+  it('says the light window a stage puts the controller on, before it is written and after', async () => {
+    const configured = { ...device, configuration: { daynight: { day: 6 * 3600, night: 22 * 3600 }, day: { temperature: 25 } } };
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices' ? { items: [configured], nextCursor: null } : answers(path)) as never,
+    );
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Veg' }));
+    const line = 'Light on 06:00–00:00 · 18 h – when it comes on is changed under Control › Targets.';
+    expect(await screen.findByText(line)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    expect(await screen.findByText('Light on 06:00–18:00 · 12 h – when it comes on is changed under Control › Targets.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
+
+    expect(await screen.findByText('The targets went to 1 controller.')).toBeInTheDocument();
+    expect(screen.getByText('Light on 06:00–18:00 · 12 h – when it comes on is changed under Control › Targets.').tagName).toBe('LI');
+  });
+
+  it('offers monitoring without writing anything to the controller', async () => {
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'just measure' }));
+
+    expect(screen.getByText(/Nothing is written to the controller/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Put it on/ })).not.toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('says what the server said about a code it would not take', async () => {
+    vi.mocked(api.post).mockRejectedValue(
+      new ApiError({ status: 409, code: 'device_claimed', title: 'Refused', detail: 'That device already belongs to somebody.', errors: [] }),
+    );
+
+    draw();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('That device already belongs to somebody.');
+    expect(screen.getByRole('textbox', { name: 'Claim code' })).toHaveValue('ABCD1234');
+  });
+
+  it('says the claim never reached the server, rather than blaming a page that was not being loaded', async () => {
+    vi.mocked(api.post).mockRejectedValue(new TypeError('Failed to fetch'));
+
+    draw();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server. Try again.');
+  });
+
+  it('says a controller that has never spoken was claimed all the same', async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      device: { ...device, state: { ...device.state, lastSeenAt: null } },
+      spaceCreated: true,
+    } as never);
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(
+          path === '/devices/sim-controller-7f3a' ? { ...device, state: { ...device.state, lastSeenAt: null } } : answers(path),
+        ) as never,
+    );
+
+    await drawClaimed();
+
+    expect(screen.getByText(/has not said anything yet/)).toBeInTheDocument();
+  });
+
+  it('names the place it made in a word, and not after the hardware standing in it', async () => {
+    await drawClaimed();
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/space-new', { name: 'Tent 1' }));
+  });
+
+  it('numbers past a place that already carries the name', async () => {
+    state.spaces = [space, { ...space, id: 'space-old', name: 'Tent 1' }];
+    await drawClaimed();
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/space-new', { name: 'Tent 2' }));
+  });
+
+  it('puts the claimed device in the address, so nothing of the claim is lost by a reload', async () => {
+    await drawClaimed();
+
+    // The address is written by the step's own effect, one tick after the claim
+    // has been drawn, so this waits for it rather than for the screen - reading
+    // it straight after the heading made this the one test in the suite that
+    // failed about a third of the time.
+    await waitFor(() => expect(address()).toBe('/claim?device=sim-controller-7f3a&at=1'));
+  });
+
+  it('comes back on the step it was left on rather than asking for a code that is spent', async () => {
+    draw('/claim?device=sim-controller-7f3a&at=2');
+
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 3 of 5'));
+    expect(screen.queryByRole('textbox', { name: 'Claim code' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Next/ })).toBeEnabled();
+  });
+
+  it('offers the code field again when the address names a device this account cannot read', async () => {
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      path === '/devices/sim-controller-7f3a'
+        ? (Promise.reject(
+            new ApiError({ status: 404, code: 'device_not_found', title: 'Not found', detail: 'There is no device with that id.', errors: [] }),
+          ) as never)
+        : (Promise.resolve(answers(path)) as never),
+    );
+
+    draw('/claim?device=sim-controller-7f3a&at=2');
+
+    expect(await screen.findByRole('textbox', { name: 'Claim code' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 1 of 5');
+    expect(screen.getByRole('button', { name: /Next/ })).toBeDisabled();
+  });
+
+  it('puts the keyboard on the question that just opened, and says which one it is', async () => {
+    await drawClaimed();
+
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Where is it?' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Where is it? · step 2 of 5');
+  });
+
+  it('writes the stage that was picked when the bottom button is the one pressed', async () => {
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Seedling · with light' }));
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'seedling' }));
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 3 of 5');
+    expect(await screen.findByRole('link', { name: /Start a grow here/ })).toBeInTheDocument();
+  });
+
+  it('offers germination in the dark first, and says what it holds before it is written', async () => {
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    const stages = screen.getAllByRole('button', { name: /· dark|· with light|^Veg$|^Flower$|^Drying$/ }).map(button => button.textContent);
+    expect(stages.slice(0, 2)).toEqual(['Germination · dark', 'Seedling · with light']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
+    expect(
+      screen.getByText(
+        /^Germination · dark: the light goes off, there is no CO₂, and the device holds 24 °C round the clock; a humidifier on a smart socket holds 75 % humidity besides\./,
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Germination · dark' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'germination' }));
+  });
+
+  /** Owner's decision G2: setting up is a way into germination too, and asks what every other way asks. */
+  it('asks what germination does about the humidity, and sends what was moved from either button', async () => {
+    const configured = {
+      ...device,
+      configuration: {
+        workmode: 'small',
+        daynight: { day: 6 * 3600, night: 22 * 3600 },
+        day: { temperature: 25 },
+        night: { temperature: 21, humidity: 55 },
+      },
+      control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+    } as Device;
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices' ? { items: [configured], nextCursor: null } : answers(path)) as never,
+    );
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
+    const choices = await screen.findByRole('group', { name: 'During germination' });
+    // No humidifier is paired on a device that was claimed a moment ago, so the alarm is all there is to choose.
+    expect(
+      within(choices)
+        .getAllByRole('switch')
+        .map(one => one.getAttribute('aria-label')),
+    ).toEqual(['Warn when it gets too humid']);
+    fireEvent.click(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' }));
+    // Away to another stage and back, the choice stays; the bottom button carries it into the write.
+    fireEvent.click(screen.getByRole('button', { name: 'Veg' }));
+    expect(screen.queryByRole('group', { name: 'During germination' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Germination · dark' }));
+    expect(within(screen.getByRole('group', { name: 'During germination' })).getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', {
+        stage: 'germination',
+        germinationChoices: { warnTooHumid: true },
+      }),
+    );
+  });
+
+  it('leaves the green to the one action on the screen', async () => {
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+
+    expect(screen.getByRole('button', { name: 'Put it on Flower' }).className).not.toMatch(/primary/);
+    expect(screen.getByRole('button', { name: /Next/ }).className).toMatch(/primary/);
+  });
+
+  it('does not offer a kind of place that can never hold a grow', async () => {
+    await drawClaimed();
+
+    expect(screen.queryByRole('button', { name: 'room' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tent' })).toBeInTheDocument();
+  });
+
+  it('says so before a second place is given a name another one already has', async () => {
+    state.spaces = [space, { ...space, id: 'space-other', name: 'Mother tent' }];
+    await drawClaimed();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name of the place' }), { target: { value: 'mother tent' } });
+
+    expect(screen.getByText('A place is already called that.')).toBeInTheDocument();
+  });
+
+  it('does not report a climate write that no controller took', async () => {
+    await drawClaimed();
+    vi.mocked(api.post).mockResolvedValue({
+      spaceId: 'space-new',
+      stage: 'flowering',
+      preset: null,
+      appliedAt: NOW.toISO(),
+      deviceIds: [],
+      growId: null,
+      phaseId: null,
+      growDecisionNeeded: true,
+      decisions: ['start_grow', 'climate_only'],
+      planEffect: 'none',
+    } as never);
+
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
+
+    expect(await screen.findByText('No controller here took the targets.')).toBeInTheDocument();
+    expect(screen.getByText('No grow entered the stage, and no climate was written.')).toBeInTheDocument();
+    // Once in the visible note and once in the live region, which is the whole point of the second copy.
+    expect(screen.getAllByText(/no controller here took the climate/)).toHaveLength(2);
+    expect(screen.queryByText(/written either way/)).not.toBeInTheDocument();
+  });
+
+  it('names the build rather than printing the uuid the hardware reports', async () => {
+    await drawClaimed();
+
+    // The version and not the name: every build carried over from the old
+    // cloud is named after its class, so the name says "controller" about
+    // every controller build there has ever been.
+    expect(screen.getByText(/online 20 s ago/)).toHaveTextContent('firmware 082eda0-stable');
+    expect(screen.getByText(/online 20 s ago/)).not.toHaveTextContent('build-uuid');
+  });
+
+  it('leaves the build out altogether rather than naming it after a uuid nobody named', async () => {
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      Promise.resolve(
+        path === '/devices/sim-controller-7f3a/firmwares' ? { items: [{ ...BUILD, name: null, version: '' }], nextCursor: null } : answers(path),
+      ),
+    );
+
+    await drawClaimed();
+
+    await waitFor(() => expect(screen.getByText(/online 20 s ago/)).toHaveTextContent('online 20 s ago · 0 sockets · Cam: none'));
+  });
+
+  it('claims into a place the account already has instead of inventing another', async () => {
+    state.spaces = [{ ...space, id: 'space-mother', name: 'Mother tent' }];
+    draw();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
+    await screen.findByRole('button', { name: 'Mother tent' });
+    fireEvent.click(screen.getByRole('button', { name: 'Mother tent' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceId: 'space-mother' }));
+  });
+
+  it('moves the device into a place that already exists, and archives the one the claim invented', async () => {
+    state.spaces = [space, { ...space, id: 'space-mother', name: 'Mother tent' }];
+    vi.mocked(api.put).mockResolvedValue({ ...device, spaceId: 'space-mother' } as never);
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: 'Mother tent' }));
+
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/spaces/space-mother/devices/sim-controller-7f3a'));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/spaces/space-new/archive'));
+  });
+
+  /** The stage applied here is what the sheet must continue, or it writes germination over it a moment later. */
+  it('carries the applied stage into the link that starts a grow', async () => {
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
+
+    expect(await screen.findByRole('link', { name: /Start a grow here/ })).toHaveAttribute('href', '/grows/new?space=space-new&stage=flowering');
+  });
+
+  it('says what the write did, for a screen reader that was told only where the button goes', async () => {
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    // The region is on the page and empty first; a live region filled in the same commit is not read out.
+    expect(screen.getAllByRole('status').map(one => one.textContent)).toContain('');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
+
+    await waitFor(() =>
+      expect(screen.getAllByRole('status').map(one => one.textContent)).toContain(
+        'The targets went to 1 controller. No grow entered the stage; only the climate was written. Nothing is growing here yet. The climate has been written either way.',
+      ),
+    );
+  });
+
+  it('does not move a running grow on one tap, and says where it stands now', async () => {
+    state.grows = [spring];
+    state.spaces = [space, { ...space, id: 'space-other', name: 'Blue Dream tent' }];
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Move a grow here' }));
+
+    const chip = await screen.findByRole('button', { name: 'Spring run · Blue Dream tent' });
+    expect(screen.getByRole('button', { name: 'Move a grow here' })).toBeDisabled();
+
+    fireEvent.click(chip);
+    expect(api.post).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(screen.getByRole('button', { name: /Move Spring run here/ }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'flowering', decision: 'move_grow', growId: 'grow-1' }),
+    );
+  });
+
+  it('can be told never to ask about the grow here again', async () => {
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
+    fireEvent.click(await screen.findByRole('button', { name: /never ask again/ }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/space-new', { presetPrompt: 'never' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: /never ask again/ })).not.toBeInTheDocument());
+  });
+
+  it('reads the resumed step off the server rather than claiming nothing was set', async () => {
+    state.grows = [{ ...spring, summary: { ...spring.summary, stage: 'vegetative' } } as GrowListItem];
+    draw('/claim?device=sim-controller-7f3a&at=3');
+
+    await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: /What is it doing/ })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('on Veg')).toBeInTheDocument());
+    expect(screen.queryByText('nothing set yet')).not.toBeInTheDocument();
+  });
+
+  it('says the camera was refused rather than letting the overlay vanish', async () => {
+    vi.stubGlobal('BarcodeDetector', class {});
+    vi.stubGlobal('navigator', { ...navigator, mediaDevices: { getUserMedia: () => Promise.reject(new Error('NotAllowedError')) } });
+
+    draw();
+    fireEvent.click(screen.getByRole('button', { name: /or scan/ }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The camera was not allowed');
+    vi.unstubAllGlobals();
+  });
+
+  it('shows the demo why it cannot claim instead of a field it would be refused', () => {
+    who.demo = true;
+    draw();
+
+    expect(screen.queryByRole('textbox', { name: 'Claim code' })).not.toBeInTheDocument();
+    expect(screen.getByText(/cannot claim hardware/)).toBeInTheDocument();
+    expect(within(screen.getByRole('link', { name: 'Back to Devices' })).queryByRole('textbox')).toBeNull();
+  });
+});

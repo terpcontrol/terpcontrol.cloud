@@ -3,22 +3,30 @@
   "name": "@fg2/shared-types",
   "version": "0.1.0",
   "private": true,
-  "main": "index.js",
-  "types": "index.d.ts",
   "scripts": {
     "generate": "node scripts/generate.mjs"
   },
   "exports": {
-    ".": {
-      "types": "./index.d.ts",
-      "default": "./index.js"
+    "./v1": {
+      "types": "./v1.d.ts",
+      "default": "./v1.js"
+    },
+    "./v1-schemas": {
+      "types": "./v1-schemas/index.d.ts",
+      "default": "./v1-schemas/index.js"
+    },
+    "./v1-schemas/*.js": {
+      "types": "./v1-schemas/*.d.ts",
+      "default": "./v1-schemas/*.js"
     },
     "./openapi-schemas.json": "./openapi-schemas.json"
+  },
+  "dependencies": {
+    "zod": "^4.6.1"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
     "json-schema-to-typescript": "^16.0.0",
-    "typescript": "^5.9.3",
-    "zod": "^4.4.3"
+    "typescript": "^5.9.3"
   }
 }

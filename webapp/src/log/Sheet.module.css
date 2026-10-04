@@ -1,0 +1,139 @@
+/* The sheet itself: the screen behind it dimmed, the panel on the bottom edge
+   of a phone and in the middle of a desktop window. */
+
+/* Everything but the tab bar: the bar stays lit and usable under the sheet, as
+   the board draws it, and a tap beside the sheet puts it away. */
+.scrim {
+  position: fixed;
+  inset: 0 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom)) 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: var(--scrim);
+}
+
+/* A screen that renders its sheet inside the page's <main> hands the scrim the
+   frame's centring margin too (AppShell's `.main > *`), and a fixed element
+   with a margin starts that far in: on a desktop the left of the rail stayed
+   lit while the rest was dimmed. Named with its element so it outweighs that
+   rule wherever the two land in the stylesheet. */
+div.scrim {
+  margin: 0;
+}
+
+.sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 88dvh;
+  overflow: hidden;
+  /* The raised Log button stands half over the sheet's bottom edge, so the last
+     thing in it keeps that much room and is never half a green circle. */
+  padding: var(--space-2) var(--space-4) calc(var(--space-4) + var(--log-button) / 2);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: calc(var(--radius) * 2) calc(var(--radius) * 2) 0 0;
+  animation: rise 160ms ease-out;
+}
+
+.sheet:focus {
+  outline: none;
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(16px);
+  }
+}
+
+/* The handle the board draws: it says the sheet can be pushed away. */
+.grabber {
+  display: block;
+  flex: none;
+  width: 36px;
+  height: 4px;
+  margin: var(--space-2) auto var(--space-3);
+  background: var(--rule);
+  border-radius: var(--radius-pill);
+}
+
+.header {
+  display: flex;
+  flex: none;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.title {
+  flex: 1;
+  font-size: var(--text-name);
+  font-weight: var(--weight-heading);
+  line-height: var(--line-tight);
+}
+
+.aside {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-align: right;
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  align-self: flex-start;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+}
+
+/* The questions, and the only part that scrolls: `min-height` is what lets a
+   flex item be shorter than its contents, without which the panel would grow
+   past the window again and take the last question with it. */
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* What the sheet is for, on the bottom edge of the panel with a rule between
+   it and the questions, so that the Save is on screen however long they run. */
+.actions {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
+}
+
+@media (min-width: 900px) {
+  /* Centred over the screen it belongs to rather than over the window: the rail
+     is navigation, not the page being written about. */
+  .scrim {
+    inset: 0;
+    align-items: center;
+    padding: var(--space-5) var(--space-5) var(--space-5) calc(var(--rail-width) + var(--space-5));
+  }
+
+  .sheet {
+    width: var(--column-width);
+    max-height: 86dvh;
+    padding: var(--space-5) var(--space-5) var(--space-5);
+    border-radius: calc(var(--radius) * 2);
+    /* Over the page rather than of it: the one raised shadow the look has. */
+    box-shadow: var(--shadow-raised);
+  }
+
+  .grabber {
+    display: none;
+  }
+}

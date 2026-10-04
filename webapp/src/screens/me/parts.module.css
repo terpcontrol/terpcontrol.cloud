@@ -1,0 +1,135 @@
+/* The pages below Me: a column of setting cards under small-caps labels. Phone
+   first; the shell keeps the column width on a desktop. One set of rules for
+   every page under Me, so that a row is a row on all of them. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+/* The way back, at every width: the same chevron the tent and grow pages carry,
+   pulled left by its own padding so the title stays on the page's edge. */
+.back {
+  align-self: center;
+}
+
+/* This header puts a wider gap after the way back than the others. */
+.head > .back {
+  --back-gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: var(--line-tight);
+}
+
+/* The trail, kept for the width that has room for it; on a phone the chevron
+   is the way back and the trail would only repeat the title. */
+.crumb {
+  display: none;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.crumb a {
+  color: var(--muted);
+}
+
+/* A card that may open downwards: the head is the row, and whatever the
+   control opened stacks under it with the same gap the page uses. */
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* The control beside the text while the text keeps a readable measure; on a
+   phone, a wide control beside a long explanation drops under it, left, so the
+   sentence is not squeezed into a column a word or two wide. */
+.rowHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* A section's label opens a section: room above it, a little less below. */
+.page > :global(.label):not(:nth-child(2)) {
+  margin-top: var(--space-4);
+}
+
+.rowText {
+  display: flex;
+  flex: 1 1 14rem;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.rowTitle {
+  font-weight: var(--weight-semibold);
+  line-height: 1.35;
+}
+
+.row[data-danger] .rowTitle {
+  color: var(--alarm);
+}
+
+.rowLine {
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.rowControl {
+  flex: none;
+}
+
+/* A chip that is a menu: the native select, keeping its keyboard and the
+   platform's own picker, giving up only its arrow and its padding. The caret
+   is drawn 8 to 16 px in from the edge, so the padding has to reach past it or
+   the widest option's last letter sits against the triangle. */
+.menu {
+  appearance: none;
+  padding-right: var(--space-5);
+  background-image: linear-gradient(45deg, transparent 50%, currentcolor 50%), linear-gradient(135deg, currentcolor 50%, transparent 50%);
+  background-position:
+    right 12px top 50%,
+    right 8px top 50%;
+  background-size:
+    4px 4px,
+    4px 4px;
+  background-repeat: no-repeat;
+}
+
+/* The export's state while the zip is being written: a figure's line, under the row. */
+.exportStatus {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: var(--reading-width);
+    padding-top: 0;
+  }
+
+  .crumb {
+    display: inline;
+  }
+}

@@ -1,0 +1,273 @@
+/* One plant's page: a title, a picture, four figures, its charts and its lines.
+   The same column every other page under the rail keeps. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+/* The grow this plant belongs to, and where it stands among the grow's
+   plants, is the line over its name rather than a corner beside it: beside a
+   long plant name it was squeezed into two lines of its own and pushed the
+   name into a narrow column. */
+.head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    '. corner'
+    'back titles';
+  column-gap: var(--space-2);
+  row-gap: var(--space-1);
+}
+
+.back {
+  grid-area: back;
+}
+
+@media (min-width: 900px) {
+  .head {
+    grid-template-columns: 0 minmax(0, 1fr);
+    margin-left: calc(var(--space-2) * -1);
+  }
+
+  .head > .back {
+    margin-left: -32px;
+  }
+}
+
+.titles {
+  grid-area: titles;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  line-height: var(--line-tight);
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.corner {
+  grid-area: corner;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.hero {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card-2);
+}
+
+.hero img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+/* The count of photos is the shared caption laid on the photograph, in the
+   right-hand corner rather than the left. */
+.heroChip {
+  right: var(--space-2);
+  left: auto;
+}
+
+/* The plant's figures, the page's own strip: at the size a tent's readouts
+   are set, as the plant's page is about nothing else. */
+.figureValue {
+  font-size: var(--text-figure);
+}
+
+/* A measurement of this plant, against the band and its siblings. */
+.chartCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.chartHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.chartName {
+  flex: none;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.chartUnit {
+  color: var(--muted);
+  font-weight: var(--weight-regular);
+}
+
+/* Each plant is named beside its own line, because a measurement taken per
+   plant drawn as one curve would be a zig-zag nobody measured. The names wrap
+   where a grow has more of them than a phone is wide. */
+.legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.legendOther,
+.legendMine {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.mineMark,
+.otherMark {
+  display: inline-block;
+  width: 14px;
+  border-top: var(--rule-width) solid var(--ink);
+}
+
+.otherMark {
+  margin-left: var(--space-2);
+  border-top-style: dotted;
+  border-top-color: var(--muted);
+}
+
+.chartHead .label {
+  margin-left: auto;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: calc(var(--space-3) * -1);
+}
+
+.aside {
+  color: var(--label);
+  font-size: var(--text-xs);
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: var(--rule-solid);
+  font-size: var(--text-sm);
+}
+
+.line:last-child,
+.lines > li:last-child > .line {
+  border-bottom: 0;
+}
+
+/* A line that can be corrected is the same row made pressable, rather than a
+   control set beside it: the wrong figure is read on the row itself. */
+.lineOpen {
+  width: 100%;
+  background: none;
+  border: 0;
+  border-bottom: var(--rule-solid);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lineDay {
+  flex: none;
+  width: 3.5em;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.lineKind {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+
+.lineText {
+  flex: 1;
+  min-width: 0;
+}
+
+.lineReading {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.lineAuthor {
+  flex: none;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The moves a plant can make, drawn at the size the grow page draws the same
+   moves for the whole grow: a row of chips, not four field-high buttons. */
+.actions > button {
+  height: var(--chip-height);
+  padding: 0 var(--space-3);
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+}
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.submit {
+  width: 100%;
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: var(--reading-width);
+    padding-top: 0;
+  }
+}

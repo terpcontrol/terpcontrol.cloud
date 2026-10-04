@@ -1,0 +1,83 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.card p {
+  margin: 0;
+}
+
+.current {
+  font-size: var(--text-sm);
+}
+
+.rest {
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+}
+
+/* What is left of the cylinder in use, as a share of what it held. */
+.track {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--tint);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green-ink);
+}
+
+.rate {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.before {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.add {
+  align-self: flex-start;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.fieldLabel {
+  flex: 1;
+  min-width: 0;
+}
+
+.grams {
+  width: 6rem;
+  text-align: right;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

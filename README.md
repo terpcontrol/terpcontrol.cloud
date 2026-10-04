@@ -1,4 +1,4 @@
-# Fridge Grow Software Stack - Forked from Plantalytix
+# Terp Control Software Stack - Forked from Plantalytix
 
 See also:
 - [Running on Raspberry PI](RASPBERRY-PI.md)
@@ -22,7 +22,7 @@ license, no separate agreement needed.
 ### Quickstart
 1. `cd myfolder`
 1. `git clone https://github.com/terpcontrol/terpcontrol.cloud`
-1. `cd fg2/`
+1. `cd terpcontrol.cloud/`
 1. `cp .env.sample .env`
 1. `vi .env` (or edit this file in any other way) 
 1. `./up.sh`
@@ -31,7 +31,7 @@ license, no separate agreement needed.
 ### Firmware building
 Before being able to connect the module to your server, you need to build a custom firmware. This firmware contains the 
 server url specified in your .env file.
-1. `cd myfolder/fg2/`
+1. `cd myfolder/terpcontrol.cloud/`
 1. `./build-fw.sh`
 1. Now you can use the "Change server" option in the module to flash the firmware to your module. You'll need to input 
    the `API_URL_EXTERNAL` and the `SELF_REGISTRATION_PASSWORD` values from your `.env` file with the knob.
@@ -39,9 +39,14 @@ server url specified in your .env file.
    restart the module. 
 
 ### Upgrading / Restarting
-1. `cd myfolder/fg2/`
+1. `cd myfolder/terpcontrol.cloud/`
+1. `./backup.sh` — an upgrade may migrate the database, which happens by itself on the next start.
 1. `git pull` (optional: this gets you the latest changes from the repo)
-1. `./up.sh`
+1. `./migrate-check.sh` — asks whether the database can be migrated at all, and writes nothing. If it lists
+   anything, that has to be cleaned up in the database first: the migration refuses to start on it, so the server
+   would not come up.
+1. `./up.sh` — if it stops and says the MongoDB data is not ready for the image, run `./upgrade-mongodb.sh` first.
+   It takes a backup of its own before it changes anything.
 1. `./build-fw.sh` (if you want to update the firmware as well)
 
 ## MQTT transport
@@ -88,7 +93,7 @@ After running, you can access the management tools:
 - http://localhost:8086 - InfluxDB UI (*see `.env`*)
 
 ### Backup
-1. `cd myfolder/fg2/`
+1. `cd myfolder/terpcontrol.cloud/`
 2. `./backup.sh`
 
 This produces two files that are both needed, e.g.
@@ -100,7 +105,7 @@ backup-2025-10-29_22-12-27.mongodump
 Additionally, you may want to back up the `.env` file as well.
 
 ### Restore
-1. `cd myfolder/fg2/`
+1. `cd myfolder/terpcontrol.cloud/`
 2. Place the backup files here
 2. `./stop.sh server`
 2. `./restore.sh backup-2025-10-29_22-12-27`
@@ -109,10 +114,10 @@ Additionally, you may want to back up the `.env` file as well.
 
 ## Cleanup
 To remove all data and start fresh:
-1. `cd myfolder/fg2/`
+1. `cd myfolder/terpcontrol.cloud/`
 2. `./down.sh --volumes`
 4. `cd ../`
-5. `rm -rf fg2/`
+5. `rm -rf terpcontrol.cloud/`
 6. When starting fresh, you'll also need to use the module's "Change server" again, as this registers the module in the 
    server again.
 
@@ -122,12 +127,13 @@ To remove all data and start fresh:
 
 1. `cd webapp/`
 2. `npm install`
-3. Optional: Edit `src/environments/environment.ts` to point to `https://terpcontrol.cloud/api` for easier testing.
-4. `npm start`
+3. `npm start` — serves on `http://localhost:4200` against the API in the root `.env`. To point it somewhere
+   else, set `VITE_API_URL` in `webapp/.env.local`.
 
 And before committing:
 1. `npm run lint:fix`
-1. `npm run build`
+2. `npm run build`
+3. `npm test`
 
 ### Backend
 
@@ -142,13 +148,14 @@ And before committing:
 
 ### Shared types
 
-Every shape that crosses the wire is defined once, in `shared-types/src/schemas.ts`. The types the server and the webapp
-import, and the schemas the API document describes itself with, are generated from it.
+Every shape that crosses the wire is defined once, in `shared-types/src/v1/` — that is the `/v1` contract, and there
+is no other. The types the webapp imports, the schemas the server validates with and the shapes the API document
+describes itself with are all generated from it.
 
 After changing a schema:
 1. `cd shared-types/`
 2. `npm install`
-3. `npm run generate`, and commit what it writes (`index.d.ts`, `openapi-schemas.json`)
+3. `npm run generate`, and commit what it writes (`v1.d.ts`, `openapi-schemas.json` and `v1-schemas/`)
 
 The generated files are committed because both projects link this package with `file:` and no build of it runs for them.
 CI regenerates and fails if the result differs.
@@ -188,7 +195,3 @@ Two things are worth knowing:
 - **The developer key decides whether the build is publishable.** `GARMIN_DEVELOPER_KEY_B64` must stay the same across
   releases; the store rejects an update signed with a different key. Without it the build only succeeds when
   `GARMIN_ALLOW_EPHEMERAL_KEY=1` is set, and then only proves that the app still compiles.
-
-## Documentation
-- Webapp: [Webapp](webapp/README.md)
-- Server: [Server](server/README.md)

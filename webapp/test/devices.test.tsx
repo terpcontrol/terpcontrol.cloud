@@ -1,0 +1,1292 @@
+import '@testing-library/jest-dom/vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import i18next from 'i18next';
+import { DateTime } from 'luxon';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { initReactI18next } from 'react-i18next';
+import { MemoryRouter } from 'react-router';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AccessNeed, Camera, Device, DeviceCapabilities, DeviceConfiguration, PlanTransition, Socket, Space } from '@fg2/shared-types/v1';
+import { api } from '@/api/client';
+import { DeviceList } from '@/screens/devices/DeviceList';
+import { LightOutputRow } from '@/screens/devices/LightOutputRow';
+import { lightOutputOf, withLightLimit } from '@/screens/devices/lights';
+import { SocketRow } from '@/screens/devices/SocketRow';
+import { defaultHold, durationLabel, holdsFor, rowsOf } from '@/screens/devices/sockets';
+import { cameraFreshness } from '@/screens/devices/cameras';
+import type { OutputLevel, OverrideRequest } from '@/api/devices';
+import { spaceWhere, THE_HOST } from './session';
+
+/**
+ * The two things the Devices tab lets a person move: the switch on a socket, and
+ * the dimmer on the controller's own light output.
+ *
+ * They are different controls because they are different hardware and travel by
+ * different roads. A plug is on or off and is forced by a command a device
+ * either hears or does not; the output runs at a level, and that level is a key
+ * of the configuration document, which is stored whether anybody is listening or
+ * not. Neither control claims the device did what it was told.
+ */
+
+vi.mock('@/api/client', () => ({
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+}));
+
+vi.mock('@/api/session', async importOriginal => {
+  const { SIGNED_IN } = await import('./session');
+
+  return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => SIGNED_IN };
+});
+
+const sent: OverrideRequest[] = [];
+const saved: { deviceId: string; configuration: DeviceConfiguration }[] = [];
+const state = vi.hoisted(() => ({ answer: { deviceOnline: true } as { deviceOnline: boolean } | undefined }));
+
+vi.mock('@/api/devices', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useSetOverride: () => ({
+    mutate: (request: OverrideRequest, options?: { onSuccess?: (answer: { deviceOnline: boolean }) => void }) => {
+      sent.push(request);
+      if (state.answer) options?.onSuccess?.(state.answer);
+    },
+    data: state.answer,
+    error: null,
+    isPending: false,
+  }),
+  useTestSocket: () => ({ mutate: () => {}, data: undefined, error: null, isPending: false }),
+  useSaveConfiguration: () => ({
+    mutate: (request: { deviceId: string; configuration: DeviceConfiguration }) => saved.push(request),
+    mutateAsync: (request: { deviceId: string; configuration: DeviceConfiguration }) => {
+      saved.push(request);
+      return Promise.resolve(true);
+    },
+    isPending: false,
+    isSuccess: false,
+    error: null,
+  }),
+}));
+
+/**
+ * The plan the light output's own device is being run by. The dimmer writes the
+ * same document a plan's steps write, so the row reads the plan before it saves
+ * - and by default there is none, which is the answer the route gives for a
+ * device nothing is steering.
+ */
+const moves: PlanTransition[] = [];
+const planState = vi.hoisted(() => ({ status: null as string | null, pauseReason: null as string | null }));
+
+vi.mock('@/api/plans', async importOriginal => {
+  const { ApiError } = await import('@/api/problem');
+  const missing = new ApiError({ status: 404, code: 'plan_not_found', title: 'Not found', detail: '', errors: [] });
+
+  return {
+    ...(await importOriginal<object>()),
+    useDevicePlan: () => ({
+      data: planState.status === null ? undefined : { state: { status: planState.status, pauseReason: planState.pauseReason } },
+      isPending: false,
+      isError: planState.status === null,
+      error: planState.status === null ? missing : null,
+    }),
+    usePlanTransition: () => ({
+      mutate: (body: PlanTransition) => moves.push(body),
+      mutateAsync: (body: PlanTransition) => {
+        moves.push(body);
+        return Promise.resolve(undefined);
+      },
+      error: null,
+      isPending: false,
+    }),
+  };
+});
+
+const NOW = DateTime.fromISO('2026-09-19T12:00:00.000Z');
+
+const CAPABILITIES: DeviceCapabilities = {
+  socketOverride: true,
+  socketTimer: true,
+  lightOverride: true,
+  roles: ['heater', 'light', 'pump'],
+  pulseSeconds: { heater: 300, light: 1800 },
+};
+
+const socket = (over: Partial<Socket> = {}): Socket => ({
+  slot: 0,
+  role: 'heater',
+  hardwareId: '5BAD22AB0B99',
+  address: '10.0.0.63',
+  state: 'off',
+  override: null,
+  timer: null,
+  stateChangedAt: NOW.minus({ minutes: 4 }).toISO()!,
+  ...over,
+});
+
+const wrap = (children: React.ReactNode) =>
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter>{children}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+
+const draw = (one: Socket, refusal: string | null = null, mayManage = true, unheard: string | null = null) => {
+  const [row] = rowsOf([one]);
+
+  return wrap(
+    <SocketRow
+      row={row}
+      deviceId="device-1"
+      refusal={refusal}
+      unheard={unheard}
+      mayManage={mayManage}
+      runs={null}
+      now={NOW}
+      capabilities={CAPABILITIES}
+      deviceName="Tent controller"
+    />,
+  );
+};
+
+const device = (configuration: DeviceConfiguration | null): Device => ({ id: 'device-1', type: 'controller', configuration }) as Device;
+
+const LIGHTS = { sunrise: 15, sunset: 15, limit: 80 };
+
+const drawOutput = (
+  configuration: DeviceConfiguration | null = { lights: LIGHTS },
+  capabilities = CAPABILITIES,
+  level: OutputLevel | null = { percent: 80, measuredAt: NOW.minus({ seconds: 20 }).toISO()!, state: 'live' },
+  unheard: string | null = null,
+  mayManage = true,
+) => {
+  const output = lightOutputOf(device(configuration), capabilities, level)!;
+
+  return wrap(<LightOutputRow output={output} unheard={unheard} mayManage={mayManage} runs={null} now={NOW} />);
+};
+
+beforeAll(async () => {
+  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
+  await i18next
+    .use(initReactI18next)
+    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+});
+
+beforeEach(() => {
+  sent.length = 0;
+  saved.length = 0;
+  moves.length = 0;
+  planState.status = null;
+  planState.pauseReason = null;
+  state.answer = { deviceOnline: true };
+  localStorage.clear();
+});
+
+describe('the switch on a socket row', () => {
+  it('forces the row the other way, for a time the role allows', () => {
+    draw(socket());
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Force Heater' }));
+
+    expect(sent).toEqual([{ deviceId: 'device-1', target: { kind: 'socket', slot: 0 }, state: 'on', forSeconds: 3600 }]);
+  });
+
+  it('hands the row back to its role while something is forcing it', () => {
+    draw(socket({ state: 'on', override: { state: 'on', validUntil: NOW.plus({ minutes: 42 }).toISO()! } }));
+
+    expect(screen.getByText(/forced on · 42 min/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('switch', { name: 'Force Heater' }));
+
+    expect(sent).toEqual([{ deviceId: 'device-1', target: { kind: 'socket', slot: 0 }, state: 'auto', forSeconds: 0 }]);
+  });
+
+  it('says a command went out and never that the socket switched', () => {
+    draw(socket());
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Force Heater' }));
+
+    expect(screen.getByRole('status')).toHaveTextContent('Asked. The device reports back within half a minute.');
+    expect(screen.getByRole('switch', { name: 'Force Heater' })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('says so when nobody was listening', () => {
+    state.answer = { deviceOnline: false };
+    draw(socket());
+
+    expect(screen.getByRole('status')).toHaveTextContent('Nobody was listening');
+  });
+
+  it('is drawn disabled when the build takes no override', () => {
+    draw(socket(), 'This build takes no override.');
+
+    expect(screen.getByRole('switch', { name: 'Force Heater' })).toBeDisabled();
+  });
+
+  it('is not drawn at all for somebody who may only look', () => {
+    draw(socket(), null, false);
+
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.getByText('off')).toBeInTheDocument();
+  });
+
+  it('offers the three-way where the device does not say what the row is doing', () => {
+    draw(socket({ state: 'unknown' }));
+
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'on' }));
+
+    expect(sent).toEqual([{ deviceId: 'device-1', target: { kind: 'socket', slot: 0 }, state: 'on', forSeconds: 3600 }]);
+  });
+
+  it('says a socket has stopped answering, and since when', () => {
+    draw(socket({ state: 'unknown', stateChangedAt: NOW.minus({ minutes: 7 }).toISO()! }));
+
+    expect(screen.getByText(/no answer · 7 min/)).toBeInTheDocument();
+  });
+
+  it('still offers to find a socket on a build that is too old to hold one', () => {
+    draw(socket(), 'This build takes no override.');
+
+    fireEvent.click(screen.getByRole('button', { name: /Details of Heater/ }));
+
+    expect(screen.getByRole('button', { name: 'Find it' })).toBeEnabled();
+  });
+
+  it('refuses to find a socket only where nobody is listening, and says so beside it', () => {
+    draw(socket(), 'Offline · nothing is listening, so nothing is sent.', true, 'Offline · nothing is listening, so nothing is sent.');
+
+    fireEvent.click(screen.getByRole('button', { name: /Details of Heater/ }));
+
+    expect(screen.getByRole('button', { name: 'Find it' })).toBeDisabled();
+    // The reason is what makes a grey chip something other than a broken one,
+    // and this is the chip the oldest build in the field still takes.
+    expect(screen.getByText('Offline · nothing is listening, so nothing is sent.')).toBeInTheDocument();
+  });
+
+  it('opens the times, the address and the way back when the row is opened', () => {
+    draw(socket({ state: 'on', override: { state: 'on', validUntil: NOW.plus({ hours: 1 }).toISO()! } }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Details of Heater/ }));
+
+    expect(screen.getByText('10.0.0.63')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back to auto' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '15 min' }));
+
+    expect(sent).toEqual([{ deviceId: 'device-1', target: { kind: 'socket', slot: 0 }, state: 'off', forSeconds: 900 }]);
+  });
+});
+
+describe('what a row is made of', () => {
+  it('is the device´s table and nothing else: an output is not a socket', () => {
+    expect(rowsOf([socket()]).map(row => row.key)).toEqual(['socket-0-heater']);
+  });
+
+  it('numbers the sockets of a role that has several, so two lamps are two rows a person can tell apart', () => {
+    const rows = rowsOf([
+      socket({ slot: 0, role: 'light', address: '10.0.0.61' }),
+      socket({ slot: 1, role: 'light', address: '10.0.0.62' }),
+      socket({ slot: 2, role: 'secondary_light', address: '10.0.0.63' }),
+    ]);
+
+    expect(rows.map(row => row.ordinal)).toEqual([1, 2, null]);
+    draw(socket({ slot: 1, role: 'light' }));
+    expect(screen.getByRole('switch', { name: 'Force Light' })).toBeInTheDocument();
+  });
+
+  it('says a socket is a plug, because the row above it may be the module´s own output', () => {
+    draw(socket({ role: 'light', address: '10.0.0.61' }));
+
+    expect(screen.getByText(/smart plug · 10.0.0.61/)).toBeInTheDocument();
+  });
+
+  it('offers every hold whatever is being held, because the pulse is a failsafe and not a minimum', () => {
+    // `pulseSeconds` is the time after the last command at which the socket
+    // switches itself off, so a role that carries one is held no differently
+    // from a role that does not.
+    expect(holdsFor()).toEqual([900, 3600, 4 * 3600, 8 * 3600, 86400]);
+    expect(defaultHold()).toBe(3600);
+  });
+});
+
+/**
+ * The controller's own light output, which is the row that is not a socket.
+ *
+ * The firmware takes no command carrying a level: `socket_override` holds the
+ * output on or off and nothing else, and "on" means the brightness the stored
+ * configuration names. So the dimmer writes the configuration and the three
+ * buttons beside it send the command, and the two are refused for different
+ * reasons - which is the whole reason they are drawn apart.
+ */
+describe("the controller's own light output", () => {
+  it('says what the lamp is running at and how old that is, and offers no switch', () => {
+    drawOutput();
+
+    expect(screen.getByText(/80 % · 20 s ago/)).toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Light limit' })).toHaveValue('80');
+  });
+
+  it('still says what a lamp that fell silent four days ago was running at, dimmed and dated', () => {
+    // The honest-state rule: a value that is old is dimmed and dated, never
+    // hidden. The store holds this level and the device's own live answer
+    // carries it with the server's verdict on its age.
+    drawOutput({ lights: LIGHTS }, CAPABILITIES, { percent: 60, measuredAt: NOW.minus({ days: 4 }).toISO()!, state: 'offline' });
+
+    expect(screen.getByText(/60 % · 4 d ago/)).toBeInTheDocument();
+    expect(screen.getByText(/60 % · 4 d ago/)).toHaveAttribute('data-age', 'offline');
+    expect(screen.queryByText('nothing reported')).not.toBeInTheDocument();
+  });
+
+  it('dims the lamp by writing the whole document back, keeping the ramps it was tuned with', () => {
+    drawOutput();
+
+    const slider = screen.getByRole('slider', { name: 'Light limit' });
+    fireEvent.change(slider, { target: { value: '40' } });
+    fireEvent.blur(slider);
+
+    expect(saved).toEqual([{ deviceId: 'device-1', configuration: { lights: { sunrise: 15, sunset: 15, limit: 40 } } }]);
+  });
+
+  /**
+   * The brightness is a key of the same document a plan's steps are written
+   * into, and the engine re-sends the step it stands on every hour - so a
+   * brightness dialled in over a running plan is undone within the hour unless
+   * the plan is paused. The Manual targets page, one tab away, says that in
+   * amber before the save and pauses first; this row is the quicker way to the
+   * same figure and used to do neither.
+   */
+  it('says what a save costs a running plan before the drag, and pauses it first', async () => {
+    planState.status = 'running';
+    drawOutput();
+
+    expect(screen.getByText(/Saving pauses the running plan/)).toBeInTheDocument();
+
+    const slider = screen.getByRole('slider', { name: 'Light limit' });
+    fireEvent.change(slider, { target: { value: '55' } });
+    fireEvent.blur(slider);
+    await screen.findByText(/Saving pauses the running plan/);
+
+    expect(moves).toEqual([{ kind: 'pause', reason: 'Light limit by hand' }]);
+    expect(saved).toEqual([{ deviceId: 'device-1', configuration: { lights: { sunrise: 15, sunset: 15, limit: 55 } } }]);
+  });
+
+  it('says a plan it paused is paused, and offers the way back out of it', () => {
+    planState.status = 'paused';
+    planState.pauseReason = 'Light limit by hand';
+    drawOutput();
+
+    expect(screen.getByText(/The plan is paused while this light limit is set by hand/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Resume plan' }));
+
+    expect(moves).toEqual([{ kind: 'resume' }]);
+  });
+
+  /** Switching control off paused the plan, and the lamp's card blamed a light limit nobody had set. */
+  it('gives a plan paused for something else its own reason, and leaves resuming it to where that was decided', () => {
+    planState.status = 'paused';
+    planState.pauseReason = 'Control was switched off.';
+    drawOutput();
+
+    expect(screen.getByText('The plan is paused: Control was switched off. It is resumed under Control.')).toBeInTheDocument();
+    expect(screen.queryByText(/while this light limit is set by hand/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Resume plan' })).not.toBeInTheDocument();
+  });
+
+  it('pauses nothing where no plan is running, which is every device nothing is steering', () => {
+    drawOutput();
+
+    expect(screen.queryByText(/Saving pauses the running plan/)).not.toBeInTheDocument();
+    const slider = screen.getByRole('slider', { name: 'Light limit' });
+    fireEvent.change(slider, { target: { value: '45' } });
+    fireEvent.blur(slider);
+
+    expect(moves).toEqual([]);
+    expect(saved).toHaveLength(1);
+  });
+
+  it('holds the output on for a while, and hands it back with no duration at all', () => {
+    drawOutput();
+
+    fireEvent.click(screen.getByRole('button', { name: 'on' }));
+    fireEvent.click(screen.getByRole('button', { name: 'auto' }));
+
+    expect(sent).toEqual([
+      { deviceId: 'device-1', target: { kind: 'output', output: 'light' }, state: 'on', forSeconds: 3600 },
+      { deviceId: 'device-1', target: { kind: 'output', output: 'light' }, state: 'auto', forSeconds: 0 },
+    ]);
+  });
+
+  it('marks the hold it sent, and until when, since the device reports none back', () => {
+    drawOutput();
+
+    expect(screen.getByRole('button', { name: 'auto' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'on' }));
+
+    expect(screen.getByRole('button', { name: 'on' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'auto' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText(/^on until \d\d:\d\d$/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'auto' }));
+    expect(screen.getByRole('button', { name: 'auto' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('holds 1 h')).toBeInTheDocument();
+  });
+
+  it('leaves the light limit of a device that states targets to Steuerung, where it is saved with them', () => {
+    const output = lightOutputOf(device({ day: { temperature: 25, humidity: 60 }, lights: LIGHTS }), CAPABILITIES, null)!;
+    wrap(<LightOutputRow output={output} spaceId="space-1" unheard={null} mayManage runs={null} now={NOW} />);
+
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    expect(screen.getByText('80 %')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'change under Control ›' })).toHaveAttribute('href', '/control?space=space-1');
+  });
+
+  /**
+   * How long a hold lasts is a mandatory part of the command - the server
+   * refuses one with no end - and this row was the single place that chose it
+   * silently, where a smart socket a few rows down offers five times and says
+   * which one is in force.
+   */
+  it('says how long it holds the output for, before the tap and again after it', () => {
+    drawOutput();
+
+    expect(screen.getByText('holds 1 h')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Hold the light output for 1 h' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'on' }));
+
+    expect(screen.getByRole('status')).toHaveTextContent('Asked, to hold for 1 h.');
+  });
+
+  it('offers the times a socket is held for, and holds the output for whichever was chosen', () => {
+    drawOutput();
+    fireEvent.click(screen.getByRole('button', { name: /Details of Light output/ }));
+
+    expect(holdsFor().map(durationLabel)).toEqual(['15 min', '1 h', '4 h', '8 h', '24 h']);
+    fireEvent.click(screen.getByRole('button', { name: '4 h' }));
+
+    expect(screen.getByRole('button', { name: '4 h' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('holds 4 h')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'on' }));
+    fireEvent.click(screen.getByRole('button', { name: 'auto' }));
+
+    expect(sent).toEqual([
+      { deviceId: 'device-1', target: { kind: 'output', output: 'light' }, state: 'on', forSeconds: 4 * 3600 },
+      { deviceId: 'device-1', target: { kind: 'output', output: 'light' }, state: 'auto', forSeconds: 0 },
+    ]);
+    // Handing the output back carries no duration, so the receipt names none.
+    expect(screen.getByRole('status')).toHaveTextContent('Asked. The device reports back within half a minute.');
+  });
+
+  /**
+   * Opening the panel of an output nobody can hold used to repeat the row's
+   * refusal under a row of grey hold times, and the brightness the slider
+   * states a second time as "Set to".
+   */
+  it('offers no hold times where no hold can be asked for, and says why once', () => {
+    drawOutput({ lights: LIGHTS }, { ...CAPABILITIES, lightOverride: false });
+    fireEvent.click(screen.getByRole('button', { name: /Details of Light output/ }));
+
+    expect(screen.queryByRole('button', { name: '4 h' })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/cannot be told to hold its light output/)).toHaveLength(1);
+    expect(screen.queryByText('Set to')).not.toBeInTheDocument();
+    // Nor does the row name the length of a hold nobody can ask for.
+    expect(screen.queryByText(/^holds /)).not.toBeInTheDocument();
+  });
+
+  it('refuses to hold the output on a build that never announced it, and dims it all the same', () => {
+    drawOutput({ lights: LIGHTS }, { ...CAPABILITIES, lightOverride: false });
+
+    // No button nobody can press: greyed, they read as any unchosen option.
+    expect(screen.queryByRole('button', { name: 'on' })).not.toBeInTheDocument();
+    expect(screen.getByText(/cannot be told to hold its light output/)).toBeInTheDocument();
+
+    const slider = screen.getByRole('slider', { name: 'Light limit' });
+    expect(slider).toBeEnabled();
+    fireEvent.change(slider, { target: { value: '55' } });
+    fireEvent.blur(slider);
+
+    expect(saved).toEqual([{ deviceId: 'device-1', configuration: { lights: { sunrise: 15, sunset: 15, limit: 55 } } }]);
+  });
+
+  it('stores a brightness for a device nobody is listening on, because a setting is not a command', () => {
+    drawOutput({ lights: LIGHTS }, CAPABILITIES, null, 'Offline · nothing is listening, so nothing is sent.');
+
+    // A hold reaches nothing, so none is offered; the note says why.
+    expect(screen.queryByRole('button', { name: 'off' })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('slider', { name: 'Light limit' }), { target: { value: '25' } });
+    fireEvent.blur(screen.getByRole('slider', { name: 'Light limit' }));
+
+    expect(saved).toHaveLength(1);
+    expect(screen.getByText('nothing reported')).toBeInTheDocument();
+  });
+
+  it('has nothing to write a brightness into until the device has sent its settings', () => {
+    drawOutput(null);
+
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    expect(screen.getByText(/has not sent its settings yet/)).toBeInTheDocument();
+  });
+
+  it('does not promise a brightness will arrive at a device there is nothing to send one to', () => {
+    // The old build's refusal ends by pointing at the brightness as the half
+    // that gets through anyway. With no configuration stored there is no
+    // brightness to send, so that clause contradicted the line directly above
+    // it - the two notes are drawn one under the other.
+    drawOutput(null, { ...CAPABILITIES, lightOverride: false });
+
+    expect(screen.getByText(/has not sent its settings yet/)).toBeInTheDocument();
+    expect(screen.getByText('This build cannot be told to hold its light output.')).toBeInTheDocument();
+    expect(screen.queryByText(/The brightness still reaches it/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the brightness half of that refusal where there is a document to store one in', () => {
+    drawOutput({ lights: LIGHTS }, { ...CAPABILITIES, lightOverride: false });
+
+    expect(screen.getByText(/The brightness still reaches it/)).toBeInTheDocument();
+  });
+
+  it('states no brightness where none is stored, rather than the top of the slider´s scale', () => {
+    // The slider has to stand somewhere; 100 % printed beside it in the same
+    // weight as a real setting read as a ceiling the lamp was running at.
+    drawOutput(null);
+
+    expect(screen.getAllByText('not stated').length).toBeGreaterThan(0);
+    expect(screen.queryByText('100 %')).toBeNull();
+    // Nor is a slider drawn at the top of its scale beside it.
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+  });
+
+  it('says nothing either where a configuration exists but names no brightness', () => {
+    // Sixty-four of the restored devices are like this: a document, no limit in
+    // it, and a slider that is enabled - so the figure was invented beside a
+    // control that works.
+    drawOutput({ lights: { sunrise: 15, sunset: 15 } });
+
+    const slider = screen.getByRole('slider', { name: 'Light limit' });
+    expect(slider).toBeEnabled();
+    expect(slider).toHaveAttribute('aria-valuetext', 'not stated');
+
+    // Until somebody drags it, and then it says what they asked for.
+    fireEvent.change(slider, { target: { value: '45' } });
+
+    expect(screen.getByRole('slider', { name: 'Light limit' })).toHaveAttribute('aria-valuetext', '45 %');
+  });
+
+  it('is there for a build that announced the override, for one that states a brightness, and for a lamp that reported one', () => {
+    const none: DeviceCapabilities = { ...CAPABILITIES, lightOverride: false };
+
+    expect(lightOutputOf(device(null), CAPABILITIES, null)).not.toBeNull();
+    expect(lightOutputOf(device({ lights: LIGHTS }), none, null)?.limitPercent).toBe(80);
+    expect(lightOutputOf(device({}), none, { percent: 40, measuredAt: NOW.toISO()!, state: 'live' })?.level?.percent).toBe(40);
+    expect(lightOutputOf(device({}), none, null)).toBeNull();
+  });
+
+  it('reads the brightness whether the document states it nested or flat, and writes only the nested one back', () => {
+    expect(lightOutputOf(device({ 'lights.limit': 60 }), CAPABILITIES, null)?.limitPercent).toBe(60);
+    expect(withLightLimit({ 'lights.limit': 60, day: { temperature: 25 } }, 'controller', 30)).toEqual({
+      lights: { limit: 30 },
+      day: { temperature: 25 },
+    });
+  });
+
+  /**
+   * A Light keeps its brightness at the top of its document and reads nothing
+   * else, so a lamp capped at 0 % read as "not stated" beside a slider at 100,
+   * and a drag wrote a `lights` section the lamp never looked at.
+   */
+  it('reads and writes a Light´s brightness where the Light keeps it', () => {
+    const lamp = { day: 21600, night: 79200, sunrise: 0, sunset: 0, limit: 0 };
+    const light = { ...device(lamp), type: 'light' } as Device;
+
+    expect(lightOutputOf(light, { ...CAPABILITIES, lightOverride: false }, null)?.limitPercent).toBe(0);
+    expect(withLightLimit(lamp, 'light', 50)).toEqual({ ...lamp, limit: 50 });
+
+    wrap(<LightOutputRow output={lightOutputOf(light, CAPABILITIES, null)!} unheard={null} mayManage runs={null} now={NOW} />);
+    // No Light build takes a hold, so it is not told to wait for one.
+    expect(screen.queryByRole('button', { name: 'on' })).not.toBeInTheDocument();
+    expect(screen.getByText(/This kind of device cannot be told to hold its light output\./)).toBeInTheDocument();
+    expect(screen.queryByText(/This build/)).not.toBeInTheDocument();
+    const slider = screen.getByRole('slider', { name: 'Light limit' });
+    expect(slider).toHaveValue('0');
+    expect(slider).toHaveAttribute('aria-valuetext', '0 %');
+
+    fireEvent.change(slider, { target: { value: '50' } });
+    fireEvent.blur(slider);
+    expect(saved).toEqual([{ deviceId: 'device-1', configuration: { ...lamp, limit: 50 } }]);
+  });
+});
+
+describe('how late a camera is', () => {
+  const camera = (lastStillAt: string | null, stillIntervalSeconds = 30): Camera =>
+    ({ stillIntervalSeconds, state: { lastStillAt, lastError: null, firmwareVersion: null } }) as Camera;
+
+  it('is judged against the camera´s own interval and not against a reading´s two minutes', () => {
+    expect(cameraFreshness(camera(NOW.minus({ seconds: 45 }).toISO()!), NOW)).toBe('live');
+    expect(cameraFreshness(camera(NOW.minus({ seconds: 45 }).toISO()!, 10), NOW)).toBe('stale');
+    expect(cameraFreshness(camera(NOW.minus({ minutes: 10 }).toISO()!), NOW)).toBe('offline');
+    expect(cameraFreshness(camera(null), NOW)).toBe('offline');
+  });
+});
+
+/**
+ * What the tab calls the hardware on it.
+ *
+ * A claim stores the device's type where nobody has named it, so the list would
+ * otherwise be the lowercase English word "controller" repeated once per
+ * device - in the German app as well - and the camera the controller answers
+ * for would inherit it. These rows are what a grower reads first after
+ * onboarding, so what they print is worth asserting.
+ */
+/**
+ * The same list, read by the owner of the tent and by somebody let into it to
+ * write in its diary. A socket's override and the lamp's brightness are the
+ * device's configuration, which the decision record puts at `manage` where the
+ * device stands - so on a tent's own tab the switches are gone for a member and
+ * the list says once whose they are.
+ */
+describe('what the sockets offer, by who is reading', () => {
+  const standing = {
+    id: 'device-1',
+    name: 'Blue Dream tent',
+    type: 'controller',
+    ownerId: THE_HOST,
+    spaceId: 'space-1',
+    configuration: { lights: LIGHTS },
+    firmware: { channel: 'stable' },
+    // Heard from a moment ago by the clock the list reads, so its switches are live ones.
+    state: { lastSeenAt: DateTime.now().minus({ seconds: 20 }).toISO()!, firmwareId: null },
+  } as unknown as Device;
+
+  const drawTab = async (youMay: AccessNeed) => {
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: [standing], nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [spaceWhere(youMay)], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
+      if (path.endsWith('/sockets')) return Promise.resolve({ items: [socket({ role: 'light' })], capabilities: CAPABILITIES }) as never;
+      if (path.endsWith('/series')) return Promise.resolve({ readings: [], outputs: [] }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    wrap(<DeviceList />);
+    await screen.findByText(/^Devices?$/);
+  };
+
+  it('gives the owner the lamp’s brightness and the three states of the plug', async () => {
+    await drawTab('own');
+
+    expect(await screen.findByRole('slider', { name: 'Light limit' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'auto' }).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/A socket or the lamp is switched by whoever steers this place\./)).not.toBeInTheDocument();
+  });
+
+  /**
+   * A restored account announces no capabilities at all, so every device in it
+   * reads as a build too old to hold a socket on - and the section said exactly
+   * that about a fridge that had been unplugged for four days, with no word
+   * anywhere that it was offline. Being unreachable stops more than an old
+   * build does, so it is said first and the old build is said after it.
+   */
+  it('says a device is offline before it says its build is old, and says both', async () => {
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices')
+        return Promise.resolve({
+          items: [{ ...standing, state: { lastSeenAt: NOW.minus({ days: 4 }).toISO()!, firmwareId: null } }],
+          nextCursor: null,
+        }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [spaceWhere('own')], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
+      if (path.endsWith('/sockets'))
+        return Promise.resolve({
+          items: [socket({ role: 'heater' })],
+          capabilities: { ...CAPABILITIES, socketOverride: false },
+        }) as never;
+      if (path.endsWith('/series')) return Promise.resolve({ readings: [], outputs: [] }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    wrap(<DeviceList />);
+
+    const offline = await screen.findByText('Offline · nothing is listening, so nothing is sent.');
+    const build = screen.getByText(/This build takes no override\./);
+
+    expect(offline.compareDocumentPosition(build)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it('gives a member the readings, no switch at all, and the reason once', async () => {
+    await drawTab('log');
+
+    expect(await screen.findByText(/A socket or the lamp is switched by whoever steers this place\./)).toBeInTheDocument();
+    expect(screen.queryByRole('slider', { name: 'Light limit' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'auto' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'on' })).not.toBeInTheDocument();
+  });
+
+  /**
+   * How often an output came on today is the place's own 24 h verdict, and the
+   * account-wide tab used to be handed none - so the panel silently dropped the
+   * row on /devices, with nothing saying the figure was unavailable there. The
+   * list asks each place it draws a row from.
+   */
+  it('counts how often an output came on from the place the device stands in', async () => {
+    const verdict = { actuators: [{ output: 'light', runCount: 3, forSeconds: 900 }] };
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: [standing], nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [spaceWhere('own')], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
+      if (path === '/spaces/space-1/overview') return Promise.resolve({ verdict }) as never;
+      if (path.endsWith('/sockets')) return Promise.resolve({ items: [socket({ role: 'light' })], capabilities: CAPABILITIES }) as never;
+      if (path.endsWith('/series')) return Promise.resolve({ readings: [], outputs: [] }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+
+    wrap(<DeviceList />);
+    expect(await screen.findByText(/ran 3×/)).toBeInTheDocument();
+  });
+});
+
+describe('what the Devices tab calls a device', () => {
+  const standing = (over: Partial<Device>): Device =>
+    ({
+      id: 'device-aaaabbbb-c0ffee',
+      name: 'controller',
+      type: 'controller',
+      spaceId: 'space-1',
+      firmware: { channel: 'stable' },
+      state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: null },
+      ...over,
+    }) as Device;
+
+  const hanging = (over: Partial<Camera>): Camera =>
+    ({
+      id: 'camera-1',
+      kind: 'terpcam_controller',
+      deviceId: 'device-aaaabbbb-c0ffee',
+      spaceId: 'space-1',
+      name: 'Terp Cam · A41C',
+      looksAt: null,
+      stillIntervalSeconds: 30,
+      state: { lastStillAt: NOW.minus({ seconds: 10 }).toISO()!, lastError: null, firmwareVersion: null },
+      ...over,
+    }) as Camera;
+
+  // `enforced` is what `/me` says about this install, which is the only thing
+  // that makes a feature tag worth drawing on a row.
+  const list = { devices: [] as Device[], cameras: [] as Camera[], enforced: true };
+
+  const drawList = async () => {
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: list.devices, nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: list.cameras, nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [{ id: 'space-1', name: 'Tent 1' } as Space], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: list.enforced } }) as never;
+      if (path.endsWith('/series')) return Promise.resolve({ readings: [], outputs: [] }) as never;
+      if (path.endsWith('/sockets')) return Promise.resolve({ items: [], capabilities: CAPABILITIES }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    wrap(<DeviceList />);
+    await screen.findByText(/^Devices?$/);
+  };
+
+  /**
+   * An RTSP camera is read, filmed and gated like any camera without Premium,
+   * so a Premium tag on its row would say the stream needs it - which it does
+   * not, on an install that charges or one that does not.
+   */
+  it('draws no Premium tag on an RTSP camera, which works without it', async () => {
+    list.devices = [standing({})];
+    list.cameras = [hanging({ kind: 'rtsp', name: 'Side cam' })];
+    list.enforced = true;
+    await drawList();
+
+    expect(await screen.findByText('Side cam')).toBeInTheDocument();
+    expect(screen.queryByText('Premium')).toBeNull();
+  });
+
+  it('names a device´s type in the catalogue rather than printing the contract´s key', async () => {
+    list.devices = [standing({ type: 'fridge', name: null })];
+    list.cameras = [];
+    await drawList();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Details of Fridge module' }));
+
+    const technical = (await screen.findByText('Technical details')).closest('details')!;
+    expect(within(technical).getByText('Fridge module')).toBeInTheDocument();
+    // The raw key would read as lowercase English under a translated title.
+    expect(screen.queryByText('fridge')).toBeNull();
+  });
+
+  it('prints a type from a newer contract rather than a missing key', async () => {
+    list.devices = [standing({ type: 'hydro' as Device['type'], name: null })];
+    list.cameras = [];
+    await drawList();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Details of hydro' }));
+
+    const technical = (await screen.findByText('Technical details')).closest('details')!;
+    expect(within(technical).getByText('hydro')).toBeInTheDocument();
+    expect(screen.queryByText('devices.type.hydro')).toBeNull();
+  });
+
+  /**
+   * A device carried over from the old cloud was given the last connection that
+   * cloud recorded, and the fleet went on reporting for half a day after it
+   * stopped writing the field. The row said "offline · 4 d" directly above its
+   * own light output at "60 % · 3 d ago" - one device, two ages, on one card.
+   */
+  it('dates a device by its own newest reading where that is later than the last message from it', async () => {
+    // Against the wall clock, because the row ages what it draws against the
+    // clock the reader is sitting at rather than against a fixture's idea of now.
+    const heard = DateTime.now().minus({ days: 4 }).toISO()!;
+    const measured = DateTime.now().minus({ days: 3 }).toISO()!;
+    list.devices = [standing({ state: { lastSeenAt: heard, firmwareId: null } } as Partial<Device>)];
+    list.cameras = [];
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: list.devices, nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [{ id: 'space-1', name: 'Tent 1' } as Space], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
+      if (path.endsWith('/live'))
+        return Promise.resolve({
+          deviceId: 'device-aaaabbbb-c0ffee',
+          metrics: { temperature: { value: 26, measuredAt: measured, state: 'offline' } },
+          outputs: {},
+          setpoints: null,
+        }) as never;
+      if (path.endsWith('/sockets')) return Promise.resolve({ items: [], capabilities: CAPABILITIES }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    wrap(<DeviceList />);
+
+    const pill = await screen.findByText((_, node) => node?.getAttribute('data-liveness') === 'offline');
+
+    // Offline, said the way Start says it: since the reading, not the older message.
+    expect(pill.textContent).toMatch(/^offline since /);
+    expect(pill).toHaveTextContent(DateTime.fromISO(measured).toFormat('d LLL'));
+    expect(pill).not.toHaveTextContent(DateTime.fromISO(heard).toFormat('d LLL'));
+  });
+
+  it('heads the list with what it holds rather than calling a socket a controller', async () => {
+    // The section covers whatever the account has claimed - a light, a fan and
+    // a plug among them - and "Smart sockets" further down is a different list.
+    list.devices = [standing({ type: 'plug' }), standing({ id: 'device-2', type: 'fan' })];
+    list.cameras = [];
+    await drawList();
+
+    expect(screen.getByText('Devices')).toBeInTheDocument();
+    expect(screen.queryByText('Controllers')).toBeNull();
+  });
+
+  it('heads a list of one device in the singular, under a tab that says the same', async () => {
+    list.devices = [standing({})];
+    list.cameras = [];
+    await drawList();
+
+    expect(screen.getByText('Device')).toBeInTheDocument();
+    expect(screen.queryByText('Devices')).toBeNull();
+  });
+
+  it('draws a device nobody has named by its type as a word, with enough of its id to tell two apart', async () => {
+    list.devices = [standing({}), standing({ id: 'device-ccccdddd-beef42' })];
+    list.cameras = [];
+    await drawList();
+
+    expect(await screen.findByText('Controller · C0FFEE')).toBeInTheDocument();
+    expect(screen.getByText('Controller · BEEF42')).toBeInTheDocument();
+    expect(screen.queryByText('controller')).not.toBeInTheDocument();
+  });
+
+  /**
+   * The tail of the id is there to tell two of a kind apart. A grower with one
+   * fridge module read "Fridge module · DC891B" on every screen, beside the
+   * place's own name, and the six characters told nothing from anything.
+   */
+  it('calls the only device of its kind by its type alone, whatever else the account has', async () => {
+    list.devices = [standing({ type: 'fridge', name: null }), standing({ id: 'device-2', name: null })];
+    list.cameras = [];
+    await drawList();
+
+    expect(await screen.findByText('Fridge module')).toBeInTheDocument();
+    expect(screen.getByText('Controller')).toBeInTheDocument();
+    expect(screen.queryByText(/· C0FFEE/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the name a grower gave, and says which device a camera hangs on by that name', async () => {
+    list.devices = [standing({ name: 'Blue Dream tent' })];
+    list.cameras = [hanging({})];
+    await drawList();
+
+    expect(await screen.findByText('Blue Dream tent')).toBeInTheDocument();
+    expect(screen.getByText('via Blue Dream tent · Tent 1')).toBeInTheDocument();
+  });
+
+  it('names a tent once where the controller a camera hangs on is named after it', async () => {
+    list.devices = [standing({ name: 'Tent 1' })];
+    list.cameras = [hanging({})];
+    await drawList();
+
+    expect(await screen.findByText('via Tent 1')).toBeInTheDocument();
+  });
+
+  it('says a camera hangs on a Controller rather than on the key a claim stored', async () => {
+    list.devices = [standing({})];
+    list.cameras = [hanging({})];
+    await drawList();
+
+    expect(await screen.findByText('via Controller · Tent 1')).toBeInTheDocument();
+  });
+
+  it('names the build a device runs by its day, keeps the version for the details, and never prints the uuid', async () => {
+    // Every build carried over from the old cloud is named after its class, so
+    // two fridges on two different builds both read "fridge"; the version is
+    // the one field that says which build a device is on, and it is a commit
+    // and a branch - so the plain line names the day the build was made.
+    const build = {
+      id: 'eac2f377-729c-483c-ad31-0b41eba4276d',
+      createdAt: '2026-09-12T10:00:00.000Z',
+      name: 'fridge',
+      version: '082eda0-fix-smart-socket-wipe',
+    };
+    list.devices = [standing({ state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: build.id } } as Partial<Device>)];
+    list.cameras = [];
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: list.devices, nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [{ id: 'space-1', name: 'Tent 1' } as Space], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
+      if (path.endsWith('/firmwares')) return Promise.resolve({ items: [build], nextCursor: null }) as never;
+      if (path.endsWith('/sockets')) return Promise.resolve({ items: [], capabilities: CAPABILITIES }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    wrap(<DeviceList />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Details of Controller' }));
+
+    expect(await screen.findByText('from 12 Sep 2026')).toBeInTheDocument();
+    const technical = screen.getByText('Technical details').closest('details')!;
+    expect(technical).not.toHaveAttribute('open');
+    expect(technical).toHaveTextContent('082eda0-fix-smart-socket-wipe');
+    expect(screen.queryByText(new RegExp(build.id))).toBeNull();
+  });
+
+  /** Draws the list with one device whose panel is opened, and answers its build list as given. */
+  const drawOpened = async (device: Device, firmwares: () => Promise<unknown>, title: string) => {
+    list.devices = [device];
+    list.cameras = [];
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: list.devices, nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [{ id: 'space-1', name: 'Tent 1' } as Space], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
+      if (path.endsWith('/firmwares')) return firmwares() as never;
+      if (path.endsWith('/sockets'))
+        return Promise.resolve({ items: [], capabilities: { ...CAPABILITIES, socketOverride: false, lightOverride: false } }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    wrap(<DeviceList />);
+    fireEvent.click(await screen.findByRole('button', { name: title }));
+  };
+
+  /**
+   * A plug has no sockets to override on any build, so it announces no
+   * override on its newest one either - and was tagged "legacy", with a line
+   * about roles it does not have.
+   */
+  it('does not call a plug on its current build old, nor say which socket roles it takes', async () => {
+    await drawOpened(standing({ name: null, type: 'plug' }), () => Promise.resolve({ items: [], nextCursor: null }), 'Details of Plug');
+
+    expect(screen.queryByText(/legacy/)).toBeNull();
+    expect(screen.queryByText('Takes')).toBeNull();
+  });
+
+  /** "legacy" on the row was explained nowhere; what the build takes is the panel's fact. */
+  it('says what a controller´s build takes in its panel rather than calling it legacy on the row', async () => {
+    await drawOpened(standing({}), () => Promise.resolve({ items: [], nextCursor: null }), 'Details of Controller');
+
+    expect(screen.queryByText(/legacy/)).toBeNull();
+    expect(screen.getByText('Takes')).toBeInTheDocument();
+  });
+
+  /** A build list that never came back ended as the dash a device with no known build gets. */
+  it('says a build it could not read could not be read, and reads it again on asking', async () => {
+    const build = { id: 'fw-1', createdAt: '2026-09-01T10:00:00.000Z', name: 'controller', version: '2.4.0' };
+    let fails = true;
+    await drawOpened(
+      standing({ state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: build.id } } as Partial<Device>),
+      () => (fails ? Promise.reject(new Error('timed out')) : Promise.resolve({ items: [build], nextCursor: null })),
+      'Details of Controller',
+    );
+
+    expect(await screen.findByText(/could not be read/, undefined, { timeout: 8000 })).toBeInTheDocument();
+    fails = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByText('from 1 Sep 2026')).toBeInTheDocument();
+    expect(screen.getByText('2.4.0')).toBeInTheDocument();
+  }, 10000);
+
+  /** Only the diary used to say that a device owed an update, or that one had not taken. */
+  it('says that new firmware is on its way, and that it did not take once the wait ran out', async () => {
+    const running = { id: 'fw-old', createdAt: '2026-08-01T10:00:00.000Z', name: 'plug', version: '0.0.0' };
+    const owed = { id: 'fw-new', createdAt: '2026-09-15T10:00:00.000Z', name: 'plug', version: '84ef30ca' };
+    const pinned = (updateFailedAt: string | null) =>
+      standing({
+        firmware: { channel: 'manual', targetId: owed.id },
+        state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: running.id, updateFailedAt },
+      } as Partial<Device>);
+
+    await drawOpened(pinned(null), () => Promise.resolve({ items: [running, owed], nextCursor: null }), 'Details of Controller');
+    expect(await screen.findByText(/New firmware is being installed/)).toBeInTheDocument();
+    // Which build, by its version, is for the technical details.
+    expect(screen.getByText('Technical details').closest('details')).toHaveTextContent('To be installed84ef30ca');
+    cleanup();
+
+    await drawOpened(
+      pinned(NOW.minus({ minutes: 5 }).toISO()!),
+      () => Promise.resolve({ items: [running, owed], nextCursor: null }),
+      'Details of Controller',
+    );
+    expect(await screen.findByText(/New firmware did not install \(.* ago\)/)).toBeInTheDocument();
+  });
+
+  it('says nothing about an update where the device runs what it was pinned to', async () => {
+    const running = { id: 'fw-old', createdAt: '2026-08-01T10:00:00.000Z', name: 'plug', version: '0.0.0' };
+    await drawOpened(
+      standing({
+        firmware: { channel: 'manual', targetId: running.id },
+        state: { lastSeenAt: NOW.toISO()!, firmwareId: running.id },
+      } as Partial<Device>),
+      () => Promise.resolve({ items: [running], nextCursor: null }),
+      'Details of Controller',
+    );
+
+    expect(await screen.findByText('0.0.0')).toBeInTheDocument();
+    expect(screen.queryByText('Update')).toBeNull();
+  });
+
+  it('draws a camera that inherited its controller´s type key by what is printed on the cam', async () => {
+    list.devices = [standing({})];
+    list.cameras = [hanging({ name: 'controller', did: 'TCAM00A41C' })];
+    await drawList();
+
+    expect(await screen.findByText('Terp Cam · A41C')).toBeInTheDocument();
+    expect(screen.queryByText('controller')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The device's own panel: what it is in plain words, and the two things done to
+ * the hardware itself - a restart and a quarter of an hour of maintenance - each
+ * asked first, and neither offered to a device nobody is listening on.
+ *
+ * Liveness is read against the wall clock, so the devices here are dated by it,
+ * and it is held at midday where the suite runs. A device quiet for 25 minutes
+ * is dated by the hour alone only while those minutes fall on today: run just
+ * after midnight, the pill rightly gains yesterday's date. Only Date is faked,
+ * so every timer still runs.
+ */
+describe('the device panel', () => {
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(DateTime.fromISO('2026-09-19T12:00:00').toJSDate());
+  });
+  afterAll(() => vi.useRealTimers());
+
+  const heard = (minutesAgo: number) => DateTime.now().minus({ minutes: minutesAgo }).toISO()!;
+
+  const fridge = (over: Partial<Device['state']> = {}): Device =>
+    ({
+      id: 'sim-fridge-dc891b',
+      name: 'fridge',
+      type: 'fridge',
+      ownerId: THE_HOST,
+      spaceId: 'space-1',
+      firmware: { channel: 'manual', targetId: null },
+      state: { lastSeenAt: heard(0.2), firmwareId: null, hardware: {}, maintenanceUntil: null, ...over },
+    }) as unknown as Device;
+
+  const drawWith = async (devices: Device[], cameras: Camera[] = []) => {
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: devices, nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: cameras, nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [spaceWhere('own')], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
+      if (path.endsWith('/sockets')) return Promise.resolve({ items: [], capabilities: CAPABILITIES }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    vi.mocked(api.post).mockResolvedValue({ publishedAt: DateTime.now().toISO(), deviceOnline: true } as never);
+    wrap(<DeviceList />);
+    await screen.findByText(/^Devices?$/);
+  };
+
+  beforeEach(() => {
+    vi.mocked(api.post).mockClear();
+    vi.mocked(api.patch).mockClear();
+  });
+
+  it('opens on a tap anywhere on the row, not only on the chevron', async () => {
+    await drawWith([fridge()]);
+
+    fireEvent.click(await screen.findByText('Fridge module'));
+
+    expect(screen.getByRole('button', { name: 'Details of Fridge module' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('connected')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Update automatically' })).toHaveAttribute('aria-checked', 'false');
+    expect(await screen.findByText('version not known')).toBeInTheDocument();
+  });
+
+  it('asks before it restarts the device, says what a restart costs, and sends nothing until asked', async () => {
+    await drawWith([fridge()]);
+    fireEvent.click(await screen.findByText('Fridge module'));
+    fireEvent.click(screen.getByRole('button', { name: /^Restart/ }));
+
+    const asked = await screen.findByRole('dialog', { name: 'Restart Fridge module?' });
+    expect(within(asked).getByText(/Anything you switched by hand – the light or a socket – ends with the restart/)).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+
+    fireEvent.click(within(asked).getByRole('button', { name: 'Restart now' }));
+
+    expect(await within(asked).findByText('Restart asked for. The device will be back in a moment.')).toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/commands', { kind: 'reboot' });
+  });
+
+  /** A fridge module has one compressor that cools and dries; it has no dehumidifier to name. */
+  it('says what maintenance stops on a fridge module, for how long the alarms stay off, and starts it on the answer', async () => {
+    await drawWith([fridge()]);
+    fireEvent.click(await screen.findByText('Fridge module'));
+    fireEvent.click(screen.getByRole('button', { name: /^MaintenancePause/ }));
+
+    const asked = await screen.findByRole('dialog', { name: 'Maintenance' });
+    expect(within(asked).getByText(/the device stops the heater, the compressor and the CO₂ valve/)).toBeInTheDocument();
+    expect(within(asked).getByText(/Alarms stay off for 25 minutes – the 15 minutes and 10 more/)).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+
+    fireEvent.click(within(asked).getByRole('button', { name: 'Start maintenance' }));
+
+    expect(await within(asked).findByText(/Maintenance is on/)).toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/commands', { kind: 'maintenance', forSeconds: 900 });
+  });
+
+  it('says a window is standing, until when, and offers its end instead of a second one', async () => {
+    await drawWith([fridge({ maintenanceUntil: DateTime.now().plus({ minutes: 8 }).toISO()! })]);
+    fireEvent.click(await screen.findByText('Fridge module'));
+
+    expect(screen.getByText(/^In maintenance until \d\d:\d\d — no alarm on this device until \d\d:\d\d$/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Maintenance until/ }));
+
+    const asked = await screen.findByRole('dialog', { name: 'Maintenance' });
+    expect(within(asked).queryByRole('button', { name: 'Start maintenance' })).not.toBeInTheDocument();
+    fireEvent.click(within(asked).getByRole('button', { name: 'End now' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/commands', { kind: 'maintenance', forSeconds: 0 }));
+  });
+
+  it('holds both back while the device is offline, says since when, and why they wait', async () => {
+    await drawWith([fridge({ lastSeenAt: heard(25) })]);
+    fireEvent.click(await screen.findByText('Fridge module'));
+
+    // The row's pill and the panel's connection line, in the same words.
+    expect(screen.getAllByText('offline since 11:35')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: /^Restart/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^MaintenancePause/ })).toBeDisabled();
+    expect(screen.getByText(/^Restart and maintenance work again once the device is connected. Anything else you change here/)).toBeInTheDocument();
+  });
+
+  const regulating = (over: Partial<NonNullable<Device['control']>> = {}): Device =>
+    ({
+      ...fridge(),
+      configuration: { workmode: over.running === false ? 'off' : 'small', day: { temperature: 25, humidity: 60 } },
+      control: { running: true, drying: false, mode: 'standard', energySaving: false, ...over },
+    }) as Device;
+
+  it('says whether the fridge regulates, and asks before it switches its control off - pausing a running plan first', async () => {
+    planState.status = 'running';
+    await drawWith([regulating()]);
+    vi.mocked(api.patch).mockResolvedValue({ ...regulating({ running: false }) } as never);
+    fireEvent.click(await screen.findByText('Fridge module'));
+
+    expect(screen.getByText('Control', { selector: 'dt' }).nextElementSibling).toHaveTextContent(/^on$/);
+    fireEvent.click(screen.getByRole('button', { name: /^Switch control off/ }));
+
+    const asked = await screen.findByRole('dialog', { name: 'Switch control off?' });
+    expect(within(asked).getByText(/Heater, compressor, light, CO₂ valve and fans go off/)).toBeInTheDocument();
+    expect(within(asked).getByText(/is paused, or its next step would switch control back on/)).toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+
+    fireEvent.click(within(asked).getByRole('button', { name: 'Switch off' }));
+
+    expect(await within(asked).findByText('Control is off.')).toBeInTheDocument();
+    expect(moves).toEqual([{ kind: 'pause', reason: 'Control was switched off.' }]);
+    expect(api.patch).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/configuration', { set: { control: false } });
+  });
+
+  it('switches the control of a fridge that is off back on with one tap', async () => {
+    await drawWith([regulating({ running: false })]);
+    vi.mocked(api.patch).mockResolvedValue(regulating() as never);
+    fireEvent.click(await screen.findByText('Fridge module'));
+
+    expect(screen.getByText('Control', { selector: 'dt' }).nextElementSibling).toHaveTextContent(/^off$/);
+    fireEvent.click(screen.getByRole('button', { name: /^Switch control on/ }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/configuration', { set: { control: true } }));
+  });
+
+  it('says a fridge that germinates in the dark regulates, and in which mode', async () => {
+    await drawWith([regulating({ mode: 'germination' })]);
+    fireEvent.click(await screen.findByText('Fridge module'));
+
+    expect(screen.getByText('Control', { selector: 'dt' }).nextElementSibling).toHaveTextContent(/^on · germination · dark$/);
+  });
+
+  it('keeps the operating mode under Advanced, and sends a choice once it is confirmed', async () => {
+    await drawWith([regulating()]);
+    vi.mocked(api.patch).mockResolvedValue(regulating({ mode: 'greenhouse' }) as never);
+    fireEvent.click(await screen.findByText('Fridge module'));
+
+    expect(screen.getByText('Advanced')).toBeInTheDocument();
+    expect(screen.getByText('Holds temperature, humidity, light and CO₂ to the targets.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Greenhouse' }));
+    expect(api.patch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to Greenhouse' }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-fridge-dc891b/configuration', { set: { mode: 'greenhouse' } }));
+  });
+
+  it('has no control switch and no operating mode for hardware with no work mode', async () => {
+    await drawWith([{ ...fridge(), id: 'plug-1', type: 'plug', name: null, control: null } as Device]);
+    fireEvent.click(await screen.findByText('Plug'));
+
+    expect(screen.queryByRole('button', { name: /control/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Operating mode')).not.toBeInTheDocument();
+  });
+
+  /** A plug parks nothing, so it is offered the restart and no maintenance that would only be a promise. */
+  it('offers a plug the restart and no maintenance', async () => {
+    await drawWith([{ ...fridge(), id: 'plug-1', type: 'plug', name: null } as Device]);
+    fireEvent.click(await screen.findByText('Plug'));
+
+    expect(screen.getByRole('button', { name: /^Restart/ })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /^Maintenance/ })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Without a camera the list had two dashed boxes between the device and its
+   * light - "No camera here yet." and the way to add one. Somebody who never had
+   * a camera is told nothing by the first, and the second is one small line.
+   */
+  it('draws no camera section without a camera, only the small line that adds one', async () => {
+    await drawWith([fridge()]);
+
+    expect(await screen.findByRole('link', { name: '+ Add a camera' })).toHaveAttribute('href', '/cameras/add');
+    expect(screen.queryByText('Cameras')).not.toBeInTheDocument();
+    expect(screen.queryByText(/No camera here yet/)).not.toBeInTheDocument();
+  });
+});

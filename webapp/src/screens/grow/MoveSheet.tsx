@@ -1,0 +1,316 @@
+import { DateTime } from 'luxon';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { GrowListItem, Placement, Plant, Space } from '@fg2/shared-types/v1';
+import { serverNow } from '@/api/clock';
+import { ApiError } from '@/api/problem';
+import { useCorrectPlacement, useMovePlants, useWithdrawPlacement } from '@/api/lifecycle';
+import { Sheet } from '@/log/Sheet';
+import { instantOf } from '@/ui/age';
+import { Refused } from '@/ui/PageState';
+import { enough } from '@/ui/session-access';
+import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
+import ui from '@/ui/ui.module.css';
+import { calendarDay, useZone } from '@/ui/zone';
+import { lastPlaceOf } from './placement';
+import { PlantPicker } from './PlantPicker';
+import styles from './Lifecycle.module.css';
+
+/**
+ * Where the plants stand: moving them, taking them out of every tent, and
+ * repairing a move that was recorded wrongly.
+ *
+ * "No fixed place" is a place a grow can be in rather than the absence of one,
+ * which is why it sits in the same row as the tents. It is also what the server
+ * insists on: a grow always answers where it is, so the last open placement
+ * cannot be withdrawn - and that refusal is offered here as the move it really
+ * asks for rather than as a sentence about a rule.
+ */
+/** Which plants the sheet opens on, for a caller that is already about one of them; the grow page names none and the scope is the grow's. */
+export function MoveSheet({
+  grow,
+  plants,
+  spaces,
+  preselect,
+  onClose,
+}: {
+  grow: GrowListItem;
+  plants: Plant[];
+  spaces: Space[];
+  preselect?: string[];
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const move = useMovePlants(grow.id);
+
+  // A move is written against the destination as well as against the grow, so a
+  // tent this account may only write lines in is not one of the answers.
+  const open = spaces.filter(space => space.archivedAt === null && space.kind !== 'room' && enough(space.youMay, 'manage'));
+  const [spaceId, setSpaceId] = useState<string | null>(() => open.find(space => !standsIn(grow, space.id))?.id ?? null);
+  const [chosen, setChosen] = useState<string[] | null>(preselect ?? null);
+  // Now as the server reckons it. The day field below caps at the server's
+  // today, so a browser running fast would open this sheet on a day its own
+  // control already refuses.
+  const [at, setAt] = useState(() => serverNow().toJSDate());
+  const [row, setRow] = useState<{ placementId: string; as: 'correct' | 'withdraw' } | null>(null);
+
+  const placements = [...grow.placements].sort((one, other) => other.startedAt.localeCompare(one.startedAt));
+  // A grow whose last placement is closed stands nowhere, and the header of the
+  // screen behind this sheet says so in the past tense. Said as a present fact
+  // it read "Standing in No fixed place" of a grow that spent seven months in a
+  // fridge and is named after it three lines further down.
+  const stood = grow.summary.locations.length === 0 && grow.endedAt !== null ? lastPlaceOf(grow) : null;
+
+  return (
+    <Sheet title={t('grow.lifecycle.move.title', { name: grow.name })} onClose={onClose}>
+      <div className={styles.body}>
+        <p className={`mono ${styles.now}`}>
+          {stood
+            ? t('grow.stoodIn', { name: placeName(t, spaces, stood.spaceId) })
+            : t('grow.lifecycle.move.standsIn', {
+                places: grow.summary.locations.map(location => placeName(t, spaces, location.spaceId)).join(' · ') || t('grow.noFixedPlace'),
+              })}
+        </p>
+
+        {/* A grow that has ended does not move any more - the server refuses a
+            move dated after its end - so the sheet is left with what it is for
+            on such a grow: the rows of where it stood, which can still be put
+            right. */}
+        {grow.endedAt ? (
+          <p className={ui.note}>{t('grow.lifecycle.move.endedNote')}</p>
+        ) : (
+          <Block label={t('grow.lifecycle.move.moveTo')}>
+            <Choices label={t('grow.lifecycle.move.moveTo')}>
+              {open.map(space => (
+                <Choice key={space.id} chosen={spaceId === space.id} onChoose={() => setSpaceId(space.id)}>
+                  {space.name}
+                </Choice>
+              ))}
+              <Choice chosen={spaceId === null} onChoose={() => setSpaceId(null)}>
+                {t('grow.noFixedPlace')}
+              </Choice>
+            </Choices>
+
+            <PlantPicker
+              plants={plants}
+              chosen={chosen}
+              everyLabel={t('grow.lifecycle.everyPlant')}
+              label={t('grow.lifecycle.whichPlants')}
+              onChange={setChosen}
+            />
+            <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} />
+
+            <p className={ui.note}>{t(spaceId === null ? 'grow.lifecycle.move.nowhereNote' : 'grow.lifecycle.move.note')}</p>
+            <Refused error={move.error} />
+
+            <button
+              type="button"
+              className={`${ui.button} ${ui.primary} ${styles.submit}`}
+              disabled={move.isPending}
+              onClick={() =>
+                move.mutate({ spaceId, plantIds: chosen, startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })
+              }
+            >
+              {move.isPending
+                ? t('grow.lifecycle.saving')
+                : t('grow.lifecycle.move.submit', { place: spaceId === null ? t('grow.noFixedPlace') : placeName(t, spaces, spaceId) })}
+            </button>
+          </Block>
+        )}
+
+        <Block label={t('grow.lifecycle.move.history')} aside={<span className="mono">{t('grow.lifecycle.move.newestFirst')}</span>}>
+          <ul className={styles.rows}>
+            {placements.map(placement => (
+              <PlacementRow
+                key={placement.id}
+                grow={grow}
+                placement={placement}
+                spaces={spaces}
+                open={row?.placementId === placement.id ? row.as : null}
+                onOpen={as => setRow(as === null ? null : { placementId: placement.id, as })}
+              />
+            ))}
+          </ul>
+        </Block>
+      </div>
+    </Sheet>
+  );
+}
+
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+const placeName = (t: Translate, spaces: Space[], spaceId: string | null): string =>
+  spaceId === null ? t('grow.noFixedPlace') : (spaces.find(space => space.id === spaceId)?.name ?? '…');
+
+/** The last day a row of this grow can be dated to: the day it ended, or none while it runs. */
+const endOf = (grow: GrowListItem): Date | null => (grow.endedAt ? new Date(grow.endedAt) : null);
+
+const standsIn = (grow: GrowListItem, spaceId: string): boolean => grow.summary.locations.some(location => location.spaceId === spaceId);
+
+/** One row of where the plants have been: the place, the stretch, and how much of the grow it covers. */
+function PlacementRow({
+  grow,
+  placement,
+  spaces,
+  open,
+  onOpen,
+}: {
+  grow: GrowListItem;
+  placement: Placement;
+  spaces: Space[];
+  open: 'correct' | 'withdraw' | null;
+  onOpen: (as: 'correct' | 'withdraw' | null) => void;
+}) {
+  const { t } = useTranslation();
+  const zone = useZone();
+  const day = (at: string) => calendarDay(at, zone);
+
+  return (
+    <li className={styles.row} data-dim={placement.endedAt !== null}>
+      <div className={styles.rowHead}>
+        <span className={styles.rowTitle}>{placeName(t, spaces, placement.spaceId)}</span>
+        <span className={`mono ${styles.rowMeta}`}>
+          {day(placement.startedAt)} → {placement.endedAt ? day(placement.endedAt) : t('grow.lifecycle.move.stillThere')}
+          {placement.plantIds === null ? '' : ` · ${t('grow.lifecycle.somePlants', { count: placement.plantIds.length })}`}
+        </span>
+      </div>
+
+      {open === null ? (
+        <div className={styles.rowActions}>
+          <button type="button" className={ui.chip} onClick={() => onOpen('correct')}>
+            {t('grow.lifecycle.move.correct')}
+          </button>
+          <button type="button" className={`${ui.chip} ${styles.danger}`} onClick={() => onOpen('withdraw')}>
+            {t('grow.lifecycle.move.withdraw')}
+          </button>
+        </div>
+      ) : open === 'correct' ? (
+        <PlacementEditor grow={grow} placement={placement} spaces={spaces} onDone={() => onOpen(null)} />
+      ) : (
+        <PlacementWithdrawal grow={grow} placement={placement} onDone={() => onOpen(null)} />
+      )}
+    </li>
+  );
+}
+
+/** A move recorded wrongly - the wrong tent, the wrong day - and the way a placement left open is closed on the day the plants really left. */
+function PlacementEditor({ grow, placement, spaces, onDone }: { grow: GrowListItem; placement: Placement; spaces: Space[]; onDone: () => void }) {
+  const { t } = useTranslation();
+  const correct = useCorrectPlacement(grow.id);
+
+  const [spaceId, setSpaceId] = useState(placement.spaceId);
+  const [from, setFrom] = useState(() => new Date(placement.startedAt));
+  const [until, setUntil] = useState(() => new Date(placement.endedAt ?? placement.startedAt));
+  const [stillThere, setStillThere] = useState(placement.endedAt === null);
+
+  const body = {
+    spaceId,
+    startedAt: instantOf(DateTime.fromJSDate(from)),
+    endedAt: stillThere ? null : instantOf(DateTime.fromJSDate(until)),
+  };
+  const changed = body.spaceId !== placement.spaceId || body.startedAt !== placement.startedAt || body.endedAt !== placement.endedAt;
+
+  return (
+    <div className={styles.editor}>
+      <Choices label={t('grow.lifecycle.move.moveTo')}>
+        {spaces
+          .filter(space => space.archivedAt === null && space.kind !== 'room' && enough(space.youMay, 'manage'))
+          .map(space => (
+            <Choice key={space.id} chosen={spaceId === space.id} onChoose={() => setSpaceId(space.id)}>
+              {space.name}
+            </Choice>
+          ))}
+        <Choice chosen={spaceId === null} onChoose={() => setSpaceId(null)}>
+          {t('grow.noFixedPlace')}
+        </Choice>
+      </Choices>
+
+      <WhenField label={t('grow.lifecycle.move.from')} at={from} onChange={setFrom} until={endOf(grow)} />
+
+      <Choices label={t('grow.lifecycle.move.until')}>
+        <Choice chosen={stillThere} onChoose={() => setStillThere(true)}>
+          {t('grow.lifecycle.move.stillThere')}
+        </Choice>
+        <Choice chosen={!stillThere} onChoose={() => setStillThere(false)}>
+          {t('grow.lifecycle.move.leftOn')}
+        </Choice>
+      </Choices>
+      {stillThere ? null : <WhenField label={t('grow.lifecycle.move.until')} at={until} onChange={setUntil} until={endOf(grow)} />}
+
+      <p className={ui.note}>{t('grow.lifecycle.move.correctionNote')}</p>
+      <Refused error={correct.error} />
+
+      <div className={styles.rowActions}>
+        <button
+          type="button"
+          className={`${ui.button} ${ui.primary}`}
+          disabled={correct.isPending || !changed}
+          onClick={() => correct.mutate({ placementId: placement.id, body }, { onSuccess: onDone })}
+        >
+          {correct.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.move.saveCorrection')}
+        </button>
+        <button type="button" className={ui.button} onClick={onDone}>
+          {t('grow.lifecycle.cancel')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A move that never happened.
+ *
+ * The one refusal this round has to make a person able to act on lives here: a
+ * grow always answers where it is, so the row that says so is not the one to
+ * remove. The way out is the move nobody has made yet, so it is offered as that
+ * move - "put the grow nowhere, then take this row out" - rather than as the
+ * rule it broke.
+ */
+function PlacementWithdrawal({ grow, placement, onDone }: { grow: GrowListItem; placement: Placement; onDone: () => void }) {
+  const { t } = useTranslation();
+  const withdraw = useWithdrawPlacement(grow.id);
+  const move = useMovePlants(grow.id);
+
+  // Offered only on a grow still running: one that has ended moves nowhere, and
+  // the server refuses the move the escape would start with.
+  const standsNowhere = withdraw.error instanceof ApiError && withdraw.error.problem.code === 'grow_stands_nowhere' && !grow.endedAt;
+
+  /** The escape the refusal asks for: somewhere to stand, and then the row that never happened is free to go. */
+  const rescue = () =>
+    move.mutate(
+      { spaceId: null, plantIds: placement.plantIds, startedAt: instantOf(serverNow()) },
+      { onSuccess: () => withdraw.mutate(placement.id, { onSuccess: onDone }) },
+    );
+
+  return (
+    <div className={styles.editor}>
+      <ul className={styles.effect}>
+        <li>{t('grow.lifecycle.move.withdrawEffect')}</li>
+        <li>{t('grow.lifecycle.phase.effect.entryGone')}</li>
+      </ul>
+
+      <Refused error={withdraw.error} />
+      <Refused error={move.error} />
+
+      <div className={styles.rowActions}>
+        {standsNowhere ? (
+          <button type="button" className={`${ui.button} ${ui.primary}`} disabled={move.isPending || withdraw.isPending} onClick={rescue}>
+            {move.isPending || withdraw.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.move.nowhereThenWithdraw')}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={`${ui.button} ${styles.dangerButton}`}
+            disabled={withdraw.isPending}
+            onClick={() => withdraw.mutate(placement.id, { onSuccess: onDone })}
+          >
+            {withdraw.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.move.confirmWithdraw')}
+          </button>
+        )}
+        <button type="button" className={ui.button} onClick={onDone}>
+          {t('grow.lifecycle.cancel')}
+        </button>
+      </div>
+    </div>
+  );
+}

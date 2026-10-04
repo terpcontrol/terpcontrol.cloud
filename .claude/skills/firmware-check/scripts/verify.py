@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Poll /device until every hardware type has its target firmware id installed
+"""Poll the fleet until every hardware type has its target firmware id installed
 and the device is freshly back online, or timeout.
 
 Usage:
@@ -10,12 +10,13 @@ The state file is the one written by run-cycle.sh — one
 
 Reads credentials from environment:
     API_URL_EXTERNAL        - server URL
-    AGENT_TESTING_USERNAME  - user login
+    AGENT_TESTING_USERNAME  - user login (an e-mail address)
     AGENT_TESTING_PASSWORD  - user password
 
 Exits 0 on full success, 1 on timeout, 2 on bad input.
 """
 
+import datetime
 import json
 import os
 import sys
@@ -23,7 +24,7 @@ import time
 import urllib.request
 
 TIMEOUT_S = 15 * 60       # per cycle
-RECENT_LASTSEEN_S = 60    # "back online" = lastseen within this window
+RECENT_LASTSEEN_S = 60    # "back online" = last seen within this window
 POLL_INTERVAL_S = 15
 PRINT_INTERVAL_S = 25     # throttle status lines
 
@@ -36,11 +37,18 @@ def env(name: str) -> str:
     return v
 
 
-def login(api: str, user: str, password: str) -> str:
+def instant(value) -> float:
+    """Every instant on the wire is an ISO 8601 UTC string; absent is null."""
+    if not value:
+        return 0.0
+    return datetime.datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+
+
+def login(api: str, email: str, password: str) -> str:
     req = urllib.request.Request(
-        api + "/login",
+        api + "/sessions",
         method="POST",
-        data=json.dumps({"username": user, "password": password}).encode(),
+        data=json.dumps({"email": email, "password": password}).encode(),
         headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req) as r:
@@ -48,9 +56,17 @@ def login(api: str, user: str, password: str) -> str:
 
 
 def fleet(api: str, token: str):
-    req = urllib.request.Request(api + "/device", headers={"Authorization": "Bearer " + token})
-    with urllib.request.urlopen(req) as r:
-        return json.load(r)
+    """Every device the account owns. Lists are paged, so the cursor is followed."""
+    devices = []
+    url = api + "/devices?limit=200"
+    while url:
+        req = urllib.request.Request(url, headers={"Authorization": "Bearer " + token})
+        with urllib.request.urlopen(req) as r:
+            page = json.load(r)
+        devices += page["items"]
+        cursor = page["nextCursor"]
+        url = f"{api}/devices?limit=200&cursor={cursor}" if cursor else None
+    return devices
 
 
 def main() -> int:
@@ -58,7 +74,7 @@ def main() -> int:
         print("usage: verify.py <state-file>", file=sys.stderr)
         return 2
 
-    api = env("API_URL_EXTERNAL")
+    api = env("API_URL_EXTERNAL").rstrip("/") + "/v1"
     user = env("AGENT_TESTING_USERNAME")
     password = env("AGENT_TESTING_PASSWORD")
 
@@ -84,22 +100,29 @@ def main() -> int:
             time.sleep(POLL_INTERVAL_S)
             continue
 
-        now_ms = int(time.time() * 1000)
+        now = time.time()
         statuses = []
         all_ok = True
+        seen = set()
         for d in devices:
-            hw = d.get("device_type")
+            hw = d.get("type")
             if hw not in targets:
                 continue
-            fw = (d.get("hardwareInfo") or {}).get("firmware_version") or ""
-            last = d.get("lastseen") or 0
-            age = (now_ms - last) // 1000
-            match = fw == targets[hw]
-            online = last >= now_ms - RECENT_LASTSEEN_S * 1000
-            ok = match and online
+            seen.add(hw)
+            state = d.get("state") or {}
+            fw = state.get("firmwareId") or ""
+            last = instant(state.get("lastSeenAt"))
+            age = int(now - last) if last else -1
+            ok = fw == targets[hw] and last >= now - RECENT_LASTSEEN_S
             if not ok:
                 all_ok = False
             statuses.append(f"{hw}={'OK' if ok else f'fw={fw[:8]} age={age}s'}")
+
+        # A type nobody answered for is not a success: an empty fleet would
+        # otherwise pass the cycle without a single device having updated.
+        for hw in sorted(set(targets) - seen):
+            statuses.append(f"{hw}=absent")
+            all_ok = False
 
         summary = " ".join(statuses)
         if all_ok:

@@ -1,6 +1,8 @@
 import { parse as parseQueryString } from 'node:querystring';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { FastifyRequest } from 'fastify';
+import { AdminGuard } from '@common/auth/auth.guard';
+import { applyRouteBodyLimits } from '@common/body-limit';
 
 /**
  * Two things Express did for us that Fastify does not, and that clients in the
@@ -30,7 +32,13 @@ export const registerHttpCompatibility = (app: NestFastifyApplication): void => 
  *
  * Registering either one stops Nest registering both of its defaults, so the
  * form-encoded parser has to be set up here as well - RabbitMQ's auth backend
- * and the firmware build CLI both post forms.
+ * posts forms.
+ *
+ * Both keep Fastify's own limit of 1 MiB. A route that takes more says so with
+ * `@BodyLimit`, which reaches the parser through the route rather than through
+ * the parser: Fastify prefers a route's limit to the parser's whenever the
+ * route has one. Such a route is an administrator's, and who is calling is
+ * checked before its body is read.
  */
 type BufferParser = (request: unknown, body: Buffer, done: (error: Error | null, value?: unknown) => void) => void;
 
@@ -40,6 +48,9 @@ const registerBodyParsers = (app: NestFastifyApplication): void => {
   // request type that also allows HTTP/2, which this deployment never serves,
   // and a buffer, which the parser reads as text either way.
   const parseJson = fastify.getDefaultJsonParser('error', 'error') as unknown as BufferParser;
+
+  const admins = app.get(AdminGuard);
+  applyRouteBodyLimits(fastify, request => admins.admit(request));
 
   app.useBodyParser('application/json', { bodyLimit: fastify.initialConfig.bodyLimit }, (request, body: Buffer, done) => {
     if (body.length === 0 || body.toString().trim() === '') {
@@ -58,10 +69,9 @@ const registerBodyParsers = (app: NestFastifyApplication): void => {
 };
 
 /**
- * `hpp()` collapsed a repeated field to its last value in the query string and
- * in a form-encoded body alike. Both readers here - RabbitMQ's auth backend and
- * the firmware build CLI - expect a string, so a duplicated field has to arrive
- * as one rather than as an array.
+ * `hpp()` collapsed a repeated field to its last value. The one form-encoded
+ * body this server takes is RabbitMQ's auth backend, every field of which is a
+ * string, so a duplicated one has to arrive as one rather than as an array.
  */
 const collapseRepeatedValues = (values: Record<string, unknown>): void => {
   for (const [key, value] of Object.entries(values)) {
@@ -72,12 +82,23 @@ const collapseRepeatedValues = (values: Record<string, unknown>): void => {
 };
 
 /**
- * The other half of `hpp()`: a repeated query parameter arrives from Fastify as
- * an array, which every reader here would reject. A duplicated `?token=` or
- * `?share=` comes out of a client building its URL badly, not an attack, and
- * used to work.
+ * The two query parameters that name a credential. A repeated one arrives from
+ * Fastify as an array, which the readers of both would reject; a duplicated
+ * `?token=` or `?share=` comes out of a client building its URL badly, not an
+ * attack, and used to work.
+ *
+ * Only these two. A repetition is the ordinary way a query string carries a
+ * list, and `GET /v1/devices/{id}/series` asks for its metrics that way, so
+ * collapsing every parameter would leave a chart with one series.
  */
+const SINGLE_VALUE_PARAMETERS = ['token', 'share'];
+
 const collapseRepeatedQueryParameters = (request: FastifyRequest): void => {
   const query = request.query as Record<string, unknown> | undefined;
-  if (query) collapseRepeatedValues(query);
+  if (!query) return;
+
+  for (const name of SINGLE_VALUE_PARAMETERS) {
+    const value = query[name];
+    if (Array.isArray(value) && value.length > 0) query[name] = value[value.length - 1];
+  }
 };

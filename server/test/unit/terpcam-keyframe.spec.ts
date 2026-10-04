@@ -1,4 +1,4 @@
-import { buildAck, deobfuscate, FragmentAssembly, TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
+import { buildAck, deobfuscate, FragmentAssembly, TerpCamDirectService } from '@modules/v1/camera/terpcam-direct.service';
 
 /**
  * The keyframe transfer against a camera that behaves as the real one was
@@ -30,7 +30,7 @@ function drw(index: number, payload: Buffer): Buffer {
 }
 
 type Session = { socket: { send(msg: Buffer): void }; peer: { address: string; port: number }; inbox: unknown[]; auth: string; next: number };
-type Internals = { readKeyframe(session: Session): Promise<Buffer | null>; login(...args: unknown[]): Promise<void> };
+type Internals = { readKeyframe(session: Session, deadline?: number): Promise<Buffer | null>; login(...args: unknown[]): Promise<void> };
 
 /**
  * The camera: on `livestream.cgi` it bursts the keyframe, dropping the fragments
@@ -75,13 +75,7 @@ function camera(frame: Buffer, lost: number[], options: { stallMs?: number; stuc
 }
 
 function service(): Internals {
-  return new TerpCamDirectService(
-    {} as never,
-    {} as never,
-    {} as never,
-    { relayUrl: 'http://relay.invalid' } as never,
-    {} as never,
-  ) as unknown as Internals;
+  return new TerpCamDirectService({} as never, {} as never, { relayUrl: 'http://relay.invalid' } as never, {} as never) as unknown as Internals;
 }
 
 describe('the keyframe transfer', () => {
@@ -117,6 +111,19 @@ describe('the keyframe transfer', () => {
       const started = Date.now();
       await expect(service().readKeyframe(cam.session)).resolves.toEqual(frame.subarray(32));
       expect(Date.now() - started).toBeGreaterThan(4_000);
+    } finally {
+      cam.stop();
+    }
+  });
+
+  it('stops at the capture´s deadline where that comes before its own limit', async () => {
+    // The stream goes on, and its keyframe never arrives whole.
+    const frame = keyframe(30_000);
+    const cam = camera(frame, [], { stuck: 5, nextKeyframeMs: 10 * 60_000 });
+    try {
+      const started = Date.now();
+      await expect(service().readKeyframe(cam.session, started + 2_000)).resolves.toBeNull();
+      expect(Date.now() - started).toBeLessThan(3_000);
     } finally {
       cam.stop();
     }
@@ -169,8 +176,14 @@ it('names every index in one DrwAck', () => {
 });
 
 describe('the login', () => {
-  const login = (socket: { send(msg: Buffer): void }, inbox: unknown[]) =>
-    service().login(socket, inbox, Buffer.alloc(20), { address: 'relay', port: 1 }, '', 'AAC2851962SPLP');
+  const login = (socket: { send(msg: Buffer): void }, inbox: unknown[], deadline?: number) =>
+    service().login(socket, inbox, Buffer.alloc(20), { address: 'relay', port: 1 }, '', 'AAC2851962SPLP', deadline);
+
+  it('gives up at the capture´s deadline where that comes first', async () => {
+    const started = Date.now();
+    await expect(login({ send: () => undefined }, [], started + 2_000)).rejects.toThrow('camera did not accept the session (nothing back in 2s)');
+    expect(Date.now() - started).toBeLessThan(3_000);
+  });
 
   it('gives up on a camera that never answers, saying so', async () => {
     const started = Date.now();

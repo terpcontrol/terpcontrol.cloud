@@ -2,7 +2,7 @@ import { GridFSBucket, MongoClient, ObjectId } from 'mongodb';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { context } from './api';
+import { context, Session } from './api';
 
 /**
  * A few things the API cannot make, because only the server's own pollers or an
@@ -25,12 +25,27 @@ export interface StoredStill {
 
 /**
  * Puts a device into the public demo. There is no API for it - an operator sets
- * the flag by hand, which is what `./simulate-device.sh demo on` does too.
+ * the flag by hand, which is what `./simulate-device.sh demo on` does too, and
+ * it marks what hangs off the device with it: a demo session reads every object
+ * that carries the flag, so the space it stands in and its cameras carry it too.
  */
 export const markAsDemoDevice = (deviceId: string, demo = true): Promise<void> =>
   withDatabase(async database => {
-    await database.collection('devices').updateOne({ device_id: deviceId }, { $set: { demoDevice: demo } });
+    const device = await database.collection('devices').findOne({ id: deviceId });
+    if (!device) throw new Error(`No device ${deviceId} to put into the demo`);
+
+    await database.collection('devices').updateOne({ id: deviceId }, { $set: { isDemo: demo } });
+    if (device.spaceId) await database.collection('spaces').updateOne({ id: device.spaceId }, { $set: { isDemo: demo } });
+    await database.collection('cameras').updateMany({ deviceId }, { $set: { isDemo: demo } });
   });
+
+/**
+ * The diary entries of one device. The timeline has no read route yet - it
+ * arrives with the logging slice - and two things here are only visible in what
+ * a device's line became, so they are read from the collection meanwhile.
+ */
+export const diaryEntriesOf = (deviceId: string): Promise<Record<string, unknown>[]> =>
+  withDatabase(database => database.collection('entries').find({ deviceId }).sort({ createdAt: 1 }).toArray());
 
 /** The GridFS bucket the pictures are kept in, beside the collection indexing them. */
 const BUCKET_NAME = 'imagedata';
@@ -64,4 +79,139 @@ export const storeWebcamStill = (deviceId: string, data: Buffer, timestamp: numb
     });
 
     return { imageId };
+  });
+
+/**
+ * A read-only share link on a grow. Making one is the sharing round's route; a
+ * link is inserted here because what it may and may not do is decided now.
+ */
+export const shareLinkOnGrow = (growId: string, token: string): Promise<void> =>
+  withDatabase(async database => {
+    await database.collection('shareLinks').insertOne({
+      id: randomUUID(),
+      createdAt: new Date(),
+      token,
+      kind: 'view',
+      subject: { type: 'grow', id: growId },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: true,
+      createdBy: null,
+      expiresAt: null,
+      revokedAt: null,
+      state: { openCount: 0, lastOpenedAt: null },
+    });
+  });
+
+/**
+ * A reminder on a space, which is what a derived task comes from. `POST
+ * /v1/reminders` writes one too; this puts the row there without a session, for
+ * the specs that only need a tent with something due in it.
+ */
+export const remindSpace = (spaceId: string, createdBy: string, label = 'Water the tent'): Promise<string> =>
+  withDatabase(async database => {
+    const id = randomUUID();
+
+    await database.collection('reminders').insertOne({
+      id,
+      createdAt: new Date(),
+      subject: { type: 'space', id: spaceId },
+      kind: 'water',
+      label,
+      everyDays: 1,
+      onceAt: null,
+      assigneeId: null,
+      defaults: null,
+      createdBy,
+    });
+
+    return id;
+  });
+
+/**
+ * A still of a camera, as the poller would have stored it: the bytes in the
+ * bucket under the id the row names. The poller only runs against a camera it
+ * can reach, and a spec that needs a picture to exist at a chosen moment needs
+ * one that no stream has to answer for.
+ */
+export const storeCameraStill = (cameraId: string, data: Buffer, capturedAt: Date): Promise<string> =>
+  withDatabase(async database => {
+    const id = randomUUID();
+
+    await pipeline(
+      Readable.from(data),
+      new GridFSBucket(database, { bucketName: BUCKET_NAME }).openUploadStreamWithId(id as unknown as ObjectId, id),
+    );
+
+    await database.collection('media').insertOne({
+      id,
+      createdAt: new Date(),
+      kind: 'still',
+      mime: 'image/jpeg',
+      bytes: data.length,
+      cameraId,
+      growId: null,
+      spaceId: null,
+      uploadedBy: null,
+      capturedAt,
+      endsAt: null,
+      window: null,
+      quality: null,
+      lengthSeconds: null,
+      render: null,
+    });
+
+    return id;
+  });
+
+/**
+ * A row in a collection a spec cannot reach through the API: one with no routes
+ * yet - the chart views and the feeding schemes - one the server writes for
+ * itself, like the notification log, and one whose state a route cannot put
+ * into the shape a case needs.
+ */
+export const seedRow = (collection: string, document: Record<string, unknown>): Promise<void> =>
+  withDatabase(async database => {
+    await database.collection(collection).insertOne({ ...document });
+  });
+
+/** A row put into a state no route reaches, for the case that only arises over time. */
+export const setRow = (collection: string, where: Record<string, unknown>, set: Record<string, unknown>): Promise<void> =>
+  withDatabase(async database => {
+    await database.collection(collection).updateOne(where, { $set: set });
+  });
+
+/** Every camera still standing, marked removed - so the poller, which reads only those, leaves them be. */
+export const takeDownCameras = (): Promise<void> =>
+  withDatabase(async database => {
+    await database.collection('cameras').updateMany({ removedAt: null }, { $set: { removedAt: new Date() } });
+  });
+
+/** What is in a collection, for asserting that something is really gone rather than only unlisted. */
+export const rowsIn = (collection: string, filter: Record<string, unknown>): Promise<Record<string, unknown>[]> =>
+  withDatabase(database => database.collection(collection).find(filter).toArray());
+
+/**
+ * Somebody let into a space, the way one really is: the host cuts an invite and
+ * the guest takes it up. It was a seeded row while there were no membership
+ * routes, and going through them instead is what keeps every spec that merely
+ * needs a member from asserting a membership this server would never write.
+ *
+ * The invite rather than the member list, because a guest here is a stranger -
+ * adding by handle is only for somebody the host already grows with, and these
+ * two have never met.
+ */
+export const joinSpace = async (host: Session, spaceId: string, guest: Session, role: 'can_log' | 'can_manage' = 'can_log'): Promise<void> => {
+  const invite = await host.client.post(`/v1/spaces/${spaceId}/invites`).send({ role }).expect(201);
+  await guest.client.post(`/v1/invites/${invite.body.code}/acceptances`).expect(201);
+};
+
+/**
+ * An account whose deletion began and then stopped: the marker set and the
+ * sessions gone, which is exactly what a run killed after its first step leaves
+ * behind. What picks it up again is either route, or the sweep at boot.
+ */
+export const beginDeletionOf = (userId: string): Promise<void> =>
+  withDatabase(async database => {
+    await database.collection('users').updateOne({ id: userId }, { $set: { deletionStartedAt: new Date() } });
+    await database.collection('sessions').deleteMany({ userId });
   });

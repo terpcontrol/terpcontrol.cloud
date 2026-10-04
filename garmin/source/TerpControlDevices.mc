@@ -46,7 +46,6 @@ class TerpControlDevices {
         "fridge" => ["temperature", "humidity", "vpd", "co2", "out_heater", "out_dehumidifier", "out_co2", "out_light"],
         "fridge2" => ["temperature", "humidity", "vpd", "co2", "out_heater", "out_dehumidifier", "out_co2", "out_light"],
         "controller" => ["temperature", "humidity", "vpd", "co2", "out_heater", "out_dehumidifier", "out_co2", "out_light"],
-        "dryer" => ["temperature", "humidity", "vpd", "out_heater", "out_dehumidifier"],
         "light" => ["temperature", "humidity", "vpd", "out_light"],
         "plug" => ["temperature", "humidity", "vpd", "co2"],
         "fan" => ["temperature", "humidity", "vpd"],
@@ -71,7 +70,6 @@ class TerpControlDevices {
         "fridge" => "Fridge",
         "fridge2" => "Fridge",
         "controller" => "Controller",
-        "dryer" => "Dryer",
         "light" => "Light",
         "plug" => "Smart Socket",
         "fan" => "Fan",
@@ -91,6 +89,17 @@ class TerpControlDevices {
 
     static function supports(deviceType as String?, type as String) as Boolean {
         return contains(supportedTypes(deviceType), type);
+    }
+
+    // The API names a sensor and an output in two separate vocabularies, and both
+    // have a `co2`. The prefix here is what tells them apart in one list, and it
+    // is dropped again when a request names the series.
+    static function isOutput(type as String) as Boolean {
+        return type.substring(0, 4).equals("out_");
+    }
+
+    static function apiName(type as String) as String {
+        return isOutput(type) ? type.substring(4, type.length()) : type;
     }
 
     static function label(type as String) as String {

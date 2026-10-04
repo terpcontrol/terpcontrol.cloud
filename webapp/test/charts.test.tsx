@@ -1,0 +1,1301 @@
+import '@testing-library/jest-dom/vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import i18next from 'i18next';
+import { DateTime } from 'luxon';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { initReactI18next } from 'react-i18next';
+import { MemoryRouter } from 'react-router';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ChartViewSpan, GrowListItem, GrowSeries, TimelineTargets } from '@fg2/shared-types/v1';
+import { chartViewCreate } from '@fg2/shared-types/v1-schemas/diary.js';
+import { Charts } from '@/screens/charts/Charts';
+import { cardsOf, csvForCards, offeredBy, type Offered } from '@/screens/charts/cards';
+import { csvOf, DAY_MS, levelPoints, niceScale, plotOption, readAt, stepPoints } from '@/charts/series';
+
+const state = vi.hoisted(() => ({
+  series: null as GrowSeries | null,
+  /** The grow the screen is opened on, so a test can harvest it and move it out of its tent. */
+  grow: null as unknown,
+  posted: [] as { path: string; body: unknown }[],
+  refuse: false,
+  views: [] as unknown[],
+  /** Every read the screen made, so what it asked the server for can be asserted and not only what it drew. */
+  asked: [] as { path: string; query: Record<string, unknown> | undefined }[],
+  /** Set to have the next series read fail, which is how a chip is tapped against a server that cannot answer. */
+  breaks: false,
+  /** The zone the account names, which is the one every clock time on this screen is written in. */
+  zone: null as string | null,
+  /** Every grow the account has, which is what the bare address has to offer instead of a chart. */
+  grows: null as unknown[] | null,
+}));
+
+// Every read the screen makes goes through the one client, so the hooks under
+// test are the real ones and what a tap sends is what this records.
+vi.mock('@/api/client', async () => {
+  const { ApiError } = await import('@/api/problem');
+
+  return {
+    api: {
+      get: (path: string, query?: Record<string, unknown>) => {
+        state.asked.push({ path, query });
+        // A rolling window is the place's and a stretch of the grow is the grow's; both answer the one fixture.
+        if (path.startsWith('/grows/grow-1/series') || path.startsWith('/spaces/space-1/series')) {
+          return state.breaks
+            ? Promise.reject(new ApiError({ status: 503, code: 'unavailable', title: 'Nope', detail: 'The store said no.', errors: [] }))
+            : Promise.resolve(state.series);
+        }
+        if (path.startsWith('/grows/grow-2/series')) return Promise.resolve(earlier);
+        if (path === '/grows/grow-1/plants') return Promise.resolve({ items: plants, nextCursor: null });
+        if (path === '/grows/grow-1') return Promise.resolve(state.grow);
+        if (path === '/grows') return Promise.resolve({ items: state.grows ?? [], nextCursor: null });
+        if (path === '/spaces') return Promise.resolve({ items: [{ id: 'space-1', name: 'Tent 1' }], nextCursor: null });
+        if (path === '/devices') {
+          return Promise.resolve({ items: [{ id: 'device-1', settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0 } }], nextCursor: null });
+        }
+        if (path === '/chart-views') return Promise.resolve({ items: state.views, nextCursor: null });
+        if (path === '/me') return Promise.resolve({ id: 'user-1', handle: 'you', preferences: { timezone: state.zone } });
+        return Promise.resolve({ items: [], nextCursor: null });
+      },
+      post: (path: string, body: unknown) => {
+        state.posted.push({ path, body });
+        if (state.refuse) {
+          return Promise.reject(
+            new ApiError({ status: 422, code: 'name_taken', title: 'Refused', detail: 'A view of yours is already called that.', errors: [] }),
+          );
+        }
+
+        return Promise.resolve({ id: 'view-1', createdAt: NOW.toISO(), ownerId: 'user-1', name: 'kept', definition: body });
+      },
+      patch: () => Promise.resolve({}),
+      delete: () => Promise.resolve(undefined),
+    },
+  };
+});
+
+// A chart is a canvas, which jsdom has not got; what it would draw is checked
+// by the unit tests at the foot of this file.
+vi.mock('@/charts/Chart', () => ({ Chart: ({ ariaLabel }: { ariaLabel: string }) => <div role="img" aria-label={ariaLabel} /> }));
+
+const session = vi.hoisted(() => ({ demo: false }));
+
+vi.mock('@/api/session', async importOriginal => {
+  const { ON_THE_DEMO, SIGNED_IN } = await import('./session');
+
+  return { ...(await importOriginal<object>()), useSession: () => (session.demo ? ON_THE_DEMO : SIGNED_IN) };
+});
+
+/**
+ * The Charts view is the one screen that draws whatever was asked for, so what
+ * it must get right is the offer: a chip stands only for a line the account
+ * really has, two units share a panel only where they belong together, and a
+ * session that may only look is offered no way to save.
+ */
+
+const NOW = DateTime.fromISO('2026-09-22T12:00:00.000Z');
+const FROM = NOW.minus({ hours: 24 });
+const at = (hour: number) => FROM.plus({ hours: hour }).toISO()!;
+
+const targets = (setpoint: number, low: number, high: number): TimelineTargets => ({
+  startsAt: at(0),
+  endsAt: at(24),
+  phaseId: 'phase-1',
+  stage: 'flowering',
+  day: { setpoint, band: { low, high } },
+  night: { setpoint: setpoint - 2, band: { low: low - 2, high: high - 2 } },
+});
+
+const grow: GrowListItem = {
+  id: 'grow-1',
+  ownerId: 'user-1',
+  name: 'Spring run',
+  description: null,
+  type: 'photoperiod',
+  phases: [],
+  placements: [{ id: 'pl1', spaceId: 'space-1', startedAt: at(0), endedAt: null, plantIds: null }],
+  scheme: null,
+  measurements: [
+    { key: 'height', name: 'Height', unit: 'cm', perPlant: true, targetMin: null, targetMax: null, chart: true },
+    { key: 'ec', name: 'EC', unit: '', perPlant: false, targetMin: 1.4, targetMax: 1.8, chart: true },
+  ],
+  visibility: 'private',
+  slug: 'spring-run',
+  coverMediaId: null,
+  filmMediaId: null,
+  startedAt: NOW.minus({ days: 34 }).toISO()!,
+  endedAt: null,
+  isDemo: false,
+  createdAt: NOW.minus({ days: 34 }).toISO()!,
+  updatedAt: at(24),
+  summary: {
+    dayNumber: 35,
+    stage: 'flowering',
+    preset: 'flower',
+    phaseDay: 11,
+    stageWeek: 2,
+    weekNumber: 5,
+    isAuto: false,
+    groups: [],
+    locations: [],
+  },
+};
+
+const plants = [
+  { id: 'plant-1', growId: 'grow-1', strain: 'Amnesia', label: 'Amnesia 1', status: 'growing', harvest: null, createdAt: at(0) },
+  { id: 'plant-2', growId: 'grow-1', strain: 'Amnesia', label: 'Amnesia 2', status: 'growing', harvest: null, createdAt: at(0) },
+];
+
+const series: GrowSeries = {
+  growId: 'grow-1',
+  range: '24h',
+  startsAt: at(0),
+  endsAt: at(24),
+  stepSeconds: 300,
+  originAt: NOW.minus({ days: 34 }).toISO()!,
+  dayFrom: 35,
+  dayTo: 35,
+  deviceIds: ['device-1'],
+  lastReadingAt: null,
+  climate: [
+    {
+      metric: 'temperature',
+      points: [0, 6, 12, 18, 24].map(hour => ({ measuredAt: at(hour), value: 24 + hour / 12 })),
+      targets: [targets(25, 24, 26)],
+    },
+    { metric: 'humidity', points: [0, 6, 12, 18, 24].map(hour => ({ measuredAt: at(hour), value: 60 - hour / 6 })), targets: [targets(58, 54, 62)] },
+    { metric: 'vpd', points: [0, 6, 12, 18, 24].map(hour => ({ measuredAt: at(hour), value: 1.1 + hour / 100 })), targets: [targets(1.2, 1, 1.4)] },
+  ],
+  outputs: [
+    { output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(6), endsAt: at(18) }], heardUntil: at(24) },
+    { output: 'dehumidifier', deviceId: 'device-1', spans: [{ startsAt: at(8), endsAt: at(9) }], heardUntil: at(24) },
+    { output: 'heater', deviceId: 'device-1', spans: [{ startsAt: at(2), endsAt: at(3) }], heardUntil: at(24) },
+  ],
+  nights: [{ startsAt: at(0), endsAt: at(6) }],
+  cameras: [],
+  measurements: [
+    {
+      key: 'height',
+      points: [
+        { measuredAt: at(4), value: 54, plantId: 'plant-1', entryId: 'e1' },
+        { measuredAt: at(5), value: 61, plantId: 'plant-2', entryId: 'e2' },
+      ],
+    },
+  ],
+};
+
+/**
+ * A run of the same tent a hundred days earlier. Its instants are its own and
+ * so is its day 1, which is the whole point: laid over this one it has to land
+ * on the same day numbers and nowhere near the same dates.
+ */
+const before = (hour: number) => FROM.plus({ hours: hour }).minus({ days: 100 }).toISO()!;
+
+const earlier: GrowSeries = {
+  ...series,
+  growId: 'grow-2',
+  originAt: DateTime.fromISO(series.originAt).minus({ days: 100 }).toISO()!,
+  startsAt: before(0),
+  endsAt: before(24),
+  climate: [
+    { metric: 'temperature', points: [0, 6, 12, 18, 24].map(hour => ({ measuredAt: before(hour), value: 20 + hour / 24 })), targets: [] },
+    { metric: 'humidity', points: [0, 6, 12, 18, 24].map(hour => ({ measuredAt: before(hour), value: 70 })), targets: [] },
+    { metric: 'vpd', points: [0, 6, 12, 18, 24].map(hour => ({ measuredAt: before(hour), value: 0.9 })), targets: [] },
+  ],
+  outputs: [],
+  nights: [],
+  measurements: [],
+};
+
+const drawAt = (entry: string) =>
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={[entry]}>
+        <Charts />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+
+const draw = () => drawAt('/charts?grow=grow-1');
+
+beforeAll(async () => {
+  const [en, de] = await Promise.all(
+    ['en', 'de'].map(async language => JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'))),
+  );
+  await i18next.use(initReactI18next).init({
+    lng: 'en',
+    resources: { en: { translation: en }, de: { translation: de } },
+    nsSeparator: false,
+    interpolation: { escapeValue: false },
+  });
+});
+
+afterEach(async () => {
+  await i18next.changeLanguage('en');
+});
+
+beforeEach(() => {
+  state.series = series;
+  state.grow = grow;
+  state.posted = [];
+  state.asked = [];
+  state.refuse = false;
+  state.breaks = false;
+  state.views = [];
+  state.zone = null;
+  state.grows = [grow, { ...grow, id: 'grow-2', name: 'Autumn run' }];
+  session.demo = false;
+});
+
+describe('the Charts view', () => {
+  it('offers only the lines the account has, and draws the board´s panels for the ones it opens on', async () => {
+    draw();
+
+    expect(await screen.findByRole('heading', { name: 'Charts' })).toBeInTheDocument();
+    expect(await screen.findByText('Tent 1 · Spring run')).toBeInTheDocument();
+
+    // The everyday widths, the rest behind a chip of their own, the grow's two
+    // stretches and a range of one's own, with the window the answer covers beside them.
+    for (const label of ['1 h', '24 h', '7 d', '30 d', 'More …', 'Phase', 'Grow', 'Custom …']) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('button', { name: '1 year' })).not.toBeInTheDocument();
+    expect(screen.getByText('day 35')).toBeInTheDocument();
+
+    // CO2 is not offered: no controller reported it. Nor is EC, which the grow
+    // defines and nobody has yet measured. Three outputs, so the rest fold away.
+    for (const label of ['Temp', 'RH', 'VPD', 'Height', 'Light', 'Dehumidifier', '+ more']) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('button', { name: 'CO2' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'EC' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Heater' })).not.toBeInTheDocument();
+
+    // Temperature and humidity belong together, so they are one panel of two
+    // axes; VPD is its own, and says what the leaf was taken to be.
+    expect(screen.getByText('Temp + RH')).toBeInTheDocument();
+    expect(screen.getByText('· overlaid, two axes')).toBeInTheDocument();
+    expect(screen.getByText('°C · %')).toBeInTheDocument();
+    // The chip, the card's own title and the line the pinned reading names.
+    expect(screen.getAllByText('VPD')).toHaveLength(3);
+    // Both halves, because the device holds a different leaf offset for each
+    // and the band on this one card is worked out from both of them.
+    expect(screen.getByText('· target band follows the phase · leaf −2 °C by day, 0 °C at night')).toBeInTheDocument();
+    expect(screen.getByText('kPa')).toBeInTheDocument();
+
+    for (const label of ['Stacked', 'Overlay', 'Day-of-grow', 'Save view', 'CSV']) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    }
+    expect(screen.getByText(/Put together any curves over any span/)).toHaveTextContent('export them as CSV');
+  });
+
+  it('says what step the table it offers is written at, rather than promising a rate it cannot give', async () => {
+    draw();
+
+    // The CSV is the answer already on the screen, which is a mean per window
+    // and not what the devices reported at: a grow-wide window is a few hundred
+    // rows over hundreds of thousands of readings.
+    expect(await screen.findByText(/The CSV file holds every curve chosen above/)).toHaveTextContent('one row per 5 min');
+    expect(screen.queryByText(/native rate/)).not.toBeInTheDocument();
+  });
+
+  it('states a step that is not a whole hour as the hour and a half it is', async () => {
+    // What a season comes out at: the window divided by the number of panels,
+    // which lands wherever it lands. Floored to a single unit this read "one
+    // row per 1 h" over rows an hour and a half apart.
+    state.series = { ...series, stepSeconds: 5344 };
+    draw();
+
+    expect(await screen.findByText(/The CSV file holds every curve chosen above/)).toHaveTextContent('one row per 1 h 29 min');
+  });
+
+  it('says nothing about rows for a window that has none, and still offers the way on to the whole grow', async () => {
+    // A window the grow has no readings in is answered with no devices and a
+    // step of zero, which is the server saying there is no series - not a rate
+    // of one row per nothing.
+    state.series = { ...series, stepSeconds: 0, deviceIds: [], climate: [], outputs: [], measurements: [], nights: [] };
+    draw();
+
+    expect(await screen.findByText(/No measurements in this period/)).toBeInTheDocument();
+    expect(screen.queryByText(/The CSV file holds every curve chosen above/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/one row per/)).not.toBeInTheDocument();
+    expect(screen.getByText(/is under Export on/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Spring run' })).toHaveAttribute('href', '/grows/grow-1');
+  });
+
+  it('says nothing about rows where the tent was read and had nothing to say either', async () => {
+    // The commoner of the two empty screens: the controller was found and
+    // asked, so a step comes back, and it answered nothing for this window.
+    // The sentence describes the table the CSV button offers, and that button
+    // is dead here, so a rate under it names a file nobody can have.
+    state.series = { ...series, climate: [], outputs: [], measurements: [], nights: [] };
+    draw();
+
+    expect(await screen.findByText(/No measurements in this period/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'CSV' })).toBeDisabled();
+    expect(screen.queryByText(/one row per/)).not.toBeInTheDocument();
+    expect(screen.getByText(/is under Export on/)).toBeInTheDocument();
+  });
+
+  it('reads out every line at the cursor and prints both ends of every scale', async () => {
+    draw();
+
+    // The cursor rests at the end of the window until it is moved, so what is
+    // pinned is the newest reading of each line, in its own unit - and to the
+    // decimals that metric is written to everywhere else, so a temperature of
+    // exactly 26 still carries its tenth and the figure keeps its width as the
+    // cursor moves.
+    const reading = await screen.findByRole('status');
+    expect(reading).toHaveTextContent('Temp 26.0 °C');
+    expect(reading).toHaveTextContent('RH 56 %');
+    expect(reading).toHaveTextContent('VPD 1.34 kPa');
+
+    // And the panel itself carries its scales: temperature on the left, humidity on the right.
+    const pair = screen.getByText('Temp + RH').closest('section')!;
+    for (const figure of ['27', '21', '65', '50']) expect(pair).toHaveTextContent(figure);
+  });
+
+  /**
+   * A decimal point is not punctuation: the German app writes a comma there,
+   * and this readout wrote the English one because it went through a writer
+   * that knew no language at all. It put "VPD 0.75 kPa" beside a date the same
+   * line had just written "29 Aug.", on the one screen a grower reads a season
+   * off.
+   */
+  it('writes the reading in the reader´s own language, beside the date it already writes there', async () => {
+    await i18next.changeLanguage('de');
+    draw();
+
+    const reading = await screen.findByRole('status');
+    expect(reading).toHaveTextContent('Temperatur 26,0 °C');
+    expect(reading).toHaveTextContent('Luftfeuchte 56 %');
+    expect(reading).toHaveTextContent('VPD 1,34 kPa');
+    expect(reading).not.toHaveTextContent('26.0');
+  });
+
+  /**
+   * The two corner figures are written in the gutter beside the plot rather
+   * than on it, so that they can be read in the app's own face - and they were
+   * written by string arithmetic that knew no language, which put an English
+   * point in the German gutter of a panel whose reading above it had a comma.
+   */
+  it('writes the corners of a scale in the reader´s language as well', async () => {
+    // A window of a tenth of a degree either way: the scale is stretched to
+    // ends that do not land on whole numbers, which is where a decimal shows.
+    state.series = {
+      ...series,
+      climate: [{ metric: 'temperature', points: [0, 6, 12, 18, 24].map(hour => ({ measuredAt: at(hour), value: 24 + hour / 60 })), targets: [] }],
+      outputs: [],
+      measurements: [],
+    };
+    await i18next.changeLanguage('de');
+    draw();
+
+    expect(await screen.findByText('24,6')).toBeInTheDocument();
+    expect(screen.getByText('23,8')).toBeInTheDocument();
+    expect(screen.queryByText('24.6')).not.toBeInTheDocument();
+  });
+
+  it('prints a dash rather than the last figure it heard where the series stops before the window does', async () => {
+    // The tent fell quiet half way through the window, which the answer says by
+    // breaking every line after the last reading. The cursor rests at the right
+    // edge, so this is the reading somebody opening the screen is shown.
+    state.series = {
+      ...series,
+      climate: series.climate.map(panel => ({ ...panel, points: [...panel.points.slice(0, 3), { measuredAt: at(13), value: null }] })),
+    };
+    draw();
+
+    const reading = await screen.findByRole('status');
+    for (const line of ['Temp —', 'RH —', 'VPD —']) expect(reading).toHaveTextContent(line);
+    expect(reading).not.toHaveTextContent('26 °C');
+  });
+
+  it('adds a measurement as a panel of its own, one line per plant rather than one across all of them', async () => {
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'Height' }));
+
+    // Once as the chip that turned it on, once as the panel it turned on.
+    expect(screen.getAllByText('Height')).toHaveLength(2);
+    expect(screen.getByText('· measured · per plant')).toBeInTheDocument();
+    expect(screen.getByText('cm')).toBeInTheDocument();
+
+    // Two plants were measured, so the card carries two lines and says which is which.
+    const reading = screen.getByRole('status');
+    expect(reading).toHaveTextContent('Height · Amnesia 1');
+    expect(reading).toHaveTextContent('Height · Amnesia 2');
+  });
+
+  it('does not carry a reading somebody wrote down across the window it was not taken in', async () => {
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'Height' }));
+
+    // Both readings were written in the small hours; the cursor rests at the
+    // right-hand edge, nineteen hours later. A curve holds - a mean stands for
+    // its window - but a reading happened once, and the table this screen
+    // exports leaves every other row of that column empty for exactly that
+    // reason. Held forward, one August reading was pinned under the cursor for
+    // the month that followed.
+    const reading = screen.getByRole('status');
+    expect(reading).toHaveTextContent('Height · Amnesia 1 —');
+    expect(reading).toHaveTextContent('Height · Amnesia 2 —');
+    // The curves beside it still read, because a mean does stand for its window.
+    expect(reading).toHaveTextContent('Temp 26.0 °C');
+  });
+
+  it('works the VPD band out of the pair the tent is steered by when the answer carries none', async () => {
+    state.series = { ...series, climate: series.climate.map(panel => (panel.metric === 'vpd' ? { ...panel, targets: [] } : panel)) };
+    draw();
+
+    expect(await screen.findByText('· target band follows the phase · leaf −2 °C by day, 0 °C at night')).toBeInTheDocument();
+  });
+
+  it('labels the two ends of a season with dates, and the two ends of a rolling day with weekdays', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: NOW.toMillis() });
+    draw();
+    await screen.findByText('Temp + RH');
+
+    // A day begins and ends at the same minute, so the clock alone would label
+    // both ends of the chart identically: the weekday is what tells them apart.
+    for (const hour of [0, 24]) {
+      expect(screen.getAllByText(DateTime.fromISO(at(hour)).toFormat('ccc HH:mm')).length).toBeGreaterThan(0);
+    }
+    vi.useRealTimers();
+  });
+
+  it('dates a day that lies further back than a week, which a weekday alone would not place', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: NOW.plus({ days: 14 }).toMillis() });
+    draw();
+    await screen.findByText('Temp + RH');
+
+    for (const hour of [0, 24]) {
+      expect(screen.getAllByText(DateTime.fromISO(at(hour)).toFormat('d MMM HH:mm')).length).toBeGreaterThan(0);
+    }
+    vi.useRealTimers();
+  });
+
+  it.each([
+    ['a season', '2026-01-19T13:39:00.000Z', '2026-08-24T15:31:00.000Z'],
+    ['five days somebody picked', '2026-09-01T00:00:00.000Z', '2026-09-05T23:59:00.000Z'],
+  ])('keeps the date on the axis of %s', async (_what, from, to) => {
+    const opens = DateTime.fromISO(from);
+    const closes = DateTime.fromISO(to);
+    state.series = { ...series, startsAt: opens.toISO()!, endsAt: closes.toISO()! };
+    draw();
+    await screen.findByText('Temp + RH');
+
+    // Seven months of chart used to be labelled "14:39" and "17:31", and five
+    // days of September "00:00" and "23:59": widening from the clock stops as
+    // soon as the two strings differ, which they do at once on any window that
+    // does not begin and end at the same minute.
+    expect(screen.getAllByText(opens.toFormat('d MMM HH:mm')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(closes.toFormat('d MMM HH:mm')).length).toBeGreaterThan(0);
+  });
+
+  /**
+   * The zone every clock time on this screen is read in, which is the account's
+   * and not the browser's.
+   *
+   * This screen was the last one left on the browser's zone after the rest of
+   * the app moved onto the account's, and it drew a season that ended at
+   * 15:31 UTC as "17:31" to anybody reading it from Berlin - beside a Timeline
+   * of the same tent, one tap away, that said 15:31 to everybody. So the two
+   * ends are asserted against the account's zone rather than against whatever
+   * zone the machine running this happens to be in.
+   */
+  it('writes the two ends of the window where the account is, whatever zone the browser is in', async () => {
+    const opens = '2026-01-19T13:39:00.000Z';
+    const closes = '2026-08-24T15:31:00.000Z';
+    state.zone = 'Pacific/Kiritimati';
+    state.series = { ...series, startsAt: opens, endsAt: closes };
+    draw();
+    await screen.findByText('Temp + RH');
+
+    const there = (instant: string) => DateTime.fromISO(instant).setZone('Pacific/Kiritimati').toFormat('d MMM HH:mm');
+    await waitFor(() => expect(screen.getAllByText(there(opens)).length).toBeGreaterThan(0));
+    expect(screen.getAllByText(there(closes)).length).toBeGreaterThan(0);
+  });
+
+  /**
+   * And the window itself, not only its label. A day picked in the two date
+   * fields is a whole day where the tent stands, so a browser behind or ahead
+   * of the account asks the server for the same twenty-four hours it would.
+   */
+  it('cuts a day somebody picked at the account´s midnight rather than the browser´s', async () => {
+    state.zone = 'Pacific/Kiritimati';
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'Custom …' }));
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-08-20' } });
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-08-20' } });
+
+    const asked = () => state.asked.filter(read => read.path.includes('/series?') && read.path.includes('from=')).at(-1)?.path;
+    await waitFor(() => expect(asked()).toBeDefined());
+    const window = new URLSearchParams(asked()!.split('?')[1]);
+
+    // +14: the day the account means began fourteen hours before UTC midnight.
+    expect(window.get('from')).toBe('2026-08-19T10:00:00.000Z');
+    expect(window.get('to')).toBe('2026-08-20T09:59:59.999Z');
+  });
+
+  /**
+   * A custom range that arrives in the address rather than out of the two date
+   * fields can carry anything at all - a stale link, a query typed by hand, a
+   * field something was pasted into. The window then cannot be built, the read
+   * is never made, and a screen that judged "have both ends been picked?" on
+   * the raw strings called the question finished and waited on nothing: two
+   * skeletons that never resolved, with no word about why.
+   */
+  it('says a custom range it cannot read, rather than waiting on a read it never makes', async () => {
+    drawAt('/charts?grow=grow-1&range=custom&from=banana&to=2026-09-22');
+
+    expect(await screen.findByText('That is not a date this can read — pick both ends again.')).toBeInTheDocument();
+    expect(screen.queryByText('loading')).not.toBeInTheDocument();
+    expect(state.asked.filter(read => read.path.includes('/series'))).toHaveLength(0);
+  });
+
+  /**
+   * The bare address: a bookmark on this screen, or a link that arrived without
+   * its query. It names neither a grow nor a tent, so neither of the tent's two
+   * ways on can be drawn - and an account with grows in it is owed the one way
+   * on that needs no id at all.
+   */
+  it('offers the account´s grows when the address names neither a grow nor a tent', async () => {
+    drawAt('/charts');
+
+    expect(await screen.findByText('No device stands anywhere yet. Pick a grow whose measurements are drawn.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Spring run' })).toHaveAttribute('href', '/charts?grow=grow-1');
+    expect(screen.getByRole('link', { name: 'Autumn run' })).toHaveAttribute('href', '/charts?grow=grow-2');
+    expect(screen.queryByText(/Nothing grows here yet/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the plain sentence for an account that has no grow anywhere yet', async () => {
+    state.grows = [];
+    drawAt('/charts');
+
+    expect(await screen.findByText("Nothing to draw yet: charts show a device's readings or a grow's measurements.")).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Spring run' })).not.toBeInTheDocument();
+  });
+
+  /**
+   * The neighbouring case: two ends that read perfectly well and name no
+   * stretch of time, because the later of them is in the earlier field. The
+   * route refuses that pair for good, so a read of it came back as a window
+   * that could not be refreshed - a transient fault, with a Try again there was
+   * nothing to try - and the chart of the range before it stayed drawn under
+   * two fields that no longer described it.
+   */
+  it('says a custom range whose ends are the wrong way round, and takes the chart of the other range down', async () => {
+    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-20&to=2026-09-22');
+    await screen.findByText('Temp + RH');
+    // The place's curves and the grow's own readings beside them.
+    expect(state.asked.filter(read => read.path.includes('/series'))).toHaveLength(2);
+
+    // A From typed after the To, which is what the fields allow: `max` on a
+    // date field raises a validity flag and refuses nothing.
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-09-26' } });
+
+    expect(await screen.findByText('That range ends before it begins — pick a From that is earlier than the To.')).toBeInTheDocument();
+    expect(screen.queryByText('Temp + RH')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Could not refresh/)).not.toBeInTheDocument();
+    // Nor the days of the window that is no longer being asked about.
+    expect(screen.queryByText('day 35')).not.toBeInTheDocument();
+    expect(state.asked.filter(read => read.path.includes('/series'))).toHaveLength(2);
+  });
+
+  it('says the same of an inverted range that arrives in the address, and asks nothing of the route', async () => {
+    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-22&to=2026-01-19');
+
+    expect(await screen.findByText('That range ends before it begins — pick a From that is earlier than the To.')).toBeInTheDocument();
+    expect(screen.queryByText('loading')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+    expect(state.asked.filter(read => read.path.includes('/series'))).toHaveLength(0);
+  });
+
+  it('draws a range of one day, which begins and ends on the same date and is not backwards', async () => {
+    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-21&to=2026-09-21');
+
+    expect(await screen.findByText('Temp + RH')).toBeInTheDocument();
+    expect(screen.queryByText(/ends before it begins/)).not.toBeInTheDocument();
+  });
+
+  it('says it for the other end too, and keeps the plain sentence for an end nobody has picked yet', async () => {
+    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-20&to=nonsense');
+
+    expect(await screen.findByText('That is not a date this can read — pick both ends again.')).toBeInTheDocument();
+
+    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-20');
+
+    expect(await screen.findByText('Pick both ends and the chart is drawn between them.')).toBeInTheDocument();
+  });
+
+  /**
+   * One cursor is only one cursor while every card draws the window across the
+   * same width. The Temp + RH card carries two scales and reserves a gutter for
+   * the second one's corner figures; the VPD card below it carries one and used
+   * to reserve nothing, so the two stretched the same window across drawn areas
+   * 38 px apart and the shared cursor stood at two different instants on one
+   * screen.
+   */
+  it('reserves the same drawn area on every card, so one cursor is one instant', async () => {
+    draw();
+    await screen.findByText('Temp + RH');
+
+    const cards = [...document.querySelectorAll('section[style]')].map(card => card.getAttribute('style'));
+    expect(cards.length).toBeGreaterThan(1);
+    expect(new Set(cards)).toHaveProperty('size', 1);
+    expect(cards[0]).toContain('--gutter-right: 38px');
+  });
+
+  it('keeps counting in days out of reach where no stretch of a grow is being drawn', async () => {
+    draw();
+
+    expect(await screen.findByRole('button', { name: 'Day-of-grow' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Grow' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Day-of-grow' })).toBeEnabled());
+  });
+
+  it('offers a view saved over another run and says which of its lines it has nothing to draw', async () => {
+    state.views = [
+      {
+        id: 'view-9',
+        createdAt: NOW.toISO(),
+        ownerId: 'user-1',
+        name: 'Water in',
+        definition: {
+          deviceIds: [],
+          growId: 'grow-9',
+          metrics: ['temperature'],
+          outputs: [],
+          measurements: ['ec'],
+          span: { kind: 'last', forSeconds: 86400 },
+          layout: 'stacked',
+          intervalSeconds: 300,
+        },
+      },
+    ];
+    draw();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Water in' }));
+
+    // Of the window rather than of the grow: the screen cannot tell a line this
+    // grow never measured from one whose window happens to be empty - the
+    // server leaves out a panel of nothing either way - and the grow-level
+    // sentence was printed over grows with a month of readings in them.
+    expect(screen.getByText('EC has nothing in this period, so it is not drawn.')).toBeInTheDocument();
+    // What it could draw is drawn: the view names temperature and nothing else.
+    expect(screen.getByRole('button', { name: 'Temp' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'RH' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('lays an earlier run of the same tent over this one, each counted from its own day 1', async () => {
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'Grow' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Day-of-grow' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Autumn run' }));
+
+    // Its readings are a hundred days older and land on the same day of grow.
+    const reading = await screen.findByRole('status');
+    await waitFor(() => expect(reading).toHaveTextContent('Temp · Autumn run 21.0 °C'));
+    expect(reading).toHaveTextContent('day 35');
+  });
+
+  it('offers the earlier runs of a tent a finished grow no longer stands in', async () => {
+    // Harvested and moved out, which closes its placement. Asked only what
+    // stands in the tent now, this grow knows of no tent at all and the row of
+    // runs to compare with was never drawn - for exactly the grow the layout
+    // exists for.
+    state.grow = { ...grow, endedAt: at(24), placements: [{ ...grow.placements[0], endedAt: at(24) }] };
+    state.series = { ...series, range: 'grow' };
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'Grow' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Day-of-grow' }));
+    expect(await screen.findByRole('button', { name: 'Autumn run' })).toBeInTheDocument();
+
+    // And the tent it stood in is still named beside the chart.
+    expect(screen.getByText('Tent 1 · Spring run')).toBeInTheDocument();
+    expect(state.asked.some(read => read.path === '/grows' && read.query?.including === 'ended')).toBe(true);
+  });
+
+  it('keeps the window already drawn when the next one cannot be read, dimmed rather than thrown away', async () => {
+    draw();
+    expect(await screen.findByText('Temp + RH')).toBeInTheDocument();
+
+    state.breaks = true;
+    fireEvent.click(screen.getByRole('button', { name: 'Phase' }));
+
+    await waitFor(() => expect(screen.getByText('Temp + RH').closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true'));
+    expect(screen.getByText('Temp + RH')).toBeInTheDocument();
+    expect(screen.queryByText('Could not load. Try again.')).not.toBeInTheDocument();
+    // And what the chart is drawn from is still offered: a read that failed is
+    // not the same claim as "nothing was ever measured here".
+    expect(screen.getByRole('button', { name: 'VPD' })).toBeInTheDocument();
+    expect(screen.queryByText('No measurements in this period — try a different range.')).not.toBeInTheDocument();
+  });
+
+  it('saves the chart as it stands, sending the question and no readings', async () => {
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'Save view' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Flower nights' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(state.posted).toHaveLength(1));
+    expect(state.posted[0]).toEqual({
+      path: '/chart-views',
+      body: {
+        name: 'Flower nights',
+        definition: {
+          deviceIds: ['device-1'],
+          growId: 'grow-1',
+          metrics: ['temperature', 'humidity', 'vpd'],
+          outputs: [],
+          measurements: [],
+          span: { kind: 'last', forSeconds: 86400 },
+          layout: 'stacked',
+          intervalSeconds: 300,
+        },
+      },
+    });
+  });
+
+  it('keeps a window somebody picked by hand, spelled the one way the contract takes an instant', async () => {
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'Custom …' }));
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-03-01' } });
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-03-07' } });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Save view' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'That week in March' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(state.posted).toHaveLength(1));
+    // The server takes the whole body or none of it, and `instant()` - the one
+    // scalar behind every ...At on the wire - reads a Z instant and nothing
+    // else. Written with the reader's own offset, as Luxon writes one by
+    // default, the two ends of the window were refused as "Invalid ISO
+    // datetime" and the one window that cannot be asked for again by tapping a
+    // chip was the one window that could not be kept.
+    expect(chartViewCreate.safeParse(state.posted[0].body).success).toBe(true);
+
+    const span = (state.posted[0].body as { definition: { span: ChartViewSpan } }).definition.span;
+    expect(span.kind).toBe('fixed');
+    const range = (span as { kind: 'fixed'; range: { startsAt: string; endsAt: string } }).range;
+    expect(range.startsAt).toMatch(/Z$/);
+    expect(range.endsAt).toMatch(/Z$/);
+
+    // And it is the same moment as before: the two days a grower picked, whole,
+    // in their own zone.
+    expect(DateTime.fromISO(range.startsAt).toISODate()).toBe('2026-03-01');
+    expect(DateTime.fromISO(range.startsAt).toFormat('HH:mm')).toBe('00:00');
+    expect(DateTime.fromISO(range.endsAt).toISODate()).toBe('2026-03-07');
+    expect(DateTime.fromISO(range.endsAt).toFormat('HH:mm')).toBe('23:59');
+  });
+
+  it('says what the server said when a view is refused, and keeps the sheet open', async () => {
+    state.refuse = true;
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'Save view' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Flower nights' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('A view of yours is already called that.');
+    expect(screen.getByLabelText('Name')).toHaveValue('Flower nights');
+  });
+
+  it('lets the demo read every chart and offers it no way to keep one', async () => {
+    session.demo = true;
+    draw();
+
+    expect(await screen.findByText('Temp + RH')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'CSV' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save view' })).not.toBeInTheDocument();
+  });
+
+  it('says there is nothing to draw rather than drawing empty panels', async () => {
+    state.series = { ...series, climate: [], outputs: [], measurements: [], nights: [] };
+    draw();
+
+    expect(await screen.findByText('No measurements in this period — try a different range.')).toBeInTheDocument();
+    expect(screen.queryByText('Temp + RH')).not.toBeInTheDocument();
+  });
+
+  /**
+   * The same two silences the Timeline of the same tent tells apart, told apart
+   * the same way and dated the same way: a grower moving between the two
+   * screens one tap apart must not be given two accounts of one quiet tent.
+   */
+  it('dates the silence where the tent does measure and has simply stopped talking', async () => {
+    state.series = {
+      ...series,
+      climate: [],
+      outputs: [],
+      measurements: [],
+      nights: [],
+      lastReadingAt: DateTime.now().minus({ days: 3 }).toISO()!,
+    };
+    draw();
+
+    expect(await screen.findByText(/last measured 3 d ago/)).toBeInTheDocument();
+    // The advice stays: on the very tent this was found on the next chip along
+    // does draw, so a range really is worth trying.
+    expect(screen.getByText(/try a different range/)).toBeInTheDocument();
+  });
+
+  it('blames nothing on hardware a grow whose places hold none has never had', async () => {
+    // A grow standing where only a plug, a light or a fan stands has never
+    // measured a climate, and telling its grower the tent went quiet would be
+    // a fault invented out of nothing.
+    state.series = { ...series, climate: [], outputs: [], measurements: [], nights: [], lastReadingAt: null };
+    draw();
+
+    expect(await screen.findByText('No measurements in this period — try a different range.')).toBeInTheDocument();
+    expect(screen.queryByText(/last measured/)).not.toBeInTheDocument();
+  });
+});
+
+describe('what a plot is made of', () => {
+  it('turns the spans an output ran for into the square wave they describe', () => {
+    expect(stepPoints([{ from: 10, to: 20 }], 0, 30)).toEqual([
+      [0, 0],
+      [10, 0],
+      [10, 1],
+      [20, 1],
+      [20, 0],
+      [30, 0],
+    ]);
+  });
+
+  it('ends the wave where the device was last heard rather than lying flat along the bottom to the edge', () => {
+    // Off at 20, quiet from 25: the bottom between them is a claim about
+    // hardware nobody has heard from, so the wave stops and breaks instead.
+    expect(stepPoints([{ from: 10, to: 20 }], 0, 30, 25)).toEqual([
+      [0, 0],
+      [10, 0],
+      [10, 1],
+      [20, 1],
+      [20, 0],
+      [25, 0],
+      [26, null],
+    ]);
+  });
+
+  it('draws a device still reporting all the way to the edge', () => {
+    expect(stepPoints([{ from: 10, to: 20 }], 0, 30, 30)).toEqual([
+      [0, 0],
+      [10, 0],
+      [10, 1],
+      [20, 1],
+      [20, 0],
+      [30, 0],
+    ]);
+  });
+
+  /**
+   * A lamp still running at the edge of the window ended in a drop at that same
+   * instant, and the readout at "now" - the last point at or before the cursor -
+   * said the light was off while the device reported 91 %.
+   */
+  it('ends high where the output is still running at the last instant heard', () => {
+    const points = stepPoints([{ from: 10, to: 30 }], 0, 30);
+
+    expect(points).toEqual([
+      [0, 0],
+      [10, 0],
+      [10, 1],
+      [30, 1],
+      [30, 1],
+    ]);
+    expect(readAt({ shape: 'step', points }, 30, 30)).toBe(1);
+    expect(readAt({ shape: 'step', points }, 25, 30)).toBe(1);
+  });
+
+  it('cuts a pooled wave where the last of its controllers was heard, not the first', () => {
+    const lanes: GrowSeries['outputs'] = [
+      { output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(2), endsAt: at(4) }], heardUntil: at(6) },
+      { output: 'light', deviceId: 'device-2', spans: [{ startsAt: at(8), endsAt: at(18) }], heardUntil: at(24) },
+    ];
+    const both = { ...series, outputs: lanes };
+    const [card] = cardsOf(key => key, both, {
+      picked: { metrics: [], outputs: ['light'], measurements: [] },
+      layout: 'stacked',
+      offered: offeredBy(both, []),
+      leaf: null,
+      plants: [],
+    });
+
+    // One controller went quiet at six and the other is still reporting: the
+    // tent's lamp is still known about, so the wave runs to the window's end.
+    const last = card.plot.lines[0].points[card.plot.lines[0].points.length - 1];
+    expect(last).toEqual([DateTime.fromISO(at(24)).toMillis(), 0]);
+  });
+
+  it('pools two controllers into one wave that only ever steps forwards, and says it pooled them', () => {
+    const lanes: GrowSeries['outputs'] = [
+      { output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(10), endsAt: at(18) }], heardUntil: at(24) },
+      { output: 'light', deviceId: 'device-2', spans: [{ startsAt: at(9), endsAt: at(19) }], heardUntil: at(24) },
+    ];
+    const both = { ...series, outputs: lanes };
+    const offered: Offered = offeredBy(both, []);
+    const [card] = cardsOf(key => key, both, {
+      picked: { metrics: [], outputs: ['light'], measurements: [] },
+      layout: 'stacked',
+      offered,
+      leaf: null,
+      plants: [],
+    });
+
+    expect(card.about).toBe('charts.about.outputPooled');
+    const times = card.plot.lines[0].points.map(([time]) => time);
+    expect(times).toEqual([...times].sort((one, other) => one - other));
+    // A switch has no scale worth printing: it ran or it did not.
+    expect(card.scaleEnds).toEqual([null]);
+  });
+
+  /**
+   * The old charts drew the lamp from nought to a hundred per cent, an AIR's
+   * fan at its speed and the CO2 valve as what it dosed; the rewrite drew all
+   * of them as on and off, and a lamp dimmed to 60 % with its sunrise ramp
+   * read as a block of "on".
+   */
+  it('draws a dimmed lamp at its level inside the stretches it ran, and nought outside them', () => {
+    // Windows of 10 closing at 10, 20, 30: the lamp ran from 15 to 28, at 40 % in its first window and 60 % in the next.
+    const points = levelPoints(
+      [
+        [20, 40],
+        [30, 60],
+      ],
+      10,
+      0,
+      30,
+      30,
+      [{ from: 15, to: 28 }],
+    );
+
+    expect(points).toEqual([
+      [0, 0],
+      [15, 0],
+      [15, 40],
+      [20, 40],
+      [20, 60],
+      [28, 60],
+      [28, 0],
+      [30, 0],
+    ]);
+    expect(readAt({ shape: 'line', points }, 17, 30)).toBe(40);
+    expect(readAt({ shape: 'line', points }, 25, 30)).toBe(60);
+    expect(readAt({ shape: 'line', points }, 29, 30)).toBe(0);
+  });
+
+  it('draws what the valve dosed window by window, and stops where the device was last heard', () => {
+    expect(levelPoints([[20, 3500]], 10, 0, 30, 25)).toEqual([
+      [0, 0],
+      [10, 0],
+      [10, 3500],
+      [20, 3500],
+      [20, 0],
+      [25, 0],
+      [26, null],
+    ]);
+  });
+
+  it('puts a lamp with a level on a card of its own from 0 to 100 %, and writes it to the table in percent', () => {
+    const dimmed: GrowSeries = {
+      ...series,
+      outputs: [
+        {
+          output: 'light',
+          deviceId: 'device-1',
+          spans: [{ startsAt: at(6), endsAt: at(18) }],
+          heardUntil: at(24),
+          // A window of five minutes each, closing every five minutes from 06:05 to 18:00.
+          level: {
+            unit: 'percent',
+            points: Array.from({ length: 144 }, (_, index) => 6 + (index + 1) / 12).map(hour => ({
+              measuredAt: at(hour),
+              value: hour <= 8 ? 30 : 75,
+            })),
+          },
+        },
+      ],
+    };
+    const input = {
+      picked: { metrics: [], outputs: ['light' as const], measurements: [] },
+      layout: 'stacked' as const,
+      offered: offeredBy(dimmed, []),
+      leaf: null,
+      plants: [],
+    };
+    const [card] = cardsOf(key => key, dimmed, input);
+
+    expect(card.unit).toBe('%');
+    expect(card.about).toBe('charts.about.level');
+    expect(card.help).toBe('chartOutputs');
+    expect(card.plot.scales).toEqual([{ low: 0, high: 100 }]);
+    expect(card.scaleEnds).toEqual([{ low: '0', high: '100' }]);
+    const line = card.plot.lines[0];
+    expect(readAt(line, DateTime.fromISO(at(6.5)).toMillis(), 1)).toBe(30);
+    expect(readAt(line, DateTime.fromISO(at(12)).toMillis(), 1)).toBe(75);
+    expect(readAt(line, DateTime.fromISO(at(20)).toMillis(), 1)).toBe(0);
+
+    const head = csvForCards(key => key, dimmed, input, null).split('\n')[0];
+    expect(head).toContain('"timeline.output.light (%)"');
+  });
+
+  it('keeps nought to a hundred where a humidity is laid over a lamp´s level, both being shares of a hundred', () => {
+    const dimmed: GrowSeries = {
+      ...series,
+      outputs: [
+        {
+          output: 'light',
+          deviceId: 'device-1',
+          spans: [{ startsAt: at(6), endsAt: at(18) }],
+          heardUntil: at(24),
+          level: { unit: 'percent', points: [{ measuredAt: at(12), value: 80 }] },
+        },
+      ],
+    };
+    const [card] = cardsOf(key => key, dimmed, {
+      picked: { metrics: ['humidity'], outputs: ['light'], measurements: [] },
+      layout: 'overlay',
+      offered: offeredBy(dimmed, []),
+      leaf: null,
+      plants: [],
+    });
+
+    expect(card.plot.scales).toEqual([{ low: 0, high: 100 }]);
+  });
+
+  it('reads the level and the dose out at the cursor, and leaves a switch a switch', async () => {
+    state.series = {
+      ...series,
+      outputs: [
+        {
+          output: 'light',
+          deviceId: 'device-1',
+          spans: [{ startsAt: at(6), endsAt: at(24) }],
+          heardUntil: at(24),
+          level: { unit: 'percent', points: [{ measuredAt: at(24), value: 62 }] },
+        },
+        {
+          output: 'co2',
+          deviceId: 'device-1',
+          spans: [{ startsAt: at(23), endsAt: at(24) }],
+          heardUntil: at(24),
+          level: { unit: 'count', points: [{ measuredAt: at(24), value: 4200 }] },
+        },
+        { output: 'dehumidifier', deviceId: 'device-1', spans: [{ startsAt: at(8), endsAt: at(24) }], heardUntil: at(24) },
+      ],
+    };
+    drawAt('/charts?grow=grow-1&show=out.light,out.co2,out.dehumidifier');
+
+    const reading = await screen.findByRole('status');
+    expect(reading).toHaveTextContent('Light 62 %');
+    expect(reading).toHaveTextContent('CO₂ valve 4200 ticks');
+    // And one tick is one: "1 ticks" was the readout of a quiet window.
+    const counted = cardsOf(key => i18next.t(key, { count: 1 }), state.series!, {
+      picked: { metrics: [], outputs: ['co2'], measurements: [] },
+      layout: 'stacked',
+      offered: offeredBy(state.series!, []),
+      leaf: null,
+      plants: [],
+    })[0].plot.lines[0];
+    expect(counted.unitOne).toBe('tick');
+    expect(reading).toHaveTextContent('Dehumidifier on');
+    expect(screen.getByText(/dosed per 5 min/)).toBeInTheDocument();
+    expect(screen.getByText(/when on$/)).toBeInTheDocument();
+  });
+
+  /** One machine, one name: the cockpit, the alarms and the device panel call a fridge's dehumidifier output its compressor. */
+  it('calls a fridge module´s dehumidifier output the compressor, on its chip and its card', async () => {
+    state.series = {
+      ...series,
+      outputs: [{ output: 'dehumidifier', deviceId: 'device-1', fridge: true, spans: [{ startsAt: at(8), endsAt: at(9) }], heardUntil: at(24) }],
+    };
+    await i18next.changeLanguage('de');
+    drawAt('/charts?grow=grow-1&show=out.dehumidifier');
+
+    expect(await screen.findByRole('button', { name: 'Kompressor' })).toBeInTheDocument();
+    expect((await screen.findByRole('status')).textContent).toContain('Kompressor');
+    expect(screen.queryByText('Entfeuchter')).not.toBeInTheDocument();
+  });
+
+  it('gives a concentration no room below zero, and a fridge the cold half it really ran in', () => {
+    // Seriotica's CO2 ran 366 to 6132 ppm against a band of 1000-1400, which
+    // rounded outwards to a step of 2000 and a floor of -2000: a fifth of the
+    // card was a concentration nothing can be in, and the curve was squeezed
+    // into what was left of it.
+    expect(niceScale([366, 6132, 1000, 1400])).toEqual({ low: 0, high: 8000 });
+
+    // Nothing handed in is below zero in the first, and something is in the
+    // second - which is the whole of the rule.
+    expect(niceScale([20, 24])).toEqual({ low: 19, high: 25 });
+    expect(niceScale([-4, 2])).toEqual({ low: -6, high: 4 });
+
+    // And a sensor answering zero on every sample still gets a scale to lie
+    // in rather than a line along its own edge.
+    expect(niceScale([0, 0, 0])).toEqual({ low: 0, high: 0.05 });
+  });
+
+  it('writes both corners of every one-decimal window as the figures they mean', () => {
+    // Every corner is a whole number of steps, and a step is 1, 2, 5 or 10 of
+    // some power of ten - so every corner is a figure with few enough decimals
+    // to be written out exactly. The multiplication that reaches it is not:
+    // 169 × 0.2 comes to 33.800000000000004, and a corner one unit in the last
+    // place above the round number ECharts re-derives is what threw the chart,
+    // and with it the application, out of a screen.
+    let checked = 0;
+    for (let low = 0; low <= 100; low += 0.1) {
+      for (let width = 0.1; width <= 5; width += 0.1) {
+        const high = low + width;
+        const scale = niceScale([Math.round(low * 10) / 10, Math.round(high * 10) / 10]);
+
+        expect(scale.low).toBe(Number(scale.low.toPrecision(12)));
+        expect(scale.high).toBe(Number(scale.high.toPrecision(12)));
+        // And the air around the data is still there: a corner is snapped to
+        // the figure it means, never inwards past what it has to hold.
+        expect(scale.low).toBeLessThanOrEqual(Math.round(low * 10) / 10);
+        expect(scale.high).toBeGreaterThanOrEqual(Math.round(high * 10) / 10);
+        checked += 1;
+      }
+    }
+
+    expect(checked).toBeGreaterThan(50_000);
+  });
+
+  it('reads a line at the cursor the way its own column is written into the table', () => {
+    const written = [
+      [FROM.plus({ hours: 4 }).toMillis(), 54],
+      [FROM.plus({ hours: 20 }).toMillis(), 61],
+    ] as [number, number | null][];
+    const span = DAY_MS;
+
+    // A curve and a state hold: a mean stands for the window it was taken over
+    // and a lamp switched on at six is still on at seven.
+    expect(readAt({ shape: 'line', points: written }, FROM.plus({ hours: 12 }).toMillis(), span)).toBe(54);
+    expect(readAt({ shape: 'step', points: written }, FROM.plus({ hours: 12 }).toMillis(), span)).toBe(54);
+
+    // A reading somebody wrote down holds nothing. It is answered where the
+    // cursor is on it, and nowhere else - which is what the CSV of the same
+    // screen says by leaving every other row of that column empty.
+    expect(readAt({ shape: 'points', points: written }, FROM.plus({ hours: 4 }).toMillis(), span)).toBe(54);
+    expect(readAt({ shape: 'points', points: written }, FROM.plus({ hours: 12 }).toMillis(), span)).toBeNull();
+    expect(readAt({ shape: 'points', points: written }, FROM.plus({ hours: 24 }).toMillis(), span)).toBeNull();
+
+    // Near enough to be reached by hand, whatever the window: a few pixels of
+    // it either side, and the nearer of two marks where both are in reach.
+    expect(readAt({ shape: 'points', points: written }, FROM.plus({ hours: 4, minutes: 5 }).toMillis(), span)).toBe(54);
+    expect(readAt({ shape: 'points', points: written }, FROM.plus({ hours: 4, minutes: 30 }).toMillis(), span)).toBeNull();
+  });
+
+  it('counts a reading taken before day 1 as day 1, the way the grow´s own counter does', () => {
+    const csv = csvOf([{ label: 'Temp (°C)', points: [[FROM.minus({ days: 3 }).toMillis(), 24]] }], FROM.toMillis(), null);
+
+    expect(csv.split('\n')[1]).toContain(',1,24');
+  });
+
+  it('writes a row per instant anything was measured at, leaving a cell empty rather than inventing one', () => {
+    const csv = csvOf(
+      [
+        { label: 'Temp (°C)', points: [[FROM.toMillis(), 24]] },
+        { label: 'Height (cm)', points: [[FROM.plus({ hours: 4 }).toMillis(), 54]] },
+      ],
+      FROM.toMillis(),
+      null,
+    );
+    const rows = csv.split('\n');
+
+    expect(rows[0]).toBe('"time","day","Temp (°C)","Height (cm)"');
+    expect(rows[1].endsWith(',1,24,')).toBe(true);
+    expect(rows[2].endsWith(',1,,54')).toBe(true);
+  });
+
+  it('carries an output´s state across the rows between its switchings, and keeps every switching a row of its own', () => {
+    // A lamp switches when the tent switched it and not on the step the
+    // climate is bucketed at, so this one comes on and goes off half an hour
+    // off the grid the readings sit on.
+    const switching: GrowSeries = {
+      ...series,
+      outputs: [{ output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(6.5), endsAt: at(17.5) }], heardUntil: at(24) }],
+    };
+    const csv = csvForCards(
+      key => key,
+      switching,
+      {
+        picked: { metrics: ['temperature'], outputs: ['light'], measurements: [] },
+        layout: 'stacked',
+        offered: offeredBy(switching, []),
+        leaf: null,
+        plants: [],
+      },
+      null,
+    );
+    const rows = csv.split('\n').slice(1);
+    const cells = rows.map(row => row.split(','));
+
+    // The lamp's own instants are still rows of their own - it came on at 06:30
+    // and went off at 17:30, and the export is the record of that.
+    expect(rows.length).toBeGreaterThan(series.climate[0].points.length);
+    expect(cells.filter(([, , , light]) => light === '1')).not.toHaveLength(0);
+
+    // And every row that carries a temperature now carries the lamp beside it,
+    // which is the whole point of a table: the file used to hold the two in
+    // one row out of seven thousand.
+    const measured = cells.filter(([, , temperature]) => temperature !== '');
+    expect(measured).toHaveLength(series.climate[0].points.length);
+    expect(measured.every(([, , , light]) => light === '0' || light === '1')).toBe(true);
+  });
+});
+
+/**
+ * The one figure a card's caption carries that the plot beside it is computed
+ * from, and the two things that decide whether a phone can read it. jsdom lays
+ * nothing out, so both are asserted against the stylesheet and the catalogues
+ * themselves.
+ */
+describe('the room the plot leaves beside it', () => {
+  it('is the same on both sides whether a plot has one scale or two, which is what lines the cards up', () => {
+    const palette = { card: '#000', muted: '#111' } as unknown as Parameters<typeof plotOption>[0];
+    const plot = (scales: number) => ({
+      axis: 'time' as const,
+      from: 0,
+      to: 10,
+      scales: Array.from({ length: scales }, () => ({ low: 0, high: 1 })),
+      nights: [],
+      lines: [],
+    });
+
+    expect(plotOption(palette, plot(1)).grid).toEqual(plotOption(palette, plot(2)).grid);
+  });
+});
+
+describe('the leaf offset the VPD band rests on', () => {
+  let css: string;
+
+  beforeAll(async () => {
+    css = await readFile(resolve(process.cwd(), 'src/screens/charts/Charts.module.css'), 'utf8');
+  });
+
+  it('lets the caption wrap rather than trailing it off at the width of a phone', () => {
+    // Held on one line this caption measured 354 px into the 267 px a phone
+    // gives it: English lost the night offset and German lost both. A figure
+    // that is only stated on a desktop is not stated.
+    const rule = /\.cardAbout\s*\{[^}]*\}/s.exec(css)?.[0] ?? '';
+    expect(rule).toContain('white-space: normal');
+    expect(rule).not.toContain('text-overflow: ellipsis');
+    // The title and the unit still hold their own ends of the line.
+    expect(/\.cardTitle\s*\{[^}]*flex-shrink:\s*0/s.test(css)).toBe(true);
+    expect(/\.cardUnit\s*\{[^}]*flex-shrink:\s*0/s.test(css)).toBe(true);
+  });
+
+  it('keeps each offset bound to its unit, in both languages', async () => {
+    // Wrapping is only an improvement if the wrap cannot fall between "−2" and
+    // "°C", which is where German broke first.
+    for (const language of ['en', 'de']) {
+      const catalogue = JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'));
+      for (const key of ['leaf', 'leafHalves']) {
+        expect(catalogue.charts.about[key]).not.toMatch(/}} °C/);
+        expect(catalogue.charts.about[key]).toMatch(/}}\u00a0°C/);
+      }
+    }
+  });
+});

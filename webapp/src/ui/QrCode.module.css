@@ -1,0 +1,18 @@
+/* A QR code: a square that is the same size before and after the encoder has
+   answered, and the two constant tokens the theme keeps for it. */
+
+.qr {
+  display: block;
+  width: min(240px, 100%);
+  aspect-ratio: 1;
+  background: var(--qr-paper);
+  border-radius: var(--radius);
+}
+
+.paper {
+  fill: var(--qr-paper);
+}
+
+.ink {
+  fill: var(--qr-ink);
+}

@@ -1,0 +1,692 @@
+import { anonymous, createAccount, loginAsAdmin, Session } from '../support/api';
+import { claimCodeOf, DeviceSimulator, provisionDevice, settle, startSimulator } from '../support/device';
+import { argumentAfter, armFfmpeg, ffmpegCalls, resetFfmpeg } from '../support/ffmpeg';
+import { joinSpace, setRow } from '../support/fixtures';
+import { takeTestPicture } from '../support/test-picture';
+
+/**
+ * A camera: adding one, what the camera page edits about it, and the composer.
+ *
+ * A tent holds several - the Terp Cam its controller pairs, RTSP cameras pulled
+ * through that controller, and standalone Terp Cams the cloud reaches itself -
+ * so what tells them apart is what a create body has to say, and the settings
+ * below it are the same for all of them.
+ */
+
+let owner: Session;
+let tent: string;
+let device: Awaited<ReturnType<typeof provisionDevice>>;
+
+const rtsp = (over: Record<string, unknown> = {}) => ({
+  kind: 'rtsp',
+  spaceId: tent,
+  name: 'Tapo C200',
+  url: 'rtsp://viewer:hunter2@10.0.0.30:554/stream1',
+  ...over,
+});
+
+const addCamera = async (body: Record<string, unknown> = rtsp()): Promise<string> =>
+  (await owner.client.post('/v1/cameras').send(body).expect(201)).body.id;
+
+beforeAll(async () => {
+  owner = await createAccount('cameras-owner');
+  device = await provisionDevice(owner, 'controller');
+  tent = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId;
+});
+
+describe('adding a camera', () => {
+  it('takes an RTSP camera by the address of its stream, and never answers the credentials back', async () => {
+    const created = await owner.client
+      .post('/v1/cameras')
+      .send(rtsp({ transport: 'tcp', model: 'tapo_c200' }))
+      .expect(201);
+
+    expect(created.body).toMatchObject({ kind: 'rtsp', spaceId: tent, name: 'Tapo C200', transport: 'tcp', model: 'tapo_c200' });
+    // The credentials the stream is opened with are the server's to keep, and
+    // the owner is no more entitled to read them back than anybody else.
+    expect(created.body.url).toBe('rtsp://10.0.0.30:554/stream1');
+    // An RTSP camera has no included year of its own; it is entitled by purchase.
+    expect(created.body.entitlement).toMatchObject({ validUntil: null, grant: null });
+  });
+
+  it('says a standalone Terp Cam is coming, because a Terp Cam is reached through the device it is paired at', async () => {
+    const refused = await owner.client
+      .post('/v1/cameras')
+      .send({ kind: 'terpcam_standalone', spaceId: tent, name: 'On the balcony', did: 'TERP123456' })
+      .expect(400);
+
+    expect(refused.body.code).toBe('not_yet');
+    expect(refused.body.detail).toMatch(/through the device it is paired at/);
+  });
+
+  it('pulls a stream through a fridge module as it does through a controller', async () => {
+    // Every Terp Control device carries the tunnel, and a fridge module is the
+    // only device most single-fridge growers have.
+    const fridge = await provisionDevice(owner, 'fridge');
+
+    const created = await owner.client
+      .post('/v1/cameras')
+      .send(rtsp({ deviceId: fridge.deviceId, tunnel: true }))
+      .expect(201);
+    expect(created.body).toMatchObject({ deviceId: fridge.deviceId, tunnel: true });
+  });
+
+  it('makes the Terp Cam a fridge module pairs at its display, and adopts it rather than doubling it', async () => {
+    const fridge = await provisionDevice(owner, 'fridge');
+    const simulator = await startSimulator(fridge);
+    await settle();
+
+    try {
+      await simulator.publish('log', { severity: 0, message: 'hardware-info:webcam_did=TERPCAMFRIDGE' });
+      await settle(600);
+
+      const [paired] = (await owner.client.get(`/v1/cameras?deviceId=${fridge.deviceId}`).expect(200)).body.items;
+      expect(paired).toMatchObject({ kind: 'terpcam_controller', did: 'TERPCAMFRIDGE', deviceId: fridge.deviceId });
+
+      const named = await owner.client
+        .post('/v1/cameras')
+        .send({ kind: 'terpcam_controller', deviceId: fridge.deviceId, name: 'Fridge cam' })
+        .expect(201);
+      expect(named.body).toMatchObject({ id: paired.id, name: 'Fridge cam' });
+    } finally {
+      await simulator.close();
+    }
+  });
+
+  it('takes every transport ffmpeg reads RTSP over, and refuses UDP through a tunnel that carries TCP alone', async () => {
+    for (const transport of ['tcp', 'udp', 'http', 'https']) {
+      await owner.client.post('/v1/cameras').send(rtsp({ transport })).expect(201);
+    }
+
+    const refused = await owner.client
+      .post('/v1/cameras')
+      .send(rtsp({ deviceId: device.deviceId, tunnel: true, transport: 'udp' }))
+      .expect(422);
+    expect(refused.body.code).toBe('udp_through_tunnel');
+  });
+
+  it('takes the login apart from the address, written in so that a password with an @ in it still opens', async () => {
+    resetFfmpeg();
+    armFfmpeg(failingRuns('apart-from-the-address'));
+    const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.70:554/apart-from-the-address', username: 'cam', password: 'p@ss' }));
+
+    expect((await owner.client.get(`/v1/cameras/${id}`).expect(200)).body.url).toBe('rtsp://10.0.0.70:554/apart-from-the-address');
+    await takeTestPicture(owner, id);
+
+    expect(openedAt('apart-from-the-address')).toBe('rtsp://cam:p%40ss@10.0.0.70:554/apart-from-the-address');
+  });
+
+  it('will not put a camera nowhere, nor into somebody else´s tent', async () => {
+    const nowhere = await owner.client.post('/v1/cameras').send({ kind: 'rtsp', name: 'Nowhere', url: 'rtsp://10.0.0.31/s' }).expect(400);
+    expect(nowhere.body.code).toBe('nowhere_to_put_it');
+
+    const stranger = await createAccount('cameras-stranger');
+    await stranger.client.post('/v1/cameras').send(rtsp()).expect(404);
+  });
+});
+
+describe('what the camera page edits', () => {
+  let camera: string;
+
+  beforeAll(async () => {
+    camera = await addCamera();
+  });
+
+  it('changes its name, what it looks at, how often it takes a picture and when it stops', async () => {
+    const updated = await owner.client
+      .patch(`/v1/cameras/${camera}`)
+      .send({ name: 'Canopy', looksAt: 'canopy', stillIntervalSeconds: 300, nightOff: true, maintenanceOff: true })
+      .expect(200);
+
+    expect(updated.body).toMatchObject({ name: 'Canopy', looksAt: 'canopy', stillIntervalSeconds: 300, nightOff: true, maintenanceOff: true });
+  });
+
+  it('refuses an interval the pipeline could not keep', async () => {
+    const refused = await owner.client.patch(`/v1/cameras/${camera}`).send({ stillIntervalSeconds: 5 }).expect(422);
+
+    expect(refused.body.code).toBe('still_interval_too_short');
+  });
+
+  it('refuses a stream address on a camera that is not read from a stream', async () => {
+    // The controller's own Terp Cam is reached by the id it reported, so a URL
+    // on it would be stored where nothing reads it.
+    const paired = await owner.client.post('/v1/cameras').send({ kind: 'terpcam_controller', deviceId: device.deviceId, name: 'Terp Cam' });
+    expect(paired.status).toBe(201);
+
+    const refused = await owner.client.patch(`/v1/cameras/${paired.body.id}`).send({ url: 'rtsp://10.0.0.40/s' }).expect(422);
+    expect(refused.body.code).toBe('not_a_stream');
+
+    // Its controller is the one that paired it, which is not a thing to move.
+    const moved = await owner.client.patch(`/v1/cameras/${paired.body.id}`).send({ deviceId: null }).expect(422);
+    expect(moved.body.code).toBe('not_a_stream');
+  });
+
+  it('moves the controller a stream is pulled through when the camera is moved', async () => {
+    const moved = await owner.client.patch(`/v1/cameras/${camera}`).send({ deviceId: device.deviceId, tunnel: true }).expect(200);
+    expect(moved.body).toMatchObject({ deviceId: device.deviceId, tunnel: true });
+
+    // A tent with no controller in it is reached by the cloud itself, and the
+    // stored camera has to stop naming the one it used to be pulled through.
+    const away = await owner.client.patch(`/v1/cameras/${camera}`).send({ deviceId: null, tunnel: false }).expect(200);
+    expect(away.body).toMatchObject({ deviceId: null, tunnel: false });
+  });
+
+  it('moves the stream onto a fridge module´s tunnel, and refuses a tunnel through nothing at all', async () => {
+    const fridge = await provisionDevice(owner, 'fridge');
+
+    const moved = await owner.client.patch(`/v1/cameras/${camera}`).send({ deviceId: fridge.deviceId, tunnel: true }).expect(200);
+    expect(moved.body).toMatchObject({ deviceId: fridge.deviceId, tunnel: true });
+
+    const nothingToTunnelThrough = await owner.client.patch(`/v1/cameras/${camera}`).send({ deviceId: null, tunnel: true }).expect(422);
+    expect(nothingToTunnelThrough.body.code).toBe('tunnel_without_device');
+
+    // UDP does not pass through the tunnel, whichever half of the pair is what changes.
+    const udp = await owner.client.patch(`/v1/cameras/${camera}`).send({ transport: 'udp' }).expect(422);
+    expect(udp.body.code).toBe('udp_through_tunnel');
+    await owner.client.patch(`/v1/cameras/${camera}`).send({ transport: 'http' }).expect(200);
+    await owner.client.patch(`/v1/cameras/${camera}`).send({ tunnel: false }).expect(200);
+    await owner.client.patch(`/v1/cameras/${camera}`).send({ transport: 'udp' }).expect(200);
+    expect((await owner.client.patch(`/v1/cameras/${camera}`).send({ tunnel: true }).expect(422)).body.code).toBe('udp_through_tunnel');
+    await owner.client.patch(`/v1/cameras/${camera}`).send({ transport: null }).expect(200);
+  });
+
+  it('refuses a controller a stranger owns', async () => {
+    const stranger = await createAccount('cameras-tunnel-stranger');
+    const theirs = await provisionDevice(stranger, 'controller');
+
+    await owner.client.patch(`/v1/cameras/${camera}`).send({ deviceId: theirs.deviceId, tunnel: true }).expect(404);
+  });
+
+  it('is hidden from everyone it does not belong to', async () => {
+    const stranger = await createAccount('cameras-outsider');
+
+    await stranger.client.get(`/v1/cameras/${camera}`).expect(404);
+    await stranger.client.patch(`/v1/cameras/${camera}`).send({ name: 'Mine now' }).expect(404);
+    // Reading a camera takes a session or a share link or neither, because a
+    // public page has none; a caller with nothing is simply shown nothing.
+    await anonymous().get(`/v1/cameras/${camera}`).expect(404);
+    await anonymous().patch(`/v1/cameras/${camera}`).send({ name: 'Mine now' }).expect(401);
+  });
+});
+
+/**
+ * The address a router moved, the password somebody changed: corrected on the
+ * camera that is there, so its pictures, its films and its Premium stay with
+ * it. The login is never answered, so the address sent without one keeps the
+ * one stored - which is what the ffmpeg run the server makes is read for here,
+ * because nothing else says what a stream is opened with.
+ */
+describe('a stream´s address, changed in place', () => {
+  it('keeps the login it is opened with when only the address changes', async () => {
+    const id = await addCamera(rtsp({ url: 'rtsp://viewer:hunter2@10.0.0.71:554/kept-login' }));
+    resetFfmpeg();
+    armFfmpeg(failingRuns('moved-login'));
+
+    const moved = await owner.client.patch(`/v1/cameras/${id}`).send({ url: 'rtsp://10.0.0.72:554/moved-login' }).expect(200);
+    expect(moved.body).toMatchObject({ id, url: 'rtsp://10.0.0.72:554/moved-login' });
+    await takeTestPicture(owner, id);
+
+    expect(openedAt('moved-login')).toBe('rtsp://viewer:hunter2@10.0.0.72:554/moved-login');
+  });
+
+  it('changes the password alone, and reads the stream the way it is told to', async () => {
+    const id = await addCamera(rtsp({ url: 'rtsp://viewer:hunter2@10.0.0.73:554/new-password' }));
+    resetFfmpeg();
+    armFfmpeg(failingRuns('new-password'));
+
+    await owner.client.patch(`/v1/cameras/${id}`).send({ password: 'n3w', transport: 'http' }).expect(200);
+    await takeTestPicture(owner, id);
+
+    const run = ffmpegCalls().find(args => args.join(' ').includes('new-password'));
+    expect(argumentAfter(run!, '-i')).toBe('rtsp://viewer:n3w@10.0.0.73:554/new-password');
+    expect(argumentAfter(run!, '-rtsp_transport')).toBe('http');
+  });
+
+  it('pulls the stream through the tunnel of the fridge module it names', async () => {
+    const fridge = await provisionDevice(owner, 'fridge');
+    const simulator = await startSimulator(fridge);
+    // Heard from, which a camera read through a device needs it to be.
+    await simulator.reportStatus();
+    await settle();
+
+    try {
+      resetFfmpeg();
+      // Whatever ffmpeg says to the stream is what the device is asked to pass on.
+      armFfmpeg(failingRuns('through-the-fridge').map(run => ({ ...run, writeToInput: Buffer.from('OPTIONS').toString('hex') })));
+      const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.74:554/through-the-fridge', deviceId: fridge.deviceId, tunnel: true }));
+      await takeTestPicture(owner, id);
+
+      const carriesBytes = (payload: string) => JSON.parse(payload).payload !== undefined;
+      const asked = JSON.parse((await simulator.waitFor('tunnel_write', 10_000, carriesBytes)).payload);
+      expect(asked).toMatchObject({ host: '10.0.0.74', port: 554, payload: Buffer.from('OPTIONS').toString('base64') });
+    } finally {
+      await simulator.close();
+    }
+  });
+});
+
+describe('a test picture through a device that is offline', () => {
+  it('is answered at once with the device being offline, and nothing is asked of the device or of ffmpeg', async () => {
+    // Registered and claimed, and never heard from since: offline.
+    const fridge = await provisionDevice(owner, 'fridge');
+    resetFfmpeg();
+    const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.75:554/never-heard', deviceId: fridge.deviceId, tunnel: true }));
+
+    const started = Date.now();
+    const answer = await takeTestPicture(owner, id);
+
+    expect(answer).toMatchObject({
+      state: 'failed',
+      still: null,
+      reason: 'deviceOffline',
+      error: 'the device this camera is read through is offline',
+    });
+    expect(Date.now() - started).toBeLessThan(5_000);
+    expect(ffmpegCalls().some(args => args.join(' ').includes('never-heard'))).toBe(false);
+  });
+});
+
+/**
+ * The test button. A read can take minutes, so the press is answered at once
+ * and the capture asked after - no request is held open for as long as a
+ * camera takes, which every proxy on the way would have to be told to allow.
+ */
+describe('a test picture', () => {
+  it('is answered at once while the camera is still being read, and asked after until it has answered', async () => {
+    resetFfmpeg();
+    armFfmpeg(failingRuns('slow-to-refuse').map(run => ({ ...run, delayMs: 3_000 })));
+    const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.76:554/slow-to-refuse' }));
+
+    const asked = Date.now();
+    const started = (await owner.client.post(`/v1/cameras/${id}/test-captures`).expect(202)).body;
+    expect(Date.now() - asked).toBeLessThan(1_500);
+    expect(started).toMatchObject({ cameraId: id, state: 'running', finishedAt: null, still: null, reason: null, error: null });
+
+    const running = (await owner.client.get(`/v1/cameras/${id}/test-captures/${started.id}`).expect(200)).body;
+    expect(running.state).toBe('running');
+
+    const finished = await takeTestPicture(owner, id);
+    // The second press joined the read the first one started, rather than running another beside it.
+    expect(finished).toMatchObject({ id: started.id, state: 'failed', still: null, reason: 'noAnswer', error: 'Connection refused' });
+    expect(finished.finishedAt).not.toBeNull();
+  });
+
+  it('is asked after on its own camera, by whoever may manage that camera', async () => {
+    resetFfmpeg();
+    armFfmpeg(failingRuns('asked-after'));
+    const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.77:554/asked-after' }));
+    const other = await addCamera(rtsp({ url: 'rtsp://10.0.0.78:554/another' }));
+    const capture = await takeTestPicture(owner, id);
+
+    const elsewhere = await owner.client.get(`/v1/cameras/${other}/test-captures/${capture.id}`).expect(404);
+    expect(elsewhere.body.code).toBe('test_capture_not_found');
+    await owner.client.get(`/v1/cameras/${id}/test-captures/not-a-capture`).expect(404);
+
+    const stranger = await createAccount('cameras-test-stranger');
+    await stranger.client.get(`/v1/cameras/${id}/test-captures/${capture.id}`).expect(404);
+    await stranger.client.post(`/v1/cameras/${id}/test-captures`).expect(404);
+  });
+
+  it('tells a guest of the tent what kind of failure it met, and only the owner what the camera said', async () => {
+    const guest = await createAccount('cameras-test-guest');
+    await joinSpace(owner, tent, guest, 'can_manage');
+    resetFfmpeg();
+    armFfmpeg(failingRuns('guest-pressed'));
+    const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.79:554/guest-pressed' }));
+
+    const pressed = await takeTestPicture(guest, id);
+    expect(pressed).toMatchObject({ state: 'failed', reason: 'noAnswer', error: null });
+
+    const read = (await owner.client.get(`/v1/cameras/${id}/test-captures/${pressed.id}`).expect(200)).body;
+    expect(read).toMatchObject({ state: 'failed', reason: 'noAnswer', error: 'Connection refused' });
+  });
+});
+
+/**
+ * Answers enough runs of one stream to cover the poller as well as the request:
+ * a new camera is due at once, and a run the poller took would otherwise leave
+ * the request without the answer this spec gave it.
+ */
+const failingRuns = (match: string) => Array.from({ length: 4 }, () => ({ match, stderr: 'Connection refused', exit: 1 }));
+
+/** The URL the server opened a stream at, read off the ffmpeg run it made for it. */
+const openedAt = (match: string): string | undefined => {
+  const run = ffmpegCalls().find(args => args.join(' ').includes(match));
+  return run ? argumentAfter(run, '-i') : undefined;
+};
+
+/**
+ * A query string carries a flag as text, and the flag was parsed with a
+ * coercion that is `Boolean(value)` - so every word but the empty one meant
+ * true, and the client that read the contract and sent `false` was handed the
+ * tombstones it had asked to leave out.
+ */
+describe('asking for the cameras that are gone', () => {
+  it('reads `false` as false, and refuses a word that is neither', async () => {
+    const gone = await addCamera(rtsp({ name: 'Taken down' }));
+    await owner.client.delete(`/v1/cameras/${gone}`).expect(204);
+
+    const listed = async (query: string): Promise<string[]> =>
+      (await owner.client.get(`/v1/cameras${query}`).expect(200)).body.items.map((one: { id: string }) => one.id);
+
+    expect(await listed('?includeRemoved=true')).toContain(gone);
+    expect(await listed('?includeRemoved=false')).not.toContain(gone);
+    expect(await listed('')).not.toContain(gone);
+
+    // And a word the parameter cannot be is a refusal rather than a silent
+    // `true`, the way every other flag of a /v1 query string answers.
+    const refused = await owner.client.get('/v1/cameras?includeRemoved=yes').expect(400);
+    expect(refused.body.code).toBe('validation_failed');
+    expect(refused.body.errors[0].field).toBe('includeRemoved');
+    // And it says what did not fit. This is a GET with no body to be wrong.
+    expect(refused.body.detail).toContain('query string');
+  });
+});
+
+/**
+ * The Terp Cam a controller pairs is reported over MQTT and never created by
+ * hand, so this is the one part of a camera's life that starts at the hardware:
+ * both halves have to agree about who the picture belongs to when the hardware
+ * is sold on.
+ */
+describe('the camera of a controller that changes hands', () => {
+  const HANDED_ON = 'TERPCAMSOLD';
+  const STILL_IN_USE = 'TERPCAMKEPT';
+
+  let first: Session;
+  let next: Session;
+  let stranger: Session;
+  let sold: Awaited<ReturnType<typeof provisionDevice>>;
+  let kept: Awaited<ReturnType<typeof provisionDevice>>;
+  let theirs: Awaited<ReturnType<typeof provisionDevice>>;
+  let simulators: DeviceSimulator[];
+
+  const pairs = async (simulator: DeviceSimulator, did: string): Promise<void> => {
+    await simulator.publish('log', { severity: 0, message: `hardware-info:webcam_did=${did}` });
+    await settle(600);
+  };
+
+  const camerasOf = async (session: Session, query = ''): Promise<Record<string, any>[]> =>
+    (await session.client.get(`/v1/cameras${query}`).expect(200)).body.items;
+
+  const controller = async (session: Session) => {
+    const device = await provisionDevice(session, 'controller');
+    const simulator = await startSimulator(device);
+    simulators.push(simulator);
+    await settle();
+
+    return { device, simulator };
+  };
+
+  beforeAll(async () => {
+    simulators = [];
+    first = await createAccount('cameras-first-owner');
+    next = await createAccount('cameras-next-owner');
+    stranger = await createAccount('cameras-stranger-owner');
+
+    ({ device: sold } = await controller(first));
+    ({ device: kept } = await controller(first));
+    ({ device: theirs } = await controller(stranger));
+  });
+
+  afterAll(async () => {
+    for (const simulator of simulators) await simulator.close();
+  });
+
+  it('belongs to whoever owns the controller now, and leaves the last owner´s where it died', async () => {
+    const [sim] = simulators;
+    await pairs(sim, HANDED_ON);
+
+    const [hers] = await camerasOf(first, `?deviceId=${sold.deviceId}`);
+    expect(hers).toMatchObject({ ownerId: first.userId, did: HANDED_ON, deviceId: sold.deviceId });
+
+    await first.client.delete(`/v1/devices/${sold.deviceId}/claim`).expect(204);
+    await next.client
+      .post('/v1/devices/claims')
+      .send({ code: await claimCodeOf(sold.deviceId) })
+      .expect(201);
+    await pairs(sim, HANDED_ON);
+
+    const mine = await camerasOf(next);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({ ownerId: next.userId, did: HANDED_ON, deviceId: sold.deviceId });
+    expect(mine[0].id).not.toBe(hers.id);
+    // In the new owner's own tent, with a year of its own and nothing the last
+    // owner decided about the camera.
+    expect(mine[0].spaceId).toBe((await next.client.get(`/v1/devices/${sold.deviceId}`).expect(200)).body.spaceId);
+    expect(mine[0].entitlement.grant).toBe('included');
+
+    // The first owner keeps the pictures she took and nothing else: her row is
+    // gone from her cameras, names no device, and is not the one taking them.
+    expect((await camerasOf(first)).some(camera => camera.id === hers.id)).toBe(false);
+    const buried = (await camerasOf(first, '?includeRemoved=true')).find(camera => camera.id === hers.id);
+    expect(buried).toMatchObject({ ownerId: first.userId, deviceId: null });
+    expect(buried?.removedAt).not.toBeNull();
+    await first.client.get(`/v1/cameras/${mine[0].id}`).expect(404);
+  });
+
+  it('is never taken from a device that is still using it', async () => {
+    const [, keptSim, strangerSim] = simulators;
+    await pairs(keptSim, STILL_IN_USE);
+    const [before] = await camerasOf(first, `?deviceId=${kept.deviceId}`);
+    expect(before).toMatchObject({ ownerId: first.userId, did: STILL_IN_USE, deviceId: kept.deviceId });
+
+    // The same pairing id on somebody else's controller. Two cameras, as far as
+    // this can tell, and the one that is working is left working.
+    await pairs(strangerSim, STILL_IN_USE);
+
+    expect(await camerasOf(first, `?deviceId=${kept.deviceId}`)).toEqual([before]);
+    const [other] = await camerasOf(stranger, `?deviceId=${theirs.deviceId}`);
+    expect(other).toMatchObject({ ownerId: stranger.userId, did: STILL_IN_USE, deviceId: theirs.deviceId });
+    expect(other.id).not.toBe(before.id);
+  });
+});
+
+describe('the composer', () => {
+  let camera: string;
+
+  const span = { startsAt: '2026-08-01T00:00:00.000Z', endsAt: '2026-08-20T00:00:00.000Z' };
+
+  beforeAll(async () => {
+    camera = await addCamera(rtsp({ name: 'Composer cam' }));
+  });
+
+  it('answers a job that is polled, because a render does not finish inside a request', async () => {
+    const asked = await owner.client
+      .post(`/v1/cameras/${camera}/timelapses`)
+      .send({
+        window: 'phase',
+        ...span,
+        overlays: { dayCounter: true, climate: true, entries: true },
+        includeLightsOff: false,
+        aspect: '9_16',
+      })
+      .expect(202);
+
+    expect(asked.body.queued).toBe(true);
+    expect(asked.body.media.render).toMatchObject({
+      status: 'queued',
+      aspect: '9_16',
+      includeLightsOff: false,
+      overlays: { dayCounter: true, climate: true, entries: true },
+    });
+
+    // The row is polled like any other picture, which is what the hourly
+    // builder then fills in.
+    const polled = await owner.client.get(`/v1/media/${asked.body.media.id}`).expect(200);
+    expect(polled.body.id).toBe(asked.body.media.id);
+    expect(polled.body.window).toBe('phase');
+  });
+
+  it('renders HD without a mark where nothing is enforced, which is what a self-hosted install gets', async () => {
+    // `PREMIUM_ENFORCED` is unset here, so every camera reads as entitled. What
+    // an install that enforces refuses instead is held in the unit spec.
+    const asked = await owner.client
+      .post(`/v1/cameras/${camera}/timelapses`)
+      .send({ window: 'custom', startsAt: span.startsAt, endsAt: '2026-08-10T00:00:00.000Z', quality: 'hd' })
+      .expect(202);
+
+    expect(asked.body.media.quality).toBe('hd');
+    expect(asked.body.media.render.watermark).toBe(false);
+  });
+
+  it('needs both ends of a span it cannot work out for itself', async () => {
+    const refused = await owner.client.post(`/v1/cameras/${camera}/timelapses`).send({ window: 'custom' }).expect(400);
+
+    expect(refused.body.code).toBe('span_missing');
+  });
+
+  /**
+   * A film is dated by its first frame and runs on after it. One that begins
+   * inside a link's window and ends after it is footage of days the grower
+   * never sent, so the link neither lists it nor plays it.
+   */
+  it('gives a link reader only the films that lie inside its window from first frame to last', async () => {
+    const filmed = await addCamera(rtsp({ name: 'Windowed cam' }));
+    const film = async (startsAt: string, endsAt: string): Promise<string> =>
+      (await owner.client.post(`/v1/cameras/${filmed}/timelapses`).send({ window: 'custom', startsAt, endsAt }).expect(202)).body.media.id;
+    const inside = await film('2026-08-01T00:00:00.000Z', '2026-08-05T00:00:00.000Z');
+    const runsOn = await film('2026-08-08T00:00:00.000Z', '2026-08-14T00:00:00.000Z');
+    const startsAtTheEnd = await film('2026-08-10T00:00:00.000Z', '2026-08-11T00:00:00.000Z');
+
+    const link = (
+      await owner.client
+        .post('/v1/share-links')
+        .send({
+          kind: 'view',
+          subject: { type: 'space', id: tent },
+          range: { startsAt: '2026-08-01T00:00:00.000Z', endsAt: '2026-08-10T00:00:00.000Z' },
+          includeCameras: true,
+        })
+        .expect(201)
+    ).body;
+
+    const listed = (await anonymous().get(`/v1/cameras/${filmed}/timelapses`).set('X-Share-Token', link.token).expect(200)).body.items;
+    expect(listed.map((one: { id: string }) => one.id)).toEqual([inside]);
+
+    await anonymous().get(`/v1/media/${inside}?share=${link.token}`).expect(200);
+    await anonymous().get(`/v1/media/${runsOn}?share=${link.token}`).expect(404);
+    await anonymous().get(`/v1/media/${startsAtTheEnd}?share=${link.token}`).expect(404);
+
+    // The owner reads their own films whole, window or not.
+    const own = (await owner.client.get(`/v1/cameras/${filmed}/timelapses`).expect(200)).body.items;
+    expect(own).toHaveLength(3);
+  });
+
+  it('is somebody with a say over the camera, not everybody who may look at it', async () => {
+    const stranger = await createAccount('cameras-composer-stranger');
+
+    await stranger.client
+      .post(`/v1/cameras/${camera}/timelapses`)
+      .send({ window: 'phase', ...span })
+      .expect(404);
+  });
+});
+
+/**
+ * What a camera is to somebody the tent was shared with.
+ *
+ * A guest is invited to a tent, its grows and its cams - which is the picture
+ * and what the camera is called, and never the id the hardware is paired by or
+ * the address it answers on at home. These cameras ship with a fixed default
+ * login, so an address plus an identity is most of a way in; the demo session
+ * has always been answered without them, and a round that let other people into
+ * the tent is what made the same redaction owed to everybody who is not the
+ * owner.
+ */
+describe('what somebody the tent is shared with is answered about a camera', () => {
+  const DID = 'SIMCAMD827A1';
+  const HOME = '192.168.1.40';
+  const TUNNEL = 'ffmpeg exited: rtsp://10.8.0.2:8554/tunnelled refused';
+
+  let guest: Session;
+  let theirs: string;
+
+  beforeAll(async () => {
+    guest = await createAccount('cameras-guest');
+    // The stronger of the two roles, so that what is held back is held back
+    // from the guest who may do most rather than only from the one who may least.
+    await joinSpace(owner, tent, guest, 'can_manage');
+
+    // A new camera is read at once, and a read that fails writes its own error
+    // over the one stored below. The host's camera never answers instead, for
+    // longer than these cases take.
+    armFfmpeg([{ match: HOME, delayMs: 60_000 }]);
+    theirs = await addCamera(rtsp({ name: 'The host´s canopy cam', url: `rtsp://viewer:hunter2@${HOME}:554/stream1` }));
+    await setRow('cameras', { id: theirs }, { did: DID, uid: 'UID-827A1', ip: HOME, 'state.lastError': TUNNEL });
+  });
+
+  it('says what the camera is and nothing about where the host lives', async () => {
+    const read = (await guest.client.get(`/v1/cameras/${theirs}`).expect(200)).body;
+
+    expect(read).toMatchObject({ id: theirs, name: 'The host´s canopy cam', kind: 'rtsp', spaceId: tent });
+    expect(read.did).toBeNull();
+    expect(read.uid).toBeNull();
+    expect(read.ip).toBeNull();
+    expect(read.url).toBeNull();
+    expect(read.state.lastError).toBeNull();
+
+    const said = JSON.stringify(read);
+    expect(said).not.toContain(DID);
+    expect(said).not.toContain(HOME);
+    expect(said).not.toContain('10.8.0.2');
+  });
+
+  it('holds the same back in the list, and in the answer to the guest´s own edit', async () => {
+    const listed = (await guest.client.get('/v1/cameras?limit=200').expect(200)).body.items.find((one: { id: string }) => one.id === theirs);
+    expect(listed).toMatchObject({ did: null, uid: null, ip: null, url: null });
+    expect(listed.state.lastError).toBeNull();
+
+    const renamed = (await guest.client.patch(`/v1/cameras/${theirs}`).send({ name: 'Renamed by the guest' }).expect(200)).body;
+    expect(renamed).toMatchObject({ name: 'Renamed by the guest', did: null, ip: null, url: null });
+  });
+
+  it('is the guest´s standing and not the camera´s: the owner reads their own hardware whole', async () => {
+    const mine = (await owner.client.get(`/v1/cameras/${theirs}`).expect(200)).body;
+
+    expect(mine.did).toBe(DID);
+    expect(mine.ip).toBe(HOME);
+    // Without the credentials, which are nobody's to read back - the address is.
+    expect(mine.url).toBe(`rtsp://${HOME}:554/stream1`);
+    expect(mine.state.lastError).toBe(TUNNEL);
+  });
+
+  it('tells a link reader neither whose camera it is, what it hangs off, nor what the owner paid for', async () => {
+    const link = (
+      await owner.client
+        .post('/v1/share-links')
+        .send({ kind: 'view', subject: { type: 'space', id: tent }, includeCameras: true })
+        .expect(201)
+    ).body;
+
+    const read = (await anonymous().get(`/v1/cameras/${theirs}?share=${link.token}`).expect(200)).body;
+    expect(read).toMatchObject({ id: theirs, ownerId: null, deviceId: null, did: null, ip: null, url: null });
+    expect(read.entitlement).toMatchObject({ validUntil: null, grant: null, renewalVisible: false });
+    expect(JSON.stringify(read)).not.toContain(owner.userId);
+
+    // A member of the tent is somebody the owner grows with, and is told both.
+    expect((await guest.client.get(`/v1/cameras/${theirs}`).expect(200)).body.ownerId).toBe(owner.userId);
+  });
+});
+
+/**
+ * The camera list is what the Premium screen counts, prices and offers to
+ * extend, so what it holds is what somebody will be asked to pay for. An
+ * administrator asking for it is asking as themselves; the office reaches one
+ * camera by id, and the fleet through its own screens.
+ */
+describe('the cameras an administrator is listed', () => {
+  it('holds none of somebody else´s, although the office may open each of them by id', async () => {
+    const admin = await loginAsAdmin();
+    const theirs = await addCamera(rtsp({ name: 'Canopy cam' }));
+
+    const listed = (await admin.client.get('/v1/cameras?limit=200').expect(200)).body.items;
+
+    expect(listed.map((one: { id: string }) => one.id)).not.toContain(theirs);
+    expect(listed.every((one: { ownerId: string }) => one.ownerId === admin.userId)).toBe(true);
+
+    // Still the office where it is asked to decide about one named camera:
+    // somebody has to be able to look at the row a grower is complaining about.
+    await admin.client.get(`/v1/cameras/${theirs}`).expect(200);
+  });
+});

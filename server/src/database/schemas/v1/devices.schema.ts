@@ -1,0 +1,235 @@
+import { Schema } from 'mongoose';
+import type { Device, DeviceSettings, DeviceState } from '@fg2/shared-types/v1';
+import { firmwareChannel } from '@fg2/shared-types/v1-schemas';
+
+/**
+ * A device as it is stored: the contract's `Device` with its instants as BSON
+ * dates, plus the broker credentials, which the contract has no field for.
+ *
+ * "None" is `null` and never a missing field. That is not decoration: the
+ * cleanup sweeps delete by `$in` over a list of ids, and a `$in` carrying a
+ * null also matches every document where the field is absent.
+ */
+
+/** What the device signs in to the broker with. */
+export interface StoredDeviceMqtt {
+  username: string;
+  passwordHash: string;
+}
+
+/** A zone and its offset from UTC in minutes: the clock a device's times of day were meant on. */
+export interface ScheduleClock {
+  zone: string;
+  offset: number;
+}
+
+export interface StoredDeviceState extends Omit<
+  DeviceState,
+  | 'lastSeenAt'
+  | 'claimedAt'
+  | 'updateStartedAt'
+  | 'updateEndedAt'
+  | 'updateFailedAt'
+  | 'maintenanceUntil'
+  | 'socketStateChangedAt'
+  | 'socketsReportedAt'
+> {
+  lastSeenAt: Date | null;
+  claimedAt: Date | null;
+  updateStartedAt: Date | null;
+  updateEndedAt: Date | null;
+  updateFailedAt: Date | null;
+  maintenanceUntil: Date | null;
+  socketStateChangedAt: Record<string, Date>;
+  socketsReportedAt: Date | null;
+}
+
+export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'control'> {
+  createdAt: Date;
+  mqtt: StoredDeviceMqtt | null;
+  /**
+   * When the climate retention sweep last reached this device. Stored rather
+   * than served: it is the sweep's own fairness cursor, and the app has no
+   * business reading one.
+   */
+  climateSweptAt: Date | null;
+  /**
+   * The owner's zone and UTC offset the times of day in `configuration` were
+   * meant on, so that they can be moved when that offset moves. Null where
+   * nothing has been anchored - no schedule, no owner, or a zone never picked.
+   * Stored rather than served: the app reads the times on the account's clock
+   * and has no use for the bookkeeping that keeps them there.
+   */
+  scheduleClock: ScheduleClock | null;
+  /**
+   * The work mode a fridge or a controller goes back to when its control is
+   * switched on again or a drying spell ends: what it last ran while it was
+   * regulating on its own mode. Null where none is known, which is the
+   * standard. Kept here because the document can say only one work mode at a
+   * time and the firmware drops a key it does not know; served as `control`.
+   */
+  baseWorkmode: string | null;
+  /**
+   * The standard mode a fridge last ran - `small`, or `full` with energy
+   * saving - kept for while it runs another: greenhouse or germination says
+   * nothing of the switch, and going back to the standard put it back to off.
+   */
+  standardWorkmode: string | null;
+  /**
+   * The targets a drying spell put aside, by their paths in the document, kept
+   * from the write that began it until the write that ends it: ending a spell
+   * by itself brings them back rather than leaving the device in the dark at
+   * the drying room's 18 °C. Null while not drying.
+   */
+  beforeDrying: Record<string, number> | null;
+  /**
+   * The night's temperature and humidity from before germination began.
+   * Germination holds the night's temperature round the clock, and a humidifier
+   * that holds goes by the night's humidity, so what is set for either is
+   * written there; going back to another mode by itself puts the night back
+   * rather than leaving every night at the germination's figures. Null while
+   * not germinating, and on a device that began before this was kept.
+   */
+  beforeGermination?: Record<string, number> | null;
+  /**
+   * What the grower chose germination to do about the humidity: whether the
+   * "too humid" alarms warn and whether a humidifier socket holds the night's
+   * humidity while the device germinates. Null - or a choice it does not state -
+   * is the default (`GERMINATION_CHOICES`). Kept beside the work mode because
+   * the firmware has no word for either, and served as `control`.
+   */
+  germinationChoices?: { warnTooHumid?: boolean; humidifierHolds?: boolean } | null;
+  /**
+   * The humidity band of the document - `daynight.targetHumidityDiff`, which a
+   * controller's dehumidifier switches by - from before a humidifier was rested
+   * for germination by widening it until it never switches on. Put back when the
+   * humidifier holds again; null while nothing is rested, or nothing was stated.
+   */
+  restedHumidityBand?: number | null;
+  /**
+   * The password the device last said its Terp Cam is secured with, null for
+   * the manufacturer's default. The camera row keeps its own copy, and this one
+   * is for the moments there is no row to write it to: pairing reports the
+   * password before the camera's id, and a device nobody owns has no camera at
+   * all until it is claimed. Never served, like the camera's own.
+   */
+  cameraSecret?: string | null;
+  state: StoredDeviceState;
+}
+
+const mqttSchema = new Schema<StoredDeviceMqtt>(
+  {
+    username: { type: String, required: true },
+    passwordHash: { type: String, required: true },
+  },
+  { _id: false, versionKey: false },
+);
+
+const scheduleClockSchema = new Schema<ScheduleClock>(
+  {
+    zone: { type: String, required: true },
+    offset: { type: Number, required: true },
+  },
+  { _id: false, versionKey: false },
+);
+
+const firmwareTargetSchema = new Schema<Device['firmware']>(
+  {
+    // A new device takes released fixes by itself until somebody switches that
+    // off. Every stored device carries a channel of its own, so a default never
+    // moves an existing one.
+    channel: { type: String, enum: firmwareChannel.options, required: true, default: 'stable' },
+    targetId: { type: String, default: null },
+  },
+  { _id: false, versionKey: false },
+);
+
+const settingsSchema = new Schema<DeviceSettings>(
+  {
+    // The offsets and the factor the cloud has always computed VPD and PPFD with.
+    vpdLeafOffsetDay: { type: Number, required: true, default: -2 },
+    vpdLeafOffsetNight: { type: Number, required: true, default: 0 },
+    ppfdLuxFactor: { type: Number, required: true, default: 0.015 },
+  },
+  { _id: false, versionKey: false },
+);
+
+const stateSchema = new Schema<StoredDeviceState>(
+  {
+    lastSeenAt: { type: Date, default: null },
+    claimedAt: { type: Date, default: null },
+    firmwareId: { type: String, default: null },
+    updateStartedAt: { type: Date, default: null },
+    updateEndedAt: { type: Date, default: null },
+    // When the rollout gave up on the build this device was told to install and
+    // wrote the line that says so. It is a stamp rather than a flag because the
+    // one thing it has to answer is "has this attempt already been reported",
+    // which is it being newer than the instruction it is about.
+    updateFailedAt: { type: Date, default: null },
+    maintenanceUntil: { type: Date, default: null },
+    // The raw `hardware-info` report, flat as the device sends it. Its keys
+    // belong to the firmware of that type, so nothing here constrains them.
+    hardware: { type: Schema.Types.Mixed, required: true, default: () => ({}) },
+    // Slot to the instant that socket row was last seen to change state; the
+    // report says a row changed but not when, so the ingest stamps it.
+    socketStateChangedAt: { type: Schema.Types.Mixed, required: true, default: () => ({}) },
+    // When the socket table last arrived. An override's row carries the seconds
+    // it had left then and never an instant, so without this the countdown a
+    // person watches would restart on every read.
+    socketsReportedAt: { type: Date, default: null },
+  },
+  { _id: false, versionKey: false, minimize: false },
+);
+
+export const devicesSchema = new Schema<StoredDevice>(
+  {
+    id: { type: String, required: true, unique: true },
+    createdAt: { type: Date, required: true, default: () => new Date() },
+    // Not an enum: the set of hardware types grows, and a cloud that rejected
+    // an unknown one would refuse to register a device newer than itself.
+    type: { type: String, required: true },
+    classId: { type: String, default: null },
+    serialNumber: { type: Number, default: null },
+    ownerId: { type: String, default: null },
+    spaceId: { type: String, default: null },
+    name: { type: String, default: null },
+    // Never served: the contract has no field for it. Read by `MqttAuthService`
+    // alone, which asks for it explicitly.
+    mqtt: { type: mqttSchema, default: null, select: false },
+    // Never served either: the retention sweep orders its pass by this, and a
+    // device that has never been swept sorts to the front because null does.
+    climateSweptAt: { type: Date, default: null },
+    scheduleClock: { type: scheduleClockSchema, default: null },
+    baseWorkmode: { type: String, default: null },
+    standardWorkmode: { type: String, default: null },
+    beforeDrying: { type: Schema.Types.Mixed, default: null },
+    beforeGermination: { type: Schema.Types.Mixed, default: null },
+    germinationChoices: { type: Schema.Types.Mixed, default: null },
+    restedHumidityBand: { type: Number, default: null },
+    // Never served, and not read unless asked for: the camera's password.
+    cameraSecret: { type: String, default: null, select: false },
+    firmware: { type: firmwareTargetSchema, required: true, default: () => ({}) },
+    // The device's own configuration document, null until it reports one. Its
+    // schema belongs to the firmware of that type and is not restated here.
+    configuration: { type: Schema.Types.Mixed, default: null },
+    settings: { type: settingsSchema, required: true, default: () => ({}) },
+    isDemo: { type: Boolean, required: true, default: false },
+    state: { type: stateSchema, required: true, default: () => ({}) },
+  },
+  // An empty configuration document is a device that reported one and said
+  // nothing, which mongoose would otherwise strip back to "never reported".
+  { collection: 'devices', versionKey: false, minimize: false },
+);
+
+// The broker asks for a device by the name it signs in with, on every connection.
+// Partial, because a device row made by hand has no credentials until it registers.
+devicesSchema.index({ 'mqtt.username': 1 }, { unique: true, partialFilterExpression: { 'mqtt.username': { $type: 'string' } } });
+// A person's devices, and the devices of one space's card.
+devicesSchema.index({ ownerId: 1 });
+devicesSchema.index({ spaceId: 1 });
+// The rollout counts a class by the build its devices run, and picks the next ones to update.
+devicesSchema.index({ classId: 1, 'state.firmwareId': 1 });
+// The retention sweep's rotation: least recently swept first, oldest first
+// among devices that tie - which is every device on an install that has never
+// swept, so the very first pass is the order the sweep used to have for ever.
+devicesSchema.index({ climateSweptAt: 1, createdAt: 1 });

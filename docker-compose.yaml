@@ -96,6 +96,7 @@ services:
         DOCKER_NGINX_IMAGE: ${DOCKER_NGINX_IMAGE:-nginx:1-alpine}
         DOCKER_NODE_WEBAPP_IMAGE: ${DOCKER_NODE_BUILD_IMAGE:-node:20-alpine}
         CUSTOM_LINKS_HTML: ${CUSTOM_LINKS_HTML:-}
+        PRIVACY_URL: ${PRIVACY_URL:-}
     restart: always
     ports:
       - ${WEBAPP_PORT_EXTERNAL}:80
@@ -129,7 +130,22 @@ services:
       SECRET_KEY: ${TOKEN_SECRET_KEY}
       PORT: 8081
       API_URL_EXTERNAL: ${API_URL_EXTERNAL}
+      # Where the app is served, for the links a notification and the account
+      # mails carry. Unset, a message goes out without its link rather than with
+      # a broken one.
+      APP_URL_EXTERNAL: ${APP_URL_EXTERNAL:-}
       TERPCAM_RELAY_URL: ${TERPCAM_RELAY_URL-${API_URL_EXTERNAL}/terpcam/relay}
+      # Unset, which is what these are here, gates nothing: an install that says
+      # nothing serves every picture whole and keeps every one of them.
+      PREMIUM_ENFORCED: ${PREMIUM_ENFORCED:-}
+      PREMIUM_FREE_STILL_WIDTH: ${PREMIUM_FREE_STILL_WIDTH:-}
+      PREMIUM_FREE_RETENTION: ${PREMIUM_FREE_RETENTION:-}
+      PREMIUM_FREE_STILL_DAYS: ${PREMIUM_FREE_STILL_DAYS:-}
+      PREMIUM_FREE_TIMELAPSE_DAYS: ${PREMIUM_FREE_TIMELAPSE_DAYS:-}
+      PREMIUM_EXTEND_URL: ${PREMIUM_EXTEND_URL:-}
+      PREMIUM_PRICE_LABEL: ${PREMIUM_PRICE_LABEL:-}
+      # The raw climate a window nobody has set keeps, in days; 0 keeps all of it.
+      RETENTION_CLIMATE_DAYS: ${RETENTION_CLIMATE_DAYS:-0}
       DB_HOST: "mongodb"
       DB_PORT: "27017"
       DB_DATABASE: ${MONGODB_DATABASE}
@@ -154,16 +170,31 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_SECURE: ${SMTP_SECURE}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
+      # The two notification channels an install has to set up before anybody
+      # can choose them. Unset is what a stack that has not is: the account
+      # screens offer neither, and the Telegram webhook route does not exist.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
       MQTTAUTH_SHARED_SECRET: ${MQTTAUTH_SHARED_SECRET:-terpcontrol}
-    # /readycheck answers 200 only once the database is reachable and the admin
+      # The boot migration stops on a row it cannot take and the container with
+      # it. This is how an operator who has read that report says the rows may
+      # be left behind, since nobody types a flag when a container starts - and
+      # it has to be passed in here to reach the process at all.
+      MIGRATION_ALLOW_REJECTS: ${MIGRATION_ALLOW_REJECTS:-}
+      MIGRATION_LOCALE: ${MIGRATION_LOCALE:-en}
+    # /readyz answers 200 only once the database is reachable and the admin
     # account has been seeded, which is what this stack means by ready to serve;
-    # `/` would answer while the server is still no use to anybody. node rather
-    # than curl or wget, because node is the one thing the image is certain to
-    # have. The start period covers the first build of the modules and the wait
-    # for mongodb, and failures during it do not count.
+    # /healthz would answer while the server is still no use to anybody. node
+    # rather than curl or wget, because node is the one thing the image is
+    # certain to have. The start period covers the first build of the modules,
+    # the wait for mongodb and the migrations, and failures during it do not
+    # count.
     healthcheck:
-      test:
-        ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8081/readycheck').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8081/readyz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3

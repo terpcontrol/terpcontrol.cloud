@@ -1,0 +1,149 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  line-height: var(--line-tight);
+}
+
+/* Who is signed in: the initials on the brand's wash, as the rail and the top
+   bar draw them, and the handle set as a name - it is one somebody chose. */
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-1) 0 var(--space-2);
+}
+
+.avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--brand-wash);
+  color: var(--brand);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.02em;
+}
+
+.who {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.handle {
+  overflow: hidden;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-title);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The e-mail address and the state of the profile in one line. The address
+   is the part that can be any length, so the line is cut with an ellipsis
+   rather than wrapped: an address is recognised from its first letters. */
+.whoLine {
+  overflow: hidden;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A door, a row of a run of doors that is one group - a list read top to
+   bottom rather than a stack of separate things. */
+.row {
+  padding: var(--space-3) var(--space-4);
+}
+
+.rowTitle {
+  font-weight: var(--weight-semibold);
+}
+
+/* A row that is a door to another screen: the chevron says so. */
+.link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 64px;
+  color: var(--ink);
+  transition: background-color 120ms ease-out;
+}
+
+.link:hover {
+  background: var(--card-2);
+}
+
+.link:focus-visible {
+  outline-offset: -2px;
+}
+
+.link svg {
+  flex: none;
+  color: var(--label);
+}
+
+.doorText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+/* What the page behind the door currently says, in figures. */
+.doorLine {
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* The state word the board sets against the right edge: "active", "expired". */
+.aside {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* A row that leads nowhere says why, under its title, and its title is
+   turned down to the muted ink: without a chevron it is a fact, not a door. */
+.rowNote {
+  margin-top: 2px;
+}
+
+.row:not(.link) .rowTitle {
+  color: var(--muted);
+}
+
+/* Signing out stands apart from the doors, at the foot. */
+.foot {
+  padding-top: var(--space-2);
+}
+
+/* The same column as the settings screens this one leads to, rather than the
+   phone's width and the phone's top padding kept on a wide window. */
+@media (min-width: 900px) {
+  .screen {
+    max-width: var(--reading-width);
+    gap: var(--space-5);
+    padding-top: 0;
+  }
+
+  .row {
+    padding: var(--space-3) var(--space-5);
+  }
+}

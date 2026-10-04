@@ -1,0 +1,535 @@
+import '@testing-library/jest-dom/vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import i18next from 'i18next';
+import { DateTime } from 'luxon';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { initReactI18next } from 'react-i18next';
+import { MemoryRouter } from 'react-router';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Camera, Device, GrowListItem, Space } from '@fg2/shared-types/v1';
+import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { growDayAt } from '@fg2/shared-types/v1-schemas/feeding.js';
+import { api } from '@/api/client';
+import { ApiError } from '@/api/problem';
+import { dayNumber } from '@/screens/grow/new/new-grow';
+import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
+import { spaceWhere } from './session';
+
+/**
+ * The new-grow sheet: what it offers, what it promises before the tap, and
+ * exactly what the tap sends.
+ *
+ * Every request goes through the app's own client, mocked at that one seam, so
+ * what is asserted is what would go on the wire - two writes, and a third only
+ * where the phase would not write the tent's climate itself. The feeding
+ * schemes are assets rather than a resource, so they are fetched, and the
+ * fixture stands in for the folder a build ships.
+ */
+vi.mock('@/api/client', () => ({
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+}));
+
+const who = vi.hoisted(() => ({ demo: false }));
+
+vi.mock('@/api/session', async importOriginal => {
+  const { SIGNED_IN, ON_THE_DEMO } = await import('./session');
+
+  return { ...(await importOriginal<object>()), useSession: () => (who.demo ? ON_THE_DEMO : SIGNED_IN) };
+});
+
+// Starting a grow in a place is managing it, so the places carry the standing
+// that decides whether the sheet offers them at all.
+const tent = spaceWhere('own', { id: 'space-1', kind: 'tent', name: 'Blue Dream tent' });
+const balcony = spaceWhere('own', { id: 'space-2', kind: 'balcony', name: 'Balcony' });
+const controller = { id: 'device-1', type: 'controller', spaceId: 'space-1' } as Device;
+const cam = { id: 'cam-1', spaceId: 'space-1', removedAt: null } as Camera;
+
+const placement = (spaceId: string | null, endedAt: string | null) => ({
+  id: `placement-${spaceId}`,
+  spaceId,
+  startedAt: '',
+  endedAt,
+  plantIds: null,
+});
+
+/** The tent's last run, already down: the place is free, and its name is what the next run there is counted from. */
+const spring = {
+  id: 'grow-1',
+  name: 'Spring run',
+  startedAt: '2026-08-01T08:00:00.000Z',
+  endedAt: '2026-08-28T08:00:00.000Z',
+  placements: [placement('space-1', '2026-08-28T08:00:00.000Z')],
+} as GrowListItem;
+
+/** Newer than the tent's run and still standing, so a suggestion taken account-wide would be this one. */
+const tomatoes = {
+  id: 'grow-2',
+  name: 'Balcony tomatoes',
+  startedAt: '2026-09-01T08:00:00.000Z',
+  endedAt: null,
+  placements: [placement('space-2', null)],
+} as GrowListItem;
+
+const GRID = [{ week: 1, stage: 'seedling', amounts: [{ productKey: 'grow', name: 'Bio·Grow', value: 1, unit: 'ml/l' }] }];
+
+const CATALOGUE = { schemes: [{ id: 'biobizz', name: 'Biobizz · Light·Mix', version: '2' }] };
+const SCHEME = {
+  id: 'biobizz',
+  name: 'Biobizz · Light·Mix',
+  manufacturer: 'Biobizz',
+  version: '2',
+  plantTypes: [{ key: 'soil', name: 'Soil' }],
+  defaultPlantType: 'soil',
+  flipWeek: 4,
+  source: { title: 'Nutrient Schedule', url: 'https://example.invalid/chart.pdf', readAt: '2026-09-22' },
+  notes: [],
+  grid: GRID,
+};
+
+/** The scheme as it goes across once the sheet has read the asset somebody was offered. */
+const SENT_SCHEME = {
+  origin: { type: 'asset', assetId: 'biobizz', version: '2' },
+  strength: 1,
+  waterEc: null,
+  plantType: 'soil',
+  flipWeek: 4,
+  edited: false,
+  grid: GRID,
+};
+
+/** What the account holds, per test: the places, the grows already run, and what stands in them. */
+const stack = {
+  spaces: [tent, balcony] as Space[],
+  grows: [spring, tomatoes] as GrowListItem[],
+  devices: [controller],
+  cameras: [cam],
+  sockets: [] as { role: string }[],
+};
+
+/** Which reads fail, per test: a read that failed is a state the sheet has to draw, not an empty list. */
+const broken = { devices: false, schemes: false };
+
+const answers = (path: string): unknown => {
+  if (path === '/spaces') return { items: stack.spaces, nextCursor: null };
+  if (path === '/grows') return { items: stack.grows, nextCursor: null };
+  if (path === '/devices') return { items: stack.devices, nextCursor: null };
+  if (path === '/cameras') return { items: stack.cameras, nextCursor: null };
+  if (/^\/devices\/[^/]+\/sockets$/.test(path)) return { items: stack.sockets, nextCursor: null };
+  throw new Error(`No fixture for ${path}`);
+};
+
+const draw = (spaceId?: string) =>
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter>
+        <NewGrowSheet spaceId={spaceId} onClose={() => undefined} />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+
+/**
+ * The sheet waits for the places, the grows and the scheme index; the questions
+ * are drawn once they are there, and the primary is live from that moment -
+ * nothing on the sheet has to be filled in first.
+ */
+const drawLoaded = async (spaceId?: string) => {
+  const drawn = draw(spaceId);
+  await waitFor(() => expect(screen.getByRole('button', { name: /Start the grow/ })).toBeEnabled());
+
+  return drawn;
+};
+
+beforeAll(async () => {
+  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
+  await i18next
+    .use(initReactI18next)
+    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+});
+
+beforeEach(() => {
+  who.demo = false;
+  stack.spaces = [tent, balcony];
+  stack.grows = [spring, tomatoes];
+  stack.devices = [controller];
+  stack.cameras = [cam];
+  stack.sockets = [];
+  broken.devices = false;
+  broken.schemes = false;
+
+  vi.mocked(api.get).mockImplementation((path: string) =>
+    path === '/devices' && broken.devices ? (Promise.reject(new Error('down')) as never) : (Promise.resolve(answers(path)) as never),
+  );
+  vi.mocked(api.post).mockResolvedValue({ id: 'grow-new' } as never);
+
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) => ({
+      ok: !broken.schemes,
+      status: broken.schemes ? 500 : 200,
+      json: async () => (url.endsWith('index.json') ? CATALOGUE : SCHEME),
+    })),
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.clearAllMocks();
+});
+
+const sow = (strain: string) => fireEvent.change(screen.getByPlaceholderText('Strain'), { target: { value: strain } });
+
+const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }));
+
+describe('the new-grow sheet', () => {
+  it('asks the board’s six questions, with what stands in each place beside its name', async () => {
+    await drawLoaded();
+
+    expect(screen.getByRole('dialog', { name: 'New grow' })).toBeInTheDocument();
+    expect(screen.getByText('a count is enough; names help you compare later')).toBeInTheDocument();
+    expect(screen.getByText('autoflowers skip the 12/12 flip and feed lighter')).toBeInTheDocument();
+    expect(screen.getByText("the place's preset and cams follow the grow")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Blue Dream tent · Controller + Cam' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Balcony' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Germination · dark · today' })).toBeInTheDocument();
+
+    // The board opens on the first shipped scheme; "None / my own" is a choice, not the default.
+    expect(screen.getByRole('button', { name: 'Biobizz · Light·Mix' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'None / my own' })).toHaveAttribute('aria-pressed', 'false');
+
+    // The run after the last one *here*, offered rather than filled in - the
+    // account's newest run stands on the balcony and is not what the tent is counted from.
+    expect(screen.getByRole('button', { name: 'Spring run #2' })).toBeInTheDocument();
+    // Beside the button, where it cannot have scrolled away, and only there: germination is dark.
+    expect(
+      screen.getAllByText(
+        'Blue Dream tent goes onto Germination · dark with it: light off, no CO₂, one temperature round the clock – until the grow moves on to seedling.',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('counts the suggestion over the place that is chosen, not over the account', async () => {
+    await drawLoaded();
+
+    press('Balcony');
+    expect(screen.getByRole('button', { name: 'Balcony tomatoes #2' })).toBeInTheDocument();
+
+    press('Blue Dream tent · Controller + Cam');
+    expect(screen.getByRole('button', { name: 'Spring run #2' })).toBeInTheDocument();
+  });
+
+  it('sets its five hints in the text face, because they are advice and not figures', async () => {
+    await drawLoaded();
+
+    const hints = [
+      'a count is enough; names help you compare later',
+      'autoflowers skip the 12/12 flip and feed lighter',
+      "the place's preset and cams follow the grow",
+      'seeds usually show in 2\u20135 days',
+      'a starting point, not a rule; edit any week',
+    ];
+    for (const hint of hints) expect(screen.getByText(hint).className).not.toMatch(/mono/);
+  });
+
+  it('offers an account with nothing a place to invent and a name to start from', async () => {
+    stack.spaces = [];
+    stack.grows = [];
+    stack.devices = [];
+    stack.cameras = [];
+    await drawLoaded();
+
+    expect(screen.queryByRole('button', { name: /Blue Dream/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New place' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'First grow' })).toBeInTheDocument();
+    expect(screen.getByText('No place, so nothing is steered; the stages are recorded all the same.')).toBeInTheDocument();
+  });
+
+  it('sends the grow with the scheme it opened on, then its first stage, then the tent’s climate', async () => {
+    await drawLoaded();
+
+    sow('Amnesia');
+    press('One more');
+    press('Start the grow · Day 1');
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(3));
+    expect(api.post).toHaveBeenNthCalledWith(1, '/grows', {
+      name: 'Spring run #2',
+      type: 'photoperiod',
+      startedAt: expect.any(String),
+      spaceId: 'space-1',
+      plants: [{ strain: 'Amnesia', count: 2 }],
+      scheme: SENT_SCHEME,
+    });
+    expect(api.post).toHaveBeenNthCalledWith(2, '/grows/grow-new/phases', { stage: 'germination', preset: null, startedAt: expect.any(String) });
+    // The phase writes no climate without a preset of its own, so the stage is applied to the tent as well.
+    expect(api.post).toHaveBeenNthCalledWith(3, '/spaces/space-1/preset-applications', { stage: 'germination', preset: null });
+  });
+
+  /**
+   * Owner's decision G2, on the way into germination the one-device grower
+   * takes most: the two questions are asked here as everywhere germination is
+   * set, and what was moved goes with the climate.
+   */
+  it('asks what germination does about the humidity where the grow puts the place into the dark, and sends what was moved', async () => {
+    stack.devices = [
+      {
+        ...controller,
+        configuration: {
+          workmode: 'small',
+          day: { temperature: 25, humidity: 60 },
+          night: { temperature: 21, humidity: 55 },
+          daynight: { day: 21600, night: 0 },
+        },
+        control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      } as Device,
+    ];
+    stack.sockets = [{ role: 'humidifier' }];
+    await drawLoaded();
+
+    const choices = await screen.findByRole('group', { name: 'During germination' });
+    expect(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' })).toHaveAttribute('aria-checked', 'false');
+    // Germination brings its own humidity, so that is the one the humidifier will hold, not the night's 55 %.
+    await waitFor(() => expect(within(choices).getByText('The humidifier holds 75 % – it never makes it wetter than that.')).toBeInTheDocument());
+    fireEvent.click(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' }));
+    fireEvent.click(within(choices).getByRole('switch', { name: 'Hold the humidity with the humidifier' }));
+    press('Start the grow · Day 1');
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(3));
+    expect(api.post).toHaveBeenNthCalledWith(3, '/spaces/space-1/preset-applications', {
+      stage: 'germination',
+      preset: null,
+      germinationChoices: { warnTooHumid: true, humidifierHolds: false },
+    });
+  });
+
+  it('asks nothing about germination where the grow does not darken the place', async () => {
+    stack.devices = [
+      {
+        ...controller,
+        configuration: { workmode: 'small', day: { temperature: 25, humidity: 60 }, night: { temperature: 21, humidity: 55 } },
+        control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      } as Device,
+    ];
+    await drawLoaded();
+    expect(await screen.findByRole('group', { name: 'During germination' })).toBeInTheDocument();
+
+    press('Seedling · with light');
+    expect(screen.queryByRole('group', { name: 'During germination' })).not.toBeInTheDocument();
+  });
+
+  // The hint over the field says a count is enough, and the primary has to mean it.
+  it('starts a grow from a count alone, sending the unnamed row under a stand-in name', async () => {
+    await drawLoaded();
+
+    press('One more');
+    press('One more');
+    press('Start the grow · Day 1');
+
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    expect(api.post).toHaveBeenNthCalledWith(1, '/grows', expect.objectContaining({ plants: [{ strain: 'Unnamed', count: 3 }] }));
+  });
+
+  it('gives an autoflower its own preset and the scheme at half strength, and writes the climate once', async () => {
+    await drawLoaded();
+
+    sow('Gelato');
+    press('Autoflower');
+    press('Veg');
+
+    expect(screen.getByText('Autoflower: the presets keep 18–20 h of light, and the scheme runs at half strength.')).toBeInTheDocument();
+    press('Start the grow · Day 1');
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+    expect(api.post).toHaveBeenNthCalledWith(1, '/grows', {
+      name: 'Spring run #2',
+      type: 'autoflower',
+      startedAt: expect.any(String),
+      spaceId: 'space-1',
+      plants: [{ strain: 'Gelato', count: 1 }],
+      scheme: { ...SENT_SCHEME, strength: 0.5, flipWeek: null },
+    });
+    expect(api.post).toHaveBeenNthCalledWith(2, '/grows/grow-new/phases', {
+      stage: 'vegetative',
+      preset: 'autoflower',
+      startedAt: expect.any(String),
+    });
+  });
+
+  it('leaves the grow standing when its first stage is refused, and retries only that', async () => {
+    const refusal = new ApiError({ status: 409, code: 'phase_refused', title: 'Conflict', detail: 'That day is before the grow began.', errors: [] });
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ id: 'grow-new' } as never)
+      .mockRejectedValueOnce(refusal);
+    await drawLoaded();
+
+    sow('Amnesia');
+    press('Start the grow · Day 1');
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('That day is before the grow began.'));
+    expect(screen.getByRole('status')).toHaveTextContent('The grow is made and stands where it was put');
+
+    press('Start the grow · Day 1');
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(4));
+    // One grow, three attempts at what follows it: the second tap carries on rather than starting again.
+    expect(vi.mocked(api.post).mock.calls.filter(([path]) => path === '/grows')).toHaveLength(1);
+    expect(vi.mocked(api.post).mock.calls.filter(([path]) => path === '/grows/grow-new/phases')).toHaveLength(2);
+  });
+
+  it('offers the demo no way to start one', async () => {
+    who.demo = true;
+    draw();
+
+    await waitFor(() => expect(screen.getByText('The demo may look at a grow, not start one.')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /Start the grow/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('where the plants go', () => {
+  /**
+   * Starting a grow in a place writes that place's climate and pauses a plan
+   * running in it, which is `manage`. A tent this account was only let into to
+   * write lines is therefore not an answer the sheet offers: the refusal would
+   * come after the strains, the stage and the day had all been typed in.
+   */
+  it('offers only the places this account manages', async () => {
+    stack.spaces = [tent, spaceWhere('log', { id: 'space-9', kind: 'tent', name: 'Their tent' })];
+    await drawLoaded();
+
+    expect(screen.getByRole('button', { name: 'Blue Dream tent · Controller + Cam' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Their tent' })).not.toBeInTheDocument();
+  });
+
+  it('opens on the first place with nothing standing in it', async () => {
+    stack.grows = [{ ...spring, endedAt: null, placements: [placement('space-1', null)] } as GrowListItem, tomatoes];
+    stack.spaces = [tent, balcony, spaceWhere('own', { id: 'space-3', kind: 'tent', name: 'Mother tent' })];
+    await drawLoaded();
+
+    expect(screen.getByRole('button', { name: 'Mother tent' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Blue Dream tent · Controller + Cam' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  // The tap that starts the grow is never the first time the tent it disturbs is named.
+  it('says what is already growing where the plants are being sent, and what that costs', async () => {
+    stack.grows = [{ ...spring, endedAt: null, placements: [placement('space-1', null)] } as GrowListItem, tomatoes];
+    await drawLoaded();
+
+    press('Blue Dream tent · Controller + Cam');
+
+    // Seeds beside plants that are growing are only recorded: the light stays theirs, and the chip says no darkness.
+    const keepsLight =
+      'Spring run is already growing in Blue Dream tent, so the light there stays on: the germination is only recorded. If the seeds are to sprout there in the dark, choose “Germination · dark” under Control – though Spring run then gets no light either.';
+    expect(screen.getAllByText(keepsLight)).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Germination · today' })).toBeInTheDocument();
+    expect(screen.queryByText(/goes onto Germination · dark with it/)).not.toBeInTheDocument();
+
+    // Any other stage still puts the place on its climate, and says so once beside the button.
+    press('Seedling · with light');
+    const warning =
+      'Spring run is already growing in Blue Dream tent: its climate goes to the Seedling · with light preset now, and a plan running there pauses.';
+    expect(screen.getAllByText(warning)).toHaveLength(1);
+  });
+
+  it('starts a grow beside one already growing without darkening the place', async () => {
+    stack.grows = [{ ...spring, endedAt: null, placements: [placement('space-1', null)] } as GrowListItem, tomatoes];
+    await drawLoaded();
+    press('Blue Dream tent · Controller + Cam');
+
+    press('Start the grow · Day 1');
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+    expect(api.post).toHaveBeenNthCalledWith(2, '/grows/grow-new/phases', { stage: 'germination', preset: null, startedAt: expect.any(String) });
+    expect(api.post).not.toHaveBeenCalledWith('/spaces/space-1/preset-applications', expect.anything());
+  });
+
+  it('honours the place it was opened for, and falls back where that place is gone', async () => {
+    const { unmount } = await drawLoaded('space-2');
+    expect(screen.getByRole('button', { name: 'Balcony' })).toHaveAttribute('aria-pressed', 'true');
+    unmount();
+
+    await drawLoaded('space-gone');
+    expect(screen.getByRole('button', { name: 'Blue Dream tent · Controller + Cam' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  // A chosen chip is the place the grow goes, so "New space" cannot leave the
+  // previous tent held behind it and written to on the way out.
+  it('lets go of the held place while a new one is being invented, and keeps the primary out of reach', async () => {
+    await drawLoaded();
+
+    press('New place');
+
+    expect(screen.getByRole('button', { name: 'Blue Dream tent · Controller + Cam' })).toHaveAttribute('aria-pressed', 'false');
+    expect(
+      screen.queryByText(
+        'Blue Dream tent goes onto Germination · dark with it: light off, no CO₂, one temperature round the clock – until the grow moves on to seedling.',
+      ),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('Make the place first, or pick one of the chips.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start the grow · Day 1' })).toBeDisabled();
+  });
+});
+
+describe('a read that failed', () => {
+  it('says the hardware could not be read rather than drawing places with none', async () => {
+    broken.devices = true;
+    await drawLoaded();
+
+    expect(screen.getByRole('button', { name: 'Blue Dream tent' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Controller/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/What stands in these places could not be read/)).toBeInTheDocument();
+    expect(
+      screen.getByText('What stands in Blue Dream tent is not known, so no climate is written there; the stages are recorded all the same.'),
+    ).toBeInTheDocument();
+
+    sow('Amnesia');
+    press('Start the grow · Day 1');
+
+    // Two writes, not three: a climate is never written to hardware nobody could confirm.
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.post).mock.calls.map(([path]) => path)).toEqual(['/grows', '/grows/grow-new/phases']);
+  });
+
+  it('tells a failed scheme index apart from a build that ships none', async () => {
+    broken.schemes = true;
+    draw();
+
+    await waitFor(() => expect(screen.getByText(/The feeding schemes could not be read/)).toBeInTheDocument());
+    expect(screen.queryByText(/This build ships no feeding schemes/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'None / my own' })).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+/**
+ * The day the button promises, against the day the grow will actually read.
+ *
+ * The two were counted differently: the button counted the midnights between
+ * the start and now, and everything else - the log sheet, the week cards, the
+ * report, the charts axis and the server's own serialiser - counts whole
+ * twenty-four hour periods from the instant the first phase began. A day
+ * containing a clock change has twenty-three of those hours in it, so the two
+ * parted company by one for every start backdated across the change, and the
+ * button was the one over-promising.
+ */
+describe('the day the button promises', () => {
+  const now = DateTime.fromISO('2026-09-23T16:15:16.686Z');
+
+  it('counts whole days from the moment the grow starts, and not the midnights in between', () => {
+    // 1 March typed at 18:15 in a browser on central European time, which was
+    // still an hour behind its summer self: 205 d 23 h ago, so day 206. By
+    // midnights it is 207, which is what the button used to say.
+    expect(dayNumber(new Date('2026-03-01T17:15:16.686Z'), now)).toBe(206);
+
+    // The same start after the change, where the hour and the midnight agree.
+    expect(dayNumber(new Date('2026-03-29T16:15:16.686Z'), now)).toBe(179);
+  });
+
+  it('says the same day as the contract every other screen counts with', () => {
+    for (const startedAt of ['2026-03-01T17:15:16.686Z', '2026-03-28T17:15:16.686Z', '2026-05-01T16:15:16.686Z', '2026-09-23T16:15:16.686Z']) {
+      expect(dayNumber(new Date(startedAt), now)).toBe(growDayAt(new Date(startedAt), now.toJSDate()));
+    }
+  });
+
+  it('never promises a day before the first, whatever a date field is handed', () => {
+    expect(dayNumber(now.plus({ days: 3 }).toJSDate(), now)).toBe(1);
+  });
+});

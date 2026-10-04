@@ -6,10 +6,12 @@
  *
  * It records the arguments of every run and otherwise hands the run straight to
  * the real ffmpeg, so the suite keeps reading actual frames out of actual
- * streams. A spec that needs a particular camera - one whose parameter sets are
- * not ready yet, one that is unreachable, one that never answers at all, one
- * that should receive specific bytes - arms a plan first (see
- * test/support/ffmpeg.ts) and those runs are answered from it instead.
+ * streams - those on this machine; a stream anywhere else is answered as
+ * unreachable (see `unreachable`). A spec that needs a particular camera - one
+ * whose parameter sets are not ready yet, one that is unreachable, one that
+ * never answers at all, one that should receive specific bytes - arms a plan
+ * first (see test/support/ffmpeg.ts) and those runs are answered from it
+ * instead.
  *
  * A plan entry is only spent on a run it names (`match`), because the webcam
  * poller reads its own cameras throughout and would otherwise take an answer
@@ -24,7 +26,41 @@ const { delimiter, join } = require('node:path');
 const args = process.argv.slice(2);
 const stateDir = process.env.HARNESS_FFMPEG_STATE;
 
+const input = args.includes('-i') ? args[args.indexOf('-i') + 1] : '';
+/** The address the run opens, where it opens one on a network rather than a pipe or a file. */
+const stream = URL.canParse(input) && /^(rtsps?|rtmps?|https?|tcp|udp):$/.test(new URL(input).protocol) ? new URL(input) : null;
+
+const onThisMachine = ({ hostname }) => hostname === 'localhost' || hostname === '[::1]' || hostname.startsWith('127.');
+
+/**
+ * Nothing the suite runs stands anywhere but on this machine. A camera a spec
+ * puts at 10.0.0.30 or 192.168.1.40 is one on somebody's home network, and
+ * handed to the real ffmpeg its run would cost whatever the network the suite
+ * happens to run on makes of the address: refused at once, a device that
+ * really has it, or - on most - the operating system's connect timeout, over a
+ * minute in which the run holds one of the few ffmpeg runs the server allows
+ * itself at a time. The poller reads every camera that stands, so enough of
+ * them fill all of those, and a still a spec asks for then waits behind them
+ * until it times out. So such a run is answered at once, in ffmpeg's words -
+ * the address quoted back, credentials and all, as the real one quotes it. A
+ * spec that wants a camera which never answers arms one (`delayMs`).
+ */
+const unreachable = () => {
+  process.stderr.write(
+    `[tcp @ 0x0] Connection to tcp://${stream.host} failed: No route to host\n` +
+      '[in#0 @ 0x0] Error opening input: No route to host\n' +
+      `Error opening input file ${input}.\n` +
+      'Error opening input files: No route to host\n',
+  );
+  process.exit(1);
+};
+
 const delegate = () => {
+  if (stream && !onThisMachine(stream)) {
+    unreachable();
+    return;
+  }
+
   const self = __dirname;
   const real = (process.env.PATH || '')
     .split(delimiter)

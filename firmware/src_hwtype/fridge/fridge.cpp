@@ -6,10 +6,55 @@
 
 #include "time.h"
 #include "esp_sntp.h"
+#include <esp_system.h>
 
 const uint8_t  SPRINTF_BUFFER_SIZE{32};
 MCP7940_Class MCP7940;
 char          inputBuffer[32];
+
+// A sensor fault is checked on every control pass, so the line that reports one
+// is written when the fault appears and then no more often than this, however
+// often it goes away and comes back. Without a floor a sensor flapping around
+// its threshold writes a diary line every second for as long as it flaps.
+static constexpr time_t SENSOR_FAULT_LOG_INTERVAL = 15 * 60;
+
+// The same plausibility the reading path applies before it dates a sample: a
+// clock below this has not been set by SNTP yet.
+static constexpr time_t SENSOR_FAULT_CLOCK_SET = 1000000000;
+
+// When each fault was last reported, in wall clock seconds. Wall clock because
+// the tick count starts at zero again on every boot, and RTC memory because the
+// interval has to outlive a restart: a panic, a watchdog or the connection
+// watchdog's recovery reboot would otherwise let a device with a standing fault
+// report it again on every boot. Power-on clears it, which is right - a device
+// that was just switched on reports what it finds at once.
+//
+// RTC_NOINIT_ATTR, not RTC_DATA_ATTR: the bootloader loads .rtc.data afresh on
+// every reset but a wake from deep sleep, which this device never sleeps in, so
+// the stamps were back at zero after exactly the restarts they are kept for.
+// .rtc_noinit is left alone on those, and holds garbage after a power cycle -
+// hence the magic word, and the reset reason checked once per boot.
+struct SensorFaultStamps {
+  uint32_t magic;
+  time_t fail_logged;
+  time_t deviate_logged;
+};
+RTC_NOINIT_ATTR static SensorFaultStamps g_sensor_fault_stamps;
+static constexpr uint32_t SENSOR_FAULT_STAMPS_KEPT = 0x53464c54UL;
+
+static SensorFaultStamps& sensorFaultStamps() {
+  static bool checked = false;
+  if(!checked) {
+    checked = true;
+    const esp_reset_reason_t reason = esp_reset_reason();
+    if(g_sensor_fault_stamps.magic != SENSOR_FAULT_STAMPS_KEPT || reason == ESP_RST_POWERON || reason == ESP_RST_BROWNOUT) {
+      g_sensor_fault_stamps.magic = SENSOR_FAULT_STAMPS_KEPT;
+      g_sensor_fault_stamps.fail_logged = 0;
+      g_sensor_fault_stamps.deviate_logged = 0;
+    }
+  }
+  return g_sensor_fault_stamps;
+}
 
 static double ntcToTemp(uint16_t adc_val) {
   double R1 = 100000.0;   // voltage divider resistor value
@@ -30,6 +75,32 @@ namespace fg {
 
   std::unique_ptr<AutomationController> createController(Fridgecloud& cloud) {
     return std::unique_ptr<AutomationController>(new FridgeController(cloud));
+  }
+
+  /**
+   * Reports a sensor fault that has just appeared, unless one of its kind was
+   * reported less than SENSOR_FAULT_LOG_INTERVAL ago. Each fault carries its
+   * own last time, so a flapping sensor cannot silence the other one.
+   *
+   * Returns whether the fault has been accounted for. Without a clock the
+   * interval cannot be measured and nothing is written: the fault is checked
+   * again on the next pass, and a device whose clock is unset is discarding its
+   * readings for the same reason, so it has nothing to say either way yet.
+   */
+  static bool logSensorFault(Fridgecloud& cloud, const char* message, time_t& last_logged) {
+    time_t now = 0;
+    time(&now);
+    if(now < SENSOR_FAULT_CLOCK_SET) {
+      return false;
+    }
+    // A clock corrected backwards would otherwise hold the line back for as
+    // long as the correction was large.
+    if(last_logged != 0 && now >= last_logged && now - last_logged < SENSOR_FAULT_LOG_INTERVAL) {
+      return true;
+    }
+    cloud.log(message);
+    last_logged = now;
+    return true;
   }
 
 
@@ -131,22 +202,26 @@ namespace fg {
       if(temperature_scd > state.temperature + MAX_SENSOR_DEVIATION || temperature_scd < state.temperature - MAX_SENSOR_DEVIATION) {
         state.humidity = humidity_scd;
         state.temperature = temperature_scd;
-        if(!sensor_deviation_logged) {
-          cloud.log("message-ext-sensor-deviate");
-          sensor_deviation_logged = true;
+        if(!sensor_deviation_seen) {
+          sensor_deviation_seen = logSensorFault(cloud, "message-ext-sensor-deviate", sensorFaultStamps().deviate_logged);
         }
       }
       else {
-        sensor_deviation_logged = false;
+        sensor_deviation_seen = false;
       }
     }
 
-    if(sht_failed && !sensor_fail_logged) {
-      cloud.log("message-ext-sensor-fail");
-      sensor_fail_logged = true;
+    // The fault is reported when it appears and not again until it has cleared
+    // and returned. The flag is cleared by a working sensor and by nothing
+    // else, so a sensor that stays broken costs one line rather than one per
+    // pass.
+    if(sht_failed) {
+      if(!sensor_fail_seen) {
+        sensor_fail_seen = logSensorFault(cloud, "message-ext-sensor-fail", sensorFaultStamps().fail_logged);
+      }
     }
     else if(sht_valid) {
-      sensor_fail_logged = false;
+      sensor_fail_seen = false;
     }
 
     // A failed SHT is covered by the SCD4x readings above, so only a failed SCD4x leaves nothing to regulate on.
@@ -828,9 +903,57 @@ namespace fg {
     }
   }
 
+  // The humidifier is the dehumidifier's rule read the other way round: it runs
+  // while the air is drier than the target by more than a band and stops once it
+  // is back at the target. It drives no output of the module's own, only a
+  // socket, so it is decided here rather than in a control pass.
+  //
+  // The band is the dehumidifier's, but never narrower than the five points it
+  // has always defaulted to: a dry target dehumidifies from the target itself,
+  // with a band of zero, and a humidifier switched at the target would chatter
+  // on and off around it.
+  static constexpr float HUMIDIFIER_MIN_BAND = 5.0f;
+
+  static bool humidifierTarget(float humidity, float target, float band, bool stopped) {
+    band = band < HUMIDIFIER_MIN_BAND ? HUMIDIFIER_MIN_BAND : band;
+    static bool humidify = false;
+    if(stopped) {
+      humidify = false;
+    }
+    else if(humidify) {
+      humidify = humidity < target;
+    }
+    else {
+      humidify = humidity < (target - band);
+    }
+    return humidify;
+  }
+
+  // An exhaust socket runs while the box is too warm. The standard modes run the
+  // compressor only to dry the air, so there it takes the rule the temperature
+  // mode cools by on its own: on above the target by 0.8 °C, off again below
+  // 0.3 °C over it.
+  static bool exhaustTarget(float temperature, float target, bool stopped) {
+    static bool exhaust = false;
+    if(stopped) {
+      exhaust = false;
+    }
+    else if(temperature > target + 0.8f) {
+      exhaust = true;
+    }
+    else if(temperature < target + 0.3f) {
+      exhaust = false;
+    }
+    return exhaust;
+  }
+
   void FridgeController::loop() {
     updateSensors();
     checkDayCycle();
+
+    // What an exhaust socket follows: the compressor where a mode cools with it,
+    // the over-temperature rule in the standard modes, nothing otherwise.
+    bool exhaust_on = false;
 
     if(testmode_duration > 0) {
       testmode_duration--;
@@ -873,6 +996,7 @@ namespace fg {
         controlLight();
         controlDehumidifier();
         controlHeater();
+        exhaust_on = exhaustTarget(state.temperature, state.target_temperature, isPaused());
         out_fan_external.set(settings.fans.external * 2.55);
       }
       else if(settings.workmode == FridgeControllerSettings::MODE_SMALL) {
@@ -883,6 +1007,7 @@ namespace fg {
         controlLight();
         controlDehumidifier();
         controlHeater();
+        exhaust_on = exhaustTarget(state.temperature, state.target_temperature, isPaused());
         out_fan_external.set(settings.fans.external * 2.55);
       }
       // else if(settings.workmode == FridgeControllerSettings::MODE_EXP) {
@@ -896,6 +1021,7 @@ namespace fg {
         Serial.println("MODE TEMP");
         controlLight();
         controlCooling();
+        exhaust_on = state.out_dehumidifier > 0;
         controlHeater();
         controlCo2();
         out_fan_external.set(settings.fans.external * 2.55);
@@ -913,6 +1039,7 @@ namespace fg {
         Serial.println("MODE BREED");
         controlHeater();
         controlCooling();
+        exhaust_on = state.out_dehumidifier > 0;
         out_co2.set(0);
         out_light.set(0);
         state.out_light = 0;
@@ -938,12 +1065,32 @@ namespace fg {
           out_light.set(255.0f * (state.out_light / 100.0f));
       }
 
+      // An override from the cloud holds the light for as long as it lasts, at
+      // the brightness the grower allows. The light sockets follow the output,
+      // so they are held with it.
+      bool light_forced_on = false;
+      if(wifiLightOutputOverride(light_forced_on)) {
+        state.out_light = light_forced_on ? settings.lights.limit : 0;
+        out_light.set(255.0f * (state.out_light / 100.0f));
+      }
+
+      const bool controlling = settings.workmode != FridgeControllerSettings::MODE_OFF && !isPaused();
+
       SmartSocketOutputStates socket_states;
-      socket_states.dehumidifier_on = state.out_dehumidifier > 0;
+      // In germination the compressor cools and nothing dries the air: a
+      // dehumidifier socket rests rather than drying the seeds' medium.
+      socket_states.dehumidifier_on = state.out_dehumidifier > 0 && settings.workmode != FridgeControllerSettings::MODE_BREED;
       socket_states.heater_on = state.out_heater > 0;
       socket_states.light_on = state.out_light > 0;
       socket_states.secondary_light_on = state.out_light > 0;
       socket_states.co2_on = state.out_co2 > 0;
+      socket_states.humidifier_on = humidifierTarget(state.humidity, state.target_humidity,
+                                                     settings.daynight.targetHumidityDiff, !controlling);
+      socket_states.exhaust_on = exhaust_on;
+      socket_states.running = controlling;
+      // The same cut controlHeater applies to the heater, for the heater
+      // sockets that something other than the heater output could hold on.
+      socket_states.heater_too_warm = state.temperature > state.target_temperature + HEATER_OVERTEMP_MARGIN;
       wifiReportSmartSocketOutputs(socket_states);
 
       if(state.co2 < CO2_LEVEL_CRITICAL) {

@@ -1,0 +1,133 @@
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+
+/* The five counts over the chapters: one strip, a hairline between each, the
+   figures a page's size rather than a card's and the captions in words under
+   them. Five of them share a phone's width and never wrap. */
+.totals {
+  flex-wrap: nowrap;
+  padding: var(--space-2) 0 var(--space-4);
+  border-bottom: var(--rule-solid);
+}
+
+.totalValue {
+  font-size: var(--text-xl);
+}
+
+.harvest,
+.empty {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* A chapter: its cover at the left, its story beside it. */
+.chapter {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.cover {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--card-2);
+  color: var(--green);
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.chapterText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chapterTitle {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-heading);
+}
+
+.chapterMeta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.training {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--rule-solid);
+}
+
+/* The zip, at the end of the record it is a copy of. */
+.export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.exportText {
+  display: flex;
+  /* Wide enough to be a paragraph before the button beside it is sent to the
+     next line, rather than a column of three words. */
+  flex: 1 1 280px;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.exportStatus {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* A wide screen reads the chapters as a spread, two across, newest first -
+   the totals over them and the zip under them both run the whole width. */
+@media (min-width: 1200px) {
+  .report {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .report > * {
+    grid-column: 1 / -1;
+  }
+
+  .report > .chapter {
+    grid-column: auto;
+    height: 100%;
+  }
+}
+
+/* A count that opens what it counts: underlined like a link, in the figure's own size. */
+.totalOpen {
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}

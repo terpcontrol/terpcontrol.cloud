@@ -1,0 +1,292 @@
+/* The targets page around its card (DayNight.module.css): the chips, the
+   card of a paused plan, and the bar that holds the save - and the slider
+   rows the panels of a socket, a lamp and a fan are set with, which the
+   browser would otherwise draw in its own colours. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.deviceName {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-heading);
+  line-height: var(--line-tight);
+}
+
+/* A row: the name, the slider, the figure with its unit, and what stands
+   beside the figure. The figure keeps the width its widest reading needs, so
+   dragging does not shift the slider under the thumb. The day's rows and the
+   night's are each a grouped block, so they read as two panels rather than
+   sliders loose on the page. */
+.row {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+  grid-template-areas: 'label slider value';
+  align-items: center;
+  column-gap: var(--space-3);
+  min-height: var(--control-height);
+  padding: var(--space-1) var(--space-3);
+}
+
+.row > .rowLabel {
+  grid-area: label;
+}
+
+.row > .slider {
+  grid-area: slider;
+}
+
+.row > .value {
+  grid-area: value;
+}
+
+/* On a phone a slider squeezed between the name and the figure came to about
+   a hundred pixels, five to a degree: the name and the figure share the top
+   line and the slider takes the whole width under them. */
+@media (max-width: 599px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'label value'
+      'slider slider';
+    padding-block: var(--space-2);
+  }
+
+  .row > .slider {
+    height: 32px;
+  }
+}
+
+.rowLabel {
+  font-size: var(--text-sm);
+}
+
+.value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  column-gap: var(--space-2);
+  /* One width for every row, so the sliders line up whether or not something stands beside the figure. */
+  width: 7rem;
+}
+
+/* The figure and its unit are one thing and never break apart, whatever stands
+   beside them: "1100" on one line and "ppm" on the next would read as a
+   different number. Only what comes after them may wrap. */
+.figure {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  font-size: var(--text-md);
+  white-space: nowrap;
+}
+
+.typed {
+  width: 2.75rem;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: var(--rule-width) solid transparent;
+  color: var(--ink);
+  font-family: var(--font-figure);
+  font-size: var(--text-md);
+  text-align: right;
+}
+
+.typed:focus {
+  outline: none;
+  border-bottom-color: var(--brand);
+}
+
+.typed:disabled {
+  opacity: 0.6;
+}
+
+.unit {
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+.aside {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-align: right;
+}
+
+/* The app's one slider, at a finger's height. `--filled` is set per row from
+   the value. */
+.slider {
+  width: 100%;
+  height: var(--control-height);
+}
+
+/* What a save does to the plan. Amber: a plan that is running or paused is a
+   state somebody chose, and the card says what this page does to it. */
+.planCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  border-color: var(--warning);
+}
+
+.planText {
+  flex: 1 1 200px;
+  font-size: var(--text-sm);
+}
+
+.sent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.sentNote {
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+}
+
+/* The energy-saving switch: one row, in a card of its own under the chips. */
+.operation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The controller has said nothing for a while: dimmed by its age, as the plan's line is. */
+.quiet {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* The stage chips under the sliders, with the sentence that says they only
+   prefill. */
+.presets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The save, kept in reach while the draft differs from the device's document.
+   Sticky rather than fixed, so it moves with the panel it belongs to.
+
+   On a phone it takes the tab bar's place instead of floating over the page:
+   the strip the tab bar and its raised button stand in is the one part of the
+   screen that never shows a slider, so the row somebody is moving stays in
+   view, and the two buttons sit side by side under one short line. Leaving the
+   tab with changes unsaved is Save or Discard first. */
+.bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-content: center;
+  gap: var(--space-2);
+  min-height: calc(var(--tabbar-height) + var(--log-button) / 2 + env(safe-area-inset-bottom));
+  margin-inline: calc(var(--space-4) * -1);
+  padding: var(--space-2) var(--space-4) calc(var(--space-2) + env(safe-area-inset-bottom));
+  border-width: var(--rule-width) 0 0;
+  border-radius: 0;
+  box-shadow: var(--shadow-bar);
+}
+
+.barText {
+  grid-column: 1 / -1;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--muted);
+}
+
+.bar > p {
+  grid-column: 1 / -1;
+}
+
+/* Saving pauses a running plan: said in the bar, in the amber of a state
+   somebody chose, so it is read before the button rather than under the
+   table. */
+.bar[data-pauses] {
+  border-top-color: var(--warning);
+}
+
+.bar[data-pauses] .barText {
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+
+/* The way out of a tent with nothing to set, inside the dashed note: underlined
+   rather than coloured, because the note is a quiet one and the green is the
+   Save's. */
+.addDevice {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+/* Beside the rail there is no tab bar to stand in for: the bar is a card
+   floating at the foot of the column, the sentence beside its two buttons. */
+@media (min-width: 900px) {
+  .bar {
+    bottom: var(--space-5);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: 0;
+    margin-inline: 0;
+    padding: var(--space-3) var(--space-4);
+    border-width: var(--rule-width);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .barText {
+    flex: 1;
+    font-size: var(--text-sm);
+    color: var(--ink);
+  }
+
+  .bar[data-pauses] {
+    border-color: var(--warning);
+  }
+
+  .bar > p {
+    flex-basis: 100%;
+  }
+
+  .row {
+    padding-inline: var(--space-4);
+  }
+}
+
+/* The question before unsaved targets are left behind. */
+.leaveText {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.endDrying {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.endDrying p {
+  margin: 0;
+}

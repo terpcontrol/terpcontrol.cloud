@@ -8,7 +8,8 @@ const LOG_DIR = join(SERVER_ROOT, 'test', '.tmp', 'logs');
 // The image endpoints shell out to ffmpeg, and what they run it with - and what
 // they make of what it answers - is not visible through HTTP. The app finds a
 // shim first on its PATH: it records every run and hands it to the real ffmpeg,
-// unless a spec has armed one. See support/ffmpeg.ts.
+// unless a spec has armed one or the stream is on another machine. See
+// support/ffmpeg.ts.
 const FFMPEG_BIN_DIR = join(SERVER_ROOT, 'test', 'support', 'infra', 'fake-bin');
 const FFMPEG_STATE_DIR = join(SERVER_ROOT, 'test', '.tmp', 'ffmpeg');
 
@@ -103,7 +104,7 @@ const waitForHealthy = async (baseUrl: string, child: ChildProcess, timeoutMs: n
   while (Date.now() < deadline) {
     if (child.exitCode !== null) throw new Error(`App under test exited with code ${child.exitCode} before becoming healthy`);
     try {
-      const response = await fetch(`${baseUrl}/`);
+      const response = await fetch(`${baseUrl}/healthz`);
       if (response.ok) return;
       lastError = `status ${response.status}`;
     } catch (error) {

@@ -1,0 +1,309 @@
+/* "My grows": a titled page and two shelves of grow cards. On a phone and a
+   tablet a card is a row - the picture as a square beside the words - so the
+   whole list reads at a glance; from 900 px, where the page is wide enough for
+   two of them side by side, the cards stand in a grid with the picture across
+   their top, and the dashed tile that starts a grow is as tall as they are.
+   Every colour, size and radius is the app's own. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  line-height: var(--line-tight);
+}
+
+.shelf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.shelfHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.count {
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+.none {
+  padding: var(--space-1) 0;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  min-width: 0;
+}
+
+.card {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-2);
+  padding-right: var(--space-3);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color: inherit;
+}
+
+.card:hover {
+  border-color: var(--rule-strong);
+}
+
+.cover {
+  display: grid;
+  place-items: center;
+  flex: none;
+  align-self: stretch;
+  width: 104px;
+  min-height: 104px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--card-2);
+  color: color-mix(in srgb, var(--green) 55%, var(--card-2));
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* The name and, for a grow somebody else runs, whose it is. Where both do not
+   fit on one line the tag moves under the name, so the name is cut only where
+   it is too long on its own and the owner never. */
+.nameRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--space-2);
+  min-width: 0;
+  margin-bottom: 2px;
+}
+
+/* A grow's name, which its grower gave it: set as a name, as everywhere a grow is named. */
+.name {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.owner {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  max-width: 100%;
+  background: var(--brand-wash);
+  color: var(--brand);
+}
+
+.status {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.meta {
+  overflow: hidden;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Where it stands and what was sown may take a second line on a narrow phone
+   rather than lose the place's name or the last strain. */
+.twoLines {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.harvest {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--green-ink);
+}
+
+.chevron {
+  flex: none;
+  color: var(--label);
+}
+
+/* The way to the next grow, as the last tile among the running ones. */
+.add {
+  flex: 1;
+}
+
+.addIcon {
+  flex: none;
+}
+
+/* A finished grow is a memory rather than a task: its picture is a shade
+   quieter, so the running ones above it are what the eye lands on first. */
+.card[data-ended] .cover img {
+  filter: saturate(0.85);
+}
+
+/* Nothing at all yet: what the page will hold, and the way to the first grow. */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.emptyIcon {
+  color: var(--green);
+}
+
+.emptyTitle {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-heading);
+  color: var(--heading);
+}
+
+/* The way in from Start: one quiet line under the cards rather than a card of
+   its own, so it sits beside "+ Neuer Grow" without competing with it. It is
+   as wide as its words, so on a desktop the chevron stays beside them; where
+   the title and the counts do not fit on one line, the counts go under the
+   title whole rather than being cut off. */
+.line {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  max-width: 100%;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 var(--space-1);
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+.lineIcon {
+  flex: none;
+  color: var(--green);
+}
+
+.lineText {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  min-width: 0;
+  padding: var(--space-1) 0;
+}
+
+.lineTitle {
+  flex: none;
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.lineCounts {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.line:hover .lineTitle {
+  color: var(--brand);
+}
+
+/* Wide enough for a grid of two or more: the cards stand side by side with the
+   picture across their top, and the chevron gives way to the whole card being
+   the tap. Below this the page is a single column, where a card with its
+   picture across the top would show one and a half grows per screen. */
+@media (min-width: 900px) {
+  .cards {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .cover {
+    width: 100%;
+    min-height: 0;
+    aspect-ratio: 16 / 10;
+    border-radius: 0;
+  }
+
+  .text {
+    padding: var(--space-3) var(--space-4) var(--space-4);
+  }
+
+  .card > .chevron {
+    display: none;
+  }
+
+  /* As tall as the cards beside it, so its sign is drawn the size of a tile's. */
+  .add {
+    flex-direction: column;
+    gap: var(--space-2);
+    font-size: var(--text-md);
+  }
+
+  .addIcon {
+    width: 28px;
+    height: 28px;
+    color: var(--green);
+  }
+
+  .page {
+    max-width: var(--page-width);
+    padding-top: 0;
+  }
+}

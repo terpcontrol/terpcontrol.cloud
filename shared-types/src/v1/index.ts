@@ -1,0 +1,38 @@
+/**
+ * The `/v1` wire contract, assembled.
+ *
+ * Nothing is defined here: this is the one module `scripts/generate.mjs`
+ * compiles and imports, so that `v1.d.ts` and `openapi-schemas.json` are
+ * generated from one registry holding every schema of the contract. A domain
+ * file that nothing here re-exports would silently be left out of both.
+ *
+ * `registry` and the `named` helper come with `./common.js`.
+ */
+export * from './common.js';
+export * from './accounts.js';
+export * from './devices.js';
+export * from './growing.js';
+export * from './diary.js';
+
+// No schema, so nothing of it reaches `v1.d.ts` or the API document: constants
+// the server and the simulator both decode a device's socket report with, the
+// arithmetic the feed sheet and the entry writer both read a grid with, the days
+// and weeks a stage covers that the phase bar, the week cards and the report's
+// chapters all state, the curve the charts and the targets screen both work a
+// VPD out along, and the span the alarm engine holds a worked-on device's alarms
+// for that the screens offering a maintenance window have to promise. And the
+// settings beyond the targets a device's type offers, which the server checks a
+// change against and the screens draw their controls from. And day and night as
+// the firmware keeps them, which the server judges by, the screens draw and the
+// simulator runs. And how long one read of a camera may take, which the poller
+// keeps and the test button promises, and the kinds of failure it is named as.
+export * from './socket-report.js';
+export * from './feeding.js';
+export * from './grow-days.js';
+export * from './climate-presets.js';
+export * from './alert-routing.js';
+export * from './vpd.js';
+export * from './maintenance.js';
+export * from './configuration-fields.js';
+export * from './day-night.js';
+export * from './capture.js';

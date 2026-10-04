@@ -1,0 +1,1364 @@
+import { z } from 'zod';
+import {
+  alertKind,
+  anyValue,
+  bytes,
+  germinationChoices,
+  growthStage,
+  id,
+  instant,
+  metric,
+  metricValue,
+  named,
+  notificationChannel,
+  outputMetric,
+  page,
+  planStatus,
+  planTransitionKind,
+  seriesPoint,
+  severity,
+  socketRole,
+  subjectRef,
+  webhookMethod,
+} from './common.js';
+import { DEVICE_SETTING_RANGES, OPERATING_MODES } from './configuration-fields.js';
+import { SOCKET_ADDRESS_MAX_LEN, SOCKET_CREDENTIAL_MAX_LEN, SOCKET_HOLD_MAX_SECONDS } from './socket-report.js';
+
+/**
+ * The device half of the `/v1` contract: what a device is, what it runs and what
+ * it is told, plus the read models the device screens are drawn from.
+ *
+ * Everything a device itself speaks - its HTTP routes, its MQTT payloads, its
+ * snake_case keys and epoch seconds - is frozen and stays in the server's
+ * `device-protocol` module. Nothing of that vocabulary leaks in here: these are
+ * the shapes the app and the API agree on, and the protocol module translates.
+ */
+
+/**
+ * Where a device takes its firmware from. `manual` is not a build channel but the
+ * absence of one: the device stays on what an operator picked.
+ */
+export const firmwareChannel = named('FirmwareChannel', z.enum(['stable', 'beta', 'alpha', 'manual']));
+
+/**
+ * The device's own configuration document.
+ *
+ * Its schema belongs to the firmware of that device type, not to this package:
+ * every type has its own keys, an older build has fewer of them, and typing it
+ * here would date the moment a firmware adds a field. The server holds the keys
+ * a type's firmware reads to what it reads there - a number in the firmware's
+ * range, a switch, a word, a section - and refuses a document that breaks one
+ * with 400, naming each place (`document-figures.ts` in the server); every other
+ * key is kept as it came.
+ */
+export const deviceConfiguration = named('DeviceConfiguration', z.record(z.string(), anyValue()));
+
+export const deviceFirmwareTarget = named(
+  'DeviceFirmwareTarget',
+  z.object({
+    channel: firmwareChannel,
+    targetId: id().nullable().describe('The build this device should be running; null while it follows its channel.'),
+  }),
+);
+
+/**
+ * The two derived measures the cloud computes rather than the device: leaf
+ * temperature offsets give VPD, the lux factor gives PPFD. They sit on the device
+ * because they describe its sensor's placement, not what is grown under it.
+ */
+export const deviceSettings = named(
+  'DeviceSettings',
+  z.object({
+    vpdLeafOffsetDay: z.number(),
+    vpdLeafOffsetNight: z.number(),
+    ppfdLuxFactor: z.number(),
+  }),
+);
+
+export const operatingMode = named('OperatingMode', z.enum(OPERATING_MODES));
+
+/**
+ * What a fridge or a controller is doing as a whole, read out of the work mode
+ * its document carries and the one the server keeps for when control comes back
+ * on. The screens read this rather than the firmware's word for it, and change
+ * it through `PATCH /devices/{id}/configuration`.
+ */
+/** The targets a drying spell put aside, which ending it by itself puts back. A figure the document did not state is null. */
+export const dryingReturn = named(
+  'DryingReturn',
+  z.object({
+    dayTemperature: z.number().nullable(),
+    dayHumidity: z.number().nullable(),
+    nightTemperature: z.number().nullable(),
+    nightHumidity: z.number().nullable(),
+    co2: z.number().nullable(),
+    lightLimit: z.number().nullable(),
+  }),
+);
+
+export const deviceControl = named(
+  'DeviceControl',
+  z.object({
+    running: z.boolean().describe('Whether the device regulates at all. False is `workmode: off`, which is also how a device leaves the factory.'),
+    drying: z.boolean().describe('Held in the drying work mode by a drying phase: no day and night, no light, no CO2; it dehumidifies and heats.'),
+    mode: operatingMode.describe('What it runs while control is on and it is not drying.'),
+    energySaving: z.boolean().describe('The back-wall fan rests while the compressor does. Applies to the standard mode of a fridge only.'),
+    afterDrying: dryingReturn
+      .optional()
+      .describe(
+        'While drying: the targets that held before the spell began, which ending it by itself (`drying: false`, or control switched off) puts back. Absent where they are not known - a spell begun before they were kept - and the targets recorded before it are put back instead.',
+      ),
+    afterGermination: dryingReturn
+      .optional()
+      .describe(
+        "While germinating: the night's figures from before - germination holds the night's temperature round the clock and brings a humidity of its own for a humidifier to hold, and both are written in the night's place - which going back to another mode puts back. Only `nightTemperature` and `nightHumidity` are stated. Absent where nothing was kept.",
+      ),
+    germinationChoices: germinationChoices.describe(
+      'What germination does about the humidity on this device: what was chosen for this germination, or what holds where nothing was (`GERMINATION_CHOICES`). Acted on only while the device germinates, and back to the defaults when germination ends.',
+    ),
+  }),
+);
+
+export const deviceState = named(
+  'DeviceState',
+  z.object({
+    lastSeenAt: instant().nullable().describe('Last sample or status; what `offline` is decided from.'),
+    claimedAt: instant().nullable(),
+    firmwareId: id().nullable().describe('What the device reports it is running, which is the build uuid.'),
+    updateStartedAt: instant().nullable().describe('When the device was last told which build to install, however it was told.'),
+    updateEndedAt: instant().nullable(),
+    updateFailedAt: instant()
+      .nullable()
+      .describe('When the cloud gave up waiting for that build and said so in the diary; null while an update is owed but not yet overdue.'),
+    maintenanceUntil: instant().nullable().describe("The device suppresses its own alarms until then; the cloud's are silenced separately."),
+    hardware: z.record(z.string(), z.string()).describe('The raw `hardware-info` report, flat as the device sends it.'),
+    // Keyed by slot, because that is how a socket is addressed; the report says
+    // a row changed but not when, so the ingest stamps it.
+    socketStateChangedAt: z.record(z.string(), instant()),
+    // An override's row carries the seconds it had left when the table was
+    // sent, so the instant the table arrived is what turns them into a time of
+    // day. Null for a build that reports no table.
+    socketsReportedAt: instant().nullable(),
+  }),
+);
+
+/**
+ * A device as the API serves it. The broker credentials the device signs in with
+ * have no field here: they are a secret, this contract is what crosses the wire,
+ * and where they are stored is the mongoose schema's business.
+ */
+export const device = named(
+  'Device',
+  z.object({
+    id: id().describe('The id the firmware was provisioned with.'),
+    createdAt: instant(),
+    // The firmware's own type name (`controller`, `fridge`, `plug`, ...). Not an
+    // enum: the set grows with hardware, and a cloud that rejects an unknown one
+    // would refuse to register a device newer than itself.
+    type: z.string(),
+    classId: id().nullable().describe('The update class; null until a firmware has been built for this device.'),
+    serialNumber: z.number().int().nullable(),
+    ownerId: id().nullable().describe('null while the device is unclaimed and claimable.'),
+    spaceId: id().nullable(),
+    name: z.string().nullable(),
+    firmware: deviceFirmwareTarget,
+    configuration: deviceConfiguration.nullable().describe('null before the device has reported one.'),
+    settings: deviceSettings,
+    control: deviceControl
+      .nullable()
+      .describe('null for hardware with no work mode - a plug, a light, a fan - and before the document has arrived.'),
+    isDemo: z.boolean(),
+    state: deviceState,
+  }),
+);
+
+export const devicePage = named('DevicePage', page(device));
+
+const withinRange = (name: keyof typeof DEVICE_SETTING_RANGES) =>
+  z.number().min(DEVICE_SETTING_RANGES[name].min).max(DEVICE_SETTING_RANGES[name].max);
+
+/**
+ * The settings as a client writes them: the same three figures, each held to
+ * the range a leaf or a lamp can be (`DEVICE_SETTING_RANGES`). An answer is not
+ * held to it, because a figure the old cloud stored is answered as it was.
+ */
+export const deviceSettingsWritten = named(
+  'DeviceSettingsWritten',
+  z.object({
+    vpdLeafOffsetDay: withinRange('vpdLeafOffsetDay'),
+    vpdLeafOffsetNight: withinRange('vpdLeafOffsetNight'),
+    ppfdLuxFactor: withinRange('ppfdLuxFactor'),
+  }),
+);
+
+/**
+ * `PATCH /devices/{id}`: what a person decides about a device. What it is, who
+ * owns it and everything under `state` are not a client's to write, and the
+ * configuration document has routes of its own: replaced whole with the
+ * targets, or changed a named setting at a time.
+ */
+export const deviceUpdate = named(
+  'DeviceUpdate',
+  device
+    .pick({ name: true, spaceId: true, firmware: true })
+    .extend({ settings: deviceSettingsWritten })
+    .partial(),
+);
+
+/**
+ * `PUT /devices/{id}/configuration`, and what it answers: a `PUT` replaces the
+ * document whole because the server does not read enough of it to merge one.
+ *
+ * The document travels in a field of its own rather than as the bare body: its
+ * keys belong to the firmware and this contract does not know them, so one of
+ * them could otherwise collide with a key of the envelope the day the envelope
+ * gains one.
+ *
+ * `drying` is whether the targets saved are a drying room's: true dries, false
+ * ends a drying spell, and left out a drying device goes on drying.
+ * `germination` is the same for germination in the dark: true puts the device
+ * into it, false brings it back to its standard mode, and left out it goes on
+ * as it is. The work mode in the document is the server's to decide and is not
+ * read for either. `germinationChoices` is what germination does about the
+ * humidity (`GerminationChoices`), kept for whenever the device germinates; a
+ * humidifier that holds goes by the night's humidity sent with it.
+ *
+ * A figure the device's firmware would misread - `{"$numberInt": "24"}` where it
+ * reads a number - or one outside its range is refused with 400
+ * (`validation_failed`), each named under `configuration.`; a figure sent as
+ * the device already has it is held to being a number and not to its range.
+ */
+export const deviceConfigurationEnvelope = named(
+  'DeviceConfigurationEnvelope',
+  z.object({
+    configuration: deviceConfiguration,
+    drying: z.boolean().optional(),
+    germination: z.boolean().optional(),
+    germinationChoices: germinationChoices
+      .partial()
+      .optional()
+      .describe('What germination does about the humidity, where the save says so. A choice left out stands as it was.'),
+  }),
+);
+
+/**
+ * One window of a smart socket's timer, as the firmware keeps it: switched on
+ * at `ontime`, in seconds past midnight UTC like every time of day a device
+ * keeps, for `duration` minutes. A window may run past midnight.
+ */
+export const timerWindow = named(
+  'TimerWindow',
+  z.object({
+    ontime: z.number().int().min(0).max(86399),
+    duration: z.number().int().min(1).max(24 * 60),
+  }),
+);
+
+/**
+ * `PATCH /devices/{id}/configuration`: settings beyond the targets, by the
+ * names `CONFIGURATION_FIELDS` gives them for the device's type. The server
+ * checks each against that table, merges it into the document the device runs
+ * and keeps every key it was not asked about, and answers the device.
+ */
+export const deviceConfigurationPatch = named(
+  'DeviceConfigurationPatch',
+  z.object({
+    set: z
+      .record(z.string(), z.union([z.number(), z.boolean(), z.string(), z.array(timerWindow)]))
+      .describe('Field name to value, from the fields of this type of device.'),
+  }),
+);
+
+/**
+ * `PUT /devices/{id}/co2-fan`: the AIR fan a stand-alone smart socket slows
+ * down while it doses CO2 in windows, or none. Two documents change with it -
+ * the socket names the fan, and the fan is given the socket's windows - and
+ * the server keeps the fan's in step with every later change to the socket.
+ */
+export const co2FanCoupling = named(
+  'Co2FanCoupling',
+  z.object({
+    fanId: id().nullable().describe('An AIR fan of this account; null ends the coupling.'),
+    speed: z.number().int().min(0).max(100).describe('Per cent: the most the fan runs at while the socket doses.'),
+  }),
+);
+
+/**
+ * `GET /devices/{id}/configuration`: the same envelope, with the document null
+ * where the device has never reported one - exactly as `Device.configuration`
+ * says it. Answered as an empty document, a device that never sent its
+ * settings read like one whose settings are empty, and only a refused write
+ * told the two apart.
+ */
+export const deviceConfigurationReading = named(
+  'DeviceConfigurationReading',
+  z.object({ configuration: deviceConfiguration.nullable().describe('null before the device has reported one.') }),
+);
+
+/**
+ * `POST /admin/devices`. A device normally creates itself by registering with
+ * its own firmware; this is the row made by hand, for hardware that has not been
+ * flashed yet or that has to be put back after it was removed. It is unclaimed
+ * until somebody claims it, like every other device.
+ */
+export const adminDeviceCreate = named(
+  'AdminDeviceCreate',
+  device.pick({ id: true, type: true, classId: true, serialNumber: true }),
+);
+
+/**
+ * `POST /admin/devices/provisioned`: the row for factory-fresh hardware that is
+ * about to be flashed, made together with what is flashed into it. The class
+ * says which build that is; the id, the serial number on its label and its
+ * broker credentials are the server's to give.
+ */
+export const adminDeviceProvision = named(
+  'AdminDeviceProvision',
+  z.object({ classId: id(), type: z.string().min(1).describe('The firmware’s own type name, as the hardware will register with it.') }),
+);
+
+/**
+ * What provisioning answers: the device, and the one time its broker password
+ * is ever said. Only a hash of it is kept, so the flashed NVS is where the
+ * password lives from then on.
+ */
+export const provisionedDevice = named(
+  'ProvisionedDevice',
+  z.object({
+    device,
+    mqtt: z.object({ username: z.string(), password: z.string() }).describe('Flashed into the device; never answered again.'),
+  }),
+);
+
+/** Which build each channel points at; null where a class has nothing on that channel yet. */
+export const deviceClassFirmwareIds = named(
+  'DeviceClassFirmwareIds',
+  z.object({ stable: id().nullable(), beta: id().nullable(), alpha: id().nullable() }),
+);
+
+/** A staged rollout: `percent` of the class takes the build, and `paused` stops it where it is. */
+export const deviceClassRollout = named('DeviceClassRollout', z.object({ paused: z.boolean(), percent: z.number().int().min(0).max(100) }));
+
+export const deviceClass = named(
+  'DeviceClass',
+  z.object({
+    id: id(),
+    createdAt: instant(),
+    name: z.string(),
+    description: z.string().nullable(),
+    concurrentUpdates: z.number().int().describe('How many devices of the class may be updating at once.'),
+    maxFailures: z.number().int().describe('Failed updates after which the rollout stops by itself.'),
+    firmwareIds: deviceClassFirmwareIds,
+    rollout: deviceClassRollout,
+  }),
+);
+
+export const deviceClassPage = named('DeviceClassPage', page(deviceClass));
+
+/**
+ * `POST /admin/device-classes`. Pausing a rollout and staging it at a percentage
+ * are changes to the class, which is why `rollout` is written here and has no
+ * route of its own: there is one rollout per class and it is never anything but
+ * the state this object describes.
+ */
+export const deviceClassCreate = named(
+  'DeviceClassCreate',
+  deviceClass.pick({
+    name: true,
+    description: true,
+    concurrentUpdates: true,
+    maxFailures: true,
+    firmwareIds: true,
+    rollout: true,
+  }),
+);
+
+/** `PATCH /admin/device-classes/{id}`: the same fields, each only if it changes. */
+export const deviceClassUpdate = named('DeviceClassUpdate', deviceClassCreate.partial());
+
+export const firmware = named(
+  'Firmware',
+  z.object({
+    id: id(),
+    createdAt: instant(),
+    classId: id(),
+    name: z
+      .string()
+      .nullable()
+      .describe('What the build was called when it was uploaded. Every build carried over from the old cloud is named after its device class, so it does not tell two builds of one class apart.'),
+    version: z.string().describe('What the build container stamped the build with - a commit and the branch it came from. Builds are not ordered and cannot be compared, but this is the one field that says which build a device is on.'),
+    wasStable: z.boolean().describe('Once true it stays true, so a build can be rolled back to knowingly.'),
+  }),
+);
+
+export const firmwarePage = named('FirmwarePage', page(firmware));
+
+/**
+ * `POST /admin/firmwares`: the build itself, without its files - a build is
+ * several of them and each is uploaded on its own. `wasStable` is the rollout's
+ * record of where the build has been and is never set by hand.
+ */
+export const firmwareCreate = named('FirmwareCreate', firmware.pick({ classId: true, name: true, version: true }));
+
+/**
+ * `PATCH /admin/firmwares/{id}`. Relabelling is what this is for: a build's
+ * version is the uuid its build container stamped it with, and a human name is
+ * how it is told apart in a list.
+ */
+export const firmwareUpdate = named('FirmwareUpdate', firmwareCreate.partial());
+
+/** One file of a build. The bytes are what OTA streams; no listing carries them. */
+export const firmwareBinary = named(
+  'FirmwareBinary',
+  z.object({
+    id: id(),
+    createdAt: instant(),
+    firmwareId: id(),
+    name: z.string().describe('The file the device asks for by name.'),
+    data: bytes(),
+  }),
+);
+
+/**
+ * `PUT /admin/firmwares/{id}/binaries/{name}`. The build and the file name are
+ * the path, so the body is the bytes and nothing else.
+ */
+export const firmwareBinaryUpload = named('FirmwareBinaryUpload', firmwareBinary.pick({ data: true }));
+
+/** What the display shows and a claim is made with. One code per device. */
+export const claimCode = named('ClaimCode', z.object({ id: id(), createdAt: instant(), code: z.string(), deviceId: id() }));
+
+/**
+ * `POST /devices/claims`. The code the device shows is the whole proof and it
+ * names the device, so nothing else identifies one. A device that belongs to no
+ * space has no card to appear on, so a claim always ends in one: `spaceId` puts
+ * it into a space that exists, and its absence makes one.
+ */
+export const deviceClaimCreate = named(
+  'DeviceClaimCreate',
+  claimCode.pick({ code: true }).extend({
+    name: z.string().optional().describe('Absent names the device after its type.'),
+    spaceId: id().optional(),
+  }),
+);
+
+/**
+ * What a claim answers. The device carries the space it now sits in, so the one
+ * thing left to say is whether that space was made by this claim: a new space is
+ * offered for naming, an existing one is left alone.
+ */
+export const deviceClaimResult = named('DeviceClaimResult', z.object({ device: device, spaceCreated: z.boolean() }));
+
+/* ------------------------------------------------------------------ sockets */
+
+/**
+ * The state a smart socket's row reports. `unknown` is what a device that
+ * reports the older three-column row gives: it names the socket but not whether
+ * it is on.
+ */
+export const socketState = named('SocketState', z.enum(['on', 'off', 'unknown']));
+
+/** An override forces a socket; `auto` hands it back to its role's control law. */
+export const socketOverrideState = named('SocketOverrideState', z.enum(['on', 'off', 'auto']));
+
+/**
+ * An override lives in the device's RAM with an expiry and dies with a reboot,
+ * which is the failsafe: nothing outside the firmware can hold a socket on.
+ */
+export const socketOverride = named('SocketOverride', z.object({ state: socketOverrideState, validUntil: instant() }));
+
+/**
+ * What a `pump` or a `custom_timer` socket repeats: on for so long, that often.
+ * The bounds are the firmware's, which refuses a cycle that is on for at least
+ * as long as its period and one longer than an override may hold.
+ */
+export const socketTimer = named(
+  'SocketTimer',
+  z
+    .object({
+      onSeconds: z.number().int().positive(),
+      everySeconds: z.number().int().positive().max(SOCKET_HOLD_MAX_SECONDS),
+    })
+    .refine(timer => timer.onSeconds < timer.everySeconds, {
+      message: 'A socket that is on for at least as long as its period never switches off',
+      path: ['onSeconds'],
+    }),
+);
+
+/**
+ * One socket, as the API serves it: a typed view of `devices.state.hardware`,
+ * never stored twice. The decoder's vocabulary is kept - `slot` is the position
+ * in the device's table and how a command addresses it, `hardwareId` the MAC the
+ * device finds the socket by, `address` its host or IP.
+ */
+export const socket = named(
+  'Socket',
+  z.object({
+    slot: z.number().int().describe('-1 when the device reports no table, in which case its role addresses it.'),
+    role: socketRole,
+    hardwareId: z.string().describe('Empty on sockets paired before the firmware kept ids.'),
+    address: z.string(),
+    state: socketState,
+    override: socketOverride.nullable(),
+    timer: socketTimer.nullable(),
+    stateChangedAt: instant().nullable().describe('When the row last changed state; null until it has been seen change.'),
+  }),
+);
+
+/**
+ * What the device announced it understands. The server sends a command or a role
+ * only to a device that named it, because a firmware version cannot be compared
+ * (it is the build's uuid) and an old build drops an unknown command silently.
+ * A device that announces nothing gets nothing new and its switches are drawn
+ * disabled.
+ */
+export const deviceCapabilities = named(
+  'DeviceCapabilities',
+  z.object({
+    socketOverride: z.boolean(),
+    socketTimer: z.boolean(),
+    lightOverride: z.boolean().describe("Whether the controller's own light output takes an override."),
+    roles: z.array(socketRole).describe('The roles this build knows; a role outside it is never sent.'),
+    // The failsafe the device programs into each socket: how long after the
+    // last command a socket switches itself off, so a controller that goes
+    // quiet cannot leave a heater on. It is not a minimum on-time, and a screen
+    // that reads it as one would tell a grower the opposite of what it means.
+    // Keyed by role, and only the roles the device named.
+    pulseSeconds: z.partialRecord(socketRole, z.number().int()),
+  }),
+);
+
+/** The list carries the capabilities, because a socket row is drawn from both. */
+export const socketPage = named('SocketPage', page(socket).extend({ capabilities: deviceCapabilities }));
+
+/* ----------------------------------------------------------------- commands */
+
+/**
+ * What a client asks a device to do right now. A discriminated union rather than
+ * a free action string, so the route can never publish something the firmware
+ * does not know; `kind` is `snake_case` like every other enum value here.
+ *
+ * None of these is stored or retried: the caller is waiting for the answer.
+ *
+ * The firmware's `test`/`stoptest` bench mode is deliberately not among them.
+ * Only the fridge acts on it - the fan hears it and reads nothing, the
+ * controller, plug and light drop it - and there it holds for about ten seconds
+ * per command, switches off every output it is not given and bypasses every
+ * safeguard the control loop keeps, the compressor's included. That is an
+ * assembly check, not something to offer beside a grower's climate.
+ */
+
+export const rebootCommand = named('RebootCommand', z.object({ kind: z.literal('reboot') }));
+
+export const maintenanceCommand = named(
+  'MaintenanceCommand',
+  z.object({ kind: z.literal('maintenance'), forSeconds: z.number().int() }),
+);
+
+/**
+ * Forces one socket, or the controller's own light output, for a while. The
+ * subject is `{ type, id }` because the two are addressed differently: a socket
+ * by its slot, an output by its name.
+ */
+export const socketOverrideCommand = named(
+  'SocketOverrideCommand',
+  z.object({
+    kind: z.literal('socket_override'),
+    subject: subjectRef(z.enum(['socket', 'output'])),
+    state: socketOverrideState,
+    forSeconds: z
+      .number()
+      .int()
+      .min(0)
+      .max(SOCKET_HOLD_MAX_SECONDS)
+      .describe('The override expires after this; a reboot ends it too. Zero only with `auto`, which carries no duration.'),
+  }),
+);
+
+/**
+ * The socket's own web credentials, on their way to the device. They travel in
+ * this direction only: a command carries them, and `Socket` answers none back.
+ * Left out, the device keeps the pair it has.
+ */
+export const socketCredentials = named(
+  'SocketCredentials',
+  z.object({
+    username: z.string().max(SOCKET_CREDENTIAL_MAX_LEN),
+    password: z.string().max(SOCKET_CREDENTIAL_MAX_LEN),
+  }),
+);
+
+/** Pairs a socket, re-addresses one, or gives it a role and a timer. */
+export const socketSetCommand = named(
+  'SocketSetCommand',
+  z.object({
+    kind: z.literal('socket_set'),
+    slot: z.number().int().nullable().describe('null adds a socket to the role instead of configuring one it already has.'),
+    role: socketRole,
+    // Bounded as the firmware bounds it: a row reports its address, and one the
+    // row cannot carry would be stored and then left out of the table.
+    address: z
+      .string()
+      .min(1)
+      .max(SOCKET_ADDRESS_MAX_LEN)
+      .regex(/^\S+$/, 'An address the device can reach carries no spaces')
+      .describe('Host or IP the device reaches the socket at, over plain HTTP on the local network.'),
+    credentials: socketCredentials.nullable(),
+    timer: socketTimer.nullable().describe('Only `pump` and `custom_timer` run on one.'),
+  }),
+);
+
+export const deviceCommand = named(
+  'DeviceCommand',
+  z.discriminatedUnion('kind', [
+    rebootCommand,
+    maintenanceCommand,
+    socketOverrideCommand,
+    socketSetCommand,
+  ]),
+);
+
+/**
+ * What `POST /devices/{id}/commands` answers. MQTT hands back no receipt and a
+ * device that is offline is simply not there to hear the command, so the answer
+ * says when it went out and whether anyone was listening, and never claims the
+ * device did what it was told.
+ */
+export const deviceCommandResult = named(
+  'DeviceCommandResult',
+  z.object({
+    publishedAt: instant(),
+    deviceOnline: z.boolean().describe('Whether the device had been heard from inside the offline window when the command went out.'),
+  }),
+);
+
+/*
+ * The socket routes are the REST face of the two socket commands, so their
+ * bodies are those commands without the fields the path already carries. They
+ * are derived here, below the union, rather than restated: a socket that can be
+ * set two ways would otherwise drift into meaning two things.
+ *
+ * Each of them answers `DeviceCommandResult` rather than the `Socket` it acted
+ * on, for the same reason a command does: a socket row is the device's own
+ * report and does not change until the device sends the next one, so answering a
+ * row here would be answering what was asked for rather than what is.
+ */
+
+/** `PUT /devices/{id}/sockets/{slot}`: pair a socket, re-address one, or give it a role and a timer. */
+export const socketUpdate = named('SocketUpdate', socketSetCommand.omit({ kind: true, slot: true }));
+
+/** `PUT /devices/{id}/sockets/{slot}/override`. `DELETE` on the same path hands the socket back to its role. */
+export const socketOverrideUpdate = named(
+  'SocketOverrideUpdate',
+  socketOverrideCommand.pick({ state: true, forSeconds: true }),
+);
+
+/**
+ * `POST /devices/{id}/sockets/{slot}/tests`. Switching a socket on for a moment
+ * is how a person finds out which plug in the tent it is. The firmware puts it
+ * back when the time is up, so a test that is never answered still ends.
+ */
+export const socketTestCreate = named(
+  'SocketTestCreate',
+  z.object({ forSeconds: z.number().int().positive() }),
+);
+
+/* --------------------------------------------------------------------- plan */
+
+/** The user's own unit is the fact here, so a step's duration keeps it rather than being seconds. */
+export const durationUnit = named('DurationUnit', z.enum(['minutes', 'hours', 'days', 'weeks']));
+
+/**
+ * `value` is not required to be whole. The old recipe screen took whatever
+ * somebody typed, and a plan in the field holds a step of half a day - a tent is
+ * running on it right now. The engine multiplies the value by its unit and never
+ * cared, so the only thing a whole number would buy is that such a plan could be
+ * read and not written back, and the step's length would have to be rounded
+ * under a running tent to save the recipe it belongs to. Zero is the step with no
+ * length, which runs until somebody moves it on.
+ */
+export const stepDuration = named('StepDuration', z.object({ value: z.number(), unit: durationUnit }));
+
+export const planStep = named(
+  'PlanStep',
+  z.object({
+    id: id().describe('Stable across edits, so `state.activeStepIndex` survives a step being inserted above it.'),
+    name: z.string(),
+    stage: growthStage.nullable().describe('The stage this step puts the grow in; null leaves the phase alone.'),
+    preset: z.string().nullable().describe('The climate preset applied on top of the stage, such as `late_flowering`.'),
+    duration: stepDuration,
+    // A fragment of the device's own configuration document, so it is as untyped
+    // as that document is.
+    settings: deviceConfiguration,
+    // Hours rather than the document's two times of day, because a step - and a
+    // template above all - is written for a tent whose morning it does not know:
+    // the light keeps the hour it comes on and goes off this much later. A step
+    // that does set the hour carries it as `settings.daynight.day`, and only such
+    // a step moves it.
+    lightHours: z
+      .number()
+      .min(0)
+      .max(24)
+      .nullable()
+      .describe(
+        'How long the light is on while this step runs: 24 is light round the clock, 0 none at all (the night’s figures round the clock). Null leaves the photoperiod as it is. The light comes on at the hour the device has, unless `settings.daynight.day` names one.',
+      ),
+    waitForConfirmation: z.boolean(),
+    confirmationMessage: z.string().nullable(),
+    germinationChoices: germinationChoices
+      .nullable()
+      .describe(
+        "What a germination step does about the humidity while it runs, put on the device with the step. Null on every other step, and on a germination step written before it could say, which leaves the device's own.",
+      ),
+  }),
+);
+
+/** `on_step` mails at every step change, `on_confirmation` only when the plan waits for a person. */
+export const planNotifyMode = named('PlanNotifyMode', z.enum(['off', 'on_step', 'on_confirmation']));
+
+export const planNotify = named(
+  'PlanNotify',
+  z.object({
+    mode: planNotifyMode,
+    email: z.string().nullable().describe("Where the plan writes; null uses the owner's address."),
+    writeEntries: z.boolean().describe('Whether a step change also lands in the diary.'),
+  }),
+);
+
+export const planState = named(
+  'PlanState',
+  z.object({
+    status: planStatus,
+    activeStepIndex: z.number().int(),
+    stepStartedAt: instant().nullable(),
+    // A pause keeps what the step had already served, because the step resumes
+    // where it stopped rather than starting over.
+    pausedElapsedMs: z.number().int(),
+    pauseReason: z.string().nullable(),
+    lastAppliedAt: instant().nullable().describe('The engine re-applies the running step hourly.'),
+    confirmationNotifiedAt: instant().nullable().describe("When the plan's own mail about the waiting step went out, which it does once."),
+    // The ask that goes to the people who keep the tent is a fact of the waiting
+    // step rather than of the pass that first noticed it: somebody whose night
+    // the ask fell into is told once their night is over, so the two instants
+    // below are kept apart from the mail above and from each other.
+    confirmationAskedAt: instant()
+      .nullable()
+      .describe('When everybody who keeps the tent had been told the step is waiting; null while the ask is still outstanding.'),
+    confirmationAskTriedAt: instant().nullable().describe('When that ask was last attempted; an outstanding ask is attempted again.'),
+  }),
+);
+
+/** One plan per device: it is what the device is currently being run by. */
+export const plan = named(
+  'Plan',
+  z.object({
+    id: id(),
+    createdAt: instant(),
+    deviceId: id(),
+    templateId: id().nullable().describe('What it was started from; null once it no longer matters.'),
+    name: z.string(),
+    steps: z.array(planStep),
+    loop: z.boolean().describe('Start again at the first step instead of completing.'),
+    notify: planNotify,
+    state: planState,
+  }),
+);
+
+/**
+ * A step as a client writes one. Four fields the server fills in, and each for
+ * a reason of its own.
+ *
+ * Its **id** is the server's because identity is: an edit sends back the ids of
+ * the steps it kept, which is what lets the running step survive another being
+ * inserted above it, and a step that is new arrives without one.
+ *
+ * Its **stage** and its **preset** default to `null` because saying nothing
+ * about the grow is what nearly every recipe does. A recipe is a sequence of
+ * climates, and only the guided onboarding's reference plans ever put a step's
+ * name to a botanical stage - every recipe that came out of the old app carries
+ * none at all. Demanding the two keys on every step would make a screen with no
+ * stage picker unable to write a step without inventing a value for one, and a
+ * climate-only recipe that came back from such a screen with a stage on it would
+ * start driving phases its tent never had. The answer still carries both, always
+ * present and `null` where a step says nothing, so what a client reads back is
+ * what a client may write.
+ *
+ * Its **germination choices** default to `null` for the same reason, and are
+ * kept only on a germination step: a step that does not germinate has nothing
+ * to say about what germination does.
+ */
+export const planStepInput = named(
+  'PlanStepInput',
+  planStep.partial({ id: true, stage: true, preset: true, lightHours: true, germinationChoices: true }),
+);
+
+/**
+ * `PUT /devices/{id}/plan`. A device runs one plan, so the route both writes the
+ * first one and replaces the one that is there; where the plan stands is `state`
+ * and moves only through a transition.
+ */
+export const planReplace = named(
+  'PlanReplace',
+  plan.pick({ templateId: true, name: true, loop: true, notify: true }).extend({ steps: z.array(planStepInput) }),
+);
+
+/** A plan kept to start others from. It runs nothing, so it has no state. */
+export const planTemplate = named(
+  'PlanTemplate',
+  z.object({
+    id: id(),
+    createdAt: instant(),
+    ownerId: id(),
+    name: z.string(),
+    isPublic: z.boolean(),
+    steps: z.array(planStep),
+  }),
+);
+
+export const planTemplatePage = named('PlanTemplatePage', page(planTemplate));
+
+/** `POST /plan-templates`. The owner is whoever is asking, so a template names no one. */
+export const planTemplateCreate = named(
+  'PlanTemplateCreate',
+  planTemplate.pick({ name: true, isPublic: true }).extend({ steps: z.array(planStepInput) }),
+);
+
+/** `PATCH /plan-templates/{id}`: the same fields, each only if it changes. */
+export const planTemplateUpdate = named('PlanTemplateUpdate', planTemplateCreate.partial());
+
+/**
+ * What `POST /devices/{id}/plan/transitions` asks of a plan. `goto` runs the
+ * plan from the start of the step it names, whether it was running, paused or
+ * at rest: going back a step, or starting a plan in the middle of a grow.
+ */
+export const planTransition = named(
+  'PlanTransition',
+  z.discriminatedUnion('kind', [
+    z.object({ kind: planTransitionKind.extract(['confirm']) }),
+    z.object({ kind: planTransitionKind.extract(['skip']) }),
+    z.object({ kind: planTransitionKind.extract(['extend']), by: stepDuration }),
+    z.object({ kind: planTransitionKind.extract(['pause']), reason: z.string().nullable() }),
+    z.object({ kind: planTransitionKind.extract(['resume']) }),
+    z.object({ kind: planTransitionKind.extract(['goto']), stepId: id().describe('The step the plan runs from, by its id.') }),
+  ]),
+);
+
+/* ------------------------------------------------------------------- alarms */
+
+/**
+ * Where a rule came from. `always` is a rule the cloud keeps for every device
+ * (offline), `preset` one a stage applied, `device` one the firmware asked for
+ * and `human` one somebody wrote.
+ */
+export const alarmOrigin = named('AlarmOrigin', z.enum(['preset', 'always', 'device', 'human']));
+
+/** `routing` sends by the person's notification settings; `custom` is this rule's own target. */
+export const alarmDeliveryMode = named('AlarmDeliveryMode', z.enum(['routing', 'custom']));
+
+export const alarmWebhook = named(
+  'AlarmWebhook',
+  z.object({
+    method: webhookMethod,
+    headers: z.record(z.string(), z.string()),
+    triggeredPayload: z.string().describe('Body template sent when the rule triggers.'),
+    resolvedPayload: z.string(),
+    reportErrors: z.boolean().describe('Whether a failed call is written to the diary.'),
+    tunnel: z.boolean().describe("Call through the device's tunnel, for a target on the local network."),
+  }),
+);
+
+/**
+ * The two channels a rule may address itself, out of the four a person can be
+ * reached on: a rule's own delivery predates routing and was only ever a mail
+ * address or a URL.
+ */
+export const alarmDeliveryChannel = named('AlarmDeliveryChannel', notificationChannel.extract(['email', 'webhook']));
+
+/**
+ * One rule's own delivery, kept from the per-alarm e-mail and webhook that
+ * predate routing. Like the account's own webhook channel, `target` and the
+ * headers can name an internal host and carry an authorisation header, so an
+ * alarm rule is answered to whoever may manage the device and to nobody else.
+ */
+export const alarmDeliveryCustom = named(
+  'AlarmDeliveryCustom',
+  z.object({
+    channel: alarmDeliveryChannel,
+    target: z.string().describe('The address or the URL, by channel.'),
+    includeDetails: z.boolean().describe('Whether the message carries the reading and the thresholds.'),
+    webhook: alarmWebhook.nullable(),
+  }),
+);
+
+export const alarmDelivery = named(
+  'AlarmDelivery',
+  z.object({ mode: alarmDeliveryMode, custom: alarmDeliveryCustom.nullable() }),
+);
+
+/**
+ * A band around a reading: the rule most alarms are. `upper` and `lower` may
+ * both be null, which is a rule that watches without a bound - what `offline`
+ * is, where the health loop rather than a threshold decides.
+ */
+export const readingWatch = named(
+  'ReadingWatch',
+  z.object({
+    kind: z.literal('reading'),
+    metric: metric,
+    upper: z.number().nullable(),
+    lower: z.number().nullable(),
+  }),
+);
+
+/**
+ * A band around an output's level. `heater` and `fan` run at a rate and `light`
+ * dims, so "the heater is working harder than half the time" is a rule about a
+ * number like any other. The numbers are the ones the series carries: a
+ * fraction where the device reports a fraction, never a percentage of its own.
+ */
+export const outputLevelWatch = named(
+  'OutputLevelWatch',
+  z.object({
+    kind: z.literal('output_level'),
+    output: outputMetric,
+    upper: z.number().nullable(),
+    lower: z.number().nullable(),
+  }),
+);
+
+/**
+ * An output running at all: the fridge that has not stopped in an hour, the CO2
+ * valve that is still open. Anything above zero is the output doing something,
+ * so there is no band to give - and `forSeconds` is what makes it an alarm
+ * rather than a fact of every cycle.
+ */
+export const outputRunningWatch = named(
+  'OutputRunningWatch',
+  z.object({ kind: z.literal('output_running'), output: outputMetric }),
+);
+
+/**
+ * What a rule watches: a reading the device measures, or an output it drives.
+ *
+ * One union rather than a metric enum widened to hold both, because what trips
+ * each of them differs - a band is meaningless on an output that is only ever on
+ * or off, and an output name is not something a reading can carry. So a rule
+ * that names an output and a threshold it ignores, or a reading with no metric,
+ * cannot be written down at all.
+ */
+export const alarmWatch = named('AlarmWatch', z.discriminatedUnion('kind', [readingWatch, outputLevelWatch, outputRunningWatch]));
+
+export const alarmRuleState = named(
+  'AlarmRuleState',
+  z.object({
+    triggered: z.boolean(),
+    lastTriggeredAt: instant().nullable(),
+    lastResolvedAt: instant().nullable(),
+    extremeValue: z.number().nullable().describe('The worst reading of the open episode.'),
+    lastSampleAt: instant().nullable().describe('The sample the rule was last evaluated against.'),
+  }),
+);
+
+export const alarmRule = named(
+  'AlarmRule',
+  z.object({
+    id: id(),
+    createdAt: instant(),
+    deviceId: id(),
+    name: z.string(),
+    watch: alarmWatch,
+    forSeconds: z.number().int().describe('How long the watch has to be out of bounds before the rule triggers.'),
+    severity: severity,
+    origin: alarmOrigin,
+    presetId: id().nullable().describe('The preset that wrote this rule, so applying it again can update it.'),
+    enabled: z.boolean(),
+    cooldownSeconds: z.number().int().describe('Silence after a trigger, so one bad hour is not one message a minute.'),
+    repeatSeconds: z.number().int().describe('How often a rule that stays triggered says so again; 0 never repeats.'),
+    delivery: alarmDelivery,
+    silencedUntil: instant().nullable(),
+    state: alarmRuleState,
+  }),
+);
+
+export const alarmRulePage = named('AlarmRulePage', page(alarmRule));
+
+/**
+ * `POST /devices/{id}/alarm-rules`. The device is the path. Where a rule came
+ * from is the server's to say - a rule written here is `human` by definition -
+ * and a silence is something done to a rule rather than part of what it says,
+ * so neither is here.
+ */
+export const alarmRuleCreate = named(
+  'AlarmRuleCreate',
+  alarmRule.pick({
+    name: true,
+    watch: true,
+    forSeconds: true,
+    severity: true,
+    enabled: true,
+    cooldownSeconds: true,
+    repeatSeconds: true,
+    delivery: true,
+  }),
+);
+
+/**
+ * `PATCH /alarm-rules/{id}`: the same fields, each only if it changes. `watch`
+ * is given whole or not at all - half a watch is a rule watching two things.
+ */
+export const alarmRuleUpdate = named('AlarmRuleUpdate', alarmRuleCreate.partial());
+
+/**
+ * `PUT /alarm-rules/{id}/silence`. A duration rather than the instant the rule
+ * carries: the sheet offers "for an hour", and the server's clock decides when
+ * that is over rather than the phone's. `DELETE` on the same path lifts the
+ * silence, so there is nothing to spell for "not silenced".
+ */
+export const alarmSilence = named('AlarmSilence', z.object({ forSeconds: z.number().int().positive() }));
+
+/**
+ * What the rule was called and what it watched, copied onto the episode as it
+ * opens.
+ *
+ * A rule does not stay what it was when it raised an episode. Its band may be
+ * moved while the episode is open, and a card that measured the episode's
+ * reading against today's band printed crossings that never happened; it may be
+ * deleted, and the episode - the account of something that really happened in
+ * somebody's tent, worth reading after the rule that caught it is retired -
+ * was left naming a rule nothing could resolve, so the inbox drew "alarm" and a
+ * bare figure with no metric, no unit and no name. Neither can be answered by
+ * looking the rule up afterwards, which is why the answer is written down here
+ * at the moment the episode opens, when it is still the episode's own.
+ */
+export const alertWatched = named('AlertWatched', z.object({ name: z.string(), watch: alarmWatch }));
+
+/**
+ * One document from trigger to resolution, which is what the alerts inbox shows.
+ * An open alert has `resolvedAt: null`.
+ */
+export const alert = named(
+  'Alert',
+  z.object({
+    id: id(),
+    createdAt: instant(),
+    ruleId: id().nullable().describe('null for an alert the health loop raised without a rule.'),
+    deviceId: id().nullable(),
+    cameraId: id().nullable(),
+    spaceId: id().nullable(),
+    kind: alertKind,
+    severity: severity,
+    startedAt: instant(),
+    resolvedAt: instant().nullable(),
+    rested: z
+      .boolean()
+      .describe(
+        'True for an episode that ended because its rule began to rest - the stage\'s "too humid" while its device germinates and the grower asked for no warning - rather than because the reading came back. `resolvedAt` is then when it went quiet; no all-clear was said.',
+      ),
+    value: z.number().nullable().describe('The reading that triggered it.'),
+    extremeValue: z.number().nullable().describe('The worst reading while it was open.'),
+    watched: alertWatched
+      .nullable()
+      .describe('What the rule was called and watched when this opened; null where no rule raised it, and on episodes older than the field.'),
+  }),
+);
+
+export const alertPage = named('AlertPage', page(alert));
+
+/* --------------------------------------------------------------- live, series */
+
+/**
+ * A change from one half's targets to the other's (`day-night.ts`): on a
+ * fridge, the dimming ramp its targets glide along, and on any device the hour
+ * after the switch that the climate is given to follow. Meanwhile a reading
+ * anywhere between the two halves' bands is on target.
+ */
+export const setpointsTransition = named(
+  'SetpointsTransition',
+  z.object({
+    from: z.enum(['day', 'night']),
+    to: z.enum(['day', 'night']),
+    until: instant().describe('When the device is judged against the half it went to alone again.'),
+    gliding: z.boolean().describe("Whether a fridge's targets are still moving along the ramp, rather than the climate following targets that have arrived."),
+    targets: z
+      .partialRecord(metric, z.number())
+      .describe('What the device aims at this moment: the gliding figures on a fridge, the new half’s otherwise. A metric the new half holds no target for is absent.'),
+  }),
+);
+
+/**
+ * The controller's day and night targets, read from its configuration. Influx
+ * stores sensors and outputs and never setpoints, so this is the only place a
+ * target comes from.
+ */
+export const setpoints = named(
+  'Setpoints',
+  z.object({
+    day: z.partialRecord(metric, z.number()),
+    night: z.partialRecord(metric, z.number()),
+    active: z
+      .enum(['day', 'night'])
+      .describe(
+        "Whose figures the device holds now. A fridge and a controller decide it by the clock - the light schedule in their own document, in UTC - and by their work mode, never by whether the lamp shines; an AIR fan by its light sensor. Drying, germination and a light that never comes on hold the night's figures; 24 hours of light the day's.",
+      ),
+    period: z
+      .enum(['day', 'night', 'constant'])
+      .optional()
+      .describe('`constant` where nothing alternates: drying, germination, 24 or 0 hours of light. `active` still says whose figures hold.'),
+    cycle: z
+      .enum(['schedule', 'always_day', 'always_night', 'drying', 'germination', 'sensor'])
+      .optional()
+      .describe(
+        'Why `period` is what it is: the light schedule, 24 or 0 hours of light, a work mode that holds the night round the clock, or an AIR fan going by its light sensor.',
+      ),
+    since: instant().nullable().optional().describe('When the current half began by the schedule; null where nothing alternates or the fan says nothing of it.'),
+    until: instant().nullable().optional().describe('When the current half ends by the schedule; null where nothing alternates or the fan says nothing of it.'),
+    transition: setpointsTransition
+      .nullable()
+      .optional()
+      .describe('Set while the device is changing from one half to the other and the climate is given time to follow; null otherwise.'),
+  }),
+);
+
+/**
+ * One device's newest reading of everything it measures: one `last()` per
+ * device.
+ *
+ * The outputs ride along with the metrics because they come out of the same
+ * read. What a lamp is running at is the only word a controller gives on its
+ * own light output - a brightness is never acknowledged and an override is
+ * never reported back - so a screen that draws the dimmer needs it, and needs
+ * it with the age and the state the server has already decided rather than as a
+ * series it has to pick a window for.
+ */
+export const deviceLive = named(
+  'DeviceLive',
+  z.object({
+    deviceId: id(),
+    metrics: z.partialRecord(metric, metricValue),
+    outputs: z.partialRecord(outputMetric, metricValue).describe('The newest value of each output the device has reported driving.'),
+    setpoints: setpoints.nullable().describe('null for a device that holds no targets, such as a plug.'),
+  }),
+);
+
+export const metricSeries = named('MetricSeries', z.object({ metric: metric, points: z.array(seriesPoint) }));
+
+export const outputSeries = named('OutputSeries', z.object({ output: outputMetric, points: z.array(seriesPoint) }));
+
+/**
+ * What `GET /devices/{id}/series` is asked for. A request, so what a caller may
+ * leave out is `.optional()` here rather than `.nullable()`: with no outputs it
+ * gets none, and with no step the server picks one from the range.
+ */
+export const seriesQuery = named(
+  'SeriesQuery',
+  z.object({
+    metrics: z.array(metric),
+    outputs: z.array(outputMetric).optional(),
+    startsAt: instant(),
+    endsAt: instant(),
+    stepSeconds: z.number().int().optional().describe('The window each point summarises.'),
+  }),
+);
+
+/** The range and step are answered back, because the server may have narrowed either. */
+export const deviceSeries = named(
+  'DeviceSeries',
+  z.object({
+    deviceId: id(),
+    startsAt: instant(),
+    endsAt: instant(),
+    stepSeconds: z.number().int(),
+    metrics: z.array(metricSeries),
+    outputs: z.array(outputSeries),
+  }),
+);
+
+/* -------------------------------------------------------------- fleet admin */
+
+/**
+ * How one build is doing inside its class: how many devices run it, how many are
+ * partway through taking it, how many gave up, and how long the update took.
+ * `firmwareId` is null on the row that stands for devices running a build this
+ * server has no record of, which is what a device flashed over USB reports.
+ */
+export const fleetFirmwareStats = named(
+  'FleetFirmwareStats',
+  z.object({
+    firmwareId: id().nullable(),
+    version: z.string(),
+    name: z.string().nullable(),
+    total: z.number().int(),
+    online: z.number().int(),
+    updating: z.number().int(),
+    failed: z.number().int(),
+    averageUpdateMs: z.number().int().nullable().describe('null until an update to this build has finished.'),
+    maxUpdateMs: z.number().int().nullable(),
+  }),
+);
+
+/** One class of the fleet, with the rollout being staged across it. */
+export const fleetClass = named(
+  'FleetClass',
+  z.object({
+    classId: id(),
+    name: z.string(),
+    total: z.number().int(),
+    online: z.number().int().describe('Heard from inside the offline window.'),
+    rollout: deviceClassRollout,
+    firmwares: z.array(fleetFirmwareStats),
+  }),
+);
+
+/**
+ * `GET /admin/fleet`. Not a page: there are as many rows as there are device
+ * classes, and the screen stages and pauses a rollout on each, which it can only
+ * weigh with all of them in front of it.
+ */
+export const fleet = named(
+  'Fleet',
+  z.object({
+    classes: z.array(fleetClass),
+    unclassifiedDevices: z.number().int().describe('Devices whose type has no class yet, so no rollout reaches them.'),
+  }),
+);
+
+export const adminUserStats = named(
+  'AdminUserStats',
+  z.object({ total: z.number().int(), active: z.number().int(), admins: z.number().int() }),
+);
+
+export const adminDeviceStats = named(
+  'AdminDeviceStats',
+  z.object({
+    total: z.number().int(),
+    claimed: z.number().int(),
+    online: z.number().int(),
+    updating: z.number().int(),
+  }),
+);
+
+export const adminCameraStats = named(
+  'AdminCameraStats',
+  z.object({
+    total: z.number().int(),
+    entitled: z.number().int().describe('Cameras whose entitlement has not run out, whatever granted it.'),
+    stale: z.number().int().describe('Cameras that have stopped delivering stills.'),
+  }),
+);
+
+/** What is being grown and written on this install, which is what its size is felt as. */
+export const adminContentStats = named(
+  'AdminContentStats',
+  z.object({
+    spaces: z.number().int(),
+    grows: z.number().int(),
+    publicGrows: z.number().int(),
+    plants: z.number().int(),
+    entries: z.number().int(),
+    media: z.number().int(),
+    mediaBytes: z.number().int().describe('What the picture bucket holds, which is nearly all of the disk.'),
+  }),
+);
+
+/** The composer's queue, which is the one piece of work on an install that can quietly stop moving. */
+export const adminRenderStats = named(
+  'AdminRenderStats',
+  z.object({
+    queued: z.number().int(),
+    rendering: z.number().int(),
+    failed: z.number().int().describe('Films the composer gave up on; each of them is a picture somebody asked for and did not get.'),
+  }),
+);
+
+/**
+ * The last pass of the climate retention sweep.
+ *
+ * It is the only background job on an install that deletes a grower's raw
+ * samples, so whether it ran, how far it got and whether it is erroring is
+ * something an operator has to be able to see. The pass is kept by the running
+ * server and not stored, so this is null on a server that has not yet swept
+ * since it came up; a screen says that rather than inventing an hour.
+ */
+export const adminRetentionRun = named(
+  'AdminRetentionRun',
+  z.object({
+    ranAt: instant(),
+    reached: z.number().int().describe('Devices the pass looked at, which is how far round the rotation one pass gets.'),
+    devices: z.number().int().describe('Devices it summarised something of; the rest had nothing outside their window.'),
+    days: z.number().int().describe('Days of raw samples rolled into daily summaries.'),
+    errors: z.number().int().describe('Devices the pass left exactly as they were. It goes on to the next one.'),
+  }),
+);
+
+/**
+ * How the alarm health loop itself is doing.
+ *
+ * It is the loop that raises "device offline" and "camera not delivering",
+ * which are the alarms nothing else on the install can raise: every other rule
+ * is answered by a reading arriving, and silence is not a reading. While it
+ * cannot complete a pass there is no offline rule, no offline alert and no
+ * camera-stale alert anywhere, and every alerts inbox on the install reads
+ * "nothing has gone wrong" - which is indistinguishable, from every screen,
+ * from a fleet where nothing is the matter. So the loop reports itself here
+ * rather than only into the log, and it reports failures as well as passes:
+ * `ranAt` is null on a server that has completed none, and `failures` is what
+ * says whether that is because it has just started or because it has been
+ * failing since it did.
+ */
+export const adminAlarmWatch = named(
+  'AdminAlarmWatch',
+  z.object({
+    ranAt: instant().nullable().describe('When the last pass that completed finished; null when none has since this server started.'),
+    devices: z.number().int().describe('Claimed devices that pass went round.'),
+    unjudged: z
+      .number()
+      .int()
+      .describe('Devices it could not decide about, because the measurement store did not say whether they had written anything since.'),
+    failures: z.number().int().describe('Passes that have failed since the last one that completed.'),
+    failedAt: instant().nullable().describe('When the most recent failure was, so a run that has stopped can be told from one that has not.'),
+  }),
+);
+
+/**
+ * `GET /admin/stats`. Counting every collection is not free, so the answer may
+ * be a cached pass and says when it was taken rather than implying "now".
+ */
+export const adminStats = named(
+  'AdminStats',
+  z.object({
+    collectedAt: instant(),
+    users: adminUserStats,
+    devices: adminDeviceStats,
+    cameras: adminCameraStats,
+    content: adminContentStats,
+    renders: adminRenderStats,
+    retention: adminRetentionRun.nullable().describe('Null when this server has not run a retention pass since it started.'),
+    // Not nullable, unlike the retention pass: a loop that has never completed
+    // one still has something to report, and it is the figure that matters most.
+    alarmWatch: adminAlarmWatch,
+  }),
+);
+
+export const adminLogLevel = named('AdminLogLevel', z.enum(['error', 'warn', 'info']));
+
+/**
+ * One line of the server's own log, which is not a diary entry: the diary is
+ * what happened to a grow, this is what happened inside the process, and a
+ * hosted install has no shell to read it in. `context` is the module that wrote
+ * the line, and the two ids are filled where a line is about one.
+ */
+export const adminLogLine = named(
+  'AdminLogLine',
+  z.object({
+    id: id().describe("What the list is paged by; the log is the process's own and not a collection of this model."),
+    loggedAt: instant(),
+    level: adminLogLevel,
+    context: z.string(),
+    message: z.string(),
+    deviceId: id().nullable(),
+    userId: id().nullable(),
+  }),
+);
+
+/** `GET /admin/logs`. Paged like every list, because a log has no end. */
+export const adminLogPage = named('AdminLogPage', page(adminLogLine));

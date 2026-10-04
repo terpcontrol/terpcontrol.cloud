@@ -1,0 +1,82 @@
+.title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  line-height: var(--line-tight);
+}
+
+.dot {
+  color: var(--muted);
+}
+
+/* The name gives way before the pill does: which place it is can be truncated, how alive it is cannot.
+   Only the pill is pushed to the end - a place with no pill keeps its name beside the title. */
+.pill {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The name reads as part of the title; the select over it is what is operated. */
+.picker {
+  position: relative;
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: var(--muted);
+}
+
+/* Where there is more than one place, which one the page is about is what a
+   change made here lands on - so the name is in ink and drawn as the control
+   it is, not as a grey aside to the tab's own word. */
+.picker[data-switch] {
+  padding: 2px var(--space-2);
+  color: var(--ink);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.picker svg {
+  flex-shrink: 0;
+}
+
+.picker select {
+  position: absolute;
+  inset: -8px;
+  width: calc(100% + 16px);
+  opacity: 0;
+}
+
+/* On a phone the place gets a line of its own under the title, at a name's
+   size, rather than being squeezed between the title and the pill down to
+   "Plantalyt...": which place this is matters more than the tab's own word. */
+@media (max-width: 899px) {
+  .title {
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+  }
+
+  .dot {
+    display: none;
+  }
+
+  .picker {
+    order: 1;
+    flex-basis: 100%;
+    font-size: var(--text-name);
+    font-weight: var(--weight-heading);
+  }
+}

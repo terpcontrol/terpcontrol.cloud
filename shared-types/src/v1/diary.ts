@@ -1,0 +1,2285 @@
+import { z } from 'zod';
+
+import { CAPTURE_FAILURES } from './capture.js';
+import {
+  accountLayers,
+  alertKind,
+  anyValue,
+  cameraKind,
+  entryKind,
+  entrySource,
+  grantKind,
+  growOrSpaceRef,
+  growType,
+  growthStage,
+  id,
+  instant,
+  mediaKind,
+  metric,
+  metricValue,
+  named,
+  outputMetric,
+  page,
+  person,
+  planTransitionKind,
+  reminderKind,
+  schemeAmount,
+  schemeWeek,
+  seriesPoint,
+  severity,
+  shareKind,
+  spaceKind,
+} from './common.js';
+
+/**
+ * The timeline and everything that is looked at: entries, pictures, cameras,
+ * feeding schemes, chart views, share links - and the read models the screens
+ * open on.
+ *
+ * Shapes that belong to another domain (a grow, a space, a device, a plant) are
+ * referred to by `<resource>Id` only, so this file and its siblings can be read
+ * and generated independently.
+ */
+
+// ---------------------------------------------------------------------------
+// Entries
+// ---------------------------------------------------------------------------
+
+/**
+ * One reading of one measurement. `key` names a definition in the grow's
+ * `measurements[]`, which is what gives it its name, its unit and its target;
+ * nothing about the measurement is copied onto the reading.
+ *
+ * `plantId` is null when the reading is about whatever the entry is about - the
+ * whole grow, or the plants the entry names - rather than one plant, which is
+ * what a per-plant measurement records.
+ */
+export const entryReading = named(
+  'EntryReading',
+  z.object({
+    key: z.string(),
+    value: z.number(),
+    plantId: id().nullable(),
+  }),
+);
+
+/**
+ * What a grow calls one of its measurements, as far as saying a reading out
+ * loud needs: its key, the name it goes by and the unit it is in.
+ *
+ * Deliberately not the whole definition. The band a measurement is aimed at is
+ * the grower's own business, and both answers that carry these are read through
+ * share links and public pages as well, so what rides along is the wording and
+ * nothing that was not already on the screen.
+ */
+export const readingName = named(
+  'ReadingName',
+  z.object({
+    key: z.string(),
+    name: z.string(),
+    unit: z.string(),
+  }),
+);
+
+/**
+ * The names one grow's readings go by, on an answer whose lines may belong to
+ * several grows.
+ *
+ * A reading names its measurement by key alone, and the definition lives on the
+ * grow - so a tent's latest lines and a tent's rail, which both carry the diary
+ * of every grow that has stood there, would need a read per grow to put a name
+ * and a unit on a figure. They ride on the same answer instead, keyed by the
+ * grow each line belongs to, so one reading reads the same on the week card it
+ * was written on and on the rail it shows up on.
+ */
+export const growReadingNames = named(
+  'GrowReadingNames',
+  z.object({
+    growId: id(),
+    readings: z.array(readingName),
+  }),
+);
+
+/**
+ * `values` is typed per kind and carries the entry's own `kind` again as its
+ * discriminator, so that the object narrows on its own - a client that holds a
+ * `values` narrows it without reaching back to the entry, and the server
+ * validates the pair against each other.
+ */
+const plainValues = <K extends string>(kind: K) => z.object({ kind: z.literal(kind) });
+
+const withReadings = <K extends string>(kind: K) =>
+  z.object({ kind: z.literal(kind), readings: z.array(entryReading) });
+
+/**
+ * One dose of one product, as it was actually given.
+ *
+ * Absolute, not per litre: the grid says `2 ml/l` and this says the 8 ml that
+ * went into the can. The scheme a grow carries can be edited afterwards and a
+ * grow can be fed without a scheme at all, so a line that had to be read back
+ * through a grid would change meaning or lose it entirely.
+ */
+export const entryDose = named(
+  'EntryDose',
+  z.object({
+    productKey: z.string(),
+    name: z.string(),
+    amount: z.number(),
+    unit: z.string().describe("The unit of `amount`, such as `ml`: the scheme's own `ml/l` with the per-litre taken off."),
+  }),
+);
+
+/** Measurements of the grow's own definitions, whatever the entry is otherwise about. */
+export const measurementEntryValues = named('MeasurementEntryValues', withReadings('measurement'));
+
+/** Watering: how much water, and whatever was measured while pouring it. */
+export const waterEntryValues = named(
+  'WaterEntryValues',
+  z.object({
+    kind: z.literal('water'),
+    litres: z.number().nullable(),
+    readings: z.array(entryReading),
+  }),
+);
+
+/**
+ * Feeding: the water, the doses that went into it, and the readings taken with
+ * it. `schemeWeek` records which row of the grid the doses came from, so the
+ * line can say "week 5 of the scheme" without reading the grid again.
+ */
+export const feedEntryValues = named(
+  'FeedEntryValues',
+  z.object({
+    kind: z.literal('feed'),
+    litres: z.number().nullable(),
+    schemeWeek: z.number().int().nullable().describe('The row of the grid the doses were read from; null when the grow feeds without a scheme.'),
+    doses: z.array(entryDose),
+    readings: z.array(entryReading),
+  }),
+);
+
+/** The picture is in `mediaIds`, the words in `text`: neither needs a value of its own. */
+export const photoEntryValues = named('PhotoEntryValues', plainValues('photo'));
+export const noteEntryValues = named('NoteEntryValues', plainValues('note'));
+export const trainingEntryValues = named('TrainingEntryValues', plainValues('training'));
+export const visitEntryValues = named('VisitEntryValues', plainValues('visit'));
+
+/** The device's `message-key:param` line is already parsed into `message`. */
+export const systemEntryValues = named('SystemEntryValues', plainValues('system'));
+
+/** The alert document holds the numbers and the life of the alarm; the entry points at it by `alertId`. */
+export const alarmEntryValues = named('AlarmEntryValues', plainValues('alarm'));
+
+/** Written by the one phase writer, so it repeats what the phase it appended says. */
+export const phaseEntryValues = named(
+  'PhaseEntryValues',
+  z.object({
+    kind: z.literal('phase'),
+    phaseId: id(),
+    stage: growthStage,
+    preset: z.string().nullable().describe('The climate preset applied with the stage, such as `late_flowering`.'),
+  }),
+);
+
+export const moveEntryValues = named(
+  'MoveEntryValues',
+  z.object({
+    kind: z.literal('move'),
+    placementId: id(),
+    spaceId: id().nullable().describe('Where the plants moved to; null is "no fixed place".'),
+  }),
+);
+
+/** Weights are the plant's; they are repeated here for the timeline and stripped from shared views with it. */
+export const harvestEntryValues = named(
+  'HarvestEntryValues',
+  z.object({
+    kind: z.literal('harvest'),
+    wetWeightG: z.number().nullable(),
+    dryWeightG: z.number().nullable(),
+  }),
+);
+
+export const planEntryValues = named(
+  'PlanEntryValues',
+  z.object({
+    kind: z.literal('plan'),
+    planId: id(),
+    stepIndex: z.number().int(),
+    transition: planTransitionKind.nullable().describe('The transition that caused the entry; null when the engine simply moved on to the next step.'),
+  }),
+);
+
+export const entryValues = named(
+  'EntryValues',
+  z.discriminatedUnion('kind', [
+    waterEntryValues,
+    feedEntryValues,
+    measurementEntryValues,
+    photoEntryValues,
+    noteEntryValues,
+    trainingEntryValues,
+    visitEntryValues,
+    systemEntryValues,
+    alarmEntryValues,
+    phaseEntryValues,
+    moveEntryValues,
+    harvestEntryValues,
+    planEntryValues,
+  ]),
+);
+
+/** A device's log line, parsed once on the way in. The keys are the webapp's `message-*` catalogue. */
+export const entryMessage = named(
+  'EntryMessage',
+  z.object({
+    key: z.string(),
+    params: z.array(z.string()),
+  }),
+);
+
+/**
+ * One timeline. A human's watering, a device's log line and an alarm are all
+ * entries, told apart by `kind` and `source`.
+ *
+ * Every reference is null when the entry is not about one: an entry exists
+ * without a grow, without a space and without a device. `plantIds` empty means
+ * the entry is about whatever it is attached to rather than about single plants.
+ */
+export const entry = named(
+  'Entry',
+  z.object({
+    id: id(),
+    createdAt: instant(),
+    kind: entryKind,
+    occurredAt: instant().describe('When the thing happened, which is not when it was written down.'),
+    source: entrySource,
+    authorId: id()
+      .nullable()
+      .describe(
+        'Who made this happen, whatever wrote it down. Null for what a device, an alarm or the plan engine\'s own clock did, and set for a plan line somebody drove: a transition carries the person who asked for it.',
+      ),
+    growId: id().nullable(),
+    spaceId: id().nullable(),
+    deviceId: id().nullable(),
+    plantIds: z.array(id()),
+    cameraId: id().nullable(),
+    taskId: id().nullable().describe('The derived task this entry completes; task ids are deterministic, not stored.'),
+    alertId: id().nullable(),
+    severity: severity.nullable(),
+    text: z.string().nullable().describe('What a human wrote.'),
+    message: entryMessage.nullable(),
+    values: entryValues,
+    mediaIds: z.array(id()),
+    undoUntil: instant().nullable().describe('Until when the author may still take the entry back.'),
+  }),
+);
+
+export const entryPage = named('EntryPage', page(entry));
+
+/**
+ * The kinds a person writes. Every other kind on the timeline belongs to the
+ * route or the engine it is about - a phase to `POST /grows/{id}/phases`, a move
+ * to a placement, a harvest to a harvest, an alarm to the alarm engine - so
+ * writing one through the diary would be a second way to state the same fact.
+ */
+export const humanEntryKind = named(
+  'HumanEntryKind',
+  entryKind.extract(['water', 'feed', 'photo', 'note', 'measurement', 'training', 'visit']),
+);
+
+/**
+ * What `POST /entries` takes for `values`: the same shapes with the parts the
+ * server can work out left optional.
+ *
+ * "Log as planned" is a feed that names its water and nothing else - the doses
+ * and the week they came from are resolved from the grow's grid at the moment
+ * the feed happened, and stored resolved. A feed that names its own doses is
+ * stored as given, because what went into the can is the fact.
+ */
+export const entryValuesDraft = named(
+  'EntryValuesDraft',
+  z.discriminatedUnion('kind', [
+    waterEntryValues.partial({ litres: true, readings: true }),
+    feedEntryValues.partial({ litres: true, schemeWeek: true, doses: true, readings: true }),
+    measurementEntryValues.partial({ readings: true }),
+    photoEntryValues,
+    noteEntryValues,
+    trainingEntryValues,
+    visitEntryValues,
+  ]),
+);
+
+/**
+ * `POST /entries`. What the entry is about is the client's; who wrote it, when
+ * it was written down, what raised it and how long it may still be taken back
+ * are the server's, so none of those is asked for.
+ *
+ * Both `kind` and `values.kind` are given and have to agree. `values` narrows on
+ * its own wherever it travels, and the server checks the pair against each other
+ * rather than believing one of them.
+ */
+export const entryCreate = named(
+  'EntryCreate',
+  entry
+    .pick({
+      occurredAt: true,
+      growId: true,
+      spaceId: true,
+      deviceId: true,
+      plantIds: true,
+      cameraId: true,
+      taskId: true,
+      text: true,
+      mediaIds: true,
+    })
+    .partial()
+    .extend({ kind: humanEntryKind, values: entryValuesDraft }),
+);
+
+/**
+ * `PATCH /entries/{id}`: the same fields, each only if it changes. An entry's
+ * `kind` is what the entry is and is not patched - correcting a reading is
+ * `values`, whose own `kind` still has to be the entry's.
+ */
+export const entryUpdate = named('EntryUpdate', entryCreate.omit({ kind: true }).partial());
+
+// ---------------------------------------------------------------------------
+// Media
+// ---------------------------------------------------------------------------
+
+/**
+ * What a timelapse covers. `day`, `week` and `month` are the rolling films the
+ * builder keeps by itself; `phase`, `grow` and `custom` are the composer's
+ * ranges, and each of them names both of its ends, because only the client
+ * knows where a phase or a grow began.
+ */
+export const mediaWindow = named('MediaWindow', z.enum(['day', 'week', 'month', 'phase', 'grow', 'custom']));
+
+/** A render's resolution. `hd` and whole-grow renders need entitlement; a free render carries a watermark. */
+export const mediaQuality = named('MediaQuality', z.enum(['sd', 'hd']));
+
+/**
+ * The shape a film is rendered to: landscape, the portrait one a reel is, or
+ * square. Named by their ratios rather than by a platform, which outlives the
+ * platform.
+ */
+export const mediaAspect = named('MediaAspect', z.enum(['16_9', '9_16', '1_1']));
+
+/**
+ * What is drawn over the frames. Each is off unless it is asked for, and each
+ * needs something to draw from - a grow for its day counter, a controller for
+ * its climate, entries for its captions - so one that has nothing simply draws
+ * nothing rather than refusing the render.
+ */
+export const mediaOverlays = named(
+  'MediaOverlays',
+  z.object({
+    dayCounter: z.boolean(),
+    climate: z.boolean().describe('The temperature and humidity of the span, with a cursor on the frame\'s own instant.'),
+    entries: z.boolean().describe('The diary lines of the span, each as a caption on the frames around it.'),
+  }),
+);
+
+/** Only `queued` is a fact of the model; the rest is how far the hourly builder has got. */
+export const mediaRenderStatus = named('MediaRenderStatus', z.enum(['queued', 'rendering', 'ready', 'failed']));
+
+/**
+ * A render job. What the picture is of - the camera, the range, the window, the
+ * quality - is the media row's own, so this adds only what the composer needs
+ * and how the job is going.
+ */
+export const mediaRender = named(
+  'MediaRender',
+  z.object({
+    status: mediaRenderStatus,
+    framesPerSecond: z.number().int(),
+    watermark: z.boolean(),
+    aspect: mediaAspect,
+    overlays: mediaOverlays,
+    includeLightsOff: z.boolean().describe('Whether the frames taken while the light was off are in the film.'),
+    secondCameraId: id().nullable().describe('The camera shown beside the first one; null for a film of one camera.'),
+    startedAt: instant().nullable(),
+    endedAt: instant().nullable(),
+    error: z.string().nullable(),
+  }),
+);
+
+/** What an export is of: one grow, or everything the account has. */
+export const exportScope = named('ExportScope', z.enum(['grow', 'account']));
+
+/**
+ * How far an export has got, on the media row that is the export.
+ *
+ * It carries the same four states a render does, because a zip is built by the
+ * same kind of worker and watched in the same way. What it is an export of is
+ * here rather than in the row's own `growId`, which stays null deliberately: an
+ * export is the account's private copy of everything it can see, so it must not
+ * hang off a grow that a link or a public address makes readable to somebody
+ * else.
+ */
+export const mediaExportJob = named(
+  'MediaExportJob',
+  z.object({
+    status: mediaRenderStatus,
+    scope: exportScope,
+    growId: id().nullable().describe('The grow this is an export of; null for an export of the whole account.'),
+    startedAt: instant().nullable(),
+    endedAt: instant().nullable(),
+    error: z.string().nullable(),
+  }),
+);
+
+/**
+ * A picture or a film. The bytes stay in the GridFS bucket, whose file id is
+ * this resource's id, and are served by `GET /media/{id}/content`.
+ *
+ * A picture belongs to a camera, a grow or a space, never to a device.
+ */
+export const media = named(
+  'Media',
+  z.object({
+    id: id(),
+    createdAt: instant(),
+    kind: mediaKind,
+    mime: z.string(),
+    bytes: z.number().int().describe('Size of the stored file.'),
+    cameraId: id().nullable(),
+    growId: id().nullable(),
+    spaceId: id()
+      .nullable()
+      .describe(
+        'Null for what a camera delivered, and null to a reader outside the tent: which corner of somebody\'s flat a picture was taken in is not part of what a link shows.',
+      ),
+    uploadedBy: id()
+      .nullable()
+      .describe(
+        'Null for what a camera delivered or the composer rendered, and null to a reader outside the tent: a shared diary says what happened rather than who by.',
+      ),
+    capturedAt: instant(),
+    endsAt: instant().nullable().describe('The end of the span a film covers; null for a single picture.'),
+    window: mediaWindow.nullable(),
+    quality: mediaQuality.nullable(),
+    lengthSeconds: z.number().int().nullable(),
+    render: mediaRender.nullable(),
+    exportJob: mediaExportJob.nullable().describe('Set on an `export` row and on nothing else; it is what the export is polled by.'),
+  }),
+);
+
+/**
+ * What `GET /grows/{id}/export` and `GET /me/export` answer. A zip of a diary,
+ * its CSVs and its photos does not finish inside a request, so the media row
+ * comes back with `exportJob.status: queued` and is polled through
+ * `GET /media/{id}` until it is `ready`; its bytes then come from
+ * `GET /media/{id}/content` like any other file.
+ *
+ * An export asked for while one is still being built, or while a fresh one is
+ * still there, answers that one rather than starting a second. `queued` says
+ * whether this request started the build; the status says whether there is a
+ * file yet - 200 only for a finished one, 202 for one still to be waited for,
+ * whoever started it.
+ */
+export const exportAccepted = named('ExportAccepted', z.object({ media: media, queued: z.boolean() }));
+
+/**
+ * `GET /cameras/{id}/frames` and `GET /cameras/{id}/timelapses` answer this, each
+ * filtered to its kind: a frame is a `still` of that camera and a timelapse a
+ * film built from them, and both are media rows like any other.
+ */
+export const mediaPage = named('MediaPage', page(media));
+
+/**
+ * Stills come from the camera pipeline and timelapses from the composer, so the
+ * only kinds anybody uploads are a picture for the diary and an avatar.
+ */
+export const uploadMediaKind = named('UploadMediaKind', mediaKind.extract(['photo', 'avatar']));
+
+/**
+ * `POST /media`, beside the bytes in the multipart body. The mime type, the size
+ * and who uploaded it are read off the upload and the session rather than asked
+ * for. A photo usually reaches its grow through the entry that carries it;
+ * `growId` and `spaceId` are for the picture that is uploaded on its own.
+ */
+export const mediaUpload = named(
+  'MediaUpload',
+  media.pick({ growId: true, spaceId: true, capturedAt: true }).partial().extend({ kind: uploadMediaKind }),
+);
+
+// ---------------------------------------------------------------------------
+// Cameras
+// ---------------------------------------------------------------------------
+
+/**
+ * How ffmpeg pulls an RTSP stream, as its `-rtsp_transport` names it: `tcp`
+ * (what null means too), `udp`, and RTSP tunnelled through HTTP or HTTPS for a
+ * camera that only answers that way. Null on a Terp Cam, which is not RTSP at
+ * all. `udp` never passes through a device's tunnel, which carries TCP alone.
+ */
+export const cameraTransport = named('CameraTransport', z.enum(['tcp', 'udp', 'http', 'https']));
+
+/** A hint for the URL template a stream was built from, never how it is read. */
+export const cameraModel = named('CameraModel', z.enum(['terp_cam', 'tapo_c200', 'reolink', 'hikvision', 'custom']));
+
+/** `free` is what an install with `PREMIUM_ENFORCED` unset never sees, because nothing is gated then. */
+export const entitlementTier = named('EntitlementTier', z.enum(['free', 'premium']));
+
+/**
+ * Twelve months per camera, never renewed by this server: the admin route is the
+ * only writer. `tier` is derived from `validUntil` and the install's
+ * enforcement, and `renewalVisible` says whether the screen offers to extend,
+ * so neither the client nor this server needs a billing system to draw it.
+ */
+export const cameraEntitlement = named(
+  'CameraEntitlement',
+  z.object({
+    validUntil: instant().nullable(),
+    grant: grantKind.nullable(),
+    tier: entitlementTier,
+    renewalVisible: z.boolean(),
+  }),
+);
+
+/**
+ * `PUT /admin/cameras/{id}/entitlement`, which is the only writer of one:
+ * nothing renews on its own in this server. `tier` and `renewalVisible` are read
+ * from `validUntil` and the install's configuration every time a camera is
+ * serialised, so they are answered and never written.
+ */
+export const cameraEntitlementUpdate = named(
+  'CameraEntitlementUpdate',
+  cameraEntitlement.pick({ validUntil: true, grant: true }),
+);
+
+export const cameraState = named(
+  'CameraState',
+  z.object({
+    lastStillAt: instant().nullable(),
+    lastError: z.string().nullable(),
+    firmwareVersion: z.string().nullable(),
+  }),
+);
+
+/**
+ * A camera of its own, not a field on a device: a tent has the Terp Cam its
+ * device pairs (a controller or a fridge module), RTSP cameras pulled through
+ * the tunnel of a device standing there, and standalone Terp Cams the cloud
+ * reaches itself.
+ *
+ * The stored document also has the camera's `secret`, and its `url` carries the
+ * credentials the stream is opened with. **Neither is ever serialised**, to the
+ * owner no more than to anybody else: `secret` has no field here at all, and
+ * `url` is answered with its credentials stripped.
+ */
+export const camera = named(
+  'Camera',
+  z.object({
+    id: id(),
+    createdAt: instant(),
+    ownerId: id().nullable().describe('Null on a shared or public read, which is not told whose account the camera is on.'),
+    kind: cameraKind,
+    deviceId: id()
+      .nullable()
+      .describe('The device that answers for this camera; null for one the cloud reaches itself, and on a shared or public read.'),
+    spaceId: id().nullable(),
+    name: z.string(),
+    looksAt: z.string().nullable().describe('What it is pointed at, as a label beside the picture.'),
+    plantIds: z.array(id()),
+    did: z.string().nullable().describe('A Terp Cam’s P2P device id.'),
+    uid: z.string().nullable(),
+    ip: z.string().nullable().describe('Last address on the local network, as the controller reported it.'),
+    url: z.string().nullable().describe('The stream URL with its credentials removed.'),
+    transport: cameraTransport.nullable(),
+    tunnel: z.boolean().describe('Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly.'),
+    model: cameraModel.nullable(),
+    stillIntervalSeconds: z.number().int(),
+    nightOff: z.boolean(),
+    maintenanceOff: z.boolean(),
+    logErrors: z.boolean(),
+    staleWarning: z
+      .boolean()
+      .describe('Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out.'),
+    entitlement: cameraEntitlement.describe(
+      'On a shared or public read only the tier the pictures are served at: `validUntil` and `grant` are null and `renewalVisible` false.',
+    ),
+    isDemo: z.boolean(),
+    removedAt: instant().nullable().describe('A removed camera is a tombstone, so its pictures keep their link.'),
+    state: cameraState,
+  }),
+);
+
+export const cameraPage = named('CameraPage', page(camera));
+
+/**
+ * What every camera is given whatever kind it is: where it stands, what it is
+ * called, what it is pointed at and how often it takes a picture. Deliberately
+ * not registered - it is the base the three create bodies are built from, and no
+ * route ever accepts or answers it on its own.
+ */
+const cameraSettings = camera
+  .pick({
+    spaceId: true,
+    name: true,
+    looksAt: true,
+    plantIds: true,
+    stillIntervalSeconds: true,
+    nightOff: true,
+    maintenanceOff: true,
+    logErrors: true,
+    staleWarning: true,
+  })
+  .partial({
+    spaceId: true,
+    looksAt: true,
+    plantIds: true,
+    stillIntervalSeconds: true,
+    nightOff: true,
+    maintenanceOff: true,
+    logErrors: true,
+    staleWarning: true,
+  });
+
+/** How a stream is pulled, which is a question only an RTSP camera raises. */
+const rtspStream = camera.pick({ transport: true, tunnel: true, model: true }).partial();
+
+/*
+ * `POST /cameras` takes one of three bodies, discriminated by `kind`, because
+ * what says which camera is meant differs per kind: the controller that pairs
+ * it, the P2P id printed on it, or the address its stream is at.
+ */
+
+/**
+ * The Terp Cam a controller pairs. The controller reports the pairing over MQTT
+ * and the protocol module upserts the row from it, so this body adopts that one
+ * camera by naming its controller instead of describing the hardware.
+ */
+export const controllerCameraCreate = named(
+  'ControllerCameraCreate',
+  cameraSettings.extend({
+    kind: z.literal('terpcam_controller'),
+    deviceId: id(),
+  }),
+);
+
+/**
+ * A Terp Cam the cloud reaches itself, addressed by the P2P id printed on it.
+ * The model and the server-side path exist; the tab that would pair one says it
+ * is coming, because the flow is unproven against a camera on a desk.
+ */
+export const standaloneCameraCreate = named(
+  'StandaloneCameraCreate',
+  cameraSettings.extend({
+    kind: z.literal('terpcam_standalone'),
+    did: z.string(),
+  }),
+);
+
+/**
+ * Any other camera, by the address of its stream. Creating one is never refused:
+ * whether the address answers is found out by the first capture, not here.
+ *
+ * `url` carries the credentials the stream is opened with, which is why it is
+ * spelled out rather than picked off `Camera`: the resource answers the same URL
+ * with them stripped, so the two fields do not mean the same thing.
+ *
+ * The login can also come on its own, in `username` and `password`, which the
+ * server writes into the URL. That is how a login whose password holds an `@`
+ * or a `:` arrives intact, and how a camera's address is changed without
+ * knowing the login it is opened with: a `url` with no login of its own keeps
+ * the one stored, and only a `username` or `password` that is sent replaces its
+ * half of it (an empty one takes that half away). Neither is ever answered.
+ */
+export const rtspCameraCreate = named(
+  'RtspCameraCreate',
+  cameraSettings.extend(rtspStream.shape).extend({
+    kind: z.literal('rtsp'),
+    deviceId: id()
+      .nullable()
+      .optional()
+      .describe('The device whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.'),
+    url: z.string().describe('The stream URL. A login written into it is used; one that carries none keeps the login stored.'),
+    username: z.string().optional().describe('The login name the stream is opened with, written into the URL; empty takes it away.'),
+    password: z.string().optional().describe('The password the stream is opened with, written into the URL; empty takes it away.'),
+  }),
+);
+
+export const cameraCreate = named(
+  'CameraCreate',
+  z.discriminatedUnion('kind', [controllerCameraCreate, standaloneCameraCreate, rtspCameraCreate]),
+);
+
+/**
+ * `PATCH /cameras/{id}`: everything a camera is given at creation except what
+ * says which camera it is. Its kind and its P2P id are what it is; a camera
+ * that is not RTSP simply never carries the stream fields.
+ *
+ * The device is here because for a stream it is not part of what the camera is
+ * but of how it is reached: an RTSP camera moved to another tent is pulled
+ * through whatever device stands there, or through none. A Terp Cam's device
+ * is the one that paired it and is refused on this route.
+ */
+export const cameraUpdate = named('CameraUpdate', rtspCameraCreate.omit({ kind: true }).partial());
+
+/** One picture of a camera, where the camera is already known: a row of the day's strip, the picture a test took. */
+export const cameraStill = named('CameraStill', z.object({ mediaId: id(), capturedAt: instant() }));
+
+export const testCaptureState = named('TestCaptureState', z.enum(['running', 'done', 'failed']));
+
+/** What kind of failure a read of a camera was, from the words it left behind (`capture.ts`). */
+export const captureFailure = named('CaptureFailure', z.enum(CAPTURE_FAILURES));
+
+/**
+ * One picture, taken now, so that whoever is setting a camera up learns whether
+ * it answers at all. `POST /cameras/{id}/test-captures` starts it and answers at
+ * once; `GET /cameras/{id}/test-captures/{captureId}` is asked until it is no
+ * longer `running`. A read can take minutes where a Terp Cam's relay is slow to
+ * open, and a request held open that long is one every proxy on the way has to
+ * be told to allow.
+ *
+ * It is the poller's own read - one that is already under way for the camera
+ * is joined rather than run twice - so it ends within `CAPTURE_BUDGET_SECONDS`
+ * like every other, and the picture is stored like any other still.
+ *
+ * A camera that could not be read is a `failed` capture rather than an error,
+ * because a wrong address is an ordinary outcome of this button and the reason
+ * the camera gave is what the person needs to see.
+ */
+export const testCapture = named(
+  'TestCapture',
+  z.object({
+    id: id(),
+    cameraId: id(),
+    state: testCaptureState,
+    startedAt: instant(),
+    finishedAt: instant().nullable(),
+    still: cameraStill.nullable().describe('The picture it took, once `done`.'),
+    reason: captureFailure.nullable().describe('What kind of failure it was, once `failed`.'),
+    error: z
+      .string()
+      .nullable()
+      .describe("Once `failed`, what the camera - or the process that reached for it - said, in the server's words; it can name the address the camera is reached at."),
+  }),
+);
+
+/**
+ * `POST /cameras/{id}/timelapses`, which is the composer. `window` says which
+ * span is meant: `day`, `week` and `month` are the calendar day, the Monday-to-
+ * Monday week and the calendar month holding `startsAt`, in the zone of the
+ * account that owns the camera, and `phase`, `grow` and `custom` each read both ends, because where a phase
+ * or a grow began is the client's to say and not a span this server can guess.
+ *
+ * Everything below `quality` is what the board offers and is optional, so the
+ * four one-tap buttons on the camera page send a window and nothing else.
+ */
+export const timelapseCreate = named(
+  'TimelapseCreate',
+  z.object({
+    window: mediaWindow,
+    startsAt: instant()
+      .optional()
+      .describe("For `day`, `week` and `month`, any instant inside the period meant, which is cut on the camera owner's calendar; defaults to the most recent complete one."),
+    endsAt: instant().optional().describe('Read by `phase`, `grow` and `custom`, each of which needs both ends.'),
+    quality: mediaQuality.optional().describe('`hd` needs entitlement and is refused without it rather than quietly made `sd`.'),
+    framesPerSecond: z.number().int().positive().max(60).optional(),
+    secondCameraId: id().optional().describe('A second camera of the same tent, shown beside the first one.'),
+    overlays: mediaOverlays.partial().optional(),
+    includeLightsOff: z.boolean().optional().describe('Defaults to leaving the frames taken in the dark out.'),
+    aspect: mediaAspect.optional(),
+  }),
+);
+
+/**
+ * What that request is answered with. A render does not finish inside the
+ * request, so the media row comes back with `render.status: queued` and is
+ * polled through `GET /media/{id}`.
+ *
+ * Camera media is unique on its camera, kind, window and instant, so asking
+ * twice for the same span answers the render that already exists rather than
+ * making a second one: `queued` is what says which of the two happened, and with
+ * it the 202 from the 200.
+ */
+export const timelapseAccepted = named(
+  'TimelapseAccepted',
+  z.object({
+    media: media,
+    queued: z.boolean(),
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// Feeding schemes
+// ---------------------------------------------------------------------------
+
+/** Which shipped asset a scheme was made from, and at which version of it. */
+export const schemeOrigin = named(
+  'SchemeOrigin',
+  z.object({
+    assetId: z.string().nullable(),
+    version: z.string().nullable(),
+  }),
+);
+
+/**
+ * A person's own feeding scheme. The grid is the same table a grow carries, so
+ * that editing a scheme here and reading it back off a grow speak one language;
+ * a grow keeps its own copy, which is what leaves its history alone when this
+ * one is edited later.
+ */
+export const scheme = named(
+  'Scheme',
+  z.object({
+    id: id(),
+    createdAt: instant(),
+    ownerId: id(),
+    name: z.string(),
+    origin: schemeOrigin,
+    grid: z.array(schemeWeek),
+  }),
+);
+
+export const schemePage = named('SchemePage', page(scheme));
+
+/**
+ * `POST /schemes`. `origin` is left out by somebody writing a scheme of their
+ * own and filled in by a client that started from a shipped asset, which is the
+ * only way the server learns of one: it never reads an asset itself.
+ */
+export const schemeCreate = named(
+  'SchemeCreate',
+  scheme.pick({ name: true, origin: true, grid: true }).partial({ origin: true }),
+);
+
+/** `PATCH /schemes/{id}`: the same fields, each only if it changes. */
+export const schemeUpdate = named('SchemeUpdate', schemeCreate.partial());
+
+// ---------------------------------------------------------------------------
+// Chart views
+// ---------------------------------------------------------------------------
+
+/**
+ * A span. Either end may be open, which is what `null` says; a share link's
+ * range and a saved chart view both use it.
+ */
+export const timeRange = named(
+  'TimeRange',
+  z.object({
+    startsAt: instant().nullable(),
+    endsAt: instant().nullable(),
+  }),
+);
+
+/**
+ * How far back a saved view looks. Four shapes rather than a pair of nullable
+ * fields, because the chips above the charts are four separate choices and only
+ * two of them carry a number at all: a fixed span and a rolling one written as
+ * two fields that must never both be filled is an invariant nothing holds a
+ * client to, while "this phase" and "the whole grow" have no dates of their own
+ * and are read off the grow at the moment the chart is drawn - which is the
+ * point of saving them, since a view saved in week three is still about week
+ * nine when it is opened again.
+ */
+export const chartViewSpan = named(
+  'ChartViewSpan',
+  z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('last'), forSeconds: z.number().int().positive() }),
+    z.object({ kind: z.literal('fixed'), range: timeRange }),
+    z.object({ kind: z.literal('phase') }),
+    z.object({ kind: z.literal('grow') }),
+  ]),
+);
+
+/**
+ * How the panels are drawn: one per series, all on shared axes, or counted in
+ * days since the grow began rather than in dates, which is what makes two runs
+ * of the same tent comparable.
+ */
+export const chartViewLayout = named('ChartViewLayout', z.enum(['stacked', 'overlay', 'day_of_grow']));
+
+/**
+ * What a saved chart draws, structured rather than the query string the old app
+ * saved.
+ *
+ * Climate and outputs come out of the device's store and `measurements` out of
+ * the diary, but a view names all three the same way: what somebody picked off
+ * the chip bar is one list of series to them, and which store answers each is
+ * the reader's business rather than the saved view's.
+ */
+export const chartViewDefinition = named(
+  'ChartViewDefinition',
+  z.object({
+    deviceIds: z.array(id()),
+    growId: id().nullable(),
+    metrics: z.array(metric),
+    outputs: z.array(outputMetric),
+    measurements: z
+      .array(z.string())
+      .describe("Keys of the grow's own measurement definitions. A key the grow no longer defines draws nothing."),
+    span: chartViewSpan,
+    layout: chartViewLayout,
+    intervalSeconds: z.number().int().describe('Width of one bucket, which is what decides how many points come back.'),
+  }),
+);
+
+export const chartView = named(
+  'ChartView',
+  z.object({
+    id: id(),
+    createdAt: instant(),
+    ownerId: id(),
+    name: z.string(),
+    definition: chartViewDefinition,
+  }),
+);
+
+export const chartViewPage = named('ChartViewPage', page(chartView));
+
+/** `POST /chart-views`. A view is its name and what it draws; nothing else is stored. */
+export const chartViewCreate = named('ChartViewCreate', chartView.pick({ name: true, definition: true }));
+
+/** `PATCH /chart-views/{id}`: the same two, each only if it changes. */
+export const chartViewUpdate = named('ChartViewUpdate', chartViewCreate.partial());
+
+// ---------------------------------------------------------------------------
+// Share links
+// ---------------------------------------------------------------------------
+
+export const shareLinkState = named(
+  'ShareLinkState',
+  z.object({
+    openCount: z.number().int(),
+    lastOpenedAt: instant().nullable(),
+  }),
+);
+
+/**
+ * `token` is the secret the link is opened with and is separate from `id`, so
+ * that a link can be listed, patched and revoked by an id that is not a secret.
+ * It is on the wire for whoever may manage the link, because sharing the link is
+ * the point of it; what is read *through* the link never carries it.
+ *
+ * Every read through a link is clamped to `range`.
+ */
+export const shareLink = named(
+  'ShareLink',
+  z.object({
+    id: id(),
+    createdAt: instant(),
+    token: z.string(),
+    kind: shareKind,
+    subject: growOrSpaceRef,
+    range: timeRange,
+    includeCameras: z.boolean().describe('Camera pictures are only ever visible through a link that includes them.'),
+    createdBy: id(),
+    expiresAt: instant().nullable(),
+    revokedAt: instant().nullable(),
+    state: shareLinkState,
+  }),
+);
+
+export const shareLinkPage = named('ShareLinkPage', page(shareLink));
+
+/**
+ * `POST /share-links`. The token, the counters and who made the link are the
+ * server's. A `range` with an open end is a link that keeps up with a grow as it
+ * goes on, which is what sharing a running diary means.
+ */
+export const shareLinkCreate = named(
+  'ShareLinkCreate',
+  shareLink
+    .pick({ kind: true, subject: true, range: true, includeCameras: true, expiresAt: true })
+    .partial({ range: true, includeCameras: true, expiresAt: true }),
+);
+
+/**
+ * `PATCH /share-links/{id}`: what may still be changed once a link is out of the
+ * house. Not `kind` and not `subject`: the address is in somebody else's hands,
+ * and repointing it would show them something they were never sent. The range,
+ * the cameras and the expiry can each be changed, wider as well as narrower;
+ * ending the link altogether is `PUT /share-links/{id}/revocation`, and only a
+ * link that has stopped may then be deleted.
+ */
+export const shareLinkUpdate = named('ShareLinkUpdate', shareLinkCreate.omit({ kind: true, subject: true }).partial());
+
+// ---------------------------------------------------------------------------
+// Migrations
+// ---------------------------------------------------------------------------
+
+/**
+ * One migration that has run. The record is what makes a migration run once and
+ * what an operator reads afterwards, so `stats` keeps whatever the migration
+ * counted - rows moved, rows skipped - and is not typed here: every migration
+ * counts something else.
+ */
+export const migration = named(
+  'Migration',
+  z.object({
+    id: id(),
+    createdAt: instant(),
+    name: z.string().describe('Unique; it is what says the migration has already run.'),
+    appliedAt: instant(),
+    durationMs: z.number().int(),
+    stats: z.record(z.string(), z.number()),
+  }),
+);
+
+export const migrationPage = named('MigrationPage', page(migration));
+
+// ---------------------------------------------------------------------------
+// Read models
+//
+// What a screen opens on, assembled by the server from several collections.
+// They are answers, never stored, so they carry the few embedded shapes they
+// draw rather than referring to resources a client would have to fetch one by
+// one.
+// ---------------------------------------------------------------------------
+
+/**
+ * A metric as a card draws it: the one `MetricValue` with the metric it belongs
+ * to written into it, because a card carries a list of them while a device read
+ * answers a map keyed by metric.
+ */
+export const cardValue = named('CardValue', z.object({ metric: metric, ...metricValue.shape }));
+
+/**
+ * What counts as on target while a device changes between day and night: a
+ * reading anywhere from the lower half's band to the higher half's. Where one
+ * of the halves holds no target for the metric - CO2 at night - it is not
+ * judged at all until the transition is over.
+ */
+export const cardTransition = named(
+  'CardTransition',
+  z.object({
+    from: z.enum(['day', 'night']),
+    to: z.enum(['day', 'night']),
+    until: instant(),
+    low: z.number().nullable().describe('Null with `high`: not judged until `until`.'),
+    high: z.number().nullable(),
+  }),
+);
+
+/**
+ * What the controller is aiming at right now, for the metrics it steers, and
+ * how far a reading may stray from it and still count as on target. The band is
+ * `TARGET_BAND` stated on the wire, so the figure beside a value and the
+ * verdict's "in band" are judged by the same width and no client keeps a width
+ * of its own.
+ */
+export const cardSetpoint = named(
+  'CardSetpoint',
+  z.object({
+    metric: metric,
+    value: z.number().nullable().describe('What is aimed at now: while a fridge glides between day and night, the figure it has glided to.'),
+    band: z.number().nullable().describe('Half the width of the band around the target; null for a metric that has none.'),
+    transition: cardTransition
+      .nullable()
+      .optional()
+      .describe('Set while the device changes from one half to the other (`SetpointsTransition`); a reading is then judged by this instead of `value` ± `band`.'),
+  }),
+);
+
+/**
+ * The picture a space is shown by: its newest one taken with the light on, so a
+ * tent whose lamp is off by day is not shown dark in the hours somebody looks.
+ */
+export const latestStill = named(
+  'LatestStill',
+  z.object({
+    mediaId: id(),
+    cameraId: id(),
+    capturedAt: instant(),
+    lightOff: z.boolean().describe('Whether the camera has taken newer pictures since, in the dark; this one is then the last taken in the light.'),
+  }),
+);
+
+/**
+ * A day of one metric, the size of a stamp: what a card draws beside its figures
+ * to say "steady" or "not". It rides on the card rather than being fetched per
+ * card, so a club's home is one request however many places it has.
+ */
+export const cardTrend = named(
+  'CardTrend',
+  z.object({
+    metric: metric,
+    stepSeconds: z.number().int(),
+    endsAt: instant(),
+    points: z.array(z.number().nullable()).describe('One figure per window, oldest first; null where the window holds no sample.'),
+  }),
+);
+
+/**
+ * A task as a card lists it. Tasks are derived from reminders, the scheme grid
+ * and the plan rather than stored, and their ids are deterministic - which is
+ * how completing one, an entry carrying that `taskId`, keeps it from coming back.
+ *
+ * What it is about is the same reference `Task` carries, so a card and the task
+ * list say it one way.
+ */
+export const dueTask = named(
+  'DueTask',
+  z.object({
+    id: id(),
+    kind: reminderKind,
+    label: z.string(),
+    dueAt: instant(),
+    subject: growOrSpaceRef,
+    assigneeId: id().nullable(),
+  }),
+);
+
+/** An alert as a card lists it; `GET /alerts` answers the alert itself. */
+export const openAlert = named(
+  'OpenAlert',
+  z.object({
+    alertId: id(),
+    kind: alertKind,
+    severity: severity,
+    startedAt: instant(),
+    value: z.number().nullable(),
+    metric: metric
+      .nullable()
+      .describe('The reading the rule watches, so "78 % RH" can be said; null for an alert raised without a rule, or by a rule watching an output.'),
+    name: z
+      .string()
+      .nullable()
+      .describe(
+        'What the rule that raised it is called, or was called when the episode opened where it has since been deleted: what tells two alarms on one place apart. Null for an alert raised without a rule.',
+      ),
+  }),
+);
+
+/** One group of a split, as a card counts it: `GrowSummary.groups` names the plants instead. */
+export const growCardStageGroup = named(
+  'GrowCardStageGroup',
+  z.object({
+    stage: growthStage,
+    plantCount: z.number().int().nullable().describe('Null where the owner hides counts.'),
+  }),
+);
+
+/**
+ * The grow as a card draws it: the day counter, the phase headline and the "auto"
+ * tag, all computed from `phases[]` in the grow serialiser. `stageGroups` is
+ * filled only when the plants are not all in the same phase, which is what a
+ * split leaves behind.
+ */
+export const growCard = named(
+  'GrowCard',
+  z.object({
+    growId: id(),
+    name: z.string(),
+    type: growType,
+    dayNumber: z.number().int().nullable(),
+    phaseDay: z.number().int().nullable().describe('How many days the grow has stood in its current phase.'),
+    stageWeek: z
+      .number()
+      .int()
+      .nullable()
+      .describe('Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state.'),
+    stage: growthStage.nullable(),
+    stagesReached: z
+      .array(growthStage)
+      .describe(
+        'The stages the grow as a whole has been through, oldest first, the one it is in included: what a phase bar fills. A grow started in veg never germinated here, so germination is not among them; a phase scoped to some plants is a split and is not either.',
+      ),
+    preset: z.string().nullable(),
+    isAuto: z.boolean().describe('The phase was set by a preset or the plan rather than by a person.'),
+    plantCount: z.number().int().nullable().describe('Null where the owner hides counts.'),
+    strains: z.array(z.string()).describe('Each strain once, in the order it was planted.'),
+    coverMediaId: id().nullable(),
+    stageGroups: z.array(growCardStageGroup),
+  }),
+);
+
+/**
+ * One space, with everything the home screen shows about it - or, where the
+ * ids are null, one open grow that stands in no space at all. A grow is
+ * first-class without a place, so "no fixed place" is a card rather than a
+ * hole in the home, and the app opens it at the grow because there is no space
+ * page to open.
+ */
+export const homeSpaceCard = named(
+  'HomeSpaceCard',
+  z.object({
+    spaceId: id().nullable().describe('Null is “no fixed place”: the card stands for the grow alone.'),
+    name: z.string().describe('The place’s name, or the grow’s own where the card stands for no place.'),
+    kind: spaceKind.nullable().describe('Null where there is no place, and so no kind of one.'),
+    roomId: id().nullable(),
+    deviceIds: z.array(id()),
+    values: z.array(cardValue),
+    setpoints: z.array(cardSetpoint),
+    trend: cardTrend.nullable().describe('The last 24 hours of temperature, from the first device in the space that has any.'),
+    grow: growCard.nullable(),
+    entries: z.array(entry).describe('The grow’s newest entries, newest first.'),
+    latestStill: latestStill.nullable(),
+    dueTasks: z.array(dueTask),
+    openAlerts: z.array(openAlert),
+  }),
+);
+
+/** A grow somebody follows: a public grow, so only what its public page shows. */
+export const followedGrowCard = named(
+  'FollowedGrowCard',
+  z.object({
+    growId: id(),
+    slug: z.string(),
+    name: z.string(),
+    handle: z.string().describe('The owner’s handle, the only name others ever see.'),
+    dayNumber: z.number().int().nullable(),
+    stage: growthStage.nullable(),
+    endedAt: instant()
+      .nullable()
+      .describe('When the grow finished; null while it is running. `dayNumber` is then its final day rather than the day it is on.'),
+    coverMediaId: id().nullable(),
+    updatedAt: instant().describe(
+      'When the diary last moved: the newest line in it, or the day the grow started where nobody has written one yet.',
+    ),
+  }),
+);
+
+export const homeAnswer = named(
+  'HomeAnswer',
+  z.object({
+    spaces: z.array(homeSpaceCard),
+    followedGrows: z.array(followedGrowCard),
+    people: z.array(person).describe('Everyone the cards name, so a card can say who wrote an entry without another read.'),
+    layers: accountLayers,
+  }),
+);
+
+export const verdictRating = named('VerdictRating', z.enum(['good', 'watch', 'poor']));
+
+/** A target widened by `TARGET_BAND`: what a chart shades green and a verdict counts time inside. */
+export const targetBand = named('TargetBand', z.object({ low: z.number(), high: z.number() }));
+
+/**
+ * One run outside the band, which is what "1 humidity excursion 02:10–05:30"
+ * names. `endedAt` is null for a run that was still going when the window
+ * ended - it has not ended, and saying so is not the same as ending it now.
+ */
+export const climateExcursion = named(
+  'ClimateExcursion',
+  z.object({
+    startedAt: instant(),
+    endedAt: instant().nullable(),
+    above: z.boolean().describe('Which edge it left over: true is above the band.'),
+    extremeValue: z.number().nullable().describe('The furthest the reading got while it was out.'),
+  }),
+);
+
+/**
+ * How one metric did over the window, against the band its target sets. Day and
+ * night are told apart by the light output and each half is judged against its
+ * own band, which is why both are answered.
+ *
+ * The two counts are over the windows that held a reading: a device that was
+ * quiet adds to neither, so together they are the time that is known about
+ * rather than always the whole window.
+ */
+export const climateVerdictMetric = named(
+  'ClimateVerdictMetric',
+  z.object({
+    metric: metric,
+    rating: verdictRating.nullable().describe('Null where nothing here holds a target for this metric, so there is no band to judge it against.'),
+    minValue: z.number().nullable(),
+    maxValue: z.number().nullable(),
+    averageValue: z.number().nullable(),
+    dayBand: targetBand.nullable(),
+    nightBand: targetBand.nullable().describe('Null where the metric is not steered in that half at all: CO2 is only raised while the light is on.'),
+    inBandSeconds: z.number().int(),
+    outOfBandSeconds: z.number().int(),
+    excursions: z.array(climateExcursion).describe('In the order they happened; empty where the metric has no band.'),
+  }),
+);
+
+/**
+ * How often one output came on over the window, which is what "dehumidifier ran
+ * 14×" counts. A run is one reading showing it on after one showed it off, so an
+ * output stays what it was last reported to be across the windows that hold no
+ * reading, and a device that reported nothing about an output at all has no row
+ * here rather than a row of zeroes.
+ */
+export const actuatorRuns = named(
+  'ActuatorRuns',
+  z.object({
+    output: outputMetric,
+    runCount: z.number().int(),
+    forSeconds: z.number().int().describe('How long it was on altogether, over the windows that held a reading.'),
+  }),
+);
+
+/**
+ * The 24 h verdict, from one aggregation over the window: the share of the time
+ * inside the band, the runs that left it, and how often each actuator came on.
+ *
+ * `rating` is the worst of the metrics, which is what the headline says.
+ * `stepSeconds` is the resolution the whole of it is stated at - an excursion
+ * shorter than one window, and an actuator that switched twice inside one, are
+ * not in the points that were read.
+ */
+export const climateVerdict = named(
+  'ClimateVerdict',
+  z.object({
+    deviceId: id().nullable().describe('The device the window was read from; null in a space that has none.'),
+    startsAt: instant(),
+    endsAt: instant(),
+    forSeconds: z.number().int(),
+    stepSeconds: z.number().int(),
+    rating: verdictRating.nullable(),
+    inBandFraction: z
+      .number()
+      .nullable()
+      .describe(
+        '0 to 1: the share of the measured time in which every steered metric that was measured stood in its band; the "91 % in band" of the headline. Null when nothing here is steered.',
+      ),
+    metrics: z.array(climateVerdictMetric),
+    actuators: z.array(actuatorRuns),
+    trend: cardTrend.nullable().describe('The same window as a line, coarsened; it comes out of the aggregation that was read anyway.'),
+  }),
+);
+
+/** A camera of the space and the day it has taken so far. */
+export const overviewCamera = named(
+  'OverviewCamera',
+  z.object({
+    cameraId: id(),
+    name: z.string(),
+    lastStillAt: instant().nullable(),
+    stills: z
+      .array(cameraStill)
+      .describe("Today's, oldest first and at most one per slot of the day, so the strip spans the day rather than its last few minutes."),
+    litStill: cameraStill
+      .nullable()
+      .describe('The newest picture taken with the light on, where the newest of all was taken in the dark; null where the newest is lit or none ever was.'),
+  }),
+);
+
+/**
+ * A grow standing in this space. The card the home draws, and what is true of it
+ * *here*: a grow moves between tents, so the day it arrived is not the day it
+ * started.
+ */
+export const overviewGrow = named(
+  'OverviewGrow',
+  growCard.extend({
+    weekNumber: z.number().int().nullable().describe("Counted like the day counter, so it lines up with the feeding scheme's grid."),
+    placedAt: instant(),
+    placedOnDay: z
+      .number()
+      .int()
+      .nullable()
+      .describe('The grow’s own day counter on the day these plants arrived here, which is what "here since day 22" says.'),
+  }),
+);
+
+/**
+ * A due task with what its completion would be written with, so the Done button
+ * on the card needs nothing else read and can say what it is about to log.
+ * `POST /tasks/{id}/completions` takes these same values, and a completion that
+ * names none takes them from the task.
+ */
+export const overviewTask = named(
+  'OverviewTask',
+  dueTask.extend({ defaults: anyValue().describe('Prefilled entry values for the completion; null when the task prefills nothing.') }),
+);
+
+/**
+ * What the space's controller is aiming at in both halves of the cycle.
+ * `SpaceOverview.setpoints` is the half it is in right now, which is what a
+ * value is drawn against; this is the pair the header states, and the bands the
+ * verdict judges against are these widened by `TARGET_BAND`.
+ */
+export const overviewTargets = named(
+  'OverviewTargets',
+  z.object({
+    day: z.array(cardSetpoint),
+    night: z.array(cardSetpoint),
+  }),
+);
+
+/**
+ * `GET /spaces/{id}/overview`, the tent page's landing tab: what is true here
+ * now, what needs a human, what grows here, what the cameras saw today, how the
+ * last 24 hours went and what was last written.
+ *
+ * It is the home card of that space with the four things a page has room for
+ * that a card does not - the verdict, the day's pictures, every grow rather
+ * than the headline one, and enough of a due task to tick it off.
+ */
+export const spaceOverview = named(
+  'SpaceOverview',
+  z.object({
+    spaceId: id(),
+    name: z.string(),
+    kind: spaceKind,
+    roomId: id().nullable().describe('Null where the space stands on its own, and on a shared or public read, which is not told how the place is arranged.'),
+    deviceIds: z.array(id()).nullable().describe('Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.'),
+    values: z.array(cardValue).describe('Empty on a read through a window that has closed, which has no "now" to answer with.'),
+    setpoints: z.array(cardSetpoint),
+    targets: overviewTargets.nullable().describe('Null in a space whose devices hold no targets at all, and on a read through a window that has closed.'),
+    verdict: climateVerdict,
+    grows: z.array(overviewGrow).describe('Every grow with open plants here, newest first.'),
+    cameras: z.array(overviewCamera),
+    entries: z.array(entry).describe('The newest lines of this space and of the grows standing in it, newest first.'),
+    readingNames: z.array(growReadingNames).describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed.'),
+    dueTasks: z.array(overviewTask),
+    openAlerts: z.array(openAlert),
+    people: z.array(person).describe('Everyone the answer names, so an entry can say who wrote it without another read.'),
+  }),
+);
+
+/** One device's newest values, as the space screen redraws them. */
+export const spaceLiveDevice = named(
+  'SpaceLiveDevice',
+  z.object({
+    deviceId: id(),
+    values: z.array(cardValue),
+    setpoints: z.array(cardSetpoint),
+  }),
+);
+
+/**
+ * When one camera of the space last delivered. A camera that has gone quiet is
+ * dimmed like a value is, but against its own `stillIntervalSeconds` rather than
+ * against `VALUE_AGE`, so the instant is answered and the state is not.
+ */
+export const spaceLiveCamera = named(
+  'SpaceLiveCamera',
+  z.object({
+    cameraId: id(),
+    lastStillAt: instant().nullable(),
+  }),
+);
+
+/**
+ * `GET /spaces/{id}/live`: what a space screen polls while it is open. The live
+ * answer of each of its devices, grouped by the space they stand in, the
+ * headline the space itself is drawn with - a tent with two controllers shows
+ * one temperature above and both below - and when each of its cameras last
+ * delivered.
+ *
+ * The values are the shapes the cards already use rather than the per-device
+ * vocabulary of `DeviceLive`, because this is the refresh of a card that is on
+ * the screen and not a device read.
+ */
+export const spaceLive = named(
+  'SpaceLive',
+  z.object({
+    spaceId: id(),
+    values: z.array(cardValue),
+    setpoints: z.array(cardSetpoint),
+    devices: z.array(spaceLiveDevice),
+    cameras: z.array(spaceLiveCamera),
+  }),
+);
+
+/**
+ * One CO2 cylinder: from the diary line that says it went in to the one that
+ * says the next did. The grams are what somebody weighed and wrote down with
+ * the refill (the measurements `co2FillingInitial` and `co2FillingRest`); the
+ * valve's openings are what the devices standing here counted meanwhile.
+ */
+export const co2Cylinder = named(
+  'Co2Cylinder',
+  z.object({
+    since: instant().describe('When it went in.'),
+    until: instant().nullable().describe('When the next one replaced it; null for the cylinder in use.'),
+    filledGrams: z.number().describe('What it held when it went in.'),
+    restGrams: z
+      .number()
+      .nullable()
+      .describe('What was left when it came out: the weight written down, or nothing at all where none was. Null for the cylinder in use.'),
+    openings: z.number().describe('How often the valve opened while it was in.'),
+    openingsPerGram: z.number().nullable().describe('Its own rate; null for the cylinder in use, and where nothing was used.'),
+  }),
+);
+
+/**
+ * `GET /spaces/{id}/co2-report`: what the CO2 cylinders of a place lasted,
+ * newest first, and what the one in use has left - worked out from the
+ * openings it has seen so far at the average rate of the cylinders before it.
+ * Empty where no refill was ever written down here.
+ */
+export const co2Report = named(
+  'Co2Report',
+  z.object({
+    cylinders: z.array(co2Cylinder),
+    openingsPerGram: z.number().nullable().describe('Over every finished cylinder together; null until one has finished.'),
+    restGrams: z.number().nullable().describe('What the cylinder in use has left by that rate; null without a rate or a cylinder.'),
+  }),
+);
+
+/**
+ * What the Timeline tab is asked for. `24h`, `7d` and `30d` are windows ending
+ * at the instant the request names; `phase` and `grow` are stretches of one grow
+ * and so cannot be answered without being told which.
+ */
+export const timelineRange = named('TimelineRange', z.enum(['24h', '7d', '30d', 'phase', 'grow']));
+
+/**
+ * A stretch of the window in which something was so: the light was off, an
+ * output was running. Both ends are inside the window - a stretch still going
+ * when the window ends is closed at its end rather than left open, because the
+ * answer says nothing about what happened afterwards.
+ */
+export const timelineSpan = named('TimelineSpan', z.object({ startsAt: instant(), endsAt: instant() }));
+
+/** What was aimed at in one half of the cycle: the dashed line, and the band drawn around it. */
+export const timelineTarget = named('TimelineTarget', z.object({ setpoint: z.number(), band: targetBand }));
+
+/**
+ * One stretch of the window in which the same targets applied.
+ *
+ * The band moves wherever what the controller aimed at moved: the server keeps
+ * a record of every change of its targets, and a phase keeps the targets that
+ * were running when it began for the stretch older than that record. So a
+ * window spanning two phases, or a preset applied in the middle of one, carries
+ * two of these rather than one average, and the last of them is what the
+ * controller is aiming at now.
+ */
+export const timelineTargets = named(
+  'TimelineTargets',
+  z.object({
+    startsAt: instant(),
+    endsAt: instant(),
+    phaseId: id().nullable().describe('The phase of the grow the stretch falls in; null where no grow stood here.'),
+    stage: growthStage.nullable(),
+    day: timelineTarget.nullable(),
+    night: timelineTarget.nullable().describe('Null where the metric is not steered in the dark half at all: CO2 is only raised while the light is on.'),
+    held: z
+      .enum(['schedule', 'always_day', 'always_night', 'drying', 'germination'])
+      .optional()
+      .describe(
+        "How the steering device held its targets over the stretch: a day and a night by the light schedule, or one climate round the clock - 24 or 0 hours of light, a drying room, a germination - whose band is `day` for `always_day` and `night` for the rest, drawn through the whole stretch, nights or not. Absent where nothing says (an older record): read as `schedule`.",
+      ),
+    settling: z
+      .boolean()
+      .optional()
+      .describe(
+        'The hour after somebody changed the targets or the work mode: each band reaches over what was aimed at just before the change too, so a fridge still on its way from the old figures to the new ones is not out of band.',
+      ),
+  }),
+);
+
+/**
+ * One stacked panel: a metric over the window, with the targets that applied
+ * across it. A metric nothing in the space measured has no panel at all rather
+ * than a panel of nulls, which is what "the CO2 panel only when there is a
+ * sensor" means.
+ */
+export const timelinePanel = named(
+  'TimelinePanel',
+  z.object({
+    metric: metric,
+    points: z.array(seriesPoint),
+    targets: z.array(timelineTargets).describe('In order, each ending where the next begins; empty where nothing held a target over the window.'),
+  }),
+);
+
+/**
+ * How hard an output was driven while it ran, window by window, for an output
+ * the device drives at a level rather than only on and off: a dimmed lamp, a
+ * fan's speed, the heater's demand, and the CO2 valve's dosing.
+ *
+ * `percent` is the share of full output, averaged over the stretches of each
+ * window the output ran in - so a lamp dimmed to 60 % reads 60 % however many
+ * hours of the window it was dark, and the lane's spans say when it was. `count`
+ * is the CO2 valve: what the device counted while the valve was open, summed
+ * over each window, which is how much was dosed there and not a share of
+ * anything. A window the output did not run in has no point.
+ */
+export const timelineOutputLevel = named(
+  'TimelineOutputLevel',
+  z.object({
+    unit: z.enum(['percent', 'count']),
+    points: z.array(seriesPoint).describe('Stamped like the climate points: each closes the window it stands for.'),
+  }),
+);
+
+/** One output over the window, as the lanes under the panels draw it: when it was on, and on the charts how hard it ran. */
+export const timelineOutputLane = named(
+  'TimelineOutputLane',
+  z.object({
+    output: outputMetric,
+    deviceId: id()
+      .nullable()
+      .describe(
+        'Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.',
+      ),
+    spans: z.array(timelineSpan),
+    heardUntil: instant().describe(
+      'How far anything is known about this output: the last instant the device was heard from inside the window, or the window\'s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.',
+    ),
+    fridge: z
+      .literal(true)
+      .optional()
+      .describe(
+        'Set where a fridge module drives the output, whose dehumidifier output is the compressor that cools and dries at once and is called that. Told to a link too, which is not told the device: the name of a lane is not the hardware behind it.',
+      ),
+    level: timelineOutputLevel
+      .optional()
+      .describe('Only on a charts read, and only for an output the device drives at a level; absent where the output is a switch and nothing more.'),
+  }),
+);
+
+/**
+ * One alarm as a span of the window. `endedAt` is null for an alert that is
+ * still open - it has not ended, and closing it at the edge of the window would
+ * say it had.
+ */
+export const timelineAlarm = named(
+  'TimelineAlarm',
+  z.object({
+    alertId: id(),
+    kind: alertKind,
+    severity: severity,
+    metric: metric
+      .nullable()
+      .describe('The reading the rule watched; null for an alert the health loop raised without one, or one from a rule watching an output.'),
+    startedAt: instant(),
+    endedAt: instant().nullable(),
+    value: z.number().nullable(),
+    extremeValue: z.number().nullable(),
+  }),
+);
+
+/**
+ * How many of the machines' own lines the rail was given, and how many the
+ * window actually held.
+ *
+ * They differ where the net over a device's own log and the plan's bookkeeping
+ * cut a long window - a grow of four months in a chatty tent holds thousands of
+ * them - and the two numbers exist so that the rail can say so. A screen that
+ * only got the first would draw four months with no machine mark on them and
+ * nothing to say why.
+ */
+export const timelineMachineEvents = named(
+  'TimelineMachineEvents',
+  z.object({
+    shown: z.number().int().describe("How many are in `events`. Zero on a shared or public read, whose rail is the grow's diary and never a device's diagnostics."),
+    total: z.number().int().describe('How many the window held. Equal to `shown` wherever the net did not bite, which is every short window.'),
+  }),
+);
+
+/** One grow that has stood in this space, so a rail can be pointed at one that has since ended. */
+export const timelineGrow = named(
+  'TimelineGrow',
+  z.object({
+    growId: id(),
+    name: z.string(),
+    startedAt: instant(),
+    endedAt: instant().nullable(),
+  }),
+);
+
+/** One camera of the space over the window, thinned to what the slider above the panels steps through. */
+export const timelineCamera = named(
+  'TimelineCamera',
+  z.object({
+    cameraId: id(),
+    name: z.string(),
+    frames: z.array(cameraStill).describe('Oldest first, at most one per step, so the still above the panels is a lookup rather than a request per position.'),
+  }),
+);
+
+/**
+ * `GET /spaces/{id}/timeline`, the whole Timeline tab in one answer: the frames
+ * the slider steps through, a panel per metric with the bands that applied, the
+ * night worked out from the light rather than from a clock, the alarms, the
+ * output lanes and the event rail.
+ *
+ * It is one answer per range rather than six requests stitched together,
+ * because every part of it is a view of the same window and a screen that
+ * assembled them would draw parts of six different ones.
+ *
+ * A space with no controller answers the frames and the rail and nothing else:
+ * `panels` is then empty, the way a week card of a grow with no controller
+ * carries no climate. Nothing here is written to - the rail carries lines to
+ * open and never a task to tick off - so a read-only link is served the same
+ * answer as its owner, clamped to its window.
+ */
+export const spaceTimeline = named(
+  'SpaceTimeline',
+  z.object({
+    spaceId: id(),
+    name: z.string(),
+    kind: spaceKind,
+    range: timelineRange,
+    growId: id().nullable().describe('The grow the bands and the day counter are of; null in a space nothing grows in.'),
+    dayFrom: z.number().int().nullable().describe('The grow\'s own day counter at each end of the window, which is the "day 33–34" beside the range chips.'),
+    dayTo: z.number().int().nullable(),
+    startsAt: instant(),
+    endsAt: instant(),
+    stepSeconds: z.number().int().describe('The window each point summarises; 0 in a space with no device to read, where there are no points at all.'),
+    deviceIds: z.array(id()).nullable().describe('Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.'),
+    panels: z.array(timelinePanel),
+    lastReadingAt: instant()
+      .nullable()
+      .describe(
+        'When a device standing here last measured one of the panels\' metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves.',
+      ),
+    nights: z
+      .array(timelineSpan)
+      .describe(
+        "When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor.",
+      ),
+    transitions: z
+      .array(timelineSpan)
+      .optional()
+      .describe(
+        'When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.',
+      ),
+    alarms: z.array(timelineAlarm),
+    outputs: z.array(timelineOutputLane),
+    events: z.array(entry).describe('The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.'),
+    machineEvents: timelineMachineEvents,
+    grows: z
+      .array(timelineGrow)
+      .describe(
+        'Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the rail is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.',
+      ),
+    readingNames: z
+      .array(growReadingNames)
+      .describe(
+        'What the grows those lines belong to call their measurements, so a reading is named rather than keyed. On a read through a link, only the grows that stood here inside its window.',
+      ),
+    cameras: z.array(timelineCamera),
+    people: z.array(person).describe('Everyone the rail names, so a mark can say who wrote it without another read.'),
+  }),
+);
+
+/**
+ * One metric aggregated over a stretch of a grow, which is one time-series query
+ * per stretch and controller.
+ *
+ * Day and night are the controller's own cycle rather than hours of the clock:
+ * they are told apart by its light output, so a device that drives no light -
+ * a fridge drying, a tent lit from a socket nobody told the server about -
+ * answers `averageValue` and neither half.
+ */
+export const weekClimate = named(
+  'WeekClimate',
+  z.object({
+    metric: metric,
+    minValue: z.number().nullable(),
+    maxValue: z.number().nullable(),
+    averageValue: z.number().nullable(),
+    dayAverage: z.number().nullable().describe('The mean over the windows in which the light was on.'),
+    nightAverage: z.number().nullable(),
+  }),
+);
+
+/**
+ * One of the seven thumbnails a week card is drawn with: the still taken
+ * nearest a fixed hour of that day, so the strip reads as one picture a day
+ * rather than as whatever the camera last sent. Null where no camera was
+ * watching, which is what leaves a slot empty.
+ */
+export const growWeekDay = named(
+  'GrowWeekDay',
+  z.object({
+    dayNumber: z.number().int(),
+    startsAt: instant(),
+    stage: growthStage
+      .nullable()
+      .describe(
+        'The stage the grow entered on this day, where it entered one; null on a day it carried on in the stage before. A week is named after the stage it ended in, so this is the only place a card records a stage that began and was over inside it.',
+      ),
+    mediaId: id().nullable(),
+    cameraId: id().nullable(),
+    capturedAt: instant().nullable(),
+  }),
+);
+
+/**
+ * What the scheme says to feed this week, and how many feeds the week is
+ * supposed to have. `amounts` is the grid's row for this week with the grow's
+ * own strength already applied, so nobody multiplies it twice; how many of them
+ * were done is the card's `feedCount`.
+ *
+ * No screen has a control for the rhythm, so `plannedCount` is read from the
+ * grow's feed reminder, else its water reminder, else three.
+ */
+export const growWeekFeeding = named(
+  'GrowWeekFeeding',
+  z.object({
+    amounts: z.array(schemeAmount),
+    plannedCount: z.number().int(),
+  }),
+);
+
+/**
+ * Where one of the grow's own measurements stood at the end of the week, and by
+ * how much it moved - "Height · 58 cm · +6". `change` is against the newest
+ * reading before this week began and is null when there was none.
+ *
+ * `key` names a definition in the grow's `measurements[]`, which is where its
+ * name, its unit and its target are; nothing about the measurement is copied
+ * onto the reading.
+ */
+export const growWeekReading = named(
+  'GrowWeekReading',
+  z.object({
+    key: z.string(),
+    value: z.number(),
+    change: z.number().nullable(),
+    measuredAt: instant(),
+  }),
+);
+
+/**
+ * A week of a grow, which is what the grow page is made of. `weekNumber` counts
+ * from the grow's origin, like the day counter, so it lines up with the feeding
+ * scheme's grid, and `dayFrom`/`dayTo` are the same count in days - always
+ * seven of them, because "day 29-35" is what the week is of; `endsAt` is where
+ * the week stops, which for the week a grow is in is now.
+ *
+ * `stageWeek` is which week of the current stage this is, so "Flower wk 2" can
+ * be drawn from the card alone: the public page carries these cards without the
+ * grow's phases beside them.
+ */
+export const growWeekCard = named(
+  'GrowWeekCard',
+  z.object({
+    weekNumber: z.number().int(),
+    dayFrom: z.number().int(),
+    dayTo: z.number().int(),
+    startsAt: instant(),
+    endsAt: instant(),
+    stage: growthStage.nullable(),
+    preset: z.string().nullable(),
+    stageWeek: z.number().int().nullable().describe('1 in the week the stage began; null before the first phase.'),
+    deviceIds: z
+      .array(id())
+      .nullable()
+      .describe(
+        'The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes; null on a shared or public read, where the averages are the diary and the hardware behind them is not.',
+      ),
+    climate: z.array(weekClimate),
+    lightHours: z.number().nullable().describe('Hours of light per day over the week, from the controller’s light output.'),
+    days: z.array(growWeekDay).describe('Seven; a day that has not happened yet carries no picture.'),
+    feeding: growWeekFeeding.nullable().describe('Null for a grow that is fed no scheme.'),
+    readings: z.array(growWeekReading),
+    waterCount: z.number().int(),
+    feedCount: z.number().int(),
+    entries: z.array(entry).describe('The week’s diary lines, newest first, capped; `entryCount` is how many there are.'),
+    entryCount: z.number().int(),
+    timelapseMediaId: id().nullable(),
+  }),
+);
+
+/**
+ * The week cards, page by page, with everyone they name. A page carries
+ * `people` for the same reason the home answer does - a card says who watered -
+ * and one Mongo read answers it for the whole page.
+ */
+export const growWeekCardPage = named('GrowWeekCardPage', page(growWeekCard).extend({ people: z.array(person) }));
+
+/**
+ * One stretch of the grow at one stage, as the report tells its story: a
+ * chapter with its cover, its day range, how it was kept and what was done to
+ * the plants in it.
+ */
+export const growReportPhase = named(
+  'GrowReportPhase',
+  z.object({
+    phaseId: id(),
+    stage: growthStage,
+    preset: z.string().nullable(),
+    startedAt: instant(),
+    endedAt: instant().nullable(),
+    dayFrom: z.number().int(),
+    dayTo: z.number().int().nullable().describe('Null while the phase is the one the grow is in, which is what "→ today" says.'),
+    dayCount: z.number().int(),
+    spaceIds: z
+      .array(id())
+      .nullable()
+      .describe('Where the plants stood during it, in the order they arrived; null on a shared or public read, which is told the story and not the address.'),
+    coverMediaId: id().nullable().describe('The still nearest the middle of the phase, which is the chapter’s picture.'),
+    climate: z.array(weekClimate),
+    lightHours: z
+      .number()
+      .nullable()
+      .describe(
+        'Hours of light per day over the phase, from the controller’s light output, as a week card states it for its own seven days; null over a stretch too short or too quiet to say.',
+      ),
+    inBandPercent: z
+      .number()
+      .nullable()
+      .describe('The share of the phase in which every metric with a target sat inside `TARGET_BAND`; null where nothing held a target.'),
+    waterCount: z.number().int(),
+    feedCount: z.number().int(),
+    training: z.array(entry).describe('What was done to the plants in this phase, oldest first - "topped d18 · LST d20".'),
+  }),
+);
+
+/** Stripped from every shared view when the owner hides weights, which is what `null` says here. */
+export const growHarvest = named(
+  'GrowHarvest',
+  z.object({
+    harvestedAt: instant().nullable(),
+    wetWeightG: z.number().nullable(),
+    dryWeightG: z.number().nullable(),
+  }),
+);
+
+export const growTotals = named(
+  'GrowTotals',
+  z.object({
+    entryCount: z.number().int(),
+    waterCount: z.number().int(),
+    feedCount: z.number().int(),
+    photoCount: z.number().int().describe('Pictures the diary’s lines point at, of whatever kind those lines are; a diary kept before there was a photo tile carries them on its notes.'),
+  }),
+);
+
+/**
+ * `GET /grows/{id}/report`, the Report tab: the grow told as chapters, one per
+ * phase.
+ *
+ * It carries no week cards. The Report tab sits beside the Weeks tab, which
+ * reads `GET /grows/{id}/weeks`, and a week costs a time-series query per
+ * controller - a report that repeated them would make opening the second tab
+ * cost the first one twice over. The public page, which shows both, is a read
+ * model of its own and assembles them once.
+ */
+export const growReport = named(
+  'GrowReport',
+  z.object({
+    growId: id(),
+    name: z.string(),
+    description: z.string().nullable(),
+    type: growType,
+    startedAt: instant(),
+    endedAt: instant().nullable(),
+    dayCount: z.number().int(),
+    plantCount: z.number().int().nullable(),
+    strains: z.array(z.string()),
+    coverMediaId: id().nullable(),
+    filmMediaId: id().nullable(),
+    phases: z.array(growReportPhase).describe('Newest first, which is the order the chapters are read in.'),
+    harvest: growHarvest.nullable(),
+    totals: growTotals,
+    people: z.array(person).describe('Everyone the chapters name, so an entry can say who wrote it without another read.'),
+  }),
+);
+
+/** A place a grow on "My grows" stands in, or stood in last, by the name it has. */
+export const myGrowPlace = named(
+  'MyGrowPlace',
+  z.object({
+    spaceId: id().nullable().describe('Null is “no fixed place”.'),
+    name: z.string().nullable().describe('The place’s name, a removed place’s included; null for no fixed place.'),
+  }),
+);
+
+/** One strain of a grow and how many plants of it were sown. */
+export const strainCount = named(
+  'StrainCount',
+  z.object({
+    strain: z.string(),
+    count: z.number().int().nullable().describe('Null where the owner hides counts.'),
+  }),
+);
+
+/**
+ * One grow as "My grows" draws it: running or finished, the account's own or
+ * one standing in a place somebody let the account into.
+ *
+ * Its picture is worked out here, because the rule for it needs reads a list
+ * of grows would otherwise make once per card: the grow's own cover where one
+ * was chosen, else the newest picture a camera took with the light on while
+ * the grow stood in front of it, else the newest photo written into its diary.
+ * A camera that never saw the tent lit gives no picture: a dark frame reads as
+ * one that failed to load.
+ */
+export const myGrowCard = named(
+  'MyGrowCard',
+  z.object({
+    growId: id(),
+    name: z.string(),
+    type: growType,
+    startedAt: instant(),
+    endedAt: instant().nullable(),
+    dayNumber: z.number().int().nullable().describe('The day the grow is on, or for a finished grow the day it ended on, which is how long it ran.'),
+    stage: growthStage.nullable(),
+    stageWeek: z.number().int().nullable().describe('Which week of its stage the grow is in, as its own page states it.'),
+    places: z
+      .array(myGrowPlace)
+      .describe('Where the plants stand now; for a grow whose placements are all closed, the place it stood in last. A place that is gone altogether, not even kept as a tombstone, is left out.'),
+    owner: person.nullable().describe('Whose grow it is, where it is not the reader’s own; null for the reader’s own grows.'),
+    plantCount: z.number().int().nullable().describe('Null where the owner hides counts.'),
+    strains: z.array(strainCount).describe('Each strain once, in the order it was sown.'),
+    coverMediaId: id().nullable().describe('The picture the card is drawn over; null where the grow has none.'),
+    harvest: growHarvest.nullable().describe('What came down, where a harvest was recorded.'),
+  }),
+);
+
+/**
+ * `GET /home/grows`: every grow the account can see. The running ones come
+ * first, newest first, then the finished ones by the day they ended, newest
+ * first - one order, so a cursor continues it across the two.
+ */
+export const myGrowPage = named('MyGrowPage', page(myGrowCard));
+
+/**
+ * One reading, as a chart draws it. Unlike a climate point, which summarises a
+ * window and is null where the window held nothing, this is the reading itself:
+ * it carries the plant it was taken on and the entry it was written in, so a
+ * point on the chart leads back to what was logged.
+ */
+export const growSeriesPoint = named(
+  'GrowSeriesPoint',
+  z.object({
+    measuredAt: instant(),
+    value: z.number(),
+    plantId: id().nullable().describe('Null for a reading about the grow rather than about one plant.'),
+    entryId: id(),
+  }),
+);
+
+/** Every reading of one of the grow's own measurements, oldest first. */
+export const growMeasurementSeries = named(
+  'GrowMeasurementSeries',
+  z.object({
+    key: z.string().describe('Names one of the grow’s `measurements[]`, which is where its name, its unit and its target are.'),
+    points: z.array(growSeriesPoint),
+  }),
+);
+
+/**
+ * What the Charts view is asked for as a range: the four chips the Timeline tab
+ * already has, and `custom` for two instants somebody picked, which is the one
+ * range no chip can name.
+ */
+export const growSeriesRange = named('GrowSeriesRange', z.enum(['24h', '7d', 'phase', 'grow', 'custom']));
+
+/**
+ * `GET /grows/{id}/series`: every line the Charts view draws over one range, in
+ * one answer, because a screen that asked for them separately would draw
+ * windows that disagree at their edges.
+ *
+ * Three kinds of line, and they are apart here because they are not the same
+ * kind of thing. `climate` and `outputs` are bucketed at `stepSeconds`, which
+ * the range decides, and are the same panels and lanes the Timeline tab draws -
+ * with the same band, so a client draws one the same way in both places.
+ * `measurements` are events somebody wrote down and are answered as they were
+ * taken, at no step at all.
+ *
+ * The third mode of the view - two grows plotted by day rather than by date -
+ * is arithmetic on `originAt`, which is the instant day 1 began: nothing about
+ * the answer changes, and two grows are two reads the client lays over each
+ * other.
+ */
+export const growSeries = named(
+  'GrowSeries',
+  z.object({
+    growId: id(),
+    range: growSeriesRange,
+    startsAt: instant(),
+    endsAt: instant(),
+    stepSeconds: z.number().int().describe('The window each climate and output point summarises; 0 where no device was read at all.'),
+    originAt: instant().describe('The instant day 1 of this grow began, which is what day-of-grow counts from.'),
+    dayFrom: z.number().int().nullable(),
+    dayTo: z.number().int().nullable(),
+    deviceIds: z
+      .array(id())
+      .nullable()
+      .describe(
+        'The devices the climate and the outputs were read from: whatever stood where the grow stood. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.',
+      ),
+    climate: z.array(timelinePanel),
+    lastReadingAt: instant()
+      .nullable()
+      .describe(
+        'When a device standing where this grow stood last measured one of the climate metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `climate` is empty in both. The Timeline of the tent answers the same question the same way. Answered only where `climate` is empty, because that is the one question it settles; null there where nothing standing with the grow has ever measured, and null beside curves that speak for themselves.',
+      ),
+    outputs: z.array(timelineOutputLane),
+    nights: z
+      .array(timelineSpan)
+      .describe(
+        "When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor.",
+      ),
+    transitions: z
+      .array(timelineSpan)
+      .optional()
+      .describe(
+        'When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.',
+      ),
+    measurements: z.array(growMeasurementSeries),
+    cameras: z
+      .array(timelineCamera)
+      .describe(
+        'The cameras of the places the grow stood in, with their stills over the window thinned to a few hundred: the picture at the cursor. Empty for a reader who is not shown cameras.',
+      ),
+  }),
+);
+
+/**
+ * `GET /spaces/{id}/series`: the Charts view of a place, which is how a place
+ * without a grow - and a window no chip of a grow's can name - is charted.
+ *
+ * The same panels, lanes and nights as a grow's answer, read from whatever
+ * stands in the place, over the two instants asked for and at the step asked
+ * for where one is: a day at twenty seconds or three years at a week. What
+ * belongs to a grow alone - its day counter and its own measurements - is not
+ * here.
+ */
+export const spaceSeries = named(
+  'SpaceSeries',
+  z.object({
+    spaceId: id(),
+    startsAt: instant(),
+    endsAt: instant(),
+    stepSeconds: z.number().int().describe('The window each point summarises, as the server settled it; 0 where no device was read at all.'),
+    deviceIds: z
+      .array(id())
+      .nullable()
+      .describe('The devices standing in the place. Null on a shared read: what a reader is shown is the tent, not the hardware in it.'),
+    climate: z.array(timelinePanel),
+    lastReadingAt: instant()
+      .nullable()
+      .describe('When something standing here last measured, answered only where `climate` is empty - as on the grow\'s answer and the Timeline.'),
+    outputs: z.array(timelineOutputLane),
+    nights: z
+      .array(timelineSpan)
+      .describe(
+        "When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor.",
+      ),
+    transitions: z
+      .array(timelineSpan)
+      .optional()
+      .describe(
+        'When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.',
+      ),
+    cameras: z.array(timelineCamera).describe('The cameras of the place with their stills over the window, thinned; empty for a reader who is not shown cameras.'),
+  }),
+);
+
+/** Who a public page is by. A handle, a line of text and a picture - never a real name. */
+export const publicAuthor = named(
+  'PublicAuthor',
+  z.object({
+    handle: z.string(),
+    bio: z.string().nullable(),
+    avatarMediaId: id().nullable(),
+  }),
+);
+
+/**
+ * A public diary, whether it was reached by its slug or through a share link.
+ *
+ * `range` is the window the reader is allowed to see and every week and entry
+ * below is already clamped to it; `includeCameras` says whether camera pictures
+ * were part of it. Harvest weights and plant counts are already stripped when
+ * the owner's privacy settings say so.
+ */
+export const publicGrowPage = named(
+  'PublicGrowPage',
+  z.object({
+    slug: z.string(),
+    growId: id()
+      .nullable()
+      .describe(
+        'The grow itself, which is what a reader follows. Only a diary at its own public address carries it - the same id its author’s profile already lists - and a link onto a diary that is not public carries none, because a link is a window and not a subscription.',
+      ),
+    name: z.string(),
+    description: z.string().nullable(),
+    type: growType,
+    author: publicAuthor,
+    startedAt: instant(),
+    endedAt: instant().nullable(),
+    dayNumber: z.number().int().nullable(),
+    stage: growthStage.nullable(),
+    preset: z.string().nullable(),
+    stageWeek: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        'Which week of the stage above the diary is in, counted against the grow’s own weeks exactly as the week cards below count them - the same figure `summary.stageWeek` answers the owner. It is here because it cannot be worked out from `dayNumber`: that gives the week of the whole grow, which is the week cards’ own heading and a different number entirely once a grow has changed stage. Null where the grow has entered no phase, and, like the day number and the stage, counted up to the end of the reader’s window rather than to today.',
+      ),
+    plantCount: z.number().int().nullable(),
+    strains: z.array(z.string()),
+    coverMediaId: id().nullable(),
+    filmMediaId: id().nullable(),
+    range: timeRange,
+    includeCameras: z.boolean(),
+    weeks: z.array(growWeekCard),
+    weeksCursor: z
+      .string()
+      .nullable()
+      .describe('Pass as `cursor` to the weeks route of the same address for the weeks before these; null where the page holds them all.'),
+    harvest: growHarvest.nullable(),
+    totals: growTotals,
+  }),
+);
+
+/**
+ * The weeks before the ones a public page carried, a page at a time.
+ *
+ * The first page of a long diary comes with the diary itself, because a reader
+ * opens on it; the earlier ones are asked for because each of them costs a
+ * time-series read per week, and a grow that ran a year would otherwise be a
+ * page nobody waits for. It carries no `people`, unlike the owner's own weeks:
+ * a stranger reads a diary by one author and is told nobody's name.
+ */
+export const publicWeekPage = named('PublicWeekPage', page(growWeekCard));
+
+/**
+ * `GET /public/users/{handle}`: the public diaries of one person. A public grow
+ * is drawn the same way wherever it is listed, so these are the cards the home
+ * screen already uses for the grows somebody follows. Nothing else about the
+ * account is public.
+ */
+export const publicUserPage = named(
+  'PublicUserPage',
+  z.object({
+    author: publicAuthor,
+    grows: z.array(followedGrowCard),
+  }),
+);
+
+/** A link onto a grow answers the same page the grow's own public address does. */
+export const sharedGrow = named('SharedGrow', z.object({ type: z.literal('grow'), grow: publicGrowPage }));
+
+/**
+ * A link onto a space answers its tent page, already clamped to the link's range
+ * and stripped for a reader who is neither the owner nor a member - which is
+ * what leaves the tasks and the alerts of such a page empty.
+ */
+export const sharedSpace = named('SharedSpace', z.object({ type: z.literal('space'), space: spaceOverview }));
+
+export const sharedSubject = named('SharedSubject', z.discriminatedUnion('type', [sharedGrow, sharedSpace]));
+
+/**
+ * `GET /shared/{token}`: what the token leads to. Never the `ShareLink` itself -
+ * the token is the reader's only proof, and the link's counters, its owner and
+ * the rest of its settings are none of their business - so this answers the
+ * window the reader is inside and the thing they came to look at.
+ */
+export const sharedResolution = named(
+  'SharedResolution',
+  z.object({
+    kind: shareKind,
+    range: timeRange,
+    includeCameras: z.boolean(),
+    expiresAt: instant().nullable(),
+    subject: sharedSubject,
+  }),
+);
+
+/**
+ * What the small HTML shell puts in its Open Graph tags and what `card.png` is
+ * drawn from, so the two cannot say different things.
+ */
+export const linkCard = named(
+  'LinkCard',
+  z.object({
+    title: z.string(),
+    description: z.string(),
+    pageUrl: z.string(),
+    imageUrl: z.string().describe('Absolute URL of the rendered card, for `og:image`.'),
+    handle: z.string().nullable(),
+    dayNumber: z.number().int().nullable(),
+    stage: growthStage.nullable(),
+  }),
+);

@@ -1,0 +1,49 @@
+/* The pages that are about one place without being its cockpit: Steuerung and
+   who else is let in. One reading column, set against the left edge under the
+   title the way the rest of the app's settings are. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+@media (min-width: 900px) {
+  .reading {
+    max-width: var(--reading-width);
+    padding-top: 0;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  min-width: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  line-height: var(--line-tight);
+}
+
+.titleNote {
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: var(--muted);
+}
+
+/* Whose place it is, where support reads a customer's. */
+.visiting {
+  margin-left: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}

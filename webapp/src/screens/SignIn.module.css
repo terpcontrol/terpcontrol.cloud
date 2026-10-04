@@ -1,0 +1,192 @@
+/* The door into the app: one card on the site's navy spotlight, in both
+   modes - the first thing anybody sees is the company's own first
+   impression, and the card on it is the app's surface as ever. */
+.page {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  background: var(--spotlight);
+  padding: max(var(--space-4), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right))
+    max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 400px;
+  padding: var(--space-6) var(--space-5) var(--space-5);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: var(--shadow-raised);
+}
+
+/* The logo, larger than the rail's: the one place it is the whole of the
+   page's heading. */
+.wordmark {
+  --logo-height: 52px;
+
+  margin-bottom: var(--space-6);
+  line-height: 0;
+  text-align: center;
+}
+
+/* The line above the fields: why this form, in the words of the page that
+   sent somebody here. It takes back part of the logo's margin, which is set
+   for the fields, and keeps a clear 16 px under the logo's tagline. */
+.intro {
+  margin-top: calc(var(--space-4) - var(--space-6));
+  margin-bottom: var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+  text-align: center;
+  color: var(--muted);
+}
+
+/* The one step that may stand between an account and its first sign-in. */
+.step {
+  margin-top: calc(var(--space-4) - var(--space-6));
+  margin-bottom: var(--space-2);
+  text-align: center;
+  font-size: var(--text-md);
+  font-weight: var(--weight-heading);
+  line-height: var(--line-tight);
+}
+
+/* What a step asks for, under its title. */
+.lead {
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+  text-align: center;
+  color: var(--muted);
+}
+
+.fieldLabel {
+  margin-bottom: var(--space-1);
+}
+
+/* "Passwort vergessen?" under the password: a way off the form, quieter than its button. */
+.forgot {
+  align-self: flex-end;
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+/* A link that changes what the card asks rather than where it is. */
+.textLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--brand);
+  font-weight: var(--weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* The agreement a sign-up asks for, beside its box. */
+.agree {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+}
+
+.agree input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--brand);
+}
+
+.agree a {
+  color: var(--brand);
+  font-weight: var(--weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The way through a move from the old cloud, folded until it is asked for. */
+.legacy {
+  width: 100%;
+  max-width: 400px;
+  margin-top: var(--space-4);
+}
+
+.fieldNote {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+}
+
+.fieldLabel:not(:first-of-type) {
+  margin-top: var(--space-3);
+}
+
+.problem {
+  margin-top: var(--space-3);
+}
+
+.submit {
+  margin-top: var(--space-5);
+}
+
+.demo {
+  margin-top: var(--space-2);
+}
+
+.links {
+  margin-top: var(--space-5);
+  font-size: var(--text-sm);
+  text-align: center;
+  color: var(--muted);
+}
+
+.links a {
+  color: var(--brand);
+  font-weight: var(--weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* On a phone the card is the screen's width less the gutter, and a little less
+   padded, so the fields keep a thumb's width. */
+@media (max-width: 480px) {
+  .card {
+    padding: var(--space-5) var(--space-4) var(--space-4);
+  }
+
+  .wordmark {
+    --logo-height: 44px;
+
+    margin-bottom: var(--space-5);
+  }
+
+  .intro,
+  .step {
+    margin-top: calc(var(--space-4) - var(--space-5));
+  }
+}
+
+/* The privacy page: what the app keeps, a line per kind, in the card the sign-up form sits in. */
+.privacyTitle {
+  margin: calc(var(--space-4) - var(--space-6)) 0 var(--space-3);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+}
+
+.kept {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+}

@@ -1,19 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Document, Model } from 'mongoose';
+import { Model } from 'mongoose';
 import { HttpException } from '@common/http-exception';
 import { AuthUserDto, AuthVhostDto, AuthResourceDto, AuthTopicDto } from '@modules/mqtt-auth/mqtt-auth.types';
-import { Device } from '@fg2/shared-types';
 import { isEmpty } from '@utils/util';
 import { logger } from '@utils/logger';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
-import { MODEL } from '../../database/models.module';
+import { MODEL_V1 } from '@database/models';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { MqttClientService } from '../mqtt/mqtt-client.service';
+
+/**
+ * RabbitMQ's authentication backend. What it answers is part of the frozen
+ * device protocol; where it reads the credentials from is not, and that is the
+ * only thing that changed: a device signs in with `devices.mqtt`, which the
+ * contract has no field for and which no read but this one asks for.
+ */
+
+/** A device as the broker's questions need it: who it is, and what it signs in with. */
+type DeviceCredentials = Pick<StoredDevice, 'id' | 'mqtt'>;
 
 @Injectable()
 export class MqttAuthService {
   constructor(
-    @InjectModel(MODEL.device) private readonly devices: Model<Device & Document>,
+    @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     private readonly mqtt: MqttClientService,
   ) {}
 
@@ -26,22 +36,21 @@ export class MqttAuthService {
       return true;
     }
 
-    const findDevice = await this.devices.findOne({ username: authData.username });
-
-    if (!findDevice) {
-      logger.info(`mqtt-auth: device not found: ${authData.username}`);
+    const device = await this.findDevice(authData.username);
+    if (!device?.mqtt) {
       return false;
     }
 
-    const { matches, legacy } = await verifyDevicePassword(authData.password, findDevice.password);
+    const { matches, legacy } = await verifyDevicePassword(authData.password, device.mqtt.passwordHash);
     if (!matches) {
       return false;
     }
 
-    // Migrate legacy plaintext records to a hash once they authenticate successfully.
+    // Records that were plaintext before hashing was introduced are migrated to
+    // a hash the first time they authenticate successfully.
     if (legacy) {
-      const hashed = await hashDevicePassword(authData.password);
-      await this.devices.updateOne({ username: findDevice.username, password: findDevice.password }, { $set: { password: hashed } });
+      const passwordHash = await hashDevicePassword(authData.password);
+      await this.devices.updateOne({ id: device.id }, { $set: { 'mqtt.passwordHash': passwordHash } });
     }
 
     return true;
@@ -56,14 +65,7 @@ export class MqttAuthService {
       return true;
     }
 
-    const findDevice = await this.devices.findOne({ username: authData.username });
-
-    if (!findDevice) {
-      logger.info(`mqtt-auth: device not found: ${authData.username}`);
-      return false;
-    }
-
-    return authData.vhost === '/';
+    return (await this.findDevice(authData.username)) !== null && authData.vhost === '/';
   }
 
   public async topic(authData: AuthTopicDto): Promise<boolean> {
@@ -75,10 +77,9 @@ export class MqttAuthService {
       return true;
     }
 
-    const findDevice = await this.devices.findOne({ username: authData.username });
+    const device = await this.findDevice(authData.username);
 
-    if (!findDevice) {
-      logger.info(`mqtt-auth: device not found: ${authData.username}`);
+    if (!device) {
       return false;
     }
     if (authData.resource !== 'topic') {
@@ -87,7 +88,7 @@ export class MqttAuthService {
     if (authData.name !== 'amq.topic') {
       return false;
     }
-    if (!authData.routing_key.startsWith(`.devices.${findDevice.device_id}.`)) {
+    if (!authData.routing_key.startsWith(`.devices.${device.id}.`)) {
       logger.info(`mqtt-auth: routing key not allowed: ${authData.routing_key}`);
       throw new HttpException(403, 'access denied');
     }
@@ -104,10 +105,7 @@ export class MqttAuthService {
       return true;
     }
 
-    const findDevice = await this.devices.findOne({ username: authData.username });
-
-    if (!findDevice) {
-      logger.info(`mqtt-auth: device not found: ${authData.username}`);
+    if (!(await this.findDevice(authData.username))) {
       return false;
     }
     if (authData.vhost !== '/') {
@@ -126,6 +124,16 @@ export class MqttAuthService {
     }
 
     return true;
+  }
+
+  /** The credentials are excluded from every other read, so this one asks for them by name. */
+  private async findDevice(username: string): Promise<DeviceCredentials | null> {
+    const device = await this.devices.findOne({ 'mqtt.username': username }).select('id +mqtt').lean<DeviceCredentials>();
+
+    if (!device) {
+      logger.info(`mqtt-auth: device not found: ${username}`);
+    }
+    return device;
   }
 }
 
