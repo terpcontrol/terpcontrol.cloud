@@ -1,0 +1,13 @@
+#!/bin/sh
+# quietly <command> [<argument>...]
+#
+# Runs a step of the image build with its output held in a log, and prints the
+# log in full only if the step fails, then exits with the step's status. The
+# image's counterpart to scripts/quietly.sh, which the build context cannot
+# reach.
+log=$(mktemp)
+"$@" >"$log" 2>&1
+status=$?
+[ "$status" -eq 0 ] || cat "$log"
+rm -f "$log"
+exit "$status"
