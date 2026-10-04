@@ -326,10 +326,11 @@ function Notes({ device, shape, baseline, hasCo2 }: TableProps) {
     ].filter((part): part is string => part !== null);
 
   // What germination gives back to the night, where it is not what germination holds anyway: the
-  // temperature, and the humidity where a humidifier holds one in the dark.
+  // temperature, and the humidity - which comes back whether or not a humidifier holds one in the
+  // dark, and which the night is dehumidified to again afterwards.
   const after = regime === 'germination' ? (device.control?.afterGermination ?? null) : null;
   const before = after?.nightTemperature ?? null;
-  const humidityBefore = shape.humidified ? (after?.nightHumidity ?? null) : null;
+  const humidityBefore = after?.nightHumidity ?? null;
   const backHumidity = humidityBefore !== null && humidityBefore !== draft.nightHumidity ? humidityBefore : null;
   const back = (before !== null && before !== draft.nightTemperature) || backHumidity !== null ? (before ?? draft.nightTemperature) : null;
   const kept =

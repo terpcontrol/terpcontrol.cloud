@@ -497,6 +497,27 @@ describe('the targets page', () => {
     ).toBeInTheDocument();
   });
 
+  /** Germination's 75 % is stored whether or not a humidifier holds it, and the night's own comes back when it ends. */
+  it('names the humidity germination gives back to the night where the humidifier rests too', async () => {
+    draw([
+      device({
+        type: 'fridge',
+        configuration: { ...CONFIGURATION, workmode: 'breed', night: { temperature: 21, humidity: 75 } },
+        control: {
+          running: true,
+          drying: false,
+          mode: 'germination',
+          energySaving: false,
+          germinationChoices: { warnTooHumid: false, humidifierHolds: false },
+          afterGermination: { dayTemperature: null, dayHumidity: null, nightTemperature: 21, nightHumidity: 55, co2: null, lightLimit: null },
+        },
+      }),
+    ]);
+    await screen.findByRole('spinbutton', { name: 'Temperature while germinating' });
+
+    expect(screen.getByText('Where germination ends without a new climate, the night from before holds again: 21 °C · 55 %.')).toBeInTheDocument();
+  });
+
   /**
    * Germination is a climate among the chips and a mode of the device at once:
    * its chip moves the one figure germination holds and says the device goes

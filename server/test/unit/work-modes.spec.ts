@@ -563,6 +563,38 @@ describe('every other way a document is written', () => {
     expect(after.beforeGermination).toBeNull();
   });
 
+  /**
+   * The drying chip under Steuerung ends germination with the save. What the
+   * spell puts aside for afterwards is the night from before germination, not
+   * germination's 75 %, which "after the drying" announced and the standard
+   * mode would have dehumidified to.
+   */
+  it('keeps the night from before germination for after a drying spell begun out of it, and lets germination go', async () => {
+    await device();
+    await configuration.configure(DEVICE, { mode: 'germination' }, OWNER);
+    expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { temperature: 20, humidity: 75 } });
+
+    const drying = { day: { temperature: 18, humidity: 58 }, night: { temperature: 18, humidity: 58 }, co2: { target: 400 }, lights: { limit: 0 } };
+    await configuration.replace(DEVICE, fridgeDocument({ ...drying, workmode: 'breed' }), OWNER, true, false);
+    const dried = await stored();
+    expect(dried.configuration?.workmode).toBe('dry');
+    expect(dried.beforeGermination).toBeNull();
+    expect(dried.beforeDrying).toMatchObject({ 'night.temperature': 20, 'night.humidity': 55 });
+
+    await configuration.configure(DEVICE, { drying: false }, OWNER);
+    expect((await stored()).configuration).toMatchObject({ workmode: 'small', night: { temperature: 20, humidity: 55 } });
+  });
+
+  it('keeps the memory of germination through a drying spell that goes back to germination', async () => {
+    await device();
+    await configuration.configure(DEVICE, { mode: 'germination' }, OWNER);
+
+    await configuration.configure(DEVICE, { drying: true }, OWNER);
+    const dried = await stored();
+    expect(dried.configuration?.workmode).toBe('dry');
+    expect(dried.beforeGermination).toEqual({ 'night.temperature': 20, 'night.humidity': 55 });
+  });
+
   it('dries for a drying step that carries no figures at all', async () => {
     await device();
 

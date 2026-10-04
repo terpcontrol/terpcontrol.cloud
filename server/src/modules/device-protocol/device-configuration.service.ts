@@ -323,6 +323,16 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     const germinated = device.beforeGermination ?? null;
     const germinates = mode?.workmode === 'breed' && before?.workmode !== 'breed' && germinated === null;
     const backFromGermination = germinated !== null && ['small', 'full', 'temp'].includes(mode?.workmode ?? '');
+    // A drying spell begun out of germination for good - the drying chip, a
+    // drying stage - ends it too. What the spell puts aside to give back is the
+    // night from before germination, not germination's 75 %, which the
+    // standard mode would otherwise dehumidify to after the drying and which
+    // "after the drying" announced; the memory is let go with it, so a later
+    // germination keeps the night again. A spell begun from the device panel
+    // while germinating goes back to germination (its base stays `breed`), and
+    // keeps the memory for then.
+    const driesFromGermination = germinated !== null && dries && !dried && mode?.base !== 'breed';
+    const keptBeforeDrying = driesFromGermination && before ? withFigures(before, Object.entries(germinated)) : before;
     const bringsOwn = (path: string): boolean => intent.kind === 'targets' || (intent.kind === 'climate' && (intent.stated ?? []).includes(path));
     const returned =
       dried && !dries && intent.kind === 'fields'
@@ -377,8 +387,12 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
           scheduleClock: keepsTime(configuration) ? clock : null,
           ...(mode ? { baseWorkmode: mode.base } : {}),
           ...(standard ? { standardWorkmode: standard } : {}),
-          ...(dries && !dried ? { beforeDrying: keptForDrying(before) } : !dries && dried ? { beforeDrying: null } : {}),
-          ...(germinates ? { beforeGermination: keptForGermination(before) } : backFromGermination ? { beforeGermination: null } : {}),
+          ...(dries && !dried ? { beforeDrying: keptForDrying(keptBeforeDrying) } : !dries && dried ? { beforeDrying: null } : {}),
+          ...(germinates
+            ? { beforeGermination: keptForGermination(before) }
+            : backFromGermination || driesFromGermination
+              ? { beforeGermination: null }
+              : {}),
           ...(band.rested !== undefined ? { restedHumidityBand: band.rested } : {}),
           ...(ended
             ? { germinationChoices: GERMINATION_FORGOTTEN.germinationChoices }
