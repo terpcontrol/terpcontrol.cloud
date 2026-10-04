@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'node:http';
 import net from 'node:net';
 import { EventEmitter } from 'node:events';
-import { Cipher, createCipheriv, createDecipheriv, Decipher, randomBytes } from 'node:crypto';
+import { type Cipheriv, createCipheriv, createDecipheriv, type Decipheriv, randomBytes } from 'node:crypto';
 import { Inject, Injectable, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { ConfigType } from '@nestjs/config';
@@ -207,8 +207,8 @@ class RelaySocket extends EventEmitter implements P2PSocket {
   constructor(
     private readonly conn: net.Socket,
     public readonly did: Buffer,
-    decipher: Decipher,
-    private readonly cipher: Cipher,
+    decipher: Decipheriv,
+    private readonly cipher: Cipheriv,
     initial: Buffer,
   ) {
     super();

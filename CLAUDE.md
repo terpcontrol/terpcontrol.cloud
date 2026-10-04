@@ -33,8 +33,8 @@ The project conventions live in [AGENTS.md](AGENTS.md); read those as well.
 
 Worth knowing:
 - `API_URL_EXTERNAL` is compiled into the webapp bundle, so changing it needs `docker compose up --build -d webapp`.
-- Anything host-side (`simulate-device.sh`, `webapp/`, `server/`) needs Node 20.19+; the containers bring their own.
-  The webapp's tests need more: jsdom runs only on Node 22.22+ or 24.15+.
+- Anything host-side (`simulate-device.sh`, `webapp/`, `server/`) needs Node 24, as the containers and CI run; the
+  containers bring their own. The webapp's tests need 24.15 or newer, the first 24 that jsdom runs on.
 - `docker compose down --volumes` throws the databases away and gives you an empty stack again.
 - Serving the UI from the host is still the faster loop: `docker compose up --build -d server rabbitmq mongodb
   influxdb` brings up everything a device and the API need, and `npm start` in `webapp/` then serves the UI on
@@ -57,16 +57,16 @@ none of which need a repo change - the base images are already build arguments:
 ```sh
 mkdir -p /tmp/proxy-ca && cp "$CA_BUNDLE" /tmp/proxy-ca/ca.crt   # e.g. /root/.ccr/ca-bundle.crt
 cat > /tmp/proxy-ca/Dockerfile <<'EOF'
-FROM node:20-alpine
+FROM node:24-alpine
 COPY ca.crt /usr/local/share/ca-certificates/proxy.crt
 RUN cat /usr/local/share/ca-certificates/proxy.crt >> /etc/ssl/certs/ca-certificates.crt
 ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/proxy.crt
 EOF
-docker build -t node:20-alpine-proxyca /tmp/proxy-ca
+docker build -t node:24-alpine-proxyca /tmp/proxy-ca
 
 cat >> .env <<'EOF'
-DOCKER_NODE_SERVER_IMAGE=node:20-alpine-proxyca
-DOCKER_NODE_BUILD_IMAGE=node:20-alpine-proxyca
+DOCKER_NODE_SERVER_IMAGE=node:24-alpine-proxyca
+DOCKER_NODE_BUILD_IMAGE=node:24-alpine-proxyca
 EOF
 ```
 

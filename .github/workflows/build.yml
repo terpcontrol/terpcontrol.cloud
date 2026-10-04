@@ -51,7 +51,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: shared-types/package-lock.json
       # v1.d.ts, openapi-schemas.json and v1-schemas/ are generated from
@@ -81,9 +81,10 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v7
         with:
-          # The tests run in jsdom, whose undici needs Node 22.22+ or 24.15+
-          # (worker_threads.markAsUncloneable); on 20 every test file fails to
-          # load. The bundle itself still builds on the 20 the image uses.
+          # 24, as the image the bundle is built in (docker-compose.yaml:
+          # DOCKER_NODE_BUILD_IMAGE). The tests need 24.15 or newer: jsdom's
+          # undici uses worker_threads.markAsUncloneable, and every test file
+          # fails to load without it.
           node-version: 24
           cache: 'npm'
           cache-dependency-path: webapp/package-lock.json
@@ -116,13 +117,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      # 20, as the container the server ships in runs (docker-compose.yaml:
+      # 24, as the container the server ships in runs (docker-compose.yaml:
       # DOCKER_NODE_SERVER_IMAGE). This used to read a matrix that was never
       # declared, so the job ran on whatever the runner happened to have.
       - name: Use Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
       # The camera pipeline shells out to ffmpeg the way the container does.
@@ -166,7 +167,7 @@ jobs:
           outputs: type=cacheonly
           provenance: false
           build-args: |
-            DOCKER_NODE_SERVER_IMAGE=node:20-alpine
+            DOCKER_NODE_SERVER_IMAGE=node:24-alpine
           cache-from: type=gha,scope=docker-server
           cache-to: type=gha,mode=max,scope=docker-server
 
@@ -184,7 +185,7 @@ jobs:
           outputs: type=cacheonly
           provenance: false
           build-args: |
-            DOCKER_NODE_WEBAPP_IMAGE=node:20-alpine
+            DOCKER_NODE_WEBAPP_IMAGE=node:24-alpine
             DOCKER_NGINX_IMAGE=nginx:1-alpine
             API_URL_EXTERNAL=http://localhost
             CUSTOM_LINKS_HTML=

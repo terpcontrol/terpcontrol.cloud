@@ -13,7 +13,7 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 if ! command -v node > /dev/null; then
-  echo "error: this needs Node 18 or newer on the host." >&2
+  echo "error: this needs Node 24 on the host." >&2
   exit 1
 fi
 

@@ -5,7 +5,7 @@
   "author": "",
   "license": "Apache-2.0",
   "engines": {
-    "node": ">=20.19"
+    "node": ">=24"
   },
   "scripts": {
     "start": "rm -rf dist; npm run build && cross-env NODE_ENV=production node dist/main.js",
@@ -61,7 +61,7 @@
     "@types/bcrypt": "^5.0.0",
     "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^8.5.4",
-    "@types/node": "^20.19.41",
+    "@types/node": "^24.19.1",
     "@types/sharp": "^0.31.1",
     "@types/supertest": "^2.0.11",
     "aedes": "^1.1.1",

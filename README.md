@@ -123,6 +123,8 @@ To remove all data and start fresh:
 
 ## Development
 
+The web app, the server and the shared types below run on the host and need Node.js 24.
+
 ### Frontend
 
 1. `cd webapp/`

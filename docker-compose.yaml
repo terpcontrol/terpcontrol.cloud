@@ -94,7 +94,7 @@ services:
       args:
         API_URL_EXTERNAL: ${API_URL_EXTERNAL}
         DOCKER_NGINX_IMAGE: ${DOCKER_NGINX_IMAGE:-nginx:1-alpine}
-        DOCKER_NODE_WEBAPP_IMAGE: ${DOCKER_NODE_BUILD_IMAGE:-node:20-alpine}
+        DOCKER_NODE_WEBAPP_IMAGE: ${DOCKER_NODE_BUILD_IMAGE:-node:24-alpine}
         CUSTOM_LINKS_HTML: ${CUSTOM_LINKS_HTML:-}
         PRIVACY_URL: ${PRIVACY_URL:-}
     restart: always
@@ -108,7 +108,7 @@ services:
       context: .
       dockerfile: server/Dockerfile
       args:
-        DOCKER_NODE_SERVER_IMAGE: ${DOCKER_NODE_SERVER_IMAGE:-node:20-alpine}
+        DOCKER_NODE_SERVER_IMAGE: ${DOCKER_NODE_SERVER_IMAGE:-node:24-alpine}
     restart: always
     # A cold start is otherwise a race the server loses noisily: it retries, but
     # the first minute of logs is connection errors. `links` only ordered the

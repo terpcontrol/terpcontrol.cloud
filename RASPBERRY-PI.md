@@ -5,7 +5,8 @@
 Running this stack on a Raspberry Pi 3 or older is **not supported** due to the following technical limitations:
 
 ### 1. Architecture (64-bit / ARM64)
-Modern Docker images for **MongoDB** and **InfluxDB** have dropped support for 32-bit (ARMv7) architectures. 
+Modern Docker images for **MongoDB** and **InfluxDB** have dropped support for 32-bit (ARMv7) architectures, and so
+has **Node.js 24**, which the server and the web app are built on.
 * **Issue:** Raspberry Pi 3 often runs on a 32-bit OS, leading to `no matching manifest` errors.
 * **Solution:** A Raspberry Pi 4 (or 5) running **64-bit Raspberry Pi OS** is required for full compatibility.
 
