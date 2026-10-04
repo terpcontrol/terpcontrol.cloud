@@ -90,7 +90,10 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          # The tests run in jsdom, whose undici needs Node 22.22+ or 24.15+
+          # (worker_threads.markAsUncloneable); on 20 every test file fails to
+          # load. The bundle itself still builds on the 20 the image uses.
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: webapp/package-lock.json
       # The contract is linked with `file:`, and node - the compiler as much as
