@@ -3846,8 +3846,8 @@
     "save": "Save",
     "saving": "Saving…",
     "discard": "Discard",
-    "sentAt": "Sent to the controller {{time}}",
-    "sentNote": "The controller acknowledges no setting, so what it is running is not reported back.",
+    "sentAt": "Sent to the device {{time}}",
+    "sentNote": "The device acknowledges no setting, so what it is running is not reported back.",
     "readOnly": "This session may look and not set.",
     "leave": {
       "title": "Targets not saved",

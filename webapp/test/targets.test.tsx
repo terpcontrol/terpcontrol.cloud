@@ -843,8 +843,8 @@ describe('the targets page', () => {
       },
     });
     expect(sent('POST')).toEqual([]);
-    expect(await screen.findByText(/Sent to the controller \d/)).toBeInTheDocument();
-    expect(screen.getByText('The controller acknowledges no setting, so what it is running is not reported back.')).toBeInTheDocument();
+    expect(await screen.findByText(/Sent to the device \d/)).toBeInTheDocument();
+    expect(screen.getByText('The device acknowledges no setting, so what it is running is not reported back.')).toBeInTheDocument();
     expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
   });
 

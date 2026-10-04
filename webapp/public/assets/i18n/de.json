@@ -3854,8 +3854,8 @@
     "save": "Speichern",
     "saving": "Wird gespeichert…",
     "discard": "Verwerfen",
-    "sentAt": "Um {{time}} an den Controller geschickt",
-    "sentNote": "Der Controller bestätigt keine Einstellung; was er wirklich fährt, meldet er nicht zurück.",
+    "sentAt": "Um {{time}} ans Gerät geschickt",
+    "sentNote": "Das Gerät bestätigt keine Einstellung; was es wirklich fährt, meldet es nicht zurück.",
     "readOnly": "Diese Sitzung darf schauen, aber nichts einstellen.",
     "leave": {
       "title": "Zielwerte nicht gespeichert",
