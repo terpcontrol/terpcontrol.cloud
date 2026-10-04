@@ -34,6 +34,7 @@ namespace fg {
 
     struct {
       float target = 300;
+      float night = 0;
     } co2;
 
     struct {
@@ -135,6 +136,9 @@ namespace fg {
     struct {
       bool is_day;
       uint32_t timeofday;
+      // The ceiling the sunrise and sunset ramps put on the main light: 0 at
+      // night, 1 outside the ramps.
+      float light_ramp = 0;
 	  
 	  uint8_t sensor_type = 0; // plug
 

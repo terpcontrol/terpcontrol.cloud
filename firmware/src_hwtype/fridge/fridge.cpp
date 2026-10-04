@@ -302,9 +302,9 @@ namespace fg {
     }
     co2_inject_start = xTaskGetTickCount();
 
-    if(state.is_day) {
+    if(state.is_day || settings.co2.night > 0) {
       if(tickPassed(co2_inject_end)) {
-        if((co2_avg.avg() < settings.co2.target && !isPaused()) && (settings.co2.sunsetOff <= 0 || state.sunset_factor >= 1)) {
+        if((co2_avg.avg() < settings.co2.target && !isPaused()) && (!state.is_day || settings.co2.sunsetOff <= 0 || state.sunset_factor >= 1)) {
           out_co2.set(1);
           co2_valve_close = co2_inject_start + co2_inject_count * CO2_INJECT_DURATION;
           co2_inject_count = co2_inject_count < CO2_INJECT_MAX_COUNT ? co2_inject_count * 2 : co2_inject_count;
@@ -582,6 +582,7 @@ namespace fg {
       loadIfAvaliable(new_settings.daynight.minimalDehumidifierOffTime, doc["daynight"]["minimalDehumidifierOffTime"]);
       loadIfAvaliable(new_settings.co2.target, doc["co2"]["target"]);
       loadIfAvaliable(new_settings.co2.sunsetOff, doc["co2"]["sunsetOff"]);
+      loadIfAvaliable(new_settings.co2.night, doc["co2"]["night"]);
       loadIfAvaliable(new_settings.day.temperature, doc["day"]["temperature"]);
       loadIfAvaliable(new_settings.day.humidity, doc["day"]["humidity"]);
       loadIfAvaliable(new_settings.night.temperature, doc["night"]["temperature"]);
@@ -605,6 +606,7 @@ namespace fg {
     Serial.printf("new_settings.daynight.minimalDehumidifierOffTime: %lu\n\r", new_settings.daynight.minimalDehumidifierOffTime);
     Serial.printf("new_settings.co2.target: %.0f\n\r", new_settings.co2.target);
     Serial.printf("new_settings.co2.sunsetOff: %.0f\n\r", new_settings.co2.sunsetOff);
+    Serial.printf("new_settings.co2.night: %.0f\n\r", new_settings.co2.night);
     Serial.printf("new_settings.day.temperature: %.2f\n\r", new_settings.day.temperature);
     Serial.printf("new_settings.day.humidity: %.0f\n\r", new_settings.day.humidity);
     Serial.printf("new_settings.night.temperature: %.2f\n\r", new_settings.night.temperature);
@@ -633,6 +635,7 @@ namespace fg {
     doc["daynight"]["minimalDehumidifierOffTime"] = settings.daynight.minimalDehumidifierOffTime;
     doc["co2"]["target"] = settings.co2.target;
     doc["co2"]["sunsetOff"] = settings.co2.sunsetOff;
+    doc["co2"]["night"] = settings.co2.night;
     doc["day"]["temperature"] = settings.day.temperature;
     doc["day"]["humidity"] = settings.day.humidity;
     doc["night"]["temperature"] = settings.night.temperature;
@@ -1076,7 +1079,8 @@ namespace fg {
       // the brightness the grower allows. The light sockets follow the output,
       // so they are held with it.
       bool light_forced_on = false;
-      if(wifiLightOutputOverride(light_forced_on)) {
+      const bool light_overridden = wifiLightOutputOverride(light_forced_on);
+      if(light_overridden) {
         state.out_light = light_forced_on ? settings.lights.limit : 0;
         out_light.set(255.0f * (state.out_light / 100.0f));
       }
@@ -1089,7 +1093,13 @@ namespace fg {
       socket_states.dehumidifier_on = state.out_dehumidifier > 0 && settings.workmode != FridgeControllerSettings::MODE_BREED;
       socket_states.heater_on = state.out_heater > 0;
       socket_states.light_on = state.out_light > 0;
-      socket_states.secondary_light_on = state.out_light > 0;
+      // A second light, typically under the canopy, joins the main light in
+      // the middle of its sunrise and leaves in the middle of its sunset, and
+      // stays dark during maintenance so it does not dazzle whoever works on
+      // the plants.
+      socket_states.secondary_light_on = light_overridden
+          ? light_forced_on
+          : state.out_light > 0 && !isPaused() && state.sunrise_factor >= 0.5f && state.sunset_factor >= 0.5f;
       socket_states.co2_on = state.out_co2 > 0;
       socket_states.humidifier_on = humidifierTarget(state.humidity, state.target_humidity,
                                                      settings.daynight.targetHumidityDiff, !controlling);

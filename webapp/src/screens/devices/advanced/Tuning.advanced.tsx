@@ -3,6 +3,7 @@ import { MIN_COMPRESSOR_REST_SECONDS } from '@fg2/shared-types/v1-schemas/config
 import type { Device } from '@fg2/shared-types/v1';
 import { FieldNumber, FieldSwitch } from '@/ui/advanced/Fields';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
+import { hasCo2Sensor } from '@/ui/climate-hardware';
 
 /**
  * What a few growers tune about the hardware itself, and the app had hidden
@@ -46,6 +47,22 @@ function MaintenanceLight({ device, mayManage }: DeviceContext) {
   );
 }
 
+/** Dosing in the dark as well, for roots in deep water culture; drawn only where a CO2 sensor is fitted. */
+function Co2Night({ device, mayManage }: DeviceContext) {
+  const { t } = useTranslation();
+
+  return (
+    <FieldSwitch
+      device={device}
+      name="co2Night"
+      label={t('tuning.co2Night')}
+      help="advanced.co2Night"
+      disabled={!mayManage}
+      note={on => t(on ? 'tuning.co2NightOn' : 'tuning.co2NightOff')}
+    />
+  );
+}
+
 /** The clip fan that moves the leaves, and the inner fans that move the air, at the least they run at. */
 function Fans({ device, mayManage }: DeviceContext) {
   const { t } = useTranslation();
@@ -85,6 +102,13 @@ export const items = [
     Item: LightRamps,
   }),
   advancedItem({ scope: 'device', id: 'maintenance-light', order: 30, shows: ({ device }) => fridge(device), Item: MaintenanceLight }),
+  advancedItem({
+    scope: 'device',
+    id: 'co2-night',
+    order: 35,
+    shows: ({ device }) => (device.type === 'fridge' || device.type === 'controller') && hasDocument(device) && hasCo2Sensor(device),
+    Item: Co2Night,
+  }),
   advancedItem({ scope: 'device', id: 'fans', order: 40, shows: ({ device }) => fridge(device), Item: Fans }),
   advancedItem({ scope: 'device', id: 'compressor-rest', order: 50, shows: ({ device }) => fridge(device), Item: CompressorRest }),
 ];

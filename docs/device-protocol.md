@@ -639,7 +639,8 @@ menu sentinel and never a role):
 | --- | --- |
 | `dehumidifier` | the dehumidifier output, except in `breed`, where nothing dries the air and it stays off |
 | `heater` | the heater output - and off, whatever else would hold it on, while the air is more than 5 °C above its target |
-| `light`, `secondary_light` | the light output |
+| `light` | the light output |
+| `secondary_light` | the light output, but only from the middle of the sunrise ramp to the middle of the sunset ramp, and never during maintenance; an override holds it like `light` |
 | `co2` | the CO2 valve |
 | `humidifier` | the dehumidifier's band read the other way round: on below the target minus `targetHumidityDiff` (never less than 5 points, `HUMIDIFIER_MIN_BAND`), off at the target - and once on, it stays on until the target is reached, without reading the band. In `breed` the target is the night's humidity, which the cloud sets to germination's 75 % (`GERMINATION_HUMIDITY`) whenever it puts a device into `breed`, by whatever way, and puts back afterwards. A grower who rests the humidifier there gets a band of 100 (`HUMIDIFIER_REST_BAND`) and a night humidity of 0 (`HUMIDIFIER_REST_HUMIDITY`) from the cloud, so one that is running stops and none switches on; the cloud stores the night humidity it keeps, reads the 0 back to it when the device uploads, and sends both back once the humidifier may hold again |
 | `exhaust` | the cooling decision the temperature mode, and a fridge's breeding mode, compute; in the standard modes (`small`, `full`) and a controller's `breed` the same rule on its own: on above the target by 0.8 °C, off below 0.3 °C over it |
@@ -728,6 +729,7 @@ does not parse at all resets every setting to its defaults (`controller.cpp:463-
 | `daynight.useLongHumidityAvg` | float, `> 0` = long average | 1.0 |
 | `daynight.minimalDehumidifierOffTime` | uint32, seconds | 240 |
 | `co2.target` | float ppm; forced to 0 without an SCD sensor | 300 |
+| `co2.night` | float, `> 0` = dose in the dark period too | 0 |
 | `day.temperature` / `day.humidity` | float | 25.0 / 60.0 |
 | `night.temperature` / `night.humidity` | float | 25.0 / 60.0 |
 | `lights.sunrise` / `lights.sunset` | float minutes | 15 / 15 |
