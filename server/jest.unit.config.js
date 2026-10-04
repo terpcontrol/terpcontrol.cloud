@@ -7,7 +7,9 @@
  * the specs as ESM instead, which needs `--experimental-vm-modules` on the node
  * that runs jest (`npm run test:unit` sets it) and `jest.unstable_mockModule`
  * rather than `jest.mock`, because an ES module is linked before the spec body
- * runs and can only be replaced ahead of a dynamic import.
+ * runs and can only be replaced ahead of a dynamic import. The script also
+ * turns off node's ExperimentalWarning, which every worker would otherwise
+ * print about the flag it was deliberately given.
  */
 module.exports = {
   testEnvironment: '<rootDir>/test/server-log-environment.mjs',

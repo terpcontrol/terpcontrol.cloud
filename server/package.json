@@ -13,7 +13,7 @@
     "build": "swc src -d dist --source-maps --copy-files",
     "build:tsc": "tsc && tsc-alias",
     "test": "npm run test:unit && npm run test:integration",
-    "test:unit": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.unit.config.js",
+    "test:unit": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --disable-warning=ExperimentalWarning\" jest --config jest.unit.config.js",
     "test:integration": "jest --config jest.integration.config.js",
     "migrate": "npm run build && node dist/migrations/cli.js",
     "migrate:check": "npm run build && node dist/migrations/cli.js --check",
