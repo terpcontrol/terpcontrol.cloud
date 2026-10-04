@@ -356,6 +356,8 @@ describe('the CO2 cylinder at the place', () => {
       mediaIds: [],
       undoUntil: null,
     } as unknown as Entry;
+    // The row reads the account for the zone its time is drawn in.
+    vi.mocked(api.get).mockResolvedValue({ id: 'user-1', handle: 'you' } as never);
     wrap(
       <ul>
         <EntryRow entry={entry} people={[]} now={DateTime.now()} />

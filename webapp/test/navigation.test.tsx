@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AccessNeed, Device, HomeAnswer, HomeSpaceCard, LayoutSeen, Me, SpaceOverview, SpaceTimeline } from '@fg2/shared-types/v1';
+import type { AccessNeed, Device, GrowListItem, HomeAnswer, HomeSpaceCard, LayoutSeen, Me, SpaceOverview, SpaceTimeline } from '@fg2/shared-types/v1';
 import { screens } from '@/app/routes';
 import { AppShell } from '@/app/shell/AppShell';
 import { tabsOf } from '@/app/shell/tabs';
@@ -22,6 +22,9 @@ vi.mock('@/api/session', async importOriginal => {
 
   return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => (who.demo ? ON_THE_DEMO : SIGNED_IN) };
 });
+
+// A chart is a canvas, which jsdom has not got; Verlauf is opened here for its title.
+vi.mock('@/charts/Chart', () => ({ Chart: ({ ariaLabel }: { ariaLabel: string }) => <div role="img" aria-label={ariaLabel} /> }));
 
 /**
  * The navigation around the cockpit, drawn through the real table of addresses
@@ -84,21 +87,63 @@ const overviewOf = (spaceId: string, name: string): SpaceOverview =>
     people: [],
   }) as unknown as SpaceOverview;
 
-const timeline = (spaceId: string): SpaceTimeline =>
-  ({
-    spaceId,
-    range: '24h',
-    startsAt: ago(24 * 60),
-    endsAt: ago(0),
-    stepSeconds: 180,
-    panels: [{ metric: 'temperature', points: [{ measuredAt: ago(60), value: 25 }], targets: [] }],
-    nights: [],
-    alarms: [],
-    outputs: [],
-    events: [],
-    cameras: [],
-    grows: [],
-  }) as unknown as SpaceTimeline;
+const timeline = (spaceId: string, name: string): SpaceTimeline => ({
+  spaceId,
+  name,
+  kind: 'tent',
+  range: '24h',
+  growId: null,
+  dayFrom: null,
+  dayTo: null,
+  startsAt: ago(24 * 60),
+  endsAt: ago(0),
+  stepSeconds: 180,
+  deviceIds: null,
+  panels: [{ metric: 'temperature', points: [{ measuredAt: ago(60), value: 25 }], targets: [] }],
+  lastReadingAt: ago(60),
+  nights: [],
+  alarms: [],
+  outputs: [],
+  events: [],
+  machineEvents: { shown: 0, total: 0 },
+  grows: [],
+  readingNames: [],
+  cameras: [],
+  people: [],
+});
+
+/** The grow a cockpit's grow block opens, standing in the first place. */
+const grow: GrowListItem = {
+  id: 'grow-1',
+  ownerId: 'user-1',
+  name: 'Spring run',
+  description: null,
+  type: 'photoperiod',
+  phases: [],
+  placements: [{ id: 'placement-1', spaceId: 'space-1', startedAt: ago(34 * 24 * 60), endedAt: null, plantIds: null }],
+  scheme: null,
+  measurements: [],
+  visibility: 'private',
+  slug: 'spring-run',
+  coverMediaId: null,
+  filmMediaId: null,
+  startedAt: ago(34 * 24 * 60),
+  endedAt: null,
+  isDemo: false,
+  createdAt: ago(34 * 24 * 60),
+  updatedAt: ago(60),
+  summary: {
+    dayNumber: 35,
+    stage: null,
+    preset: null,
+    phaseDay: null,
+    weekNumber: 5,
+    stageWeek: null,
+    isAuto: false,
+    groups: [],
+    locations: [{ spaceId: 'space-1', plantIds: [] }],
+  },
+};
 
 const meOf = (diary: boolean, layoutSeen: LayoutSeen | null): Me =>
   ({
@@ -148,6 +193,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   }
   if (path === '/me') return json(server.me);
   if (path === '/home') return json(home());
+  if (path === '/grows/grow-1') return json(grow);
   if (path === '/devices') return json({ items: server.places.map(([id]) => device(`device-${id.slice(-1)}`, id)), nextCursor: null });
   if (path === '/cameras')
     return json({ items: Array.from({ length: server.cameras }, (_, index) => ({ id: `cam-${index}`, spaceId: 'space-1' })), nextCursor: null });
@@ -162,10 +208,12 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
       setpoints: { day: { temperature: 25, humidity: 60 }, night: { temperature: 21, humidity: 55 }, active: 'day' },
     });
   }
+  // Nothing steers these devices, which the plan route answers as it does on the server.
+  if (/^\/devices\/[^/]+\/plan$/.test(path)) return json({ status: 404, code: 'plan_not_found', title: 'Not found', detail: '', errors: [] }, 404);
   const space = /^\/spaces\/([^/]+)\/(overview|live|timeline)$/.exec(path);
   if (space) {
     const name = server.places.find(([id]) => id === space[1])?.[1] ?? 'Gone';
-    return json(space[2] === 'timeline' ? timeline(space[1]) : overviewOf(space[1], name));
+    return json(space[2] === 'timeline' ? timeline(space[1], name) : overviewOf(space[1], name));
   }
 
   return json({ items: [], nextCursor: null });
@@ -278,7 +326,7 @@ describe('the bar', () => {
     const router = open('/spaces/space-2');
 
     await waitFor(() => expect(within(bar()).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page'));
-    await router.navigate('/control/alarms?space=space-2');
+    await act(() => router.navigate('/control/alarms?space=space-2'));
     await waitFor(() => expect(within(bar()).getByRole('link', { name: 'Control' })).toHaveAttribute('aria-current', 'page'));
   });
 
@@ -288,8 +336,9 @@ describe('the bar', () => {
     const router = open('/tasks');
 
     await waitFor(() => expect(within(bar()).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page'));
-    await router.navigate('/grows/grow-1');
-    await waitFor(() => expect(within(bar()).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page'));
+    await act(() => router.navigate('/grows/grow-1'));
+    expect(await screen.findByRole('heading', { level: 1, name: /Spring run/ })).toBeInTheDocument();
+    expect(within(bar()).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('keeps Start marked on "My grows", and sends the address the finished grows had there', async () => {

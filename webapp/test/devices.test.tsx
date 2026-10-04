@@ -179,6 +179,9 @@ beforeEach(() => {
   planState.pauseReason = null;
   state.answer = { deviceOnline: true };
   localStorage.clear();
+  // A row reads the account for the zone its times are drawn in; the tests of
+  // the whole tab answer the rest of the wire themselves.
+  vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/me' ? { id: 'user-1', handle: 'you' } : undefined) as never);
 });
 
 describe('the switch on a socket row', () => {

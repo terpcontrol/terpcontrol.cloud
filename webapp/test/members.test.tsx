@@ -583,6 +583,8 @@ describe('an invitation somebody was sent', () => {
     wrapped(
       <Routes>
         <Route path="/join/:code" element={<JoinRoute />} />
+        {/* The place the server answered the acceptance with. */}
+        <Route path="/spaces/space-9" element={<p>Inside the place joined</p>} />
       </Routes>,
       '/join/K7QZ4M2P',
     );
@@ -611,6 +613,7 @@ describe('an invitation somebody was sent', () => {
 
     await waitFor(() => expect(server.wrote).toHaveLength(1));
     expect(server.wrote[0]).toMatchObject({ method: 'POST', path: '/invites/K7QZ4M2P/acceptances' });
+    expect(await screen.findByText('Inside the place joined')).toBeInTheDocument();
   });
 
   it('says what the server said when there is nothing to accept', async () => {
