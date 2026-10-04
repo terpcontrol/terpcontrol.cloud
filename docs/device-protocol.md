@@ -895,9 +895,10 @@ attempts for as long as its budget leaves room for one - a new one is started on
 left, and at least `ATTEMPT_SPACING_MS = 10 s` after the last one began. Each is bounded by the dial-in, `LOGIN_MS =
 15 s` (`LOGIN_SILENT_MS = 10 s` when nothing comes back at all), `TRANSFER_MS = 60 s` and the close, and by what is
 left of the budget: a capture whose relay never opens has asked four times and fails at three minutes. The keyframe
-is then decoded to JPEG, which takes a moment more. The device ends a relay after 2 minutes, or 30 seconds without
-traffic, whatever the cloud does. The hold on a refusing camera lives in the server's memory and ends with a
-restart.
+is then decoded to JPEG, which takes a moment more: decodes have two ffmpeg runs of their own beside the streams'
+eight, so a decode never waits behind stream reads that hang. The device ends a relay after 2 minutes, or 30
+seconds without traffic, whatever the cloud does. The hold on a refusing camera lives in the server's memory and
+ends with a restart.
 
 A standalone Terp Cam has no device to open the relay, so the server has no way to reach one and refuses to
 create one ("coming soon").

@@ -2,13 +2,25 @@ import pLimit from 'p-limit';
 
 /**
  * How many stills ffmpeg makes at once on this server, whatever camera they are
- * of: a stream read over RTSP and a Terp Cam keyframe decoded into a JPEG take
- * their turn from the same ten. ffmpeg is expensive, and a camera that hangs
- * holds its run for 90 s; ten at a time is what the box takes.
+ * of: ten, which is what the box takes - ffmpeg is expensive.
+ *
+ * They are two lanes rather than one queue, because the two kinds of run are
+ * nothing alike. A stream read over RTSP holds its run for up to 90 s on a
+ * camera that hangs; a Terp Cam keyframe decoded into a JPEG takes a moment and
+ * at most 15 s, and comes at the end of a read whose budget the relay has
+ * already spent. In one queue a decode could wait behind ten hanging streams
+ * past the time the app waits for a test picture, and the picture somebody
+ * pressed the button for was stored after the screen had said no answer came.
+ * So the streams have eight runs and the decodes two of their own, which
+ * nothing on the other lane can hold.
  *
  * A Terp Cam's relay is not counted, only its decode: the relay is the device
  * dialling in and the camera sending a keyframe, which can take minutes of
- * waiting and next to no work, and holding a slot through it would leave the
+ * waiting and next to no work, and holding a run through it would leave the
  * streams queued behind cameras that are only slow to answer.
  */
-export const ffmpegSlot = pLimit(10);
+export const STREAM_RUNS = 8;
+export const DECODE_RUNS = 2;
+
+export const streamSlot = pLimit(STREAM_RUNS);
+export const decodeSlot = pLimit(DECODE_RUNS);

@@ -1,7 +1,8 @@
 import { AddressInfo, createServer, Server, Socket } from 'node:net';
 import { jest } from '@jest/globals';
 import { CaptureService } from '@modules/v1/camera/capture.service';
-import { ffmpegSlot } from '@modules/v1/camera/ffmpeg-slots';
+import { STREAM_RUNS, streamSlot } from '@modules/v1/camera/ffmpeg-slots';
+import { TerpCamService } from '@modules/v1/camera/terpcam.service';
 
 /**
  * A stream read in the same three minutes a Terp Cam is: its wait for a turn at
@@ -50,7 +51,7 @@ it('makes no second run with too little of the budget left for one', async () =>
 it('counts the wait for a turn at ffmpeg, and runs nothing once that wait has spent the budget', async () => {
   let release!: () => void;
   const busy = new Promise<void>(resolve => (release = resolve));
-  const others = Array.from({ length: 10 }, () => ffmpegSlot(() => busy));
+  const others = Array.from({ length: STREAM_RUNS }, () => streamSlot(() => busy));
 
   const read = service.readStill(STREAM as never);
   jest.setSystemTime(Date.now() + 175_000);
@@ -59,6 +60,24 @@ it('counts the wait for a turn at ffmpeg, and runs nothing once that wait has sp
 
   await expect(read).rejects.toThrow(/timed out waiting for a turn at ffmpeg: no picture within the 3 minutes/);
   expect(run).not.toHaveBeenCalled();
+});
+
+/**
+ * A Terp Cam's keyframe is decoded once its read has spent the budget on the
+ * relay. Behind streams that hang for their 90 s it waited past the time the
+ * app gives a test picture, and was stored after the screen had given up.
+ */
+it('decodes a keyframe while every stream run is held', async () => {
+  let release!: () => void;
+  const busy = new Promise<void>(resolve => (release = resolve));
+  const streams = Array.from({ length: STREAM_RUNS }, () => streamSlot(() => busy));
+  const stills = new TerpCamService();
+  (stills as unknown as { decode: (h264: Buffer) => Promise<Buffer> }).decode = async () => Buffer.from('jpeg');
+
+  await expect(stills.decodeKeyframeToJpeg(Buffer.from('keyframe'))).resolves.toEqual(Buffer.from('jpeg'));
+
+  release();
+  await Promise.all(streams);
 });
 
 describe('a run that takes too long', () => {

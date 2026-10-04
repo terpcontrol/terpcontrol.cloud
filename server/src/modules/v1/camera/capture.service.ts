@@ -4,7 +4,7 @@ import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { withoutCredentials } from '@common/log-path';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
 import { CameraWithSecret } from './cameras.service';
-import { ffmpegSlot } from './ffmpeg-slots';
+import { streamSlot } from './ffmpeg-slots';
 import { TerpCamDirectService } from './terpcam-direct.service';
 
 /**
@@ -70,7 +70,7 @@ export class CaptureService {
    */
   public readStill(camera: CameraWithSecret): Promise<Buffer> {
     const deadline = Date.now() + CAPTURE_BUDGET_SECONDS * 1000;
-    if (camera.kind === 'rtsp') return ffmpegSlot(() => this.readFromStream(camera, deadline));
+    if (camera.kind === 'rtsp') return streamSlot(() => this.readFromStream(camera, deadline));
     if (!this.terpCamDirect.canReach(camera)) {
       return Promise.reject(new Error('this camera answers to no device that could bridge it to this server'));
     }

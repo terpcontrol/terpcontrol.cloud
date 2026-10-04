@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { execFile } from 'node:child_process';
-import { ffmpegSlot } from './ffmpeg-slots';
+import { decodeSlot } from './ffmpeg-slots';
 
 /**
  * What a Terp Cam still ends in: a raw H.264 keyframe turned into a JPEG.
@@ -21,9 +21,9 @@ const FFMPEG_TIMEOUT_MS = 15_000;
 
 @Injectable()
 export class TerpCamService {
-  /** Decode a single H.264 keyframe (Annex-B elementary stream) to a JPEG buffer, in its turn with every other still. */
+  /** Decode a single H.264 keyframe (Annex-B elementary stream) to a JPEG buffer, in the decodes' own lane rather than behind the streams. */
   public decodeKeyframeToJpeg(h264: Buffer): Promise<Buffer> {
-    return ffmpegSlot(() => this.decode(h264));
+    return decodeSlot(() => this.decode(h264));
   }
 
   private decode(h264: Buffer): Promise<Buffer> {
