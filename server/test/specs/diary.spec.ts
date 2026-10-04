@@ -176,10 +176,7 @@ describe('the timeline', () => {
  */
 describe('writing the diary', () => {
   /** A 2x2 PNG, so that what comes back proves the conversion rather than the passthrough. */
-  const aPicture = Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8//8/AzbAxIAdjEoRlgIAaFcDAx2LUNMAAAAASUVORK5CYII=',
-    'base64',
-  );
+  const aPicture = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR42mP4z8DAAMIM/4EAAB/uBfvxq7p3AAAAAElFTkSuQmCC', 'base64');
 
   it('writes one line and reads it straight back off the timeline', async () => {
     const written = (

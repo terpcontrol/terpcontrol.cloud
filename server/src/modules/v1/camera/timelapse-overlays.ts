@@ -270,10 +270,7 @@ export const composeFrame = async (
   const overlay = layer({ at, width: size.width, height: size.height });
 
   await sharp({ create: { width: size.width, height: size.height, channels: 3, background: '#000000' } })
-    .composite([
-      ...tiles.filter((tile): tile is { input: Buffer; left: number; top: number } => tile !== null),
-      ...(overlay ? [{ input: Buffer.from(overlay), left: 0, top: 0 }] : []),
-    ])
+    .composite([...tiles.filter(tile => tile !== null), ...(overlay ? [{ input: Buffer.from(overlay), left: 0, top: 0 }] : [])])
     .jpeg({ quality: 90 })
     .toFile(path);
 };

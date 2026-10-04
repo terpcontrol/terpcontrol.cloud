@@ -480,10 +480,7 @@ describe('the document', () => {
   });
 
   it('refuses a picture size and a byte range it cannot serve, and says so in the document', async () => {
-    const picture = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8//8/AzbAxIAdjEoRlgIAaFcDAx2LUNMAAAAASUVORK5CYII=',
-      'base64',
-    );
+    const picture = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR42mP4z8DAAMIM/4EAAB/uBfvxq7p3AAAAAElFTkSuQmCC', 'base64');
     const grow = (await owner.client.post('/v1/grows').send({ name: 'Sized', type: 'photoperiod', plants: [] }).expect(201)).body;
     const media = (await owner.client.post('/v1/media').field('kind', 'photo').field('growId', grow.id).attach('file', picture, 'a.png').expect(201))
       .body;
