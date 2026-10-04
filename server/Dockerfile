@@ -1,7 +1,10 @@
+# check=skip=InvalidDefaultArgInFrom
+# The base image is docker-compose.yaml's to choose (DOCKER_NODE_SERVER_IMAGE),
+# and compose always passes one, so the argument has no default here.
 ARG DOCKER_NODE_SERVER_IMAGE
 
 # Common build stage
-FROM ${DOCKER_NODE_SERVER_IMAGE} as common-build-stage
+FROM ${DOCKER_NODE_SERVER_IMAGE} AS common-build-stage
 
 # ttf-dejavu: the offline caption drawn into webcam stills needs a font that
 # fontconfig can find, otherwise the text renders empty. It stays the fallback
@@ -39,7 +42,7 @@ ENV FONTCONFIG_FILE=/app/fonts/fonts.conf
 
 EXPOSE 3000
 
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 # Run as the non-root user shipped with the base image; ensure the app
 # directory and log directory are writable by it.

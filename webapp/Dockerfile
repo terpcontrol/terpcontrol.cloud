@@ -1,3 +1,6 @@
+# check=skip=InvalidDefaultArgInFrom
+# The base images are docker-compose.yaml's to choose, and compose always passes
+# both, so the arguments have no default here.
 ARG DOCKER_NODE_WEBAPP_IMAGE
 ARG DOCKER_NGINX_IMAGE
 
