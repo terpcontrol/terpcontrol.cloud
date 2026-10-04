@@ -37,6 +37,9 @@ else
   FW_MQTT_PORT=${MQTT_PORT_EXTERNAL}
 fi
 
+# The upload goes to API_URL_EXTERNAL, through any reverse proxy in front of the
+# API, as one base64 JSON body per file - more than nginx's default body size
+# (see AUTOMATION_TOKEN in .env.sample).
 for hardware in $HARDWARES; do
   echo "Building firmware for ${hardware}..."
   docker run -i --rm \

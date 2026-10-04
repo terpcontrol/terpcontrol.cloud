@@ -872,9 +872,11 @@ device bridges it and the cloud runs the P2P client itself (`server/src/modules/
    It finds the camera on the LAN and opens the URL as an HTTP upgrade - `GET <path>` with
    `Upgrade: terpcam-relay` and `Connection: Upgrade` - and needs a `101` back. TLS is not verified: everything
    after the response head is enciphered under the key that came over the verified MQTT link. The API's own
-   HTTP server takes the upgrade, so it needs no port of its own. A reverse proxy in front of the API only has to
-   pass it on for `/terpcam/relay`, as it would a WebSocket (the `Upgrade` and `Connection` headers); its default
-   timeouts suffice, because a relay carries traffic throughout and ends within the device's two minutes.
+   HTTP server takes the upgrade, so it needs no port of its own. For the relay, a reverse proxy in front of the
+   API only has to pass it on for `/terpcam/relay`, as it would a WebSocket (the `Upgrade` and `Connection`
+   headers); its default timeouts suffice, because a relay carries traffic throughout and ends within the device's
+   two minutes. (Uploading firmware through the same proxy needs a larger body size than nginx allows by default;
+   `.env.sample` says how much, at `AUTOMATION_TOKEN`.)
 3. Every frame, both ways, is a 2-byte big-endian length and its payload, under AES-128-CTR with a zero counter -
    the key's first 16 bytes for what the device sends, the last 16 for what it receives. The first frame is the
    header: the token in the clear, a NUL, and the camera's 20-byte P2P id, which is the first thing enciphered.
