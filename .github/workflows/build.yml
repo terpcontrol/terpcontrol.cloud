@@ -45,10 +45,13 @@ jobs:
           } | tee -a "$GITHUB_OUTPUT"
 
   # Runs on every pull request, whatever it touches: an advisory is published
-  # against code that did not change. It audits what ships - the server's and
-  # the bundle's dependencies, not the tools that build and test them - and
-  # fails on a high or critical finding, printing npm's report only then. The
-  # lockfiles are all npm audit reads, so nothing is installed.
+  # against code that did not change. It audits what ships and fails on a high
+  # or critical finding, printing npm's report only then. --omit=dev is what
+  # ships: the server image's runtime stage installs the server and
+  # shared-types with it (server/Dockerfile), and the webapp's production
+  # dependencies are what its bundle is built from; the tools that build and
+  # test them ship in neither. The lockfiles are all npm audit reads, so
+  # nothing is installed.
   audit:
     runs-on: ubuntu-latest
     steps:

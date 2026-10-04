@@ -190,9 +190,8 @@ services:
     # account has been seeded, which is what this stack means by ready to serve;
     # /healthz would answer while the server is still no use to anybody. node
     # rather than curl or wget, because node is the one thing the image is
-    # certain to have. The start period covers the first build of the modules,
-    # the wait for mongodb and the migrations, and failures during it do not
-    # count.
+    # certain to have. The start period covers the wait for mongodb and the
+    # migrations, and failures during it do not count.
     healthcheck:
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8081/readyz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 30s

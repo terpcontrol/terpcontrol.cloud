@@ -15,8 +15,8 @@
     "test": "npm run --silent test:unit && npm run --silent test:integration",
     "test:unit": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --disable-warning=ExperimentalWarning\" jest --config jest.unit.config.js",
     "test:integration": "jest --config jest.integration.config.js",
-    "migrate": "npm run build && node dist/migrations/cli.js",
-    "migrate:check": "npm run build && node dist/migrations/cli.js --check",
+    "migrate": "node dist/migrations/cli.js",
+    "migrate:check": "node dist/migrations/cli.js --check",
     "lint": "eslint src/ test/",
     "lint:fix": "npm run lint -- --fix"
   },

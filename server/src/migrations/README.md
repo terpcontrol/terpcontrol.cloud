@@ -129,6 +129,8 @@ is (`ids.ts`), so a repeated run rewrites the same documents rather than making 
 
 ## Running one by hand
 
+The commands run the compiled server in `dist/`, which the image ships; in a checkout, `npm run build` first.
+
 ```sh
 MIGRATION_LOCALE=de npm run migrate      # the same, told what language this install's growers speak
 npm run migrate:check                    # only what a run refuses to start on; writes nothing (same as `--check`)
