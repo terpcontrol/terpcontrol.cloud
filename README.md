@@ -123,7 +123,8 @@ To remove all data and start fresh:
 
 ## Development
 
-The web app, the server and the shared types below run on the host and need Node.js 24.
+The web app, the server and the shared types below run on the host and need Node.js 24.15 or newer, the first 24 the
+web app's tests run on.
 
 ### Frontend
 

@@ -34,7 +34,8 @@ The project conventions live in [AGENTS.md](AGENTS.md); read those as well.
 Worth knowing:
 - `API_URL_EXTERNAL` is compiled into the webapp bundle, so changing it needs `docker compose up --build -d webapp`.
 - Anything host-side (`simulate-device.sh`, `webapp/`, `server/`) needs Node 24, as the containers and CI run; the
-  containers bring their own. The webapp's tests need 24.15 or newer, the first 24 that jsdom runs on.
+  containers bring their own. `webapp/`, `server/` and `shared-types/` declare 24.15 or newer in `engines`: it is the
+  first 24 the webapp's tests load on, because jsdom's undici needs `worker_threads.markAsUncloneable`.
 - `docker compose down --volumes` throws the databases away and gives you an empty stack again.
 - Serving the UI from the host is still the faster loop: `docker compose up --build -d server rabbitmq mongodb
   influxdb` brings up everything a device and the API need, and `npm start` in `webapp/` then serves the UI on
