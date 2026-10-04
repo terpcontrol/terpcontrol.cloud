@@ -42,6 +42,29 @@ jobs:
             echo "garmin=$(touches "garmin/|garmin-buildcontainer/|build-garmin\.sh$|$ci")"
           } | tee -a "$GITHUB_OUTPUT"
 
+  # Runs on every pull request, whatever it touches: an advisory is published
+  # against code that did not change. It audits what ships - the server's and
+  # the bundle's dependencies, not the tools that build and test them - and
+  # fails on a high or critical finding, printing npm's report only then. The
+  # lockfiles are all npm audit reads, so nothing is installed.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Use Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: |
+          status=0
+          for package in shared-types server webapp; do
+            if ! report=$(cd "$package" && npm audit --omit=dev --audit-level=high 2>&1); then
+              printf '%s: npm audit --omit=dev --audit-level=high\n\n%s\n\n' "$package" "$report" >&2
+              status=1
+            fi
+          done
+          exit "$status"
+
   shared-types:
     needs: detect
     if: needs.detect.outputs.shared_types == 'true'
@@ -60,8 +83,8 @@ jobs:
       # the two in step: regenerate, and the tree has to be unchanged.
       #
       # Every npm ci in this workflow skips the funding and audit footers,
-      # which read the same on every run; `npm audit` in a package gives the
-      # audit when it is wanted.
+      # which read the same on every run and count the build and test tools'
+      # advisories with the rest. The audit job checks what ships.
       - run: |
           cd shared-types/
           npm ci --no-audit --no-fund
