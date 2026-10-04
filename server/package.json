@@ -78,7 +78,6 @@
     "lint-staged": "^11.0.0",
     "mongodb-memory-server": "^11.2.0",
     "node-config": "^0.0.2",
-    "node-gyp": "^8.1.0",
     "nodemon": "^2.0.9",
     "prettier": "^3.9.6",
     "smtp-server": "^3.19.3",
