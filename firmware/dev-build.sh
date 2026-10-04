@@ -45,7 +45,11 @@ then
   exit 1;
 fi
 
-pio run -e ${BUILD_TYPE}
+# The libraries are fetched first, on their own, because even a silent run
+# reports every download and unpack; that log is printed only if a fetch fails.
+# Silent still lets every compiler warning and error through.
+PKG_LOG=$(pio pkg install -e ${BUILD_TYPE} 2>&1) || { printf '%s\n' "$PKG_LOG" >&2; exit 1; }
+pio run -s -e ${BUILD_TYPE}
 
 FIRMWARE_BIN=".pio/build/${BUILD_TYPE}/firmware.bin"
 MAX_OTA_FIRMWARE_BINARY_BYTES=$((2 * 1024 * 1024))
@@ -66,7 +70,7 @@ if ! grep -a -F -q "$FW_VERSION_ID" "$FIRMWARE_BIN"; then
   exit 1
 fi
 
-echo "${FW_VERSION_ID}"
+echo "${BUILD_TYPE}: firmware ${FW_VERSION_ID}, ${FIRMWARE_SIZE} bytes ($((FIRMWARE_SIZE * 100 / MAX_OTA_FIRMWARE_BINARY_BYTES))% of the OTA partition)"
 
 if [ -z "$FW_NO_UPLOAD" ]; then
   fgcli.py upload-fw "${FW_VERSION_ID}" firmware.bin .pio/build/${BUILD_TYPE}/firmware.bin

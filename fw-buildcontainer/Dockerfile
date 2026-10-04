@@ -22,9 +22,11 @@ RUN printf '%s\n' \
     > /etc/apt/sources.list \
  && echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
 
-RUN apt update -qq && \
-apt install -y -qq --no-install-recommends software-properties-common gpgv2 && \
-apt install -qq -y --no-install-recommends \
+# dpkg reports every package it unpacks even under -qq, so its stdout is
+# dropped; errors go to stderr and still show.
+RUN apt-get update -qq && \
+apt-get install -y -qq --no-install-recommends software-properties-common gpgv2 >/dev/null && \
+apt-get install -qq -y --no-install-recommends \
 bc \
 bison \
 build-essential \
@@ -42,10 +44,10 @@ srecord \
 unzip \
 wget \
 xz-utils \
-&& apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+>/dev/null && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN python3 -m pip install --upgrade pip setuptools
-RUN python3 -m pip install -U platformio
+RUN python3 -m pip install -q --upgrade pip setuptools
+RUN python3 -m pip install -q -U platformio
 RUN python3 -V
 
 # ESP32 & ESP8266 Arduino Frameworks for Platformio
@@ -53,24 +55,25 @@ RUN python3 -V
 # https://docs.platformio.org/en/latest/core/installation.html#piocore-install-shell-commands
 
 RUN  pio platform install espressif32 \
- && cat /root/.platformio/platforms/espressif32/platform.py \
  && chmod 777 /root/.platformio/platforms/espressif32/platform.py \
- && sed -i 's/~2/>=1/g' /root/.platformio/platforms/espressif32/platform.py \
- && cat /root/.platformio/platforms/espressif32/platform.py
+ && sed -i 's/~2/>=1/g' /root/.platformio/platforms/espressif32/platform.py
 
 # ESP-IDF for projects containing `sdkconfig` or `*platform*espidf*` in platformio.ini
 
 # https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started-legacy/linux-setup.html
 
+# install.sh reports its download progress line by line, thousands of lines;
+# its log is printed only if it fails.
 RUN cd /root \
- && git clone -b ${ESP_IDF_VERSION} --recursive https://github.com/espressif/esp-idf.git \
+ && git -c advice.detachedHead=false clone -q -b ${ESP_IDF_VERSION} --recursive https://github.com/espressif/esp-idf.git \
  && cd ./esp-idf \
- && ./install.sh esp32
+ && { ./install.sh esp32 >/tmp/idf-install.log 2>&1 || { cat /tmp/idf-install.log; exit 1; }; } \
+ && rm /tmp/idf-install.log
 
 ADD platformio.ini /app
 RUN pio pkg install
 
-RUN python3 -m pip install -U typer requests future cryptography
+RUN python3 -m pip install -q -U typer requests future cryptography
 ADD cli.py /usr/bin/fgcli.py
 ADD plantalytix.zpl /usr/share/plantalytix.zpl
 RUN chmod +x /usr/bin/fgcli.py

@@ -2,21 +2,23 @@
 set -e
 
 . "$(dirname "${BASH_SOURCE[0]}")/scripts/load-env.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/scripts/quietly.sh"
 terpcontrol_load_env
 
+echo "Building the firmware build container..."
 if [ -n "$FW_BUILDCONTAINER_CACHE_FROM" ] || [ -n "$FW_BUILDCONTAINER_CACHE_TO" ]; then
   BUILDX_ARGS=""
   [ -n "$FW_BUILDCONTAINER_CACHE_FROM" ] && BUILDX_ARGS="$BUILDX_ARGS --cache-from=$FW_BUILDCONTAINER_CACHE_FROM"
   [ -n "$FW_BUILDCONTAINER_CACHE_TO" ]   && BUILDX_ARGS="$BUILDX_ARGS --cache-to=$FW_BUILDCONTAINER_CACHE_TO"
-  docker buildx build $BUILDX_ARGS --load -t plantalytix-buildcontainer fw-buildcontainer
+  quietly docker buildx build $BUILDX_ARGS --load -t plantalytix-buildcontainer fw-buildcontainer
 else
-  docker build -t plantalytix-buildcontainer fw-buildcontainer
+  quietly docker build -t plantalytix-buildcontainer fw-buildcontainer
 fi
 
 # copy firmware to docker volume (for mac os/windows compatibility)
 docker rm -f fw-temp-container 2>/dev/null 1>&2 || true
 docker volume rm -f fg2_firmware 2>/dev/null 1>&2 || true
-docker run -d --name fw-temp-container -v fg2_firmware:/firmware -e API_URL_EXTERNAL=${API_URL_EXTERNAL} debian sleep 3600
+quietly docker run -d --name fw-temp-container -v fg2_firmware:/firmware -e API_URL_EXTERNAL=${API_URL_EXTERNAL} debian sleep 3600
 docker cp ./firmware/. fw-temp-container:/firmware
 docker exec -i fw-temp-container cp /firmware/src/wifi.cpp /firmware/src/wifi.cpp.tmpl
 docker exec -i fw-temp-container sh -c 'perl -p -e '"'"'s/#API_URL_EXTERNAL#/$ENV{API_URL_EXTERNAL}/g'"'"' /firmware/src/wifi.cpp.tmpl > /firmware/src/wifi.cpp'
