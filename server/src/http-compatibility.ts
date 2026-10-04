@@ -1,6 +1,7 @@
 import { parse as parseQueryString } from 'node:querystring';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { FastifyRequest } from 'fastify';
+import { applyRouteBodyLimits } from '@common/body-limit';
 
 /**
  * Two things Express did for us that Fastify does not, and that clients in the
@@ -31,6 +32,11 @@ export const registerHttpCompatibility = (app: NestFastifyApplication): void => 
  * Registering either one stops Nest registering both of its defaults, so the
  * form-encoded parser has to be set up here as well - RabbitMQ's auth backend
  * posts forms.
+ *
+ * Both keep Fastify's own limit of 1 MiB. A route that takes more says so with
+ * `@BodyLimit`, which reaches the parser through the route rather than through
+ * the parser: Fastify prefers a route's limit to the parser's whenever the
+ * route has one.
  */
 type BufferParser = (request: unknown, body: Buffer, done: (error: Error | null, value?: unknown) => void) => void;
 
@@ -40,6 +46,8 @@ const registerBodyParsers = (app: NestFastifyApplication): void => {
   // request type that also allows HTTP/2, which this deployment never serves,
   // and a buffer, which the parser reads as text either way.
   const parseJson = fastify.getDefaultJsonParser('error', 'error') as unknown as BufferParser;
+
+  applyRouteBodyLimits(fastify);
 
   app.useBodyParser('application/json', { bodyLimit: fastify.initialConfig.bodyLimit }, (request, body: Buffer, done) => {
     if (body.length === 0 || body.toString().trim() === '') {

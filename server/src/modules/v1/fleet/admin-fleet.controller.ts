@@ -28,6 +28,7 @@ import {
   fleet as fleetShape,
 } from '@fg2/shared-types/v1-schemas';
 import { AdminGuard } from '@common/auth/auth.guard';
+import { BodyLimit } from '@common/body-limit';
 import { badRequest } from '@common/v1/problem';
 import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
@@ -44,6 +45,15 @@ import { FleetService, serialiseClass } from './fleet.service';
  */
 
 const firmwareListQuery = pageQuery.extend({ classId: z.string().optional() });
+
+/**
+ * What one file of a build may weigh on the wire. An application image fills
+ * at most its 2 MiB OTA slot (`firmware/fg_partitions.csv`), which is 2.7 MiB
+ * as base64 - already well past the 1 MiB every other route is held to, and a
+ * build of 1.3 MB was refused at it. Sixteen leaves room for a larger slot or a
+ * larger chip without opening the rest of the API.
+ */
+const FIRMWARE_FILE_BODY_BYTES = 16 * 1024 * 1024;
 
 @ApiTags('admin')
 @Controller('v1/admin')
@@ -136,9 +146,12 @@ export class AdminFleetController {
   /**
    * One file of a build, by the name the device asks for it under. The bytes
    * travel base64-encoded, which is what a JSON body can carry; the contract
-   * says so and the device is served the decoded file.
+   * says so and the device is served the decoded file. A multipart body with
+   * the file under `data` works as well, and is held to the upload cap of the
+   * multipart parser rather than to this route's.
    */
   @Put('firmwares/:id/binaries/:name')
+  @BodyLimit(FIRMWARE_FILE_BODY_BYTES)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Upload one of the files that make up a build' })
   @ApiNoContentResponse({ description: 'The file is stored.' })

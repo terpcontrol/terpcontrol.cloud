@@ -1,5 +1,6 @@
+import { randomBytes } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
-import { anonymous, context, createAccount, loginAsAdmin, Session, unique } from '../support/api';
+import { anonymous, ApiClient, context, createAccount, loginAsAdmin, Session, unique } from '../support/api';
 import { provisionDevice, registerDevice } from '../support/device';
 
 /**
@@ -29,8 +30,41 @@ const postChunked = (path: string): Promise<number> =>
     call.end();
   });
 
-/** A registered build with one image in it, which is what OTA downloads. */
-const uploadFirmware = async (image: Buffer): Promise<string> => {
+/**
+ * What a route answers a JSON body of `bytes`, announced the way every client
+ * here sends one: its length up front. Only the first bytes are written. A body
+ * over the limit is refused on that length before any of it is read, and the
+ * connection is closed behind the answer - so a client that went on writing
+ * the rest would as likely be handed a reset as the answer.
+ */
+const answerToABodyOf = (
+  client: ApiClient,
+  method: 'PATCH' | 'POST' | 'PUT',
+  path: string,
+  bytes: number,
+): Promise<{ status: number; body: { code?: string } }> =>
+  new Promise((resolve, reject) => {
+    const url = new URL(path, context.baseUrl);
+    const headers: Record<string, string | number> = { 'content-type': 'application/json', 'content-length': bytes, 'x-forwarded-for': client.ip };
+    if (client.token) headers.authorization = `Bearer ${client.token}`;
+
+    const call = httpRequest({ hostname: url.hostname, port: url.port, path: url.pathname, method, headers }, response => {
+      const chunks: Buffer[] = [];
+      response.on('data', (chunk: Buffer) => chunks.push(chunk));
+      response.on('end', () => {
+        call.destroy();
+        const text = Buffer.concat(chunks).toString();
+        resolve({ status: response.statusCode!, body: text ? JSON.parse(text) : {} });
+      });
+    });
+    // A route that takes the length waits for the rest of the body instead.
+    call.setTimeout(5_000, () => call.destroy(new Error(`${method} ${path} waited for a body of ${bytes} bytes rather than refusing it`)));
+    call.on('error', reject);
+    call.write('{"data":"');
+  });
+
+/** A registered build of the fridge class with nothing in it yet. */
+const registerBuild = async (): Promise<string> => {
   const classes = await admin.client.get('/v1/admin/device-classes').expect(200);
   const fridge = classes.body.items.find((entry: { name: string }) => entry.name === 'fridge');
 
@@ -39,12 +73,19 @@ const uploadFirmware = async (image: Buffer): Promise<string> => {
     .send({ classId: fridge.id, name: 'fridge', version: unique('v') })
     .expect(201);
 
+  return created.body.id;
+};
+
+/** A registered build with one image in it, which is what OTA downloads. */
+const uploadFirmware = async (image: Buffer): Promise<string> => {
+  const firmwareId = await registerBuild();
+
   await admin.client
-    .put(`/v1/admin/firmwares/${created.body.id}/binaries/firmware.bin`)
+    .put(`/v1/admin/firmwares/${firmwareId}/binaries/firmware.bin`)
     .send({ data: image.toString('base64') })
     .expect(204);
 
-  return created.body.id;
+  return firmwareId;
 };
 
 describe('cross-origin access', () => {
@@ -107,19 +148,72 @@ describe('firmware downloads', () => {
   });
 
   it('refuses a file that did not arrive as base64', async () => {
-    const classes = await admin.client.get('/v1/admin/device-classes').expect(200);
-    const fridge = classes.body.items.find((entry: { name: string }) => entry.name === 'fridge');
-    const created = await admin.client
-      .post('/v1/admin/firmwares')
-      .send({ classId: fridge.id, name: 'fridge', version: unique('v') })
-      .expect(201);
+    const firmwareId = await registerBuild();
 
-    const response = await admin.client
-      .put(`/v1/admin/firmwares/${created.body.id}/binaries/firmware.bin`)
-      .send({ data: 'not base64!!' })
-      .expect(400);
+    const response = await admin.client.put(`/v1/admin/firmwares/${firmwareId}/binaries/firmware.bin`).send({ data: 'not base64!!' }).expect(400);
 
     expect(response.body.code).toBe('binary_not_base64');
+  });
+});
+
+describe('how large a body may be', () => {
+  /**
+   * Fastify's own limit is 1 MiB, and base64 makes a file a third larger: a
+   * build of 1.3 MB went over it, and every image the firmware build makes is
+   * up to its 2 MiB OTA slot. Random bytes, so nothing between here and the
+   * store can shrink them on the way.
+   */
+  const image = randomBytes(2_500_000);
+  const OVER_A_MEBIBYTE = 2 * 1024 * 1024;
+
+  it('takes a firmware image of 2.5 MB as the build container uploads it, base64 in JSON', async () => {
+    const firmwareId = await registerBuild();
+
+    // What `fgcli.py upload-fw` sends: requests' `json=`, the file under `data`.
+    await admin.client
+      .put(`/v1/admin/firmwares/${firmwareId}/binaries/firmware.bin`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ data: image.toString('base64') }))
+      .expect(204);
+
+    const response = await anonymous().get(`/device/firmware/${firmwareId}/firmware.bin`).expect(200);
+    expect(response.headers['content-length']).toBe(String(image.length));
+    expect(Buffer.from(response.body).equals(image)).toBe(true);
+  });
+
+  it('takes the same image as a multipart file', async () => {
+    const firmwareId = await registerBuild();
+
+    await admin.client.put(`/v1/admin/firmwares/${firmwareId}/binaries/firmware.bin`).attach('data', image, 'firmware.bin').expect(204);
+
+    const response = await anonymous().get(`/device/firmware/${firmwareId}/firmware.bin`).expect(200);
+    expect(Buffer.from(response.body).equals(image)).toBe(true);
+  });
+
+  it('still refuses a firmware image far beyond any OTA slot', async () => {
+    const firmwareId = await registerBuild();
+
+    // An image of 13 MB is 17.3 MB as base64, over the route's 16 MiB.
+    const answer = await answerToABodyOf(admin.client, 'PUT', `/v1/admin/firmwares/${firmwareId}/binaries/firmware.bin`, 17_300_000);
+
+    expect(answer.status).toBe(413);
+    expect(answer.body.code).toBe('too_large');
+  });
+
+  it('keeps every other route at 1 MiB, the one beside the upload included', async () => {
+    const firmwareId = await registerBuild();
+
+    // The same controller and the same administrator: the limit is the upload
+    // route's own, not the admin API's.
+    const relabel = await answerToABodyOf(admin.client, 'PATCH', `/v1/admin/firmwares/${firmwareId}`, OVER_A_MEBIBYTE);
+    expect(relabel.status).toBe(413);
+    expect(relabel.body.code).toBe('too_large');
+
+    // And a route anybody can reach, which is where a larger limit would be a
+    // larger buffer handed to whoever asks.
+    const login = await answerToABodyOf(anonymous(), 'POST', '/v1/sessions', OVER_A_MEBIBYTE);
+    expect(login.status).toBe(413);
+    expect(login.body.code).toBe('too_large');
   });
 });
 
