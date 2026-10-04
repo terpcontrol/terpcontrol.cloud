@@ -7,7 +7,8 @@ test:unit` / `npm run test:integration`.
 
 A green run prints the totals and nothing else. A failing spec file prints as jest always does, and each failing test
 in it also prints what the server logged while it ran (`server-log-environment.mjs`), so a red run in CI explains
-itself. `--reporters=default` brings back the line per spec file.
+itself. A passing spec file that writes to the console prints too, with what it wrote: that is a complaint to fix,
+not to filter. `--reporters=default` brings back the line per spec file.
 
 ## Integration suite
 
