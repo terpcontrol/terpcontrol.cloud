@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import type { Camera, CameraTransport, CameraUpdate, Device, RtspCameraCreate, Space, SpaceKind } from '@fg2/shared-types/v1';
+import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
 import { useMe } from '@/api/account';
-import { useAmendCamera, useCaptureOnce, useCreateCamera, useDropCamera } from '@/api/cameras';
+import { gaveUp, useAmendCamera, useCaptureOnce, useCreateCamera, useDropCamera } from '@/api/cameras';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { deviceName } from '@/screens/devices/naming';
@@ -277,7 +278,8 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         <TransportRow value={transport} tunnel={pulled} onChange={setTransport} />
       </StreamFold>
 
-      <Refused error={create.error ?? amend.error ?? capture.error ?? drop.error} />
+      {/* This side giving up on the answer is not the server refusing anything, so it is not drawn as a refusal. */}
+      <Refused error={create.error ?? amend.error ?? (gaveUp(capture.error) ? null : capture.error) ?? drop.error} />
 
       {made ? (
         <section className={styles.block} role="status">
@@ -311,6 +313,12 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         </button>
       </div>
 
+      {gaveUp(capture.error) ? (
+        <p className={ui.problem} role="alert">
+          {t('camera.testNoAnswer', { minutes: CAPTURE_BUDGET_SECONDS / 60 })}
+        </p>
+      ) : null}
+
       {capture.data ? (
         <section className={styles.block} role="status">
           {capture.data.still ? (
@@ -319,11 +327,17 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
               <p className={`mono ${styles.shotNote}`}>{t('cameras.add.rtsp.worked', { age: ageLabel(capture.data.still.capturedAt, now) })}</p>
             </>
           ) : (
-            <p className={ui.problem} role="alert">
-              {t('cameras.add.rtsp.failed', {
-                reason: capture.data.error ?? (capture.data.reason ? t(`camera.failure.${capture.data.reason}`) : t('cameras.add.rtsp.noReason')),
-              })}
-            </p>
+            <>
+              <p className={ui.problem} role="alert">
+                {t('cameras.add.rtsp.failed', { reason: t(`camera.failure.${capture.data.reason ?? 'unknown'}`) })}
+              </p>
+              {capture.data.error ? (
+                <details className={styles.said}>
+                  <summary className="mono">{t('camera.whatItSaid')}</summary>
+                  <p className="mono">{capture.data.error}</p>
+                </details>
+              ) : null}
+            </>
           )}
         </section>
       ) : null}

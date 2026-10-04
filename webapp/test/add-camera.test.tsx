@@ -8,6 +8,7 @@ import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Device, Me } from '@fg2/shared-types/v1';
+import { CAPTURE_POLL_MS, CAPTURE_WAIT_MS } from '@/api/cameras';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { AddCamera } from '@/screens/camera/add/AddCamera';
@@ -111,21 +112,23 @@ const answers = (path: string) => {
   throw new Error(`nothing mocked for ${path}`);
 };
 
+/** Already over, which a capture the server could not even start - a refused stream - can be as it answers. */
+const refusedStream = {
+  id: 'capture-1',
+  cameraId: 'camera-rtsp',
+  state: 'failed',
+  startedAt: '2026-09-23T12:00:00.000Z',
+  finishedAt: '2026-09-23T12:00:00.000Z',
+  still: null,
+  reason: 'noAnswer',
+  error: 'Connection refused',
+};
+
 const posts = (path: string) => {
   if (path === '/cameras') return madeRtsp;
   if (path === '/spaces') return madeSpace;
 
-  // Already over, which a capture the server could not even start - a refused stream - can be as it answers.
-  return {
-    id: 'capture-1',
-    cameraId: 'camera-rtsp',
-    state: 'failed',
-    startedAt: '2026-09-23T12:00:00.000Z',
-    finishedAt: '2026-09-23T12:00:00.000Z',
-    still: null,
-    reason: 'noAnswer',
-    error: 'Connection refused',
-  };
+  return refusedStream;
 };
 
 let client: QueryClient;
@@ -416,9 +419,53 @@ describe('a camera at a stream address', () => {
       ...plainStream,
     });
     expect(api.post).toHaveBeenNthCalledWith(2, '/cameras/camera-rtsp/test-captures');
-    // A wrong address is an ordinary outcome of this button, so the reason the
-    // camera gave is what is drawn.
-    expect(await screen.findByRole('alert')).toHaveTextContent('No picture: Connection refused');
+    // A wrong address is an ordinary outcome of this button, so the kind of
+    // failure is what is drawn, in the screen's language - and the camera's
+    // own words, English ffmpeg with the tunnel's port in it, are folded under
+    // it as the camera page folds them.
+    expect(await screen.findByRole('alert')).toHaveTextContent('No picture: the camera did not answer');
+    expect(screen.getByRole('alert')).not.toHaveTextContent('Connection refused');
+    expect(screen.getByText('What the camera said')).toBeInTheDocument();
+    expect(screen.getByText('Connection refused')).toBeInTheDocument();
+  });
+
+  it('keeps the camera´s own words back where the server did not hand them over', async () => {
+    vi.mocked(api.post).mockImplementation(
+      (path: string) => Promise.resolve(path === '/cameras' ? madeRtsp : { ...refusedStream, error: null }) as never,
+    );
+    await openRtsp();
+    fill();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No picture: the camera did not answer');
+    expect(screen.queryByText('What the camera said')).not.toBeInTheDocument();
+  });
+
+  /**
+   * This side giving up on a read is not the server being out of reach: the
+   * screen said "Could not reach the server" while every poll was answered.
+   */
+  it('says nothing came back in time where this side gave up, rather than that the server was out of reach', async () => {
+    const running = { ...refusedStream, state: 'running', finishedAt: null, reason: null, error: null };
+    vi.mocked(api.post).mockImplementation((path: string) => Promise.resolve(path === '/cameras' ? madeRtsp : running) as never);
+    vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path.includes('/test-captures/') ? running : answers(path)) as never);
+    await openRtsp();
+    fill();
+
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout', 'Date', 'performance'] });
+    try {
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+      });
+      await act(() => vi.advanceTimersByTimeAsync(CAPTURE_WAIT_MS + CAPTURE_POLL_MS));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Still no answer after more than 3 minutes. Please try again.');
+      expect(screen.queryByText(/Could not reach the server/)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('opens the stream itself where no device stands in the chosen place', async () => {

@@ -547,14 +547,18 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * failure as: the words the server hands back are English whatever the screen
  * is set to, and "device aborted the capture" printed verbatim on a German page
  * was the button saying in the server's language what the line four rows above
- * was already saying in the grower's. The camera's own words stay for the
- * person who can go and fix it, behind the disclosure the banner puts them
- * behind and, like the banner, for the owner alone - they name the address the
- * cloud reaches the hardware at, and the server hands them to nobody else.
+ * was already saying in the grower's. A kind is the second half of a sentence -
+ * the banner's "Last try failed: ..." - so standing alone here it is given the
+ * first half the add screen gives it, "No picture: ...". The camera's own
+ * words stay for the person who can go and fix it, behind the disclosure the
+ * banner puts them behind and, like the banner, for the owner alone - they
+ * name the address the cloud reaches the hardware at, and the server hands
+ * them to nobody else.
  *
  * The press waits as long as the server's read of a camera may take - the
- * poller's and this button's are the same read - and says so where nothing
- * came within it.
+ * poller's and this button's are the same read - and a little longer. The
+ * server ends that read itself, so nothing within it means the answers did not
+ * get back here, and the line says to press again rather than to wait on.
  */
 function TestImage({ cameraId, mayOwn, offline }: { cameraId: string; mayOwn: boolean; offline: boolean }) {
   const { t } = useTranslation();
@@ -584,7 +588,7 @@ function TestImage({ cameraId, mayOwn, offline }: { cameraId: string; mayOwn: bo
         </span>
       ) : failed ? (
         <span className={styles.testWhy} role="alert">
-          {t(`camera.failure.${failed.reason ?? 'unknown'}`)}
+          {t('camera.testNoPicture', { reason: t(`camera.failure.${failed.reason ?? 'unknown'}`) })}
         </span>
       ) : null}
       {mayOwn && failed?.error ? (

@@ -227,6 +227,23 @@
   color: var(--muted);
 }
 
+/* The camera's own words under the kind of failure, folded as the camera page
+   folds them: a paragraph of ffmpeg with a tunnel port in it, one unbroken
+   token long enough to push a phone's layout open. */
+.said summary {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.said p {
+  margin-top: var(--space-1);
+  overflow-wrap: anywhere;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 @media (min-width: 900px) {
   .page {
     max-width: var(--reading-width);

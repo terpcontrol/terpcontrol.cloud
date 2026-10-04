@@ -450,12 +450,14 @@ describe('the camera page, by who is reading', () => {
    * The same failure the banner above the frame already translates. The button
    * printed what the server stored, which is English on every screen: a German
    * page said "device aborted the capture" under a button called "Testbild".
+   * The kind is half a sentence, so alone on the frame it is given the first
+   * half the add screen gives it.
    */
   it('names the kind of failure a press met, and keeps the camera´s own words under it for the owner', () => {
     state.capture = captured({ state: 'failed', reason: 'aborted', error: 'device aborted the capture' });
     drawPage();
 
-    expect(screen.getByRole('alert')).toHaveTextContent('the camera stopped the capture');
+    expect(screen.getByRole('alert')).toHaveTextContent(/^No picture: the camera stopped the capture$/);
     expect(screen.getByText('What the camera said')).toBeInTheDocument();
     expect(screen.getByText('device aborted the capture')).toBeInTheDocument();
   });
@@ -469,7 +471,7 @@ describe('the camera page, by who is reading', () => {
   it('says that nothing has answered yet where this side gave up, and that the camera was not reached only where it was not', () => {
     state.captureError = new NoAnswerInTime();
     const drawn = drawPage();
-    expect(screen.getByRole('alert')).toHaveTextContent('No answer after 3 minutes. If the camera still sends the picture, it appears here.');
+    expect(screen.getByRole('alert')).toHaveTextContent('Still no answer after more than 3 minutes. Please try again.');
     drawn.unmount();
 
     state.captureError = new TypeError('Failed to fetch');
