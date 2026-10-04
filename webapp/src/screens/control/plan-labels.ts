@@ -32,6 +32,17 @@ export interface StepFacts {
 }
 
 /**
+ * Whether the step at `index` follows a germination step: the one before it,
+ * or the last where a looping plan starts over. Such a step brings the device
+ * back into the light as it begins, whatever else it writes, so one that
+ * writes nothing else says that rather than "writes nothing".
+ */
+export const followsGermination = (steps: readonly Pick<StepFacts, 'stage'>[], index: number, loop: boolean): boolean => {
+  const before = index > 0 ? steps[index - 1] : loop && steps.length > 1 ? steps[steps.length - 1] : undefined;
+  return before?.stage === 'germination';
+};
+
+/**
  * "Flower · late flower · 3 wk · 12 h light · waits for you", and "Germination ·
  * dark · 5 d" for the step that keeps the light off, with what it chose about
  * the humidity where that is not what germination does anyway ("Zu feucht"
@@ -39,12 +50,13 @@ export interface StepFacts {
  * light hours, and no drying or germination, which darken the device by their
  * stage alone - says so, because a step that only marks time is a deliberate
  * thing to write and would otherwise look like one whose figures had been
- * forgotten. A
+ * forgotten; after a germination step (`afterGermination`) it ends that
+ * germination, and says so instead. A
  * step that brings its own light-on time - a recipe from the old app - says
  * from when, on the account's clock (`offset` seconds ahead of UTC), where
  * that is known: it moves the light every hour it runs.
  */
-export const stepMeta = (t: Translate, step: StepFacts, offset: number | null = null): string => {
+export const stepMeta = (t: Translate, step: StepFacts, offset: number | null = null, afterGermination = false): string => {
   const settings = step.settings as DeviceConfiguration;
   const hours = stepLightHours({ settings, lightHours: step.lightHours ?? null });
   const own = stepLightsOn(settings);
@@ -61,7 +73,7 @@ export const stepMeta = (t: Translate, step: StepFacts, offset: number | null = 
     step.stage === 'germination' && step.germinationChoices?.humidifierHolds === false ? t('space.control.step.humidifierRests') : null,
     step.waitForConfirmation ? t('space.control.waits') : null,
     !isDarkStage(step.stage) && Object.keys(step.settings).length === 0 && step.lightHours == null
-      ? t('space.control.step.writesNothingShort')
+      ? t(afterGermination ? 'space.control.step.endsGerminationShort' : 'space.control.step.writesNothingShort')
       : null,
   ]
     .filter(Boolean)

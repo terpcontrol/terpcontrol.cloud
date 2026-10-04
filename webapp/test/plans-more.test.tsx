@@ -15,7 +15,7 @@ import { planLineOf } from '@/screens/cockpit/plan-line';
 import { PlanEditor } from '@/screens/control/PlanEditor';
 import { PlanPanel } from '@/screens/control/PlanPanel';
 import { emptyDraft, newStep, type PlanDraft } from '@/screens/control/plan-edit';
-import { stepMeta } from '@/screens/control/plan-labels';
+import { followsGermination, stepMeta } from '@/screens/control/plan-labels';
 import { READY_PLANS, readyDraft } from '@/screens/control/ready-plans';
 import { items as continueItems } from '@/screens/devices/advanced/ContinuePlan.advanced';
 import { climateLanding } from '@/ui/climate-hardware';
@@ -177,6 +177,33 @@ describe('light hours in a step', () => {
     expect(stepMeta(t, { ...germination, germinationChoices: { warnTooHumid: true, humidifierHolds: false } })).toBe(
       'Germination · dark · 2 wk · “Too humid” warns · humidifier rests',
     );
+  });
+
+  /**
+   * "A week of germination, then go on": the step "+ Add step" makes after a
+   * germination step names nothing, and the server ends the germination with
+   * it. The line says so where it would otherwise say "writes nothing".
+   */
+  it('say that a step of nothing after a germination step ends it, in the editor and on the plan', () => {
+    const germination = { ...newStep('Keimung'), stage: 'germination' as const, settings: { night: { temperature: 24 } } };
+    const after = newStep('Weiter');
+    expect(followsGermination([germination, after], 1, false)).toBe(true);
+    expect(followsGermination([germination, after], 0, false)).toBe(false);
+    expect(followsGermination([after, germination], 0, true)).toBe(true);
+    expect(stepMeta(t, after, null, true)).toBe('No stage · 1 wk · ends germination');
+
+    wrap(
+      <PlanEditor
+        device={device()}
+        plan={null}
+        draft={{ ...emptyDraft('Keimtest', { mode: 'off', email: null, writeEntries: true }), steps: [germination, after] }}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByText('No stage · 1 wk · ends germination')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[1]);
+    expect(screen.getByText(/This step ends the germination before it/)).toBeInTheDocument();
+    expect(screen.queryByText(/This step writes nothing/)).not.toBeInTheDocument();
   });
 
   it('are typed into the step and saved with it, and an empty field leaves the photoperiod alone', () => {

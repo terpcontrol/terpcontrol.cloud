@@ -381,6 +381,35 @@ describe('what the step is applied to', () => {
     expect((await stored()).state.lastAppliedAt).toEqual(NOW);
   });
 
+  /**
+   * "A week of germination, then go on" is a germination step and the step
+   * "+ Schritt hinzufügen" makes, which names nothing. Only germination is
+   * dark, so that step brings the device back into the light as it begins -
+   * and, carrying nothing, sends nothing on its hourly re-send.
+   */
+  it('ends a germination with a step that names nothing, once as the step begins', async () => {
+    await db.devices.create({
+      id: DEVICE,
+      type: 'fridge',
+      ownerId: OWNER,
+      spaceId: SPACE,
+      configuration: { workmode: 'breed', night: { temperature: 24, humidity: 75 } },
+      state: { lastSeenAt: NOW },
+    });
+    await aPlan([step({ id: 'a', name: 'Keimung', stage: 'germination' }), step({ id: 'b', name: 'Weiter' })], {
+      state: { ...stoppedState, status: 'running', activeStepIndex: 1, stepStartedAt: NOW },
+    });
+
+    await engine.run(NOW);
+    expect(applied).toEqual([{ deviceId: DEVICE, settings: {} }]);
+    expect(appliedFor).toEqual([null]);
+
+    // Germinating still - set again by hand, as far as the plan can tell - it is left so by the step's hourly re-send.
+    await db.devices.updateOne({ id: DEVICE }, { $set: { 'state.lastSeenAt': at(2 * HOUR) } });
+    await engine.run(at(2 * HOUR));
+    expect(applied).toHaveLength(1);
+  });
+
   it('sends nothing more once the plan is completed', async () => {
     await aDevice();
     await aPlan([step({ id: 'a', name: 'Only' })]);

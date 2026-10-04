@@ -144,10 +144,13 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // Nothing to merge, or nothing to merge into, is no write: the firmware reads
     // every key a document leaves out as its compile-time default, so sending
     // either would reset tuning the cloud has no copy of. A stage with no
-    // figures still decides the work mode, so it writes what the device runs.
+    // figures still decides the work mode, so it writes what the device runs -
+    // and so does a climate of nothing for a device that germinates: only
+    // germination is dark, so any other climate brings it back into the light
+    // (a plan step that names nothing after a germination step).
     const intent: WriteIntent = { kind: 'climate', stage, requested: settings.workmode, stated: nightStated(settings), choices };
     const written = await this.store(deviceId, intent, current =>
-      !current || Object.keys(current).length === 0 || (Object.keys(settings).length === 0 && stage === null)
+      !current || Object.keys(current).length === 0 || (Object.keys(settings).length === 0 && stage === null && current.workmode !== 'breed')
         ? null
         : mergeSections(current, settings),
     );

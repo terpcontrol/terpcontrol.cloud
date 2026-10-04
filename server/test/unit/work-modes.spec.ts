@@ -533,6 +533,16 @@ describe('every other way a document is written', () => {
     await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, after.configuration, true)!, 'germination');
     await configuration.applyConfiguration(DEVICE, { lights: { limit: 60 } }, null);
     expect((await stored()).configuration).toMatchObject({ workmode: 'full', night: { temperature: 22 }, lights: { limit: 60 } });
+
+    // And so does a step that names nothing at all, the one "+ Schritt hinzufügen" makes.
+    await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, (await stored()).configuration, true)!, 'germination');
+    expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { temperature: 24, humidity: 75 } });
+    published = [];
+    expect(await configuration.applyConfiguration(DEVICE, {}, null)).toBe(true);
+    const lit = await stored();
+    expect(lit.configuration).toMatchObject({ workmode: 'full', night: { temperature: 22, humidity: 55 }, lights: { limit: 60 } });
+    expect(lit.beforeGermination).toBeNull();
+    expect(published.at(-1)).toMatchObject({ workmode: 'full' });
   });
 
   it('germinates for targets saved for germination, and keeps the figures germination does not hold', async () => {

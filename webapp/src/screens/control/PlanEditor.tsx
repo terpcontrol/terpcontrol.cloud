@@ -44,7 +44,7 @@ import {
   type PlanEditEffect,
   type StepDraft,
 } from './plan-edit';
-import { stepMeta } from './plan-labels';
+import { followsGermination, stepMeta } from './plan-labels';
 import { PlanRefusal } from './Refusal';
 import styles from './Control.module.css';
 
@@ -122,7 +122,9 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
                   <span className={`mono ${styles.stepIndex}`}>{index + 1}</span>
                   <span className={styles.stepText}>
                     <span className={styles.stepTitle}>{step.name}</span>
-                    <span className={`mono ${styles.stepNote}`}>{stepMeta(t, step, offsetOf(now, zone))}</span>
+                    <span className={`mono ${styles.stepNote}`}>
+                      {stepMeta(t, step, offsetOf(now, zone), followsGermination(draft.steps, index, draft.loop))}
+                    </span>
                   </span>
                   <span className={styles.editButtons}>
                     <button
@@ -156,7 +158,14 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
                   </span>
                 </div>
 
-                {open === step.key ? <StepFields step={step} device={device} onChange={over => change(step.key, over)} /> : null}
+                {open === step.key ? (
+                  <StepFields
+                    step={step}
+                    device={device}
+                    afterGermination={followsGermination(draft.steps, index, draft.loop)}
+                    onChange={over => change(step.key, over)}
+                  />
+                ) : null}
               </li>
             ))}
           </ol>
@@ -194,7 +203,18 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
  * than left to be found out. The way in to a fresh plan for such a controller is
  * closed one screen up, so this is the plan somebody is taking off.
  */
-function StepFields({ step, device, onChange }: { step: StepDraft; device: Device; onChange: (over: Partial<StepDraft>) => void }) {
+function StepFields({
+  step,
+  device,
+  afterGermination,
+  onChange,
+}: {
+  step: StepDraft;
+  device: Device;
+  /** Whether the step follows a germination step, which it ends however little else it writes. */
+  afterGermination: boolean;
+  onChange: (over: Partial<StepDraft>) => void;
+}) {
   const { t } = useTranslation();
   const presets = step.stage ? presetsOf(step.stage) : [];
   const extra = otherSections(step.settings);
@@ -326,7 +346,7 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
       {dark && !awaiting ? null : (
         <p className={ui.note}>
           {!dark && writesNothing(step.settings) && step.lightHours === null
-            ? t('space.control.step.writesNothing')
+            ? t(afterGermination ? 'space.control.step.endsGermination' : 'space.control.step.writesNothing')
             : awaiting
               ? t('space.control.step.writesNowhere')
               : t(hasCo2Sensor(device) ? 'space.control.step.writesSections' : 'space.control.step.writesSectionsNoCo2')}

@@ -107,15 +107,23 @@ export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
     const device = await this.deviceFor(plan.deviceId);
     if (!this.isAnswering(device, now)) return;
     // A step that names a stage writes even with no figures of its own: the
-    // stage decides the work mode, and a drying step dries.
-    const writes = stepWrites(step);
+    // stage decides the work mode, and a drying step dries. A step that names
+    // nothing at all still brings a device it finds germinating back into the
+    // light, once, as it begins: only germination is dark, and "a week of
+    // germination, then go on" is a germination step followed by the one
+    // "+ Schritt hinzufügen" makes, which carries nothing. Sent nothing, the
+    // seedlings stood in the dark for the step's whole length and after the
+    // plan's end. Its hourly re-send writes nothing, as it says.
+    const endsGermination = !stepWrites(step) && plan.state.lastAppliedAt === null && device?.configuration?.workmode === 'breed';
+    const writes = stepWrites(step) || endsGermination;
     if (writes && Object.keys(device?.configuration ?? {}).length === 0) return;
 
     try {
       // A step that writes nothing is sent nothing: an empty document is not an
       // empty change to the firmware, which rebuilds its whole settings from it.
       // One that only names a stage sends the document the device already runs,
-      // with the work mode that stage asks for.
+      // with the work mode that stage asks for, and so does one that ends a
+      // germination, with the standard mode and the night from before it.
       const sent = settingsSent(step, device?.configuration ?? null);
       // A germination step's choices go with it, every hour: the plan holds what
       // germination does about the humidity as it holds the figures it writes.
