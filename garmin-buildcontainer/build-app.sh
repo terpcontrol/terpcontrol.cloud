@@ -80,6 +80,27 @@ cp -a "$SRC/." "$WORK/app/"
 cd "$WORK/app"
 
 echo "Connect IQ SDK $(cat /opt/connectiq/bin/version.txt)"
-monkeyc -f monkey.jungle -o "$OUT/${APP_NAME}.iq" -y "$KEY" -e -w
+# monkeyc compiles the app once per device and repeats every warning for each,
+# behind the device's name, with a progress count in between. The count is
+# dropped and the device's name taken out of each warning, so a warning prints
+# once however many devices it holds for; an error keeps the device it was
+# found on, and prints once too. Paths are given relative to garmin/.
+monkeyc -f monkey.jungle -o "$OUT/${APP_NAME}.iq" -y "$KEY" -e -w 2>&1 | awk -v work="$WORK/app/" '
+    /^[0-9]+ OUT OF [0-9]+ DEVICES BUILT$/ { next }
+    {
+        while ((i = index($0, work)) > 0) $0 = substr($0, 1, i - 1) substr($0, i + length(work))
+        line = $0
+        if (match($0, /^(WARNING|ERROR): [^ :]+: /)) {
+            level = substr($0, 1, index($0, ":") - 1)
+            device = substr($0, length(level) + 3, RLENGTH - length(level) - 4)
+            message = substr($0, RLENGTH + 1)
+            while ((i = index(message, "\047" device "\047")) > 0)
+                message = substr(message, 1, i - 1) "<device>" substr(message, i + length(device) + 2)
+            if (seen[level ": " message]++) next
+            if (level == "WARNING") line = level ": " message
+        }
+        print line
+        fflush()
+    }'
 
 ls -l "$OUT/${APP_NAME}.iq"

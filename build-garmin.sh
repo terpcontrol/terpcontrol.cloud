@@ -5,6 +5,7 @@
 set -e
 
 . "$(dirname "${BASH_SOURCE[0]}")/scripts/load-env.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/scripts/quietly.sh"
 terpcontrol_load_env
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,6 +17,7 @@ CACHE_DIR="${GARMIN_CACHE_DIR:-$HOME/.Garmin/ConnectIQ}"
 
 mkdir -p "$OUT_DIR" "$CACHE_DIR/Devices"
 
+echo "Building the Garmin build container..."
 if [ -n "$GARMIN_BUILDCONTAINER_CACHE_FROM" ] || [ -n "$GARMIN_BUILDCONTAINER_CACHE_TO" ]; then
   BUILDX_ARGS=""
   if [ -n "$GARMIN_BUILDCONTAINER_CACHE_FROM" ]; then
@@ -24,9 +26,9 @@ if [ -n "$GARMIN_BUILDCONTAINER_CACHE_FROM" ] || [ -n "$GARMIN_BUILDCONTAINER_CA
   if [ -n "$GARMIN_BUILDCONTAINER_CACHE_TO" ]; then
     BUILDX_ARGS="$BUILDX_ARGS --cache-to=$GARMIN_BUILDCONTAINER_CACHE_TO"
   fi
-  docker buildx build $BUILDX_ARGS --load -t terpcontrol-garmin-buildcontainer "$ROOT/garmin-buildcontainer"
+  quietly docker buildx build $BUILDX_ARGS --load -t terpcontrol-garmin-buildcontainer "$ROOT/garmin-buildcontainer"
 else
-  docker build -t terpcontrol-garmin-buildcontainer "$ROOT/garmin-buildcontainer"
+  quietly docker build -t terpcontrol-garmin-buildcontainer "$ROOT/garmin-buildcontainer"
 fi
 
 docker run --rm \
