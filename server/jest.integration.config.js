@@ -25,7 +25,6 @@ module.exports = {
   // a red run mean something.
   cacheDirectory: '<rootDir>/node_modules/.cache/jest-integration',
   testTimeout: 30_000,
-  // MQTT clients keep the event loop alive after a failed assertion skips their
-  // cleanup; without this a red run hangs instead of reporting.
-  forceExit: true,
+  // No forceExit, which jest announces on every run: global-teardown.ts ends a
+  // run that what a failed spec left open would keep alive.
 };
