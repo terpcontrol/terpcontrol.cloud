@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { FastifyRequest } from 'fastify';
 import { HttpException } from '@common/http-exception';
-import { AuthenticatedRequest, TokenService } from './token.service';
+import { AuthContext, AuthenticatedRequest, TokenService } from './token.service';
 
 /** Requires a valid user session and puts it on the request. */
 @Injectable()
@@ -36,7 +37,16 @@ export class AdminGuard implements CanActivate {
 
   public async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    request.auth = await this.admit(request);
+    return true;
+  }
 
+  /**
+   * The administrator behind a request, or the refusal for anybody else. Apart
+   * from `canActivate` because a route that takes a large body asks it before
+   * that body is read, which is before any guard runs.
+   */
+  public async admit(request: FastifyRequest): Promise<AuthContext> {
     const hasToken =
       !!(request as { cookies?: Record<string, string> }).cookies?.['Authorization'] || !!request.headers.authorization?.split('Bearer ')[1];
     if (!hasToken) {
@@ -63,7 +73,6 @@ export class AdminGuard implements CanActivate {
       throw new HttpException(403, 'This is for administrators.');
     }
 
-    request.auth = caller;
-    return true;
+    return caller;
   }
 }

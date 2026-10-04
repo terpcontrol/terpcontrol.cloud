@@ -215,6 +215,31 @@ describe('how large a body may be', () => {
     expect(login.status).toBe(413);
     expect(login.body.code).toBe('too_large');
   });
+
+  /**
+   * Fastify reads and parses a body before Nest's guards are asked, so the
+   * upload route held 15 MiB of a stranger's JSON before its guard said 401.
+   * Who is calling is checked first now: the answer comes on the announced
+   * length alone, where the route would otherwise wait for the rest of the
+   * body, and it is the guard's own answer.
+   */
+  it('answers anybody but an administrator before reading what they send to the upload route', async () => {
+    const firmwareId = await registerBuild();
+    const path = `/v1/admin/firmwares/${firmwareId}/binaries/firmware.bin`;
+    const UNDER_THE_ROUTE_LIMIT = 15 * 1024 * 1024;
+
+    const stranger = await answerToABodyOf(anonymous(), 'PUT', path, UNDER_THE_ROUTE_LIMIT);
+    expect(stranger.status).toBe(401);
+    expect(stranger.body.code).toBe('unauthenticated');
+
+    const forged = new ApiClient(undefined, 'not-a-token');
+    expect((await answerToABodyOf(forged, 'PUT', path, UNDER_THE_ROUTE_LIMIT)).status).toBe(401);
+
+    const grower = await createAccount('grower');
+    const signedIn = await answerToABodyOf(grower.client, 'PUT', path, UNDER_THE_ROUTE_LIMIT);
+    expect(signedIn.status).toBe(403);
+    expect(signedIn.body.code).toBe('forbidden');
+  });
 });
 
 describe('what Express used to accept', () => {

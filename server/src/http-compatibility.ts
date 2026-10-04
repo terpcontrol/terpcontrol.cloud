@@ -1,6 +1,7 @@
 import { parse as parseQueryString } from 'node:querystring';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { FastifyRequest } from 'fastify';
+import { AdminGuard } from '@common/auth/auth.guard';
 import { applyRouteBodyLimits } from '@common/body-limit';
 
 /**
@@ -36,7 +37,8 @@ export const registerHttpCompatibility = (app: NestFastifyApplication): void => 
  * Both keep Fastify's own limit of 1 MiB. A route that takes more says so with
  * `@BodyLimit`, which reaches the parser through the route rather than through
  * the parser: Fastify prefers a route's limit to the parser's whenever the
- * route has one.
+ * route has one. Such a route is an administrator's, and who is calling is
+ * checked before its body is read.
  */
 type BufferParser = (request: unknown, body: Buffer, done: (error: Error | null, value?: unknown) => void) => void;
 
@@ -47,7 +49,8 @@ const registerBodyParsers = (app: NestFastifyApplication): void => {
   // and a buffer, which the parser reads as text either way.
   const parseJson = fastify.getDefaultJsonParser('error', 'error') as unknown as BufferParser;
 
-  applyRouteBodyLimits(fastify);
+  const admins = app.get(AdminGuard);
+  applyRouteBodyLimits(fastify, request => admins.admit(request));
 
   app.useBodyParser('application/json', { bodyLimit: fastify.initialConfig.bodyLimit }, (request, body: Buffer, done) => {
     if (body.length === 0 || body.toString().trim() === '') {
