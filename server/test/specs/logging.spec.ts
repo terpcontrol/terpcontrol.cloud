@@ -2,6 +2,7 @@ import { anonymous, context, createAccount, Session, unique } from '../support/a
 import { provisionDevice, registerDevice } from '../support/device';
 import { diaryEntriesOf } from '../support/fixtures';
 import { serverLog as logContents } from '../support/logs';
+import { takeTestPicture } from '../support/test-picture';
 
 const settle = (ms = 300) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -53,11 +54,11 @@ describe('what the server writes down', () => {
 
     // The failure message quotes the whole ffmpeg command line, which carries
     // the URL the camera is stored with - credentials and all.
-    const response = await owner.client.post(`/v1/cameras/${camera.body.id}/test-captures`).expect(200);
+    const answer = await takeTestPicture(owner, camera.body.id);
 
-    expect(response.body.succeeded).toBe(false);
-    expect(response.body.error).not.toContain(password);
-    expect(response.body.error).toContain('<credentials>');
+    expect(answer.state).toBe('failed');
+    expect(answer.error).not.toContain(password);
+    expect(answer.error).toContain('<credentials>');
 
     await settle();
     expect(logContents()).not.toContain(password);

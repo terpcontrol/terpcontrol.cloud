@@ -24,7 +24,8 @@ export * from './diary.js';
 // settings beyond the targets a device's type offers, which the server checks a
 // change against and the screens draw their controls from. And day and night as
 // the firmware keeps them, which the server judges by, the screens draw and the
-// simulator runs.
+// simulator runs. And how long one read of a camera may take, which the poller
+// keeps and the test button promises, and the kinds of failure it is named as.
 export * from './socket-report.js';
 export * from './feeding.js';
 export * from './grow-days.js';
@@ -34,3 +35,4 @@ export * from './vpd.js';
 export * from './maintenance.js';
 export * from './configuration-fields.js';
 export * from './day-night.js';
+export * from './capture.js';

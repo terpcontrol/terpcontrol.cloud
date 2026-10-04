@@ -4,17 +4,9 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-types/v1';
+import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
 import { useMe } from '@/api/account';
-import {
-  CAPTURE_WAIT_MS,
-  gaveUp,
-  useCamera,
-  useCameraFrames,
-  useLatestStills,
-  useRequestTimelapse,
-  useTestCapture,
-  useTimelapses,
-} from '@/api/cameras';
+import { gaveUp, useCamera, useCameraFrames, useLatestStills, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useSpaceGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
@@ -550,19 +542,24 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * A request that never reached the server is neither of those two: the camera
  * was never asked, and the button may simply be pressed again.
  *
- * What a failed press says is the kind of failure it was, read by the same
- * module the banner above the frame reads it with: the words the server hands
- * back are English whatever the screen is set to, and "device aborted the
- * capture" printed verbatim on a German page was the button saying in the
- * server's language what the line four rows above was already saying in the
- * grower's. The camera's own words stay for the person who can go and fix it,
- * behind the disclosure the banner puts them behind and, like the banner, for
- * the owner alone - they name the address the cloud reaches the hardware at.
+ * What a failed press says is the kind of failure it was, which the server
+ * names by the same kinds the banner above the frame reads the camera's last
+ * failure as: the words the server hands back are English whatever the screen
+ * is set to, and "device aborted the capture" printed verbatim on a German page
+ * was the button saying in the server's language what the line four rows above
+ * was already saying in the grower's. The camera's own words stay for the
+ * person who can go and fix it, behind the disclosure the banner puts them
+ * behind and, like the banner, for the owner alone - they name the address the
+ * cloud reaches the hardware at, and the server hands them to nobody else.
+ *
+ * The press waits as long as the server's read of a camera may take - the
+ * poller's and this button's are the same read - and says so where nothing
+ * came within it.
  */
 function TestImage({ cameraId, mayOwn, offline }: { cameraId: string; mayOwn: boolean; offline: boolean }) {
   const { t } = useTranslation();
   const test = useTestCapture(cameraId);
-  const failed = test.data && !test.data.succeeded ? test.data : null;
+  const failed = test.data?.state === 'failed' ? test.data : null;
 
   return (
     <div className={styles.testWrap}>
@@ -579,15 +576,15 @@ function TestImage({ cameraId, mayOwn, offline }: { cameraId: string; mayOwn: bo
       </button>
       {test.error ? (
         <span className={styles.testWhy} role="alert">
-          {gaveUp(test.error) ? t('camera.testNoAnswer', { minutes: CAPTURE_WAIT_MS / 60_000 }) : refusalText(test.error, t('camera.testFailed'))}
+          {gaveUp(test.error) ? t('camera.testNoAnswer', { minutes: CAPTURE_BUDGET_SECONDS / 60 }) : refusalText(test.error, t('camera.testFailed'))}
         </span>
-      ) : test.data?.succeeded ? (
+      ) : test.data?.state === 'done' ? (
         <span className={`mono ${styles.testWorked}`} role="status">
           {t('camera.testWorked')}
         </span>
       ) : failed ? (
         <span className={styles.testWhy} role="alert">
-          {t(causeOf(failed.error ?? ''))}
+          {t(`camera.failure.${failed.reason ?? 'unknown'}`)}
         </span>
       ) : null}
       {mayOwn && failed?.error ? (

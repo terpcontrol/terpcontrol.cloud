@@ -161,7 +161,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
       });
   };
 
-  const shot = capture.data?.mediaId ? mediaUrl(capture.data.mediaId, THUMBNAIL_WIDTH.frame) : null;
+  const shot = capture.data?.still ? mediaUrl(capture.data.still.mediaId, THUMBNAIL_WIDTH.frame) : null;
   const liveness = pulled && carrier ? deviceLiveness(carrier.state.lastSeenAt, now) : null;
 
   return (
@@ -313,16 +313,16 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
 
       {capture.data ? (
         <section className={styles.block} role="status">
-          {capture.data.succeeded ? (
+          {capture.data.still ? (
             <>
               {shot ? <img className={styles.shot} src={shot} alt={t('cameras.add.rtsp.shotAlt')} /> : null}
-              <p className={`mono ${styles.shotNote}`}>
-                {t('cameras.add.rtsp.worked', { age: ageLabel(capture.data.capturedAt ?? now.toUTC().toISO()!, now) })}
-              </p>
+              <p className={`mono ${styles.shotNote}`}>{t('cameras.add.rtsp.worked', { age: ageLabel(capture.data.still.capturedAt, now) })}</p>
             </>
           ) : (
             <p className={ui.problem} role="alert">
-              {t('cameras.add.rtsp.failed', { reason: capture.data.error ?? t('cameras.add.rtsp.noReason') })}
+              {t('cameras.add.rtsp.failed', {
+                reason: capture.data.error ?? (capture.data.reason ? t(`camera.failure.${capture.data.reason}`) : t('cameras.add.rtsp.noReason')),
+              })}
             </p>
           )}
         </section>

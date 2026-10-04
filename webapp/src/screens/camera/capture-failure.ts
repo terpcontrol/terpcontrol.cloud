@@ -1,3 +1,5 @@
+import { captureFailureOf } from '@fg2/shared-types/v1-schemas/capture.js';
+
 /**
  * Why the last try at a picture failed, said in a way somebody standing in
  * front of the tent can act on.
@@ -13,67 +15,20 @@
  * belongs in.
  *
  * So the raw string is read for what kind of failure it is and the page says
- * that, with the words themselves one tap below. The reading is deliberately
- * coarse: these are the causes that lead to different moves - check the power
- * and the network, check the login, check the address, wait for the tent's
- * controller to come back - and a cause that cannot be told apart from the
- * others is named as the failure it is rather than guessed at. Nothing here
- * decides whether a camera is working; it only names what was already stored.
- *
- * The order matters, because one failure prints the wording of several: a
- * stream that dies halfway through a frame reports both the end of the file
- * and, a line later, that what arrived was not a video. The first cause that
- * matches is the one the failure began as.
+ * that, with the words themselves one tap below. The reading is the contract's
+ * (`capture.ts`), because the server names a failed test picture by the same
+ * kinds; nothing here decides whether a camera is working, it only names what
+ * was already stored.
  */
+
+/** The translation key for what went wrong, from the words the server stored. */
+export const causeOf = (lastError: string): string => `camera.failure.${captureFailureOf(lastError)}`;
 
 /** One kind of failure, the wording that gives it away, and what the app calls it. */
 interface Cause {
   key: string;
   says: RegExp;
 }
-
-const CAUSES: Cause[] = [
-  // Not tried at all: the device the camera is read through was offline. First,
-  // because the instant it names may carry digits a status code is read from.
-  { key: 'deviceOffline', says: /read through is offline/i },
-  // The camera was reached and delivered, and what arrived was not a picture.
-  { key: 'damaged', says: /corrupt|truncat|produced no output|size limit/i },
-  // The far end gave up on purpose, which is what a Terp Cam said through its device before the relay.
-  { key: 'aborted', says: /abort|superseded/i },
-  // Before the login, because the id it names may carry digits a status code is read from.
-  { key: 'otherCamera', says: /belongs to a different camera/i },
-  // Turned away once, the camera is left alone for a while rather than asked on every poll.
-  { key: 'refusedRecently', says: /refused this server recently/i },
-  // Reached, opened, and then cut off: the tunnel or the camera dropped it mid-frame.
-  {
-    key: 'stoppedEarly',
-    says: /end of file|reading rtsp|econnreset|connection reset|no keyframe|did not accept the session|did not say which camera/i,
-  },
-  { key: 'refusedLogin', says: /401|403|unauthori|forbidden|authenticat|rejected the password/i },
-  // The device was asked to open the way to its Terp Cam and did not: busy, not finding the cam on its network, or gone.
-  { key: 'relayNotOpened', says: /did not open the relay/i },
-  // Nothing answered at all: no power, no network, or an address that leads nowhere any more.
-  {
-    key: 'noAnswer',
-    says: /econnrefused|connection refused|refused|timed out|timeout|etimedout|unreachable|ehostunreach|enetunreach|no route to host|did not answer/i,
-  },
-  // The tent's own device is the way to this camera, and it is not there.
-  {
-    key: 'noDevice',
-    says: /not connected to the broker|nothing is speaking to the devices|answers to no (controller|device)|could not ask the controller/i,
-  },
-  // Nothing to reach it at, which is a setting rather than a fault.
-  { key: 'noAddress', says: /no stream address|no p2p id|not a p2p device id|rendezvous|no relay configured|has not reported a camera/i },
-  // Something answered and it was not a stream: a wrong path, a web page, a closed port behind a proxy.
-  { key: 'noStream', says: /invalid data|error opening input|protocol not found|404|no such file/i },
-];
-
-/**
- * The translation key for what went wrong, from the words the server stored.
- * Anything this does not recognise is the failure itself, named plainly, which
- * is still more than the paragraph underneath it says to a grower.
- */
-export const causeOf = (lastError: string): string => `camera.failure.${CAUSES.find(cause => cause.says.test(lastError))?.key ?? 'unknown'}`;
 
 /**
  * Why a film did not render, read the same way and for the same reason: the
@@ -82,7 +37,7 @@ export const causeOf = (lastError: string): string => `camera.failure.${CAUSES.f
  * make a film" as its one line of English under a row that said
  * "fehlgeschlagen" above it.
  *
- * The causes are the render's own and not the capture list above, because a
+ * The causes are the render's own and not a capture's, because a
  * render never goes near the camera: it reads pictures that are already stored,
  * so nothing it can fail at is the camera refusing a login or not answering.
  * What it is not one of is ffmpeg talking - kept beside the named cause, the

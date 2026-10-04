@@ -2,23 +2,14 @@ import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Res,
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 import { z } from 'zod';
-import {
-  Camera,
-  CameraCreate,
-  CameraUpdate,
-  MediaPage,
-  MediaQuality,
-  TestCaptureAnswer,
-  TimelapseAccepted,
-  TimelapseCreate,
-} from '@fg2/shared-types/v1';
+import { Camera, CameraCreate, CameraUpdate, MediaPage, MediaQuality, TestCapture, TimelapseAccepted, TimelapseCreate } from '@fg2/shared-types/v1';
 import {
   camera,
   cameraCreate,
   cameraPage,
   cameraUpdate,
   mediaPage,
-  testCaptureAnswer,
+  testCapture,
   timelapseAccepted,
   timelapseCreate,
 } from '@fg2/shared-types/v1-schemas';
@@ -26,7 +17,7 @@ import { AuthGuard } from '@common/auth/auth.guard';
 import { V1Body } from '@common/zod-validation.pipe';
 import { AccessGuard, Caller, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
-import { AccessContext, Grant } from '@common/v1/access.types';
+import { AccessContext, Grant, Grantee } from '@common/v1/access.types';
 import { badRequest, notFound, unprocessable } from '@common/v1/problem';
 import { clampRange } from '@common/v1/range';
 import { V1Query, inOrder, instantQuery, pageQuery } from '@common/v1/validation';
@@ -34,6 +25,7 @@ import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { CamerasService } from './cameras.service';
 import { CameraPollerService } from './camera-poller.service';
+import { TestCapturesService } from './test-captures.service';
 import { EntitlementService } from './entitlement.service';
 import { MediaService } from './media.service';
 import { coveredBy, TimelapseService } from './timelapse.service';
@@ -96,6 +88,7 @@ export class CamerasController {
     private readonly builder: TimelapseService,
     private readonly entitlement: EntitlementService,
     private readonly access: AccessService,
+    private readonly tests: TestCapturesService,
   ) {}
 
   @Get()
@@ -245,34 +238,43 @@ export class CamerasController {
 
   /**
    * One picture, now, so that whoever is setting a camera up learns whether it
-   * answers at all. A camera that could not be read is reported in the answer
-   * rather than as an error: a wrong address is an ordinary outcome of this
-   * button, and the reason the camera gave is what the person needs to see.
+   * answers at all. Answered at once: the read takes as long as the camera
+   * does, and is asked after below. A read of this camera that is already
+   * under way - the poller's, or a press before this one - is joined rather
+   * than run a second time beside it.
    */
   @Post(':id/test-captures')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.ACCEPTED)
   @UseGuards(AuthGuard, AccessGuard)
   @Requires('manage', 'camera')
   @ApiOperation({ summary: 'Read one picture from a camera to check its settings' })
-  @V1Answer(testCaptureAnswer)
-  public async testCapture(@Param('id') id: string): Promise<TestCaptureAnswer> {
+  @V1Answer(testCapture, {
+    status: HttpStatus.ACCEPTED,
+    description: 'Running, and asked after through `GET /cameras/{id}/test-captures/{captureId}`.',
+  })
+  public async testCapture(@CurrentGrant() grant: Grant, @Param('id') id: string): Promise<TestCapture> {
     const camera = await this.cameras.withSecret(id);
     if (!camera) throw notFound('camera_not_found', 'There is no camera with that id.');
 
-    try {
-      // A read of this camera that is already under way is waited for rather
-      // than joined by a second one, and its picture is the answer - which can
-      // take minutes where a Terp Cam's relay is slow to open.
-      const stored = await this.poller.readNow(camera);
-      if (!stored) throw notFound('camera_not_found', 'There is no camera with that id.');
+    return asReadBy(this.tests.start(camera), grant.grantee);
+  }
 
-      return { succeeded: true, mediaId: stored.mediaId, capturedAt: stored.capturedAt.toISOString(), error: null };
-    } catch (e) {
-      const reason = String((e as Error)?.message ?? e).slice(0, 2000);
-      await this.cameras.noteCapture(camera.id, null, reason);
+  /**
+   * How a test picture went. A camera that could not be read is a `failed`
+   * capture rather than an error: a wrong address is an ordinary outcome of the
+   * button, and the reason the camera gave is what the person needs to see. A
+   * finished capture is kept for a few minutes, for whoever may start one.
+   */
+  @Get(':id/test-captures/:captureId')
+  @UseGuards(AuthGuard, AccessGuard)
+  @Requires('manage', 'camera')
+  @ApiOperation({ summary: 'How a test picture went: running, done with its still, or failed and why' })
+  @V1Answer(testCapture)
+  public testCaptureState(@CurrentGrant() grant: Grant, @Param('id') id: string, @Param('captureId') captureId: string): TestCapture {
+    const capture = this.tests.find(id, captureId);
+    if (!capture) throw notFound('test_capture_not_found', 'There is no test picture with that id for this camera, or it finished too long ago.');
 
-      return { succeeded: false, mediaId: null, capturedAt: null, error: reason };
-    }
+    return asReadBy(capture, grant.grantee);
   }
 
   @Get(':id/frames')
@@ -459,6 +461,15 @@ export class CamerasController {
     }
   }
 }
+
+/**
+ * What the camera said can name the address its owner reaches it at, so it is
+ * held back from everybody else who may press the button, as it is in the
+ * camera's own state: a member of the tent is told what kind of failure it was,
+ * and not where the host's hardware lives.
+ */
+const asReadBy = (capture: TestCapture, grantee: Grantee): TestCapture =>
+  grantee === 'owner' || grantee === 'admin' ? capture : { ...capture, error: null };
 
 /**
  * A device's tunnel carries TCP and nothing else, and RTP over UDP would have

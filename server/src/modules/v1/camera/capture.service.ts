@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { execFile } from 'node:child_process';
+import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { withoutCredentials } from '@common/log-path';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
 import { CameraWithSecret } from './cameras.service';
@@ -15,9 +16,19 @@ import { TerpCamDirectService } from './terpcam-direct.service';
  * device it is paired at opens to the cloud. Every other camera is an address
  * ffmpeg opens, through the tunnel of a device in the tent where the stream only
  * exists on the tent's own network.
+ *
+ * Either way a read has `CAPTURE_BUDGET_SECONDS` from the moment it is asked
+ * for, its wait for a turn at ffmpeg included, and every step inside it is
+ * given what is left of that where it is less than the step's own limit. The
+ * poller and the test button run the same read, so a picture somebody is
+ * waiting for is never held up for longer than the schedule allows a camera.
  */
 
+/** How long one ffmpeg run may take on a stream before it is ended. */
 const FFMPEG_TIMEOUT_MS = 90_000;
+
+/** A run is not started with less of the budget left than this: it could not connect and decode a keyframe. */
+const MIN_RUN_MS = 10_000;
 
 // When the connection to a camera drops mid-frame (e.g. through a firmware tunnel),
 // ffmpeg still emits the partially decoded frame and exits successfully, only noting
@@ -58,33 +69,40 @@ export class CaptureService {
    * a downgraded one in the timelapse.
    */
   public readStill(camera: CameraWithSecret): Promise<Buffer> {
-    if (camera.kind === 'rtsp') return ffmpegSlot(() => this.readFromStream(camera));
+    const deadline = Date.now() + CAPTURE_BUDGET_SECONDS * 1000;
+    if (camera.kind === 'rtsp') return ffmpegSlot(() => this.readFromStream(camera, deadline));
     if (!this.terpCamDirect.canReach(camera)) {
       return Promise.reject(new Error('this camera answers to no device that could bridge it to this server'));
     }
-    return this.terpCamDirect.captureStill(camera);
+    return this.terpCamDirect.captureStill(camera, deadline);
   }
 
-  private async readFromStream(camera: CameraWithSecret): Promise<Buffer> {
+  private async readFromStream(camera: CameraWithSecret, deadline: number): Promise<Buffer> {
     if (!camera.url) {
       throw new Error('this camera has no stream address');
+    }
+    const left = () => deadline - Date.now();
+    if (left() < MIN_RUN_MS) {
+      throw new Error(`timed out waiting for a turn at ffmpeg: no picture within the ${CAPTURE_BUDGET_SECONDS / 60} minutes a read has`);
     }
 
     // A camera that is only visible from the tent is read through the MQTT
     // tunnel of a device standing there, which answers on a local port.
     const streamUrl = camera.tunnel && camera.deviceId ? await this.tunnel.createTunnelProxyServer(new URL(camera.url), camera.deviceId) : camera.url;
 
-    let attempt = await this.runFfmpegStill(streamUrl, camera, FFMPEG_FAST_PROBE_ARGS);
-    if (attempt.failure && FFMPEG_MISSING_CODEC_PARAMS_PATTERN.test(attempt.stderr)) {
-      attempt = await this.runFfmpegStill(streamUrl, camera, FFMPEG_FULL_PROBE_ARGS);
+    let attempt = await this.runFfmpegStill(streamUrl, camera, FFMPEG_FAST_PROBE_ARGS, Math.min(FFMPEG_TIMEOUT_MS, left()));
+    if (attempt.failure && FFMPEG_MISSING_CODEC_PARAMS_PATTERN.test(attempt.stderr) && left() >= MIN_RUN_MS) {
+      attempt = await this.runFfmpegStill(streamUrl, camera, FFMPEG_FULL_PROBE_ARGS, Math.min(FFMPEG_TIMEOUT_MS, left()));
     }
 
     if (attempt.failure) {
       // What ffmpeg wrote says why, where its exit message only says that it
       // failed - and the caller puts this reason in front of a person. Redacted
       // because ffmpeg quotes the whole command line back, URL credentials and
-      // all, and this text reaches a log and a diary entry.
-      const reason = attempt.failure instanceof CorruptFrameError ? attempt.failure.message : attempt.stderr.trim() || attempt.failure.message;
+      // all, and this text reaches a log and a diary entry. A run that was ended
+      // for taking too long says so: what it wrote until then is not why.
+      const reason =
+        attempt.failure instanceof CorruptFrameError || attempt.timedOut ? attempt.failure.message : attempt.stderr.trim() || attempt.failure.message;
       attempt.failure.message = withoutCredentials(reason);
       throw attempt.failure;
     }
@@ -96,7 +114,8 @@ export class CaptureService {
     streamUrl: string,
     camera: Pick<CameraWithSecret, 'url' | 'transport'>,
     probeArgs: string[],
-  ): Promise<{ stdout: Buffer; stderr: string; failure?: Error }> {
+    timeoutMs: number,
+  ): Promise<{ stdout: Buffer; stderr: string; failure?: Error; timedOut?: boolean }> {
     return new Promise(resolve => {
       execFile(
         'ffmpeg',
@@ -129,20 +148,24 @@ export class CaptureService {
           '-',
         ],
         {
-          timeout: FFMPEG_TIMEOUT_MS,
+          timeout: timeoutMs,
           maxBuffer: 5 * 1024 * 1024,
           encoding: 'buffer',
         },
         (error, stdout, stderr) => {
+          // Ended by the timeout above rather than finished. execFile also kills a
+          // run whose output overflows, which is a failure of another kind.
+          const timedOut = !!error?.killed && error.code !== 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER';
           const corruptionIndicator = !error && FFMPEG_CORRUPT_FRAME_PATTERN.exec(String(stderr))?.[0];
-          const failure =
-            error ??
-            (corruptionIndicator
-              ? new CorruptFrameError(`discarding corrupt frame ("${corruptionIndicator}")`)
-              : !stdout || stdout.length === 0
-                ? new Error('ffmpeg produced no output')
-                : undefined);
-          resolve({ stdout: stdout ?? Buffer.alloc(0), stderr: String(stderr), failure });
+          const failure = timedOut
+            ? new Error(`timed out after ${Math.round(timeoutMs / 1000)} s without a picture`)
+            : (error ??
+              (corruptionIndicator
+                ? new CorruptFrameError(`discarding corrupt frame ("${corruptionIndicator}")`)
+                : !stdout || stdout.length === 0
+                  ? new Error('ffmpeg produced no output')
+                  : undefined));
+          resolve({ stdout: stdout ?? Buffer.alloc(0), stderr: String(stderr), failure, timedOut });
         },
       );
     });

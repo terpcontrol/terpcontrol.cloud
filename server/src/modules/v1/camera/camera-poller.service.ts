@@ -119,8 +119,8 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
 
   /**
    * A camera read through its device is not tried while that device is
-   * offline, here as in the pass: a Terp Cam would wait out three relay
-   * dial-ins - over two minutes - to report a relay that was never going to
+   * offline, here as in the pass: a Terp Cam would spend its whole budget -
+   * three minutes of relay dial-ins - to report a relay that was never going to
    * open, and the person who pressed the button would be told the wrong thing
    * at the end of it. The answer is the device being offline, at once.
    */
@@ -158,8 +158,9 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
         // A camera read through its device - a Terp Cam over the device's relay,
         // or a stream tunnelled through it - needs the device to answer, and an
         // offline one cannot: each try would only wait out its timeouts (three
-        // relay dial-ins for a Terp Cam). Asked before the schedule, so an offline
-        // spell does not grow the backoff. A camera reached directly is still read.
+        // minutes of relay dial-ins for a Terp Cam). Asked before the schedule,
+        // so an offline spell does not grow the backoff. A camera reached
+        // directly is still read.
         if (readsThroughDevice(camera) && (!controller || isOffline(controller.state.lastSeenAt))) continue;
 
         if (this.reading.has(camera.id) || !this.isDue(camera) || (await this.isResting(camera, controller))) {

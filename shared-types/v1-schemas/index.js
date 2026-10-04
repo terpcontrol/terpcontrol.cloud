@@ -39,7 +39,8 @@ __exportStar(require("./diary.js"), exports);
 // settings beyond the targets a device's type offers, which the server checks a
 // change against and the screens draw their controls from. And day and night as
 // the firmware keeps them, which the server judges by, the screens draw and the
-// simulator runs.
+// simulator runs. And how long one read of a camera may take, which the poller
+// keeps and the test button promises, and the kinds of failure it is named as.
 __exportStar(require("./socket-report.js"), exports);
 __exportStar(require("./feeding.js"), exports);
 __exportStar(require("./grow-days.js"), exports);
@@ -49,3 +50,4 @@ __exportStar(require("./vpd.js"), exports);
 __exportStar(require("./maintenance.js"), exports);
 __exportStar(require("./configuration-fields.js"), exports);
 __exportStar(require("./day-night.js"), exports);
+__exportStar(require("./capture.js"), exports);

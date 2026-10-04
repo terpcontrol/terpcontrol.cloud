@@ -1,12 +1,17 @@
 import { jest } from '@jest/globals';
+import type { TestCapture } from '@fg2/shared-types/v1';
 import { CameraPollerService } from '@modules/v1/camera/camera-poller.service';
 import { CamerasController } from '@modules/v1/camera/cameras.controller';
+import { TestCapturesService } from '@modules/v1/camera/test-captures.service';
 
 /**
  * The test-image button while the poller is reading the same camera. A Terp
  * Cam's device bridges one relay at a time, so a second capture beside the
- * poll's would be turned down. The button waits for the poll's picture instead,
- * and the poller leaves a camera alone while the button is reading it.
+ * poll's would be turned down. The button joins the poll's read instead, and
+ * the poller leaves a camera alone while the button is reading it.
+ *
+ * A press is answered at once with a capture that is asked after until it is
+ * over, as the camera page does.
  */
 
 const DEVICE = 'terpcam-device';
@@ -49,8 +54,12 @@ let lastSeenAt: Date;
 let polled: Camera[];
 let readStill: jest.Mock<(camera: Camera) => Promise<Buffer>>;
 let storeBytes: jest.Mock<(draft: unknown, data: Buffer) => Promise<{ id: string }>>;
+let noteCapture: jest.Mock<(id: string, at: Date | null, error: string | null) => Promise<void>>;
 let poller: CameraPollerService;
+let tests: TestCapturesService;
 let controller: CamerasController;
+
+const OWNER = { grantee: 'owner' } as never;
 
 /** A capture that finishes when the spec says so. */
 function held() {
@@ -69,6 +78,19 @@ const settle = () => new Promise(resolve => setImmediate(resolve));
 /** One pass of the poller, which is the seam the spec drives besides the button. */
 const pass = () => (poller as unknown as Internals).pass();
 
+/** A press of the button, answered as the route answers it: at once. */
+const press = (cameraId: string, grant = OWNER) => controller.testCapture(grant, cameraId);
+
+/** The capture asked after until it is over, as the camera page asks every couple of seconds. */
+async function outcome(started: TestCapture | Promise<TestCapture>, grant = OWNER): Promise<TestCapture> {
+  const { id, cameraId } = await started;
+  for (;;) {
+    const capture = controller.testCaptureState(grant, cameraId, id);
+    if (capture.state !== 'running') return capture;
+    await settle();
+  }
+}
+
 beforeEach(() => {
   lastSeenAt = new Date();
   polled = [TERPCAM];
@@ -86,15 +108,19 @@ beforeEach(() => {
       const camera = [TERPCAM, STREAM].find(candidate => candidate.id === id);
       return camera ? { ...camera, secret: null } : null;
     },
-    noteCapture: async () => undefined,
+    noteCapture: (noteCapture = jest.fn<(id: string, at: Date | null, error: string | null) => Promise<void>>().mockResolvedValue(undefined)),
   };
   const entries = { write: async () => undefined };
 
   poller = new CameraPollerService(devices as never, cameras as never, { readStill } as never, { storeBytes } as never, entries as never, null);
-  controller = new CamerasController(cameras as never, {} as never, poller, {} as never, {} as never, {} as never);
+  tests = new TestCapturesService(cameras as never, poller);
+  controller = new CamerasController(cameras as never, {} as never, poller, {} as never, {} as never, {} as never, tests);
 });
 
-afterEach(() => (poller as unknown as Internals).onApplicationShutdown());
+afterEach(() => {
+  (poller as unknown as Internals).onApplicationShutdown();
+  tests.onApplicationShutdown();
+});
 
 it("answers with the poll's picture instead of capturing beside it", async () => {
   const capture = held();
@@ -102,10 +128,11 @@ it("answers with the poll's picture instead of capturing beside it", async () =>
 
   const polling = pass();
   await settle();
-  const button = controller.testCapture(TERPCAM.id);
+  const button = await press(TERPCAM.id);
+  expect(button.state).toBe('running');
   capture.resolve(STILL);
 
-  await expect(button).resolves.toMatchObject({ succeeded: true, mediaId: 'media-1' });
+  await expect(outcome(button)).resolves.toMatchObject({ state: 'done', still: { mediaId: 'media-1' }, reason: null, error: null });
   await polling;
   expect(readStill).toHaveBeenCalledTimes(1);
   // Stored once, by the read both of them waited for.
@@ -118,10 +145,15 @@ it('shares the failure of the poll it waited for', async () => {
 
   const polling = pass();
   await settle();
-  const button = controller.testCapture(TERPCAM.id);
+  const button = press(TERPCAM.id);
   capture.reject(new Error('the controller did not open the relay in time'));
 
-  await expect(button).resolves.toMatchObject({ succeeded: false, error: 'the controller did not open the relay in time' });
+  await expect(outcome(button)).resolves.toMatchObject({
+    state: 'failed',
+    still: null,
+    reason: 'relayNotOpened',
+    error: 'the controller did not open the relay in time',
+  });
   await polling;
   expect(readStill).toHaveBeenCalledTimes(1);
 });
@@ -130,13 +162,14 @@ it('lets a second click wait for the first', async () => {
   const capture = held();
   readStill.mockReturnValueOnce(capture.promise);
 
-  const first = controller.testCapture(TERPCAM.id);
+  const first = await press(TERPCAM.id);
   await settle();
-  const second = controller.testCapture(TERPCAM.id);
+  const second = await press(TERPCAM.id);
   capture.resolve(STILL);
 
-  await expect(first).resolves.toMatchObject({ succeeded: true, mediaId: 'media-1' });
-  await expect(second).resolves.toMatchObject({ succeeded: true, mediaId: 'media-1' });
+  // The same capture, not a second one waiting on the same read.
+  expect(second.id).toBe(first.id);
+  await expect(outcome(second)).resolves.toMatchObject({ state: 'done', still: { mediaId: 'media-1' } });
   expect(readStill).toHaveBeenCalledTimes(1);
 });
 
@@ -144,12 +177,12 @@ it('leaves the camera to a running test-image read', async () => {
   const capture = held();
   readStill.mockReturnValueOnce(capture.promise);
 
-  const button = controller.testCapture(TERPCAM.id);
+  const button = press(TERPCAM.id);
   await settle();
   await pass();
   capture.resolve(STILL);
 
-  await expect(button).resolves.toMatchObject({ succeeded: true });
+  await expect(outcome(button)).resolves.toMatchObject({ state: 'done' });
   expect(readStill).toHaveBeenCalledTimes(1);
 });
 
@@ -160,7 +193,7 @@ it('reads a stream of its own when the settings being tested are not the ones be
   const polling = pass();
   await settle();
 
-  await expect(controller.testCapture(STREAM.id)).resolves.toMatchObject({ succeeded: true });
+  await expect(outcome(press(STREAM.id))).resolves.toMatchObject({ state: 'done' });
   expect(readStill).toHaveBeenCalledTimes(2);
   capture.resolve(STILL);
   await polling;
@@ -196,8 +229,8 @@ describe('a camera read through its device', () => {
     lastSeenAt = new Date(Date.now() - 60 * 60_000);
 
     for (const camera of [TERPCAM, STREAM]) {
-      const answer = await controller.testCapture(camera.id);
-      expect(answer).toMatchObject({ succeeded: false, mediaId: null });
+      const answer = await outcome(press(camera.id));
+      expect(answer).toMatchObject({ state: 'failed', still: null, reason: 'deviceOffline' });
       expect(answer.error).toBe(`the device this camera is read through is offline since ${lastSeenAt.toISOString()}`);
     }
     expect(readStill).not.toHaveBeenCalled();
@@ -205,10 +238,63 @@ describe('a camera read through its device', () => {
 
   it('reads for the button as soon as the device is back', async () => {
     lastSeenAt = new Date(Date.now() - 60 * 60_000);
-    await controller.testCapture(TERPCAM.id);
+    await outcome(press(TERPCAM.id));
     lastSeenAt = new Date();
 
-    await expect(controller.testCapture(TERPCAM.id)).resolves.toMatchObject({ succeeded: true });
+    await expect(outcome(press(TERPCAM.id))).resolves.toMatchObject({ state: 'done' });
     expect(readStill).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('a capture asked after', () => {
+  it('is answered at once, while the read it started goes on', async () => {
+    const capture = held();
+    readStill.mockReturnValueOnce(capture.promise);
+
+    const button = await press(TERPCAM.id);
+    expect(button).toMatchObject({ cameraId: TERPCAM.id, state: 'running', finishedAt: null, still: null, reason: null, error: null });
+    await settle();
+    expect(controller.testCaptureState(OWNER, TERPCAM.id, button.id).state).toBe('running');
+
+    capture.resolve(STILL);
+    const done = await outcome(button);
+    expect(done.finishedAt).not.toBeNull();
+  });
+
+  it('writes down why it failed before it says it is over, so the camera page reads the reason with it', async () => {
+    readStill.mockRejectedValueOnce(new Error('Connection refused'));
+
+    await expect(outcome(press(STREAM.id))).resolves.toMatchObject({ state: 'failed', reason: 'noAnswer' });
+    expect(noteCapture).toHaveBeenCalledWith(STREAM.id, null, 'Connection refused');
+  });
+
+  it('is found under its own camera only', async () => {
+    const button = await outcome(press(TERPCAM.id));
+
+    expect(() => controller.testCaptureState(OWNER, STREAM.id, button.id)).toThrow();
+    expect(() => controller.testCaptureState(OWNER, TERPCAM.id, 'no-such-capture')).toThrow();
+  });
+
+  it('tells somebody who manages the tent, not owns the camera, the kind of failure and not the camera´s words', async () => {
+    readStill.mockRejectedValueOnce(new Error('Connection to tcp://192.168.1.40:554 failed: Connection refused'));
+    const member = { grantee: 'member' } as never;
+
+    const failed = await outcome(press(STREAM.id, member), member);
+    expect(failed).toMatchObject({ state: 'failed', reason: 'noAnswer', error: null });
+    expect(controller.testCaptureState(OWNER, STREAM.id, failed.id).error).toContain('192.168.1.40');
+  });
+
+  it('is kept for a few minutes after it finished, and then forgotten', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+    try {
+      const button = await outcome(press(TERPCAM.id));
+
+      jest.advanceTimersByTime(4 * 60_000);
+      expect(controller.testCaptureState(OWNER, TERPCAM.id, button.id).state).toBe('done');
+      jest.advanceTimersByTime(60_000);
+      expect(() => controller.testCaptureState(OWNER, TERPCAM.id, button.id)).toThrow();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

@@ -653,6 +653,14 @@ describe('what the camera routes answer', () => {
     expectDocumented(await owner.client.patch(`/v1/cameras/${cameraId}`).send({ name: 'renamed' }).expect(200), '/v1/cameras/{id}', 'patch');
   });
 
+  it('matches the declared shapes for a test picture, started and asked after', async () => {
+    const started = await owner.client.post(`/v1/cameras/${cameraId}/test-captures`).expect(202);
+    expectDocumented(started, '/v1/cameras/{id}/test-captures', 'post');
+
+    const state = await owner.client.get(`/v1/cameras/${cameraId}/test-captures/${started.body.id}`).expect(200);
+    expectDocumented(state, '/v1/cameras/{id}/test-captures/{captureId}');
+  });
+
   it('matches the declared shapes for the stills and films of one camera', async () => {
     expectDocumented(await owner.client.get(`/v1/cameras/${cameraId}/frames`).expect(200), '/v1/cameras/{id}/frames');
     expectDocumented(await owner.client.get(`/v1/cameras/${cameraId}/timelapses`).expect(200), '/v1/cameras/{id}/timelapses');

@@ -215,6 +215,23 @@ export type EntitlementTier = 'free' | 'premium';
 
 export type CameraCreate = ControllerCameraCreate | StandaloneCameraCreate | RtspCameraCreate;
 
+export type TestCaptureState = 'running' | 'done' | 'failed';
+
+export type CaptureFailure =
+  | 'deviceOffline'
+  | 'damaged'
+  | 'aborted'
+  | 'otherCamera'
+  | 'refusedRecently'
+  | 'stoppedEarly'
+  | 'refusedLogin'
+  | 'relayNotOpened'
+  | 'noAnswer'
+  | 'noDevice'
+  | 'noAddress'
+  | 'noStream'
+  | 'unknown';
+
 export type ChartViewSpan =
   | {
       kind: 'last';
@@ -3193,10 +3210,28 @@ export interface CameraUpdate {
   password?: string;
 }
 
-export interface TestCaptureAnswer {
-  succeeded: boolean;
-  mediaId: string | null;
-  capturedAt: string | null;
+export interface CameraStill {
+  mediaId: string;
+  capturedAt: string;
+}
+
+export interface TestCapture {
+  id: string;
+  cameraId: string;
+  state: TestCaptureState;
+  startedAt: string;
+  finishedAt: string | null;
+  /**
+   * The picture it took, once `done`.
+   */
+  still: CameraStill | null;
+  /**
+   * What kind of failure it was, once `failed`.
+   */
+  reason: CaptureFailure | null;
+  /**
+   * Once `failed`, what the camera - or the process that reached for it - said, in the server's words; it can name the address the camera is reached at.
+   */
   error: string | null;
 }
 
@@ -3652,11 +3687,6 @@ export interface ClimateVerdict {
    * The same window as a line, coarsened; it comes out of the aggregation that was read anyway.
    */
   trend: CardTrend | null;
-}
-
-export interface CameraStill {
-  mediaId: string;
-  capturedAt: string;
 }
 
 export interface OverviewCamera {

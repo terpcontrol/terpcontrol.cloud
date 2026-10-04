@@ -5,6 +5,7 @@ import { Cipher, createCipheriv, createDecipheriv, Decipher, randomBytes } from 
 import { Inject, Injectable, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { ConfigType } from '@nestjs/config';
+import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { logger } from '@utils/logger';
 import { terpCamConfig } from '@config/configuration';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -75,6 +76,9 @@ const FRAME_MAGIC = Buffer.from([0x55, 0xaa, 0x15, 0xa8]);
 // segment the uplink loses is resent only after ~3s, and after 6s more if it is
 // lost again (lwIP's initial retransmission timeout, doubling), so a round trip
 // that takes half a second on a good link can take ten on a choppy one.
+//
+// Each is a step's own limit inside the capture's budget, never beyond it: a
+// step is given what is left of the budget where that is less.
 const LOGIN_MS = 15_000;
 /**
  * How long a login waits for the camera to send anything at all. The camera now
@@ -138,6 +142,21 @@ const RELAY_HEADER_MS = 20_000;
  * turned down; waiting here is cheaper than a retry that cannot succeed.
  */
 const RELAY_CLOSE_MS = 10_000;
+/**
+ * A new attempt is started only with this much of the capture's budget left.
+ * One that works takes a few seconds, and a relay asked for and then given up on
+ * leaves the controller bridging for nobody until it notices.
+ */
+const MIN_ATTEMPT_MS = 20_000;
+/**
+ * Attempts start at least this far apart, so that one which fails at once - the
+ * broker down, a camera that drops the session as it opens - is not repeated as
+ * fast as it fails for the whole of the budget.
+ */
+const ATTEMPT_SPACING_MS = 10_000;
+
+/** What is left of a deadline, never less than nothing. */
+const left = (deadline: number): number => Math.max(0, deadline - Date.now());
 
 type Endpoint = { address: string; port: number };
 type Inbox = { message: Buffer; from: Endpoint }[];
@@ -229,11 +248,11 @@ class RelaySocket extends EventEmitter implements P2PSocket {
    * here would come back as the controller's hang-up while it is still ending
    * the relay - and it turns down the next one until it has.
    */
-  public close(): Promise<void> {
+  public close(waitMs = RELAY_CLOSE_MS): Promise<void> {
     if (!this.closing) {
       this.removeAllListeners('message');
       this.send(Buffer.alloc(0));
-      const timer = setTimeout(() => this.conn.destroy(), RELAY_CLOSE_MS);
+      const timer = setTimeout(() => this.conn.destroy(), waitMs);
       timer.unref?.();
       this.closing = this.hungUp.finally(() => clearTimeout(timer));
     }
@@ -474,8 +493,8 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     if (head.length) onHeader(head);
   }
 
-  /** Ask the controller to open a relay, and wait for it to dial back in. */
-  private relayConnect(deviceId: string): Promise<RelaySocket> {
+  /** Ask the controller to open a relay, and wait for it to dial back in, for as long as `waitMs` says. */
+  private relayConnect(deviceId: string, waitMs = RELAY_DIAL_MS): Promise<RelaySocket> {
     const token = randomBytes(16).toString('hex');
     const key = randomBytes(32);
     return new Promise<RelaySocket>((resolve, reject) => {
@@ -485,7 +504,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
         // controller still ending the previous relay, or one that did not find
         // the camera on its LAN this time all look like this.
         reject(new Error('the controller did not open the relay in time'));
-      }, RELAY_DIAL_MS);
+      }, waitMs);
       timer.unref?.();
       this.pendingRelays.set(token, { key, resolve, reject, timer });
       const asked = this.relay.requestRelay(deviceId, { url: this.relayUrl, token, key: key.toString('hex') });
@@ -541,21 +560,22 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
   }
 
   /**
-   * Pull one still as a ready JPEG. A capture of the device's camera that is
-   * already running is the answer rather than a second one beside it.
+   * Pull one still as a ready JPEG, the keyframe in by `deadline`. A capture of
+   * the device's camera that is already running is the answer rather than a
+   * second one beside it, and its deadline is the earlier one.
    */
-  public captureStill(camera: RelayCamera): Promise<Buffer> {
+  public captureStill(camera: RelayCamera, deadline: number): Promise<Buffer> {
     const deviceId = camera.deviceId;
     if (!deviceId) return Promise.reject(new Error('this camera answers to no device, so nothing can bridge it to this server'));
     const running = this.inflight.get(deviceId);
     if (running) return running;
-    const still = this.captureJpeg(camera).finally(() => this.inflight.delete(deviceId));
+    const still = this.captureJpeg(camera, deadline).finally(() => this.inflight.delete(deviceId));
     this.inflight.set(deviceId, still);
     return still;
   }
 
-  private async captureJpeg(camera: RelayCamera): Promise<Buffer> {
-    const data = await this.capture(camera);
+  private async captureJpeg(camera: RelayCamera, deadline: number): Promise<Buffer> {
+    const data = await this.capture(camera, deadline);
     const jpeg = await this.stills.decodeKeyframeToJpeg(data);
     logger.info(`[terpcam] camera ${camera.id}: ${data.length}B keyframe -> ${jpeg.length}B jpeg`);
     return jpeg;
@@ -565,10 +585,10 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
    * One still over a fresh relay: the controller bridges the camera's P2P and the
    * cloud runs the client, taking the camera's P2P id off the relay header. The
    * relay is closed before this returns, whatever happened, so the controller is
-   * free for the next one straight after.
+   * free for the next one straight after - and all of it by `deadline`.
    */
-  private async readStill(deviceId: string, label: string, secret: string | null): Promise<Buffer | null> {
-    const socket = await this.relayConnect(deviceId);
+  private async readStill(deviceId: string, label: string, secret: string | null, deadline: number): Promise<Buffer | null> {
+    const socket = await this.relayConnect(deviceId, Math.min(RELAY_DIAL_MS, left(deadline)));
     this.relays.add(socket);
     const inbox: Inbox = [];
     socket.on('message', (message: Buffer) => inbox.push({ message: deobfuscate(message), from: RELAY_PEER }));
@@ -576,15 +596,15 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     const session: Session = { socket, peer: RELAY_PEER, inbox, auth: authFor(secret || DEFAULT_PASSWORD), next: 1 };
     let loggedIn = false;
     try {
-      await this.login(socket, inbox, socket.did, RELAY_PEER, session.auth, label);
+      await this.login(socket, inbox, socket.did, RELAY_PEER, session.auth, label, deadline);
       loggedIn = true;
-      return await this.readKeyframe(session);
+      return await this.readKeyframe(session, deadline);
     } finally {
       // Stop the stream and give the camera its slot back; the controller also
       // closes the session on the LAN once the relay ends.
       if (loggedIn) this.request(session, `livestream.cgi?streamid=16&substream=0&${session.auth}`);
       send(socket, RELAY_PEER, buildPacket(0xf0));
-      await socket.close();
+      await socket.close(Math.min(RELAY_CLOSE_MS, left(deadline)));
       this.relays.delete(socket);
     }
   }
@@ -593,8 +613,11 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
    * Pull one still, always a full-resolution H.264 keyframe. There is no
    * `snapshot.cgi` fallback: it only returns 640x360, and a poll left without a
    * picture is better than a downgraded one in the timelapse.
+   *
+   * Everything - every attempt, each relay's dial-in and close - happens by
+   * `deadline`, which is the capture's budget unless the caller set it.
    */
-  public async capture(camera: RelayCamera): Promise<Buffer> {
+  public async capture(camera: RelayCamera, deadline = Date.now() + CAPTURE_BUDGET_SECONDS * 1000): Promise<Buffer> {
     if (!this.relayUrl) {
       throw new Error('no relay configured, so the server cannot reach a Terp Cam');
     }
@@ -611,12 +634,14 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     // re-requested stream on a live session is ignored), so a fresh session is
     // both the freshest frame and the most reliable one: the keyframe is the first
     // frame of a new stream. It does not accumulate sessions because the controller
-    // frees the camera's slot on every relay exit, and readStill waits for that. A
-    // couple of attempts ride out a slot a previous capture has not freed yet.
-    const attempts = 3;
+    // frees the camera's slot on every relay exit, and readStill waits for that.
+    // Further attempts ride out a slot a previous capture has not freed yet, a
+    // relay that did not open and a stream that broke off, for as long as the
+    // budget leaves room for one; the last one's failure is the capture's.
     for (let attempt = 1; ; attempt++) {
+      const startedAt = Date.now();
       try {
-        const keyframe = await this.readStill(deviceId, did, camera.secret);
+        const keyframe = await this.readStill(deviceId, did, camera.secret, deadline);
         if (!keyframe) throw new Error('no keyframe arrived');
         return keyframe;
       } catch (error) {
@@ -625,13 +650,15 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
           this.refused.set(deviceId, Date.now() + REFUSED_BACKOFF_MS);
           throw error;
         }
-        if (attempt >= attempts) throw error;
+        const next = Math.max(Date.now(), startedAt + ATTEMPT_SPACING_MS);
+        if (deadline - next < MIN_ATTEMPT_MS) throw error;
         logger.info(`[terpcam] ${deviceId}: capture attempt ${attempt} failed (${(error as Error).message}); retrying on a fresh session`);
+        await new Promise(resolve => setTimeout(resolve, next - Date.now()));
       }
     }
   }
 
-  private async login(socket: P2PSocket, inbox: Inbox, did: Buffer, peer: Endpoint, auth: string, label: string): Promise<void> {
+  private async login(socket: P2PSocket, inbox: Inbox, did: Buffer, peer: Endpoint, auth: string, label: string, deadline = Infinity): Promise<void> {
     const trailer = Buffer.from([0x00, 0x02, 0x12, 0x64, 0x10, 0x02, 0x00, 0x0a, 0, 0, 0, 0, 0, 0, 0, 0]);
     const devlgn = Buffer.concat([did, trailer]);
     // The reply can span fragments; kept by index so they join in order.
@@ -641,7 +668,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     // What came back, by packet type: the failure message says how far it got.
     const heard = new Map<number, number>();
     const started = Date.now();
-    const until = started + LOGIN_MS;
+    const until = Math.min(started + LOGIN_MS, deadline);
     while (Date.now() < until && (heard.size > 0 || Date.now() < started + LOGIN_SILENT_MS)) {
       // Asked once it answers: a second get_status would restart the reply.
       if (reply.size === 0) {
@@ -695,7 +722,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
    * EVERY frame is still examined, not just the first, for when that one is lost
    * after all and the next keyframe has to do.
    */
-  private async readKeyframe(session: Session): Promise<Buffer | null> {
+  private async readKeyframe(session: Session, deadline = Infinity): Promise<Buffer | null> {
     const { socket, peer, inbox, auth } = session;
     inbox.length = 0;
     this.request(session, `livestream.cgi?streamid=10&substream=2&${auth}`);
@@ -705,11 +732,11 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
     const ack = () => {
       while (unacked.length) send(socket, peer, buildAck(VIDEO_CHANNEL, unacked.splice(0, MAX_ACK_INDICES)));
     };
-    const started = Date.now();
+    const until = Math.min(Date.now() + TRANSFER_MS, deadline);
     let lastData = Date.now();
     let lastProgress = Date.now();
 
-    while (Date.now() - started < TRANSFER_MS && Date.now() - lastData < IDLE_MS) {
+    while (Date.now() < until && Date.now() - lastData < IDLE_MS) {
       const found: { frame: Buffer | null } = { frame: null };
       await this.drain(
         inbox,

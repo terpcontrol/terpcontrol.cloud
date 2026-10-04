@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.exportAccepted = exports.media = exports.mediaExportJob = exports.exportScope = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.growReadingNames = exports.readingName = exports.entryReading = void 0;
-exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardTransition = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputLevel = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = exports.spaceLive = void 0;
+exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardTransition = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCapture = exports.captureFailure = exports.testCaptureState = exports.cameraStill = exports.cameraUpdate = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputLevel = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = void 0;
 const zod_1 = require("zod");
+const capture_js_1 = require("./capture.js");
 const common_js_1 = require("./common.js");
 /**
  * The timeline and everything that is looked at: entries, pictures, cameras,
@@ -540,20 +541,39 @@ exports.cameraCreate = (0, common_js_1.named)('CameraCreate', zod_1.z.discrimina
  * is the one that paired it and is refused on this route.
  */
 exports.cameraUpdate = (0, common_js_1.named)('CameraUpdate', exports.rtspCameraCreate.omit({ kind: true }).partial());
+/** One picture of a camera, where the camera is already known: a row of the day's strip, the picture a test took. */
+exports.cameraStill = (0, common_js_1.named)('CameraStill', zod_1.z.object({ mediaId: (0, common_js_1.id)(), capturedAt: (0, common_js_1.instant)() }));
+exports.testCaptureState = (0, common_js_1.named)('TestCaptureState', zod_1.z.enum(['running', 'done', 'failed']));
+/** What kind of failure a read of a camera was, from the words it left behind (`capture.ts`). */
+exports.captureFailure = (0, common_js_1.named)('CaptureFailure', zod_1.z.enum(capture_js_1.CAPTURE_FAILURES));
 /**
- * What `POST /cameras/{id}/test-captures` answers: one picture, taken now, so
- * that whoever is setting a camera up learns whether it answers at all. The
- * picture is stored like any other still, which is why only its id comes back.
+ * One picture, taken now, so that whoever is setting a camera up learns whether
+ * it answers at all. `POST /cameras/{id}/test-captures` starts it and answers at
+ * once; `GET /cameras/{id}/test-captures/{captureId}` is asked until it is no
+ * longer `running`. A read can take minutes where a Terp Cam's relay is slow to
+ * open, and a request held open that long is one every proxy on the way has to
+ * be told to allow.
  *
- * A camera that could not be read is reported here rather than as an error,
+ * It is the poller's own read - one that is already under way for the camera
+ * is joined rather than run twice - so it ends within `CAPTURE_BUDGET_SECONDS`
+ * like every other, and the picture is stored like any other still.
+ *
+ * A camera that could not be read is a `failed` capture rather than an error,
  * because a wrong address is an ordinary outcome of this button and the reason
  * the camera gave is what the person needs to see.
  */
-exports.testCaptureAnswer = (0, common_js_1.named)('TestCaptureAnswer', zod_1.z.object({
-    succeeded: zod_1.z.boolean(),
-    mediaId: (0, common_js_1.id)().nullable(),
-    capturedAt: (0, common_js_1.instant)().nullable(),
-    error: zod_1.z.string().nullable(),
+exports.testCapture = (0, common_js_1.named)('TestCapture', zod_1.z.object({
+    id: (0, common_js_1.id)(),
+    cameraId: (0, common_js_1.id)(),
+    state: exports.testCaptureState,
+    startedAt: (0, common_js_1.instant)(),
+    finishedAt: (0, common_js_1.instant)().nullable(),
+    still: exports.cameraStill.nullable().describe('The picture it took, once `done`.'),
+    reason: exports.captureFailure.nullable().describe('What kind of failure it was, once `failed`.'),
+    error: zod_1.z
+        .string()
+        .nullable()
+        .describe("Once `failed`, what the camera - or the process that reached for it - said, in the server's words; it can name the address the camera is reached at."),
 }));
 /**
  * `POST /cameras/{id}/timelapses`, which is the composer. `window` says which
@@ -994,8 +1014,6 @@ exports.climateVerdict = (0, common_js_1.named)('ClimateVerdict', zod_1.z.object
     actuators: zod_1.z.array(exports.actuatorRuns),
     trend: exports.cardTrend.nullable().describe('The same window as a line, coarsened; it comes out of the aggregation that was read anyway.'),
 }));
-/** One picture of a camera, as the day's strip draws it: the camera is the row it sits in. */
-exports.cameraStill = (0, common_js_1.named)('CameraStill', zod_1.z.object({ mediaId: (0, common_js_1.id)(), capturedAt: (0, common_js_1.instant)() }));
 /** A camera of the space and the day it has taken so far. */
 exports.overviewCamera = (0, common_js_1.named)('OverviewCamera', zod_1.z.object({
     cameraId: (0, common_js_1.id)(),

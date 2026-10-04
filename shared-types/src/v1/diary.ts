@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { CAPTURE_FAILURES } from './capture.js';
 import {
   accountLayers,
   alertKind,
@@ -718,22 +719,44 @@ export const cameraCreate = named(
  */
 export const cameraUpdate = named('CameraUpdate', rtspCameraCreate.omit({ kind: true }).partial());
 
+/** One picture of a camera, where the camera is already known: a row of the day's strip, the picture a test took. */
+export const cameraStill = named('CameraStill', z.object({ mediaId: id(), capturedAt: instant() }));
+
+export const testCaptureState = named('TestCaptureState', z.enum(['running', 'done', 'failed']));
+
+/** What kind of failure a read of a camera was, from the words it left behind (`capture.ts`). */
+export const captureFailure = named('CaptureFailure', z.enum(CAPTURE_FAILURES));
+
 /**
- * What `POST /cameras/{id}/test-captures` answers: one picture, taken now, so
- * that whoever is setting a camera up learns whether it answers at all. The
- * picture is stored like any other still, which is why only its id comes back.
+ * One picture, taken now, so that whoever is setting a camera up learns whether
+ * it answers at all. `POST /cameras/{id}/test-captures` starts it and answers at
+ * once; `GET /cameras/{id}/test-captures/{captureId}` is asked until it is no
+ * longer `running`. A read can take minutes where a Terp Cam's relay is slow to
+ * open, and a request held open that long is one every proxy on the way has to
+ * be told to allow.
  *
- * A camera that could not be read is reported here rather than as an error,
+ * It is the poller's own read - one that is already under way for the camera
+ * is joined rather than run twice - so it ends within `CAPTURE_BUDGET_SECONDS`
+ * like every other, and the picture is stored like any other still.
+ *
+ * A camera that could not be read is a `failed` capture rather than an error,
  * because a wrong address is an ordinary outcome of this button and the reason
  * the camera gave is what the person needs to see.
  */
-export const testCaptureAnswer = named(
-  'TestCaptureAnswer',
+export const testCapture = named(
+  'TestCapture',
   z.object({
-    succeeded: z.boolean(),
-    mediaId: id().nullable(),
-    capturedAt: instant().nullable(),
-    error: z.string().nullable(),
+    id: id(),
+    cameraId: id(),
+    state: testCaptureState,
+    startedAt: instant(),
+    finishedAt: instant().nullable(),
+    still: cameraStill.nullable().describe('The picture it took, once `done`.'),
+    reason: captureFailure.nullable().describe('What kind of failure it was, once `failed`.'),
+    error: z
+      .string()
+      .nullable()
+      .describe("Once `failed`, what the camera - or the process that reached for it - said, in the server's words; it can name the address the camera is reached at."),
   }),
 );
 
@@ -1312,9 +1335,6 @@ export const climateVerdict = named(
     trend: cardTrend.nullable().describe('The same window as a line, coarsened; it comes out of the aggregation that was read anyway.'),
   }),
 );
-
-/** One picture of a camera, as the day's strip draws it: the camera is the row it sits in. */
-export const cameraStill = named('CameraStill', z.object({ mediaId: id(), capturedAt: instant() }));
 
 /** A camera of the space and the day it has taken so far. */
 export const overviewCamera = named(

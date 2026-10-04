@@ -77,7 +77,7 @@ const build = (): void => {
   // what it then renders is the builder's own test.
   const builder = { renderQueued: () => undefined };
 
-  controller = new CamerasController(cameras, media, poller as never, builder as never, entitlement, access);
+  controller = new CamerasController(cameras, media, poller as never, builder as never, entitlement, access, {} as never);
 };
 
 const world = async (entitledUntil: Date | null): Promise<void> => {

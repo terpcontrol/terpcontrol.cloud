@@ -8,7 +8,8 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AccessNeed, Camera, Device, GrowListItem, TimelapseCreate } from '@fg2/shared-types/v1';
+import type { AccessNeed, Camera, Device, GrowListItem, TestCapture, TimelapseCreate } from '@fg2/shared-types/v1';
+import { NoAnswerInTime } from '@/api/cameras';
 import { serverNow } from '@/api/clock';
 import { CameraScreen } from '@/screens/camera/CameraPage';
 import { causeOf, filmCauseOf } from '@/screens/camera/capture-failure';
@@ -49,7 +50,7 @@ const state = vi.hoisted(() => ({
   /** The day the page asked the camera for, which is the account's and not this machine's. */
   askedForDay: null as { startsAt: string; endsAt: string } | null,
   /** What the test button's press answered, which is a picture or a reason and never an error. */
-  capture: null as { succeeded: boolean; mediaId: string | null; capturedAt: string | null; error: string | null } | null,
+  capture: null as TestCapture | null,
   /** A press that got no answer at all. */
   captureError: null as unknown,
   /** Whether the account keeps a grow diary, whose films are a phase and a whole grow. */
@@ -57,6 +58,19 @@ const state = vi.hoisted(() => ({
   /** The account's devices, which a camera read through one goes dark with; null is a read still out. */
   devices: null as Device[] | null,
 }));
+
+/** A test picture as the server answers it once it is over. */
+const captured = (over: Partial<TestCapture>): TestCapture => ({
+  id: 'capture-1',
+  cameraId: 'camera-1',
+  state: 'running',
+  startedAt: '2026-09-19T12:00:00.000Z',
+  finishedAt: '2026-09-19T12:00:02.000Z',
+  still: null,
+  reason: null,
+  error: null,
+  ...over,
+});
 
 vi.mock('@/api/devices', async importOriginal => ({
   ...(await importOriginal<object>()),
@@ -426,7 +440,7 @@ describe('the camera page, by who is reading', () => {
    * draw was a failure.
    */
   it('says what a press that worked left behind, rather than going quiet', () => {
-    state.capture = { succeeded: true, mediaId: 'still-new', capturedAt: '2026-09-19T12:00:02.000Z', error: null };
+    state.capture = captured({ state: 'done', still: { mediaId: 'still-new', capturedAt: '2026-09-19T12:00:02.000Z' } });
     drawPage();
 
     expect(screen.getByRole('status')).toHaveTextContent('Taken. It is the newest picture of the day.');
@@ -438,7 +452,7 @@ describe('the camera page, by who is reading', () => {
    * page said "device aborted the capture" under a button called "Testbild".
    */
   it('names the kind of failure a press met, and keeps the camera´s own words under it for the owner', () => {
-    state.capture = { succeeded: false, mediaId: null, capturedAt: null, error: 'device aborted the capture' };
+    state.capture = captured({ state: 'failed', reason: 'aborted', error: 'device aborted the capture' });
     drawPage();
 
     expect(screen.getByRole('alert')).toHaveTextContent('the camera stopped the capture');
@@ -447,14 +461,15 @@ describe('the camera page, by who is reading', () => {
   });
 
   /**
-   * The server can take well over half a minute to read a Terp Cam, and this
-   * side giving up is not the camera being out of reach: the press said "That
-   * did not reach the camera" while the server was still reading it.
+   * The server can take minutes to read a Terp Cam, and this side giving up is
+   * not the camera being out of reach: the press said "That did not reach the
+   * camera" while the server was still reading it. The minutes are the read's
+   * own budget, which the server keeps.
    */
   it('says that nothing has answered yet where this side gave up, and that the camera was not reached only where it was not', () => {
-    state.captureError = new DOMException('signal timed out', 'TimeoutError');
+    state.captureError = new NoAnswerInTime();
     const drawn = drawPage();
-    expect(screen.getByRole('alert')).toHaveTextContent('No answer after 7 minutes. If the camera still sends the picture, it appears here.');
+    expect(screen.getByRole('alert')).toHaveTextContent('No answer after 3 minutes. If the camera still sends the picture, it appears here.');
     drawn.unmount();
 
     state.captureError = new TypeError('Failed to fetch');
@@ -502,7 +517,8 @@ describe('the camera page, by who is reading', () => {
 
   it('gives a co-manager the kind of failure and not the words that name the hardware', () => {
     state.youMay = 'manage';
-    state.capture = { succeeded: false, mediaId: null, capturedAt: null, error: 'rtsp://192.168.1.40/stream1 refused' };
+    // The server holds the words back from a co-manager; the page would not draw them either way.
+    state.capture = captured({ state: 'failed', reason: 'noAnswer', error: 'rtsp://192.168.1.40/stream1 refused' });
     drawPage();
 
     expect(screen.getByRole('alert')).toHaveTextContent('the camera did not answer');

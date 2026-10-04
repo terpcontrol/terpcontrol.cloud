@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Media } from '@fg2/shared-types/v1';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Media, TestCapture } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
-import { useCameraFrames, useTestCapture } from '@/api/cameras';
+import { CAPTURE_POLL_MS, CAPTURE_WAIT_MS, gaveUp, useCameraFrames, useTestCapture } from '@/api/cameras';
+import { ApiError } from '@/api/problem';
 
 /**
  * What the camera page reads while somebody stands in front of the tent with it
@@ -90,25 +91,97 @@ describe("the day the camera page's scrubber walks", () => {
 });
 
 /**
- * The picture the test button stores. The route answers the media id of the
- * still it just took, and the page went on drawing the day it had read before
- * the press - so a capture that worked and a button that did nothing at all
- * looked the same from the screen.
+ * The picture the test button stores. The press is answered at once and the
+ * capture asked after until it is over - and once it is, the page reads the day
+ * again: it went on drawing the day it had read before the press, so a capture
+ * that worked and a button that did nothing at all looked the same from the
+ * screen.
  */
 describe('a test image', () => {
-  it('has the day read again, so the picture it stored is on the frame and in the count', async () => {
-    vi.mocked(api.get).mockImplementation(() => page([still('a', '2026-09-23T12:00:00.000Z')]));
-    vi.mocked(api.post).mockImplementation(
-      () => Promise.resolve({ succeeded: true, mediaId: 'b', capturedAt: '2026-09-23T12:01:00.000Z', error: null }) as never,
-    );
+  const capture = (over: Partial<TestCapture>): TestCapture => ({
+    id: 'capture-1',
+    cameraId: 'camera-1',
+    state: 'running',
+    startedAt: '2026-09-23T12:00:00.000Z',
+    finishedAt: null,
+    still: null,
+    reason: null,
+    error: null,
+    ...over,
+  });
+  const DONE = capture({ state: 'done', finishedAt: '2026-09-23T12:01:00.000Z', still: { mediaId: 'b', capturedAt: '2026-09-23T12:01:00.000Z' } });
 
+  /** The capture's own route answers from `states`, one per ask, and every other read a day of one picture. */
+  const answering = (...states: (TestCapture | Error)[]) =>
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (!path.includes('/test-captures/')) return page([still('a', '2026-09-23T12:00:00.000Z')]);
+      const next = states.length > 1 ? states.shift()! : states[0];
+      return (next instanceof Error ? Promise.reject(next) : Promise.resolve(next)) as never;
+    });
+  const asks = () => vi.mocked(api.get).mock.calls.filter(call => String(call[0]).includes('/test-captures/')).length;
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout', 'Date', 'performance'] });
+    vi.mocked(api.post).mockReset();
+    vi.mocked(api.post).mockImplementation(() => Promise.resolve(capture({})) as never);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('is asked after every two seconds until it is over, and then has the day read again', async () => {
+    answering(capture({}), DONE);
     const { result } = renderHook(() => ({ frames: useCameraFrames('camera-1', DAY), test: useTestCapture('camera-1') }), { wrapper });
-
     await waitFor(() => expect(result.current.frames.data).toBeDefined());
-    expect(vi.mocked(api.get).mock.calls).toHaveLength(1);
+    const dayReads = () => vi.mocked(api.get).mock.calls.length - asks();
+    expect(dayReads()).toBe(1);
 
-    result.current.test.mutate();
+    act(() => result.current.test.mutate());
+    await act(() => vi.advanceTimersByTimeAsync(1_900));
+    expect(asks()).toBe(0);
+    await act(() => vi.advanceTimersByTimeAsync(4_000));
 
-    await waitFor(() => expect(vi.mocked(api.get).mock.calls.length).toBeGreaterThan(1));
+    await waitFor(() => expect(result.current.test.data).toEqual(DONE));
+    expect(asks()).toBe(2);
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith('/cameras/camera-1/test-captures/capture-1', undefined, expect.any(AbortSignal));
+    await waitFor(() => expect(dayReads()).toBeGreaterThan(1));
+  });
+
+  it('asks again after a poll that did not get through, and stops at a refusal', async () => {
+    answering(
+      new TypeError('Failed to fetch'),
+      new ApiError({ status: 404, title: 'Not Found', detail: 'gone', code: 'test_capture_not_found', errors: [] }),
+    );
+    const { result } = renderHook(() => useTestCapture('camera-1'), { wrapper });
+
+    act(() => result.current.mutate());
+    await act(() => vi.advanceTimersByTimeAsync(4_100));
+
+    await waitFor(() => expect(result.current.error).toBeInstanceOf(ApiError));
+    expect(asks()).toBe(2);
+  });
+
+  it('stops asking once the read has had its budget and a margin, and says this side gave up', async () => {
+    answering(capture({}));
+    const { result } = renderHook(() => useTestCapture('camera-1'), { wrapper });
+
+    act(() => result.current.mutate());
+    await act(() => vi.advanceTimersByTimeAsync(CAPTURE_WAIT_MS + CAPTURE_POLL_MS));
+
+    await waitFor(() => expect(gaveUp(result.current.error)).toBe(true));
+    // Three minutes and the half minute after them, one ask every two seconds.
+    expect(CAPTURE_WAIT_MS).toBe(210_000);
+    expect(asks()).toBe(CAPTURE_WAIT_MS / CAPTURE_POLL_MS);
+  });
+
+  it('stops asking when the screen that pressed it goes away', async () => {
+    answering(capture({}));
+    const { result, unmount } = renderHook(() => useTestCapture('camera-1'), { wrapper });
+
+    act(() => result.current.mutate());
+    await act(() => vi.advanceTimersByTimeAsync(4_100));
+    expect(asks()).toBe(2);
+    unmount();
+    await act(() => vi.advanceTimersByTimeAsync(20_000));
+
+    expect(asks()).toBe(2);
   });
 });

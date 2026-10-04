@@ -1436,19 +1436,77 @@ export declare const cameraUpdate: z.ZodObject<{
     logErrors: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
     staleWarning: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
 }, z.core.$strip>;
+/** One picture of a camera, where the camera is already known: a row of the day's strip, the picture a test took. */
+export declare const cameraStill: z.ZodObject<{
+    mediaId: z.ZodString;
+    capturedAt: z.ZodISODateTime;
+}, z.core.$strip>;
+export declare const testCaptureState: z.ZodEnum<{
+    failed: "failed";
+    running: "running";
+    done: "done";
+}>;
+/** What kind of failure a read of a camera was, from the words it left behind (`capture.ts`). */
+export declare const captureFailure: z.ZodEnum<{
+    unknown: "unknown";
+    deviceOffline: "deviceOffline";
+    damaged: "damaged";
+    aborted: "aborted";
+    otherCamera: "otherCamera";
+    refusedRecently: "refusedRecently";
+    stoppedEarly: "stoppedEarly";
+    refusedLogin: "refusedLogin";
+    relayNotOpened: "relayNotOpened";
+    noAnswer: "noAnswer";
+    noDevice: "noDevice";
+    noAddress: "noAddress";
+    noStream: "noStream";
+}>;
 /**
- * What `POST /cameras/{id}/test-captures` answers: one picture, taken now, so
- * that whoever is setting a camera up learns whether it answers at all. The
- * picture is stored like any other still, which is why only its id comes back.
+ * One picture, taken now, so that whoever is setting a camera up learns whether
+ * it answers at all. `POST /cameras/{id}/test-captures` starts it and answers at
+ * once; `GET /cameras/{id}/test-captures/{captureId}` is asked until it is no
+ * longer `running`. A read can take minutes where a Terp Cam's relay is slow to
+ * open, and a request held open that long is one every proxy on the way has to
+ * be told to allow.
  *
- * A camera that could not be read is reported here rather than as an error,
+ * It is the poller's own read - one that is already under way for the camera
+ * is joined rather than run twice - so it ends within `CAPTURE_BUDGET_SECONDS`
+ * like every other, and the picture is stored like any other still.
+ *
+ * A camera that could not be read is a `failed` capture rather than an error,
  * because a wrong address is an ordinary outcome of this button and the reason
  * the camera gave is what the person needs to see.
  */
-export declare const testCaptureAnswer: z.ZodObject<{
-    succeeded: z.ZodBoolean;
-    mediaId: z.ZodNullable<z.ZodString>;
-    capturedAt: z.ZodNullable<z.ZodISODateTime>;
+export declare const testCapture: z.ZodObject<{
+    id: z.ZodString;
+    cameraId: z.ZodString;
+    state: z.ZodEnum<{
+        failed: "failed";
+        running: "running";
+        done: "done";
+    }>;
+    startedAt: z.ZodISODateTime;
+    finishedAt: z.ZodNullable<z.ZodISODateTime>;
+    still: z.ZodNullable<z.ZodObject<{
+        mediaId: z.ZodString;
+        capturedAt: z.ZodISODateTime;
+    }, z.core.$strip>>;
+    reason: z.ZodNullable<z.ZodEnum<{
+        unknown: "unknown";
+        deviceOffline: "deviceOffline";
+        damaged: "damaged";
+        aborted: "aborted";
+        otherCamera: "otherCamera";
+        refusedRecently: "refusedRecently";
+        stoppedEarly: "stoppedEarly";
+        refusedLogin: "refusedLogin";
+        relayNotOpened: "relayNotOpened";
+        noAnswer: "noAnswer";
+        noDevice: "noDevice";
+        noAddress: "noAddress";
+        noStream: "noStream";
+    }>>;
     error: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
 /**
@@ -3172,11 +3230,6 @@ export declare const climateVerdict: z.ZodObject<{
         endsAt: z.ZodISODateTime;
         points: z.ZodArray<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>>;
-}, z.core.$strip>;
-/** One picture of a camera, as the day's strip draws it: the camera is the row it sits in. */
-export declare const cameraStill: z.ZodObject<{
-    mediaId: z.ZodString;
-    capturedAt: z.ZodISODateTime;
 }, z.core.$strip>;
 /** A camera of the space and the day it has taken so far. */
 export declare const overviewCamera: z.ZodObject<{

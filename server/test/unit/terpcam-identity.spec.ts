@@ -42,7 +42,7 @@ describe('checkStatusReply', () => {
 });
 
 type Internals = {
-  readStill: (deviceId: string, label: string, secret: string | null) => Promise<Buffer | null>;
+  readStill: (deviceId: string, label: string, secret: string | null, deadline: number) => Promise<Buffer | null>;
   relayConnect: (deviceId: string) => Promise<RelaySocketLike>;
   onUpgrade: (req: http.IncomingMessage, conn: net.Socket, head: Buffer) => void;
 };
@@ -97,14 +97,24 @@ describe('a controller that does not open the relay', () => {
     (service as unknown as Internals).readStill = readStill;
   });
 
-  it('is an ordinary failed attempt: retried, and asked again on the next poll', async () => {
+  it('is an ordinary failed attempt: retried while the budget leaves room, and asked again on the next poll', async () => {
     // A slow link, a controller still ending the previous relay, a camera it did
     // not find on its LAN this time: none of them is a reason to stop asking.
-    await expect(service.capture(CAMERA)).rejects.toThrow('in time');
-    expect(readStill).toHaveBeenCalledTimes(3);
+    jest.useFakeTimers();
+    try {
+      const first = expect(service.capture(CAMERA)).rejects.toThrow('in time');
+      await jest.advanceTimersByTimeAsync(180_000);
+      await first;
+      // One that fails at once is tried every ten seconds, for as long as twenty are left: at 0, 10, ... 160.
+      expect(readStill).toHaveBeenCalledTimes(17);
 
-    await expect(service.capture(CAMERA)).rejects.toThrow('in time');
-    expect(readStill).toHaveBeenCalledTimes(6);
+      const second = expect(service.capture(CAMERA)).rejects.toThrow('in time');
+      await jest.advanceTimersByTimeAsync(180_000);
+      await second;
+      expect(readStill).toHaveBeenCalledTimes(34);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('is not asked at all while the broker is down', async () => {
@@ -122,7 +132,7 @@ it("asks for a relay before the device has reported the camera's P2P id", async 
   (service as unknown as Internals).readStill = readStill;
   await expect(service.capture(CAMERA)).resolves.toEqual(Buffer.from('keyframe'));
   // The camera's own record says who it is and what to log in with, never the caller.
-  expect(readStill).toHaveBeenCalledWith(DEVICE, PAIRED, null);
+  expect(readStill).toHaveBeenCalledWith(DEVICE, PAIRED, null, expect.any(Number));
 });
 
 describe('a camera the relay cannot reach', () => {
@@ -148,8 +158,8 @@ it('runs one capture per device however many callers ask at once', async () => {
   (service as unknown as Internals).readStill = readStill;
   (service as unknown as { stills: unknown }).stills = { decodeKeyframeToJpeg: async (data: Buffer) => data };
 
-  const poll = service.captureStill(CAMERA);
-  const button = service.captureStill(CAMERA);
+  const poll = service.captureStill(CAMERA, Date.now() + 180_000);
+  const button = service.captureStill(CAMERA, Date.now() + 180_000);
   finish(Buffer.from('keyframe'));
 
   await expect(poll).resolves.toEqual(Buffer.from('keyframe'));
@@ -251,5 +261,58 @@ describe('the relay connection', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+/**
+ * One capture has three minutes, every attempt included: the poller's read and
+ * the test button's are the same read, and the button promises no longer.
+ */
+describe('the capture budget', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it('ends a capture whose relay never opens at three minutes, having asked for one while there was time', async () => {
+    const asked: RelayAsked[] = [];
+    const service = serviceFor((_deviceId, relay) => asked.push(relay) > 0);
+    let settled = false;
+    const capture = service.capture(CAMERA).finally(() => (settled = true));
+    const failed = expect(capture).rejects.toThrow('did not open the relay in time');
+
+    await jest.advanceTimersByTimeAsync(179_000);
+    expect(settled).toBe(false);
+    await jest.advanceTimersByTimeAsync(1_000);
+    await failed;
+    // A dial-in of 45 s at 0, 45, 90 and 135 s; none is started with less than 20 s left.
+    expect(asked).toHaveLength(4);
+  });
+
+  it('gives a dial-in only what is left of the budget', async () => {
+    const asked: RelayAsked[] = [];
+    const service = serviceFor((_deviceId, relay) => asked.push(relay) > 0);
+    let settled = false;
+    const capture = service.capture(CAMERA, Date.now() + 30_000).finally(() => (settled = true));
+    const failed = expect(capture).rejects.toThrow('did not open the relay in time');
+
+    await jest.advanceTimersByTimeAsync(29_000);
+    expect(settled).toBe(false);
+    await jest.advanceTimersByTimeAsync(1_000);
+    await failed;
+    expect(asked).toHaveLength(1);
+  });
+
+  it('hands every attempt the same deadline', async () => {
+    const service = serviceFor();
+    const readStill = jest
+      .fn<Internals['readStill']>()
+      .mockRejectedValueOnce(new Error('no keyframe arrived'))
+      .mockResolvedValue(Buffer.from('keyframe'));
+    (service as unknown as Internals).readStill = readStill;
+    const deadline = Date.now() + 180_000;
+
+    const capture = service.capture(CAMERA, deadline);
+    await jest.advanceTimersByTimeAsync(10_000);
+    await expect(capture).resolves.toEqual(Buffer.from('keyframe'));
+    expect(readStill.mock.calls.map(call => call[3])).toEqual([deadline, deadline]);
   });
 });

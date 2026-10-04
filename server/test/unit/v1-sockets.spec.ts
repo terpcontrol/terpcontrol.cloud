@@ -247,6 +247,7 @@ describe('who may do each of these', () => {
     ['update', 'manage'],
     ['remove', 'own'],
     ['testCapture', 'manage'],
+    ['testCaptureState', 'manage'],
     ['frames', 'view'],
     ['timelapses', 'view'],
     ['requestTimelapse', 'manage'],

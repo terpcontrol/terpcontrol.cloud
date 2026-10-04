@@ -15,6 +15,7 @@ import { MediaService } from './media.service';
 import { OptionalSessionGuard } from './optional-session.guard';
 import { TerpCamDirectService } from './terpcam-direct.service';
 import { TerpCamService } from './terpcam.service';
+import { TestCapturesService } from './test-captures.service';
 import { TimelapseContextService } from './timelapse-context.service';
 import { TimelapseService } from './timelapse.service';
 
@@ -48,6 +49,7 @@ import { TimelapseService } from './timelapse.service';
     OptionalSessionGuard,
     TerpCamService,
     TerpCamDirectService,
+    TestCapturesService,
     TimelapseContextService,
     TimelapseService,
   ],

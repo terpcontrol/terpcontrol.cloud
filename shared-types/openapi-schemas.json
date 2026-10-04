@@ -10232,24 +10232,70 @@
       }
     }
   },
-  "TestCaptureAnswer": {
+  "CameraStill": {
     "type": "object",
     "properties": {
-      "succeeded": {
-        "type": "boolean"
-      },
       "mediaId": {
-        "anyOf": [
-          {
-            "type": "string",
-            "minLength": 1
-          },
-          {
-            "type": "null"
-          }
-        ]
+        "type": "string",
+        "minLength": 1
       },
       "capturedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      }
+    },
+    "required": [
+      "mediaId",
+      "capturedAt"
+    ]
+  },
+  "TestCaptureState": {
+    "type": "string",
+    "enum": [
+      "running",
+      "done",
+      "failed"
+    ]
+  },
+  "CaptureFailure": {
+    "type": "string",
+    "enum": [
+      "deviceOffline",
+      "damaged",
+      "aborted",
+      "otherCamera",
+      "refusedRecently",
+      "stoppedEarly",
+      "refusedLogin",
+      "relayNotOpened",
+      "noAnswer",
+      "noDevice",
+      "noAddress",
+      "noStream",
+      "unknown"
+    ]
+  },
+  "TestCapture": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "cameraId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "state": {
+        "$ref": "#/components/schemas/TestCaptureState"
+      },
+      "startedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "finishedAt": {
         "anyOf": [
           {
             "type": "string",
@@ -10261,7 +10307,30 @@
           }
         ]
       },
+      "still": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/CameraStill"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The picture it took, once `done`."
+      },
+      "reason": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/CaptureFailure"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "What kind of failure it was, once `failed`."
+      },
       "error": {
+        "description": "Once `failed`, what the camera - or the process that reached for it - said, in the server's words; it can name the address the camera is reached at.",
         "type": [
           "string",
           "null"
@@ -10269,9 +10338,13 @@
       }
     },
     "required": [
-      "succeeded",
-      "mediaId",
-      "capturedAt",
+      "id",
+      "cameraId",
+      "state",
+      "startedAt",
+      "finishedAt",
+      "still",
+      "reason",
       "error"
     ]
   },
@@ -11897,24 +11970,6 @@
       "metrics",
       "actuators",
       "trend"
-    ]
-  },
-  "CameraStill": {
-    "type": "object",
-    "properties": {
-      "mediaId": {
-        "type": "string",
-        "minLength": 1
-      },
-      "capturedAt": {
-        "type": "string",
-        "format": "date-time",
-        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-      }
-    },
-    "required": [
-      "mediaId",
-      "capturedAt"
     ]
   },
   "OverviewCamera": {

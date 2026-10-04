@@ -851,6 +851,13 @@ skips a device in maintenance or with `workmode: off`, and one whose previous re
 and a stream tunnelled through a device, is skipped while its device is offline: each try could only wait out
 its timeouts. That is decided before the schedule, so an offline spell does not grow the backoff.
 
+One read, of either kind, has `CAPTURE_BUDGET_SECONDS = 180` (`shared-types/src/v1/capture.ts`) from the moment it
+is asked for, its wait for a turn at ffmpeg included; every step inside it gets what is left of that where it is
+less than the step's own limit. The test-image button runs the same read - it joins one already under way - and is
+answered at once: `POST /v1/cameras/{id}/test-captures` returns a capture id, which the app asks after with
+`GET /v1/cameras/{id}/test-captures/{captureId}` every two seconds until it is `done` or `failed`. No request is held
+open while a camera is read.
+
 ### 9.1 The relay
 
 The camera speaks only its vendor's P2P transport on the LAN, and the cloud cannot find it from outside. So the
@@ -865,8 +872,9 @@ device bridges it and the cloud runs the P2P client itself (`server/src/modules/
    It finds the camera on the LAN and opens the URL as an HTTP upgrade - `GET <path>` with
    `Upgrade: terpcam-relay` and `Connection: Upgrade` - and needs a `101` back. TLS is not verified: everything
    after the response head is enciphered under the key that came over the verified MQTT link. The API's own
-   HTTP server takes the upgrade, so it needs no port of its own, and a reverse proxy in front of the API has to
-   pass it on as it would a WebSocket.
+   HTTP server takes the upgrade, so it needs no port of its own. A reverse proxy in front of the API only has to
+   pass it on for `/terpcam/relay`, as it would a WebSocket (the `Upgrade` and `Connection` headers); its default
+   timeouts suffice, because a relay carries traffic throughout and ends within the device's two minutes.
 3. Every frame, both ways, is a 2-byte big-endian length and its payload, under AES-128-CTR with a zero counter -
    the key's first 16 bytes for what the device sends, the last 16 for what it receives. The first frame is the
    header: the token in the clear, a NUL, and the camera's 20-byte P2P id, which is the first thing enciphered.
@@ -883,10 +891,13 @@ device bridges it and the cloud runs the P2P client itself (`server/src/modules/
 
 One relay per device, on both sides: the device ignores `cam_relay` while a relay runs, and the server runs one
 capture per device, so the test-image button pressed during a poll waits for the poll's picture. A capture makes
-up to three attempts, each bounded by the dial-in, `LOGIN_MS = 15 s` (`LOGIN_SILENT_MS = 10 s` when nothing comes
-back at all), `TRANSFER_MS = 60 s` and the close - a capture that fails every time takes about six and a half
-minutes. The device ends a relay after 2 minutes, or 30 seconds without traffic, whatever the cloud does. The
-hold on a refusing camera lives in the server's memory and ends with a restart.
+attempts for as long as its budget leaves room for one - a new one is started only with `MIN_ATTEMPT_MS = 20 s`
+left, and at least `ATTEMPT_SPACING_MS = 10 s` after the last one began. Each is bounded by the dial-in, `LOGIN_MS =
+15 s` (`LOGIN_SILENT_MS = 10 s` when nothing comes back at all), `TRANSFER_MS = 60 s` and the close, and by what is
+left of the budget: a capture whose relay never opens has asked four times and fails at three minutes. The keyframe
+is then decoded to JPEG, which takes a moment more. The device ends a relay after 2 minutes, or 30 seconds without
+traffic, whatever the cloud does. The hold on a refusing camera lives in the server's memory and ends with a
+restart.
 
 A standalone Terp Cam has no device to open the relay, so the server has no way to reach one and refuses to
 create one ("coming soon").
@@ -951,7 +962,8 @@ A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ign
 | Tunnel messages per loop | ≤ 6 TCP and ≤ 41 UDP, shared across slots | `fridgecloud.h:20,25`, `.cpp:763,775,805` |
 | Tunnel activity | only while the display is idle (30 s after the last input) | `fridgecloud.cpp:730-732,759-761` |
 | Relay dial-in / header / close (cloud side) | 45 s / 20 s / 10 s | `terpcam-direct.service.ts` |
-| Login / transfer per attempt, attempts per capture (cloud side) | 15 s / 60 s, 3 | `terpcam-direct.service.ts` |
+| Login / transfer per attempt (cloud side) | 15 s / 60 s | `terpcam-direct.service.ts` |
+| One read of a camera, every attempt included (cloud side) | 3 min | `shared-types/src/v1/capture.ts` |
 | Relay length / silence (device side) | 2 min / 30 s | `terpcam.cpp:897-898` |
 | Hold on a camera that refused the cloud | 30 min, or until the device reports it again | `terpcam-direct.service.ts` |
 | Still poll interval | the camera's own `stillIntervalSeconds`, backoff to 120 min | `camera-poller.service.ts` |

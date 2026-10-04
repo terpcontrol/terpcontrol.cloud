@@ -2,6 +2,7 @@ import { anonymous, createAccount, loginAsAdmin, Session } from '../support/api'
 import { claimCodeOf, DeviceSimulator, provisionDevice, settle, startSimulator } from '../support/device';
 import { argumentAfter, armFfmpeg, ffmpegCalls, resetFfmpeg } from '../support/ffmpeg';
 import { joinSpace, setRow } from '../support/fixtures';
+import { takeTestPicture } from '../support/test-picture';
 
 /**
  * A camera: adding one, what the camera page edits about it, and the composer.
@@ -110,7 +111,7 @@ describe('adding a camera', () => {
     const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.70:554/apart-from-the-address', username: 'cam', password: 'p@ss' }));
 
     expect((await owner.client.get(`/v1/cameras/${id}`).expect(200)).body.url).toBe('rtsp://10.0.0.70:554/apart-from-the-address');
-    await owner.client.post(`/v1/cameras/${id}/test-captures`).expect(200);
+    await takeTestPicture(owner, id);
 
     expect(openedAt('apart-from-the-address')).toBe('rtsp://cam:p%40ss@10.0.0.70:554/apart-from-the-address');
   });
@@ -223,7 +224,7 @@ describe('a stream´s address, changed in place', () => {
 
     const moved = await owner.client.patch(`/v1/cameras/${id}`).send({ url: 'rtsp://10.0.0.72:554/moved-login' }).expect(200);
     expect(moved.body).toMatchObject({ id, url: 'rtsp://10.0.0.72:554/moved-login' });
-    await owner.client.post(`/v1/cameras/${id}/test-captures`).expect(200);
+    await takeTestPicture(owner, id);
 
     expect(openedAt('moved-login')).toBe('rtsp://viewer:hunter2@10.0.0.72:554/moved-login');
   });
@@ -234,7 +235,7 @@ describe('a stream´s address, changed in place', () => {
     armFfmpeg(failingRuns('new-password'));
 
     await owner.client.patch(`/v1/cameras/${id}`).send({ password: 'n3w', transport: 'http' }).expect(200);
-    await owner.client.post(`/v1/cameras/${id}/test-captures`).expect(200);
+    await takeTestPicture(owner, id);
 
     const run = ffmpegCalls().find(args => args.join(' ').includes('new-password'));
     expect(argumentAfter(run!, '-i')).toBe('rtsp://viewer:n3w@10.0.0.73:554/new-password');
@@ -253,7 +254,7 @@ describe('a stream´s address, changed in place', () => {
       // Whatever ffmpeg says to the stream is what the device is asked to pass on.
       armFfmpeg(failingRuns('through-the-fridge').map(run => ({ ...run, writeToInput: Buffer.from('OPTIONS').toString('hex') })));
       const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.74:554/through-the-fridge', deviceId: fridge.deviceId, tunnel: true }));
-      await owner.client.post(`/v1/cameras/${id}/test-captures`).expect(200);
+      await takeTestPicture(owner, id);
 
       const carriesBytes = (payload: string) => JSON.parse(payload).payload !== undefined;
       const asked = JSON.parse((await simulator.waitFor('tunnel_write', 10_000, carriesBytes)).payload);
@@ -272,11 +273,72 @@ describe('a test picture through a device that is offline', () => {
     const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.75:554/never-heard', deviceId: fridge.deviceId, tunnel: true }));
 
     const started = Date.now();
-    const answer = (await owner.client.post(`/v1/cameras/${id}/test-captures`).expect(200)).body;
+    const answer = await takeTestPicture(owner, id);
 
-    expect(answer).toMatchObject({ succeeded: false, mediaId: null, error: 'the device this camera is read through is offline' });
+    expect(answer).toMatchObject({
+      state: 'failed',
+      still: null,
+      reason: 'deviceOffline',
+      error: 'the device this camera is read through is offline',
+    });
     expect(Date.now() - started).toBeLessThan(5_000);
     expect(ffmpegCalls().some(args => args.join(' ').includes('never-heard'))).toBe(false);
+  });
+});
+
+/**
+ * The test button. A read can take minutes, so the press is answered at once
+ * and the capture asked after - no request is held open for as long as a
+ * camera takes, which every proxy on the way would have to be told to allow.
+ */
+describe('a test picture', () => {
+  it('is answered at once while the camera is still being read, and asked after until it has answered', async () => {
+    resetFfmpeg();
+    armFfmpeg(failingRuns('slow-to-refuse').map(run => ({ ...run, delayMs: 3_000 })));
+    const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.76:554/slow-to-refuse' }));
+
+    const asked = Date.now();
+    const started = (await owner.client.post(`/v1/cameras/${id}/test-captures`).expect(202)).body;
+    expect(Date.now() - asked).toBeLessThan(1_500);
+    expect(started).toMatchObject({ cameraId: id, state: 'running', finishedAt: null, still: null, reason: null, error: null });
+
+    const running = (await owner.client.get(`/v1/cameras/${id}/test-captures/${started.id}`).expect(200)).body;
+    expect(running.state).toBe('running');
+
+    const finished = await takeTestPicture(owner, id);
+    // The second press joined the read the first one started, rather than running another beside it.
+    expect(finished).toMatchObject({ id: started.id, state: 'failed', still: null, reason: 'noAnswer', error: 'Connection refused' });
+    expect(finished.finishedAt).not.toBeNull();
+  });
+
+  it('is asked after on its own camera, by whoever may manage that camera', async () => {
+    resetFfmpeg();
+    armFfmpeg(failingRuns('asked-after'));
+    const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.77:554/asked-after' }));
+    const other = await addCamera(rtsp({ url: 'rtsp://10.0.0.78:554/another' }));
+    const capture = await takeTestPicture(owner, id);
+
+    const elsewhere = await owner.client.get(`/v1/cameras/${other}/test-captures/${capture.id}`).expect(404);
+    expect(elsewhere.body.code).toBe('test_capture_not_found');
+    await owner.client.get(`/v1/cameras/${id}/test-captures/not-a-capture`).expect(404);
+
+    const stranger = await createAccount('cameras-test-stranger');
+    await stranger.client.get(`/v1/cameras/${id}/test-captures/${capture.id}`).expect(404);
+    await stranger.client.post(`/v1/cameras/${id}/test-captures`).expect(404);
+  });
+
+  it('tells a guest of the tent what kind of failure it met, and only the owner what the camera said', async () => {
+    const guest = await createAccount('cameras-test-guest');
+    await joinSpace(owner, tent, guest, 'can_manage');
+    resetFfmpeg();
+    armFfmpeg(failingRuns('guest-pressed'));
+    const id = await addCamera(rtsp({ url: 'rtsp://10.0.0.79:554/guest-pressed' }));
+
+    const pressed = await takeTestPicture(guest, id);
+    expect(pressed).toMatchObject({ state: 'failed', reason: 'noAnswer', error: null });
+
+    const read = (await owner.client.get(`/v1/cameras/${id}/test-captures/${pressed.id}`).expect(200)).body;
+    expect(read).toMatchObject({ state: 'failed', reason: 'noAnswer', error: 'Connection refused' });
   });
 });
 

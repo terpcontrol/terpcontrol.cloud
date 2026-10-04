@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react';
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
 import { useRead, useReadPages } from './read';
 import type {
   Camera,
@@ -7,12 +9,13 @@ import type {
   CameraUpdate,
   Media,
   MediaPage,
-  TestCaptureAnswer,
+  TestCapture,
   TimelapseAccepted,
   TimelapseCreate,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { PAGE_LIMIT } from './pages';
+import { ApiError } from './problem';
 
 /**
  * The cameras of an account, one camera's page, and the films it is asked for.
@@ -24,18 +27,26 @@ import { PAGE_LIMIT } from './pages';
 export const CAMERAS_REFRESH_MS = 30_000;
 
 /**
- * How long a test picture is waited for. The server's longest honest answer to
- * a Terp Cam is three attempts over the device's relay, each of them the
- * device's dial-in (45 s), the login (15 s), the transfer (60 s) and the close
- * (10 s) - six and a half minutes - and a press that finds the poller reading
- * the camera waits for that read instead. Abandoned any sooner, the press said
- * the camera was never reached while the server was still reading it, and the
- * picture landed minutes later.
+ * How long a test picture is waited for: the read the server makes of a camera
+ * ends within its budget, the poller's and the button's alike, and a Terp Cam's
+ * keyframe is then decoded and either picture stored - a moment, given half a
+ * minute here so that this side never gives up on a read that is about to end.
  */
-export const CAPTURE_WAIT_MS = 7 * 60_000;
+export const CAPTURE_WAIT_MS = CAPTURE_BUDGET_SECONDS * 1000 + 30_000;
+
+/** How often a running test picture is asked after. */
+export const CAPTURE_POLL_MS = 2_000;
+
+/** A test picture this side stopped asking after, which is not the camera having failed. */
+export class NoAnswerInTime extends Error {
+  constructor() {
+    super(`No test picture after ${CAPTURE_WAIT_MS / 1000} s`);
+    this.name = 'NoAnswerInTime';
+  }
+}
 
 /** Whether a call was given up on by this side rather than answered by the other. */
-export const gaveUp = (error: unknown): boolean => error instanceof DOMException && error.name === 'TimeoutError';
+export const gaveUp = (error: unknown): boolean => error instanceof NoAnswerInTime;
 
 /** A render is minutes of ffmpeg, so the job is polled rather than waited for. */
 export const RENDER_POLL_MS = 5_000;
@@ -259,10 +270,56 @@ export const useDropCamera = () => {
   });
 };
 
+/** Waits `ms`, or rejects as soon as the screen that is waiting goes away. */
+const pause = (ms: number, signal: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener('abort', () => (clearTimeout(timer), reject(signal.reason)), { once: true });
+  });
+
 /**
- * One picture now. A camera that could not be read answers the reason it gave
- * rather than an error, because a wrong address is an ordinary outcome of this
- * button and the reason is what the person needs to see.
+ * A test picture from start to finish. The press is answered at once and the
+ * capture asked after every couple of seconds until it is over: a read can take
+ * minutes, and a request held open for that long is one every proxy on the way
+ * would have to be told to allow.
+ *
+ * A poll that did not get through is simply asked again; only a refusal - the
+ * capture forgotten by a restarted server, the camera gone - ends the wait
+ * early, and a capture still running once the wait is over ends it as
+ * `NoAnswerInTime`.
+ */
+const takeTestPicture = async (cameraId: string, signal: AbortSignal): Promise<TestCapture> => {
+  // A stopwatch, so it is read off the monotonic clock rather than either side's hour.
+  const until = performance.now() + CAPTURE_WAIT_MS;
+  let capture = await api.post<TestCapture>(`/cameras/${cameraId}/test-captures`);
+  while (capture.state === 'running') {
+    if (performance.now() >= until) throw new NoAnswerInTime();
+    await pause(CAPTURE_POLL_MS, signal);
+    try {
+      capture = await api.get<TestCapture>(`/cameras/${cameraId}/test-captures/${capture.id}`, undefined, signal);
+    } catch (error) {
+      if (error instanceof ApiError || signal.aborted) throw error;
+    }
+  }
+  return capture;
+};
+
+/** A signal for each wait, aborted with the screen that started it, so nothing is asked after for a page nobody has open. */
+const useWaitSignal = () => {
+  const current = useRef<AbortController | null>(null);
+  useEffect(() => () => current.current?.abort(), []);
+
+  return () => {
+    current.current = new AbortController();
+    return current.current.signal;
+  };
+};
+
+/**
+ * One picture now. A camera that could not be read is a `failed` capture with
+ * the reason it gave rather than an error, because a wrong address is an
+ * ordinary outcome of this button and the reason is what the person needs to
+ * see.
  *
  * Either answer leaves the camera in a state this app is behind on: a press
  * that worked stored a still that belongs on the frame and in the day's count,
@@ -275,9 +332,10 @@ export const useDropCamera = () => {
  */
 export const useTestCapture = (cameraId: string) => {
   const queryClient = useQueryClient();
+  const signal = useWaitSignal();
 
   return useMutation({
-    mutationFn: () => api.post<TestCaptureAnswer>(`/cameras/${cameraId}/test-captures`, undefined, CAPTURE_WAIT_MS),
+    mutationFn: () => takeTestPicture(cameraId, signal()),
     onSuccess: () =>
       void queryClient.invalidateQueries({
         predicate: query => {
@@ -289,8 +347,11 @@ export const useTestCapture = (cameraId: string) => {
 };
 
 /** A picture from a camera named as the request is made, for the same reason `useAmendCamera` exists. */
-export const useCaptureOnce = () =>
-  useMutation({ mutationFn: (cameraId: string) => api.post<TestCaptureAnswer>(`/cameras/${cameraId}/test-captures`, undefined, CAPTURE_WAIT_MS) });
+export const useCaptureOnce = () => {
+  const signal = useWaitSignal();
+
+  return useMutation({ mutationFn: (cameraId: string) => takeTestPicture(cameraId, signal()) });
+};
 
 /**
  * The composer, and the four one-tap buttons above it. The answer is the media
