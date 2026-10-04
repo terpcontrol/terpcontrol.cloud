@@ -5199,7 +5199,7 @@
       "noTarget": "kein Ziel",
       "co2Night": "nachts kein Ziel",
       "noTargetBy": "kein Ziel · {{mode}}",
-      "humidifierHolds": "Befeuchter hält {{target}}",
+      "humidifierHolds": "Befeuchterziel {{target}}",
       "mode": {
         "off": "Regelung aus",
         "drying": "Trocknung",
@@ -5249,7 +5249,8 @@
       "heater": "Heizung",
       "dehumidifier": "Entfeuchter",
       "co2": "CO₂-Ventil",
-      "socket": "Steckdose"
+      "socket": "Steckdose",
+      "humidifier": "Befeuchter"
     },
     "outputs": {
       "running": "läuft",
@@ -5318,6 +5319,7 @@
       "drying": "Trocknung läuft: kein Licht und kein CO₂, gehalten werden Temperatur und Luftfeuchte der Trocknung.",
       "greenhouse": "Betriebsart Gewächshaus: Geregelt wird nur die Temperatur, die Luftfeuchte nicht.",
       "germination": "Keimung · dunkel: kein Licht und kein CO₂, rund um die Uhr eine Temperatur.",
+      "germinationHumidified": "Keimung · dunkel: kein Licht und kein CO₂, rund um die Uhr eine Temperatur, und der Befeuchter hält {{humidity}} Luftfeuchte.",
       "change": "Ändern"
     },
     "visiting": "Support-Ansicht eines Kundenorts: nur lesen. Zeiten stehen in deiner Zeitzone."

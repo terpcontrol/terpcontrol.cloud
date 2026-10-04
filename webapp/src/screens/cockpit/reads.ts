@@ -1,10 +1,12 @@
 import { keepPreviousData } from '@tanstack/react-query';
-import type { DeviceLive, DeviceSeries, Metric, SpaceOverview } from '@fg2/shared-types/v1';
+import type { Device, DeviceLive, DeviceSeries, Metric, SpaceOverview } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { serverNow } from '@/api/clock';
 import { DEVICES_REFRESH_MS } from '@/api/devices';
 import { useRead } from '@/api/read';
 import { useSpaceLive, useSpaceOverview } from '@/api/spaces';
+import { useHumidifier } from '../control/germination/germination-choices';
+import { humidifierHoldOf, type HumidifierHold } from './place';
 
 /**
  * One device's newest values, outputs and the half of the cycle it says it is
@@ -74,3 +76,10 @@ export const usePlace = (spaceId: string) => {
 
   return { read: overview, current, failedAt: Number.isFinite(staleAt) ? staleAt : null };
 };
+
+/**
+ * The humidity a humidifier socket holds at the place's device while it
+ * germinates, from the device's socket table (`humidifierHoldOf`); null where
+ * none does. The cockpit and a place's card on Start judge the humidity by it.
+ */
+export const useHumidifierHold = (device: Device | null): HumidifierHold | null => humidifierHoldOf(device, useHumidifier(device));

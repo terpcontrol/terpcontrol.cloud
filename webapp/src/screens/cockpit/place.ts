@@ -12,17 +12,19 @@ import type {
   OverviewCamera,
   OverviewTargets,
   SeriesPoint,
+  Socket,
   SpaceKind,
   TimelineOutputLane,
   TimelinePanel,
   TimelineSpan,
   TimelineTarget,
 } from '@fg2/shared-types/v1';
+import { germinationChoicesOf } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { switchPointName, type PlugMode, type PlugSwitching } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { timelinePath } from '@/app/places';
 import { fieldValue } from '@/ui/advanced/field-values';
 import { offlineLabel, sinceLabel, valueAge } from '@/ui/age';
-import { statesTargets } from '@/ui/climate-hardware';
+import { figureOf, statesTargets } from '@/ui/climate-hardware';
 import type { Quiet } from '@/ui/maintenance';
 import { clock } from '@/ui/zone';
 import { nowHoldingOf, setpointsOf, storedShapeOf, type Half, type NowHolding, type Regime } from '../control/targets/day-night';
@@ -129,6 +131,48 @@ export const setpointOf = (setpoints: CardSetpoint[], metric: Metric): CardSetpo
   setpoints.find(setpoint => setpoint.metric === metric) ?? null;
 
 /**
+ * The humidity a humidifier socket holds while the device germinates (owner's
+ * decision G3): the night's, from below alone. The socket switches on a band
+ * under the figure and adds moisture up to it, and nothing in the dark takes
+ * any out. The server holds germination to its temperature alone and sends no
+ * humidity target, so without this the cockpit said "Alles im Ziel" over a box
+ * at 58 % whose humidifier was to hold 80 % - an empty tank, unnoticed.
+ */
+export interface HumidifierHold {
+  target: number;
+  /** How far under the figure still counts as held: the band every humidity target is judged by (`TARGET_BAND`). */
+  band: number;
+}
+
+const HUMIDITY_BAND = 5;
+
+/** What a humidifier holds now, or null: the device does not germinate, has no humidifier paired, or the grower lets it rest. */
+export const humidifierHoldOf = (device: Device | null, humidifierPaired: boolean): HumidifierHold | null => {
+  if (!humidifierPaired || darkReasonOf(device) !== 'germination' || !device?.configuration) return null;
+  if (!germinationChoicesOf(device.control?.germinationChoices).humidifierHolds) return null;
+  const target = figureOf(device.configuration, 'night', 'humidity');
+  return target === null ? null : { target, band: HUMIDITY_BAND };
+};
+
+/**
+ * A humidity a humidifier holds, judged from below: under its band by how far
+ * under the figure it reads, up to the band above it in band, and above that
+ * nothing - no output here can dry the box, and seeds are kept wet on purpose,
+ * which "Zu feucht" watches over where the grower asked it to.
+ */
+export const holdVerdictOf = (value: CardValue | null, hold: HumidifierHold, now: DateTime): Verdict => {
+  if (!value || value.value === null) return null;
+  if (valueAge(value, now) !== 'live') return { kind: 'last', at: value.measuredAt };
+  const under = asWritten(hold.target - value.value, value.metric);
+  if (under > hold.band) return { kind: 'low', delta: under };
+  return under >= -hold.band ? { kind: 'in' } : null;
+};
+
+/** A reading's verdict, by the humidity a humidifier holds where the device names no target for it. */
+export const judgedOf = (value: CardValue | null, setpoint: CardSetpoint | null, hold: HumidifierHold | null, now: DateTime): Verdict =>
+  hold && value?.metric === 'humidity' && setpoint?.value == null ? holdVerdictOf(value, hold, now) : verdictOf(value, setpoint, now);
+
+/**
  * A day of one reading with the band the cockpit judges it by.
  *
  * The Timeline's bands are what the controller aimed at, change by change, in
@@ -190,7 +234,7 @@ const MOVERS: Record<string, Partial<Record<Steered, OutputMetric[]>>> = {
 };
 
 /** The catalogue word an output is called by everywhere on the cockpit. */
-export type OutputWord = 'compressor' | 'heater' | 'dehumidifier' | 'co2' | 'socket';
+export type OutputWord = 'compressor' | 'heater' | 'dehumidifier' | 'co2' | 'socket' | 'humidifier';
 
 /** The reading a stand-alone smart socket switches by, per mode, and the names of its two points. */
 const PLUG_FOLLOWS: Partial<Record<PlugMode, Steered>> = {
@@ -255,7 +299,8 @@ const wordOf = (device: Device, output: OutputMetric): OutputWord | null => {
 };
 
 export interface OutputState {
-  output: OutputMetric;
+  /** The output, or `humidifier` for the sockets paired as one, which report through the socket table rather than as an output. */
+  output: OutputMetric | 'humidifier';
   word: OutputWord;
   on: boolean;
   /** Since when it has been running, where the day's record says so. */
@@ -292,6 +337,19 @@ export const outputsFor = (
     const lane = lanes?.find(one => one.output === output && (one.deviceId === null || one.deviceId === device.id));
     return [{ output, word, on, since: on ? runningSince(lane) : null }];
   });
+};
+
+/**
+ * The humidifier sockets paired at a device, under the humidity they move:
+ * one name for all of them, on while any is on, and since when where the one
+ * that is on says so. A socket whose state the device has not reported is
+ * left out rather than called off.
+ */
+export const humidifierOutputs = (sockets: readonly Socket[], metric: Steered): OutputState[] => {
+  const known = sockets.filter(socket => socket.state !== 'unknown');
+  if (metric !== 'humidity' || known.length === 0) return [];
+  const running = known.find(socket => socket.state === 'on');
+  return [{ output: 'humidifier', word: 'humidifier', on: running !== undefined, since: running?.stateChangedAt ?? null }];
 };
 
 /** Since when the newest run of an output has gone on, where it is still going at the end of what was heard. */
@@ -474,6 +532,8 @@ export interface StatusInput {
   quiet: Quiet | null;
   /** A device here has its whole control switched off, which every reading after it is explained by. */
   controlOff?: boolean;
+  /** The humidity a humidifier holds while the device germinates, which the server names no target for. */
+  humidifierHold?: HumidifierHold | null;
 }
 
 const STEERED: Steered[] = ['temperature', 'humidity', 'co2'];
@@ -493,15 +553,18 @@ export const statusOf = (place: StatusInput, now: DateTime): Status => {
   if (alert) return { kind: 'alert', alert };
 
   const off = STEERED.flatMap(metric => {
-    const verdict = verdictOf(valueOf(place.values, metric), setpointOf(place.setpoints, metric), now);
+    const setpoint = setpointOf(place.setpoints, metric);
+    const hold = metric === 'humidity' && setpoint?.value == null ? (place.humidifierHold ?? null) : null;
+    const verdict = judgedOf(valueOf(place.values, metric), setpoint, hold, now);
     if (verdict?.kind !== 'high' && verdict?.kind !== 'low') return [];
-    const band = setpointOf(place.setpoints, metric)?.band ?? 1;
-    return [{ metric, high: verdict.kind === 'high', delta: verdict.delta, weight: verdict.delta / band }];
+    const band = hold?.band ?? setpoint?.band ?? 1;
+    return [{ metric, high: verdict.kind === 'high', delta: verdict.delta, weight: verdict.delta / band, held: hold !== null }];
   }).sort((one, other) => other.weight - one.weight)[0];
 
   if (off) {
     const status = { kind: 'off' as const, metric: off.metric, high: off.high, delta: off.delta };
-    if (!place.verdict) return status;
+    // The day's verdict knows no humidity germination does not hold, so how long it has been under says nothing.
+    if (!place.verdict || off.held) return status;
     const run = place.verdict.metrics
       .find(row => row.metric === off.metric)
       ?.excursions.find(excursion => excursion.endedAt === null && excursion.above === off.high);

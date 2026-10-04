@@ -25,7 +25,7 @@ import type {
 import { LogProvider } from '@/log/LogProvider';
 import { Home } from '@/screens/Home';
 import { PlaceCockpit } from '@/screens/cockpit/PlaceCockpit';
-import { judgedPanel, outputsFor, statusOf } from '@/screens/cockpit/place';
+import { holdVerdictOf, judgedPanel, outputsFor, statusOf } from '@/screens/cockpit/place';
 import { spacePage, spaceWhere } from './session';
 
 /** Who reads the cockpit: the grower, or support reading a customer's place. */
@@ -262,7 +262,7 @@ const server = {
   /** Every grow of the account, as "My grows" reads it. */
   mine: [] as MyGrowCard[],
   /** The rows of the device's socket table, by role; none paired is what most devices answer. */
-  sockets: [] as { role: string }[],
+  sockets: [] as { role: string; state?: string; stateChangedAt?: string | null }[],
 };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -742,7 +742,50 @@ describe('day and night on the cockpit', () => {
       />,
     );
 
-    await waitFor(async () => expect(await tile('Humidity')).toHaveTextContent('humidifier holds 75 %'));
+    await waitFor(async () => expect(await tile('Humidity')).toHaveTextContent('Humidifier target 75 %'));
+  });
+
+  /**
+   * A humidifier that is to hold 80 % over a box reading 58 % - an empty tank -
+   * was "All on target" under "humidifier holds 80 %", with only the
+   * compressor named. The tile, the status line and the summaries now say what
+   * it is to hold, how far under it the box reads, and that the socket runs.
+   */
+  it('judges the humidity a humidifier holds from below, and names the humidifier and its figure', async () => {
+    server.sockets = [{ role: 'humidifier', state: 'on', stateChangedAt: ago(240) }];
+    server.devices = [
+      fridge({
+        configuration: { ...fridge().configuration, workmode: 'breed', night: { temperature: 24, humidity: 80 } },
+        control: { running: true, drying: false, mode: 'germination', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      }),
+    ];
+    server.live = { ...deviceLive(lamp(0)), setpoints: { day: {}, night: { temperature: 24 }, active: 'night' } };
+    const germinating = [
+      { metric: 'temperature' as const, value: 24, band: 1 },
+      { metric: 'humidity' as const, value: null, band: null },
+      { metric: 'co2' as const, value: null, band: null },
+    ];
+    const dry = values().map(value =>
+      value.metric === 'temperature' ? { ...value, value: 24.2 } : value.metric === 'humidity' ? { ...value, value: 58 } : value,
+    );
+    draw(
+      <PlaceCockpit
+        overview={overviewOf({
+          values: dry,
+          setpoints: germinating,
+          targets: { day: germinating, night: [{ metric: 'temperature', value: 24, band: 1 }] },
+        })}
+      />,
+    );
+
+    const humidity = await tile('Humidity');
+    await waitFor(() => expect(humidity).toHaveTextContent('Humidifier target 80 %'));
+    expect(humidity).toHaveTextContent('22 % too low');
+    await waitFor(() => expect(humidity).toHaveTextContent('Humidifier running for 4 h'));
+    expect(screen.getByText('Humidity 22 % too low')).toBeInTheDocument();
+    expect(screen.queryByText('All on target')).not.toBeInTheDocument();
+    expect(screen.getByText(/one temperature round the clock, and the humidifier holds 80 % humidity\./)).toBeInTheDocument();
+    expect(targetsCard()).toHaveTextContent('Germination24 °C · 80 %');
   });
 
   it('keeps saying germination holds no humidity where the humidifier rests', async () => {
@@ -1334,6 +1377,22 @@ describe('what the cockpit decides', () => {
       statusOf({ ...place, deviceIds: [], openAlerts: [{ ...alert, kind: 'camera_stale' as never, severity: 'warning' as const }] }, now).kind,
     ).toBe('alert');
     expect(statusOf({ ...place, values: [] }, now).kind).toBe('waiting');
+  });
+
+  /** Nothing in the dark dries the box, so a humidity over what a humidifier holds is no verdict at all. */
+  it('judges a humidity a humidifier holds from below alone, and says nothing of how long it has been under', () => {
+    const hold = { target: 75, band: 5 };
+    const reading = (value: number) => ({ metric: 'humidity' as const, value, measuredAt: ago(0.3), state: 'live' as const });
+    expect(holdVerdictOf(reading(58), hold, now)).toEqual({ kind: 'low', delta: 17 });
+    expect(holdVerdictOf(reading(71), hold, now)).toEqual({ kind: 'in' });
+    expect(holdVerdictOf(reading(80), hold, now)).toEqual({ kind: 'in' });
+    expect(holdVerdictOf(reading(88), hold, now)).toBeNull();
+
+    const germinating = [{ metric: 'temperature' as const, value: 25, band: 1 }];
+    const dry = values().map(value => (value.metric === 'humidity' ? { ...value, value: 58 } : value));
+    const judged = { ...place, values: dry, setpoints: germinating, verdict: { metrics: [] } as never };
+    expect(statusOf(judged, now).kind).toBe('good');
+    expect(statusOf({ ...judged, humidifierHold: hold }, now)).toEqual({ kind: 'off', metric: 'humidity', high: false, delta: 17 });
   });
 
   it('says control is switched off before any alarm or reading it explains, and after a silence or a maintenance window', () => {

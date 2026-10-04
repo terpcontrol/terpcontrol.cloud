@@ -1,4 +1,4 @@
-import type { Device, GerminationChoices } from '@fg2/shared-types/v1';
+import type { Device, GerminationChoices, Socket } from '@fg2/shared-types/v1';
 import { germinationChoicesOf } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useSocketTables } from '@/api/devices';
@@ -20,11 +20,16 @@ export const choicesOf = (device: Device | null): GerminationChoices => germinat
  * reads the humidity while it germinates, and so the only reason to offer the
  * second choice. Asked of the hardware that pairs sockets alone.
  */
-export const useHumidifier = (device: Device | null): boolean => {
+export const useHumidifier = (device: Device | null): boolean => useHumidifiers(device).length > 0;
+
+/** The sockets paired as a humidifier at the device, with the state each was last reported in; none for hardware that pairs none. */
+export const useHumidifiers = (device: Device | null): Socket[] => {
   const asks = device !== null && SOCKET_HOST_TYPES.includes(device.type);
   const tables = useSocketTables(asks ? [device.id] : []);
-  return asks ? (tables.tables.get(device.id)?.items?.some(socket => socket.role === 'humidifier') ?? false) : false;
+  return asks ? (tables.tables.get(device.id)?.items?.filter(socket => socket.role === 'humidifier') ?? NONE) : NONE;
 };
+
+const NONE: Socket[] = [];
 
 /**
  * What a save says about the choices: the alarm always, the humidifier only

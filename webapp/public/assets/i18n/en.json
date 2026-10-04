@@ -5191,7 +5191,7 @@
       "noTarget": "no target",
       "co2Night": "no target at night",
       "noTargetBy": "no target · {{mode}}",
-      "humidifierHolds": "humidifier holds {{target}}",
+      "humidifierHolds": "Humidifier target {{target}}",
       "mode": {
         "off": "control off",
         "drying": "drying",
@@ -5241,7 +5241,8 @@
       "heater": "Heater",
       "dehumidifier": "Dehumidifier",
       "co2": "CO₂ valve",
-      "socket": "Socket"
+      "socket": "Socket",
+      "humidifier": "Humidifier"
     },
     "outputs": {
       "running": "running",
@@ -5310,6 +5311,7 @@
       "drying": "Drying: no light and no CO₂; the drying temperature and humidity are held.",
       "greenhouse": "Operating mode greenhouse: only the temperature is held, not the humidity.",
       "germination": "Germination · dark: no light and no CO₂, one temperature round the clock.",
+      "germinationHumidified": "Germination · dark: no light and no CO₂, one temperature round the clock, and the humidifier holds {{humidity}} humidity.",
       "change": "Change"
     },
     "visiting": "Support view of a customer's place: read only. Times are in your time zone."

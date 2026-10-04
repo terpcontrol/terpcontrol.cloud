@@ -33,12 +33,24 @@ import { DeviceOffer } from '../home/DeviceOffer';
 import { DiaryOffer } from '../home/DiaryOffer';
 import { LivenessPill } from '../home/LivenessPill';
 import { OfflineHelp } from '../home/OfflineHelp';
+import { targetFigure, UNIT } from '../home/units';
 import { NotifyNotice } from '../notifications/NotifyNotice';
 import { CameraPicture } from './CameraPicture';
 import { GrowBlock } from './GrowBlock';
-import { climateDeviceOf, controlOffOf, focusLink, KIND_ICON, shownStill, statusOf, statusText, toneOf, type Status } from './place';
+import {
+  climateDeviceOf,
+  controlOffOf,
+  focusLink,
+  KIND_ICON,
+  shownStill,
+  statusOf,
+  statusText,
+  toneOf,
+  type HumidifierHold,
+  type Status,
+} from './place';
 import { PlaceMenu } from './PlaceMenu';
-import { usePlace, useDeviceLive } from './reads';
+import { usePlace, useDeviceLive, useHumidifierHold } from './reads';
 import { AlarmsSummary, TargetsSummary } from './Summaries';
 import { Tiles } from './Tiles';
 import styles from './Cockpit.module.css';
@@ -88,7 +100,9 @@ export function PlaceCockpit({
   const diary = visiting ? overview.grows.length > 0 : layer;
   const liveness = livenessOf(overview, now);
   const offline = liveness === 'offline';
-  const status = statusOf({ ...overview, quiet: quietOf(here, now), controlOff: controlOffOf(here) }, now);
+  // A humidifier holding the humidity while the device germinates is a target the server names none for.
+  const humidifierHold = useHumidifierHold(device);
+  const status = statusOf({ ...overview, quiet: quietOf(here, now), controlOff: controlOffOf(here), humidifierHold }, now);
   // Offered once the account has been read, and only where nobody said no; the demo has no account to keep an answer with.
   const offerDiary = !visiting && me.data !== undefined && !me.data.layers.diary && me.data.preferences.diary !== 'off';
   const Icon = KIND_ICON[overview.kind];
@@ -163,7 +177,7 @@ export function PlaceCockpit({
               mayManage={mayManage}
               ownLine={ownStatusOf(t, device, offsetOf(now, zone))}
             />
-            <ModeLine device={device} spaceId={spaceId} mayManage={mayManage} />
+            <ModeLine device={device} spaceId={spaceId} mayManage={mayManage} humidifierHold={humidifierHold} />
             {/* Switched off, the way back on stands under the sentence that says so rather than under the tiles. */}
             {mayManage && device?.control && !device.control.running ? (
               <div className={styles.actions}>
@@ -214,6 +228,7 @@ export function PlaceCockpit({
                 now={now}
                 offline={offline}
                 mayChange={mayManage}
+                humidifierHold={humidifierHold}
               />
             ) : null}
             {/* Whether alarms reach somebody is said of the reader's own account, which for support is not the customer's. */}
@@ -362,7 +377,18 @@ function StatusLine({
  * are changed in Steuerung, where the next stage's climate ends them; the
  * greenhouse mode, in the device's panel.
  */
-function ModeLine({ device, spaceId, mayManage }: { device: Device | null; spaceId: string; mayManage: boolean }) {
+function ModeLine({
+  device,
+  spaceId,
+  mayManage,
+  humidifierHold,
+}: {
+  device: Device | null;
+  spaceId: string;
+  mayManage: boolean;
+  /** The humidity a humidifier holds in germination, which the line names beside the one temperature. */
+  humidifierHold: HumidifierHold | null;
+}) {
   const { t } = useTranslation();
   const control = device?.control;
   const kind = !control?.running ? null : control.drying ? 'drying' : control.mode === 'standard' ? null : control.mode;
@@ -372,7 +398,9 @@ function ModeLine({ device, spaceId, mayManage }: { device: Device | null; space
     <p className={styles.status} data-tone="quiet" role="status">
       <Info size={18} strokeWidth={2} aria-hidden />
       <span className={styles.statusText}>
-        {t(`cockpit.mode.${kind}`)}
+        {kind === 'germination' && humidifierHold
+          ? t('cockpit.mode.germinationHumidified', { humidity: `${targetFigure(humidifierHold.target, 'humidity')} ${UNIT.humidity}` })
+          : t(`cockpit.mode.${kind}`)}
         <Help topic={kind === 'greenhouse' ? 'advanced.operatingMode' : kind} />
       </span>
       {mayManage ? (

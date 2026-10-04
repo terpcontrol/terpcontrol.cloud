@@ -18,7 +18,7 @@ import { alarmsReach, reachedBy } from '../notifications/reach';
 import { fanSummaryOf, plugSummaryOf } from '../control/devices/own-summary';
 import { offsetOf } from '../control/targets/targets-draft';
 import { holdsHumidity, storedShapeOf, type Half } from '../control/targets/day-night';
-import { darkReasonOf, halfNowOf, hoursFigure, lightWindowOf } from './place';
+import { darkReasonOf, halfNowOf, hoursFigure, lightWindowOf, type HumidifierHold } from './place';
 import { PlanLine } from './PlanLine';
 import styles from './Cockpit.module.css';
 
@@ -78,6 +78,7 @@ export function TargetsSummary({
   now,
   offline = false,
   mayChange,
+  humidifierHold = null,
 }: {
   spaceId: string;
   targets: OverviewTargets | null;
@@ -86,6 +87,8 @@ export function TargetsSummary({
   now: DateTime;
   offline?: boolean;
   mayChange: boolean;
+  /** The humidity a humidifier holds while the device germinates, which germination's line names beside its temperature. */
+  humidifierHold?: HumidifierHold | null;
 }) {
   const { t } = useTranslation();
   const zone = useZone();
@@ -103,7 +106,15 @@ export function TargetsSummary({
       : !targets
         ? []
         : regime === 'drying' || regime === 'germination'
-          ? [{ label: t(`cockpit.targets.${regime}`), parts: halfOf(targets.night, false, humidity) }]
+          ? [
+              {
+                label: t(`cockpit.targets.${regime}`),
+                parts: [
+                  ...halfOf(targets.night, false, humidity),
+                  ...(regime === 'germination' && humidifierHold ? [withUnit(humidifierHold.target, 'humidity')] : []),
+                ],
+              },
+            ]
           : regime === 'always'
             ? [{ label: t('cockpit.targets.roundTheClock'), parts: halfOf(targets.day, true, humidity) }]
             : regime === 'never'

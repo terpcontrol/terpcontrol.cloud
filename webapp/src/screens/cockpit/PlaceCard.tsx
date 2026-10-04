@@ -19,6 +19,8 @@ import {
   controlOffOf,
   KIND_ICON,
   halfNowOf,
+  humidifierOutputs,
+  judgedOf,
   lightWindowOf,
   outputsFor,
   setpointOf,
@@ -26,10 +28,10 @@ import {
   statusText,
   toneOf,
   valueOf,
-  verdictOf,
   type Status,
 } from './place';
-import { useDeviceLive } from './reads';
+import { useDeviceLive, useHumidifierHold } from './reads';
+import { useHumidifiers } from '../control/germination/germination-choices';
 import styles from './Cockpit.module.css';
 
 const STATUS_ICON: Partial<Record<Status['kind'], LucideIcon>> = {
@@ -68,7 +70,8 @@ export function PlaceCard({
   const device = climateDeviceOf(here, card.deviceIds);
   const live = useDeviceLive(device?.id ?? null).data;
   const quiet = here.map(one => maintenanceQuiet(one, DateTime.max(now, serverNow()))).find((one): one is Quiet => one !== null) ?? null;
-  const status = statusOf({ ...card, quiet, controlOff: controlOffOf(here) }, now);
+  const humidifierHold = useHumidifierHold(device);
+  const status = statusOf({ ...card, quiet, controlOff: controlOffOf(here), humidifierHold }, now);
   const Icon = card.kind === null ? Leaf : KIND_ICON[card.kind];
   const StatusIcon = STATUS_ICON[status.kind] ?? Info;
   const shown = SHOWN.flatMap(metric => {
@@ -92,7 +95,7 @@ export function PlaceCard({
       {shown.length > 0 ? (
         <div className={styles.cardValues}>
           {shown.map(({ metric, value }) => {
-            const verdict = verdictOf(value, setpointOf(card.setpoints, metric), now);
+            const verdict = judgedOf(value, setpointOf(card.setpoints, metric), humidifierHold, now);
             return (
               <span key={metric} className={styles.cardValue} data-verdict={verdict?.kind} {...ageAttribute(valueAge(value, now))}>
                 <span className="figure">{figure(value.value!, metric)}</span>
@@ -133,12 +136,14 @@ function DeviceLine({
   quiet: boolean;
 }) {
   const { t } = useTranslation();
+  const humidifiers = useHumidifiers(device);
   if (!device || !live || quiet) return null;
   const window = lightWindowOf(device, now, zone);
   const light = live.outputs.light?.value;
   const outputs = [
     ...outputsFor(device, live, undefined, 'temperature'),
     ...outputsFor(device, live, undefined, 'humidity'),
+    ...humidifierOutputs(humidifiers, 'humidity'),
     ...outputsFor(device, live, undefined, 'co2'),
   ].filter((state, index, all) => all.findIndex(other => other.output === state.output) === index);
   // Until when, only where the lamp keeps to its schedule: a day-long light has
