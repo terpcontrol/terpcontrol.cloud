@@ -17,43 +17,30 @@ jobs:
       garmin: ${{ steps.changes.outputs.garmin }}
     steps:
       - uses: actions/checkout@v7
-      - uses: dorny/paths-filter@v4
-        id: changes
         with:
-          filters: |
-            webapp:
-              - 'webapp/**'
-              - 'shared-types/**'
-              - '.github/workflows/build.yml'
-            server:
-              - 'server/**'
-              - 'shared-types/**'
-              - '.github/workflows/build.yml'
-            shared_types:
-              - 'shared-types/**'
-              - '.github/workflows/build.yml'
-            docker_webapp:
-              - 'webapp/**'
-              - 'shared-types/**'
-              - 'docker-compose.yaml'
-              - '.dockerignore'
-              - '.github/workflows/build.yml'
-            docker_server:
-              - 'server/**'
-              - 'shared-types/**'
-              - 'docker-compose.yaml'
-              - '.dockerignore'
-              - '.github/workflows/build.yml'
-            firmware:
-              - 'firmware/**'
-              - 'fw-buildcontainer/**'
-              - 'build-fw.sh'
-              - '.github/workflows/build.yml'
-            garmin:
-              - 'garmin/**'
-              - 'garmin-buildcontainer/**'
-              - 'build-garmin.sh'
-              - '.github/workflows/build.yml'
+          # A pull request is checked out as its merge commit, whose first
+          # parent is the tip of the base branch: what lies between the two is
+          # what the pull request changes.
+          fetch-depth: 2
+      # Each job runs when the pull request touches one of its paths; this
+      # workflow is among the paths of every job. Old and new paths of a moved
+      # file both count. Only the outcome is printed, not the files.
+      - id: changes
+        run: |
+          changed=$(git diff --name-only --no-renames HEAD^1 HEAD)
+          touches() { grep -qE "^($1)" <<<"$changed" && echo true || echo false; }
+          ci='\.github/workflows/build\.yml$'
+          shared="shared-types/|$ci"
+          compose='docker-compose\.yaml$|\.dockerignore$'
+          {
+            echo "webapp=$(touches "webapp/|$shared")"
+            echo "server=$(touches "server/|$shared")"
+            echo "shared_types=$(touches "$shared")"
+            echo "docker_webapp=$(touches "webapp/|$shared|$compose")"
+            echo "docker_server=$(touches "server/|$shared|$compose")"
+            echo "firmware=$(touches "firmware/|fw-buildcontainer/|build-fw\.sh$|$ci")"
+            echo "garmin=$(touches "garmin/|garmin-buildcontainer/|build-garmin\.sh$|$ci")"
+          } | tee -a "$GITHUB_OUTPUT"
 
   shared-types:
     needs: detect
@@ -71,9 +58,13 @@ jobs:
       # src/v1/ and committed, because the server and the webapp link this
       # package with `file:` and no build of it runs for them. This is what keeps
       # the two in step: regenerate, and the tree has to be unchanged.
+      #
+      # Every npm ci in this workflow skips the funding and audit footers,
+      # which read the same on every run; `npm audit` in a package gives the
+      # audit when it is wanted.
       - run: |
           cd shared-types/
-          npm ci
+          npm ci --no-audit --no-fund
           npm run generate
           if [ -n "$(git status --porcelain)" ]; then
             echo 1>&2 'The generated types are out of date - run "npm run generate" in shared-types/ and commit the result'
@@ -102,10 +93,10 @@ jobs:
       # today and would type-check without this; the day it reads a value out of
       # `/v1-schemas`, the types behind it would silently widen to `any` instead.
       # The server's job below spells the same reason out.
-      - run: npm --prefix shared-types ci --omit=dev
+      - run: npm --prefix shared-types ci --omit=dev --no-audit --no-fund
       - run: |
           cd webapp/
-          npm ci
+          npm ci --no-audit --no-fund
           npm run lint:fix
           if [ -n "$(git status --porcelain)" ]; then
             echo 1>&2 'You need run "npm run lint:fix" before committing'
@@ -135,17 +126,20 @@ jobs:
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
       # The camera pipeline shells out to ffmpeg the way the container does.
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      # apt's progress is printed only if the install fails.
+      - run: |
+          { sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg; } \
+            >"$RUNNER_TEMP/apt.log" 2>&1 || { cat "$RUNNER_TEMP/apt.log"; exit 1; }
       # The shared package is linked with `file:`, and node - the compiler as
       # much as the runtime - resolves a linked package's own imports from the
       # package, never from whoever linked it. Its schemas import zod, so
       # without this the types behind them resolve to `any` and the server
       # compiles against a contract that says nothing. The image installs them
       # for the same reason (server/Dockerfile).
-      - run: npm --prefix shared-types ci --omit=dev
+      - run: npm --prefix shared-types ci --omit=dev --no-audit --no-fund
       - run: |
           cd server/
-          npm ci
+          npm ci --no-audit --no-fund
           npm run lint:fix
           if [ -n "$(git status --porcelain)" ]; then
             echo 1>&2 'You need run "npm run lint:fix" before committing'
@@ -166,7 +160,11 @@ jobs:
         with:
           context: .
           file: server/Dockerfile
-          push: false
+          # Nothing is pushed or loaded: the image is built to see that it
+          # builds, and its layers go to the cache. Without an attestation, the
+          # build's metadata is a few lines instead of some 650.
+          outputs: type=cacheonly
+          provenance: false
           build-args: |
             DOCKER_NODE_SERVER_IMAGE=node:20-alpine
           cache-from: type=gha,scope=docker-server
@@ -183,7 +181,8 @@ jobs:
         with:
           context: .
           file: webapp/Dockerfile
-          push: false
+          outputs: type=cacheonly
+          provenance: false
           build-args: |
             DOCKER_NODE_WEBAPP_IMAGE=node:20-alpine
             DOCKER_NGINX_IMAGE=nginx:1-alpine
