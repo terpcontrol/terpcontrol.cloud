@@ -270,11 +270,17 @@ export const useDropCamera = () => {
   });
 };
 
-/** Waits `ms`, or rejects as soon as the screen that is waiting goes away. */
+/**
+ * Waits `ms`, or rejects as soon as the screen that is waiting goes away. A
+ * wait that runs out takes its listener off the signal again: one signal
+ * outlives a hundred of these over a single press.
+ */
 const pause = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener('abort', () => (clearTimeout(timer), reject(signal.reason)), { once: true });
+    if (signal.aborted) return reject(signal.reason);
+    const stop = () => (clearTimeout(timer), reject(signal.reason));
+    const timer = setTimeout(() => (signal.removeEventListener('abort', stop), resolve()), ms);
+    signal.addEventListener('abort', stop, { once: true });
   });
 
 /**

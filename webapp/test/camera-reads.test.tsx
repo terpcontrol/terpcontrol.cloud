@@ -172,6 +172,30 @@ describe('a test image', () => {
     expect(asks()).toBe(CAPTURE_WAIT_MS / CAPTURE_POLL_MS);
   });
 
+  /**
+   * Every wait between two asks listens for the screen going away, on the one
+   * signal the whole press shares. A wait that ran out left its listener
+   * behind, so a press of three minutes held a hundred of them, all fired at
+   * once when the page was closed.
+   */
+  it('takes each wait´s listener off the signal again once the wait is over', async () => {
+    answering(capture({}));
+    const { result } = renderHook(() => useTestCapture('camera-1'), { wrapper });
+
+    act(() => result.current.mutate());
+    await act(() => vi.advanceTimersByTimeAsync(2_100));
+    const signal = vi.mocked(api.get).mock.calls.find(call => String(call[0]).includes('/test-captures/'))![2] as AbortSignal;
+    const added = vi.spyOn(signal, 'addEventListener');
+    const removed = vi.spyOn(signal, 'removeEventListener');
+    await act(() => vi.advanceTimersByTimeAsync(18_000));
+
+    expect(asks()).toBe(10);
+    // Every wait begun since has ended but the one under way, and the one
+    // under way began before the count did: as many off as on.
+    expect(added.mock.calls.length).toBeGreaterThan(0);
+    expect(removed.mock.calls.length).toBe(added.mock.calls.length);
+  });
+
   it('stops asking when the screen that pressed it goes away', async () => {
     answering(capture({}));
     const { result, unmount } = renderHook(() => useTestCapture('camera-1'), { wrapper });
