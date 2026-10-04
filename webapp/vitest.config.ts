@@ -20,5 +20,11 @@ export default defineConfig({
     setupFiles: ['test/setup.ts'],
     include: ['test/**/*.test.ts', 'test/**/*.test.tsx'],
     exclude: ['test/live/**'],
+    // A file's own teardown - the language put back, the session signed out -
+    // has to find the screen already unmounted, or everything still mounted
+    // re-renders outside act(). Testing Library registers its cleanup when it
+    // is imported, ahead of any hook of the file's, so run hooks in that order
+    // rather than the default reverse one.
+    sequence: { hooks: 'list' },
   },
 });
