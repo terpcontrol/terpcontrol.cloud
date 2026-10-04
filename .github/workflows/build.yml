@@ -24,10 +24,12 @@ jobs:
           fetch-depth: 2
       # Each job runs when the pull request touches one of its paths; this
       # workflow is among the paths of every job. Old and new paths of a moved
-      # file both count. Only the outcome is printed, not the files.
+      # file both count, and a path is listed as it is spelled - git would
+      # otherwise quote one with a non-ASCII character in it, which then
+      # matches nothing. Only the outcome is printed, not the files.
       - id: changes
         run: |
-          changed=$(git diff --name-only --no-renames HEAD^1 HEAD)
+          changed=$(git -c core.quotePath=false diff --name-only --no-renames HEAD^1 HEAD)
           touches() { grep -qE "^($1)" <<<"$changed" && echo true || echo false; }
           ci='\.github/workflows/build\.yml$'
           shared="shared-types/|$ci"
