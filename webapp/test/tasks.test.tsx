@@ -748,6 +748,7 @@ describe('a member who may only log', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Done: Water' }));
 
     expect(api.post).toHaveBeenCalledWith('/tasks/rem-1%3A2026-09-16/completions', {});
+    expect(await screen.findByText('Watered · Spring run')).toBeInTheDocument();
   });
 
   it('is offered no circle on a plan step, and is told whose the plan is', async () => {

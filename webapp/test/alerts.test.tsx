@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -950,7 +950,7 @@ describe('the inbox', () => {
       draw();
 
       await screen.findByText(title('Flower room B · humidity 68 % · above 60 %'));
-      await vi.advanceTimersByTimeAsync(65_000);
+      await act(() => vi.advanceTimersByTimeAsync(65_000));
 
       expect(readsOf('/v1/alerts').length).toBeGreaterThan(1);
       expect(readsOf('/v1/devices/device-1/alarm-rules')).toHaveLength(1);

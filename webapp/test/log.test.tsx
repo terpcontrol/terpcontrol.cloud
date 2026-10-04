@@ -358,6 +358,8 @@ describe('the log sheet', () => {
       // The doses are the server's to read off the grid: what goes on the wire is the can.
       values: { kind: 'feed', litres: 4, readings: [] },
     });
+    // Its toast offers the details once the line is saved.
+    expect(await screen.findByRole('button', { name: 'Details' })).toBeInTheDocument();
   });
 
   it('dates a line to the day it says, and doses a backdated feed at that day´s week of the scheme', async () => {
@@ -377,6 +379,7 @@ describe('the log sheet', () => {
     // The day the person chose, in their own zone, at the hour they are writing it down.
     const dated = new Date((body as { occurredAt: string }).occurredAt);
     expect([dated.getFullYear(), dated.getMonth() + 1, dated.getDate()]).toEqual([2026, 9, 11]);
+    expect(await screen.findByRole('button', { name: 'Details' })).toBeInTheDocument();
   });
 
   it('keeps offering the last can it knows, past a watering that recorded none', async () => {
@@ -389,6 +392,7 @@ describe('the log sheet', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Water/ }));
 
     expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ values: { kind: 'water', litres: 2 } }));
+    expect(await screen.findByRole('button', { name: 'Details' })).toBeInTheDocument();
   });
 
   it('ticks a due task off once, however often the card is tapped', async () => {
@@ -635,5 +639,6 @@ describe('the log sheet', () => {
       plantIds: ['plant-2'],
       values: { kind: 'water', litres: 2 },
     });
+    expect(await screen.findByRole('button', { name: 'Details' })).toBeInTheDocument();
   });
 });

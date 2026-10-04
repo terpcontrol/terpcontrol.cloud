@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -1145,7 +1145,7 @@ describe('the targets page', () => {
     // Nothing changed: leaving is not asked about.
     fireEvent.click(screen.getByRole('link', { name: 'Alarms' }));
     expect(await screen.findByText('The alarm rules')).toBeInTheDocument();
-    await router.navigate('/control?space=space-1');
+    await act(() => router.navigate('/control?space=space-1'));
     await screen.findByRole('spinbutton', { name: 'Day temperature' });
 
     type('Day temperature', 30);

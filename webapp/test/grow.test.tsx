@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -343,7 +343,8 @@ describe('the report tab', () => {
 
       expect(await screen.findByRole('button', { name: /Herunterladen/ })).toHaveTextContent('12,0 MB');
     } finally {
-      await i18next.changeLanguage('en');
+      // The screen is still up, and every line of it is redrawn in English.
+      await act(() => i18next.changeLanguage('en'));
     }
   });
 
