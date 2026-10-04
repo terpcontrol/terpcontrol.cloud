@@ -5,6 +5,10 @@
 own jest config (`jest.unit.config.js`, `jest.integration.config.js`) and can be run on its own with `npm run
 test:unit` / `npm run test:integration`.
 
+A green run prints the totals and nothing else. A failing spec file prints as jest always does, and each failing test
+in it also prints what the server logged while it ran (`server-log-environment.mjs`), so a red run in CI explains
+itself. `--reporters=default` brings back the line per spec file.
+
 ## Integration suite
 
 The suite drives the API the way a client does — over HTTP, against a server process started for the run. It never

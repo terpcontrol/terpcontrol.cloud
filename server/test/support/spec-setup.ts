@@ -1,4 +1,5 @@
 import { takeDownCameras } from './fixtures';
+import { debugLog } from './logs';
 
 /**
  * A spec's cameras end with it. The poller goes on reading every camera that
@@ -8,3 +9,6 @@ import { takeDownCameras } from './fixtures';
  * poller to read its camera would time out on how many specs ran before it.
  */
 afterAll(() => takeDownCameras());
+
+// What a failing test prints of the server's log (server-log-environment.mjs).
+(globalThis as Record<string, unknown>).__serverLog = debugLog;

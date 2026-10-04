@@ -10,7 +10,8 @@
  * runs and can only be replaced ahead of a dynamic import.
  */
 module.exports = {
-  testEnvironment: 'node',
+  testEnvironment: '<rootDir>/test/server-log-environment.mjs',
+  reporters: ['<rootDir>/test/quiet-reporter.mjs', 'summary'],
   rootDir: '.',
   roots: ['<rootDir>/test/unit'],
   testMatch: ['**/*.spec.ts'],

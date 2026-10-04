@@ -5,7 +5,8 @@
  */
 module.exports = {
   preset: 'ts-jest',
-  testEnvironment: 'node',
+  testEnvironment: '<rootDir>/test/server-log-environment.mjs',
+  reporters: ['<rootDir>/test/quiet-reporter.mjs', 'summary'],
   rootDir: '.',
   roots: ['<rootDir>/test/specs'],
   testMatch: ['**/*.spec.ts'],
