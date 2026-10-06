@@ -101,6 +101,7 @@ beforeEach(async () => {
     publisher,
     hardware,
     new EntryWriterService(db.entries),
+    new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, new EntryWriterService(db.entries)),
     { writeSample: async (deviceId, sample) => void samples.push({ deviceId, sample }) },
     { onSample: async sample => void metrics.push({ deviceId: sample.deviceId, values: sample.values, outputs: sample.outputs }) },
     null,

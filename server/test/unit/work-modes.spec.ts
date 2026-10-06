@@ -76,6 +76,7 @@ beforeEach(async () => {
     publisher,
     new HardwareReportService(db.devices, db.cameras),
     entries,
+    configuration,
   );
 });
 

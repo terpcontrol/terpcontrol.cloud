@@ -246,6 +246,7 @@ describe('every way a document reaches a device', () => {
       publisher,
       new HardwareReportService(db.devices, db.cameras),
       entries,
+      configuration,
     );
     await db.devices.create({ id: DEVICE, type: 'fridge', ownerId: 'user-1', configuration: fridge() });
   });
