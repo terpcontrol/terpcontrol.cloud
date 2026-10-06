@@ -1,5 +1,5 @@
 import type { Device } from '@fg2/shared-types/v1';
-import { configurationFieldsOf, type TimerWindow } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { configurationFieldsOf, workModeOf, type TimerWindow } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 
 export type FieldValue = number | boolean | string | TimerWindow[];
 
@@ -19,7 +19,7 @@ export const fieldValue = (device: Device, name: string): FieldValue | null => {
     if (!control) return null;
     if (name === 'control') return control.running;
     if (name === 'drying') return control.drying;
-    return name === 'energySaving' ? control.energySaving : name === 'mode' ? control.mode : null;
+    return name === 'energySaving' ? control.energySaving : name === 'mode' ? workModeOf(control) : null;
   }
 
   const value = valueAt(device.configuration, field.path);

@@ -1,9 +1,10 @@
-import { Power, Sprout, Sun, Wind } from 'lucide-react';
+import { Power, Sprout, Sun, Wind, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { devicesPath } from '@/app/places';
 import type { Device, DryingReturn } from '@fg2/shared-types/v1';
+import type { WorkMode } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useConfigure } from '@/api/devices';
 import { Sheet } from '@/log/Sheet';
 import { FieldSwitch } from '@/ui/advanced/Fields';
@@ -46,7 +47,7 @@ export function ControlState({ device, mayManage }: { device: Device; mayManage:
   );
 }
 
-const MODE_ICON = { greenhouse: Sun, germination: Sprout } as const;
+const MODE_ICON: Record<Exclude<WorkMode, 'standard'>, LucideIcon> = { greenhouse: Sun, germination: Sprout, drying: Wind };
 
 function ModeLine({ device, mayManage, onEndDrying }: { device: Device; mayManage: boolean; onEndDrying: () => void }) {
   const { t } = useTranslation();
@@ -80,7 +81,7 @@ function ModeLine({ device, mayManage, onEndDrying }: { device: Device; mayManag
     return (
       <div className={day.mode} data-mode="drying" role="status">
         <p className={day.modeText}>
-          <Wind size={16} strokeWidth={2} aria-hidden />
+          <MODE_ICON.drying size={16} strokeWidth={2} aria-hidden />
           <span>
             {t('climateControl.dryingNote')}
             <Help topic="drying" />

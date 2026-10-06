@@ -1,4 +1,5 @@
 import type { DeviceConfiguration, DeviceControl, GrowthStage, OperatingMode } from '@fg2/shared-types/v1';
+import { workModesOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { germinationChoicesOf, type GerminationChoiceValues } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { dryingReturnOf } from './drying-return';
 
@@ -25,9 +26,6 @@ export type BaseWorkmode = 'small' | 'full' | 'temp' | 'breed';
 
 const BASE_MODES: readonly string[] = ['small', 'full', 'temp', 'breed'];
 const RUNNING_MODES: readonly string[] = [...BASE_MODES, 'dry'];
-
-/** The hardware whose firmware reads a work mode. */
-const WITH_WORK_MODES: readonly string[] = ['fridge', 'controller'];
 
 /**
  * What germination is to do about the humidity, where a write says so
@@ -61,7 +59,8 @@ export type WriteIntent =
   /** The times of day moved onto the owner's clock, which decides nothing else. */
   | { kind: 'clock' };
 
-export const hasWorkModes = (type: string): boolean => WITH_WORK_MODES.includes(type);
+/** The hardware whose firmware reads a work mode: the types offered one (`WORK_MODES_BY_TYPE`). */
+export const hasWorkModes = (type: string): boolean => workModesOf(type).length > 0;
 
 const isBase = (value: unknown): value is BaseWorkmode => typeof value === 'string' && BASE_MODES.includes(value);
 

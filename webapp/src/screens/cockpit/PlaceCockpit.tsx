@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { controlPath, devicesPath, timelinePath, useRememberPlace } from '@/app/places';
 import type { Device, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
+import { workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useMe } from '@/api/account';
 import { serverNow } from '@/api/clock';
 import { useDiaryLayer } from '@/api/layers';
@@ -391,7 +392,8 @@ function ModeLine({
 }) {
   const { t } = useTranslation();
   const control = device?.control;
-  const kind = !control?.running ? null : control.drying ? 'drying' : control.mode === 'standard' ? null : control.mode;
+  const mode = control?.running ? workModeOf(control) : null;
+  const kind = mode === 'standard' ? null : mode;
   if (!kind) return null;
 
   return (
