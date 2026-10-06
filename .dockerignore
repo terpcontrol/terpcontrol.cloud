@@ -1,9 +1,9 @@
 **/node_modules
 **/dist
 **/dev-dist
-# Written by webapp/scripts/set-env.mjs from a developer's .env. The image is
-# told which API to compile against through a build argument, and must never
-# inherit one.
+# Written by webapp/scripts/set-env.mjs from a developer's .env, or by the
+# developer to name another API. The image is told which API to compile against
+# through a build argument, and must never inherit one.
 webapp/.env.local
 # The server's integration harness, and whatever a local run left behind in it.
 server/test

@@ -2,7 +2,7 @@
 /dist
 /dev-dist
 
-# Written by scripts/set-env.mjs from the root .env
+# Written by scripts/set-env.mjs from the root .env, or by hand to name another API
 /.env.local
 
 /node_modules

@@ -50,7 +50,7 @@ const followContract = (): Plugin => ({
   },
 });
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [
     react(),
@@ -101,7 +101,10 @@ export default defineConfig({
       '@fg2/shared-types/v1-schemas/capture.js',
     ],
   },
-  server: { port: 4200 },
+  // `npm run start:public` is the development server for other machines too - a phone on the network, a host
+  // reached by name - so it listens on every address and answers to whatever name it is reached by. That turns
+  // off Vite's guard against DNS rebinding, which is why it is a mode of its own and not what `npm start` does.
+  server: mode === 'public' ? { port: 4200, host: true, allowedHosts: true } : { port: 4200 },
   preview: { port: 4200 },
   build: { outDir: 'dist', sourcemap: true },
-});
+}));

@@ -11,6 +11,8 @@
     "set-env": "node scripts/set-env.mjs",
     "prestart": "npm run set-env",
     "start": "vite",
+    "prestart:public": "npm run set-env",
+    "start:public": "vite --mode public",
     "predev": "npm run set-env",
     "dev": "vite",
     "prebuild": "npm run set-env",
