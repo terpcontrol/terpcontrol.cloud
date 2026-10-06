@@ -131,7 +131,9 @@ web app's tests run on.
 1. `cd webapp/`
 2. `npm install`
 3. `npm start` — serves on `http://localhost:4200` against the API in the root `.env`. To point it somewhere
-   else, set `VITE_API_URL` in `webapp/.env.local`.
+   else, set `VITE_API_URL` in `webapp/.env.local` and delete its first line, which marks the file as generated.
+   `npm run start:public` serves other machines too, under whatever name they reach it by; they then need to reach
+   the API at `API_URL_EXTERNAL` as well.
 
 And before committing:
 1. `npm run lint:fix`

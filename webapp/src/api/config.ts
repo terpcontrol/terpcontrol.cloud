@@ -35,5 +35,8 @@ export const PRIVACY_URL: string = (import.meta.env.VITE_PRIVACY_URL as string |
 /** The version the app's own package states, put into the bundle at build time. */
 export const APP_VERSION: string = __APP_VERSION__;
 
-/** Which kind of build this is - `production` from the image, `development` under the dev server. */
+/**
+ * Which kind of build this is - `production` from the image, `development` under the dev server, `public` under
+ * the dev server that `npm run start:public` opens to other machines.
+ */
 export const BUILD_MODE: string = import.meta.env.MODE;
