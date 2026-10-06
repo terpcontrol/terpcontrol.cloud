@@ -6,6 +6,7 @@ import {
   DeviceClass,
   DeviceClassCreate,
   DeviceClassUpdate,
+  DeviceFirmware,
   Firmware,
   FirmwareCreate,
   FirmwareUpdate,
@@ -25,6 +26,9 @@ import { StoredFirmware } from '@database/schemas/v1/firmwares.schema';
 import { StoredFirmwareBinary } from '@database/schemas/v1/firmware-binaries.schema';
 import { logger } from '@utils/logger';
 import { UPGRADE_TIMEOUT_MS } from './firmware-rollout.service';
+
+/** The channels a class names a current build for; `manual` names none. */
+const RELEASE_CHANNELS = ['stable', 'beta', 'alpha'] as const;
 
 /**
  * The builds this cloud hands out and the classes they are handed out to.
@@ -161,6 +165,53 @@ export class FleetService implements OnModuleInit, OnApplicationShutdown {
 
     const page = pageOf(rows, limit, row => ({ at: row.createdAt, id: row.id }));
     return { items: page.items.map(serialiseFirmware), nextCursor: page.nextCursor };
+  }
+
+  /**
+   * The builds one device can be put on, with the channels each is the current
+   * build of. An administrator is offered every build of the class. Anybody
+   * else is offered what the old cloud offered on its manual channel: every
+   * build that was ever stable, everything newer than the newest of those, and
+   * the builds the device runs and is told to run, so both always have a name.
+   * A build older than the last stable one that never shipped is a dead end
+   * only the operator should put a device on.
+   */
+  public async listDeviceFirmwares(
+    query: PageQuery,
+    device: Pick<StoredDevice, 'classId' | 'firmware' | 'state'>,
+    everything: boolean,
+  ): Promise<CursorPage<DeviceFirmware>> {
+    if (!device.classId) return { items: [], nextCursor: null };
+    const deviceClass = await this.requireClass(device.classId);
+
+    const limit = pageLimit(query.limit);
+    const rows = await this.firmwares
+      .find({ ...(everything ? { classId: device.classId } : await this.offeredTo(device)), ...afterCursor('createdAt', query.cursor) })
+      .sort({ createdAt: -1, id: -1 })
+      .limit(readLimit(limit))
+      .lean<StoredFirmware[]>();
+
+    const page = pageOf(rows, limit, row => ({ at: row.createdAt, id: row.id }));
+    const channels = (id: string) => RELEASE_CHANNELS.filter(channel => deviceClass.firmwareIds[channel] === id);
+    return { items: page.items.map(row => ({ ...serialiseFirmware(row), channels: channels(row.id) })), nextCursor: page.nextCursor };
+  }
+
+  /** Whether a grower may put this device on the build: whether `listDeviceFirmwares` offers it to anybody but an administrator. */
+  public async offers(device: Pick<StoredDevice, 'classId' | 'firmware' | 'state'>, firmwareId: string): Promise<boolean> {
+    if (!device.classId) return false;
+    return (await this.firmwares.countDocuments({ $and: [{ id: firmwareId }, await this.offeredTo(device)] })) > 0;
+  }
+
+  private async offeredTo(device: Pick<StoredDevice, 'classId' | 'firmware' | 'state'>): Promise<Record<string, unknown>> {
+    const newestStable = await this.firmwares
+      .findOne({ classId: device.classId, wasStable: true }, { createdAt: 1 })
+      .sort({ createdAt: -1 })
+      .lean<Pick<StoredFirmware, 'createdAt'> | null>();
+    // A class that never had a stable build has nothing older than one either.
+    if (!newestStable) return { classId: device.classId };
+
+    const own = [device.state.firmwareId, device.firmware.targetId].filter((id): id is string => typeof id === 'string');
+    return { classId: device.classId, $or: [{ wasStable: true }, { createdAt: { $gt: newestStable.createdAt } }, { id: { $in: own } }] };
   }
 
   public async requireFirmware(id: string): Promise<StoredFirmware> {

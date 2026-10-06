@@ -345,6 +345,31 @@ describe('the targets page', () => {
    * column beside the night's, each headed by when it runs. The night is what
    * the day leaves: its times are read, never set.
    */
+  it('keeps under the targets the same Erweitert the device has under Geräte, so Start leads to every setting', async () => {
+    await drawn([
+      device({
+        type: 'fridge',
+        control: { running: true, drying: false, mode: 'standard', energySaving: false, germinationChoices: GERMINATION_CHOICES },
+      }),
+    ]);
+    fireEvent.click(screen.getByText('Advanced', { selector: 'summary' }));
+
+    // A fridge's own tuning and the update channel, exactly as its panel offers them.
+    expect(screen.getByRole('textbox', { name: 'Compressor rest' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Sunrise' })).toBeInTheDocument();
+    expect(screen.getByText('Update channel')).toBeInTheDocument();
+    // But not the mode a second time beside the chips that set it: the section says where the rest of it is.
+    expect(screen.getAllByRole('button', { name: 'Germination · dark' })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Operating mode under Devices ›' })).toHaveAttribute('href', '/devices?space=space-1');
+  });
+
+  it('names the device each Erweitert belongs to where two devices stand here', async () => {
+    await drawn([device(), device({ id: 'device-2', name: 'Cellar fridge', type: 'fridge' })]);
+
+    expect(screen.getByText('Advanced · Blue Dream tent', { selector: 'summary' })).toBeInTheDocument();
+    expect(screen.getByText('Advanced · Cellar fridge', { selector: 'summary' })).toBeInTheDocument();
+  });
+
   it('draws the light plan over the table, the day beside the night, each headed by when it runs', async () => {
     await drawn();
 

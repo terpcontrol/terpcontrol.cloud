@@ -78,25 +78,47 @@ export type ConfigurationFields = Readonly<Record<string, ConfigurationField>>;
 /**
  * What a fridge or a controller is set to do as a whole, in a person's words:
  * the standard climate control, temperature only (the firmware's `temp`), or
- * dark germination held at the night temperature (`breed`).
+ * dark germination held at the night temperature (`breed`). This is what the
+ * device keeps to come back to (`DeviceControl.mode`); drying lies over it.
  */
 export const OPERATING_MODES = ['standard', 'greenhouse', 'germination'] as const;
 
 export type OperatingMode = (typeof OPERATING_MODES)[number];
 
 /**
- * The modes a tent controller is offered. Its firmware runs the greenhouse
- * mode too, but there the dehumidifier and exhaust sockets become the tent's
- * cooling - wiring no tent is set up for - so it keeps the standard and dark
- * germination, the two every grow passes through.
+ * The Betriebsart as a person picks and reads it: an operating mode, or drying
+ * (the firmware's `dry`: no day and no night, no light and no CO2), which the
+ * server keeps apart because the device goes back to its mode when it ends.
+ * The one list every screen offers and names the modes from.
  */
-export const CONTROLLER_MODES = ['standard', 'germination'] as const satisfies readonly OperatingMode[];
+export const WORK_MODES = [...OPERATING_MODES, 'drying'] as const;
+
+export type WorkMode = (typeof WORK_MODES)[number];
+
+/**
+ * The work modes each type of device is offered, in the order they are shown.
+ * A tent controller's firmware runs the greenhouse mode too, but there the
+ * dehumidifier and exhaust sockets become the tent's cooling - wiring no tent
+ * is set up for - so it keeps the standard, dark germination and drying, the
+ * ones every grow passes through. A type not named here has no work mode.
+ */
+export const WORK_MODES_BY_TYPE: Readonly<Record<string, readonly WorkMode[]>> = {
+  fridge: WORK_MODES,
+  controller: ['standard', 'germination', 'drying'],
+};
+
+export const workModesOf = (type: string): readonly WorkMode[] => WORK_MODES_BY_TYPE[type] ?? [];
+
+/** The work mode a device runs, read from what the server says it does: drying over the mode it goes back to. */
+export const workModeOf = (control: { drying: boolean; mode: OperatingMode }): WorkMode => (control.drying ? 'drying' : control.mode);
 
 /**
  * Whether the device regulates at all - off is the firmware's `workmode: off`,
  * which is also how a device leaves the factory - and whether it dries, the
  * firmware's `dry`: no day and no night, no light and no CO2. Both are said
  * here and decided by the server, which remembers what the device goes back to.
+ * `mode` (below) offers drying among the work modes as well, so a person picks
+ * it where the other modes are picked; `drying` stays to end a spell alone.
  */
 const CONTROL: ConfigurationFields = { control: { kind: 'switch', path: null }, drying: { kind: 'switch', path: null } };
 
@@ -130,7 +152,7 @@ const FRIDGE: ConfigurationFields = {
   ...GERMINATION,
   // The back-wall fan stands still while the compressor is off: the firmware's `full`.
   energySaving: { kind: 'switch', path: null },
-  mode: { kind: 'choice', path: null, options: OPERATING_MODES },
+  mode: { kind: 'choice', path: null, options: workModesOf('fridge') },
   compressorRest: { kind: 'number', path: 'daynight.minimalDehumidifierOffTime', min: MIN_COMPRESSOR_REST_SECONDS, max: 900, step: 30 },
   ...RAMPS,
   // The lamp stays at its working brightness through a maintenance window at night too.
@@ -140,7 +162,7 @@ const FRIDGE: ConfigurationFields = {
   innerFans: { kind: 'number', path: 'fans.internal', min: 10, max: 100, step: 5 },
 };
 
-const CONTROLLER: ConfigurationFields = { ...CONTROL, ...GERMINATION, mode: { kind: 'choice', path: null, options: CONTROLLER_MODES }, ...RAMPS };
+const CONTROLLER: ConfigurationFields = { ...CONTROL, ...GERMINATION, mode: { kind: 'choice', path: null, options: workModesOf('controller') }, ...RAMPS };
 
 /** A time of day as the firmware keeps every one: seconds past midnight UTC. The app writes whole minutes. */
 const TIME_OF_DAY = { kind: 'number', min: 0, max: 86399, step: 60 } as const;

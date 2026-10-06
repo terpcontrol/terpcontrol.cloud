@@ -40,7 +40,9 @@ export const fieldChangesOf = (type: string, set: Record<string, Value>): FieldC
       if (name === 'control') changes.intent.control = value as boolean;
       if (name === 'drying') changes.intent.drying = value as boolean;
       if (name === 'energySaving') changes.intent.energySaving = value as boolean;
-      if (name === 'mode') changes.intent.mode = value as OperatingMode;
+      // Drying is picked among the work modes; any other ends a drying spell for that mode.
+      if (name === 'mode' && value === 'drying') changes.intent.drying = true;
+      else if (name === 'mode') changes.intent = { ...changes.intent, mode: value as OperatingMode, drying: changes.intent.drying ?? false };
       if (name === 'germinationWarnTooHumid') changes.intent.choices = { ...changes.intent.choices, warnTooHumid: value as boolean };
       if (name === 'germinationHumidifier') changes.intent.choices = { ...changes.intent.choices, humidifierHolds: value as boolean };
     } else {

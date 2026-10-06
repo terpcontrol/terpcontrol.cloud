@@ -24,25 +24,44 @@
  * different places. No schema, so a client imports it without pulling zod in.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEVICE_SETTING_RANGES = exports.co2PlugOf = exports.co2InjectFor = exports.dosesInWindows = exports.co2FanKey = exports.co2FanOf = exports.configurationFieldsOf = exports.CONFIGURATION_FIELDS = exports.FAN_MODES = exports.MOST_TIMER_WINDOWS = exports.CO2_DOSINGS = exports.switchPointName = exports.SWITCH_POINT_RANGE = exports.PLUG_SWITCHING = exports.PLUG_MODES = exports.MIN_COMPRESSOR_REST_SECONDS = exports.CONTROLLER_MODES = exports.OPERATING_MODES = void 0;
+exports.DEVICE_SETTING_RANGES = exports.co2PlugOf = exports.co2InjectFor = exports.dosesInWindows = exports.co2FanKey = exports.co2FanOf = exports.configurationFieldsOf = exports.CONFIGURATION_FIELDS = exports.FAN_MODES = exports.MOST_TIMER_WINDOWS = exports.CO2_DOSINGS = exports.switchPointName = exports.SWITCH_POINT_RANGE = exports.PLUG_SWITCHING = exports.PLUG_MODES = exports.MIN_COMPRESSOR_REST_SECONDS = exports.workModeOf = exports.workModesOf = exports.WORK_MODES_BY_TYPE = exports.WORK_MODES = exports.OPERATING_MODES = void 0;
 /**
  * What a fridge or a controller is set to do as a whole, in a person's words:
  * the standard climate control, temperature only (the firmware's `temp`), or
- * dark germination held at the night temperature (`breed`).
+ * dark germination held at the night temperature (`breed`). This is what the
+ * device keeps to come back to (`DeviceControl.mode`); drying lies over it.
  */
 exports.OPERATING_MODES = ['standard', 'greenhouse', 'germination'];
 /**
- * The modes a tent controller is offered. Its firmware runs the greenhouse
- * mode too, but there the dehumidifier and exhaust sockets become the tent's
- * cooling - wiring no tent is set up for - so it keeps the standard and dark
- * germination, the two every grow passes through.
+ * The Betriebsart as a person picks and reads it: an operating mode, or drying
+ * (the firmware's `dry`: no day and no night, no light and no CO2), which the
+ * server keeps apart because the device goes back to its mode when it ends.
+ * The one list every screen offers and names the modes from.
  */
-exports.CONTROLLER_MODES = ['standard', 'germination'];
+exports.WORK_MODES = [...exports.OPERATING_MODES, 'drying'];
+/**
+ * The work modes each type of device is offered, in the order they are shown.
+ * A tent controller's firmware runs the greenhouse mode too, but there the
+ * dehumidifier and exhaust sockets become the tent's cooling - wiring no tent
+ * is set up for - so it keeps the standard, dark germination and drying, the
+ * ones every grow passes through. A type not named here has no work mode.
+ */
+exports.WORK_MODES_BY_TYPE = {
+    fridge: exports.WORK_MODES,
+    controller: ['standard', 'germination', 'drying'],
+};
+const workModesOf = (type) => exports.WORK_MODES_BY_TYPE[type] ?? [];
+exports.workModesOf = workModesOf;
+/** The work mode a device runs, read from what the server says it does: drying over the mode it goes back to. */
+const workModeOf = (control) => (control.drying ? 'drying' : control.mode);
+exports.workModeOf = workModeOf;
 /**
  * Whether the device regulates at all - off is the firmware's `workmode: off`,
  * which is also how a device leaves the factory - and whether it dries, the
  * firmware's `dry`: no day and no night, no light and no CO2. Both are said
  * here and decided by the server, which remembers what the device goes back to.
+ * `mode` (below) offers drying among the work modes as well, so a person picks
+ * it where the other modes are picked; `drying` stays to end a spell alone.
  */
 const CONTROL = { control: { kind: 'switch', path: null }, drying: { kind: 'switch', path: null } };
 /**
@@ -72,7 +91,7 @@ const FRIDGE = {
     ...GERMINATION,
     // The back-wall fan stands still while the compressor is off: the firmware's `full`.
     energySaving: { kind: 'switch', path: null },
-    mode: { kind: 'choice', path: null, options: exports.OPERATING_MODES },
+    mode: { kind: 'choice', path: null, options: (0, exports.workModesOf)('fridge') },
     compressorRest: { kind: 'number', path: 'daynight.minimalDehumidifierOffTime', min: exports.MIN_COMPRESSOR_REST_SECONDS, max: 900, step: 30 },
     ...RAMPS,
     // The lamp stays at its working brightness through a maintenance window at night too.
@@ -81,7 +100,7 @@ const FRIDGE = {
     clipFan: { kind: 'number', path: 'fans.external', min: 0, max: 100, step: 5 },
     innerFans: { kind: 'number', path: 'fans.internal', min: 10, max: 100, step: 5 },
 };
-const CONTROLLER = { ...CONTROL, ...GERMINATION, mode: { kind: 'choice', path: null, options: exports.CONTROLLER_MODES }, ...RAMPS };
+const CONTROLLER = { ...CONTROL, ...GERMINATION, mode: { kind: 'choice', path: null, options: (0, exports.workModesOf)('controller') }, ...RAMPS };
 /** A time of day as the firmware keeps every one: seconds past midnight UTC. The app writes whole minutes. */
 const TIME_OF_DAY = { kind: 'number', min: 0, max: 86399, step: 60 };
 /**

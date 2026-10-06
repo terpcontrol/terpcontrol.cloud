@@ -399,7 +399,7 @@ describe('what reaches the hardware', () => {
 });
 
 describe('how a device updates', () => {
-  it('starts on stable, lets its owner choose whether and from which channel, and leaves pinning a build to an administrator', async () => {
+  it('starts on stable, and lets its owner choose the channel and, on the manual one, a version from the builds offered', async () => {
     const device = await provisionDevice(owner, 'plug');
     const before = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.firmware;
     expect(before.channel).toBe('stable');
@@ -413,22 +413,61 @@ describe('how a device updates', () => {
     const admin = await loginAsAdmin();
     const classes = await admin.client.get('/v1/admin/device-classes').expect(200);
     const plugClass = classes.body.items.find((entry: { name: string }) => entry.name === 'plug');
-    const build = await admin.client
-      .post('/v1/admin/firmwares')
-      .send({ classId: plugClass.id, name: 'plug', version: unique('v') })
-      .expect(201);
-
-    const refused = await owner.client
-      .patch(`/v1/devices/${device.deviceId}`)
-      .send({ firmware: { channel: 'manual', targetId: build.body.id } })
-      .expect(403);
-    expect(refused.body.code).toBe('firmware_pin_admin_only');
-
-    const pinned = await admin.client
-      .patch(`/v1/devices/${device.deviceId}`)
-      .send({ firmware: { channel: 'manual', targetId: build.body.id } })
+    const upload = async () =>
+      (
+        await admin.client
+          .post('/v1/admin/firmwares')
+          .send({ classId: plugClass.id, name: 'plug', version: unique('v') })
+          .expect(201)
+      ).body;
+    // One that never shipped, one that becomes the stable build, one newer than that.
+    const forgotten = await upload();
+    const stable = await upload();
+    await admin.client
+      .patch(`/v1/admin/device-classes/${plugClass.id}`)
+      .send({ firmwareIds: { ...plugClass.firmwareIds, stable: stable.id } })
       .expect(200);
-    expect(pinned.body.firmware).toEqual({ channel: 'manual', targetId: build.body.id });
+    const newer = await upload();
+
+    try {
+      const offered = (await owner.client.get(`/v1/devices/${device.deviceId}/firmwares`).expect(200)).body.items;
+      const offeredIds = offered.map((build: { id: string }) => build.id);
+      expect(offeredIds).toEqual(expect.arrayContaining([stable.id, newer.id]));
+      expect(offeredIds).not.toContain(forgotten.id);
+      expect(offered.find((build: { id: string }) => build.id === stable.id).channels).toEqual(['stable']);
+      expect(offered.find((build: { id: string }) => build.id === newer.id).channels).toEqual([]);
+
+      // An administrator is offered every build of the class, for a rollback or a test build.
+      const everything = (await admin.client.get(`/v1/devices/${device.deviceId}/firmwares`).expect(200)).body.items;
+      expect(everything.map((build: { id: string }) => build.id)).toContain(forgotten.id);
+
+      const picked = await owner.client
+        .patch(`/v1/devices/${device.deviceId}`)
+        .send({ firmware: { channel: 'manual', targetId: newer.id } })
+        .expect(200);
+      expect(picked.body.firmware).toEqual({ channel: 'manual', targetId: newer.id });
+
+      const refused = await owner.client
+        .patch(`/v1/devices/${device.deviceId}`)
+        .send({ firmware: { channel: 'manual', targetId: forgotten.id } })
+        .expect(403);
+      expect(refused.body.code).toBe('firmware_pin_admin_only');
+
+      // A release channel decides the build itself, so nobody but the operator pins one beside it.
+      await owner.client
+        .patch(`/v1/devices/${device.deviceId}`)
+        .send({ firmware: { channel: 'beta', targetId: stable.id } })
+        .expect(403);
+
+      const pinned = await admin.client
+        .patch(`/v1/devices/${device.deviceId}`)
+        .send({ firmware: { channel: 'manual', targetId: forgotten.id } })
+        .expect(200);
+      expect(pinned.body.firmware).toEqual({ channel: 'manual', targetId: forgotten.id });
+    } finally {
+      // The class goes back to its own stable build, so no other device of it is moved by this one.
+      await admin.client.patch(`/v1/admin/device-classes/${plugClass.id}`).send({ firmwareIds: plugClass.firmwareIds }).expect(200);
+    }
   });
 });
 

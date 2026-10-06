@@ -76,6 +76,7 @@ beforeEach(async () => {
     publisher,
     new HardwareReportService(db.devices, db.cameras),
     entries,
+    configuration,
   );
 });
 
@@ -355,9 +356,22 @@ describe('a setting changed by name', () => {
     expect(after.beforeGermination).toBeNull();
   });
 
-  it('offers a tent controller germination in the dark beside the standard, and not the greenhouse mode', () => {
-    expect(fieldChangesOf('controller', { mode: 'germination' }).intent).toEqual({ kind: 'fields', mode: 'germination' });
+  it('offers a tent controller germination in the dark and drying beside the standard, and not the greenhouse mode', () => {
+    expect(fieldChangesOf('controller', { mode: 'germination' }).intent).toEqual({ kind: 'fields', mode: 'germination', drying: false });
+    expect(fieldChangesOf('controller', { mode: 'drying' }).intent).toEqual({ kind: 'fields', drying: true });
     expect(refusal('controller', { mode: 'greenhouse' })?.errors).toEqual([expect.objectContaining({ field: 'set.mode', code: 'out_of_range' })]);
+  });
+
+  it('dries as a work mode picked by name, and goes back to the mode picked after it with the targets from before', async () => {
+    await device();
+
+    await configuration.configure(DEVICE, { mode: 'drying' }, OWNER);
+    const drying = await stored();
+    expect(drying.configuration?.workmode).toBe('dry');
+    expect(controlOf('fridge', drying.configuration, drying.baseWorkmode)).toMatchObject({ running: true, drying: true, mode: 'standard' });
+
+    await configuration.configure(DEVICE, { mode: 'greenhouse' }, OWNER);
+    expect((await stored()).configuration).toMatchObject({ workmode: 'temp', day: { temperature: 25 }, night: { temperature: 20 } });
   });
 
   it('refuses a device that has never sent its document', async () => {
