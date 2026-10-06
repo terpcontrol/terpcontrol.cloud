@@ -13,10 +13,11 @@ import { targetFigure, UNIT } from '@/screens/home/units';
 
 /**
  * Betriebsart: what a fridge or a tent controller does as a whole while its
- * control is on. Standard is what everything else in the app assumes; dark
- * germination is a stage as well and is usually reached from one, and the
- * temperature-only mode is a fridge's for the few who grow that way, which is
- * why they are here and not under Steuerung. Energy saving belongs to a fridge's
+ * control is on, offered from the one list of work modes per type
+ * (`WORK_MODES_BY_TYPE`). Standard is what everything else in the app assumes;
+ * dark germination and drying are stages as well and are usually reached from
+ * one, and the temperature-only mode is a fridge's for the few who grow that
+ * way, which is why they are here and not only under Steuerung. Energy saving belongs to a fridge's
  * standard mode and is switched under Steuerung.
  *
  * While the device germinates, what germination does about the humidity is
@@ -59,8 +60,8 @@ function OperatingMode({ device, mayManage, sockets }: DeviceContext) {
         help="advanced.operatingMode"
         disabled={!mayManage}
         options={modes.map(mode => ({ value: mode, label: t(`operatingMode.${mode}`), note: t(`operatingMode.${mode}Note`, figures) }))}
-        // Germination darkens the device and the greenhouse mode stops holding its humidity: a tap in bloom
-        // would cost a night of light, so either is asked first. Back to the standard is written at once.
+        // Germination and drying darken the device and the greenhouse mode stops holding its humidity: a tap in
+        // bloom would cost a night of light, so each is asked first. Back to the standard is written at once.
         ask={mode =>
           mode === 'standard'
             ? null
