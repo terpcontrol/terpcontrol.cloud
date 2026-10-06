@@ -4939,7 +4939,7 @@
     "advanced": {
       "operatingMode": {
         "title": "Betriebsart",
-        "text": "Was das Gerät als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂ nach Tag und Nacht. Keimung · dunkel hält es rund um die Uhr dunkel und ohne CO₂ und heizt und kühlt auf eine Temperatur – die der Spalte „Keimung · dunkel“ unter Zielwerte; am Zelt kühlt dabei die Abluft, und ein Entfeuchter bleibt aus. Die Luftfeuchte stellt sie auf 75 %, die ein Befeuchter hält: Die Nacht-Luftfeuchte davor war für Blätter gedacht, oft 50 %, und hielte die Samen zu trocken; sie gilt wieder, sobald die Keimung endet. Ob „Zu feucht“ dabei warnt und ob ein Befeuchter die Luftfeuchte hält, wählst du während der Keimung darunter. Dieselbe Keimung stellen auch das Klima „Keimung · dunkel“ und die Phase Keimung ein. Der Kühlschrank kennt dazu Gewächshaus: nur die Temperatur, Licht und CO₂ laufen nach dem Lichtplan weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Der Energiespar-Modus gilt nur im Standard. Eine Trocknungsphase geht vor und kehrt danach zur Betriebsart zurück."
+        "text": "Was das Gerät als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂ nach Tag und Nacht. Keimung · dunkel hält es rund um die Uhr dunkel und ohne CO₂ und heizt und kühlt auf eine Temperatur – die der Spalte „Keimung · dunkel“ unter Zielwerte; am Zelt kühlt dabei die Abluft, und ein Entfeuchter bleibt aus. Die Luftfeuchte stellt sie auf 75 %, die ein Befeuchter hält: Die Nacht-Luftfeuchte davor war für Blätter gedacht, oft 50 %, und hielte die Samen zu trocken; sie gilt wieder, sobald die Keimung endet. Ob „Zu feucht“ dabei warnt und ob ein Befeuchter die Luftfeuchte hält, wählst du während der Keimung darunter. Dieselbe Keimung stellen auch das Klima „Keimung · dunkel“ und die Phase Keimung ein. Der Kühlschrank kennt dazu Gewächshaus: nur die Temperatur, Licht und CO₂ laufen nach dem Lichtplan weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Trocknung hält es rund um die Uhr dunkel und ohne CO₂ auf den Nachtwerten; endet sie, kehrt das Gerät zur Betriebsart und den Zielwerten von vorher zurück. Dieselbe Trocknung stellen das Klima „Trocknung“ und die Phase Trocknung ein. Der Energiespar-Modus gilt nur im Standard."
       },
       "chartStep": {
         "title": "Intervall",
@@ -5440,6 +5440,8 @@
     "greenhouseNote": "Nur die Temperatur: Licht und CO₂ laufen, der Kompressor kühlt nur, die Luftfeuchte wird nicht geregelt.",
     "germination": "Keimung · dunkel",
     "germinationNote": "Für Samen, die im Dunkeln keimen: kein Licht, kein CO₂, rund um die Uhr eine Temperatur – zuerst die bisherige Nachttemperatur, unter Zielwerte zu ändern – und {{humidity}} % Luftfeuchte für einen Befeuchter. Ein Entfeuchter bleibt dabei aus; am Zelt kühlt die Abluft. Zurück auf Standard gilt die Nacht von vorher wieder. „Keimung · dunkel“ unter Steuerung stellt dasselbe ein, gleich mit {{temperature}} °C.",
+    "drying": "Trocknung",
+    "dryingNote": "Für die Ernte, die trocknet: kein Licht, kein CO₂, rund um die Uhr die Nachtwerte unter Zielwerte. Endet die Trocknung, gelten die Zielwerte von vorher wieder. Die Phase Trocknung und das Klima „Trocknung“ unter Steuerung stellen dasselbe ein.",
     "ask": "Auf {{mode}} umstellen? {{what}} Zurück geht es hier mit Standard.",
     "choicesAfter": "Nach dem Umstellen lässt sich das hier ändern.",
     "yes": "Auf {{mode}} umstellen"

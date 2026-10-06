@@ -20,7 +20,7 @@ import type {
   TimelineTarget,
 } from '@fg2/shared-types/v1';
 import { germinationChoicesOf } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { switchPointName, type PlugMode, type PlugSwitching } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { switchPointName, workModeOf, type PlugMode, type PlugSwitching } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { timelinePath } from '@/app/places';
 import { fieldValue } from '@/ui/advanced/field-values';
 import { offlineLabel, sinceLabel, valueAge } from '@/ui/age';
@@ -399,7 +399,9 @@ export type DarkReason = 'off' | 'drying' | 'germination';
 export const darkReasonOf = (device: Device | null): DarkReason | null => {
   const control = device?.control;
   if (!control) return null;
-  return !control.running ? 'off' : control.drying ? 'drying' : control.mode === 'germination' ? 'germination' : null;
+  if (!control.running) return 'off';
+  const mode = workModeOf(control);
+  return mode === 'drying' || mode === 'germination' ? mode : null;
 };
 
 export const lightWindowOf = (device: Device | null, now: DateTime, zone: string | null): LightWindow | null => {

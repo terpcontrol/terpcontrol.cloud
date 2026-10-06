@@ -69,17 +69,33 @@ export type ConfigurationFields = Readonly<Record<string, ConfigurationField>>;
 /**
  * What a fridge or a controller is set to do as a whole, in a person's words:
  * the standard climate control, temperature only (the firmware's `temp`), or
- * dark germination held at the night temperature (`breed`).
+ * dark germination held at the night temperature (`breed`). This is what the
+ * device keeps to come back to (`DeviceControl.mode`); drying lies over it.
  */
 export declare const OPERATING_MODES: readonly ["standard", "greenhouse", "germination"];
 export type OperatingMode = (typeof OPERATING_MODES)[number];
 /**
- * The modes a tent controller is offered. Its firmware runs the greenhouse
- * mode too, but there the dehumidifier and exhaust sockets become the tent's
- * cooling - wiring no tent is set up for - so it keeps the standard and dark
- * germination, the two every grow passes through.
+ * The Betriebsart as a person picks and reads it: an operating mode, or drying
+ * (the firmware's `dry`: no day and no night, no light and no CO2), which the
+ * server keeps apart because the device goes back to its mode when it ends.
+ * The one list every screen offers and names the modes from.
  */
-export declare const CONTROLLER_MODES: readonly ["standard", "germination"];
+export declare const WORK_MODES: readonly ["standard", "greenhouse", "germination", "drying"];
+export type WorkMode = (typeof WORK_MODES)[number];
+/**
+ * The work modes each type of device is offered, in the order they are shown.
+ * A tent controller's firmware runs the greenhouse mode too, but there the
+ * dehumidifier and exhaust sockets become the tent's cooling - wiring no tent
+ * is set up for - so it keeps the standard, dark germination and drying, the
+ * ones every grow passes through. A type not named here has no work mode.
+ */
+export declare const WORK_MODES_BY_TYPE: Readonly<Record<string, readonly WorkMode[]>>;
+export declare const workModesOf: (type: string) => readonly WorkMode[];
+/** The work mode a device runs, read from what the server says it does: drying over the mode it goes back to. */
+export declare const workModeOf: (control: {
+    drying: boolean;
+    mode: OperatingMode;
+}) => WorkMode;
 /** The least the compressor rests between two runs. Below this it is not protected, whatever an older app allowed. */
 export declare const MIN_COMPRESSOR_REST_SECONDS = 240;
 /**
