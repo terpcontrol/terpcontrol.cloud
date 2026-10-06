@@ -219,6 +219,50 @@ describe('what a device reports', () => {
   });
 
   /**
+   * A device registered afresh, or a database restored from before it was set
+   * up, holds no configuration, and the device only ever published its own
+   * after a change on its menu - so the screens waited for it forever.
+   */
+  it('takes the settings a fetch carries when it holds no configuration', async () => {
+    await device();
+
+    await messageOn('fetch', { firmware_id: 'build-1', configuration: { day: { temperature: 26 }, workmode: 'small' } });
+
+    expect((await stored())?.configuration).toEqual({ day: { temperature: 26 }, workmode: 'small' });
+    expect(published).toEqual([]);
+  });
+
+  it('never lets the settings a fetch carries replace a configuration it holds, and sends its own down', async () => {
+    await device({ configuration: { day: { temperature: 27 }, workmode: 'small' } });
+
+    // A device that missed a change while its connection was down reconnects with what it had before.
+    await messageOn('fetch', { firmware_id: 'build-1', configuration: { day: { temperature: 22 }, workmode: 'off' } });
+
+    expect((await stored())?.configuration).toEqual({ day: { temperature: 27 }, workmode: 'small' });
+    expect(published).toEqual([{ topic: `/devices/${DEVICE}/configuration`, message: '{"day":{"temperature":27},"workmode":"small"}' }]);
+  });
+
+  it('keeps a configuration saved between reading the device and taking the settings its fetch carries', async () => {
+    await device();
+    const before = await stored();
+    await db.devices.updateOne({ id: DEVICE }, { $set: { configuration: { day: { temperature: 27 } } } });
+
+    const fetch = (ingest as unknown as { fetch(device: StoredDevice, payload: string): Promise<void> }).fetch.bind(ingest);
+    await fetch(before!, JSON.stringify({ firmware_id: 'build-1', configuration: { day: { temperature: 22 } } }));
+
+    expect((await stored())?.configuration).toEqual({ day: { temperature: 27 } });
+    expect(await recordOf()).toEqual([]);
+  });
+
+  it('takes nothing from a fetch whose settings are not a document', async () => {
+    await device();
+
+    await messageOn('fetch', { firmware_id: 'build-1', configuration: '{"day":{"temperature":26}}' });
+
+    expect((await stored())?.configuration).toBeNull();
+  });
+
+  /**
    * A command is published once and the broker keeps none, so maintenance sent
    * while a device was reconnecting was lost, while every screen went on saying
    * its heater was parked. The fetch that follows a reconnect says it again,

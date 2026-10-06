@@ -12,6 +12,8 @@
 #include "observeable.h"
 #include "ArduinoJson.h"
 #include <array>
+#include <functional>
+#include <string>
 
 #define NVS_PART "nvs_ro"
 
@@ -33,6 +35,9 @@ namespace fg {
     static constexpr unsigned int UPLOAD_INTERVAL = 1;
 
     static constexpr unsigned int MAX_LOG_QUEUE_LEN = 32;
+
+    static constexpr unsigned int MAX_PACKET_SIZE = 4096;
+    static constexpr unsigned int FETCH_DOCUMENT_SIZE = 4096;
 
     std::unique_ptr<EspMQTTClient> client;
     std::queue<std::pair<std::string, unsigned int>> log_queue;
@@ -63,6 +68,13 @@ namespace fg {
     Subject<JsonDocument> command_subject;
     Subject<bool> update_subject;
     Subject<std::pair<std::string,std::string>> control_subject;
+
+    // The settings the device runs, as the document it would publish after a
+    // change on its own menu. Sent along with every fetch, so a cloud that holds
+    // no configuration for the device - a fresh registration, a restored backup -
+    // learns it without anyone touching the hardware. The cloud keeps it only
+    // while it has none of its own; one it already holds is never replaced.
+    std::function<std::string()> config_reporter;
 
     bool custom_mqtt = false;
 
@@ -112,6 +124,10 @@ namespace fg {
 
     template<class F> void onConfig(F&& callback) {
       config_subject.subscribe(callback);
+    }
+
+    template<class F> void reportConfigWith(F&& reporter) {
+      config_reporter = reporter;
     }
 
     template<class F> void onCommand(F&& callback) {

@@ -179,7 +179,7 @@ namespace fg {
     // fits a base64'd ~1KB O-KAM video datagram + JSON tunnel_read envelope
     // (~1.6KB); the old 1024 silently dropped those, so only small control
     // packets crossed the UDP tunnel.
-    client->setMaxPacketSize(4096);
+    client->setMaxPacketSize(MAX_PACKET_SIZE);
 
     esp_task_wdt_reset();
 
@@ -372,12 +372,29 @@ namespace fg {
       return;
     }
 
-    StaticJsonDocument<JSON_OBJECT_SIZE(1) + 32> message_json;
+    DynamicJsonDocument message_json(FETCH_DOCUMENT_SIZE);
     message_json["firmware_id"] = FIRMWARE_VERSION;
-    char buf[128];
-    serializeJson(message_json, buf, sizeof(buf));
+    if(config_reporter) {
+      // Nested as an object rather than a string, so the cloud reads it the way
+      // it reads the configuration topic.
+      DynamicJsonDocument configuration(FETCH_DOCUMENT_SIZE / 2);
+      if(!deserializeJson(configuration, config_reporter()) && configuration.is<JsonObject>()) {
+        message_json["configuration"] = configuration.as<JsonObject>();
+      }
+    }
 
-    if(!client->publish(topic_fetch.c_str(), buf)) {
+    std::string payload;
+    serializeJson(message_json, payload);
+    // A packet the client cannot send would cost the firmware id with it; the
+    // configuration is the part that can wait for a later connection.
+    if(message_json.overflowed() || payload.size() + topic_fetch.length() + 16 > MAX_PACKET_SIZE) {
+      payload.clear();
+      StaticJsonDocument<JSON_OBJECT_SIZE(1) + 32> firmware_only;
+      firmware_only["firmware_id"] = FIRMWARE_VERSION;
+      serializeJson(firmware_only, payload);
+    }
+
+    if(!client->publish(topic_fetch.c_str(), payload.c_str())) {
       Serial.println("failed to publish firmware fetch message");
       notePublishFailure();
       return;

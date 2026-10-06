@@ -499,7 +499,7 @@ namespace fg {
     settings = new_settings;
   }
 
-  void PlugController::saveAndUploadSettings() {
+  std::string PlugController::serializeSettings() {
     DynamicJsonDocument doc(2048);
 
     DynamicJsonDocument array_doc(1024);
@@ -556,11 +556,16 @@ namespace fg {
 
     std::stringstream stream;
     serializeJson(doc, stream);
+    return stream.str();
+  }
 
-    Serial.println(stream.str().c_str());
-    fg::settings().setStr("config", stream.str().c_str());
+  void PlugController::saveAndUploadSettings() {
+    std::string config = serializeSettings();
+
+    Serial.println(config.c_str());
+    fg::settings().setStr("config", config.c_str());
     fg::settings().commit();
-    cloud.updateConfig(stream.str().c_str());
+    cloud.updateConfig(config.c_str());
   }
 
   void PlugController::init() {
@@ -574,6 +579,8 @@ namespace fg {
 
     // The cloud offers the protections only to a build that keeps to them.
     cloud.log("hardware-info:protections=on");
+
+    cloud.reportConfigWith([this]() { return serializeSettings(); });
 
     cloud.onConfig([&](const String & payload) {
       Serial.println("received new configuration");

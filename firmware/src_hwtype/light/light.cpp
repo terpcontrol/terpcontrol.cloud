@@ -118,7 +118,7 @@ namespace fg {
   }
 }
 
-void LightController::saveAndUploadSettings() {
+std::string LightController::serializeSettings() {
     DynamicJsonDocument doc(2048);
 
     doc["day"] = settings.day;
@@ -130,11 +130,16 @@ void LightController::saveAndUploadSettings() {
 
     std::stringstream stream;
     serializeJson(doc, stream);
+    return stream.str();
+}
 
-    Serial.println(stream.str().c_str());
-    fg::settings().setStr("config", stream.str().c_str());
+void LightController::saveAndUploadSettings() {
+    std::string config = serializeSettings();
+
+    Serial.println(config.c_str());
+    fg::settings().setStr("config", config.c_str());
     fg::settings().commit();
-    cloud.updateConfig(stream.str().c_str());
+    cloud.updateConfig(config.c_str());
 }
 
   void LightController::controlLight() {
@@ -322,6 +327,8 @@ void LightController::saveAndUploadSettings() {
 
     auto saved_settings = fg::settings().getStr("config");
     loadSettings(saved_settings.c_str());
+
+    cloud.reportConfigWith([this]() { return serializeSettings(); });
 
     cloud.onConfig([&](const String & payload) {
 

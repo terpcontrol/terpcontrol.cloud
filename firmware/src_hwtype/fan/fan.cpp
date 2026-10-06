@@ -219,6 +219,12 @@ void FanController::saveAnduploadSettings() {
   fg::settings().setU8("ms", settings.min_speed);
   fg::settings().commit();
 
+  std::string config = serializeSettings();
+  Serial.println(config.c_str());
+  cloud.updateConfig(config.c_str());
+}
+
+std::string FanController::serializeSettings() {
   StaticJsonDocument<512> config;
   config["day"]["temperature"] = settings.day.temperature;
   config["day"]["humidity"] = settings.day.humidity;
@@ -234,10 +240,7 @@ void FanController::saveAnduploadSettings() {
 
   std::stringstream stream;
   serializeJson(config, stream);
-
-  Serial.println(stream.str().c_str());
-
-  cloud.updateConfig(stream.str().c_str());
+  return stream.str();
 }
 
   void FanController::initStatusMenu(UserInterface* ui) {
@@ -366,6 +369,8 @@ void FanController::saveAnduploadSettings() {
 
     auto saved_settings = fg::settings().getStr("config");
     loadSettings(saved_settings.c_str());
+
+    cloud.reportConfigWith([this]() { return serializeSettings(); });
 
     cloud.onConfig([&](const String& payload) {
       Serial.println("received settings from cloud");

@@ -620,7 +620,7 @@ namespace fg {
     settings = new_settings;
   }
 
-  void FridgeController::saveAndUploadSettings() {
+  std::string FridgeController::serializeSettings() {
     DynamicJsonDocument doc(2048);
 
     doc["workmode"] = settings.workmode;
@@ -647,11 +647,16 @@ namespace fg {
 
     std::stringstream stream;
     serializeJson(doc, stream);
+    return stream.str();
+  }
 
-    Serial.println(stream.str().c_str());
-    fg::settings().setStr("config", stream.str().c_str());
+  void FridgeController::saveAndUploadSettings() {
+    std::string config = serializeSettings();
+
+    Serial.println(config.c_str());
+    fg::settings().setStr("config", config.c_str());
     fg::settings().commit();
-    cloud.updateConfig(stream.str().c_str());
+    cloud.updateConfig(config.c_str());
   }
 
   void FridgeController::init() {
@@ -670,6 +675,8 @@ namespace fg {
 
     auto saved_settings = fg::settings().getStr("config");
     loadSettings(saved_settings.c_str());
+
+    cloud.reportConfigWith([this]() { return serializeSettings(); });
 
     cloud.onConfig([&](const String & payload) {
       Serial.println("received new configuration");

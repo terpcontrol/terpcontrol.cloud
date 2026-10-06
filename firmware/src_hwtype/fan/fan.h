@@ -102,6 +102,7 @@ namespace fg {
     void updateSensors();
     void checkDayCycle();
     void controlFan();
+    std::string serializeSettings();
     void saveAnduploadSettings();
     void loadSettings(const String& settings);
 
