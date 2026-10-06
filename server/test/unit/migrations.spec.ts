@@ -1383,6 +1383,26 @@ describe('cameras', () => {
     expect((await one<Record<string, any>>('cameras', { id: cameraIdOf(LEGACY_DEVICE_IDS.fridge) }))?.name).toBe('Cellar fridge');
   });
 
+  /**
+   * An unclaimed device can still carry the stream its last owner set. That is
+   * the last owner's - an RTSP address with their password in it - and a Terp
+   * Cam is made again from the device's own report once somebody claims it, so
+   * the stream stays behind. As a reject it stopped a rollout at this step.
+   */
+  it('leaves the stream of a device nobody owns behind, and counts it rather than stopping the run', async () => {
+    await collection('devices').updateOne(
+      { device_id: LEGACY_DEVICE_IDS.light },
+      { $set: { 'cloudSettings.rtspStream': 'terpcam://TCAM0099', 'hardwareInfo.webcam_did': 'TCAM0099' } },
+    );
+
+    const report = await migrate();
+
+    const step = report.applied.find(outcome => outcome.name === '008-cameras');
+    expect(step?.rejectCount).toBe(0);
+    expect(step?.stats['cameras.withoutOwner']).toBe(1);
+    expect(await collection('cameras').countDocuments({ deviceId: LEGACY_DEVICE_IDS.light })).toBe(0);
+  });
+
   it('dates a camera by the newest picture it delivered, so a quiet one does not read as one that never worked', async () => {
     await migrate();
 

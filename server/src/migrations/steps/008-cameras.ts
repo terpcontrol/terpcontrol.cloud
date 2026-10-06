@@ -43,6 +43,14 @@ import { loadDeviceFacts } from '../device-facts';
  *   `devices.state.hardware`.
  * - **`url`** keeps the stream with its credentials in it, because that is what
  *   opening the stream needs; the serialiser is what strips them.
+ * - **A device nobody owns gets no camera**, whatever its stream says, as
+ *   `device-facts` decides for every step. The stream is what its last owner
+ *   set: an RTSP address with that owner's credentials in it must not pass to
+ *   whoever claims the device next, and a Terp Cam needs nothing carried over,
+ *   because the device keeps reporting it and the server makes the camera at
+ *   the first report after a claim. So the stream is left behind and counted.
+ *   It is not a reject: a reject stops the whole migration until somebody acts
+ *   on the row, and there is nothing here to act on.
  */
 
 const STILL_INTERVAL_SECONDS = 30;
@@ -94,15 +102,7 @@ export const cameras: MigrationStep = {
       if (!deviceId || !fact) continue;
 
       if (fact.cameraId === null) {
-        if (fact.ownerId === null && textOf(device.cloudSettings?.rtspStream)) {
-          context.reject({
-            source: LEGACY.devices,
-            id: deviceId,
-            reason: 'the device has a stream but no owner, and a camera belongs to somebody',
-            dropped: true,
-            detail: null,
-          });
-        }
+        if (fact.ownerId === null && fact.stream !== null) context.count('cameras.withoutOwner');
         continue;
       }
 
