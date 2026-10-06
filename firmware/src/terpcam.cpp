@@ -408,11 +408,15 @@ namespace fg {
     // Discover the paired camera and authenticate a P2P session on `udp`.
     // Shared by the securing, factory-reset and relay paths, so none of them
     // ever acts on a camera that is not the one paired to this controller.
-    bool openSession(WiFiUDP& udp, IPAddress& peer_ip, uint16_t& peer_port) {
-      const std::string ours(fg::settings().getStr("webcam_did").c_str());
-      g_want_uid = std::string(fg::settings().getStr("webcam_uid").c_str());
+    // What a single discovery pass concluded. FOUND: the paired camera answered
+    // and authenticated. NOT_OURS_PRESENT: our camera is on the network but gave
+    // no usable session (refused the password, or never said who it is) - not a
+    // reason to search. EXHAUSTED: nobody answered, or only other people's
+    // cameras did.
+    enum : uint8_t { PASS_FOUND, PASS_NOT_OURS_PRESENT, PASS_EXHAUSTED };
+
+    uint8_t openSessionPass(WiFiUDP& udp, const std::string& ours, IPAddress& peer_ip, uint16_t& peer_port) {
       g_foreign_n = 0;
-      g_session_refused = false;
       uint8_t did[20];
 
       // Ask the address it answered on last first. That is both the fast path
@@ -432,30 +436,61 @@ namespace fg {
         while(!found && (millis() - started) < DISCOVER_MS) {
           found = lanSearch(udp, broadcast, 400, did, peer_ip, peer_port);
         }
-        if(!found) break;
+        if(!found) return PASS_EXHAUSTED;
 
         const uint8_t verdict = authenticate(udp, did, peer_ip, peer_port, ours);
         if(verdict == REPLY_OURS) {
-          g_camera_misses = 0;
+          // Learn (or correct) the cached P2P id from the camera that actually
+          // owns our realdeviceid, so a stale id from a camera swap heals itself.
           rememberCamUid(did);
           rememberCamIp(peer_ip);
-          return true;
+          return PASS_FOUND;
         }
         if(verdict != REPLY_FOREIGN) {
           // Our camera, or one that never said who it is: either way it is on the
           // network, so this is no reason to go searching for it.
-          g_camera_misses = 0;
           g_session_refused = verdict == REPLY_REFUSED;
-          return false;
+          return PASS_NOT_OURS_PRESENT;
         }
         // Somebody else's camera: leave it alone and keep looking. Closing the
         // session frees the slot it took on that camera.
         sendPacket(udp, peer_ip, peer_port, buildPacket(0xf0, nullptr, 0));
         Serial.printf("[cam] %s is not the paired camera\n", formatCamUid(did).c_str());
         forgetForeign(did, peer_ip);
-        if(g_foreign_n >= MAX_FOREIGN) break;
+        if(g_foreign_n >= MAX_FOREIGN) return PASS_EXHAUSTED;
+      }
+    }
+
+    // Discover the paired camera and authenticate a P2P session on `udp`.
+    // Shared by the securing, factory-reset and relay paths, so none of them
+    // ever acts on a camera that is not the one paired to this controller.
+    bool openSession(WiFiUDP& udp, IPAddress& peer_ip, uint16_t& peer_port) {
+      const std::string ours(fg::settings().getStr("webcam_did").c_str());
+      g_want_uid = std::string(fg::settings().getStr("webcam_uid").c_str());
+      g_session_refused = false;
+
+      // The stored P2P id is only a hint for which camera to accept off a
+      // broadcast; the realdeviceid checked in authenticate() is what actually
+      // identifies the camera. So when the hint turns up nothing - it was left
+      // behind by a previous camera, or never learned - fall back to a pass that
+      // accepts any camera and lets authenticate() find ours by its realdeviceid.
+      // That pass re-learns the id (rememberCamUid), so the mismatch is permanent
+      // only until the next successful session. Without a realdeviceid to check
+      // against there is nothing to fall back to.
+      uint8_t pass = openSessionPass(udp, ours, peer_ip, peer_port);
+      if(pass == PASS_EXHAUSTED && !ours.empty() && !g_want_uid.empty()) {
+        g_want_uid.clear();
+        pass = openSessionPass(udp, ours, peer_ip, peer_port);
       }
 
+      if(pass == PASS_FOUND) {
+        g_camera_misses = 0;
+        return true;
+      }
+      if(pass == PASS_NOT_OURS_PRESENT) {
+        g_camera_misses = 0;
+        return false;
+      }
       if(g_camera_misses < 255) ++g_camera_misses;
       return false;
     }
