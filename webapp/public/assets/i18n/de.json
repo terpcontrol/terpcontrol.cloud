@@ -5360,6 +5360,8 @@
   },
   "advanced": {
     "title": "Erweitert",
+    "titleOf": "Erweitert · {{device}}",
+    "operatingModeAtDevice": "Betriebsart unter Geräte",
     "lead": {
       "device": "Was die meisten nie brauchen. Eine Änderung gilt sofort und wird ans Gerät geschickt.",
       "place": "Was die meisten nie brauchen, für diesen Ort.",

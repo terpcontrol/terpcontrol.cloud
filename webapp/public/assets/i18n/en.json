@@ -5352,6 +5352,8 @@
   },
   "advanced": {
     "title": "Advanced",
+    "titleOf": "Advanced · {{device}}",
+    "operatingModeAtDevice": "Operating mode under Devices",
     "lead": {
       "device": "What most growers never need. A change applies at once and is sent to the device.",
       "place": "What most growers never need, for this place.",
