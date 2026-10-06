@@ -2866,6 +2866,82 @@
       "nextCursor"
     ]
   },
+  "DeviceFirmware": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "createdAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "classId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "name": {
+        "description": "What the build was called when it was uploaded. Every build carried over from the old cloud is named after its device class, so it does not tell two builds of one class apart.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "version": {
+        "type": "string",
+        "description": "What the build container stamped the build with - a commit and the branch it came from. Builds are not ordered and cannot be compared, but this is the one field that says which build a device is on."
+      },
+      "wasStable": {
+        "type": "boolean",
+        "description": "Once true it stays true, so a build can be rolled back to knowingly."
+      },
+      "channels": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "stable",
+            "beta",
+            "alpha"
+          ]
+        },
+        "description": "The release channels whose current build this is; empty for a build no channel points at."
+      }
+    },
+    "required": [
+      "id",
+      "createdAt",
+      "classId",
+      "name",
+      "version",
+      "wasStable",
+      "channels"
+    ]
+  },
+  "DeviceFirmwarePage": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/DeviceFirmware"
+        }
+      },
+      "nextCursor": {
+        "description": "Pass back as `cursor` for the next page; null on the last one.",
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "items",
+      "nextCursor"
+    ]
+  },
   "FirmwareCreate": {
     "type": "object",
     "properties": {

@@ -17,7 +17,7 @@ import {
   DevicePage,
   DeviceSeries,
   DeviceUpdate,
-  FirmwarePage,
+  DeviceFirmwarePage,
   SocketPage,
   SocketRole,
   SocketOverrideUpdate,
@@ -38,7 +38,7 @@ import {
   devicePage,
   deviceSeries,
   deviceUpdate,
-  firmwarePage,
+  deviceFirmwarePage,
   metric,
   outputMetric,
   seriesQuery,
@@ -160,11 +160,17 @@ export class DevicesController {
     // Moving a device is managing two places, and the guard above has only
     // decided about the one it is standing in.
     if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
-    // Pinning a build - a rollback, a test build for one customer - is the
-    // operator's: a grower picks whether the device updates itself and from
-    // which channel, and re-sends the pin it already has with that choice.
-    if (body.firmware && !ctx.isAdmin && body.firmware.targetId !== (await this.devices.require(id)).firmware.targetId) {
-      throw forbidden('firmware_pin_admin_only', 'Only an administrator puts a device on a particular build.');
+    // A grower picks whether the device updates itself and from which channel,
+    // and on the manual channel which version it installs - from what the
+    // device's list of builds offers anybody but an administrator. Any other
+    // build, a rollback past the last stable one or a test build for one
+    // customer, is the operator's to put a device on.
+    if (body.firmware && !ctx.isAdmin) {
+      const before = await this.devices.require(id);
+      const moved = body.firmware.targetId !== before.firmware.targetId;
+      const offered =
+        body.firmware.channel === 'manual' && body.firmware.targetId !== null && (await this.fleet.offers(before, body.firmware.targetId));
+      if (moved && !offered) throw forbidden('firmware_pin_admin_only', 'Only an administrator puts a device on that build.');
     }
 
     return this.devices.serialise(await this.devices.update(id, body), ctx.isDemo);
@@ -268,12 +274,11 @@ export class DevicesController {
   @UseGuards(AuthGuard, AccessGuard)
   @Requires('view', 'device')
   @ApiOperation({ summary: 'The builds this device can be put on' })
-  @V1Answer(firmwarePage)
-  public async firmwares(@Param('id') id: string, @V1Query(pageQuery) query: PageQuery): Promise<FirmwarePage> {
-    const device = await this.devices.require(id);
+  @V1Answer(deviceFirmwarePage)
+  public async firmwares(@Caller() ctx: AccessContext, @Param('id') id: string, @V1Query(pageQuery) query: PageQuery): Promise<DeviceFirmwarePage> {
     // A device with no class yet has no builds of its own rather than every
     // build this cloud holds.
-    return device.classId ? this.fleet.listFirmwares(query, device.classId) : { items: [], nextCursor: null };
+    return this.fleet.listDeviceFirmwares(query, await this.devices.require(id), ctx.isAdmin);
   }
 
   @Get(':id/live')

@@ -1122,6 +1122,36 @@ export interface FirmwarePage {
   nextCursor: string | null;
 }
 
+export interface DeviceFirmware {
+  id: string;
+  createdAt: string;
+  classId: string;
+  /**
+   * What the build was called when it was uploaded. Every build carried over from the old cloud is named after its device class, so it does not tell two builds of one class apart.
+   */
+  name: string | null;
+  /**
+   * What the build container stamped the build with - a commit and the branch it came from. Builds are not ordered and cannot be compared, but this is the one field that says which build a device is on.
+   */
+  version: string;
+  /**
+   * Once true it stays true, so a build can be rolled back to knowingly.
+   */
+  wasStable: boolean;
+  /**
+   * The release channels whose current build this is; empty for a build no channel points at.
+   */
+  channels: ('stable' | 'beta' | 'alpha')[];
+}
+
+export interface DeviceFirmwarePage {
+  items: DeviceFirmware[];
+  /**
+   * Pass back as `cursor` for the next page; null on the last one.
+   */
+  nextCursor: string | null;
+}
+
 export interface FirmwareCreate {
   classId: string;
   /**
