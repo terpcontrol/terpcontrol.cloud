@@ -9,11 +9,10 @@ import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js
 import { useCameras, useLatestStills } from '@/api/cameras';
 import { fetchedAt, serverNow } from '@/api/clock';
 import { useDeviceFirmwares, useDevices, useLiveReads, useSocketTables } from '@/api/devices';
-import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
+import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces, useSpaceVerdicts } from '@/api/spaces';
 import { ageAttribute, ageLabel, deviceLiveness, heardAt, offlineLabel } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
-import { AdvancedSection } from '@/ui/advanced/Advanced';
 import { Help, Term } from '@/ui/Help';
 import { maintenanceQuiet, parksAnything } from '@/ui/maintenance';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -25,6 +24,7 @@ import { ownFactOf } from '@/screens/control/devices/own-summary';
 import { offsetOf } from '@/screens/control/targets/targets-draft';
 import { clockLabel } from '@/screens/notifications/settings';
 import { cameraFreshness } from './cameras';
+import { DeviceAdvanced } from './DeviceAdvanced';
 import { DeviceSettingsSheet } from './DeviceSettingsSheet';
 import { movesAnywhere } from './moving';
 import { Fact, Facts } from './Facts';
@@ -380,7 +380,6 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
   // only reads the next.
   const may = useMayWith()(device);
   const mayCorrect = enough(may, 'manage');
-  const { user } = useSession();
   // Moving is offered only where there is somewhere to move to.
   const movable = movesAnywhere(useSpaces().data?.items ?? [], device);
 
@@ -570,17 +569,7 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
 
           {/* What few growers need about this device, beside what only support
               asks for: drawn only where one of its items applies here. */}
-          <AdvancedSection
-            scope="device"
-            context={{
-              device,
-              mayManage: mayCorrect,
-              offline,
-              mayOwn: enough(may, 'own'),
-              isAdmin: user?.isAdmin === true,
-              sockets: drivesSockets ? sockets : undefined,
-            }}
-          />
+          <DeviceAdvanced device={device} sockets={sockets} offline={offline} />
 
           {/* What only support asks for: the id printed on the hardware, the
               build as its container stamped it, and what that build takes. */}

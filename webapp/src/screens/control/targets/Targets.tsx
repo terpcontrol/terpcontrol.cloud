@@ -9,9 +9,9 @@ import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-prese
 import { useHome } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
 import { serverNow } from '@/api/clock';
-import { useDevices, useHeardAt, useLiveReads, useSaveConfiguration } from '@/api/devices';
+import { useDevices, useHeardAt, useLiveReads, useSaveConfiguration, useSocketTables } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
-import { ageAttribute, deviceLiveness, offlineLabel } from '@/ui/age';
+import { ageAttribute, deviceLiveness, heardAt, offlineLabel } from '@/ui/age';
 import { awaitingClimate, hasCo2Sensor, statesTargets } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
@@ -20,6 +20,7 @@ import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, CLOCK, useZone } from '@/ui/zone';
+import { DeviceAdvanced } from '../../devices/DeviceAdvanced';
 import { deviceTitle } from '../../devices/naming';
 import { FanPanel } from '../devices/FanPanel';
 import { LightPanel } from '../devices/LightPanel';
@@ -145,6 +146,7 @@ export function Targets({
           <span className="label">{t('ownPanel.title')}</span>
         </header>
         {panels}
+        <DevicesAdvanced devices={devices} />
         <LeaveGuard unsaved={unsaved} onAsking={setAsking} />
       </div>
     );
@@ -170,6 +172,7 @@ export function Targets({
             </Link>
           </p>
         )}
+        <DevicesAdvanced devices={devices} />
       </div>
     );
   }
@@ -215,9 +218,37 @@ export function Targets({
         </Fragment>
       ))}
       {panels}
+      <DevicesAdvanced devices={devices} />
       <LeaveGuard unsaved={unsaved} onAsking={setAsking} />
     </div>
   );
+}
+
+/**
+ * Under the targets, the rest of what each device here is set to: the same
+ * Erweitert its own panel under Geräte has, but for the mode the chips above
+ * already set. Start leads here to change a value, and a compressor's rest or a
+ * device's update channel is a value too, so nobody has to know that the
+ * hardware has a page of its own to find them.
+ */
+function DevicesAdvanced({ devices }: { devices: Device[] }) {
+  const { t } = useTranslation();
+  const now = useNow();
+  const all = useDevices();
+  const ids = devices.map(device => device.id);
+  const tables = useSocketTables(ids);
+  const reads = useLiveReads(ids);
+
+  return devices.map(device => (
+    <DeviceAdvanced
+      key={device.id}
+      device={device}
+      sockets={tables.tables.get(device.id)}
+      offline={deviceLiveness(heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null), now) === 'offline'}
+      title={devices.length > 1 ? t('advanced.titleOf', { device: deviceTitle(device, t, all.data?.items) }) : undefined}
+      besideTargets
+    />
+  ));
 }
 
 /** The hardware that has a panel of its own here instead of targets. */
