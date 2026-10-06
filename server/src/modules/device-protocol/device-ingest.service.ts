@@ -26,6 +26,7 @@ import {
   DeviceTunnelSink,
   MetricSampleSink,
 } from './device-sinks';
+import { DeviceConfigurationService } from './device-configuration.service';
 import { DevicePublisherService } from './device-publisher.service';
 import { HardwareReportService } from './hardware-report.service';
 import { heldTo, offTheWire, onTheWire } from './class-rules';
@@ -88,6 +89,7 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     private readonly publisher: DevicePublisherService,
     private readonly hardware: HardwareReportService,
     private readonly entries: EntryWriterService,
+    private readonly configurations: DeviceConfigurationService,
     @Optional() @Inject(DEVICE_SAMPLE_SINK) private readonly samples: DeviceSampleSink | null = null,
     @Optional() @Inject(DEVICE_METRIC_SINK) private readonly metrics: MetricSampleSink | null = null,
     @Optional() @Inject(DEVICE_TUNNEL_SINK) private readonly tunnel: DeviceTunnelSink | null = null,
@@ -351,12 +353,17 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
    * device that left germination from its own menu gets back what germination
    * kept, and the server lets that memory go (`leftAtDevice`), as it does when
    * germination ends from the cloud.
+   *
+   * The CO2 coupling spans two devices and neither firmware knows the other: a
+   * socket's day and dosing windows set on its own menu are passed on to the fan
+   * it slows, and a fan's own upload - which never carries the section the
+   * server writes from the socket - keeps that section, which the fan runs by.
    */
   private async configuration(device: StoredDevice, payload: string): Promise<void> {
     const reported = asRecord(parsed(payload));
     if (!reported) return;
 
-    const read = offTheWire(reported, device.configuration ?? null);
+    const read = withCo2InjectKept(device.type, offTheWire(reported, device.configuration ?? null), device.configuration ?? null);
     const returned = leftAtDevice(device.configuration ?? null, read, device);
     // A figure the firmware itself would misread is not kept, so the server never sends it back.
     const { configuration, dropped } = withFiguresHeld(device.type, heldTo(device.type, returned ?? read), device.configuration ?? null);
@@ -378,8 +385,12 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     await recordTargets(this.targetRecord, device, device.configuration, configuration, new Date());
 
     if (JSON.stringify(onTheWire(configuration)) !== JSON.stringify(reported)) this.publisher.configuration(device.id, configuration);
+    if (device.type === 'plug') await this.configurations.followCo2Fan(device.id, device.configuration ?? null, configuration);
   }
 }
+
+const withCo2InjectKept = (type: string, reported: Record<string, unknown>, stored: Record<string, unknown> | null): Record<string, unknown> =>
+  type === 'fan' && reported.co2inject === undefined && stored?.co2inject !== undefined ? { ...reported, co2inject: stored.co2inject } : reported;
 
 /** A payload that is not JSON is dropped rather than thrown over: a device gets no answer either way. */
 const parsed = (payload: string): unknown => {
