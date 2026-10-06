@@ -568,6 +568,40 @@ export declare const firmwarePage: z.ZodObject<{
     nextCursor: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
 /**
+ * `GET /devices/{id}/firmwares`: a build a device can be put on, with the
+ * release channels it is the current build of in that device's class, which is
+ * what somebody choosing a version by hand reads it by.
+ */
+export declare const deviceFirmware: z.ZodObject<{
+    id: z.ZodString;
+    createdAt: z.ZodISODateTime;
+    classId: z.ZodString;
+    name: z.ZodNullable<z.ZodString>;
+    version: z.ZodString;
+    wasStable: z.ZodBoolean;
+    channels: z.ZodArray<z.ZodEnum<{
+        alpha: "alpha";
+        beta: "beta";
+        stable: "stable";
+    }>>;
+}, z.core.$strip>;
+export declare const deviceFirmwarePage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        createdAt: z.ZodISODateTime;
+        classId: z.ZodString;
+        name: z.ZodNullable<z.ZodString>;
+        version: z.ZodString;
+        wasStable: z.ZodBoolean;
+        channels: z.ZodArray<z.ZodEnum<{
+            alpha: "alpha";
+            beta: "beta";
+            stable: "stable";
+        }>>;
+    }, z.core.$strip>>;
+    nextCursor: z.ZodNullable<z.ZodString>;
+}, z.core.$strip>;
+/**
  * `POST /admin/firmwares`: the build itself, without its files - a build is
  * several of them and each is uploaded on its own. `wasStable` is the rollout's
  * record of where the build has been and is never set by hand.

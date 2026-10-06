@@ -11,7 +11,7 @@ import type {
   DeviceLive,
   DevicePage,
   DeviceUpdate,
-  FirmwarePage,
+  DeviceFirmwarePage,
   GerminationChoices,
   SocketOverrideUpdate,
   SocketPage,
@@ -295,11 +295,15 @@ export const useRemoveSocket = () => {
   });
 };
 
-/** The builds of this device's class, which is how the id it reports gets a name. */
+/**
+ * The builds this device can be put on, which is how the id it reports gets a
+ * name: the server always counts the build it runs and the one it is told to
+ * run among them.
+ */
 export const useDeviceFirmwares = (deviceId: string, enabled: boolean) =>
   useRead({
     queryKey: ['devices', deviceId, 'firmwares'],
-    queryFn: ({ signal }) => api.get<FirmwarePage>(`/devices/${deviceId}/firmwares`, undefined, signal),
+    queryFn: ({ signal }) => api.get<DeviceFirmwarePage>(`/devices/${deviceId}/firmwares`, undefined, signal),
     enabled,
   });
 

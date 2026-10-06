@@ -66,8 +66,24 @@ const controller = (over: Partial<Device> = {}): Device =>
   }) as unknown as Device;
 
 const BUILDS = [
-  { id: 'fw-old', createdAt: '2026-08-01T10:00:00.000Z', classId: 'class-controller', name: 'controller', version: 'a1b2c3d', wasStable: true },
-  { id: 'fw-new', createdAt: '2026-09-15T10:00:00.000Z', classId: 'class-controller', name: 'controller', version: 'e4f5a6b', wasStable: false },
+  {
+    id: 'fw-old',
+    createdAt: '2026-08-01T10:00:00.000Z',
+    classId: 'class-controller',
+    name: 'controller',
+    version: 'a1b2c3d',
+    wasStable: true,
+    channels: [],
+  },
+  {
+    id: 'fw-new',
+    createdAt: '2026-09-15T10:00:00.000Z',
+    classId: 'class-controller',
+    name: 'controller',
+    version: 'e4f5a6b',
+    wasStable: false,
+    channels: ['beta'],
+  },
 ];
 
 const drawWith = async (device: Device, sockets: Socket[] = []) => {
@@ -121,34 +137,54 @@ describe('updates', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-controller-1', { firmware: { channel: 'stable', targetId: 'fw-old' } }));
   });
 
-  it('offers the test channels under Advanced, which switch automatic updates on', async () => {
-    await drawWith(controller());
+  it('offers every channel under Advanced, the manual one included, as the old app did', async () => {
+    await drawWith(controller({ firmware: { channel: 'stable', targetId: 'fw-old' } }));
     await advanced();
 
-    expect(screen.getByText('Automatic updates are off. Choosing a channel here switches them on.')).toBeInTheDocument();
+    expect(screen.getByText('Only released versions.')).toBeInTheDocument();
+    // On a release channel there is no version to pick: the channel decides it.
+    expect(screen.queryByRole('combobox', { name: 'Firmware version' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Beta' }));
 
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-controller-1', { firmware: { channel: 'beta', targetId: null } }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-controller-1', { firmware: { channel: 'beta', targetId: 'fw-old' } }));
   });
 
-  it('puts a device on a particular build for an administrator only, asked first', async () => {
-    await drawWith(controller());
+  it('switches to the manual channel without moving the device, and only then offers the versions', async () => {
+    let now = controller({ firmware: { channel: 'stable', targetId: 'fw-old' } });
+    await drawWith(now);
+    // The list answers with what was saved, as the server does.
+    const drawn = vi.mocked(api.get).getMockImplementation()!;
+    vi.mocked(api.get).mockImplementation((path: string, ...rest) =>
+      path === '/devices' ? (Promise.resolve({ items: [now], nextCursor: null }) as never) : drawn(path, ...rest),
+    );
+    vi.mocked(api.patch).mockImplementation((_path, body) => {
+      now = { ...now, ...(body as Partial<Device>) } as Device;
+      return Promise.resolve(now) as never;
+    });
     await advanced();
-    expect(screen.queryByRole('combobox', { name: 'Firmware version' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-controller-1', { firmware: { channel: 'manual', targetId: 'fw-old' } }));
+    expect(await screen.findByRole('combobox', { name: 'Firmware version' })).toBeInTheDocument();
   });
 
-  it('lets an administrator pin a build, newest first, and say which one runs', async () => {
-    who.admin = true;
+  it('lets a grower on the manual channel pick a version, newest first, say which one runs and where each stands, and asks first', async () => {
     await drawWith(controller());
     await advanced();
 
+    expect(screen.getByText('No automatic updates: the device stays on its version until you install another one below.')).toBeInTheDocument();
+    expect(screen.getByText(/Every version that was ever stable, and anything newer/)).toBeInTheDocument();
     const builds = await screen.findByRole('combobox', { name: 'Firmware version' });
     await waitFor(() => expect(within(builds).getAllByRole('option')).toHaveLength(3));
     expect(
       within(builds)
         .getAllByRole('option')
         .map(option => option.textContent),
-    ).toEqual(['Pick a build …', expect.stringMatching(/^e4f5a6b · /), expect.stringMatching(/^a1b2c3d · .* · running · was stable$/)]);
+    ).toEqual([
+      'Pick a build …',
+      expect.stringMatching(/^e4f5a6b · .* · current Beta$/),
+      expect.stringMatching(/^a1b2c3d · .* · running · was stable$/),
+    ]);
     fireEvent.change(builds, { target: { value: 'fw-new' } });
     fireEvent.click(screen.getByRole('button', { name: 'Install …' }));
 
@@ -158,6 +194,14 @@ describe('updates', () => {
     fireEvent.click(within(asked).getByRole('button', { name: 'Install' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-controller-1', { firmware: { channel: 'manual', targetId: 'fw-new' } }));
+  });
+
+  it('tells an administrator that the list holds every build of the class', async () => {
+    who.admin = true;
+    await drawWith(controller());
+    await advanced();
+
+    expect(await screen.findByText(/As an admin you see every build of this device class/)).toBeInTheDocument();
   });
 });
 

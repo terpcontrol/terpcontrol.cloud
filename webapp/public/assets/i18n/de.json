@@ -4967,11 +4967,11 @@
       },
       "updateChannel": {
         "title": "Update-Kanal",
-        "text": "Von welchem Kanal das Gerät neue Firmware selbst installiert. Stabil bekommt nur freigegebene Versionen. Beta bekommt Testversionen, bevor sie alle bekommen, Alpha noch frühere. Testversionen können Fehler haben, die eine stabile nicht hat."
+        "text": "Von welchem Kanal das Gerät neue Firmware selbst installiert. Stabil bekommt nur freigegebene Versionen. Beta bekommt Testversionen, bevor sie alle bekommen, Alpha noch frühere. Testversionen können Fehler haben, die eine stabile nicht hat. Manuell schaltet die automatischen Updates aus: Das Gerät bleibt auf seiner Version, und du wählst darunter selbst, welche es installiert."
       },
       "firmwarePin": {
         "title": "Firmware-Version",
-        "text": "Setzt ein einzelnes Gerät auf einen bestimmten Build, etwa um nach einem fehlerhaften Release zurückzurollen oder einem Kunden eine Testversion zu geben. Das Gerät bleibt darauf, bis jemand automatische Updates wieder einschaltet."
+        "text": "Auf dem Kanal Manuell wählst du die Version selbst: jede, die je stabil war, oder eine neuere, etwa um eine Testversion auszuprobieren oder zu einer früheren stabilen zurückzugehen. Beim Installieren schaltet das Gerät seine Ausgänge kurz aus und startet neu. Es bleibt auf der Version, bis du eine andere installierst oder einen Kanal wählst."
       },
       "pairSocket": {
         "title": "Steckdose per IP koppeln",
@@ -5661,12 +5661,13 @@
       "stable": "Nur Versionen, die freigegeben sind.",
       "beta": "Auch Testversionen, bevor sie für alle freigegeben werden.",
       "alpha": "Auch frühe Testversionen – für alle, die Neues zuerst ausprobieren.",
-      "manual": "Automatische Updates sind aus. Ein Kanal hier schaltet sie ein."
-    }
+      "manual": "Keine automatischen Updates: Das Gerät bleibt auf seiner Version, bis du darunter eine andere installierst."
+    },
+    "manual": "Manuell"
   },
   "firmwarePin": {
     "label": "Firmware-Version",
-    "note": "Nur für Admins: einen bestimmten Build installieren, etwa zum Zurückrollen.",
+    "note": "Jede Version, die je stabil war, und alles Neuere. Das Gerät bleibt darauf, bis du eine andere installierst oder einen Kanal wählst.",
     "pick": "Build wählen …",
     "none": "Keine Builds für diese Geräteklasse",
     "running": "läuft",
@@ -5676,7 +5677,9 @@
     "what": "„{{name}}“ installiert {{build}} und bleibt darauf: Automatische Updates gehen damit aus.",
     "restart": "Während des Updates schaltet das Gerät seine Ausgänge kurz aus und startet neu. Ob es geklappt hat, steht danach unter Firmware.",
     "yes": "Installieren",
-    "sent": "„{{name}}“ soll {{build}} installieren. Ist das Gerät verbunden, beginnt es gleich damit."
+    "sent": "„{{name}}“ soll {{build}} installieren. Ist das Gerät verbunden, beginnt es gleich damit.",
+    "noteAdmin": "Als Admin siehst du jeden Build dieser Geräteklasse, auch ältere Testversionen.",
+    "current": "aktuell {{channels}}"
   },
   "socketForm": {
     "pair": {

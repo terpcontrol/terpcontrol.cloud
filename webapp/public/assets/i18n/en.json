@@ -4959,11 +4959,11 @@
       },
       "updateChannel": {
         "title": "Update channel",
-        "text": "Which channel the device installs new firmware from by itself. Stable gets released versions only. Beta gets test versions before everyone else, alpha earlier ones still. Test versions can have faults a stable one does not."
+        "text": "Which channel the device installs new firmware from by itself. Stable gets released versions only. Beta gets test versions before everyone else, alpha earlier ones still. Test versions can have faults a stable one does not. Manual switches automatic updates off: the device stays on its version, and you choose below which one it installs."
       },
       "firmwarePin": {
         "title": "Firmware version",
-        "text": "Puts one device on a particular build, for example to roll back after a faulty release or to give one customer a test build. The device stays on it until somebody switches automatic updates back on."
+        "text": "On the manual channel you choose the version yourself: any that was ever stable, or a newer one, for example to try a test version or to go back to an earlier stable one. While it installs, the device switches its outputs off for a moment and restarts. It stays on the version until you install another one or choose a channel."
       },
       "pairSocket": {
         "title": "Pair a socket by IP",
@@ -5653,12 +5653,13 @@
       "stable": "Only released versions.",
       "beta": "Test releases too, before they are released to everyone.",
       "alpha": "Early test releases too, for whoever tries new things first.",
-      "manual": "Automatic updates are off. Choosing a channel here switches them on."
-    }
+      "manual": "No automatic updates: the device stays on its version until you install another one below."
+    },
+    "manual": "Manual"
   },
   "firmwarePin": {
     "label": "Firmware version",
-    "note": "Admins only: install a particular build, for example to roll back.",
+    "note": "Every version that was ever stable, and anything newer. The device stays on it until you install another one or choose a channel.",
     "pick": "Pick a build …",
     "none": "No builds for this device class",
     "running": "running",
@@ -5668,7 +5669,9 @@
     "what": "“{{name}}” installs {{build}} and stays on it: automatic updates switch off with it.",
     "restart": "While it updates the device switches its outputs off for a moment and restarts. Whether it worked shows under Firmware afterwards.",
     "yes": "Install",
-    "sent": "“{{name}}” is to install {{build}}. If the device is connected, it starts right away."
+    "sent": "“{{name}}” is to install {{build}}. If the device is connected, it starts right away.",
+    "noteAdmin": "As an admin you see every build of this device class, older test builds included.",
+    "current": "current {{channels}}"
   },
   "socketForm": {
     "pair": {
