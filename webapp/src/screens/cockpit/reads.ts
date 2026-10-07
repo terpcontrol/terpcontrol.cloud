@@ -49,6 +49,40 @@ export const useDaySeries = (deviceId: string | null, metric: Metric, enabled: b
     placeholderData: keepPreviousData,
   });
 
+/** Five minutes a point: windows the server aligns to the clock, small enough that the hour is not cut short by one. */
+const HOUR_STEP_SECONDS = 300;
+const STEERED_METRICS: Metric[] = ['temperature', 'humidity', 'co2'];
+
+/**
+ * The mean of each steered reading over the last hour, beside the live value:
+ * a dehumidifier cycling puts the humidity in and out of its band minute by
+ * minute, and an alarm that waits out a duration speaks of that stretch rather
+ * than of the newest sample. Empty windows are left out of the mean.
+ */
+export const useHourMeans = (deviceId: string | null) =>
+  useRead({
+    queryKey: ['devices', deviceId, 'hour-means'],
+    queryFn: async ({ signal }) => {
+      const endsAt = serverNow().toUTC().startOf('minute');
+      const query = new URLSearchParams([
+        ...STEERED_METRICS.map(metric => ['metrics', metric]),
+        ['startsAt', endsAt.minus({ hours: 1 }).toISO()!],
+        ['endsAt', endsAt.toISO()!],
+        ['stepSeconds', String(HOUR_STEP_SECONDS)],
+      ]);
+      const series = await api.get<DeviceSeries>(`/devices/${deviceId}/series?${query.toString()}`, undefined, signal);
+      return Object.fromEntries(
+        series.metrics.flatMap(({ metric, points }) => {
+          const values = points.flatMap(point => (point.value === null ? [] : [point.value]));
+          return values.length > 0 ? [[metric, values.reduce((sum, value) => sum + value, 0) / values.length]] : [];
+        }),
+      ) as Partial<Record<Metric, number>>;
+    },
+    enabled: deviceId !== null,
+    refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
+  });
+
 /**
  * A place as its page draws it: the overview, with the values and targets of
  * the live read laid over it whenever that answered last. The overview is read

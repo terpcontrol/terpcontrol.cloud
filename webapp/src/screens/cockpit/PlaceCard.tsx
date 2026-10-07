@@ -30,7 +30,7 @@ import {
   valueOf,
   type Status,
 } from './place';
-import { useDeviceLive, useHumidifierHold } from './reads';
+import { useDeviceLive, useHourMeans, useHumidifierHold } from './reads';
 import { useHumidifiers } from '../control/germination/germination-choices';
 import styles from './Cockpit.module.css';
 
@@ -69,6 +69,7 @@ export function PlaceCard({
   const here = (devices ?? []).filter(device => card.deviceIds.includes(device.id));
   const device = climateDeviceOf(here, card.deviceIds);
   const live = useDeviceLive(device?.id ?? null).data;
+  const means = useHourMeans(device?.id ?? null).data;
   const quiet = here.map(one => maintenanceQuiet(one, DateTime.max(now, serverNow()))).find((one): one is Quiet => one !== null) ?? null;
   const humidifierHold = useHumidifierHold(device);
   const status = statusOf({ ...card, quiet, controlOff: controlOffOf(here), humidifierHold }, now);
@@ -97,9 +98,16 @@ export function PlaceCard({
           {shown.map(({ metric, value }) => {
             const verdict = judgedOf(value, setpointOf(card.setpoints, metric), humidifierHold, now);
             return (
-              <span key={metric} className={styles.cardValue} data-verdict={verdict?.kind} {...ageAttribute(valueAge(value, now))}>
-                <span className="figure">{figure(value.value!, metric)}</span>
-                <span className="mono">{UNIT[metric]}</span>
+              <span key={metric} className={styles.cardReading}>
+                <span className={styles.cardValue} data-verdict={verdict?.kind} {...ageAttribute(valueAge(value, now))}>
+                  <span className="figure">{figure(value.value!, metric)}</span>
+                  <span className="mono">{UNIT[metric]}</span>
+                </span>
+                {means?.[metric] != null ? (
+                  <span className={`mono ${styles.mean}`}>
+                    {t('cockpit.tile.hourMean', { value: `${figure(means[metric], metric)} ${UNIT[metric] ?? ''}`.trim() })}
+                  </span>
+                ) : null}
               </span>
             );
           })}
