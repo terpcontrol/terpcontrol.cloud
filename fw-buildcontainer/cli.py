@@ -54,12 +54,55 @@ auth_token = None
 V1 = API_URL + "/v1"
 
 
+# A server from before /v1 has no `/sessions/automation` and answers 404 there.
+# The deploy uploads to production's server as it stands, which can lag behind
+# the firmware being built, so the commands the deploy runs (create-fw,
+# upload-fw, rollout-id, rollout-alpha) fall back to that server's routes. The
+# fallback can go once no deployed server is older than /v1.
+legacy = False
+
 def api_auth():
-  global auth_token
+  global auth_token, legacy
   response = requests.post(V1 + "/sessions/automation", json={"token": API_TOKEN})
+  if response.status_code == 404:
+    legacy = True
+    response = requests.post(API_URL + "/tokenlogin", json={"token": API_TOKEN})
   if not response.ok:
     fail("Automation login refused: " + response.text)
   auth_token = response.json()["userToken"]["token"]
+
+def is_legacy():
+  auth_headers()
+  return legacy
+
+def legacy_get(url, **extra_args):
+  return requests.get(API_URL + url, headers=auth_headers(), **extra_args)
+
+def legacy_post(url, **extra_args):
+  return requests.post(API_URL + url, headers=auth_headers(), **extra_args)
+
+def legacy_set_channels(class_name: str, **channels):
+  """The legacy counterpart of set_channels. Its update writes every field of
+  the class, so the current values are sent back for those not named; beta and
+  alpha are only sent when set, an absent one being left as it is."""
+  response = legacy_get("/device/class/find/" + class_name)
+  if not response.ok:
+    fail("Device class not found: " + class_name)
+  info = response.json()
+  update = {
+    "name": info["name"],
+    "description": info.get("description") or "",
+    "firmware_id": channels.get("stable") or info.get("firmware_id") or "",
+    "concurrent": info.get("concurrent", 1),
+    "maxfails": info.get("maxfails", 1),
+  }
+  for channel in ("beta", "alpha"):
+    firmware_id = channels.get(channel) or info.get(channel + "_firmware_id")
+    if firmware_id:
+      update[channel + "_firmware_id"] = firmware_id
+  response = legacy_post("/device/class/" + info["class_id"], json=update)
+  if not response.ok:
+    fail("Failed to update device class " + class_name + ": " + response.text)
 
 def auth_headers():
   if auth_token == None:
@@ -259,6 +302,12 @@ def provision(class_name:str, device_type: str):
 @app.command()
 def create_fw(name:str, version:str):
   """Register a build of the device class named by `name` and print its id."""
+  if is_legacy():
+    response = legacy_post("/device/firmware", json={ "name": name, "version": version })
+    if not response.ok:
+      fail("Failed to register the build: " + response.text)
+    print(response.json()["firmware_id"])
+    return
   device_class = find_class(name)
   response = api_post("/admin/firmwares", json={
     "classId": device_class["id"],
@@ -272,6 +321,13 @@ def create_fw(name:str, version:str):
 @app.command()
 def upload_fw(firmware_id:str, name:str, file:Path):
   """Upload one of the images that make up a build."""
+  if is_legacy():
+    with open(file, "rb") as binary:
+      response = legacy_post("/device/firmware/" + firmware_id + "/" + name, files={ "binary": binary })
+    if not response.ok:
+      fail("Failed to upload " + name + ": " + response.text)
+    print(name + " uploaded to " + firmware_id)
+    return
   response = api_put("/admin/firmwares/" + firmware_id + "/binaries/" + name, json={
     "data": base64.b64encode(open(file, "rb").read()).decode()
   })
@@ -296,12 +352,20 @@ def rollout(firmware_name:str, firmware_version:str, class_name:str):
 @app.command()
 def rollout_id(firmware_id:str, class_name:str):
   """Put a build on the stable and beta channels of a device class."""
+  if is_legacy():
+    legacy_set_channels(class_name, stable=firmware_id, beta=firmware_id)
+    print("stable and beta firmware of " + class_name + " is now " + firmware_id)
+    return
   set_channels(find_class(class_name), stable=firmware_id, beta=firmware_id)
   print("stable and beta firmware of " + class_name + " is now " + firmware_id)
 
 @app.command()
 def rollout_alpha(firmware_id:str, class_name:str):
   """Put a build on the alpha channel, leaving beta and stable where they are."""
+  if is_legacy():
+    legacy_set_channels(class_name, alpha=firmware_id)
+    print("alpha firmware of " + class_name + " is now " + firmware_id)
+    return
   set_channels(find_class(class_name), alpha=firmware_id)
   print("alpha firmware of " + class_name + " is now " + firmware_id)
 
