@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { MIN_COMPRESSOR_REST_SECONDS } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
-import type { Device } from '@fg2/shared-types/v1';
+import type { Device, SocketPage } from '@fg2/shared-types/v1';
 import { FieldNumber, FieldSwitch } from '@/ui/advanced/Fields';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import { hasCo2Sensor } from '@/ui/climate-hardware';
@@ -47,7 +47,10 @@ function MaintenanceLight({ device, mayManage }: DeviceContext) {
   );
 }
 
-/** Dosing in the dark as well, for roots in deep water culture; drawn only where a CO2 sensor is fitted. */
+/**
+ * Dosing in the dark as well, for roots in deep water culture. Drawn only where the device doses at all: it measures
+ * CO2, and has a valve to open - a fridge carries its own, a tent controller opens one on a smart socket.
+ */
 function Co2Night({ device, mayManage }: DeviceContext) {
   const { t } = useTranslation();
 
@@ -91,6 +94,9 @@ function CompressorRest({ device, mayManage }: DeviceContext) {
   );
 }
 
+const dosesCo2 = (device: Device, sockets: SocketPage | undefined): boolean =>
+  device.type === 'fridge' || (device.type === 'controller' && (sockets?.items.some(socket => socket.role === 'co2') ?? false));
+
 const fridge = (device: Device): boolean => device.type === 'fridge' && hasDocument(device);
 
 export const items = [
@@ -106,7 +112,7 @@ export const items = [
     scope: 'device',
     id: 'co2-night',
     order: 35,
-    shows: ({ device }) => (device.type === 'fridge' || device.type === 'controller') && hasDocument(device) && hasCo2Sensor(device),
+    shows: ({ device, sockets }) => hasDocument(device) && hasCo2Sensor(device) && dosesCo2(device, sockets),
     Item: Co2Night,
   }),
   advancedItem({ scope: 'device', id: 'fans', order: 40, shows: ({ device }) => fridge(device), Item: Fans }),

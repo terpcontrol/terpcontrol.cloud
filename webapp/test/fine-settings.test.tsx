@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Co2Report, Device, Entry } from '@fg2/shared-types/v1';
+import type { Co2Report, Device, Entry, SocketPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { daysLeftOf, items as co2Items } from '@/screens/cockpit/Co2Report.advanced';
 import { items as sensorItems } from '@/screens/devices/advanced/SensorFactors.advanced';
@@ -84,13 +84,24 @@ describe('what Erweitert offers a device', () => {
   });
 
   it('offers a tent controller the ramps its lamp runs on, and the lux factor only where it measures light', () => {
-    expect(ids(device('controller'))).toEqual(['operating-mode', 'light-ramps', 'co2-night', 'continue-plan', 'leaf-offsets', 'update-channel']);
+    expect(ids(device('controller'))).toEqual(['operating-mode', 'light-ramps', 'continue-plan', 'leaf-offsets', 'update-channel']);
     expect(ids(device('controller', { ppfd: 'on' }))).toContain('lux-factor');
   });
 
-  it('offers CO2 at night only where a CO2 sensor is fitted', () => {
-    expect(ids(device('controller', { co2: 'off' }))).not.toContain('co2-night');
+  it('offers CO2 at night only where the device doses: a CO2 sensor, and a valve - a socket on a tent controller', () => {
+    const withSockets = (one: Device, roles: string[]) =>
+      itemsFor('device', {
+        device: one,
+        mayManage: true,
+        offline: false,
+        sockets: { items: roles.map(role => ({ role })), nextCursor: null, capabilities: {} } as unknown as SocketPage,
+      }).map(item => item.id);
+
+    expect(ids(device('fridge'))).toContain('co2-night');
     expect(ids(device('fridge', { co2: 'off' }))).not.toContain('co2-night');
+    expect(withSockets(device('controller'), ['co2'])).toContain('co2-night');
+    expect(withSockets(device('controller'), ['light', 'heater'])).not.toContain('co2-night');
+    expect(withSockets(device('controller', { co2: 'off' }), ['co2'])).not.toContain('co2-night');
   });
 
   it('offers nothing to tune before the device has sent its document, and none of this to a lamp or a plug', () => {
