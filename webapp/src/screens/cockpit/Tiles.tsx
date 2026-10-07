@@ -40,7 +40,7 @@ import {
 } from './place';
 import { storedShapeOf, type Half, type NowHolding } from '../control/targets/day-night';
 import { useHumidifiers } from '../control/germination/germination-choices';
-import { useDaySeries } from './reads';
+import { useDaySeries, useHourMeans } from './reads';
 import styles from './Cockpit.module.css';
 
 /**
@@ -150,6 +150,7 @@ function ClimateTile({
   const verdict = range ? rangeVerdictOf(value, range, now) : judgedOf(value, setpoint, hold, now);
   const age = value ? valueAge(value, now) : 'offline';
   const vpd = metric === 'humidity' ? valueOf(values, 'vpd') : null;
+  const mean = useHourMeans(device?.id ?? null).data?.[metric];
   const panel = timeline
     ? judgedPanel(
         timeline.panels.find(one => one.metric === metric) ?? null,
@@ -167,6 +168,11 @@ function ClimateTile({
         <div className={styles.figureLine} {...ageAttribute(age)}>
           <span className={`figure ${styles.figure}`}>{value?.value == null ? '–' : figure(value.value, metric)}</span>
           <span className={`mono ${styles.unit}`}>{UNIT[metric]}</span>
+          {mean != null ? (
+            <span className={`mono ${styles.second}`}>
+              {t('cockpit.tile.hourMean', { value: `${figure(mean, metric)} ${UNIT[metric] ?? ''}`.trim() })}
+            </span>
+          ) : null}
           {vpd?.value != null ? (
             <span className={`mono ${styles.second}`}>
               <Term topic="vpd">{t('cockpit.tile.vpd', { value: figure(vpd.value, 'vpd') })}</Term>

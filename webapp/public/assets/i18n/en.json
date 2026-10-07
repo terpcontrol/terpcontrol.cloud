@@ -5206,6 +5206,7 @@
       "vpd": "VPD {{value}}",
       "since": "since {{time}}",
       "day": "24 h",
+      "hourMean": "1 h avg {{value}}",
       "curveAlt": "{{metric}} over the last 24 hours",
       "co2Dark": "no target without light"
     },
