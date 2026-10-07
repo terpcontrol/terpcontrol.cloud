@@ -239,6 +239,7 @@ namespace fg {
     // recovery reboot while the relay is off.
     bool isLightOn() override { return state.out > 0; }
     void loadSettings(const String& settings);
+    std::string serializeSettings();
     void saveAndUploadSettings();
 
   };

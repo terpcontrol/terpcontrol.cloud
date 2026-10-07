@@ -1112,9 +1112,10 @@ class SimulatedDevice {
   }
 
   // What the firmware tells the cloud on every (re)connect: which firmware it
-  // runs. The server answers it with the stored configuration.
+  // runs, and the settings it runs on. The server answers it with the stored
+  // configuration, and keeps the device's settings only while it has none.
   fetch() {
-    this.mqtt.publish(this.topic('fetch'), JSON.stringify({ firmware_id: this.memory.firmwareId }));
+    this.mqtt.publish(this.topic('fetch'), JSON.stringify({ firmware_id: this.memory.firmwareId, configuration: this.config }));
   }
 
   // What it additionally reports once per boot. The hardware-info lines are

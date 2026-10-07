@@ -183,6 +183,7 @@ namespace fg {
     void initSettingsMenu(UserInterface* ui) override;
     bool isLightOn() override { return state.out_light > 0; }
     void loadSettings(const String& settings);
+    std::string serializeSettings();
     void saveAndUploadSettings();
 
   };

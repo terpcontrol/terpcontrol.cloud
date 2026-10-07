@@ -196,9 +196,11 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
       case 'log':
         await this.log(device, payload);
         break;
-      case 'configuration':
-        await this.configuration(device, payload);
+      case 'configuration': {
+        const reported = asRecord(parsed(payload));
+        if (reported) await this.configuration(device, reported);
         break;
+      }
       case 'tunnel_read':
         await this.tunnel?.onTunnelReadDataReceived(device.id, payload);
         break;
@@ -252,6 +254,14 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
    * What a device asks for when it connects: whether it is up to date, and its
    * configuration. The reply is the only one in the protocol.
    *
+   * Firmware that knows to sends the settings it runs along with the question.
+   * They are kept only where the cloud holds no configuration at all - a device
+   * registered afresh, a database restored from before it was set up - because
+   * that is the one case the device knows better. A configuration the cloud
+   * does hold always wins and is sent down as before: the device's copy may be
+   * older than a change made while it was offline, and a reconnect after a
+   * dropped connection must not take back what the owner set.
+   *
    * A maintenance window the cloud still holds open is said again, for what is
    * left of it. A command is published once and never stored by the broker, so
    * one sent while the device was reconnecting was lost - and the screens went
@@ -265,6 +275,10 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     if (firmwareId) await this.firmwareReported(device, firmwareId);
     if (device.configuration !== null)
       this.publisher.configuration(device.id, withFiguresHeld(device.type, device.configuration, null).configuration);
+    else {
+      const running = asRecord(reported?.configuration);
+      if (running) await this.configuration(device, running, { onlyIfNone: true });
+    }
 
     const left = (device.state.maintenanceUntil?.getTime() ?? 0) - Date.now();
     if (left >= 60_000) this.publisher.repeatMaintenance(device.id, left / 1000);
@@ -358,11 +372,12 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
    * socket's day and dosing windows set on its own menu are passed on to the fan
    * it slows, and a fan's own upload - which never carries the section the
    * server writes from the socket - keeps that section, which the fan runs by.
+   *
+   * `onlyIfNone` is the document a fetch carries: it is written only while the
+   * stored configuration is still empty, decided by the write itself, so a save
+   * from the app that lands between reading the device and writing is kept.
    */
-  private async configuration(device: StoredDevice, payload: string): Promise<void> {
-    const reported = asRecord(parsed(payload));
-    if (!reported) return;
-
+  private async configuration(device: StoredDevice, reported: Record<string, unknown>, { onlyIfNone = false } = {}): Promise<void> {
     const read = withCo2InjectKept(device.type, offTheWire(reported, device.configuration ?? null), device.configuration ?? null);
     const returned = leftAtDevice(device.configuration ?? null, read, device);
     // A figure the firmware itself would misread is not kept, so the server never sends it back.
@@ -370,18 +385,16 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     if (dropped.length > 0) logger.warn(`Device ${device.id} sent settings its firmware would misread, not kept: ${dropped.join(', ')}`);
     const base = baseFromUpload(device.type, configuration);
     const retimed = !sameClockTimes(device.configuration, configuration);
-    await this.devices.updateOne(
-      { id: device.id },
-      {
-        $set: {
-          configuration,
-          ...(retimed ? { scheduleClock: null } : {}),
-          ...(base ? { baseWorkmode: base } : {}),
-          ...(standardOf(base) ? { standardWorkmode: standardOf(base) } : {}),
-          ...(returned ? GERMINATION_FORGOTTEN : {}),
-        },
+    const written = await this.devices.updateOne(onlyIfNone ? { id: device.id, configuration: null } : { id: device.id }, {
+      $set: {
+        configuration,
+        ...(retimed ? { scheduleClock: null } : {}),
+        ...(base ? { baseWorkmode: base } : {}),
+        ...(standardOf(base) ? { standardWorkmode: standardOf(base) } : {}),
+        ...(returned ? GERMINATION_FORGOTTEN : {}),
       },
-    );
+    });
+    if (written.matchedCount === 0) return;
     await recordTargets(this.targetRecord, device, device.configuration, configuration, new Date());
 
     if (JSON.stringify(onTheWire(configuration)) !== JSON.stringify(reported)) this.publisher.configuration(device.id, configuration);

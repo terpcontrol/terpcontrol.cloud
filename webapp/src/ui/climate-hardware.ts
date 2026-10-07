@@ -52,12 +52,11 @@ export const HOLDS_A_CLIMATE = ['controller', 'fridge', 'fan'];
  * A device that has never sent its document, but whose kind says it will state a
  * climate when it does.
  *
- * What ends that wait is worth stating, because every screen that draws this
- * state has to tell somebody what to do about it, and the obvious answer is
- * wrong. The device publishes its configuration only when a setting is changed
- * on its own menu; on connect it publishes its firmware id and nothing else, and
- * the cloud has no way to ask for the document, so waiting for the next
- * connection is waiting for something that never happens.
+ * What ends that wait is the device's next connection: current firmware sends
+ * the settings it runs every time it connects, and the cloud keeps them while
+ * it has none. Older firmware publishes its document
+ * only when a setting is changed on its own menu, so for a device that has not
+ * been updated yet that change is still what ends it.
  *
  * Writing a first document from here instead would be worse than waiting. The
  * firmware rebuilds its whole settings struct from the document it is handed and
