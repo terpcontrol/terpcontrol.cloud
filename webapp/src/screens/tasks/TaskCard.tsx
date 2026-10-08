@@ -9,8 +9,8 @@ import { nextStepIndex } from '@/screens/control/plan-clock';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
 import { dayLabel, daysUntil, litresOf, onceLabel, type Translate } from './tasks';
-import styles from './Tasks.module.css';
 import { looseFigure } from '@/ui/figures';
+import styles from './Tasks.module.css';
 
 interface TaskCardProps {
   task: Task;

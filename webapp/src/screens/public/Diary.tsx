@@ -10,8 +10,8 @@ import ui from '@/ui/ui.module.css';
 import { DiaryWeek } from './DiaryWeek';
 import { Photo } from '@/ui/Photo';
 import { calendarDay, DAY } from '@/ui/zone';
-import styles from './Public.module.css';
 import { stageLabel } from '@/ui/presets';
+import styles from './Public.module.css';
 
 interface DiaryProps {
   page: PublicGrowPage;

@@ -15,8 +15,8 @@ import { Term } from '@/ui/Help';
 import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { amountLabel, schemeName } from './scheme';
-import styles from './WeekCard.module.css';
 import { stageLabel } from '@/ui/presets';
+import styles from './WeekCard.module.css';
 
 interface WeekCardProps {
   week: GrowWeekCard;

@@ -4,8 +4,8 @@ import type { GrowListItem, PlantPage, Space } from '@fg2/shared-types/v1';
 import type { useGrowPlants } from '@/api/grows';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
-import styles from './GrowPage.module.css';
 import { placeName } from './placement';
+import styles from './GrowPage.module.css';
 
 interface PlantsProps {
   grow: GrowListItem;

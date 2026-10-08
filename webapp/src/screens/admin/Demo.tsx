@@ -10,8 +10,8 @@ import { AdminHead, AdminWaiting, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { cameraFreshness } from '../devices/cameras';
-import styles from './Admin.module.css';
 import { typeName } from '@/ui/naming';
+import styles from './Admin.module.css';
 
 /**
  * What the demo is showing right now.

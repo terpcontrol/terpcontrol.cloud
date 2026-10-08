@@ -25,9 +25,9 @@ import { GerminationChoices } from '../../control/germination/GerminationChoices
 import { choicesOf, useHumidifier } from '../../control/germination/germination-choices';
 import { usePlaceController } from '../phase-climate';
 import { dayNumber, growBody, growIn, presetFor, recordsOnly, START_STAGES, suggestedName, tells, type Draft, type PlantRow } from './new-grow';
-import styles from './NewGrow.module.css';
 import { typeName } from '@/ui/naming';
 import { growPlaces } from '../placement';
+import styles from './NewGrow.module.css';
 
 /** The kinds of place a grow can be started in. A room holds other places rather than plants, so it is not one of them. */
 const SPACE_KINDS: SpaceKind[] = ['tent', 'fridge', 'balcony', 'other'];

@@ -12,8 +12,8 @@ import { weekDayOf } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
 import { Photo } from '@/ui/Photo';
 import { windowIsCurrent } from './window';
-import styles from './Public.module.css';
 import { stageLabel } from '@/ui/presets';
+import styles from './Public.module.css';
 
 interface DiaryWeekProps {
   /** The newest card, whose words explain themselves once for the page. */

@@ -12,8 +12,8 @@ import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { PlantPicker } from './PlantPicker';
-import styles from './Lifecycle.module.css';
 import { growPlaces } from './placement';
+import styles from './Lifecycle.module.css';
 
 /**
  * Some plants going their own way while the rest of the grow carries on: a

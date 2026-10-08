@@ -19,8 +19,8 @@ import { useNow } from '@/ui/useNow';
 import { serverNow } from '@/api/clock';
 import { offsetOf, wallClock } from '../control/targets/targets-draft';
 import { flatten } from './fleet-rows';
-import styles from './Admin.module.css';
 import { buildLabel, typeName } from '@/ui/naming';
+import styles from './Admin.module.css';
 
 /** How many of a device's own lines the page lists, newest first: enough for "since yesterday", few enough to read. */
 const LINES = 60;

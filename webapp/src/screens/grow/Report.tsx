@@ -21,9 +21,9 @@ import { pictureCaption, picturesOf } from './photos';
 import { useShape } from '@/app/shell/shape';
 import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
-import styles from './Report.module.css';
 import { stageLabel } from '@/ui/presets';
 import { placeName } from './placement';
+import styles from './Report.module.css';
 
 /**
  * The Report tab: the grow as chapters, one per phase, newest first. Each

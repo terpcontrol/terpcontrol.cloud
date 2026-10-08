@@ -9,8 +9,8 @@ import { authorOf, doneByOf, headlineOf, KIND_ICON, ownReading } from './entries
 import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, nowThere, useZone, zoned } from './zone';
 import { Photo } from './Photo';
 import { PictureViewer } from './PictureViewer';
-import styles from './EntryRow.module.css';
 import { looseFigure } from './figures';
+import styles from './EntryRow.module.css';
 
 /**
  * How a surface addresses a picture. A signed-in screen reaches the bytes with

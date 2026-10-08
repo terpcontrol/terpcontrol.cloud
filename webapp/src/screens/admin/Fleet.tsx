@@ -18,8 +18,8 @@ import { filteredRows, fleetRows, NO_FILTER, typesOf, type FleetFilter, type Fle
 import { HealthCard } from './HealthCard';
 import { NoMatch } from './NoMatch';
 import { RolloutCard } from './RolloutCard';
-import styles from './Admin.module.css';
 import { typeName } from '@/ui/naming';
+import styles from './Admin.module.css';
 
 /**
  * The fleet, as whoever runs this install reads it: every piece of hardware

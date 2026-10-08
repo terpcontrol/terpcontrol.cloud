@@ -18,8 +18,8 @@ import { lineLabel, oneTapBody } from './lines';
 import { useLog, type LogOpening, type LogTarget, type TileKind } from './log-context';
 import { narrowerTargets, openingTarget, targetsOf } from './targets';
 import { Sheet } from '@/ui/Sheet';
-import styles from './Log.module.css';
 import { looseFigure } from '@/ui/figures';
+import styles from './Log.module.css';
 
 /**
  * The Log sheet: what the line is about, and the eight things it can be.

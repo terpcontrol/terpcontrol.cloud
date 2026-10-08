@@ -22,8 +22,8 @@ import { MoveSheet } from '../MoveSheet';
 import { SplitSheet } from '../SplitSheet';
 import { PlantChart } from './PlantChart';
 import { RenameSheet } from './RenameSheet';
-import styles from './Plant.module.css';
 import { looseFigure } from '@/ui/figures';
+import styles from './Plant.module.css';
 
 /** How many lines of its own a plant shows before the rest are left to the timeline. */
 const LINES = 12;

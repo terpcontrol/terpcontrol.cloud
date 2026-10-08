@@ -17,11 +17,11 @@ import { OfflineSteps } from '../home/OfflineHelp';
 import { figure, targetFigure } from '@/ui/units';
 import { beganAt, crossedBound, deliveryOf, lastedLabel } from './inbox';
 import type { AlertNames } from './names';
+import { looseFigure, unbroken } from '@/ui/figures';
 import ask from './AlertCard.module.css';
 import styles from './Alerts.module.css';
 import { deviceName } from '@/ui/naming';
 import { serverNow } from '@/api/clock';
-import { looseFigure, unbroken } from '@/ui/figures';
 
 /** How long a silence from the card holds, and how long maintenance does. */
 export const SILENCE_SECONDS = 3600;

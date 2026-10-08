@@ -6,8 +6,8 @@ import { nightColour } from '@/charts/series';
 import type { ChartPalette } from '@/charts/tokens';
 import { useZone } from '@/ui/zone';
 import { at, fractionOf, stampOf } from './window';
-import styles from './Timeline.module.css';
 import { looseFigure } from '@/ui/figures';
+import styles from './Timeline.module.css';
 
 interface ReadingPanelProps {
   definition: MeasurementDefinition;
