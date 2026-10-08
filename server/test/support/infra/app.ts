@@ -97,7 +97,7 @@ export interface RunningApp {
   stop: () => Promise<void>;
 }
 
-const waitForHealthy = async (baseUrl: string, child: ChildProcess, timeoutMs: number): Promise<void> => {
+export const waitForHealthy = async (baseUrl: string, child: ChildProcess, timeoutMs: number): Promise<void> => {
   const deadline = Date.now() + timeoutMs;
   let lastError = 'never responded';
 
@@ -115,6 +115,22 @@ const waitForHealthy = async (baseUrl: string, child: ChildProcess, timeoutMs: n
 
   throw new Error(`App under test never became healthy on ${baseUrl}: ${lastError}`);
 };
+
+/**
+ * Asked to stop the way a container is, so the shutdown path runs at least once
+ * per suite; killed outright only if it will not go.
+ */
+export const stopChild = (child: ChildProcess): Promise<void> =>
+  new Promise<void>(resolve => {
+    if (child.exitCode !== null) return resolve();
+
+    const forced = setTimeout(() => child.kill('SIGKILL'), 5_000);
+    child.once('exit', () => {
+      clearTimeout(forced);
+      resolve();
+    });
+    child.kill('SIGTERM');
+  });
 
 export const startApp = async (environment: AppEnvironment): Promise<RunningApp> => {
   mkdirSync(LOG_DIR, { recursive: true });
@@ -135,21 +151,5 @@ export const startApp = async (environment: AppEnvironment): Promise<RunningApp>
   const baseUrl = `http://127.0.0.1:${environment.port}`;
   await waitForHealthy(baseUrl, child, 120_000);
 
-  return {
-    process: child,
-    baseUrl,
-    // Asked to stop the way a container is, so the shutdown path runs at least
-    // once per suite; killed outright only if it will not go.
-    stop: () =>
-      new Promise<void>(resolve => {
-        if (child.exitCode !== null) return resolve();
-
-        const forced = setTimeout(() => child.kill('SIGKILL'), 5_000);
-        child.once('exit', () => {
-          clearTimeout(forced);
-          resolve();
-        });
-        child.kill('SIGTERM');
-      }),
-  };
+  return { process: child, baseUrl, stop: () => stopChild(child) };
 };

@@ -19,12 +19,6 @@ const withDatabase = async <T>(use: (database: mongo.Db) => Promise<T>): Promise
   }
 };
 
-/** A 2x2 PNG, small enough to be stored a dozen times without mattering. */
-export const A_PICTURE = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR42mP4z8DAAMIM/4EAAB/uBfvxq7p3AAAAAElFTkSuQmCC',
-  'base64',
-);
-
 /**
  * Puts a device into the public demo. There is no API for it - an operator sets
  * the flag by hand, which is what `./simulate-device.sh demo on` does too, and

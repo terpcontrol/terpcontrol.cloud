@@ -13,6 +13,9 @@ export interface Published {
   message: string;
 }
 
+/** The documents among what went out, oldest first. */
+export const documentsOf = (published: readonly Published[]): Record<string, unknown>[] => published.map(one => JSON.parse(one.message));
+
 /** A broker that is always up and keeps everything it is handed, in order. */
 export const recordingMqtt = (): { mqtt: MqttClientService; published: Published[] } => {
   const published: Published[] = [];

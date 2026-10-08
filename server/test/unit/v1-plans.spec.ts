@@ -1,5 +1,4 @@
 import { jest } from '@jest/globals';
-import { Model } from 'mongoose';
 import type { DeviceConfiguration, PlanReplace, PlanStep, PlanStepInput } from '@fg2/shared-types/v1';
 import { cycleKindOf, lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
@@ -37,7 +36,6 @@ const GROW = 'grow-1';
 const OWNER = 'user-1';
 
 const db = useV1TestDatabase();
-let plans: Model<StoredPlan>;
 let engine: PlanEngineService;
 let transitions: PlanService;
 /** The same engine with the routing grid's side of a confirmation wired in, which the plain one leaves out. */
@@ -62,7 +60,7 @@ const step = (partial: Partial<PlanStep> & Pick<PlanStep, 'id' | 'name'>): PlanS
 });
 
 const aPlan = async (steps: PlanStep[], rest: Partial<StoredPlan> = {}): Promise<StoredPlan> => {
-  const created = await plans.create({
+  const created = await db.plans.create({
     id: 'plan-1',
     deviceId: DEVICE,
     templateId: null,
@@ -112,15 +110,11 @@ const stoppedState = {
   confirmationAskTriedAt: null,
 } as const;
 
-const stored = async (): Promise<StoredPlan> => (await plans.findOne({ id: 'plan-1' }).lean<StoredPlan>().exec())!;
+const stored = async (): Promise<StoredPlan> => (await db.plans.findOne({ id: 'plan-1' }).lean<StoredPlan>().exec())!;
 
 const grow = async () => (await db.grows.findOne({ id: GROW }).lean().exec())!;
 
 const entries = () => db.entries.find({}).sort({ createdAt: 1 }).lean().exec();
-
-beforeAll(() => {
-  plans = db.plans;
-});
 
 beforeEach(async () => {
   await db.reset();
@@ -147,12 +141,12 @@ beforeEach(async () => {
 
   const phases = new PhaseWriterService(db.grows, new EntryWriterService(db.entries), db.entries, db.devices, alarms);
   const progressWith = (announcer: PlanAnnouncer | null) =>
-    new PlanProgressService(plans, db.devices, db.users, new EntryWriterService(db.entries), phases, mail, announcer);
+    new PlanProgressService(db.plans, db.devices, db.users, new EntryWriterService(db.entries), phases, mail, announcer);
   const progress = progressWith(null);
 
-  engine = new PlanEngineService(plans, db.devices, configuration, progress);
-  engineWith = announcer => new PlanEngineService(plans, db.devices, configuration, progressWith(announcer));
-  transitions = new PlanService(plans, db.devices, progress);
+  engine = new PlanEngineService(db.plans, db.devices, configuration, progress);
+  engineWith = announcer => new PlanEngineService(db.plans, db.devices, configuration, progressWith(announcer));
+  transitions = new PlanService(db.plans, db.devices, progress);
 
   await db.users.create({ id: OWNER, email: 'grower@example.com', passwordHash: 'x', handle: 'grower' });
 });
@@ -186,7 +180,7 @@ describe('the pass over the running plans', () => {
     await engine.run(at(24 * HOUR));
     expect((await stored()).state).toMatchObject({ status: 'completed', activeStepIndex: 0, stepStartedAt: null });
 
-    await plans.updateOne({ id: 'plan-1' }, { $set: { loop: true, state: { status: 'running', activeStepIndex: 0, stepStartedAt: NOW } } });
+    await db.plans.updateOne({ id: 'plan-1' }, { $set: { loop: true, state: { status: 'running', activeStepIndex: 0, stepStartedAt: NOW } } });
     await engine.run(at(24 * HOUR));
 
     expect((await stored()).state).toMatchObject({ status: 'running', activeStepIndex: 0 });
@@ -210,11 +204,11 @@ describe('the pass over the running plans', () => {
     await aPlan([step({ id: 'a', name: 'Veg' }), step({ id: 'b', name: 'Flower', settings: { workmode: 'small' } })]);
 
     const written: number[] = [];
-    const original = plans.updateOne.bind(plans);
-    jest.spyOn(plans, 'updateOne').mockImplementation(((...args: Parameters<typeof plans.updateOne>) => {
+    const original = db.plans.updateOne.bind(db.plans);
+    jest.spyOn(db.plans, 'updateOne').mockImplementation(((...args: Parameters<typeof db.plans.updateOne>) => {
       written.push(applied.length);
       return original(...args);
-    }) as typeof plans.updateOne);
+    }) as typeof db.plans.updateOne);
 
     await engine.run(at(24 * HOUR));
 
@@ -701,7 +695,7 @@ describe('replacing the steps', () => {
     expect(written.steps[0]).toMatchObject({ name: 'Woche 1', stage: null, preset: null });
 
     // The stored document, not the answer: what the engine and the next reader see.
-    const storedFor = async () => (await plans.findOne({ deviceId: DEVICE }).lean<StoredPlan>().exec())!;
+    const storedFor = async () => (await db.plans.findOne({ deviceId: DEVICE }).lean<StoredPlan>().exec())!;
     const first = await storedFor();
     await transitions.replace(DEVICE, replacement(first.steps));
 

@@ -1,5 +1,5 @@
 import { anonymous, context, createAccount, demoSession, login, loginAsAdmin, Session, unique } from '../support/api';
-import { A_PICTURE } from '../support/fixtures';
+import { A_PICTURE } from '../support/pictures';
 
 /**
  * What a token is still good for.

@@ -1,7 +1,8 @@
 import { anonymous, createAccount, demoSession, Session, unique } from '../support/api';
 import { seedMeasurements, SeedPoint } from '../support/control';
 import { provisionDevice } from '../support/device';
-import { A_PICTURE, shareLinkOnGrow } from '../support/fixtures';
+import { shareLinkOnGrow } from '../support/fixtures';
+import { A_PICTURE } from '../support/pictures';
 
 /**
  * The diary over HTTP: the timeline read and written, the week cards and the

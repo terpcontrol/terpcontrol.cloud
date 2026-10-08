@@ -12,7 +12,7 @@ import { runMigrationCli } from '../support/migration-cli';
  * off the directory rather than imported: this suite is black box, and
  * importing the list would pull the whole application in behind it.
  */
-const STEPS = readdirSync(join(__dirname, '..', '..', 'src', 'migrations', 'steps')).filter(name => /^\d{3}-.*\.ts$/u.test(name)).length;
+const STEPS = readdirSync(join(SERVER_ROOT, 'src', 'migrations', 'steps')).filter(name => /^\d{3}-.*\.ts$/u.test(name)).length;
 
 /**
  * The migration as an operator runs it: `npm run migrate`, its dry run and its

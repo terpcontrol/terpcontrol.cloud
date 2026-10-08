@@ -16,7 +16,7 @@ export const isLit = (at: Date): boolean => at.getUTCHours() >= 6 && at.getUTCHo
  * because that is the whole of what the second read buys: a window wider than
  * the cycle still answers the cycle.
  */
-const SWITCHING_GRAIN_MS = 300 * 1000;
+export const SWITCHING_GRAIN_MS = 300 * 1000;
 
 /**
  * What the store answers about the outputs: the state the window opens in, then

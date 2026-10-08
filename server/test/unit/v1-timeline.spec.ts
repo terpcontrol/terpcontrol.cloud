@@ -9,7 +9,7 @@ import { lanesOf, nightsOf } from '@modules/v1/timeline/timeline-series';
 import { TimelineService } from '@modules/v1/timeline/timeline.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { session, visitor } from './support/callers';
-import { isLit, lastSampleOf, seriesOf, switchingsOf } from './support/fake-data';
+import { isLit, lastSampleOf, seriesOf, SWITCHING_GRAIN_MS, switchingsOf } from './support/fake-data';
 import { accessOn, spacesOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
 
@@ -1072,8 +1072,6 @@ describe('the night and the lanes over a window wider than the cycle', () => {
   const CLOSES = new Date('2026-08-24T00:00:00.000Z');
   const WINDOW = { startsAt: OPENS, endsAt: CLOSES };
 
-  /** Five minutes, which is the grain the store looks for a switching at. */
-  const GRAIN_MS = 300 * 1000;
   /** What 480 windows of a 218-day season comes to: eleven hours to the window, with a whole cycle inside one of them. */
   const STEP_SECONDS = Math.ceil((CLOSES.getTime() - OPENS.getTime()) / 1000 / 480);
 
@@ -1092,7 +1090,7 @@ describe('the night and the lanes over a window wider than the cycle', () => {
     const spans: TimelineSpan[] = [];
     let from: number | null = null;
 
-    for (const at of walk(GRAIN_MS)) {
+    for (const at of walk(SWITCHING_GRAIN_MS)) {
       const holds = litAt(at) > 0 === on;
       if (holds && from === null) from = at;
       if (!holds && from !== null) {
@@ -1111,17 +1109,11 @@ describe('the night and the lanes over a window wider than the cycle', () => {
     const points = walk(step).map(at => {
       const closes = Math.min(at + step, CLOSES.getTime());
       const inside: number[] = [];
-      for (let raw = at; raw < closes; raw += GRAIN_MS) inside.push(litAt(raw));
+      for (let raw = at; raw < closes; raw += SWITCHING_GRAIN_MS) inside.push(litAt(raw));
 
       // Stamped at the end of its window, as `aggregateWindow` stamps a mean.
       return { measuredAt: new Date(closes).toISOString(), value: inside.reduce((sum, one) => sum + one, 0) / inside.length };
     });
-
-    const switchings: { at: string; on: boolean }[] = [];
-    for (const at of walk(GRAIN_MS)) {
-      const on = litAt(at) > 0;
-      if (switchings.length === 0 || switchings[switchings.length - 1].on !== on) switchings.push({ at: new Date(at).toISOString(), on });
-    }
 
     return {
       series: {
@@ -1132,9 +1124,9 @@ describe('the night and the lanes over a window wider than the cycle', () => {
         metrics: [],
         outputs: [{ output: 'light', points }],
       },
-      outputs: [{ output: 'light', switchings }],
+      outputs: switchingsOf({ ...WINDOW, metrics: [], outputs: ['light'] }, (_, at) => litAt(at.getTime()) > 0),
       // Still reporting when the window closed, one grain short of its edge.
-      lastSampleAt: new Date(CLOSES.getTime() - GRAIN_MS).toISOString(),
+      lastSampleAt: new Date(CLOSES.getTime() - SWITCHING_GRAIN_MS).toISOString(),
     };
   };
 

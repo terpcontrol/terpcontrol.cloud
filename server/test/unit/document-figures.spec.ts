@@ -7,7 +7,7 @@ import { DeviceIngestService } from '@modules/device-protocol/device-ingest.serv
 import { DOCUMENT_FIGURES, TEMPLATE_FIGURES, figureRefusals, withFiguresHeld, type DocumentFigure } from '@modules/device-protocol/document-figures';
 import { PlanProgressService } from '@modules/v1/plan/plan-progress.service';
 import { PlanService } from '@modules/v1/plan/plan.service';
-import { Published, deviceStackOn } from './support/device-stack';
+import { Published, deviceStackOn, documentsOf } from './support/device-stack';
 import { useV1TestDatabase } from './support/v1-database';
 
 /**
@@ -212,7 +212,6 @@ describe('every way a document reaches a device', () => {
   let ingest: DeviceIngestService;
 
   const stored = async () => (await db.devices.findOne({ id: DEVICE }).lean<StoredDevice>())!;
-  const documents = (): Record<string, unknown>[] => published.map(one => JSON.parse(one.message));
 
   beforeEach(async () => {
     await db.reset();
@@ -238,7 +237,7 @@ describe('every way a document reaches a device', () => {
   it('sends a plan step stored before steps were checked without what the firmware would misread', async () => {
     await configuration.applyConfiguration(DEVICE, { night: { temperature: EJSON } }, 'vegetative');
 
-    expect(documents().at(-1)).toMatchObject({ night: { temperature: 20, humidity: 55 } });
+    expect(documentsOf(published).at(-1)).toMatchObject({ night: { temperature: 20, humidity: 55 } });
     expect((await stored()).configuration).toMatchObject({ night: { temperature: 20, humidity: 55 } });
   });
 
@@ -246,7 +245,7 @@ describe('every way a document reaches a device', () => {
     await ingest.handle(`/devices/${DEVICE}/configuration`, JSON.stringify(fridge({ day: { temperature: { value: 30 }, humidity: 60 } })));
 
     expect((await stored()).configuration).toMatchObject({ day: { temperature: 25, humidity: 60 } });
-    expect(documents().at(-1)).toMatchObject({ day: { temperature: 25, humidity: 60 } });
+    expect(documentsOf(published).at(-1)).toMatchObject({ day: { temperature: 25, humidity: 60 } });
   });
 
   it('takes the targets saved whole over a figure stored before any of this was checked, and sends them without it', async () => {
@@ -255,8 +254,8 @@ describe('every way a document reaches a device', () => {
 
     await configuration.replace(DEVICE, page, 'user-1');
 
-    expect(documents().at(-1)).toMatchObject({ day: { temperature: 26 }, fans: { external: 100 } });
-    expect((documents().at(-1)!.fans as Record<string, unknown>).internal).toBeUndefined();
+    expect(documentsOf(published).at(-1)).toMatchObject({ day: { temperature: 26 }, fans: { external: 100 } });
+    expect((documentsOf(published).at(-1)!.fans as Record<string, unknown>).internal).toBeUndefined();
     expect((await stored()).configuration?.fans).toEqual({ external: 100 });
   });
 
@@ -265,7 +264,7 @@ describe('every way a document reaches a device', () => {
 
     await ingest.handle(`/devices/${DEVICE}/fetch`, JSON.stringify({}));
 
-    const sent = documents().at(-1)!;
+    const sent = documentsOf(published).at(-1)!;
     expect(sent.night).toEqual({ humidity: 55 });
   });
 

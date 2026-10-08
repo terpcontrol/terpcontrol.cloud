@@ -3,7 +3,7 @@ import addFormats from 'ajv-formats';
 import supertest from 'supertest';
 import { anonymous, ApiClient, context, createAccount, loginAsAdmin, Method, Session, unique } from '../support/api';
 import { claimCodeOf, DeviceCredentials, provisionDevice, registerDevice } from '../support/device';
-import { A_PICTURE } from '../support/fixtures';
+import { A_PICTURE } from '../support/pictures';
 
 /**
  * The API document, and whether it tells the truth.

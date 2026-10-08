@@ -1,7 +1,4 @@
-import { Model } from 'mongoose';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
-import { StoredClaimCode } from '@database/schemas/v1/claim-codes.schema';
-import { StoredDeviceClass } from '@database/schemas/v1/device-classes.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
 import { DeviceIngestService } from '@modules/device-protocol/device-ingest.service';
@@ -30,8 +27,6 @@ const DEVICE = 'sim-controller-1';
 const OWNER = 'user-1';
 
 const db = useV1TestDatabase();
-let claimCodes: Model<StoredClaimCode>;
-let deviceClasses: Model<StoredDeviceClass>;
 let published: Published[];
 let mqtt: MqttClientService;
 let ingest: DeviceIngestService;
@@ -59,11 +54,6 @@ const targets = (over: { day?: { temperature: number | null; humidity: number | 
   co2: over.co2 ?? null,
 });
 
-beforeAll(() => {
-  claimCodes = db.claimCodes;
-  deviceClasses = db.deviceClasses;
-});
-
 beforeEach(async () => {
   await db.reset();
   samples = [];
@@ -75,7 +65,7 @@ beforeEach(async () => {
 
   publisher = new DevicePublisherService(db.devices, mqtt);
   const hardware = new HardwareReportService(db.devices, db.cameras);
-  registration = new DeviceRegistrationService(db.devices, deviceClasses, claimCodes, {
+  registration = new DeviceRegistrationService(db.devices, db.deviceClasses, db.claimCodes, {
     enableSelfRegistration: true,
     selfRegistrationPassword: 'join-me',
   } as never);
@@ -686,7 +676,7 @@ describe('enrolling and claiming', () => {
     });
 
   beforeEach(async () => {
-    await deviceClasses.create({ id: 'class-1', name: 'fridge', concurrentUpdates: 5, maxFailures: 10, firmwareIds: { stable: 'build-7' } });
+    await db.deviceClasses.create({ id: 'class-1', name: 'fridge', concurrentUpdates: 5, maxFailures: 10, firmwareIds: { stable: 'build-7' } });
   });
 
   it('answers with the build the class runs and stores what the device signs in with', async () => {
@@ -735,7 +725,7 @@ describe('enrolling and claiming', () => {
 
     const code = await registration.issueClaimCode({ device_id: 'sim-fridge-9' });
     expect(code?.claim_code).toHaveLength(6);
-    expect((await claimCodes.findOne({ deviceId: 'sim-fridge-9' }).lean())?.code).toBe(code?.claim_code);
+    expect((await db.claimCodes.findOne({ deviceId: 'sim-fridge-9' }).lean())?.code).toBe(code?.claim_code);
   });
 
   it('checks the password only where the device asked for it to be checked', async () => {
@@ -763,6 +753,6 @@ describe('enrolling and claiming', () => {
     const second = await registration.issueClaimCode({ device_id: DEVICE });
 
     expect(first?.claim_code).not.toBe(second?.claim_code);
-    expect(await claimCodes.countDocuments({ deviceId: DEVICE })).toBe(1);
+    expect(await db.claimCodes.countDocuments({ deviceId: DEVICE })).toBe(1);
   });
 });

@@ -1,5 +1,4 @@
 import { jest } from '@jest/globals';
-import { Model } from 'mongoose';
 import { OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { MAINTENANCE_SETTLE_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
@@ -33,8 +32,6 @@ const OWNER = 'user-1';
 const GONE_MS = 11 * 60 * 1000;
 
 const db = useV1TestDatabase();
-let rules: Model<StoredAlarmRule>;
-let alerts: Model<StoredAlert>;
 let engine: AlarmEngineService;
 let health: AlarmHealthService;
 let episodes: AlertService;
@@ -85,17 +82,12 @@ const reads = (temperature: number, at: Date) => engine.onSample({ deviceId: DEV
 const drives = (outputs: Partial<Record<OutputMetric, number>>, at: Date) =>
   engine.onSample({ deviceId: DEVICE, measuredAt: at, values: {}, outputs });
 
-const storedRule = async (): Promise<StoredAlarmRule> => (await rules.findOne({ id: 'rule-1' }).lean<StoredAlarmRule>())!;
+const storedRule = async (): Promise<StoredAlarmRule> => (await db.alarmRules.findOne({ id: 'rule-1' }).lean<StoredAlarmRule>())!;
 
-const openAlert = () => alerts.findOne({ resolvedAt: null }).lean<StoredAlert>();
+const openAlert = () => db.alerts.findOne({ resolvedAt: null }).lean<StoredAlert>();
 
 const device = (over: Record<string, unknown> = {}) =>
   db.devices.create({ id: DEVICE, type: 'controller', ownerId: OWNER, spaceId: SPACE, state: { lastSeenAt: new Date() }, ...over });
-
-beforeAll(() => {
-  rules = db.alarmRules;
-  alerts = db.alerts;
-});
 
 beforeEach(async () => {
   await db.reset();
@@ -123,17 +115,17 @@ beforeEach(async () => {
     };
   };
   const data = { points: jest.fn(answer), outputPoints: jest.fn(answer), newestSamplesOf: jest.fn(newestSamplesOf) } as unknown as DataService;
-  const alertService = new AlertService(alerts, entries, delivery, null);
+  const alertService = new AlertService(db.alerts, entries, delivery, null);
   episodes = alertService;
 
-  engine = new AlarmEngineService(rules, db.devices, data, alertService);
-  health = new AlarmHealthService(db.devices, rules, db.cameras, engine, alertService, data);
+  engine = new AlarmEngineService(db.alarmRules, db.devices, data, alertService);
+  health = new AlarmHealthService(db.devices, db.alarmRules, db.cameras, engine, alertService, data);
 });
 
 describe('a reading leaving its band', () => {
   beforeEach(async () => {
     await device();
-    await rules.create(ruleFor());
+    await db.alarmRules.create(ruleFor());
   });
 
   it('opens one alert and one entry, and holds the rule to it', async () => {
@@ -162,7 +154,7 @@ describe('a reading leaving its band', () => {
     await reads(25, new Date(Date.now() - 1000));
 
     expect(await openAlert()).toBeNull();
-    const alert = await alerts.findOne({ ruleId: 'rule-1' }).lean<StoredAlert>();
+    const alert = await db.alerts.findOne({ ruleId: 'rule-1' }).lean<StoredAlert>();
     expect(alert?.resolvedAt).toBeInstanceOf(Date);
     expect(alert?.extremeValue).toBe(35);
 
@@ -176,18 +168,18 @@ describe('a reading leaving its band', () => {
     await reads(32, new Date(Date.now() - 2000));
     await reads(33, new Date(Date.now() - 1000));
 
-    expect(await alerts.countDocuments({})).toBe(1);
+    expect(await db.alerts.countDocuments({})).toBe(1);
   });
 });
 
 describe('what keeps an alarm quiet', () => {
   it('says nothing while somebody is working on the tent', async () => {
     await device({ state: { lastSeenAt: new Date(), maintenanceUntil: new Date(Date.now() + 60_000) } });
-    await rules.create(ruleFor());
+    await db.alarmRules.create(ruleFor());
 
     await reads(32, new Date());
 
-    expect(await alerts.countDocuments({})).toBe(0);
+    expect(await db.alerts.countDocuments({})).toBe(0);
     expect((await storedRule()).state.triggered).toBe(false);
   });
 
@@ -201,7 +193,7 @@ describe('what keeps an alarm quiet', () => {
    */
   it('goes on saying nothing for the settling the contract names, and speaks again after it', async () => {
     await device({ state: { lastSeenAt: new Date(), maintenanceUntil: new Date(Date.now() - 1_000) } });
-    await rules.create(ruleFor());
+    await db.alarmRules.create(ruleFor());
 
     await reads(32, new Date());
     expect((await storedRule()).state.triggered).toBe(false);
@@ -229,7 +221,7 @@ describe('what keeps an alarm quiet', () => {
   it('holds the repeat of an episode that was already open, and repeats again once the quiet is over', async () => {
     const announcedAt = new Date(Date.now() - 120_000);
     await device({ state: { lastSeenAt: new Date(), maintenanceUntil: new Date(Date.now() + 60_000) } });
-    await rules.create(
+    await db.alarmRules.create(
       ruleFor({
         repeatSeconds: 60,
         state: { triggered: true, lastTriggeredAt: announcedAt, lastResolvedAt: null, extremeValue: 32, lastSampleAt: null },
@@ -248,7 +240,7 @@ describe('what keeps an alarm quiet', () => {
   it('says the all-clear once, rather than repeating it for as long as nothing goes wrong', async () => {
     const clearedAt = new Date(Date.now() - 120_000);
     await device();
-    await rules.create(
+    await db.alarmRules.create(
       ruleFor({
         repeatSeconds: 60,
         state: {
@@ -274,7 +266,7 @@ describe('what keeps an alarm quiet', () => {
         state: { triggered: true, lastTriggeredAt, lastResolvedAt: null, extremeValue: 32, lastSampleAt: null },
       });
     await device();
-    await alerts.create({
+    await db.alerts.create({
       id: 'alert-1',
       createdAt: new Date(),
       ruleId: 'rule-1',
@@ -290,37 +282,39 @@ describe('what keeps an alarm quiet', () => {
       watched: null,
     });
 
-    await rules.create(mailRule(new Date(Date.now() - 120_000)));
+    await db.alarmRules.create(mailRule(new Date(Date.now() - 120_000)));
     await reads(32, new Date());
     expect(mailed).toEqual([]);
 
-    await rules.deleteMany({});
-    await rules.create(mailRule(new Date(Date.now() - 360_000)));
+    await db.alarmRules.deleteMany({});
+    await db.alarmRules.create(mailRule(new Date(Date.now() - 360_000)));
     await reads(32, new Date(Date.now() + 1_000));
     expect(mailed).toEqual(['[TERP CONTROL] Alarm Too warm triggered for Device device-1']);
   });
 
   it('waits out the cooldown before triggering again', async () => {
     await device();
-    await rules.create(ruleFor({ cooldownSeconds: 600, state: { ...ruleFor().state, lastTriggeredAt: new Date(), lastResolvedAt: new Date() } }));
+    await db.alarmRules.create(
+      ruleFor({ cooldownSeconds: 600, state: { ...ruleFor().state, lastTriggeredAt: new Date(), lastResolvedAt: new Date() } }),
+    );
 
     await reads(32, new Date());
 
-    expect(await alerts.countDocuments({})).toBe(0);
+    expect(await db.alerts.countDocuments({})).toBe(0);
   });
 
   it('leaves a disabled rule alone', async () => {
     await device();
-    await rules.create(ruleFor({ enabled: false }));
+    await db.alarmRules.create(ruleFor({ enabled: false }));
 
     await reads(32, new Date());
 
-    expect(await alerts.countDocuments({})).toBe(0);
+    expect(await db.alerts.countDocuments({})).toBe(0);
   });
 
   it('records a silenced rule without sending anything', async () => {
     await device();
-    await rules.create(
+    await db.alarmRules.create(
       ruleFor({
         silencedUntil: new Date(Date.now() + 60_000),
         delivery: { mode: 'custom', custom: { channel: 'email', target: 'somebody@example.com', includeDetails: true, webhook: null } },
@@ -329,7 +323,7 @@ describe('what keeps an alarm quiet', () => {
 
     await reads(32, new Date());
 
-    expect(await alerts.countDocuments({})).toBe(1);
+    expect(await db.alerts.countDocuments({})).toBe(1);
     expect(mailed).toEqual([]);
   });
 });
@@ -359,21 +353,21 @@ describe('a "too humid" alarm while the device germinates', () => {
 
   it("rests the stage's by default, and says nothing about air far wetter than its line", async () => {
     await germinating();
-    await rules.create(tooHumid());
+    await db.alarmRules.create(tooHumid());
 
     await humid(95);
 
-    expect(await alerts.countDocuments({})).toBe(0);
+    expect(await db.alerts.countDocuments({})).toBe(0);
     expect((await storedRule()).enabled).toBe(true);
   });
 
   it("warns where the grower asked to, at germination's line rather than the band of the stage before", async () => {
     await germinating({ warnTooHumid: true, humidifierHolds: true });
-    await rules.create(tooHumid());
+    await db.alarmRules.create(tooHumid());
 
     // Over the veg band of 70 %, and where a germination box is meant to be.
     await humid(85, new Date(Date.now() - 2_000));
-    expect(await alerts.countDocuments({})).toBe(0);
+    expect(await db.alerts.countDocuments({})).toBe(0);
 
     await humid(95, new Date(Date.now() - 1_000));
     const alert = await openAlert();
@@ -384,54 +378,54 @@ describe('a "too humid" alarm while the device germinates', () => {
 
   it('leaves a person\'s own alarm watching, and what is not a "too humid" alarm: the temperature, and a band kept from both sides', async () => {
     await germinating();
-    await rules.create(ruleFor({ id: 'rule-1' }));
-    await rules.create(tooHumid({ id: 'rule-2', watch: { kind: 'reading', metric: 'humidity', upper: 70, lower: 40 } }));
-    await rules.create(tooHumid({ id: 'rule-3', origin: 'human', presetKey: null, presetId: null }));
+    await db.alarmRules.create(ruleFor({ id: 'rule-1' }));
+    await db.alarmRules.create(tooHumid({ id: 'rule-2', watch: { kind: 'reading', metric: 'humidity', upper: 70, lower: 40 } }));
+    await db.alarmRules.create(tooHumid({ id: 'rule-3', origin: 'human', presetKey: null, presetId: null }));
 
     await engine.onSample({ deviceId: DEVICE, measuredAt: new Date(), values: { humidity: 95, temperature: 32 }, outputs: {} });
 
-    expect(await alerts.countDocuments({ resolvedAt: null })).toBe(3);
+    expect(await db.alerts.countDocuments({ resolvedAt: null })).toBe(3);
   });
 
   it('lets an episode it had open go quiet, said to have rested and with no all-clear, and watches again once germination ends', async () => {
     await device({ configuration: { workmode: 'small' } });
-    await rules.create(tooHumid());
+    await db.alarmRules.create(tooHumid());
     await humid(80, new Date(Date.now() - 3_000));
-    expect(await alerts.countDocuments({ resolvedAt: null })).toBe(1);
+    expect(await db.alerts.countDocuments({ resolvedAt: null })).toBe(1);
 
     await db.devices.updateOne({ id: DEVICE }, { $set: { 'configuration.workmode': 'breed' } });
     await humid(85, new Date(Date.now() - 2_000));
 
-    expect(await alerts.countDocuments({ resolvedAt: null })).toBe(0);
-    expect(await alerts.findOne({}).lean<StoredAlert>()).toMatchObject({ rested: true });
+    expect(await db.alerts.countDocuments({ resolvedAt: null })).toBe(0);
+    expect(await db.alerts.findOne({}).lean<StoredAlert>()).toMatchObject({ rested: true });
     expect((await storedRule()).state.triggered).toBe(false);
     // Closed without a word: the diary holds the alarm and no all-clear for it.
     expect(await db.entries.countDocuments({ 'message.key': 'message-alarm-resolved' })).toBe(0);
 
     await db.devices.updateOne({ id: DEVICE }, { $set: { 'configuration.workmode': 'small' } });
     await humid(85, new Date(Date.now() - 1_000));
-    expect(await alerts.countDocuments({ resolvedAt: null })).toBe(1);
+    expect(await db.alerts.countDocuments({ resolvedAt: null })).toBe(1);
     expect(await openAlert()).toMatchObject({ rested: false });
   });
 
   it('goes quiet the moment it is asked to, rather than at the next reading', async () => {
     await device({ configuration: { workmode: 'small' } });
-    await rules.create(tooHumid());
+    await db.alarmRules.create(tooHumid());
     await humid(80, new Date(Date.now() - 3_000));
-    expect(await alerts.countDocuments({ resolvedAt: null })).toBe(1);
+    expect(await db.alerts.countDocuments({ resolvedAt: null })).toBe(1);
 
     await db.devices.updateOne({ id: DEVICE }, { $set: { 'configuration.workmode': 'breed' } });
     await engine.restNow(DEVICE);
 
-    expect(await alerts.countDocuments({ resolvedAt: null })).toBe(0);
-    expect(await alerts.findOne({}).lean<StoredAlert>()).toMatchObject({ rested: true });
+    expect(await db.alerts.countDocuments({ resolvedAt: null })).toBe(0);
+    expect(await db.alerts.findOne({}).lean<StoredAlert>()).toMatchObject({ rested: true });
   });
 });
 
 describe('a rule on an output', () => {
   it('trips on the output running at all, and lets go when it stops', async () => {
     await device();
-    await rules.create(ruleFor({ name: 'Fridge never stops', watch: { kind: 'output_running', output: 'dehumidifier' } }));
+    await db.alarmRules.create(ruleFor({ name: 'Fridge never stops', watch: { kind: 'output_running', output: 'dehumidifier' } }));
 
     await drives({ dehumidifier: 1 }, new Date(Date.now() - 2000));
 
@@ -444,15 +438,17 @@ describe('a rule on an output', () => {
     expect(await openAlert()).toBeNull();
     // Running is running: there is no worse reading to keep than the one that
     // opened it, which is what the old alarm on a compressor always recorded.
-    expect((await alerts.findOne({ ruleId: 'rule-1' }).lean<StoredAlert>())?.extremeValue).toBe(1);
+    expect((await db.alerts.findOne({ ruleId: 'rule-1' }).lean<StoredAlert>())?.extremeValue).toBe(1);
   });
 
   it('trips on an output leaving its band, in the numbers the series carries', async () => {
     await device();
-    await rules.create(ruleFor({ name: 'Heater working too hard', watch: { kind: 'output_level', output: 'heater', upper: 0.8, lower: null } }));
+    await db.alarmRules.create(
+      ruleFor({ name: 'Heater working too hard', watch: { kind: 'output_level', output: 'heater', upper: 0.8, lower: null } }),
+    );
 
     await drives({ heater: 0.5 }, new Date(Date.now() - 3000));
-    expect(await alerts.countDocuments({})).toBe(0);
+    expect(await db.alerts.countDocuments({})).toBe(0);
 
     await drives({ heater: 0.95 }, new Date(Date.now() - 2000));
     expect(await openAlert()).toMatchObject({ ruleId: 'rule-1', value: 0.95 });
@@ -463,11 +459,11 @@ describe('a rule on an output', () => {
 
   it('is left alone by a message that says nothing about its output', async () => {
     await device();
-    await rules.create(ruleFor({ watch: { kind: 'output_running', output: 'light' } }));
+    await db.alarmRules.create(ruleFor({ watch: { kind: 'output_running', output: 'light' } }));
 
     await reads(32, new Date());
 
-    expect(await alerts.countDocuments({})).toBe(0);
+    expect(await db.alerts.countDocuments({})).toBe(0);
     expect((await storedRule()).state.lastSampleAt).toBeNull();
   });
 });
@@ -488,7 +484,9 @@ describe('a rule that waits', () => {
   };
 
   const patientRule = (over: Partial<StoredAlarmRule> = {}) =>
-    rules.create(ruleFor({ name: 'Fridge never stops', watch: { kind: 'output_running', output: 'dehumidifier' }, forSeconds: 3600, ...over }));
+    db.alarmRules.create(
+      ruleFor({ name: 'Fridge never stops', watch: { kind: 'output_running', output: 'dehumidifier' }, forSeconds: 3600, ...over }),
+    );
 
   beforeEach(async () => {
     await device();
@@ -510,7 +508,7 @@ describe('a rule that waits', () => {
 
     await drives({ dehumidifier: 1 }, new Date());
 
-    expect(await alerts.countDocuments({})).toBe(0);
+    expect(await db.alerts.countDocuments({})).toBe(0);
   });
 
   it('starts the hour now where the series holds nothing to read', async () => {
@@ -519,7 +517,7 @@ describe('a rule that waits', () => {
 
     await drives({ dehumidifier: 1 }, new Date());
 
-    expect(await alerts.countDocuments({})).toBe(0);
+    expect(await db.alerts.countDocuments({})).toBe(0);
   });
 
   it('reads its past back once and then watches for itself', async () => {
@@ -533,7 +531,7 @@ describe('a rule that waits', () => {
   });
 
   it('counts from the last reading this process saw inside the band', async () => {
-    await rules.create(ruleFor({ forSeconds: 60 }));
+    await db.alarmRules.create(ruleFor({ forSeconds: 60 }));
 
     await reads(20, new Date(Date.now() - 20 * 60 * 1000));
     await reads(32, new Date(Date.now() - 19 * 60 * 1000));
@@ -553,18 +551,18 @@ describe('a rule that waits', () => {
     await drives({ dehumidifier: 1 }, new Date());
 
     expect((await storedRule()).state.triggered).toBe(true);
-    expect(await alerts.countDocuments({})).toBe(0);
+    expect(await db.alerts.countDocuments({})).toBe(0);
     // The duration was answered when it triggered; nothing is read back for it.
     expect(seriesReads).toBe(0);
   });
 
   it('starts the duration again across a gap, because a device that was away held nothing', async () => {
-    await rules.create(ruleFor({ forSeconds: 60 }));
+    await db.alarmRules.create(ruleFor({ forSeconds: 60 }));
 
     await reads(20, new Date(Date.now() - 20 * 60 * 1000));
     await reads(32, new Date());
 
-    expect(await alerts.countDocuments({})).toBe(0);
+    expect(await db.alerts.countDocuments({})).toBe(0);
     // The gap answers it; the stored series is not asked about a device that
     // was demonstrably not reporting.
     expect(seriesReads).toBe(0);
@@ -577,7 +575,7 @@ describe('the health loop', () => {
 
     await health.run(new Date());
 
-    const kept = await rules.findOne({ deviceId: DEVICE, 'watch.metric': 'offline' }).lean<StoredAlarmRule>();
+    const kept = await db.alarmRules.findOne({ deviceId: DEVICE, 'watch.metric': 'offline' }).lean<StoredAlarmRule>();
     expect(kept).toMatchObject({ origin: 'always', enabled: true });
     expect(await openAlert()).toMatchObject({ kind: 'offline', ruleId: kept!.id, deviceId: DEVICE });
   });
@@ -616,7 +614,7 @@ describe('the health loop', () => {
 
     await health.run(at);
 
-    expect(await alerts.countDocuments({})).toBe(0);
+    expect(await db.alerts.countDocuments({})).toBe(0);
   });
 
   /**
@@ -652,7 +650,7 @@ describe('the health loop', () => {
 
     await health.run(new Date());
 
-    expect(await alerts.findOne({ kind: 'camera_stale' }).lean<StoredAlert>()).toMatchObject({ cameraId: 'camera-1', ruleId: null });
+    expect(await db.alerts.findOne({ kind: 'camera_stale' }).lean<StoredAlert>()).toMatchObject({ cameraId: 'camera-1', ruleId: null });
   });
 
   /**
@@ -679,7 +677,7 @@ describe('the health loop', () => {
 
     await health.run(new Date());
 
-    expect(await alerts.countDocuments({ kind: 'camera_stale' })).toBe(1);
+    expect(await db.alerts.countDocuments({ kind: 'camera_stale' })).toBe(1);
     expect((await db.cameras.findOne({ id: 'camera-old' }).lean())?.staleWarning).toBe(true);
   });
 
@@ -699,7 +697,7 @@ describe('the health loop', () => {
 
     await health.run(new Date());
 
-    expect(await alerts.countDocuments({ kind: 'camera_stale' })).toBe(0);
+    expect(await db.alerts.countDocuments({ kind: 'camera_stale' })).toBe(0);
   });
 
   it('says nothing about a camera whose controller is itself away', async () => {
@@ -717,7 +715,7 @@ describe('the health loop', () => {
 
     await health.run(new Date());
 
-    expect(await alerts.countDocuments({ kind: 'camera_stale' })).toBe(0);
+    expect(await db.alerts.countDocuments({ kind: 'camera_stale' })).toBe(0);
   });
 });
 
@@ -781,7 +779,7 @@ describe('the line an alarm writes into the diary', () => {
 
   it('leaves a threshold alarm in the words it has always used', async () => {
     await device();
-    await rules.create(ruleFor());
+    await db.alarmRules.create(ruleFor());
 
     await reads(32, new Date());
 
@@ -800,7 +798,7 @@ describe('the line an alarm writes into the diary', () => {
  * open and leaves the record standing, able to say what it watched.
  */
 describe('what an episode keeps of the rule that raised it', () => {
-  const ruleService = () => new AlarmRuleService(rules, alerts);
+  const ruleService = () => new AlarmRuleService(db.alarmRules, db.alerts);
 
   /**
    * The copy is taken as the episode opens and is never rewritten by an edit:
@@ -810,7 +808,7 @@ describe('what an episode keeps of the rule that raised it', () => {
   it('keeps the band an episode was raised against when the rule is moved while it is open', async () => {
     await device();
     const rule = ruleFor({ name: 'Too warm' });
-    await rules.create(rule);
+    await db.alarmRules.create(rule);
 
     await reads(32, new Date());
     const raised = (await openAlert())!;
@@ -818,21 +816,21 @@ describe('what an episode keeps of the rule that raised it', () => {
 
     await ruleService().update(rule, { watch: { kind: 'reading', metric: 'temperature', upper: 60, lower: null } });
 
-    const kept = (await alerts.findOne({ id: raised.id }).lean<StoredAlert>())!;
+    const kept = (await db.alerts.findOne({ id: raised.id }).lean<StoredAlert>())!;
     expect(kept.watched).toMatchObject({ watch: { upper: 30 } });
   });
 
   it('leaves its episode behind, closes it, and leaves it able to say what it watched', async () => {
     await device();
     const rule = ruleFor({ name: 'Too warm' });
-    await rules.create(rule);
+    await db.alarmRules.create(rule);
 
     await reads(32, new Date());
     const raised = (await openAlert())!;
 
     await ruleService().remove(rule);
 
-    const left = (await alerts.findOne({ id: raised.id }).lean<StoredAlert>())!;
+    const left = (await db.alerts.findOne({ id: raised.id }).lean<StoredAlert>())!;
     expect(left.resolvedAt).toBeInstanceOf(Date);
     expect(left.watched).toMatchObject({ name: 'Too warm', watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null } });
   });
@@ -848,15 +846,15 @@ describe('what an episode keeps of the rule that raised it', () => {
   it('gives an older episode the last word of its rule on the way out, rather than leaving it about nothing', async () => {
     await device();
     const rule = ruleFor({ name: 'Too warm' });
-    await rules.create(rule);
+    await db.alarmRules.create(rule);
 
     await reads(32, new Date());
     const raised = (await openAlert())!;
-    await alerts.updateOne({ id: raised.id }, { $set: { watched: null } });
+    await db.alerts.updateOne({ id: raised.id }, { $set: { watched: null } });
 
     await ruleService().remove(rule);
 
-    const left = (await alerts.findOne({ id: raised.id }).lean<StoredAlert>())!;
+    const left = (await db.alerts.findOne({ id: raised.id }).lean<StoredAlert>())!;
     expect(left.watched).toMatchObject({ name: 'Too warm', watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null } });
   });
 });

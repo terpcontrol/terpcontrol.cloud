@@ -107,8 +107,6 @@ export interface FakeInfluxOptions {
  * main process and the specs do not.
  */
 export const startFakeInflux = async (options: FakeInfluxOptions): Promise<{ url: string; server: Server }> => {
-  const now = () => Date.now();
-
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
     const path = url.pathname;
@@ -118,7 +116,7 @@ export const startFakeInflux = async (options: FakeInfluxOptions): Promise<{ url
 
       if (path === '/api/v2/write' && req.method === 'POST') {
         const body = await readBody(req);
-        options.influx.add(parseLineProtocol(body, url.searchParams.get('precision') ?? 'ns', now()));
+        options.influx.add(parseLineProtocol(body, url.searchParams.get('precision') ?? 'ns', Date.now()));
         res.writeHead(204).end();
         return;
       }
@@ -131,7 +129,7 @@ export const startFakeInflux = async (options: FakeInfluxOptions): Promise<{ url
         } catch {
           /* raw flux */
         }
-        const csv = toAnnotatedCsv(query, options.influx, now());
+        const csv = toAnnotatedCsv(query, options.influx, Date.now());
         res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8' });
         res.end(csv);
         return;

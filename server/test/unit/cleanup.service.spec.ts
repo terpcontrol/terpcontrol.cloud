@@ -1,7 +1,5 @@
 import type { mongo } from 'mongoose';
-import { Model } from 'mongoose';
 import { ImageStore } from '@database/image-store';
-import { StoredUser } from '@database/schemas/v1/users.schema';
 import { CleanupService } from '@modules/cleanup/cleanup.service';
 import { useV1TestDatabase } from './support/v1-database';
 
@@ -19,7 +17,6 @@ const OLD = new Date(NOW - 30 * DAY_MS);
 const RECENT = new Date(NOW - 2 * DAY_MS);
 
 const db = useV1TestDatabase();
-let users: Model<StoredUser>;
 let store: ImageStore;
 let cleanup: CleanupService;
 
@@ -74,9 +71,8 @@ const remainingEntries = async (): Promise<string[]> => (await db.entries.find()
 const remainingMedia = async (): Promise<string[]> => (await db.media.find().lean()).map(media => media.id).sort();
 
 beforeAll(async () => {
-  users = db.users;
   store = new ImageStore(db.connection);
-  cleanup = new CleanupService(db.devices, db.spaces, db.grows, db.cameras, users, db.entries, db.media, store);
+  cleanup = new CleanupService(db.devices, db.spaces, db.grows, db.cameras, db.users, db.entries, db.media, store);
 });
 
 beforeEach(() => db.reset());
@@ -154,7 +150,7 @@ describe('pictures nothing points at', () => {
   it('keeps a picture a diary entry, a grow or an account still names', async () => {
     await db.entries.create(anEntry('an-entry', OLD, { mediaIds: ['in-an-entry'] }));
     await db.grows.create(aGrow('a-grow', { coverMediaId: 'a-cover', filmMediaId: 'a-film' }));
-    await users.create({ id: 'somebody', email: 'somebody@example.com', passwordHash: 'x', handle: 'somebody', avatarMediaId: 'an-avatar' });
+    await db.users.create({ id: 'somebody', email: 'somebody@example.com', passwordHash: 'x', handle: 'somebody', avatarMediaId: 'an-avatar' });
     await db.media.create([
       aPicture('in-an-entry', OLD, { kind: 'photo' }),
       aPicture('a-cover', OLD, { kind: 'photo' }),

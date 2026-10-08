@@ -2,17 +2,8 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { anonymous, context, createAccount, demoSession, login, loginAsAdmin, Session, unique } from '../support/api';
 import { claimCodeOf, provisionDevice } from '../support/device';
-import {
-  A_PICTURE,
-  beginDeletionOf,
-  diaryEntriesOf,
-  joinSpace,
-  remindSpace,
-  rowsIn,
-  seedRow,
-  storeCameraStill,
-  storedImageExists,
-} from '../support/fixtures';
+import { beginDeletionOf, diaryEntriesOf, joinSpace, remindSpace, rowsIn, seedRow, storeCameraStill, storedImageExists } from '../support/fixtures';
+import { A_PICTURE } from '../support/pictures';
 import { entryPoint, SERVER_ROOT } from '../support/infra/app';
 
 /**

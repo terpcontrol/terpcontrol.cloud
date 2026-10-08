@@ -4,7 +4,7 @@ import { hash } from 'bcrypt';
 import { mongo } from 'mongoose';
 import supertest from 'supertest';
 import { context, randomIp } from '../support/api';
-import { entryPoint, SERVER_ROOT } from '../support/infra/app';
+import { entryPoint, SERVER_ROOT, stopChild, waitForHealthy } from '../support/infra/app';
 import { freePort } from '../support/infra/ports';
 import { runMigrationCli } from '../support/migration-cli';
 
@@ -75,31 +75,11 @@ const start = async (): Promise<{ url: string; stop: () => Promise<void> }> => {
   child.stderr.on('data', chunk => (output += String(chunk)));
 
   const url = `http://127.0.0.1:${port}`;
-  const deadline = Date.now() + 120_000;
-  for (;;) {
-    if (child.exitCode !== null) throw new Error(`the server exited with ${child.exitCode}:\n${output}`);
-    try {
-      if ((await fetch(`${url}/healthz`)).ok) break;
-    } catch {
-      /* not listening yet */
-    }
-    if (Date.now() > deadline) throw new Error(`the server never answered:\n${output}`);
-    await new Promise(resolve => setTimeout(resolve, 250));
-  }
+  await waitForHealthy(url, child, 120_000).catch((error: Error) => {
+    throw new Error(`${error.message}:\n${output}`);
+  });
 
-  return {
-    url,
-    stop: () =>
-      new Promise<void>(resolve => {
-        if (child.exitCode !== null) return resolve();
-        const forced = setTimeout(() => child.kill('SIGKILL'), 5_000);
-        child.once('exit', () => {
-          clearTimeout(forced);
-          resolve();
-        });
-        child.kill('SIGTERM');
-      }),
-  };
+  return { url, stop: () => stopChild(child) };
 };
 
 /** The API rate-limits sign-ins per client address and trusts one proxy hop, so each attempt comes from its own. */

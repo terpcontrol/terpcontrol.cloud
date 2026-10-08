@@ -8,7 +8,7 @@ import { DeviceIngestService } from '@modules/device-protocol/device-ingest.serv
 import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
 import { controlOf, decideWorkmode } from '@modules/device-protocol/work-modes';
 import { presetConfiguration } from '@modules/v1/space/climate-presets';
-import { Published, deviceStackOn, recordingMqtt } from './support/device-stack';
+import { Published, deviceStackOn, documentsOf, recordingMqtt } from './support/device-stack';
 import { useV1TestDatabase } from './support/v1-database';
 
 /**
@@ -42,9 +42,6 @@ const device = (fields: Partial<StoredDevice> = {}) =>
   db.devices.create({ id: DEVICE, type: 'fridge', ownerId: OWNER, configuration: fridgeDocument(), ...fields });
 
 const stored = async () => (await db.devices.findOne({ id: DEVICE }).lean<StoredDevice>())!;
-
-/** The documents sent to the device, oldest first. */
-const documents = (): Record<string, unknown>[] => published.map(one => JSON.parse(one.message));
 
 beforeEach(async () => {
   await db.reset();
@@ -259,7 +256,7 @@ describe('a setting changed by name', () => {
 
     const after = await stored();
     expect(after.configuration?.daynight).toMatchObject({ day: 21600, minimalDehumidifierOffTime: 600, foreign: 'kept' });
-    expect(documents().at(-1)).toEqual(after.configuration);
+    expect(documentsOf(published).at(-1)).toEqual(after.configuration);
   });
 
   it('switches energy saving on as the work mode, says so in the diary, and keeps it while control is off', async () => {
@@ -493,7 +490,7 @@ describe('every other way a document is written', () => {
     published.length = 0;
     await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'seedling');
     expect((await stored()).configuration?.workmode).toBe('small');
-    expect(documents().at(-1)).toMatchObject({ workmode: 'small' });
+    expect(documentsOf(published).at(-1)).toMatchObject({ workmode: 'small' });
   });
 
   /**
@@ -527,7 +524,7 @@ describe('every other way a document is written', () => {
     const lit = await stored();
     expect(lit.configuration).toMatchObject({ workmode: 'full', night: { temperature: 22, humidity: 55 }, lights: { limit: 60 } });
     expect(lit.beforeGermination).toBeNull();
-    expect(documents().at(-1)).toMatchObject({ workmode: 'full' });
+    expect(documentsOf(published).at(-1)).toMatchObject({ workmode: 'full' });
   });
 
   it('germinates for targets saved for germination, and keeps the figures germination does not hold', async () => {
@@ -610,14 +607,14 @@ describe('every other way a document is written', () => {
     const after = await stored();
     expect(after.baseWorkmode).toBe('full');
     expect(after.configuration?.daynight).toMatchObject({ maxDehumidifySeconds: 2700, targetHumidityDiff: 5, linearChange: 1 });
-    expect(documents()).toEqual([after.configuration]);
+    expect(documentsOf(published)).toEqual([after.configuration]);
 
     // The echo of that send is held already, and goes no further.
-    await ingest.handle(`/devices/${DEVICE}/configuration`, JSON.stringify(documents()[0]));
+    await ingest.handle(`/devices/${DEVICE}/configuration`, JSON.stringify(documentsOf(published)[0]));
     expect(published).toHaveLength(1);
 
     // Switched off at the device: the mode it goes back to stays the one it ran.
-    await ingest.handle(`/devices/${DEVICE}/configuration`, JSON.stringify({ ...documents()[0], workmode: 'off' }));
+    await ingest.handle(`/devices/${DEVICE}/configuration`, JSON.stringify({ ...documentsOf(published)[0], workmode: 'off' }));
     expect((await stored()).baseWorkmode).toBe('full');
   });
 });
@@ -650,18 +647,18 @@ describe('a humidifier while the device germinates', () => {
     expect(resting.configuration?.daynight).toMatchObject({ maxDehumidifySeconds: 2700, useLongHumidityAvg: 0, linearChange: 1 });
     expect(resting.germinationChoices).toEqual({ warnTooHumid: false, humidifierHolds: false });
     // The device is told to aim at nothing, so one that is running stops; the server keeps the 55 %.
-    expect(documents().at(-1)).toMatchObject({ workmode: 'breed', daynight: { targetHumidityDiff: 100 }, night: { humidity: 0 } });
+    expect(documentsOf(published).at(-1)).toMatchObject({ workmode: 'breed', daynight: { targetHumidityDiff: 100 }, night: { humidity: 0 } });
     expect(resting.configuration).toMatchObject({ night: { temperature: 24, humidity: 55 } });
 
     // The hourly re-send of a germination step keeps it resting.
     await configuration.applyConfiguration(DEVICE, { night: { temperature: 24 } }, 'germination');
     expect(bandOf((await stored()).configuration)).toBe(100);
-    expect(documents().at(-1)).toMatchObject({ night: { humidity: 0 } });
+    expect(documentsOf(published).at(-1)).toMatchObject({ night: { humidity: 0 } });
 
     // Changing one's mind brings the band and the humidity back at once.
     await configuration.configure(DEVICE, { germinationHumidifier: true }, OWNER);
     expect(bandOf((await stored()).configuration)).toBe(5);
-    expect(documents().at(-1)).toMatchObject({ daynight: { targetHumidityDiff: 5 }, night: { temperature: 24, humidity: 55 } });
+    expect(documentsOf(published).at(-1)).toMatchObject({ daynight: { targetHumidityDiff: 5 }, night: { temperature: 24, humidity: 55 } });
   });
 
   it('writes the change of a choice into the diary, rather than the band it rests with', async () => {
@@ -717,7 +714,7 @@ describe('a humidifier while the device germinates', () => {
     });
     await configuration.configure(DEVICE, { germinationHumidifier: false }, OWNER);
     // What the device runs, and so what it uploads: the humidity it was sent.
-    const sent = documents().at(-1)!;
+    const sent = documentsOf(published).at(-1)!;
     expect(sent).toMatchObject({ night: { humidity: 0 } });
     published.length = 0;
 
@@ -731,14 +728,14 @@ describe('a humidifier while the device germinates', () => {
     const after = await stored();
     expect(after.configuration).toMatchObject({ workmode: 'small', daynight: { targetHumidityDiff: 7 }, night: { humidity: 55 } });
     expect(after).toMatchObject({ restedHumidityBand: null, germinationChoices: null, beforeGermination: null });
-    expect(documents().at(-1)).toMatchObject({ workmode: 'small', daynight: { targetHumidityDiff: 7 }, night: { humidity: 55 } });
+    expect(documentsOf(published).at(-1)).toMatchObject({ workmode: 'small', daynight: { targetHumidityDiff: 7 }, night: { humidity: 55 } });
   });
 
   it('puts the night back where the device leaves germination by its menu, so the next write from the cloud keeps what is set there after', async () => {
     await device();
     await configuration.configure(DEVICE, { mode: 'germination', germinationHumidifier: false }, OWNER);
     expect((await stored()).beforeGermination).toEqual({ 'night.temperature': 20, 'night.humidity': 55 });
-    const sent = documents().at(-1)!;
+    const sent = documentsOf(published).at(-1)!;
 
     await ingest.handle(`/devices/${DEVICE}/configuration`, JSON.stringify({ ...sent, workmode: 'small' }));
     expect((await stored()).configuration).toMatchObject({ workmode: 'small', night: { temperature: 20, humidity: 55 } });
@@ -775,7 +772,7 @@ describe('a humidifier while the device germinates', () => {
     // The temperature stays the night's until the grower sets another; the humidity is germination's.
     expect(germinating.configuration).toMatchObject({ workmode: 'breed', night: { temperature: 20, humidity: 75 } });
     expect(germinating.beforeGermination).toEqual({ 'night.temperature': 20, 'night.humidity': 50 });
-    expect(documents().at(-1)).toMatchObject({ night: { humidity: 75 } });
+    expect(documentsOf(published).at(-1)).toMatchObject({ night: { humidity: 75 } });
 
     // Changed by hand in germination, it is kept through the plan's re-sends and the operating mode's switches.
     await configuration.replace(DEVICE, fridgeDocument({ workmode: 'breed', night: { temperature: 23, humidity: 82 } }), OWNER);
