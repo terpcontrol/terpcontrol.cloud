@@ -3764,6 +3764,10 @@
       "title": "In band",
       "text": "Close enough to the target to count as on it: within ±1 °C, ±5 % humidity or ±200 ppm CO₂. At night CO₂ has no band, because the device only adds CO₂ by day. After every switch between day and night the climate is given an hour to follow the new figures – on a fridge, plus the minutes its lamp and targets glide – and so it is for an hour after every change of the targets, the light plan or the operating mode. Meanwhile anything between the band before and the band after counts as on target, and the tile says “changing over”."
     },
+    "verdict": {
+      "title": "In band over 24 hours",
+      "text": "The share of the last 24 hours in which temperature, humidity and, by day, CO₂ were all in their band – judged against the targets that held at the time. Dips shorter than 10 minutes count, but are not named."
+    },
     "climatePreset": {
       "title": "Climate preset",
       "text": "A ready climate for a stage: day and night temperature and humidity, the light hours, the light limit and CO₂. “Germination · dark” is a climate and an operating mode at once: dark, no CO₂, 24 °C and 75 % humidity for a humidifier round the clock; “Seedling · with light” is the first climate with light. Auto is for autoflowers, which keep 18–20 hours of light instead of going to 12/12."

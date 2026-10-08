@@ -555,6 +555,15 @@ describe('a tent behind a link', () => {
     vi.unstubAllGlobals();
   });
 
+  it('explains the day’s in-band share where it states it', () => {
+    const shown = sharedSpace(NOW.minus({ minutes: 1 }).toISO()!);
+    const space: SpaceOverview = { ...shown, verdict: { ...shown.verdict, rating: 'good', inBandFraction: 0.93 } };
+
+    drawAt(<SharedSpace space={space} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
+
+    expect(screen.getByRole('button', { name: '93 % in band' })).toHaveAccessibleDescription(/^The share of the last 24 hours/);
+  });
+
   it('still says nothing has been reported of a tent whose window is open', () => {
     const open = sharedSpace(at(1));
     const space: SpaceOverview = { ...open, values: [], verdict: { ...open.verdict, endsAt: NOW.toISO()! } };

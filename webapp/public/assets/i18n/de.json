@@ -3772,6 +3772,10 @@
       "title": "Im Ziel",
       "text": "Nah genug am Zielwert, um als getroffen zu gelten: bis ±1 °C, ±5 % Feuchte oder ±200 ppm CO₂. Nachts hat CO₂ kein Band, weil das Gerät CO₂ nur am Tag zugibt. Nach jedem Wechsel zwischen Tag und Nacht hat das Klima eine Stunde Zeit, den neuen Werten zu folgen – beim Kühlschrank dazu die Minuten, in denen Lampe und Zielwerte gleiten. Ebenso eine Stunde nach jeder Änderung der Zielwerte, des Lichtplans oder der Betriebsart. Solange zählt alles zwischen dem Band davor und dem danach als im Ziel, und die Kachel sagt „im Übergang“."
     },
+    "verdict": {
+      "title": "Im Zielband über 24 Stunden",
+      "text": "Der Anteil der letzten 24 Stunden, in dem Temperatur, Feuchte und tagsüber CO₂ alle im Zielband lagen – gemessen an den Zielwerten, die zu der Zeit galten. Abweichungen unter 10 Minuten zählen mit, werden aber nicht einzeln genannt."
+    },
     "climatePreset": {
       "title": "Klima-Preset",
       "text": "Ein fertiges Klima für ein Stadium: Temperatur und Feuchte für Tag und Nacht, Lichtstunden, Lichtgrenze und CO₂. „Keimung · dunkel“ ist Klima und Betriebsart zugleich: dunkel, ohne CO₂, rund um die Uhr 24 °C und 75 % Luftfeuchte für einen Befeuchter; „Sämling · mit Licht“ ist das erste Klima mit Licht. „Auto“ ist für Autoflowers, die 18–20 Stunden Licht behalten, statt auf 12/12 zu wechseln."

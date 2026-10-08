@@ -5,6 +5,7 @@ import type { CardValue, ClimateVerdict, Metric, OverviewCamera, SpaceOverview }
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
 import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
+import { Term } from '@/ui/Help';
 import { readingNamesOf } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
 import { livenessOf, measuredAtOf } from '../home/attention';
@@ -81,7 +82,7 @@ export function SharedSpace({
 
       {space.verdict.inBandFraction !== null ? (
         <p className={`mono ${styles.verdict}`} data-rating={space.verdict.rating ?? undefined}>
-          {t('space.climate24h')} · {t('space.inBand', { percent: Math.round(space.verdict.inBandFraction * 100) })}
+          {t('space.climate24h')} · <Term topic="verdict">{t('space.inBand', { percent: Math.round(space.verdict.inBandFraction * 100) })}</Term>
         </p>
       ) : null}
 
