@@ -1,13 +1,11 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { z } from 'zod';
 import type { Scheme, SchemeCreate, SchemePage, SchemeUpdate } from '@fg2/shared-types/v1';
 import { scheme as schemeShape, schemeCreate, schemePage, schemeUpdate } from '@fg2/shared-types/v1-schemas';
 import { AuthGuard } from '@common/auth/auth.guard';
 import { Caller } from '@common/v1/access.guard';
 import { AccessContext } from '@common/v1/access.types';
-import { pageLimit } from '@common/v1/pages';
-import { V1Query, pageQuery } from '@common/v1/validation';
+import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { V1Answer } from '../answer-shape';
 import { SchemesService } from './schemes.service';
@@ -29,8 +27,8 @@ export class SchemesController {
   @Get()
   @ApiOperation({ summary: 'The feeding schemes this account has saved, newest first' })
   @V1Answer(schemePage)
-  public list(@Caller() ctx: AccessContext, @V1Query(pageQuery) query: z.infer<typeof pageQuery>): Promise<SchemePage> {
-    return this.schemes.list(ctx, query, pageLimit(query.limit));
+  public list(@Caller() ctx: AccessContext, @V1Query(pageQuery) query: PageQuery): Promise<SchemePage> {
+    return this.schemes.list(ctx, query);
   }
 
   @Post()

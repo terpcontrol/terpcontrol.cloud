@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
+import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { Membership, MembershipCreate, MembershipPage, MembershipUpdate, Person } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { findPage } from '@common/v1/pages';
 import { peopleNamed } from '@common/v1/people';
 import { conflict, forbidden, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
@@ -62,16 +62,8 @@ export class MembersService {
     const space = await this.require(spaceId);
     this.refuseAnOutsider(grant);
 
-    const limit = pageLimit(query.limit);
     const covering = space.roomId ? [spaceId, space.roomId] : [spaceId];
-    // Combined rather than merged: the cursor is an `$or` of its own, and
-    // spreading it beside this filter would replace it and hand out the
-    // memberships of the whole database from the second page on.
-    const conditions: FilterQuery<MembershipDocument>[] = [{ spaceId: { $in: covering } }, afterCursor('createdAt', query.cursor, 'asc')];
-
-    const rows = await this.memberships.find({ $and: conditions }).sort({ createdAt: 1, id: 1 }).limit(readLimit(limit)).lean<MembershipDocument[]>();
-
-    const page = pageOf(rows, limit, row => ({ at: row.createdAt, id: row.id }));
+    const page = await findPage(this.memberships, [{ spaceId: { $in: covering } }], query, { order: 'asc' });
     const room = space.roomId ? await this.spaces.findOne({ id: space.roomId }, { id: 1, name: 1 }).lean<Pick<SpaceDocument, 'id' | 'name'>>() : null;
 
     return {

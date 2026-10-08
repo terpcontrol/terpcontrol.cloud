@@ -4,7 +4,7 @@ import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { ChartView, ChartViewCreate, ChartViewDefinition, ChartViewSpan, ChartViewUpdate } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
-import { CursorPage, afterCursor, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { forbidden, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -31,25 +31,11 @@ export class ChartViewsService {
   constructor(@InjectModel(MODEL_V1.chartView) private readonly views: Model<ChartViewDocument>) {}
 
   /** Newest first: the list opens on what somebody saved last. */
-  public async list(ctx: AccessContext, query: PageQuery, limit: number): Promise<CursorPage<ChartView>> {
+  public async list(ctx: AccessContext, query: PageQuery): Promise<CursorPage<ChartView>> {
     const own = this.ownRows(ctx);
     if (!own) return { items: [], nextCursor: null };
 
-    // Combined rather than merged into one object: whose rows these are is one
-    // filter and the cursor is another, and spreading one beside the other would
-    // silently replace it - which reads correctly on the first page and hands
-    // out other people's views from the second.
-    const conditions: FilterQuery<ChartViewDocument>[] = [own, afterCursor('createdAt', query.cursor)];
-
-    const rows = await this.views
-      .find({ $and: conditions })
-      .sort({ createdAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean<ChartViewDocument[]>()
-      .exec();
-
-    const page = pageOf(rows, limit, view => ({ at: view.createdAt, id: view.id }));
-    return { items: page.items.map(chartViewOf), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.views, [own], query), chartViewOf);
   }
 
   public async create(ctx: AccessContext, body: ChartViewCreate): Promise<ChartView> {

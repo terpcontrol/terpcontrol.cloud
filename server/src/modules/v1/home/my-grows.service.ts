@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { MyGrowCard, MyGrowPage, MyGrowPlace, Person, StrainCount } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
-import { CursorPage, decodeCursor, encodeCursor, pageLimit, PagePosition } from '@common/v1/pages';
+import { CursorPage, decodeCursor, pageLimit, pageOf, PagePosition } from '@common/v1/pages';
 import { peopleNamed } from '@common/v1/people';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -188,8 +188,7 @@ const pageAfter = (ordered: Ordered[], query: PageQuery): CursorPage<Ordered> =>
     rest = ordered.filter(grow => compareKeys({ ...keyOf(grow), id: grow.id }, after) > 0);
   }
 
-  const items = rest.slice(0, limit);
-  return { items, nextCursor: rest.length > limit ? encodeCursor(positionOf(items[items.length - 1])) : null };
+  return pageOf(rest, limit, positionOf);
 };
 
 /**

@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AdminDeviceCreate, Device, DeviceClaimCreate, DeviceClaimResult, DeviceUpdate, SpaceKind } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
 import { AccessService, subjectRef } from '@common/v1/access.service';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { startedNow } from '@common/v1/firmware-instruction';
 import { conflict, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
@@ -63,21 +63,9 @@ export class DevicesService {
   }
 
   public async list(ctx: AccessContext, query: PageQuery, spaceId?: string, everyone = false): Promise<CursorPage<Device>> {
-    const limit = pageLimit(query.limit);
-    // Combined rather than merged into one object: the visibility and the cursor
-    // are each an `$or` of their own, and one would silently replace the other -
-    // which would hand out everything that sorts after the cursor from the
-    // second page on, while the first page looked right.
-    const conditions: FilterQuery<StoredDevice>[] = [
-      everyone ? {} : await this.visibleTo(ctx),
-      ...(spaceId ? [{ spaceId }] : []),
-      afterCursor('createdAt', query.cursor),
-    ];
+    const conditions: FilterQuery<StoredDevice>[] = [everyone ? {} : await this.visibleTo(ctx), ...(spaceId ? [{ spaceId }] : [])];
 
-    const rows = await this.devices.find({ $and: conditions }).sort({ createdAt: -1, id: -1 }).limit(readLimit(limit)).lean<StoredDevice[]>();
-
-    const page = pageOf(rows, limit, device => ({ at: device.createdAt, id: device.id }));
-    return { items: page.items.map(device => this.serialise(device, ctx.isDemo)), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.devices, conditions, query), device => this.serialise(device, ctx.isDemo));
   }
 
   /**

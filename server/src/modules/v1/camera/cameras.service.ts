@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Camera, CameraCreate, CameraUpdate } from '@fg2/shared-types/v1';
 import { demoCamera } from '@utils/demo';
 import { AccessContext, AccessRange, Grantee } from '@common/v1/access.types';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -100,20 +100,8 @@ export class CamerasService {
   }
 
   public async list(ctx: AccessContext, filter: CameraFilter, page: PageQuery): Promise<CursorPage<Camera>> {
-    const limit = pageLimit(page.limit);
-    // Combined rather than merged into one object: the visibility and the cursor
-    // are each an `$or` of their own, and one would silently replace the other -
-    // which would hand out everything that sorts after the cursor from the
-    // second page on, while the first page looked right.
-    const conditions: FilterQuery<CameraDocument>[] = [await this.visibleTo(ctx), narrowing(filter), afterCursor('createdAt', page.cursor)];
-
-    const rows = await this.cameras.find({ $and: conditions }).sort({ createdAt: -1, id: -1 }).limit(readLimit(limit)).lean<CameraDocument[]>();
-
-    return pageOf(
-      rows.map(camera => this.serialise(camera, this.granteeOf(ctx, camera))),
-      limit,
-      camera => ({ at: new Date(camera.createdAt), id: camera.id }),
-    );
+    const rows = await findPage(this.cameras, [await this.visibleTo(ctx), narrowing(filter)], page);
+    return mapPage(rows, camera => this.serialise(camera, this.granteeOf(ctx, camera)));
   }
 
   /**

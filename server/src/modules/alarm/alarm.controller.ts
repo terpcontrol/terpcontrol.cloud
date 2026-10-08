@@ -8,7 +8,7 @@ import { AuthGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
-import { pageLimit } from '@common/v1/pages';
+import { mapPage } from '@common/v1/pages';
 import { notFound } from '@common/v1/problem';
 import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
@@ -49,11 +49,10 @@ export class DeviceAlarmRulesController {
   @ApiOperation({ summary: 'The alarm rules watching this device' })
   @V1Answer(alarmRulePage)
   public async list(@Param('id') deviceId: string, @V1Query(pageQuery) query: PageQuery, @Caller() caller: AccessContext): Promise<AlarmRulePage> {
-    const limit = pageLimit(query.limit);
-    const page = await this.rules.list(deviceId, query, limit);
+    const page = await this.rules.list(deviceId, query);
     const mayManage = !!(await this.access.access(caller, { type: 'device', id: deviceId }, 'manage'));
 
-    return { items: page.items.map(rule => alarmRuleOf(rule, mayManage)), nextCursor: page.nextCursor };
+    return mapPage(page, rule => alarmRuleOf(rule, mayManage));
   }
 
   @Post()
@@ -134,10 +133,7 @@ export class AlertsController {
     const where = await this.inbox.scope(caller, { deviceId: query.deviceId, spaceId: query.spaceId, open: openOf(query) });
     if (!where) return { items: [], nextCursor: null };
 
-    const limit = pageLimit(query.limit);
-    const page = await this.inbox.list(where, query.cursor, limit);
-
-    return { items: page.items.map(alertOf), nextCursor: page.nextCursor };
+    return mapPage(await this.inbox.list(where, query), alertOf);
   }
 
   @Get(':id')

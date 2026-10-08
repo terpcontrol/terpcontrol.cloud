@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { ShareLink, ShareLinkCreate, ShareLinkUpdate, TimeRange } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { conflict, forbidden, notFound, unprocessable } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -64,17 +64,7 @@ export class ShareLinksService {
 
   /** Newest first: a list of links is what somebody made last, and the sharing sheet opens on it. */
   public async list(ctx: AccessContext, query: PageQuery): Promise<CursorPage<ShareLink>> {
-    const limit = pageLimit(query.limit);
-    // Combined rather than merged into one object: the visibility below is an
-    // `$or` and so is the cursor, and one spread beside the other would replace
-    // it - which would hand out every link in the database from the second page
-    // on, while the first page looked right.
-    const conditions: FilterQuery<ShareLinkDocument>[] = [await this.visibleTo(ctx), afterCursor('createdAt', query.cursor)];
-
-    const rows = await this.shareLinks.find({ $and: conditions }).sort({ createdAt: -1, id: -1 }).limit(readLimit(limit)).lean<ShareLinkDocument[]>();
-
-    const page = pageOf(rows, limit, link => ({ at: link.createdAt, id: link.id }));
-    return { items: page.items.map(serialise), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.shareLinks, [await this.visibleTo(ctx)], query), serialise);
   }
 
   /**

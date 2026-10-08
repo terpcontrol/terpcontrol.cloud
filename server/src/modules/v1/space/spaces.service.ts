@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AccessNeed, Device, ProblemError, Space, SpaceCreate, SpaceKind, SpaceUpdate } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { conflict, notFound, unprocessable } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -73,21 +73,15 @@ export class SpacesService {
    * in it - and that order does not change under a reader.
    */
   public async list(ctx: AccessContext, query: PageQuery, filter: SpaceFilter): Promise<CursorPage<Space>> {
-    const limit = pageLimit(query.limit);
-    // Combined rather than merged into one object: the visibility and the cursor
-    // are each an `$or` of their own, and one would silently replace the other.
     const conditions: FilterQuery<SpaceDocument>[] = [
       await this.visibleTo(ctx),
       { archivedAt: filter.archived ? { $ne: null } : null },
       ...(filter.roomId ? [{ roomId: filter.roomId }] : []),
-      afterCursor('createdAt', query.cursor, 'asc'),
     ];
 
-    const rows = await this.spaces.find({ $and: conditions }).sort({ createdAt: 1, id: 1 }).limit(readLimit(limit)).lean<SpaceDocument[]>();
-
-    const page = pageOf(rows, limit, space => ({ at: space.createdAt, id: space.id }));
+    const page = await findPage(this.spaces, conditions, query, { order: 'asc' });
     const may = await this.mayIn(ctx, page.items);
-    return { items: page.items.map(space => this.serialise(space, may.get(space.id))), nextCursor: page.nextCursor };
+    return mapPage(page, space => this.serialise(space, may.get(space.id)));
   }
 
   /**

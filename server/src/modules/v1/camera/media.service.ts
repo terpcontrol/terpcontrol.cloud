@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ExportScope, Media, MediaKind, MediaQuality, MediaWindow } from '@fg2/shared-types/v1';
 import { AccessRange } from '@common/v1/access.types';
 import { picturesWithinRange } from '@common/v1/range';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { ImageStore } from '@database/image-store';
@@ -146,21 +146,11 @@ export class MediaService {
   }
 
   public async page(filter: MediaFilter, page: PageQuery): Promise<CursorPage<Media>> {
-    const limit = pageLimit(page.limit);
-    const rows = await this.media
-      .find({ ...where(filter), ...afterCursor('capturedAt', page.cursor) })
-      .sort({ capturedAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean<MediaDocument[]>();
-
+    const rows = await findPage(this.media, [where(filter)], page, { field: 'capturedAt' });
     // Row by row rather than by handing `serialise` to `map`, which would feed it
     // the index as its second argument. Nothing is held back here: this lists a
     // camera's own stills and films, and neither carries a space or an uploader.
-    return pageOf(
-      rows.map(row => serialise(row)),
-      limit,
-      row => ({ at: new Date(row.capturedAt), id: row.id }),
-    );
+    return mapPage(rows, row => serialise(row));
   }
 
   /**

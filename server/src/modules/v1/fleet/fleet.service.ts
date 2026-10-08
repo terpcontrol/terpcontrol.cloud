@@ -15,7 +15,7 @@ import {
   FleetFirmwareStats,
 } from '@fg2/shared-types/v1';
 import { BackgroundWork } from '@common/background-work';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { conflict, notFound } from '@common/v1/problem';
 import { onlineSince } from '@common/v1/value-age';
 import { PageQuery } from '@common/v1/validation';
@@ -99,15 +99,7 @@ export class FleetService implements OnModuleInit, OnApplicationShutdown {
   }
 
   public async listClasses(query: PageQuery): Promise<CursorPage<DeviceClass>> {
-    const limit = pageLimit(query.limit);
-    const rows = await this.classes
-      .find(afterCursor('createdAt', query.cursor))
-      .sort({ createdAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean<StoredDeviceClass[]>();
-
-    const page = pageOf(rows, limit, row => ({ at: row.createdAt, id: row.id }));
-    return { items: page.items.map(serialiseClass), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.classes, [], query), serialiseClass);
   }
 
   public async readClass(id: string): Promise<DeviceClass> {
@@ -157,15 +149,7 @@ export class FleetService implements OnModuleInit, OnApplicationShutdown {
   public async listFirmwares(query: PageQuery, classId?: string): Promise<CursorPage<Firmware>> {
     if (classId) await this.requireClass(classId);
 
-    const limit = pageLimit(query.limit);
-    const rows = await this.firmwares
-      .find({ ...(classId ? { classId } : {}), ...afterCursor('createdAt', query.cursor) })
-      .sort({ createdAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean<StoredFirmware[]>();
-
-    const page = pageOf(rows, limit, row => ({ at: row.createdAt, id: row.id }));
-    return { items: page.items.map(serialiseFirmware), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.firmwares, [classId ? { classId } : {}], query), serialiseFirmware);
   }
 
   /**
@@ -185,16 +169,9 @@ export class FleetService implements OnModuleInit, OnApplicationShutdown {
     if (!device.classId) return { items: [], nextCursor: null };
     const deviceClass = await this.requireClass(device.classId);
 
-    const limit = pageLimit(query.limit);
-    const rows = await this.firmwares
-      .find({ $and: [everything ? { classId: device.classId } : await this.offeredTo(device), afterCursor('createdAt', query.cursor)] })
-      .sort({ createdAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean<StoredFirmware[]>();
-
-    const page = pageOf(rows, limit, row => ({ at: row.createdAt, id: row.id }));
+    const page = await findPage(this.firmwares, [everything ? { classId: device.classId } : await this.offeredTo(device)], query);
     const channels = (id: string) => RELEASE_CHANNELS.filter(channel => deviceClass.firmwareIds[channel] === id);
-    return { items: page.items.map(row => ({ ...serialiseFirmware(row), channels: channels(row.id) })), nextCursor: page.nextCursor };
+    return mapPage(page, row => ({ ...serialiseFirmware(row), channels: channels(row.id) }));
   }
 
   /** Whether a grower may put this device on the build: whether `listDeviceFirmwares` offers it to anybody but an administrator. */

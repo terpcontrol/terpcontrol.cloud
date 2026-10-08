@@ -1,13 +1,12 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { z } from 'zod';
 import type { Invite, InviteAcceptance, InviteCreate, InvitePage, InvitePreview } from '@fg2/shared-types/v1';
 import { invite as inviteShape, inviteAcceptance, inviteCreate, invitePage, invitePreview } from '@fg2/shared-types/v1-schemas';
 import { AuthGuard } from '@common/auth/auth.guard';
 import { RateLimitGuard, RateLimited } from '@common/rate-limit.guard';
 import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
 import { AccessContext } from '@common/v1/access.types';
-import { V1Query, pageQuery } from '@common/v1/validation';
+import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { PUBLIC_OPERATION } from '../../../openapi';
 import { V1Answer } from '../answer-shape';
@@ -52,7 +51,7 @@ export class SpaceInvitesController {
   @Requires('own', 'space')
   @ApiOperation({ summary: 'The invites out on this space' })
   @V1Answer(invitePage)
-  public list(@Param('id') id: string, @V1Query(pageQuery) query: z.infer<typeof pageQuery>): Promise<InvitePage> {
+  public list(@Param('id') id: string, @V1Query(pageQuery) query: PageQuery): Promise<InvitePage> {
     return this.invites.list(id, query);
   }
 

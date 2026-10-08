@@ -4,7 +4,7 @@ import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { Scheme, SchemeCreate, SchemeUpdate } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
-import { CursorPage, afterCursor, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { forbidden, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -34,25 +34,11 @@ export class SchemesService {
   constructor(@InjectModel(MODEL_V1.scheme) private readonly schemes: Model<SchemeDocument>) {}
 
   /** Newest first: the list opens on what somebody saved last. */
-  public async list(ctx: AccessContext, query: PageQuery, limit: number): Promise<CursorPage<Scheme>> {
+  public async list(ctx: AccessContext, query: PageQuery): Promise<CursorPage<Scheme>> {
     const own = this.ownRows(ctx);
     if (!own) return { items: [], nextCursor: null };
 
-    // Combined rather than merged into one object: whose rows these are is one
-    // filter and the cursor is another, and spreading one beside the other would
-    // silently replace it - which reads correctly on the first page and hands
-    // out other people's schemes from the second.
-    const conditions: FilterQuery<SchemeDocument>[] = [own, afterCursor('createdAt', query.cursor)];
-
-    const rows = await this.schemes
-      .find({ $and: conditions })
-      .sort({ createdAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean<SchemeDocument[]>()
-      .exec();
-
-    const page = pageOf(rows, limit, scheme => ({ at: scheme.createdAt, id: scheme.id }));
-    return { items: page.items.map(schemeOf), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.schemes, [own], query), schemeOf);
   }
 
   public async create(ctx: AccessContext, body: SchemeCreate): Promise<Scheme> {

@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { AuthToken, AutomationSession, Session, SessionResult, SessionTokens, SessionUser } from '@fg2/shared-types/v1';
 import { DataStoredInToken } from '@common/auth/auth.interface';
 import { sameSecret } from '@common/same-secret';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { forbidden, notFound, unauthenticated } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
@@ -195,15 +195,7 @@ export class SessionsService {
    * longer depends on who polled last.
    */
   public async list(userId: string, query: PageQuery): Promise<CursorPage<Session>> {
-    const limit = pageLimit(query.limit);
-    const rows = await this.sessions
-      .find({ userId, ...afterCursor('createdAt', query.cursor) })
-      .sort({ createdAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean();
-
-    const page = pageOf(rows, limit, row => ({ at: row.createdAt, id: row.id }));
-    return { items: page.items.map(serialiseSession), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.sessions, [{ userId }], query), serialiseSession);
   }
 
   public async revoke(userId: string, id: string): Promise<void> {

@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { randomInt } from 'node:crypto';
-import { FilterQuery, Model } from 'mongoose';
+import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { Invite, InviteAcceptance, InviteCreate, InvitePage, InvitePreview } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
-import { afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { findPage, mapPage } from '@common/v1/pages';
 import { conflict, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -59,15 +59,7 @@ export class InvitesService {
 
   /** The codes out on a space, newest first: what the sharing sheet lists under the link it just made. */
   public async list(spaceId: string, query: PageQuery): Promise<InvitePage> {
-    const limit = pageLimit(query.limit);
-    // Combined rather than merged: the cursor is an `$or`, and spreading it
-    // beside the space filter would replace it and list every invite there is.
-    const conditions: FilterQuery<InviteDocument>[] = [{ spaceId }, afterCursor('createdAt', query.cursor)];
-
-    const rows = await this.invites.find({ $and: conditions }).sort({ createdAt: -1, id: -1 }).limit(readLimit(limit)).lean<InviteDocument[]>();
-
-    const page = pageOf(rows, limit, invite => ({ at: invite.createdAt, id: invite.id }));
-    return { items: page.items.map(serialise), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.invites, [{ spaceId }], query), serialise);
   }
 
   /**

@@ -27,7 +27,7 @@ import type {
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { badRequest, conflict, notFound, unprocessable } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -127,18 +127,8 @@ export class GrowsService {
    * that has ever stood in it.
    */
   public async list(ctx: AccessContext, query: PageQuery, spaceId?: string, everStood = false): Promise<CursorPage<GrowListItem>> {
-    const limit = pageLimit(query.limit);
     const place = spaceId ? { placements: { $elemMatch: everStood ? { spaceId } : { spaceId, endedAt: null } } } : {};
-
-    // Combined rather than merged into one object: the visibility and the cursor
-    // are each an `$or` of their own, and one would silently replace the other -
-    // which would hand out everything that sorts after the cursor from the
-    // second page on, while the first page looked right.
-    const conditions: FilterQuery<GrowDocument>[] = [await this.visibleTo(ctx), place, afterCursor('startedAt', query.cursor)];
-
-    const rows = await this.grows.find({ $and: conditions }).sort({ startedAt: -1, id: -1 }).limit(readLimit(limit)).lean<GrowDocument[]>();
-
-    const page = pageOf(rows, limit, grow => ({ at: grow.startedAt, id: grow.id }));
+    const page = await findPage(this.grows, [await this.visibleTo(ctx), place], query, { field: 'startedAt' });
     const plants = await this.plants.find({ growId: { $in: page.items.map(grow => grow.id) } }).lean<PlantDocument[]>();
 
     // A list only ever holds what the caller owns or shares, so the one reader
@@ -149,16 +139,13 @@ export class GrowsService {
       page.items.map(grow => grow.ownerId),
     );
 
-    return {
-      items: page.items.map(grow =>
-        serialiseGrow(
-          grow,
-          plants.filter(plant => plant.growId === grow.id),
-          hide(grow.ownerId),
-        ),
+    return mapPage(page, grow =>
+      serialiseGrow(
+        grow,
+        plants.filter(plant => plant.growId === grow.id),
+        hide(grow.ownerId),
       ),
-      nextCursor: page.nextCursor,
-    };
+    );
   }
 
   /**

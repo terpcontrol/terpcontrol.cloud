@@ -1,3 +1,4 @@
+import { FilterQuery, Model } from 'mongoose';
 import { MAX_PAGE_LIMIT } from '@fg2/shared-types/v1-schemas';
 import { badRequest } from './problem';
 
@@ -18,7 +19,7 @@ export interface CursorPage<T> {
   nextCursor: string | null;
 }
 
-export const DEFAULT_PAGE_LIMIT = 50;
+const DEFAULT_PAGE_LIMIT = 50;
 
 export const pageLimit = (limit?: number | null): number => {
   if (!limit || limit < 1) return DEFAULT_PAGE_LIMIT;
@@ -64,7 +65,7 @@ export const afterCursor = (field: string, cursor: string | null | undefined, or
 };
 
 /** Read one row more than the page holds: whether it came back is what says there is a next page. */
-export const readLimit = (limit: number): number => limit + 1;
+const readLimit = (limit: number): number => limit + 1;
 
 /**
  * The page itself, from the rows `readLimit` asked for. The extra row is dropped
@@ -76,3 +77,36 @@ export const pageOf = <T>(rows: T[], limit: number, positionOf: (row: T) => Page
 
   return { items, nextCursor: hasMore && items.length > 0 ? encodeCursor(positionOf(items[items.length - 1])) : null };
 };
+
+/**
+ * One page of a collection, sorted by `field` and then by `id`, holding the rows
+ * that match every one of `conditions` and continuing after `query.cursor`.
+ *
+ * The conditions and the cursor are combined with `$and` rather than merged into
+ * one object: a visibility rule is often an `$or` and the cursor always is one,
+ * and spreading one beside the other silently replaces it - which reads correctly
+ * on the first page and hands out everything that sorts after the cursor from
+ * the second.
+ */
+export const findPage = async <T extends { id: string }>(
+  model: Model<T>,
+  conditions: FilterQuery<T>[],
+  query: { limit?: number | null; cursor?: string | null },
+  { field = 'createdAt', order = 'desc' }: { field?: string; order?: 'asc' | 'desc' } = {},
+): Promise<CursorPage<T>> => {
+  const limit = pageLimit(query.limit);
+  const direction = order === 'desc' ? -1 : 1;
+  const rows = await model
+    .find({ $and: [...conditions, afterCursor(field, query.cursor, order)] })
+    .sort({ [field]: direction, id: direction })
+    .limit(readLimit(limit))
+    .lean<T[]>();
+
+  return pageOf(rows, limit, row => ({ at: (row as Record<string, unknown>)[field] as Date, id: row.id }));
+};
+
+/** The same page with every row turned into what the route answers. */
+export const mapPage = <T, U>(page: CursorPage<T>, answer: (row: T) => U): CursorPage<U> => ({
+  items: page.items.map(answer),
+  nextCursor: page.nextCursor,
+});

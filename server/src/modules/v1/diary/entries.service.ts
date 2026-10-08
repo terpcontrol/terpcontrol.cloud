@@ -5,7 +5,7 @@ import type { Entry, EntryKind, EntryPage } from '@fg2/shared-types/v1';
 import { entryKind } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, SubjectRef, SubjectType } from '@common/v1/access.types';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { findPage, mapPage } from '@common/v1/pages';
 import { badRequest, notFound } from '@common/v1/problem';
 import { clampRange, outsideRange, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
@@ -57,27 +57,10 @@ export class EntriesService {
     const hide = await this.grows.redaction(grant);
 
     const range = clampRange(grant, { startsAt: instantOf(query.startsAt), endsAt: instantOf(query.endsAt) });
-    const limit = pageLimit(query.limit);
+    const conditions = [await this.about(scope), withinRange('occurredAt', range), kindsOf(query.kinds)];
+    const page = await findPage(this.entries, conditions, query, { field: 'occurredAt' });
 
-    // Combined rather than merged into one object: the scope of a space and the
-    // cursor are each an `$or` of their own, and one would silently replace the
-    // other - which would hand out entries of other people's tents from the
-    // second page on, while the first page looked right.
-    const conditions: FilterQuery<EntryDocument>[] = [
-      await this.about(scope),
-      withinRange('occurredAt', range),
-      kindsOf(query.kinds),
-      afterCursor('occurredAt', query.cursor),
-    ];
-
-    const rows = await this.entries.find({ $and: conditions }).sort({ occurredAt: -1, id: -1 }).limit(readLimit(limit)).lean<EntryDocument[]>();
-
-    const page: CursorPage<EntryDocument> = pageOf(rows, limit, row => ({ at: row.occurredAt, id: row.id }));
-
-    return {
-      items: page.items.map(row => serialiseDiaryEntry(row, hide, grant.includeCameras)),
-      nextCursor: page.nextCursor,
-    };
+    return mapPage(page, row => serialiseDiaryEntry(row, hide, grant.includeCameras));
   }
 
   /**

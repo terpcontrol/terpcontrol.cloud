@@ -5,7 +5,7 @@ import { compare, hash } from 'bcrypt';
 import { Model } from 'mongoose';
 import { randomUUID } from 'node:crypto';
 import { AdminUserCreate, AdminUserUpdate, Me, MeUpdate, NotificationCategory, NotificationSettings, User } from '@fg2/shared-types/v1';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { conflict, notFound } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
@@ -122,11 +122,7 @@ export class AccountsService implements OnModuleInit {
   }
 
   public async list(query: PageQuery): Promise<CursorPage<User>> {
-    const limit = pageLimit(query.limit);
-    const rows = await this.users.find(afterCursor('createdAt', query.cursor)).sort({ createdAt: -1, id: -1 }).limit(readLimit(limit)).lean();
-
-    const page = pageOf(rows, limit, row => ({ at: row.createdAt, id: row.id }));
-    return { items: page.items.map(row => this.serialise(row)), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.users, [], query), row => this.serialise(row));
   }
 
   // ---------------------------------------------------------------------------

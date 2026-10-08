@@ -4,7 +4,7 @@ import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { PlanTemplate, PlanTemplateCreate, PlanTemplateUpdate } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
-import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
+import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { badRequest, conflict, forbidden, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { isDuplicateKey } from '@database/duplicate-key';
@@ -38,22 +38,7 @@ export class PlanTemplatesService {
 
   /** Newest first: the list opens on what somebody saved last, the way the share links do. */
   public async list(ctx: AccessContext, query: PageQuery): Promise<CursorPage<PlanTemplate>> {
-    const limit = pageLimit(query.limit);
-    // Combined rather than merged into one object: the visibility is an `$or`
-    // and so is the cursor, and one spread beside the other would replace it -
-    // which reads correctly on the first page and hands out every template in
-    // the database from the second.
-    const conditions: FilterQuery<StoredPlanTemplate>[] = [this.visibleTo(ctx), afterCursor('createdAt', query.cursor)];
-
-    const rows = await this.templates
-      .find({ $and: conditions })
-      .sort({ createdAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean<StoredPlanTemplate[]>()
-      .exec();
-
-    const page = pageOf(rows, limit, template => ({ at: template.createdAt, id: template.id }));
-    return { items: page.items.map(planTemplateOf), nextCursor: page.nextCursor };
+    return mapPage(await findPage(this.templates, [this.visibleTo(ctx)], query), planTemplateOf);
   }
 
   public async read(ctx: AccessContext, id: string): Promise<PlanTemplate> {

@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import type { ReminderCreate, ReminderUpdate } from '@fg2/shared-types/v1';
+import type { Reminder, ReminderCreate, ReminderPage, ReminderUpdate } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
-import { CursorPage, afterCursor, pageOf, readLimit } from '@common/v1/pages';
+import { findPage, mapPage } from '@common/v1/pages';
 import { conflict, notFound, unprocessable } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -30,10 +30,7 @@ import { VisibleSubjectsService } from './visible-subjects.service';
  */
 
 /** What a list of reminders narrows by: the grow or the space they are about. */
-export interface ReminderFilter {
-  growId?: string;
-  spaceId?: string;
-}
+type ReminderQuery = PageQuery & { growId?: string; spaceId?: string };
 
 @Injectable()
 export class RemindersService {
@@ -44,7 +41,7 @@ export class RemindersService {
     private readonly visible: VisibleSubjectsService,
   ) {}
 
-  public async byId(id: string): Promise<ReminderDocument> {
+  private async byId(id: string): Promise<ReminderDocument> {
     const reminder = await this.reminders.findOne({ id }).lean<ReminderDocument>();
     if (!reminder) throw notFound('reminder_not_found', 'There is no reminder with that id.');
 
@@ -56,24 +53,17 @@ export class RemindersService {
    * been decided on already and is the whole filter; an unnamed one is every
    * place this account keeps, which is worked out once as two lists of ids.
    */
-  public async list(ctx: AccessContext, query: PageQuery, filter: ReminderFilter, limit: number): Promise<CursorPage<ReminderDocument>> {
-    if (filter.growId) await this.access.require(ctx, subjectRef('grow', filter.growId), 'view');
-    if (filter.spaceId) await this.access.require(ctx, subjectRef('space', filter.spaceId), 'view');
+  public async list(ctx: AccessContext, query: ReminderQuery): Promise<ReminderPage> {
+    if (query.growId) await this.access.require(ctx, subjectRef('grow', query.growId), 'view');
+    if (query.spaceId) await this.access.require(ctx, subjectRef('space', query.spaceId), 'view');
 
-    const about = await this.about(ctx, filter);
+    const about = await this.about(ctx, query);
     if (!about) return { items: [], nextCursor: null };
 
-    // Combined rather than merged into one object: what the caller may see is an
-    // `$or` of its own and so is the cursor, and one would silently replace the
-    // other - which hands out other people's rhythms from the second page on
-    // while the first page looks right.
-    const conditions: FilterQuery<ReminderDocument>[] = [about, afterCursor('createdAt', query.cursor)];
-    const rows = await this.reminders.find({ $and: conditions }).sort({ createdAt: -1, id: -1 }).limit(readLimit(limit)).lean<ReminderDocument[]>();
-
-    return pageOf(rows, limit, reminder => ({ at: reminder.createdAt, id: reminder.id }));
+    return mapPage(await findPage(this.reminders, [about], query), reminderOf);
   }
 
-  public async create(ctx: AccessContext, body: ReminderCreate): Promise<ReminderDocument> {
+  public async create(ctx: AccessContext, body: ReminderCreate): Promise<Reminder> {
     await this.access.require(ctx, subjectRef(body.subject.type, body.subject.id), 'manage');
     requireOneRhythm(body.everyDays, body.onceAt);
     await this.requireRunning(body.subject);
@@ -93,7 +83,7 @@ export class RemindersService {
     };
 
     await this.reminders.create(reminder);
-    return reminder;
+    return reminderOf(reminder);
   }
 
   /**
@@ -101,7 +91,7 @@ export class RemindersService {
    * to another is a different arrangement, decided by whoever manages the place
    * it would land in - so it is written there and taken back here.
    */
-  public async update(ctx: AccessContext, id: string, body: ReminderUpdate): Promise<ReminderDocument> {
+  public async update(ctx: AccessContext, id: string, body: ReminderUpdate): Promise<Reminder> {
     const reminder = await this.byId(id);
     await this.access.require(ctx, subjectRef(reminder.subject.type, reminder.subject.id), 'manage');
 
@@ -124,12 +114,12 @@ export class RemindersService {
     if (body.assigneeId !== undefined) changes.assigneeId = body.assigneeId;
     if (body.defaults !== undefined) changes.defaults = body.defaults;
 
-    if (Object.keys(changes).length === 0) return reminder;
+    if (Object.keys(changes).length === 0) return reminderOf(reminder);
 
     const changed = await this.reminders.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<ReminderDocument>();
     if (!changed) throw notFound('reminder_not_found', 'There is no reminder with that id.');
 
-    return changed;
+    return reminderOf(changed);
   }
 
   /**
@@ -145,9 +135,9 @@ export class RemindersService {
   }
 
   /** The filter a list is held to, or null where the caller keeps nowhere at all. */
-  private async about(ctx: AccessContext, filter: ReminderFilter): Promise<FilterQuery<ReminderDocument> | null> {
-    if (filter.growId) return { 'subject.type': 'grow', 'subject.id': filter.growId };
-    if (filter.spaceId) return { 'subject.type': 'space', 'subject.id': filter.spaceId };
+  private async about(ctx: AccessContext, query: ReminderQuery): Promise<FilterQuery<ReminderDocument> | null> {
+    if (query.growId) return { 'subject.type': 'grow', 'subject.id': query.growId };
+    if (query.spaceId) return { 'subject.type': 'space', 'subject.id': query.spaceId };
 
     const { spaceIds, growIds } = await this.visible.subjectsOf(ctx);
     if (spaceIds.length === 0 && growIds.length === 0) return null;
@@ -209,3 +199,17 @@ const requireOneRhythm = (everyDays: number | null, onceAt: string | null): void
     ]);
   }
 };
+
+/** The stored document as the contract has it: instants as ISO strings. */
+const reminderOf = (reminder: ReminderDocument): Reminder => ({
+  id: reminder.id,
+  createdAt: reminder.createdAt.toISOString(),
+  subject: { type: reminder.subject.type, id: reminder.subject.id },
+  kind: reminder.kind,
+  label: reminder.label,
+  everyDays: reminder.everyDays,
+  onceAt: reminder.onceAt?.toISOString() ?? null,
+  assigneeId: reminder.assigneeId,
+  defaults: reminder.defaults ?? null,
+  createdBy: reminder.createdBy,
+});

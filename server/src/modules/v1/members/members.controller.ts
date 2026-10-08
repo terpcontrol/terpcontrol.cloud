@@ -1,12 +1,11 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { z } from 'zod';
 import type { Membership, MembershipCreate, MembershipPage, MembershipUpdate } from '@fg2/shared-types/v1';
 import { membership as membershipShape, membershipCreate, membershipPage, membershipUpdate } from '@fg2/shared-types/v1-schemas';
 import { AuthGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { V1Query, pageQuery } from '@common/v1/validation';
+import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { V1Answer } from '../answer-shape';
 import { MembersService } from './members.service';
@@ -40,7 +39,7 @@ export class MembersController {
   @Requires('view', 'space')
   @ApiOperation({ summary: 'Who is in this space' })
   @V1Answer(membershipPage)
-  public list(@Param('id') id: string, @CurrentGrant() grant: Grant, @V1Query(pageQuery) query: z.infer<typeof pageQuery>): Promise<MembershipPage> {
+  public list(@Param('id') id: string, @CurrentGrant() grant: Grant, @V1Query(pageQuery) query: PageQuery): Promise<MembershipPage> {
     return this.members.list(id, grant, query);
   }
 

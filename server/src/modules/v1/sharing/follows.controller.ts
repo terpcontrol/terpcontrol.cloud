@@ -1,12 +1,11 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Put, UseGuards } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { z } from 'zod';
 import type { Follow, FollowPage } from '@fg2/shared-types/v1';
 import { follow as followShape, followPage } from '@fg2/shared-types/v1-schemas';
 import { AuthGuard } from '@common/auth/auth.guard';
 import { Caller } from '@common/v1/access.guard';
 import { AccessContext } from '@common/v1/access.types';
-import { V1Query, pageQuery } from '@common/v1/validation';
+import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
 import { V1Answer } from '../answer-shape';
 import { FollowsService } from './follows.service';
 
@@ -27,7 +26,7 @@ export class FollowsController {
   @Get()
   @ApiOperation({ summary: 'The grows this account follows' })
   @V1Answer(followPage)
-  public list(@Caller() ctx: AccessContext, @V1Query(pageQuery) query: z.infer<typeof pageQuery>): Promise<FollowPage> {
+  public list(@Caller() ctx: AccessContext, @V1Query(pageQuery) query: PageQuery): Promise<FollowPage> {
     return this.follows.list(ctx, query);
   }
 
