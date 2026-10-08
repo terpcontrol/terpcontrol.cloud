@@ -85,7 +85,7 @@ export function SaveViewSheet({ view, definition, onSaved, onClose }: SaveViewSh
                 <div className={styles.askingRow}>
                   <button
                     type="button"
-                    className={`${ui.button} ${styles.danger}`}
+                    className={`${ui.button} ${ui.dangerInk}`}
                     disabled={busy}
                     onClick={() => remove.mutate(undefined, { onSuccess: () => onSaved(null) })}
                   >
@@ -97,7 +97,7 @@ export function SaveViewSheet({ view, definition, onSaved, onClose }: SaveViewSh
                 </div>
               </>
             ) : (
-              <button type="button" className={`${ui.button} ${styles.danger}`} disabled={busy} onClick={() => setAsking(true)}>
+              <button type="button" className={`${ui.button} ${ui.dangerInk}`} disabled={busy} onClick={() => setAsking(true)}>
                 {t('charts.views.delete')}
               </button>
             )}

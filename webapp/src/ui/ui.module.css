@@ -586,6 +586,11 @@
   color: var(--alarm);
 }
 
+/* The same step offered more quietly, inside a sheet: only its words take the alarm colour. */
+.dangerInk {
+  color: var(--alarm);
+}
+
 /* The yes to a question asked before such a step. */
 .dangerFilled {
   background: var(--alarm);
@@ -601,6 +606,13 @@
   padding: var(--space-3);
   border: var(--rule-dashed);
   border-radius: var(--radius);
+}
+
+/* The yes to such a question beside the way back. */
+.askingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 /* A two-line action and the (i) that says more about it. Two share a line

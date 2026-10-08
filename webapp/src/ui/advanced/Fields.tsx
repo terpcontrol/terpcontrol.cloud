@@ -92,7 +92,7 @@ export function FieldChoice({
       {question && asking !== null ? (
         <div className={styles.asking} role="group" aria-label={question.question}>
           <p className={ui.note}>{question.question}</p>
-          <div className={styles.askingActions}>
+          <div className={ui.askingActions}>
             <button type="button" className={`${ui.button} ${ui.primary}`} onClick={() => write(asking)}>
               {question.yes}
             </button>

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import ui from './ui.module.css';
-import styles from './Asking.module.css';
 
 /**
  * A step said before it is taken, in the place the tap was: what it will do,
@@ -31,12 +30,12 @@ export function Asking({
     <div className={ui.asking}>
       <p className={ui.note}>{note}</p>
       {children}
-      <div className={styles.actions}>
+      <div className={ui.askingActions}>
         <button type="button" className={`${ui.button} ${danger ? ui.dangerFilled : ui.primary}`} disabled={busy} onClick={onYes}>
           {yes}
         </button>
         <button type="button" className={ui.button} onClick={onCancel}>
-          {t('grow.lifecycle.cancel')}
+          {t('asking.cancel')}
         </button>
       </div>
     </div>

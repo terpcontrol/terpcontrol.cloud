@@ -11,6 +11,7 @@ import { maintenanceQuiet, maintenanceSpans, parkedLabel, parksAnything, VISIT_M
 import { repeatsEvery, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
 import { ageAttribute, deviceLiveness, isAhead, offlineLabel, silentSince, sinceLabel, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
+import { Asking } from '@/ui/Asking';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -19,7 +20,6 @@ import { figure, targetFigure } from '@/ui/units';
 import { beganAt, crossedBound, deliveryOf, lastedLabel } from './inbox';
 import type { AlertNames } from './names';
 import { looseFigure, unbroken } from '@/ui/figures';
-import ask from './AlertCard.module.css';
 import styles from './Alerts.module.css';
 import { deviceName } from '@/ui/naming';
 import { serverNow } from '@/api/clock';
@@ -499,27 +499,15 @@ function OpenChips({
       </div>
 
       {asking && device && reachable ? (
-        <div className={ui.asking}>
-          <p className={ui.note}>{maintenanceAsk(t, device)}</p>
-          <div className={ask.actions}>
-            <button
-              type="button"
-              className={`${ui.button} ${ui.primary}`}
-              disabled={busy}
-              onClick={() =>
-                maintenance.mutate(
-                  { deviceId, command: { kind: 'maintenance', forSeconds: VISIT_MINUTES * 60 } },
-                  { onSuccess: () => setAsking(false) },
-                )
-              }
-            >
-              {t('alerts.maintenance.yes')}
-            </button>
-            <button type="button" className={ui.button} onClick={() => setAsking(false)}>
-              {t('alerts.maintenance.cancel')}
-            </button>
-          </div>
-        </div>
+        <Asking
+          note={maintenanceAsk(t, device)}
+          yes={t('alerts.maintenance.yes')}
+          busy={busy}
+          onYes={() =>
+            maintenance.mutate({ deviceId, command: { kind: 'maintenance', forSeconds: VISIT_MINUTES * 60 } }, { onSuccess: () => setAsking(false) })
+          }
+          onCancel={() => setAsking(false)}
+        />
       ) : null}
 
       {maintenance.data && device ? (

@@ -146,12 +146,6 @@
   gap: var(--space-3);
 }
 
-/* Taking something away is the one action drawn in the alarm colour, and only
-   ever as an outline: it is offered, not urged. */
-.danger {
-  color: var(--alarm);
-}
-
 @media (min-width: 900px) {
   .page {
     max-width: var(--reading-width);

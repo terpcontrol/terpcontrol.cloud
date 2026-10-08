@@ -1,6 +1,0 @@
-/* The yes and the way back of what the maintenance chip asks before it sends. */
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}

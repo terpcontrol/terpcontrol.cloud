@@ -390,7 +390,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
               </div>
             </>
           ) : (
-            <button type="button" className={`${ui.button} ${styles.danger}`} disabled={saving} onClick={() => setAskingBack(true)}>
+            <button type="button" className={`${ui.button} ${ui.dangerInk}`} disabled={saving} onClick={() => setAskingBack(true)}>
               {t('log.takeBack')}
             </button>
           )}

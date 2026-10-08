@@ -3,6 +3,9 @@
     "on": "On",
     "off": "Off"
   },
+  "asking": {
+    "cancel": "Cancel"
+  },
   "demo": {
     "opening": "Opening the demo..."
   },
@@ -3278,8 +3281,7 @@
       "unheard": "Nobody was listening: the device has not been heard from, so the command waits for it.",
       "ask": "Maintenance mode stops {{outputs}} for {{minutes}} minutes. No alarm is raised on this device for {{quiet}} minutes: the window, and {{settle}} minutes more while the climate comes back.",
       "askQuietOnly": "This device takes no maintenance command, so nothing it drives will stop. What it does here is hold every alarm on the device: the {{minutes}}-minute window, and {{settle}} minutes more, {{quiet}} in all.",
-      "yes": "Start maintenance",
-      "cancel": "Cancel"
+      "yes": "Start maintenance"
     },
     "nothing": "Nothing has gone wrong.",
     "output": {

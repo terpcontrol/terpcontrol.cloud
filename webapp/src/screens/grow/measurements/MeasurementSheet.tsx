@@ -166,7 +166,7 @@ export function MeasurementSheet({ grow, definition, readings, onClose }: Measur
                 </div>
               </>
             ) : (
-              <button type="button" className={`${ui.button} ${styles.danger}`} disabled={update.isPending} onClick={() => setAskingDelete(true)}>
+              <button type="button" className={`${ui.button} ${ui.dangerInk}`} disabled={update.isPending} onClick={() => setAskingDelete(true)}>
                 {t('grow.measurements.sheet.delete')}
               </button>
             )}

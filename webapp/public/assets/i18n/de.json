@@ -3,6 +3,9 @@
     "on": "Ein",
     "off": "Aus"
   },
+  "asking": {
+    "cancel": "Abbrechen"
+  },
   "demo": {
     "opening": "Demo wird geöffnet..."
   },
@@ -3286,8 +3289,7 @@
       "unheard": "Niemand hat zugehört: Das Gerät hat sich nicht gemeldet, der Befehl wartet auf es.",
       "ask": "Der Wartungsmodus stoppt {{minutes}} Minuten lang {{outputs}}. Auf diesem Gerät wird {{quiet}} Minuten lang kein Alarm ausgelöst: das Fenster und {{settle}} Minuten mehr, während das Klima zurückkommt.",
       "askQuietOnly": "Dieses Gerät kennt den Wartungsbefehl nicht, es stellt also nichts ab. Es hält hier nur jeden Alarm des Geräts zurück: das Fenster von {{minutes}} Minuten und {{settle}} Minuten mehr, zusammen {{quiet}}.",
-      "yes": "Wartung starten",
-      "cancel": "Abbrechen"
+      "yes": "Wartung starten"
     },
     "nothing": "Nichts ist schiefgegangen.",
     "output": {

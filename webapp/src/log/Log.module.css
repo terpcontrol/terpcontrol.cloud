@@ -245,10 +245,6 @@
   gap: var(--space-3);
 }
 
-.danger {
-  color: var(--alarm);
-}
-
 .picture {
   position: relative;
   margin-bottom: var(--space-3);

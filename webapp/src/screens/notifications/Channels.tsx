@@ -9,6 +9,7 @@ import { useMe, useSubscribePush, useTelegramLink, useUnsubscribePush } from '@/
 import { ApiError } from '@/api/problem';
 import { isIos, isStandalone } from '@/app/install';
 import { INSTALL_ANCHOR } from '@/screens/me/appearance/InstallRow';
+import { Asking } from '@/ui/Asking';
 import { Refused } from '@/ui/PageState';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -260,26 +261,18 @@ export function TelegramCard({ me, held }: CardProps) {
       ) : null}
       {ran && !linked ? <p className={ui.note}>{t('notifications.telegram.expired')}</p> : null}
       {asking && linked ? (
-        <div className={ui.asking}>
-          <p className={ui.note}>{t('notifications.telegram.ask')}</p>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={`${ui.button} ${ui.dangerFilled}`}
-              disabled={held}
-              onClick={() => {
-                setAsking(false);
-                setOffered(null);
-                write({ channels: { ...me.notifications.channels, telegram: null } });
-              }}
-            >
-              {t('notifications.telegram.unlink')}
-            </button>
-            <button type="button" className={ui.button} onClick={() => setAsking(false)}>
-              {t('notifications.cancel')}
-            </button>
-          </div>
-        </div>
+        <Asking
+          note={t('notifications.telegram.ask')}
+          yes={t('notifications.telegram.unlink')}
+          danger
+          busy={held}
+          onYes={() => {
+            setAsking(false);
+            setOffered(null);
+            write({ channels: { ...me.notifications.channels, telegram: null } });
+          }}
+          onCancel={() => setAsking(false)}
+        />
       ) : null}
       <Refused error={link.error ?? error} />
     </ChannelCard>

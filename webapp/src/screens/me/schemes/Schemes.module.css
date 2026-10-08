@@ -67,12 +67,6 @@
   text-decoration: underline;
 }
 
-.askingActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
 /* Outlined rather than filled, as the privacy page's is: a solid alarm would
    need an ink that reads on it in both themes, and there is no such token. */
 .dangerButton {
