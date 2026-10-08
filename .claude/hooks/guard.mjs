@@ -89,7 +89,9 @@ for (const c of git('log', '--format=%h%x00%B%x01', `${base}..HEAD`).split('\x01
   const [hash, body = ''] = c.trim().split('\0');
   if (hash) body.split('\n').forEach((t, i) => lines.push([`commit ${hash}`, i + 1, t]));
 }
-command.split('\n').forEach((t, i) => lines.push(['command', i + 1, t]));
+// A command that works in the private checkout (the remember skill's $COM and $WT) commits and pushes there, where
+// company knowledge belongs; only what lands here is this guard's business.
+if (!/\$\{?(COM|WT|TERPCONTROL_COM_DIR)\b/.test(command)) command.split('\n').forEach((t, i) => lines.push(['command', i + 1, t]));
 
 const seenPath = git('rev-parse', '--git-path', 'terpcontrol-guard-reported').trim();
 const seenFile = seenPath && (isAbsolute(seenPath) ? seenPath : join(dir, seenPath));
