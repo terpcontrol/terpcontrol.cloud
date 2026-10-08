@@ -3,7 +3,7 @@ import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
 import { FirmwareRolloutService } from '@modules/v1/fleet/firmware-rollout.service';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * Who is handed a build, and when a device that was handed one but has not moved
@@ -27,7 +27,7 @@ type RolloutInternals = {
   instructionBackoff: Map<string, { firmwareId: string; nextDelayMs: number }>;
 };
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let publisher: { firmware: jest.Mock<(deviceId: string, firmwareId: string) => boolean> };
 let rollout: FirmwareRolloutService;
 let internals: RolloutInternals;
@@ -59,14 +59,6 @@ const toldToUpdate = async (): Promise<Record<string, string>> => {
   const devices = await db.devices.find({ 'firmware.targetId': { $ne: null } }).lean<StoredDevice[]>();
   return Object.fromEntries(devices.map(device => [device.id, device.firmware.targetId as string]));
 };
-
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
 
 beforeEach(async () => {
   await db.reset();

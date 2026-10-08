@@ -3,13 +3,13 @@ import { spaceOverview } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { DataService, LiveReading } from '@modules/data/data.service';
-import { DevicesService } from '@modules/v1/device/devices.service';
 import { verdictOf } from '@modules/v1/overview/climate-verdict';
 import { OverviewService } from '@modules/v1/overview/overview.service';
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
-import { SpacesService } from '@modules/v1/space/spaces.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { demo, session, visitor } from './support/callers';
+import { accessOn, spacesOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The tent page's landing tab.
@@ -47,11 +47,7 @@ const PLACED_AT = new Date('2026-05-29T08:00:00.000Z');
 /** The owner grows in Berlin, so "today" starts at 22:00 UTC the evening before. */
 const TIMEZONE = 'Europe/Berlin';
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-const visitor = (shareToken: string): AccessContext => ({ userId: null, isAdmin: false, isDemo: false, shareToken });
-const tourist = (): AccessContext => ({ userId: null, isAdmin: false, isDemo: true, shareToken: null });
-
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let access: AccessService;
 let overview: OverviewService;
 let readings: Record<string, LiveReading>;
@@ -77,9 +73,8 @@ const fakeData = {
 } as unknown as DataService;
 
 const build = (): OverviewService => {
-  access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-  const devices = new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access);
-  const places = new SpacesService(db.spaces, db.memberships, db.invites, db.shareLinks, db.devices, db.cameras, db.grows, devices, access);
+  access = accessOn(db);
+  const places = spacesOn(db, access);
 
   return new OverviewService(
     db.grows,
@@ -267,14 +262,6 @@ const world = async (): Promise<void> => {
   });
 };
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 beforeEach(async () => {
   await db.reset();
   series = null;
@@ -446,7 +433,7 @@ describe('what grows here', () => {
     await db.users.updateOne({ id: OWNER }, { $set: { privacy: { hideWeights: true, hideCounts: true }, isDemo: true } });
     await db.spaces.updateOne({ id: TENT }, { $set: { isDemo: true } });
 
-    const page = await readAs(tourist());
+    const page = await readAs(demo(null));
     expect(page.grows.map(grow => grow.plantCount)).toEqual([null, null]);
   });
 });

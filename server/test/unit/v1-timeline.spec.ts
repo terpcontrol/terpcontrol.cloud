@@ -2,15 +2,16 @@ import type { DeviceLive, DeviceSeries, Metric, OutputMetric, TimelineRange, Tim
 import { spaceTimeline } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { DataService, DeviceHistory, OutputHistory, SeriesRequest } from '@modules/data/data.service';
+import { DataService, DeviceHistory, SeriesRequest } from '@modules/data/data.service';
 import { FluxRow, switchingsByField } from '@modules/data/flux';
-import { DevicesService } from '@modules/v1/device/devices.service';
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
-import { SpacesService } from '@modules/v1/space/spaces.service';
 import { lanesOf, nightsOf } from '@modules/v1/timeline/timeline-series';
 import { TimelineService } from '@modules/v1/timeline/timeline.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { session, visitor } from './support/callers';
+import { isLit, lastSampleOf, seriesOf, switchingsOf } from './support/fake-data';
+import { accessOn, spacesOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The Timeline tab: one answer per range chip.
@@ -52,10 +53,7 @@ const DAY_STEP_SECONDS = 180;
 /** How many stills the camera took, which is what the slider thins. */
 const STILLS = 96;
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-const visitor = (shareToken: string): AccessContext => ({ userId: null, isAdmin: false, isDemo: false, shareToken });
-
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let access: AccessService;
 let timeline: TimelineService;
 
@@ -63,9 +61,6 @@ let timeline: TimelineService;
 type Reading = { metrics?: Partial<Record<Metric, number>>; outputs?: Partial<Record<OutputMetric, number>> };
 let reports: Record<string, (at: Date) => Reading | null>;
 let reads: SeriesRequest[];
-
-/** The lamp's own day: on from six in the morning until six in the evening. */
-const isLit = (at: Date): boolean => at.getUTCHours() >= 6 && at.getUTCHours() < 18;
 
 /** The stretch the controller was unreachable for, which is what leaves a gap in the curve. */
 let quietFrom: Date | null = null;
@@ -106,87 +101,35 @@ const controllerReport = (at: Date): Reading | null => {
   };
 };
 
-/**
- * How finely the store is taken to look for a switching, which is a grain of
- * its own and not the step the curve is drawn with. The fake keeps them apart
- * because that is the whole of what the second read buys: a window wider than
- * the cycle still answers the cycle.
- */
-const SWITCHING_GRAIN_MS = 300 * 1000;
-
-/** What the store answers about the outputs: the state the window opens in, then every switching. */
-const fakeSwitchings = (deviceId: string, request: SeriesRequest): OutputHistory[] => {
-  const report = reports[deviceId];
-
-  return (request.outputs ?? []).map(output => {
-    const switchings: { at: string; on: boolean }[] = [];
-    let last: boolean | null = null;
-
-    for (let at = request.startsAt.getTime(); at < request.endsAt.getTime(); at += SWITCHING_GRAIN_MS) {
-      const value = report ? report(new Date(at))?.outputs?.[output] : undefined;
-      if (value === undefined || value === null) continue;
-
-      const on = value > 0;
-      if (on !== last) switchings.push({ at: new Date(at).toISOString(), on });
-      last = on;
-    }
-
-    return { output, switchings };
-  });
-};
-
-/**
- * The newest raw sample the fake device wrote, which the store answers from a
- * read of its own. Here it is the newest window anything was reported in: the
- * fake stamps a window at the instant it opens, so the two are the same and the
- * lane is cut exactly where it always was.
- */
-const lastSampleOf = (series: DeviceSeries): string | null =>
-  [...series.metrics, ...series.outputs]
-    .flatMap(one => one.points.flatMap(point => (point.value === null ? [] : [point.measuredAt])))
-    .sort()
-    .at(-1) ?? null;
-
 const fakeData = {
   history: async (deviceId: string, request: SeriesRequest): Promise<DeviceHistory> => {
     const series = await fakeData.series(deviceId, request);
+    const outputs = switchingsOf(request, (output, at) => {
+      const value = reports[deviceId]?.(at)?.outputs?.[output];
+      return value === undefined || value === null ? null : value > 0;
+    });
 
-    return { series, outputs: fakeSwitchings(deviceId, request), lastSampleAt: lastSampleOf(series) };
+    return { series, outputs, lastSampleAt: lastSampleOf(series) };
   },
   series: async (deviceId: string, request: SeriesRequest): Promise<DeviceSeries> => {
     reads.push(request);
-    const step = (request.stepSeconds ?? 60) * 1000;
     const report = reports[deviceId];
-    const instants: Date[] = [];
-    for (let at = request.startsAt.getTime(); at < request.endsAt.getTime(); at += step) instants.push(new Date(at));
-
     const valueAt = (at: Date, pick: (reading: Reading) => number | undefined): number | null => {
       const reading = report ? report(at) : null;
       return reading ? (pick(reading) ?? null) : null;
     };
 
-    return {
-      deviceId,
-      startsAt: request.startsAt.toISOString(),
-      endsAt: request.endsAt.toISOString(),
-      stepSeconds: request.stepSeconds ?? 60,
-      metrics: request.metrics.map(metric => ({
-        metric,
-        points: instants.map(at => ({ measuredAt: at.toISOString(), value: valueAt(at, reading => reading.metrics?.[metric]) })),
-      })),
-      outputs: (request.outputs ?? []).map(output => ({
-        output,
-        points: instants.map(at => ({ measuredAt: at.toISOString(), value: valueAt(at, reading => reading.outputs?.[output]) })),
-      })),
-    };
+    return seriesOf(deviceId, request, {
+      metric: (metric, at) => valueAt(at, reading => reading.metrics?.[metric]),
+      output: (output, at) => valueAt(at, reading => reading.outputs?.[output]),
+    });
   },
   live: async (deviceId: string) => ({ metrics: reports[deviceId] ? lastReading : {}, outputs: {}, isDay: null, lightOn: null }),
 } as unknown as DataService;
 
 const build = (): TimelineService => {
-  access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-  const devices = new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access);
-  const places = new SpacesService(db.spaces, db.memberships, db.invites, db.shareLinks, db.devices, db.cameras, db.grows, devices, access);
+  access = accessOn(db);
+  const places = spacesOn(db, access);
 
   return new TimelineService(
     db.grows,
@@ -396,14 +339,6 @@ const world = async (): Promise<void> => {
     },
   ]);
 };
-
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
 
 beforeEach(async () => {
   await db.reset();

@@ -3,8 +3,7 @@ import { Model } from 'mongoose';
 import type { DeviceConfiguration, PlanReplace, PlanStep, PlanStepInput } from '@fg2/shared-types/v1';
 import { cycleKindOf, lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
-import { MODEL_V1 } from '@database/models';
-import { StoredPlan, plansSchema } from '@database/schemas/v1/plans.schema';
+import { StoredPlan } from '@database/schemas/v1/plans.schema';
 import { MailService } from '@modules/mail/mail.service';
 import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
 import { StageAlarms } from '@modules/v1/phase/stage-alarms.port';
@@ -13,7 +12,7 @@ import { PlanAnnouncer } from '@modules/v1/plan/plan-announcer.port';
 import { PlanEngineService } from '@modules/v1/plan/plan-engine.service';
 import { PlanProgressService } from '@modules/v1/plan/plan-progress.service';
 import { PlanService } from '@modules/v1/plan/plan.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The plan engine has no route of its own and runs on a timer, so a pass is
@@ -37,7 +36,7 @@ const SPACE = 'space-1';
 const GROW = 'grow-1';
 const OWNER = 'user-1';
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let plans: Model<StoredPlan>;
 let engine: PlanEngineService;
 let transitions: PlanService;
@@ -119,15 +118,8 @@ const grow = async () => (await db.grows.findOne({ id: GROW }).lean().exec())!;
 
 const entries = () => db.entries.find({}).sort({ createdAt: 1 }).lean().exec();
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-  // The plans are the one collection this spec needs that the harness, which was
-  // built for the shared services, does not hold.
-  plans = db.connection.model<StoredPlan>(MODEL_V1.plan, plansSchema);
-});
-
-afterAll(async () => {
-  await db.stop();
+beforeAll(() => {
+  plans = db.plans;
 });
 
 beforeEach(async () => {

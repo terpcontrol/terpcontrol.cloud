@@ -69,7 +69,7 @@ export interface V1TestDatabase {
   stop(): Promise<void>;
 }
 
-export const startV1TestDatabase = async (): Promise<V1TestDatabase> => {
+const startV1TestDatabase = async (): Promise<V1TestDatabase> => {
   const server = await MongoMemoryServer.create();
   const connection = mongoose.createConnection(server.getUri('v1-unit-spec'));
   await connection.asPromise();
@@ -112,4 +112,24 @@ export const startV1TestDatabase = async (): Promise<V1TestDatabase> => {
       await stopMongod(server);
     },
   };
+};
+
+/**
+ * The database of the specs around the call: started before the first of them
+ * and stopped after the last. Called where the spec declares it, so the start
+ * runs ahead of every `beforeAll` of the spec that builds services from it.
+ */
+export const useV1TestDatabase = (): V1TestDatabase => {
+  const db = {} as V1TestDatabase;
+
+  beforeAll(async () => {
+    Object.assign(db, await startV1TestDatabase());
+  });
+
+  // A start that failed has nothing to stop.
+  afterAll(async () => {
+    await db.stop?.();
+  });
+
+  return db;
 };

@@ -6,7 +6,7 @@ import { GerminationAlarmsService } from '@modules/alarm/germination-alarms.serv
 import { StageAlarmsService } from '@modules/alarm/stage-alarms.service';
 import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
 import { StageAlarms } from '@modules/v1/phase/stage-alarms.port';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The alarm thresholds a stage binds.
@@ -22,19 +22,11 @@ const OTHER = 'device-other';
 const TENT = 'space-tent';
 const GROW = 'grow-1';
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let service: StageAlarmsService;
 
 const byKey = async (deviceId = DEVICE) =>
   Object.fromEntries((await db.alarmRules.find({ deviceId, origin: 'preset' }).lean()).map(rule => [rule.presetKey, rule]));
-
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
 
 beforeEach(async () => {
   await db.reset();

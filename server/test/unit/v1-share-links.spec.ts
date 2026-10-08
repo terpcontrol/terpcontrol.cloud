@@ -1,9 +1,10 @@
-import { AccessService } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { ProblemException } from '@common/v1/problem';
 import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { ShareLinksService } from '@modules/v1/sharing/share-links.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { admin, demo, session } from './support/callers';
+import { accessOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * Share links, against a real database, because what is wrong about a list of
@@ -23,17 +24,11 @@ const OTHER = 'user-other';
 const TENT = 'space-tent';
 const GROW = 'grow-1';
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-const asAdmin = (userId: string): AccessContext => ({ userId, isAdmin: true, isDemo: false, shareToken: null });
-const demo: AccessContext = { userId: 'user-demo', isAdmin: false, isDemo: true, shareToken: null };
-
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let links: ShareLinksService;
 
 const build = (): ShareLinksService => {
-  const access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-
-  return new ShareLinksService(db.shareLinks, db.grows, db.spaces, access);
+  return new ShareLinksService(db.shareLinks, db.grows, db.spaces, accessOn(db));
 };
 
 /** One tent and one grow each for two accounts, so the wrong rows exist to be answered. */
@@ -48,14 +43,6 @@ const world = async (): Promise<void> => {
     { id: 'grow-theirs', ownerId: OTHER, name: 'Theirs', type: 'photoperiod', slug: 'theirs', startedAt: new Date(), updatedAt: new Date() },
   ]);
 };
-
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
 
 beforeEach(async () => {
   await db.reset();
@@ -133,7 +120,7 @@ describe('the list of links', () => {
    * settings, with the same Copy button beside it.
    */
   it('holds none of a stranger´s links for an administrator, whose own page this is', async () => {
-    const seen = await everyPage(asAdmin(OWNER));
+    const seen = await everyPage(admin(OWNER));
 
     const rows = await db.shareLinks.find({ id: { $in: seen } }).lean<ShareLinkDocument[]>();
     expect(rows.some(row => row.createdBy === OTHER)).toBe(false);
@@ -144,7 +131,7 @@ describe('the list of links', () => {
   });
 
   it('is nobody´s for a session that is not an account', async () => {
-    await expect(links.list(demo, {})).rejects.toThrow(ProblemException);
+    await expect(links.list(demo(), {})).rejects.toThrow(ProblemException);
   });
 });
 

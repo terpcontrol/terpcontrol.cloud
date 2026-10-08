@@ -1,10 +1,9 @@
 import type { mongo } from 'mongoose';
 import { Model } from 'mongoose';
 import { ImageStore } from '@database/image-store';
-import { MODEL_V1 } from '@database/models';
-import { StoredUser, usersSchema } from '@database/schemas/v1/users.schema';
+import { StoredUser } from '@database/schemas/v1/users.schema';
 import { CleanupService } from '@modules/cleanup/cleanup.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The daily sweep has no HTTP surface of its own, so the black-box suite cannot
@@ -19,7 +18,7 @@ const OLD = new Date(NOW - 30 * DAY_MS);
 /** Unreachable, but too recent to collect. */
 const RECENT = new Date(NOW - 2 * DAY_MS);
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let users: Model<StoredUser>;
 let store: ImageStore;
 let cleanup: CleanupService;
@@ -75,14 +74,9 @@ const remainingEntries = async (): Promise<string[]> => (await db.entries.find()
 const remainingMedia = async (): Promise<string[]> => (await db.media.find().lean()).map(media => media.id).sort();
 
 beforeAll(async () => {
-  db = await startV1TestDatabase();
-  users = db.connection.model<StoredUser>(MODEL_V1.user, usersSchema);
+  users = db.users;
   store = new ImageStore(db.connection);
   cleanup = new CleanupService(db.devices, db.spaces, db.grows, db.cameras, users, db.entries, db.media, store);
-});
-
-afterAll(async () => {
-  await db?.stop();
 });
 
 beforeEach(() => db.reset());

@@ -1,7 +1,9 @@
 import { AccessService, needToEditEntry } from '@common/v1/access.service';
 import { AccessContext, Need, SubjectRef } from '@common/v1/access.types';
 import { ProblemException } from '@common/v1/problem';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { admin, anonymous, demo, session, visitor } from './support/callers';
+import { accessOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The access matrix. Everything else in `/v1` is a screen answering wrongly when
@@ -52,13 +54,7 @@ const EVERYTHING = Object.keys(SUBJECTS);
 const NOTHING: string[] = [];
 const NEEDS: Need[] = ['own', 'manage', 'log', 'view'];
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-const admin: AccessContext = { userId: 'user-admin', isAdmin: true, isDemo: false, shareToken: null };
-const demo: AccessContext = { userId: 'user-demo', isAdmin: false, isDemo: true, shareToken: null };
-const anonymous: AccessContext = { userId: null, isAdmin: false, isDemo: false, shareToken: null };
-const link = (token: string): AccessContext => ({ ...anonymous, shareToken: token });
-
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let access: AccessService;
 
 const seed = async (world: { isPublic?: boolean; isDemo?: boolean } = {}): Promise<void> => {
@@ -141,17 +137,9 @@ const expectMatrix = async (ctx: AccessContext, allows: Record<Need, string[]>):
 
 const nothingAtAll: Record<Need, string[]> = { own: NOTHING, manage: NOTHING, log: NOTHING, view: NOTHING };
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 beforeEach(async () => {
   await db.reset();
-  access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
+  access = accessOn(db);
 });
 
 describe('a private grow, in a tent in a room', () => {
@@ -162,7 +150,7 @@ describe('a private grow, in a tent in a room', () => {
   });
 
   it('lets an administrator do everything to everything', async () => {
-    await expectMatrix(admin, { own: EVERYTHING, manage: EVERYTHING, log: EVERYTHING, view: EVERYTHING });
+    await expectMatrix(admin(), { own: EVERYTHING, manage: EVERYTHING, log: EVERYTHING, view: EVERYTHING });
   });
 
   it('lets a member who may manage do everything but own it, through the room', async () => {
@@ -182,11 +170,11 @@ describe('a private grow, in a tent in a room', () => {
   });
 
   it('tells a demo session nothing, because none of it is demo', async () => {
-    await expectMatrix(demo, nothingAtAll);
+    await expectMatrix(demo(), nothingAtAll);
   });
 
   it('shows a link on the grow the grow and what names it', async () => {
-    await expectMatrix(link(GROW_LINK), { ...nothingAtAll, view: ['grow', 'plant', 'entry', 'photo'] });
+    await expectMatrix(visitor(GROW_LINK), { ...nothingAtAll, view: ['grow', 'plant', 'entry', 'photo'] });
   });
 
   /**
@@ -200,7 +188,7 @@ describe('a private grow, in a tent in a room', () => {
    * them.
    */
   it('shows a link on the grow that includes cameras the pictures taken of it', async () => {
-    await expectMatrix(link(GROW_LINK_WITH_CAMERAS), { ...nothingAtAll, view: ['grow', 'plant', 'entry', 'photo', 'still'] });
+    await expectMatrix(visitor(GROW_LINK_WITH_CAMERAS), { ...nothingAtAll, view: ['grow', 'plant', 'entry', 'photo', 'still'] });
   });
 
   it('shows a link on the grow no still of the tent from before the plants stood in it', async () => {
@@ -211,17 +199,17 @@ describe('a private grow, in a tent in a room', () => {
       { placements: [{ id: 'placement-1', spaceId: SPACE, startedAt: new Date('2026-02-01T00:00:00.000Z'), endedAt: null, plantIds: null }] },
     );
 
-    expect(await access.access(link(GROW_LINK_WITH_CAMERAS), SUBJECTS.still, 'view')).toBeNull();
+    expect(await access.access(visitor(GROW_LINK_WITH_CAMERAS), SUBJECTS.still, 'view')).toBeNull();
     // The grow itself is still reached by the link it was made for.
-    expect(await access.access(link(GROW_LINK_WITH_CAMERAS), SUBJECTS.grow, 'view')).not.toBeNull();
+    expect(await access.access(visitor(GROW_LINK_WITH_CAMERAS), SUBJECTS.grow, 'view')).not.toBeNull();
   });
 
   it('shows a link on the space everything standing in it, but no pictures of the camera', async () => {
-    await expectMatrix(link(SPACE_LINK), { ...nothingAtAll, view: ['space', 'grow', 'plant', 'device', 'entry', 'photo'] });
+    await expectMatrix(visitor(SPACE_LINK), { ...nothingAtAll, view: ['space', 'grow', 'plant', 'device', 'entry', 'photo'] });
   });
 
   it('shows a link on the space that includes cameras the camera as well', async () => {
-    await expectMatrix(link(SPACE_LINK_WITH_CAMERAS), { ...nothingAtAll, view: EVERYTHING });
+    await expectMatrix(visitor(SPACE_LINK_WITH_CAMERAS), { ...nothingAtAll, view: EVERYTHING });
   });
 });
 
@@ -237,7 +225,7 @@ describe('a public grow', () => {
   });
 
   it('lets a demo session read a public page like anybody else', async () => {
-    await expectMatrix(demo, { ...nothingAtAll, view: ['grow', 'plant', 'entry', 'photo'] });
+    await expectMatrix(demo(), { ...nothingAtAll, view: ['grow', 'plant', 'entry', 'photo'] });
   });
 
   it('clamps a public read to the life of the grow', async () => {
@@ -260,11 +248,11 @@ describe('the demo tour', () => {
   beforeEach(() => seed({ isDemo: true }));
 
   it('reads every demo object and writes none of them', async () => {
-    await expectMatrix(demo, { own: NOTHING, manage: NOTHING, log: NOTHING, view: EVERYTHING });
+    await expectMatrix(demo(), { own: NOTHING, manage: NOTHING, log: NOTHING, view: EVERYTHING });
   });
 
   it('is nobody, so it is still not the owner of what it reads', async () => {
-    const grant = await access.access(demo, SUBJECTS.grow, 'view');
+    const grant = await access.access(demo(), SUBJECTS.grow, 'view');
 
     expect(grant?.grantee).toBe('demo');
     expect(grant?.redacted).toBe(true);
@@ -302,7 +290,7 @@ describe('what rides back with a yes', () => {
   });
 
   it('says a link without cameras carries no pictures, so a read model does not go looking', async () => {
-    const grant = await access.access(link(SPACE_LINK), SUBJECTS.space, 'view');
+    const grant = await access.access(visitor(SPACE_LINK), SUBJECTS.space, 'view');
 
     expect(grant?.grantee).toBe('share');
     expect(grant?.includeCameras).toBe(false);
@@ -313,7 +301,7 @@ describe('what rides back with a yes', () => {
     const endsAt = new Date('2026-03-01T00:00:00.000Z');
     await db.shareLinks.updateOne({ token: SPACE_LINK }, { range: { startsAt, endsAt } });
 
-    const grant = await access.access(link(SPACE_LINK), SUBJECTS.space, 'view');
+    const grant = await access.access(visitor(SPACE_LINK), SUBJECTS.space, 'view');
     expect(grant?.range).toEqual({ startsAt, endsAt });
   });
 
@@ -330,17 +318,17 @@ describe('a link that is no longer one', () => {
   it('is refused once it has been revoked', async () => {
     await db.shareLinks.updateOne({ token: GROW_LINK }, { revokedAt: new Date() });
 
-    expect(await access.access(link(GROW_LINK), SUBJECTS.grow, 'view')).toBeNull();
+    expect(await access.access(visitor(GROW_LINK), SUBJECTS.grow, 'view')).toBeNull();
   });
 
   it('is refused once it has expired', async () => {
     await db.shareLinks.updateOne({ token: GROW_LINK }, { expiresAt: new Date(Date.now() - 1000) });
 
-    expect(await access.access(link(GROW_LINK), SUBJECTS.grow, 'view')).toBeNull();
+    expect(await access.access(visitor(GROW_LINK), SUBJECTS.grow, 'view')).toBeNull();
   });
 
   it('is nothing at all when the token names no link', async () => {
-    expect(await access.access(link('made-up'), SUBJECTS.grow, 'view')).toBeNull();
+    expect(await access.access(visitor('made-up'), SUBJECTS.grow, 'view')).toBeNull();
   });
 });
 
@@ -376,7 +364,7 @@ describe('a device nobody has claimed', () => {
   it('belongs to nobody but an administrator', async () => {
     expect(await access.access(session(OWNER), SUBJECTS.device, 'view')).toBeNull();
     expect(await access.access(anonymous, SUBJECTS.device, 'view')).toBeNull();
-    expect(await access.access(admin, SUBJECTS.device, 'own')).not.toBeNull();
+    expect(await access.access(admin(), SUBJECTS.device, 'own')).not.toBeNull();
   });
 });
 
@@ -423,6 +411,6 @@ describe('editing an entry', () => {
   });
 
   it('is managing for a demo session, which authors nothing', () => {
-    expect(needToEditEntry(demo, demo.userId)).toBe('manage');
+    expect(needToEditEntry(demo(), demo().userId)).toBe('manage');
   });
 });

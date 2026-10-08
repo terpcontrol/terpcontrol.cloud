@@ -1,17 +1,13 @@
-import { jest } from '@jest/globals';
 import { DateTime } from 'luxon';
 import { DeviceConfiguration } from '@fg2/shared-types/v1';
-import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { ScheduleClock, StoredDevice } from '@database/schemas/v1/devices.schema';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
 import { DeviceIngestService } from '@modules/device-protocol/device-ingest.service';
-import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
-import { HardwareReportService } from '@modules/device-protocol/hardware-report.service';
 import { clockTimesOf, keepsTime, sameClockTimes, scheduleClockOf, withClockTimesMoved } from '@modules/device-protocol/schedule-clock';
 import { ScheduleClockService } from '@modules/device-protocol/schedule-clock.service';
-import { MqttClientService } from '@modules/mqtt/mqtt-client.service';
 import { PlanService } from '@modules/v1/plan/plan.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { Published, deviceStackOn } from './support/device-stack';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The light comes on at the hour on the owner's wall clock, summer or winter.
@@ -44,8 +40,8 @@ const SUMMER_CONFIGURATION: DeviceConfiguration = {
   daynight: { day: 6 * HOUR, night: 18 * HOUR, maxDehumidifySeconds: 120 },
 };
 
-let db: V1TestDatabase;
-let published: { topic: string; message: string }[];
+const db = useV1TestDatabase();
+let published: Published[];
 let configuration: DeviceConfigurationService;
 let clocks: ScheduleClockService;
 let ingest: DeviceIngestService;
@@ -71,40 +67,10 @@ const onTheWall = (seconds: unknown, day: string) =>
     .setZone(BERLIN)
     .toFormat('HH:mm');
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 beforeEach(async () => {
   await db.reset();
-  published = [];
-
-  const mqtt = {
-    canPublish: true,
-    publish: jest.fn((topic: string, message: string) => {
-      published.push({ topic, message });
-      return true;
-    }),
-  } as unknown as MqttClientService;
-
-  const publisher = new DevicePublisherService(db.devices, mqtt);
-  const plans = new PlanService(db.plans, db.devices, {} as never);
-  configuration = new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, new EntryWriterService(db.entries), plans);
+  ({ published, configuration, ingest } = deviceStackOn(db, new PlanService(db.plans, db.devices, {} as never)));
   clocks = new ScheduleClockService(db.devices, db.users, configuration);
-  ingest = new DeviceIngestService(
-    db.devices,
-    db.cameras,
-    db.targetChanges,
-    mqtt,
-    publisher,
-    new HardwareReportService(db.devices, db.cameras),
-    new EntryWriterService(db.entries),
-    configuration,
-  );
 });
 
 describe('the clock a schedule is kept on', () => {

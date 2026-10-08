@@ -7,8 +7,6 @@ import { AccessContext } from '@common/v1/access.types';
 import { ProblemException } from '@common/v1/problem';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { DataService } from '@modules/data/data.service';
-import { DevicesService } from '@modules/v1/device/devices.service';
-import { GrowsService } from '@modules/v1/grow/grows.service';
 import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
 import { DeviceConfigurationWriter } from '@modules/v1/plan/device-configuration.port';
 import { PlanProgressService } from '@modules/v1/plan/plan-progress.service';
@@ -20,7 +18,9 @@ import { PresetApplicationsService } from '@modules/v1/space/preset-applications
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
 import { SpacesController } from '@modules/v1/space/spaces.controller';
 import { SpacesService } from '@modules/v1/space/spaces.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { admin, demo, session } from './support/callers';
+import { accessOn, growsOn, spacesOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * Spaces: the places everything else on the home screen hangs off, and the one
@@ -49,11 +49,7 @@ const DEVICE = 'device-1';
 const CAMERA = 'camera-1';
 const GROW = 'grow-1';
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-const admin: AccessContext = { userId: 'user-admin', isAdmin: true, isDemo: false, shareToken: null };
-const demo: AccessContext = { userId: 'user-demo', isAdmin: false, isDemo: true, shareToken: null };
-
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let access: AccessService;
 let spaces: SpacesService;
 let presets: PresetApplicationsService;
@@ -92,14 +88,6 @@ const refusal = async (action: () => unknown): Promise<ProblemException> => {
   throw new Error('It was allowed.');
 };
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 /**
  * The preset half of this controller, built for real against the same database:
  * what is asked of it here is who may apply one, and that decision is the
@@ -115,19 +103,7 @@ const presetsOf = (): PresetApplicationsService => {
       return true;
     },
   };
-  const grows = new GrowsService(
-    db.grows,
-    db.plants,
-    db.devices,
-    db.memberships,
-    db.spaces,
-    db.users,
-    db.shareLinks,
-    db.entries,
-    access,
-    phases,
-    written,
-  );
+  const grows = growsOn(db, access, { phases, writer: written });
   const plans = new PlanService(
     db.plans,
     db.devices,
@@ -139,9 +115,8 @@ const presetsOf = (): PresetApplicationsService => {
 
 beforeEach(async () => {
   await db.reset();
-  access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-  const devices = new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access);
-  spaces = new SpacesService(db.spaces, db.memberships, db.invites, db.shareLinks, db.devices, db.cameras, db.grows, devices, access);
+  access = accessOn(db);
+  spaces = spacesOn(db, access);
   configured = [];
   presets = presetsOf();
   controller = new SpacesController(
@@ -191,7 +166,7 @@ describe('making one', () => {
   });
 
   it('is not something a session without an account can do', async () => {
-    const problem = await refusal(() => spaces.create(demo, { kind: 'tent', name: 'Mine now' }));
+    const problem = await refusal(() => spaces.create(demo(), { kind: 'tent', name: 'Mine now' }));
 
     expect(problem.problem.code).toBe('no_account');
   });
@@ -213,7 +188,7 @@ describe('changing one', () => {
 
   it('refuses a room of another account, because a room and its spaces are shared as one', async () => {
     const theirs = await spaces.create(session(STRANGER), { kind: 'room', name: 'Their room' });
-    const problem = await refusal(() => spaces.update(admin, SPACE, { roomId: theirs.id }));
+    const problem = await refusal(() => spaces.update(admin(), SPACE, { roomId: theirs.id }));
 
     expect(problem.problem).toMatchObject({ status: 409, code: 'room_of_another_account' });
   });
@@ -272,7 +247,7 @@ describe('listing them', () => {
   it('shows an administrator their own spaces and none of a stranger´s', async () => {
     await db.spaces.create({ id: 'space-theirs', ownerId: STRANGER, kind: 'tent', name: 'Theirs', createdAt: new Date('2026-01-04T00:00:00.000Z') });
 
-    const page = await spaces.list({ userId: OWNER, isAdmin: true, isDemo: false, shareToken: null }, {}, {});
+    const page = await spaces.list(admin(OWNER), {}, {});
 
     expect(page.items.map(space => space.id)).not.toContain('space-theirs');
     expect(page.items.map(space => space.id)).toEqual([ROOM, SPACE, OTHER_SPACE]);
@@ -281,7 +256,7 @@ describe('listing them', () => {
   it('shows a demo session the demo spaces, and nobody´s real ones', async () => {
     await db.spaces.create({ id: 'space-demo', ownerId: 'user-tour', kind: 'tent', name: 'The demo tent', isDemo: true });
 
-    expect((await spaces.list(demo, {}, {})).items.map(space => space.id)).toEqual(['space-demo']);
+    expect((await spaces.list(demo(), {}, {})).items.map(space => space.id)).toEqual(['space-demo']);
   });
 
   it('never lets a later page reach past what the caller may see', async () => {
@@ -329,7 +304,7 @@ describe('what the reader may do here', () => {
   });
 
   it('agrees with access() for every caller, which is the only reason it can be drawn from', async () => {
-    for (const ctx of [session(OWNER), session(MANAGER), session(MEMBER), admin]) {
+    for (const ctx of [session(OWNER), session(MANAGER), session(MEMBER), admin()]) {
       const space = await spaces.require(SPACE);
       const may = await spaces.mayIn1(ctx, space);
       const ref = { type: 'space' as const, id: SPACE };
@@ -343,7 +318,7 @@ describe('what the reader may do here', () => {
     const space = await spaces.require(SPACE);
 
     expect(await spaces.mayIn1(session(STRANGER), space)).toBe('view');
-    expect(await spaces.mayIn1(demo, space)).toBe('view');
+    expect(await spaces.mayIn1(demo(), space)).toBe('view');
   });
 });
 
@@ -947,7 +922,7 @@ describe('who may do what', () => {
   });
 
   it('lets an administrator do everything', async () => {
-    expect(await allowedRoutes(admin)).toEqual(EVERY_ROUTE);
+    expect(await allowedRoutes(admin())).toEqual(EVERY_ROUTE);
   });
 
   it('lets a manager do everything but end a space', async () => {
@@ -963,7 +938,7 @@ describe('who may do what', () => {
   });
 
   it('tells a demo session nothing, because none of this is demo', async () => {
-    expect(await allowedRoutes(demo)).toEqual([]);
+    expect(await allowedRoutes(demo())).toEqual([]);
   });
 
   it('declares a need on every route about one space, so none is left undecided', () => {

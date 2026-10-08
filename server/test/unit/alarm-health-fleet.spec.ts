@@ -1,8 +1,7 @@
 import { jest } from '@jest/globals';
 import { Model } from 'mongoose';
-import { MODEL_V1 } from '@database/models';
-import { StoredAlarmRule, alarmRulesSchema } from '@database/schemas/v1/alarm-rules.schema';
-import { StoredAlert, alertsSchema } from '@database/schemas/v1/alerts.schema';
+import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
+import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { AlarmDeliveryService } from '@modules/alarm/alarm-delivery.service';
 import { AlarmEngineService } from '@modules/alarm/alarm-engine.service';
@@ -12,7 +11,7 @@ import { DataService, DeviceSince, NewestSamples } from '@modules/data/data.serv
 import { FluxRow } from '@modules/data/flux';
 import { MailService } from '@modules/mail/mail.service';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
-import { V1TestDatabase, startV1TestDatabase } from './support/v1-database';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The alarm health loop against a fleet the size of a real one, and against a
@@ -45,7 +44,7 @@ const QUIET = 218;
 /** Ten minutes of silence is what counts as gone. */
 const GONE_MS = 11 * 60 * 1000;
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let rules: Model<StoredAlarmRule>;
 let alerts: Model<StoredAlert>;
 let health: AlarmHealthService;
@@ -84,14 +83,9 @@ const buildFleet = async (): Promise<void> => {
   ]);
 };
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-  rules = db.connection.model<StoredAlarmRule>(MODEL_V1.alarmRule, alarmRulesSchema);
-  alerts = db.connection.model<StoredAlert>(MODEL_V1.alert, alertsSchema);
-});
-
-afterAll(async () => {
-  await db.stop();
+beforeAll(() => {
+  rules = db.alarmRules;
+  alerts = db.alerts;
 });
 
 beforeEach(async () => {

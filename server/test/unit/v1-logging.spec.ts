@@ -1,7 +1,5 @@
 import type { PlanStep } from '@fg2/shared-types/v1';
 import { MAINTENANCE_VISIT_SECONDS, dosesFor } from '@fg2/shared-types/v1-schemas';
-import { AccessContext } from '@common/v1/access.types';
-import { AccessService } from '@common/v1/access.service';
 import { EntryWriterService, UNDO_WINDOW_SECONDS } from '@common/v1/entry-writer.service';
 import { ProblemException } from '@common/v1/problem';
 import { MailService } from '@modules/mail/mail.service';
@@ -13,7 +11,9 @@ import { TaskCompletionsService } from '@modules/v1/diary/task-completions.servi
 import { planTaskId } from '@modules/v1/diary/task-ids';
 import { PlanProgressService } from '@modules/v1/plan/plan-progress.service';
 import { PlanService } from '@modules/v1/plan/plan.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { demo, session, visitor } from './support/callers';
+import { accessOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * Writing the diary.
@@ -49,10 +49,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const STARTED_AT = new Date(Date.now() - 34 * DAY_MS);
 const IN_WEEK_THREE = new Date(STARTED_AT.getTime() + 15 * DAY_MS);
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-const demo: AccessContext = { userId: 'user-demo', isAdmin: false, isDemo: true, shareToken: null };
-const link: AccessContext = { userId: null, isAdmin: false, isDemo: false, shareToken: LINK };
-
 /** Biobizz as the client ships it, cut to what week 3 and week 5 need. */
 const GRID = [
   { week: 3, stage: 'vegetative' as const, amounts: [{ productKey: 'bio_grow', name: 'Bio·Grow', value: 2, unit: 'ml/l' }] },
@@ -67,7 +63,7 @@ const GRID = [
   },
 ];
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let entries: EntryWritesService;
 let completions: TaskCompletionsService;
 let plans: PlanService;
@@ -142,19 +138,11 @@ const seed = async (): Promise<void> => {
   await db.users.create({ id: OWNER, email: 'owner@example.invalid', passwordHash: 'x', handle: 'owner' });
 };
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 beforeEach(async () => {
   await db.reset();
   quietened = [];
 
-  const access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
+  const access = accessOn(db);
   const maintenance: MaintenancePort = {
     startMaintenance: async (deviceId, forSeconds) => void quietened.push({ deviceId, forSeconds }),
   };
@@ -205,11 +193,11 @@ describe('who may write a line, and against what', () => {
   });
 
   it('refuses a demo session, which is a tour and not an account', async () => {
-    expect((await problem(entries.create(demo, aNote))).status).toBe(403);
+    expect((await problem(entries.create(demo(), aNote))).status).toBe(403);
   });
 
   it('never lets a share link write, however much of the grow it may read', async () => {
-    expect((await problem(entries.create(link, aNote))).status).toBe(401);
+    expect((await problem(entries.create(visitor(LINK), aNote))).status).toBe(401);
     expect(await db.entries.countDocuments()).toBe(0);
   });
 

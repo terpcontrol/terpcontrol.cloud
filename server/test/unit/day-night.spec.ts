@@ -28,7 +28,7 @@ import { settingsSent, stepsOf } from '@modules/v1/plan/plan-steps';
 import { liveOfDevice } from '@modules/v1/space/space-live';
 import { presetConfiguration } from '@modules/v1/space/climate-presets';
 import { nightsOf, targetsOf, transitionsOf } from '@modules/v1/timeline/timeline-series';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * Day and night are the device's: its clock window in UTC and its work mode,
@@ -677,16 +677,8 @@ describe('the targets a mode leaves alone', () => {
 
 describe('a save of the targets', () => {
   const DEVICE = 'sim-fridge-1';
-  let db: V1TestDatabase;
+  const db = useV1TestDatabase();
   let configuration: DeviceConfigurationService;
-
-  beforeAll(async () => {
-    db = await startV1TestDatabase();
-  });
-
-  afterAll(async () => {
-    await db.stop();
-  });
 
   beforeEach(async () => {
     await db.reset();

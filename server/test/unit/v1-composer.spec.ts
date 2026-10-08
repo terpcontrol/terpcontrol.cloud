@@ -4,8 +4,6 @@ import { join } from 'node:path';
 import { FastifyReply } from 'fastify';
 import sharp from 'sharp';
 import { TimelapseCreate } from '@fg2/shared-types/v1';
-import { AccessContext } from '@common/v1/access.types';
-import { AccessService } from '@common/v1/access.service';
 import { CamerasController } from '@modules/v1/camera/cameras.controller';
 import { CamerasService } from '@modules/v1/camera/cameras.service';
 import { EntitlementService } from '@modules/v1/camera/entitlement.service';
@@ -13,7 +11,9 @@ import { MediaService } from '@modules/v1/camera/media.service';
 import { OverlayFrame, composeFrame, overlayLayer, sizeFor, wasDark } from '@modules/v1/camera/timelapse-overlays';
 import { TimelapseContextService } from '@modules/v1/camera/timelapse-context.service';
 import { TimelapseService, whyNoFilm } from '@modules/v1/camera/timelapse.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { session } from './support/callers';
+import { accessOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The composer: what is asked of a render, and what is refused.
@@ -31,8 +31,6 @@ const CAMERA = 'camera-1';
 const BESIDE = 'camera-2';
 const ELSEWHERE = 'camera-3';
 
-const session: AccessContext = { userId: OWNER, isAdmin: false, isDemo: false, shareToken: null };
-
 const PREMIUM = {
   enforced: true,
   freeStillWidth: 640,
@@ -45,7 +43,7 @@ const PREMIUM = {
 
 const PHASE = { window: 'phase' as const, startsAt: '2026-08-01T00:00:00.000Z', endsAt: '2026-08-20T00:00:00.000Z' };
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let controller: CamerasController;
 let media: MediaService;
 let status: number;
@@ -65,13 +63,13 @@ const picture = (colour: string): Promise<Buffer> =>
     .jpeg()
     .toBuffer();
 
-const compose = (body: TimelapseCreate, cameraId = CAMERA) => controller.requestTimelapse(session, cameraId, body, reply());
+const compose = (body: TimelapseCreate, cameraId = CAMERA) => controller.requestTimelapse(session(OWNER), cameraId, body, reply());
 
 const build = (): void => {
   const entitlement = new EntitlementService(PREMIUM);
   const cameras = new CamerasService(db.cameras, db.devices, db.memberships, entitlement, db.users);
   media = new MediaService(db.media, db.grows, null as never);
-  const access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
+  const access = accessOn(db);
   const poller = { settingsChanged: () => undefined, forget: () => undefined };
   // The builder is asked to take the queue now rather than on its hourly pass;
   // what it then renders is the builder's own test.
@@ -93,14 +91,6 @@ const world = async (entitledUntil: Date | null): Promise<void> => {
     { id: ELSEWHERE, ownerId: OWNER, kind: 'rtsp', spaceId: BALCONY, name: 'Cam 3', entitlement: { validUntil: null, grant: null } },
   ]);
 };
-
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
 
 beforeEach(async () => {
   await db.reset();

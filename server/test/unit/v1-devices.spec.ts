@@ -1,7 +1,7 @@
-import { AccessService } from '@common/v1/access.service';
-import { AccessContext } from '@common/v1/access.types';
 import { DevicesService } from '@modules/v1/device/devices.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { admin, demo, session } from './support/callers';
+import { accessOn, devicesOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * Which devices a caller is shown.
@@ -23,17 +23,10 @@ const BALCONY = 'space-balcony';
 const IN_THE_TENT = 'device-in-the-tent';
 const ON_THE_BALCONY = 'device-on-the-balcony';
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-const demo: AccessContext = { userId: 'user-demo', isAdmin: false, isDemo: true, shareToken: null };
-
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let devices: DevicesService;
 
-const build = (): DevicesService => {
-  const access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-
-  return new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access);
-};
+const build = (): DevicesService => devicesOn(db, accessOn(db));
 
 /**
  * A tent standing in a room and a balcony standing on its own, with a
@@ -57,14 +50,6 @@ const world = async (): Promise<void> => {
     { id: 'membership-member', spaceId: TENT, userId: MEMBER, role: 'can_log' },
   ]);
 };
-
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
 
 beforeEach(async () => {
   await db.reset();
@@ -99,17 +84,17 @@ describe('the devices a caller is shown', () => {
       createdAt: new Date('2026-01-04T12:00:00.000Z'),
     });
 
-    const listed = (await devices.list({ userId: OWNER, isAdmin: true, isDemo: false, shareToken: null }, {})).items.map(device => device.id);
+    const listed = (await devices.list(admin(OWNER), {})).items.map(device => device.id);
 
     expect(listed).not.toContain('device-theirs');
     expect(listed.sort()).toEqual([IN_THE_TENT, ON_THE_BALCONY].sort());
   });
 
   it('shows a demo session the demo devices and no others', async () => {
-    expect((await devices.list(demo, {})).items).toHaveLength(0);
+    expect((await devices.list(demo(), {})).items).toHaveLength(0);
 
     await db.devices.updateOne({ id: IN_THE_TENT }, { isDemo: true });
-    expect((await devices.list(demo, {})).items.map(device => device.id)).toEqual([IN_THE_TENT]);
+    expect((await devices.list(demo(), {})).items.map(device => device.id)).toEqual([IN_THE_TENT]);
   });
 
   it('narrows to one space when it is asked to, without widening past what the caller may see', async () => {

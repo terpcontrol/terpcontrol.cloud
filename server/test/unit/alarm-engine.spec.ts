@@ -2,9 +2,8 @@ import { jest } from '@jest/globals';
 import { Model } from 'mongoose';
 import { OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { MAINTENANCE_SETTLE_SECONDS } from '@fg2/shared-types/v1-schemas';
-import { MODEL_V1 } from '@database/models';
-import { StoredAlarmRule, alarmRulesSchema } from '@database/schemas/v1/alarm-rules.schema';
-import { StoredAlert, alertsSchema } from '@database/schemas/v1/alerts.schema';
+import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
+import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { AlarmDeliveryService } from '@modules/alarm/alarm-delivery.service';
 import { AlarmEngineService } from '@modules/alarm/alarm-engine.service';
@@ -14,7 +13,7 @@ import { AlertService } from '@modules/alarm/alert.service';
 import { DataService, DeviceSince } from '@modules/data/data.service';
 import { MailService } from '@modules/mail/mail.service';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
-import { V1TestDatabase, startV1TestDatabase } from './support/v1-database';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The state machine, against a real database: a rule and its state are one
@@ -33,7 +32,7 @@ const OWNER = 'user-1';
 /** Ten minutes of silence is what counts as gone. */
 const GONE_MS = 11 * 60 * 1000;
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let rules: Model<StoredAlarmRule>;
 let alerts: Model<StoredAlert>;
 let engine: AlarmEngineService;
@@ -93,14 +92,9 @@ const openAlert = () => alerts.findOne({ resolvedAt: null }).lean<StoredAlert>()
 const device = (over: Record<string, unknown> = {}) =>
   db.devices.create({ id: DEVICE, type: 'controller', ownerId: OWNER, spaceId: SPACE, state: { lastSeenAt: new Date() }, ...over });
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-  rules = db.connection.model<StoredAlarmRule>(MODEL_V1.alarmRule, alarmRulesSchema);
-  alerts = db.connection.model<StoredAlert>(MODEL_V1.alert, alertsSchema);
-});
-
-afterAll(async () => {
-  await db.stop();
+beforeAll(() => {
+  rules = db.alarmRules;
+  alerts = db.alerts;
 });
 
 beforeEach(async () => {

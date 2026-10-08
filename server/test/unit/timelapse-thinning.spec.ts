@@ -2,7 +2,7 @@ import { ImageStore } from '@database/image-store';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaService } from '@modules/v1/camera/media.service';
 import { TimelapseService } from '@modules/v1/camera/timelapse.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * What the thinning tiers do to history the previous release kept.
@@ -23,7 +23,7 @@ const DAY = 24 * 60 * MINUTE;
 
 const CAMERA = { id: 'a-camera' } as CameraDocument;
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let media: MediaService;
 let timelapse: TimelapseService;
 
@@ -52,13 +52,8 @@ const aDayOfStills = async (prefix: string): Promise<string[]> => {
 const remaining = async (prefix: string): Promise<number> => db.media.countDocuments({ cameraId: CAMERA.id, id: { $regex: `^${prefix}-` } });
 
 beforeAll(async () => {
-  db = await startV1TestDatabase();
   media = new MediaService(db.media, db.grows, new ImageStore(db.connection));
   timelapse = new TimelapseService(undefined as never, media, undefined as never, undefined as never);
-});
-
-afterAll(async () => {
-  await db?.stop();
 });
 
 beforeEach(() => db.reset());

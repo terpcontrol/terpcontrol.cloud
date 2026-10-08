@@ -1,14 +1,10 @@
-import { jest } from '@jest/globals';
-import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { ProblemException } from '@common/v1/problem';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { fieldChangesOf } from '@modules/device-protocol/configuration-fields';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
 import { DeviceIngestService } from '@modules/device-protocol/device-ingest.service';
-import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
-import { HardwareReportService } from '@modules/device-protocol/hardware-report.service';
-import { MqttClientService } from '@modules/mqtt/mqtt-client.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { Published, deviceStackOn } from './support/device-stack';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The settings of the stand-alone modules, changed by name: what a smart socket
@@ -24,8 +20,8 @@ const FAN = 'sim-fan-1';
 const OTHER_FAN = 'sim-fan-2';
 const HOUR = 3600;
 
-let db: V1TestDatabase;
-let published: { topic: string; message: Record<string, unknown> }[];
+const db = useV1TestDatabase();
+let published: Published[];
 let configuration: DeviceConfigurationService;
 let ingest: DeviceIngestService;
 
@@ -54,6 +50,9 @@ const make = (id: string, type: string, document: Record<string, unknown>, field
 
 const stored = async (id: string) => (await db.devices.findOne({ id }).lean<StoredDevice>())!;
 
+/** What went out, with each document read back. */
+const sent = () => published.map(one => ({ topic: one.topic, message: JSON.parse(one.message) as Record<string, unknown> }));
+
 const refusal = (type: string, set: Parameters<typeof fieldChangesOf>[1]) => {
   try {
     fieldChangesOf(type, set);
@@ -63,38 +62,9 @@ const refusal = (type: string, set: Parameters<typeof fieldChangesOf>[1]) => {
   }
 };
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
 beforeEach(async () => {
   await db.reset();
-  published = [];
-
-  const mqtt = {
-    canPublish: true,
-    publish: jest.fn((topic: string, message: string) => {
-      published.push({ topic, message: JSON.parse(message) });
-      return true;
-    }),
-  } as unknown as MqttClientService;
-  const publisher = new DevicePublisherService(db.devices, mqtt);
-  const entries = new EntryWriterService(db.entries);
-  configuration = new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, entries);
-  ingest = new DeviceIngestService(
-    db.devices,
-    db.cameras,
-    db.targetChanges,
-    mqtt,
-    publisher,
-    new HardwareReportService(db.devices, db.cameras),
-    entries,
-    configuration,
-  );
+  ({ published, configuration, ingest } = deviceStackOn(db));
 });
 
 describe('a smart socket', () => {
@@ -145,7 +115,7 @@ describe('a smart socket', () => {
       fan: coupled,
       mqttcontrol: false,
     });
-    expect(published.find(one => one.topic.includes(PLUG))?.message).toEqual(after);
+    expect(sent().find(one => one.topic.includes(PLUG))?.message).toEqual(after);
   });
 });
 
@@ -250,7 +220,7 @@ describe('the fan a socket slows while it doses CO2', () => {
       period: 60,
       duration: 10,
     });
-    expect(published.some(one => one.topic.includes(FAN) && (one.message.co2inject as { night?: number })?.night === 14 * HOUR)).toBe(true);
+    expect(sent().some(one => one.topic.includes(FAN) && (one.message.co2inject as { night?: number })?.night === 14 * HOUR)).toBe(true);
   });
 
   it('keeps the socket’s windows in a fan that sends its own document from its menu', async () => {
@@ -261,6 +231,6 @@ describe('the fan a socket slows while it doses CO2', () => {
     await ingest.handle(`/devices/${FAN}/configuration`, JSON.stringify(fanDocument({ min_speed: 20 })));
 
     expect((await stored(FAN)).configuration).toMatchObject({ min_speed: 20, co2inject });
-    expect(published.some(one => one.topic.includes(FAN) && JSON.stringify(one.message.co2inject) === JSON.stringify(co2inject))).toBe(true);
+    expect(sent().some(one => one.topic.includes(FAN) && JSON.stringify(one.message.co2inject) === JSON.stringify(co2inject))).toBe(true);
   });
 });

@@ -4,15 +4,17 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { crc32, inflateRawSync } from 'node:zlib';
 import type { DeviceSeries } from '@fg2/shared-types/v1';
 import { media as mediaShape } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
-import { AccessContext } from '@common/v1/access.types';
 import { ImageStore } from '@database/image-store';
 import { DataService, SeriesRequest } from '@modules/data/data.service';
 import { MediaService } from '@modules/v1/camera/media.service';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { unzip } from '../support/zip';
+import { demo, session, visitor } from './support/callers';
+import { seriesOf } from './support/fake-data';
+import { accessOn } from './support/services';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * Exporting: the job, the zip it leaves behind, and the fact that the zip is
@@ -82,11 +84,7 @@ const PHOTO_TAKEN = new Date('2026-06-09T09:00:00.000Z');
 /** Asked for now, because how fresh a finished export is, is measured against the clock the build ran on. */
 const NOW = new Date();
 
-const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
-const visitor = (shareToken: string): AccessContext => ({ userId: null, isAdmin: false, isDemo: false, shareToken });
-const demo = (): AccessContext => ({ userId: null, isAdmin: false, isDemo: true, shareToken: null });
-
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let access: AccessService;
 let store: ImageStore;
 let media: MediaService;
@@ -98,73 +96,9 @@ let exports: InstanceType<typeof ExportService>;
 let ExportService: typeof import('@modules/v1/grow/export.service').ExportService;
 
 const fakeData = {
-  series: async (deviceId: string, request: SeriesRequest): Promise<DeviceSeries> => {
-    const step = (request.stepSeconds ?? 60) * 1000;
-    const instants: Date[] = [];
-    for (let at = request.startsAt.getTime(); at < request.endsAt.getTime(); at += step) instants.push(new Date(at));
-
-    return {
-      deviceId,
-      startsAt: request.startsAt.toISOString(),
-      endsAt: request.endsAt.toISOString(),
-      stepSeconds: request.stepSeconds ?? 60,
-      metrics: request.metrics.map(name => ({
-        metric: name,
-        points: instants.map(at => ({ measuredAt: at.toISOString(), value: name === 'temperature' ? 23.5 : null })),
-      })),
-      outputs: (request.outputs ?? []).map(output => ({
-        output,
-        points: instants.map(at => ({ measuredAt: at.toISOString(), value: output === 'light' ? 1 : null })),
-      })),
-    };
-  },
+  series: async (deviceId: string, request: SeriesRequest): Promise<DeviceSeries> =>
+    seriesOf(deviceId, request, { metric: name => (name === 'temperature' ? 23.5 : null), output: output => (output === 'light' ? 1 : null) }),
 } as unknown as DataService;
-
-/**
- * The archive, read back: every entry by name, with its bytes recovered the way
- * an unzip recovers them.
- *
- * It walks the directory at the end rather than the headers at the front, which
- * is what a reader does, and so is also a check that the two agree.
- */
-const unzip = (archive: Buffer): Map<string, Buffer> => {
-  const end = archive.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
-  expect(end).toBeGreaterThan(-1);
-
-  const zip64 = archive.lastIndexOf(Buffer.from([0x50, 0x4b, 0x06, 0x06]));
-  const count = Number(archive.readBigUInt64LE(zip64 + 32));
-  let at = Number(archive.readBigUInt64LE(zip64 + 48));
-
-  const files = new Map<string, Buffer>();
-  for (let index = 0; index < count; index += 1) {
-    expect(archive.readUInt32LE(at)).toBe(0x02014b50);
-    const method = archive.readUInt16LE(at + 10);
-    const crc = archive.readUInt32LE(at + 16);
-    const nameLength = archive.readUInt16LE(at + 28);
-    const extraLength = archive.readUInt16LE(at + 30);
-    const name = archive.subarray(at + 46, at + 46 + nameLength).toString('utf8');
-    const offset = archive.readUInt32LE(at + 42);
-    const compressedSize = archive.readUInt32LE(at + 20);
-
-    // Where the bytes start: past the local header and whatever it carries.
-    const from = offset + 30 + archive.readUInt16LE(offset + 26) + archive.readUInt16LE(offset + 28);
-    const stored = archive.subarray(from, from + compressedSize);
-    const content = method === 8 ? inflateRawSync(stored) : stored;
-    expect(crc32(content) >>> 0).toBe(crc);
-
-    // The descriptor that follows the bytes says what the directory says. A
-    // reader going forwards through the file has only that one to go by.
-    expect(archive.readUInt32LE(from + compressedSize)).toBe(0x08074b50);
-    expect(archive.readUInt32LE(from + compressedSize + 4)).toBe(crc);
-    expect(Number(archive.readBigUInt64LE(from + compressedSize + 8))).toBe(compressedSize);
-    expect(Number(archive.readBigUInt64LE(from + compressedSize + 16))).toBe(content.length);
-
-    files.set(name, content);
-    at += 46 + nameLength + extraLength;
-  }
-
-  return files;
-};
 
 const archiveOf = async (id: string): Promise<Map<string, Buffer>> => unzip(await media.download(id));
 
@@ -351,11 +285,6 @@ const world = async (): Promise<void> => {
 
 beforeAll(async () => {
   ({ ExportService } = await import('@modules/v1/grow/export.service'));
-  db = await startV1TestDatabase();
-});
-
-afterAll(async () => {
-  await db.stop();
 });
 
 afterEach(() => {
@@ -367,7 +296,7 @@ afterEach(() => {
 
 beforeEach(async () => {
   await db.reset();
-  access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
+  access = accessOn(db);
   store = new ImageStore(db.connection);
   media = new MediaService(db.media, db.grows, store);
   exports = new ExportService(
@@ -719,7 +648,7 @@ describe('whose export it is', () => {
     await expect(access.access(session(MEMBER), subject, 'view')).resolves.toBeNull();
     await expect(access.access(session(STRANGER), subject, 'view')).resolves.toBeNull();
     await expect(access.access(visitor('a-week-of-it'), subject, 'view')).resolves.toBeNull();
-    await expect(access.access(demo(), subject, 'view')).resolves.toBeNull();
+    await expect(access.access(demo(null), subject, 'view')).resolves.toBeNull();
   });
 
   it('is found only by the account that asked for it, so one job id says nothing about another', async () => {

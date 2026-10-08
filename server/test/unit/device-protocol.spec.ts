@@ -1,9 +1,7 @@
-import { jest } from '@jest/globals';
 import { Model } from 'mongoose';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
-import { MODEL_V1 } from '@database/models';
-import { StoredClaimCode, claimCodesSchema } from '@database/schemas/v1/claim-codes.schema';
-import { StoredDeviceClass, deviceClassesSchema } from '@database/schemas/v1/device-classes.schema';
+import { StoredClaimCode } from '@database/schemas/v1/claim-codes.schema';
+import { StoredDeviceClass } from '@database/schemas/v1/device-classes.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
 import { DeviceIngestService } from '@modules/device-protocol/device-ingest.service';
@@ -14,7 +12,8 @@ import { DeviceSample } from '@modules/device-protocol/device-sinks';
 import { decodeCapabilities, decodeSockets } from '@modules/device-protocol/sockets';
 import { MqttClientService } from '@modules/mqtt/mqtt-client.service';
 import { hashDevicePassword } from '@utils/devicepassword';
-import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
+import { Published, recordingMqtt } from './support/device-stack';
+import { useV1TestDatabase } from './support/v1-database';
 
 /**
  * The boundary between a device's vocabulary and the model.
@@ -30,10 +29,10 @@ import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
 const DEVICE = 'sim-controller-1';
 const OWNER = 'user-1';
 
-let db: V1TestDatabase;
+const db = useV1TestDatabase();
 let claimCodes: Model<StoredClaimCode>;
 let deviceClasses: Model<StoredDeviceClass>;
-let published: { topic: string; message: string }[];
+let published: Published[];
 let mqtt: MqttClientService;
 let ingest: DeviceIngestService;
 let publisher: DevicePublisherService;
@@ -60,31 +59,19 @@ const targets = (over: { day?: { temperature: number | null; humidity: number | 
   co2: over.co2 ?? null,
 });
 
-beforeAll(async () => {
-  db = await startV1TestDatabase();
-  claimCodes = db.connection.model<StoredClaimCode>(MODEL_V1.claimCode, claimCodesSchema);
-  deviceClasses = db.connection.model<StoredDeviceClass>(MODEL_V1.deviceClass, deviceClassesSchema);
-});
-
-afterAll(async () => {
-  await db.stop();
+beforeAll(() => {
+  claimCodes = db.claimCodes;
+  deviceClasses = db.deviceClasses;
 });
 
 beforeEach(async () => {
   await db.reset();
-  published = [];
   samples = [];
   metrics = [];
   seen = [];
   firmwareReports = [];
 
-  mqtt = {
-    canPublish: true,
-    publish: jest.fn((topic: string, message: string) => {
-      published.push({ topic, message });
-      return true;
-    }),
-  } as unknown as MqttClientService;
+  ({ mqtt, published } = recordingMqtt());
 
   publisher = new DevicePublisherService(db.devices, mqtt);
   const hardware = new HardwareReportService(db.devices, db.cameras);
@@ -576,7 +563,7 @@ describe('what the cloud tells a device', () => {
     await publisher.command(DEVICE, { kind: 'socket_set', slot: null, role: 'heater', address: '10.0.0.9', credentials: null, timer: null });
     expect(sent()).toEqual({ action: 'socket_set', role: 'heater', ip: '10.0.0.9', append: true });
 
-    published = [];
+    published.length = 0;
     await publisher.command(DEVICE, {
       kind: 'socket_set',
       slot: 2,
