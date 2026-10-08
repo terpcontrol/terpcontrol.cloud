@@ -12,7 +12,6 @@ import { MediaController } from './media.controller';
 import { MediaDeliveryService } from './media-delivery.service';
 import { MediaPresentationService } from './media-presentation.service';
 import { MediaService } from './media.service';
-import { OptionalSessionGuard } from './optional-session.guard';
 import { TerpCamDirectService } from './terpcam-direct.service';
 import { TerpCamService } from './terpcam.service';
 import { TestCapturesService } from './test-captures.service';
@@ -46,7 +45,6 @@ import { TimelapseService } from './timelapse.service';
     MediaService,
     MediaDeliveryService,
     MediaPresentationService,
-    OptionalSessionGuard,
     TerpCamService,
     TerpCamDirectService,
     TestCapturesService,

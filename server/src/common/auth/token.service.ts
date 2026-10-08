@@ -14,7 +14,7 @@ import { StoredSession } from '@database/schemas/v1/sessions.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { authConfig } from '../../config/configuration';
 
-export type TokenType = DataStoredInToken['token_type'];
+type TokenType = DataStoredInToken['token_type'];
 
 export interface AuthContext {
   userId: string;
@@ -47,6 +47,14 @@ export interface AuthenticatedRequest extends FastifyRequest {
 // are also the only reads the image token opens at all, wherever it is carried.
 export const isMediaRead = (request: FastifyRequest): boolean => request.method === 'GET' && routePath(request.url).startsWith('/v1/media/');
 
+const cookieToken = (request: FastifyRequest): string | undefined =>
+  (request as FastifyRequest & { cookies?: Record<string, string> }).cookies?.['Authorization'];
+
+const bearerToken = (request: FastifyRequest): string | undefined => request.headers.authorization?.split('Bearer ')[1];
+
+/** The session token in the cookie or the Authorization header, which is all the admin routes accept. */
+export const sessionCredential = (request: FastifyRequest): string | undefined => cookieToken(request) || bearerToken(request);
+
 // A full user session is at least as privileged as the URL-embeddable image token.
 const matchesTokenType = (actual: TokenType, expected: TokenType): boolean => actual === expected || (expected === 'image' && actual === 'user');
 
@@ -71,21 +79,10 @@ export class TokenService {
    * candidates are considered rather than just the first.
    */
   public candidates(request: FastifyRequest): string[] {
-    const found: string[] = [];
+    const found = [cookieToken(request), bearerToken(request)].filter((token): token is string => !!token);
 
-    const fromCookie = (request as FastifyRequest & { cookies?: Record<string, string> }).cookies?.['Authorization'];
-    if (fromCookie) found.push(fromCookie);
-
-    const header = request.headers.authorization;
-    if (header) {
-      const bearer = header.split('Bearer ')[1];
-      if (bearer) found.push(bearer);
-    }
-
-    if (isMediaRead(request)) {
-      const queryToken = (request.query as Record<string, unknown> | undefined)?.token;
-      if (typeof queryToken === 'string') found.push(queryToken);
-    }
+    const queryToken = isMediaRead(request) ? (request.query as Record<string, unknown> | undefined)?.token : undefined;
+    if (typeof queryToken === 'string') found.push(queryToken);
 
     return found;
   }
@@ -108,9 +105,7 @@ export class TokenService {
 
   /** Only the cookie and the Authorization header, as the admin routes accept. */
   public async verifySessionToken(request: FastifyRequest): Promise<DataStoredInToken | null> {
-    const cookie = (request as FastifyRequest & { cookies?: Record<string, string> }).cookies?.['Authorization'];
-    const header = request.headers.authorization?.split('Bearer ')[1];
-    const token = cookie || header;
+    const token = sessionCredential(request);
     if (!token) return null;
 
     try {
@@ -118,6 +113,17 @@ export class TokenService {
     } catch {
       return null;
     }
+  }
+
+  /** Puts the caller behind the first token of that type on the request, and answers whether there was one. */
+  public async authenticate(request: AuthenticatedRequest, type: TokenType): Promise<boolean> {
+    const token = await this.verifyFirst(request, type);
+    const caller = token && (await this.resolve(token));
+    if (!token || !caller) return false;
+
+    request.auth = caller;
+    request.authTokenType = token.token_type;
+    return true;
   }
 
   /**

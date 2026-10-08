@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { V1CommonModule } from '@common/v1/v1.module';
 import { ModelsModule } from '@database/models.module';
 import { DataModule } from '@modules/data/data.module';
-import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { CameraModule } from '../camera/camera.module';
 import { PhaseModule } from '../phase/phase.module';
 import { ExportController } from './export.controller';
@@ -24,7 +23,7 @@ import { PlantsController } from './plants.controller';
 @Module({
   imports: [ModelsModule, V1CommonModule, DataModule, PhaseModule, CameraModule],
   controllers: [GrowsController, PlantsController, ExportController],
-  providers: [GrowsService, GrowSeriesService, ExportService, OptionalSessionGuard],
+  providers: [GrowsService, GrowSeriesService, ExportService],
   exports: [GrowsService],
 })
 export class GrowModule {}

@@ -13,7 +13,7 @@ import {
   timelapseAccepted,
   timelapseCreate,
 } from '@fg2/shared-types/v1-schemas';
-import { AuthGuard } from '@common/auth/auth.guard';
+import { AuthGuard, OptionalSessionGuard } from '@common/auth/auth.guard';
 import { V1Body } from '@common/zod-validation.pipe';
 import { AccessGuard, Caller, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
@@ -30,7 +30,6 @@ import { TestCapturesService } from './test-captures.service';
 import { EntitlementService } from './entitlement.service';
 import { MediaService } from './media.service';
 import { coveredBy, TimelapseService } from './timelapse.service';
-import { OptionalSessionGuard } from './optional-session.guard';
 import { changesTheStream } from './stream-url';
 import { isRolling, periodAround, periodBefore } from './film-periods';
 import { DEFAULT_ASPECT, DEFAULT_OVERLAYS } from './timelapse-overlays';

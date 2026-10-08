@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { V1CommonModule } from '@common/v1/v1.module';
 import { ModelsModule } from '@database/models.module';
 import { DataModule } from '@modules/data/data.module';
-import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { SpaceModule } from '../space/space.module';
 import { SpaceSeriesService } from './space-series.service';
 import { TimelineController } from './timeline.controller';
@@ -16,6 +15,6 @@ import { TimelineService } from './timeline.service';
 @Module({
   imports: [ModelsModule, V1CommonModule, DataModule, SpaceModule],
   controllers: [TimelineController],
-  providers: [TimelineService, SpaceSeriesService, OptionalSessionGuard],
+  providers: [TimelineService, SpaceSeriesService],
 })
 export class TimelineModule {}

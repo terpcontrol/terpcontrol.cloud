@@ -6,7 +6,7 @@ import { metric, outputMetric, spaceSeries, spaceTimeline, timelineRange } from 
 import { AccessGuard, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { Grant } from '@common/v1/access.types';
 import { V1Query, inOrder, instantQuery } from '@common/v1/validation';
-import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
+import { OptionalSessionGuard } from '@common/auth/auth.guard';
 import { V1Answer } from '../answer-shape';
 import { SpaceSeriesService } from './space-series.service';
 import { TimelineService } from './timeline.service';

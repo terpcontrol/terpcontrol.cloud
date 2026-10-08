@@ -4,7 +4,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { Media, MediaUpload } from '@fg2/shared-types/v1';
 import { media as mediaShape, mediaUpload } from '@fg2/shared-types/v1-schemas';
-import { AuthGuard } from '@common/auth/auth.guard';
+import { AuthGuard, OptionalSessionGuard } from '@common/auth/auth.guard';
 import { AuthenticatedRequest } from '@common/auth/token.service';
 import { AccessGuard, AccessRequest, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService, needToEditEntry, subjectRef } from '@common/v1/access.service';
@@ -16,7 +16,6 @@ import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { MediaDeliveryService } from './media-delivery.service';
 import { MediaPresentationService, RANGE_REFUSAL, parseDimension, pictureSizeQuery } from './media-presentation.service';
 import { MediaService } from './media.service';
-import { OptionalSessionGuard } from './optional-session.guard';
 import { V1Answer } from '../answer-shape';
 import { PICTURE_READ_OPERATION } from '../../../openapi';
 

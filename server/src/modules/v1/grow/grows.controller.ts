@@ -44,13 +44,12 @@ import {
   splitCreate,
   splitResult,
 } from '@fg2/shared-types/v1-schemas';
-import { AuthGuard } from '@common/auth/auth.guard';
+import { AuthGuard, OptionalSessionGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { V1Query, inOrder, instantQuery, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
-import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { V1Answer } from '../answer-shape';
 import { GrowSeriesService } from './grow-series.service';
 import { GrowsService } from './grows.service';

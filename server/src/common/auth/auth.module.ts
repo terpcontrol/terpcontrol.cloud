@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { ModelsModule } from '../../database/models.module';
 import { RateLimitGuard } from '../rate-limit.guard';
-import { AdminGuard, AuthGuard } from './auth.guard';
+import { AdminGuard, AuthGuard, OptionalSessionGuard } from './auth.guard';
 import { TokenService } from './token.service';
 
 /**
@@ -11,7 +11,7 @@ import { TokenService } from './token.service';
 @Global()
 @Module({
   imports: [ModelsModule],
-  providers: [TokenService, AuthGuard, AdminGuard, RateLimitGuard],
-  exports: [TokenService, AuthGuard, AdminGuard, RateLimitGuard],
+  providers: [TokenService, AuthGuard, AdminGuard, OptionalSessionGuard, RateLimitGuard],
+  exports: [TokenService, AuthGuard, AdminGuard, OptionalSessionGuard, RateLimitGuard],
 })
 export class SecurityModule {}
