@@ -17,6 +17,7 @@ import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { DevicesService } from '../device/devices.service';
+import { accountOf } from '../caller';
 
 /**
  * The `spaces` collection: the places a person grows in, and what stands in one.
@@ -101,8 +102,7 @@ export class SpacesService {
   }
 
   public async create(ctx: AccessContext, body: SpaceCreate): Promise<Space> {
-    const userId = ctx.userId;
-    if (!userId || ctx.isDemo) throw conflict('no_account', 'A space belongs to somebody, and this session is nobody.');
+    const userId = accountOf(ctx, 'A space belongs to somebody, and this session is nobody.');
 
     this.refuseRoomInRoom(body.kind, body.roomId ?? null);
     const room = body.roomId ? await this.requireRoom(ctx, body.roomId) : null;

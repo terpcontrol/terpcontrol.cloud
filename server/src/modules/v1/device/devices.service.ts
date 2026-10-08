@@ -23,6 +23,7 @@ import { logger } from '@utils/logger';
 import { HardwareReportService } from '@modules/device-protocol/hardware-report.service';
 import { controlOf } from '@modules/device-protocol/work-modes';
 import { DEVICE_PLACEMENT, DevicePlacement } from './placement.port';
+import { accountOf } from '../caller';
 
 /**
  * The `devices` collection: what a device is, and what a person decides about
@@ -133,8 +134,7 @@ export class DevicesService {
    * and naming none makes one.
    */
   public async claim(ctx: AccessContext, body: DeviceClaimCreate): Promise<DeviceClaimResult> {
-    const ownerId = ctx.userId;
-    if (!ownerId || ctx.isDemo) throw conflict('no_account', 'A device belongs to somebody, and this session is nobody.');
+    const ownerId = accountOf(ctx, 'A device belongs to somebody, and this session is nobody.');
 
     const claimCode = await this.claimCodes.findOne({ code: body.code.trim().toUpperCase() }).lean<StoredClaimCode>();
     if (!claimCode) throw notFound('claim_code_unknown', 'No device is showing that code. Read it off the display again.');

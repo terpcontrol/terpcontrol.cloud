@@ -45,6 +45,7 @@ import { CLIMATE_PRESETS, ClimatePresets } from './climate-presets.port';
 import { NOTHING_HIDDEN, Redaction, serialiseGrow, serialisePhase, serialisePlacement, serialisePlant } from './grow-serialiser';
 import { grantRedaction, ownerRedactions } from './redactions';
 import { growsVisibleTo } from './visible-grows';
+import { accountOf } from '../caller';
 
 /**
  * The `grows` collection and the `plants` beside it: what is growing, where it
@@ -192,8 +193,7 @@ export class GrowsService {
    * through, so a grow enters its first phase exactly as it enters its fifth.
    */
   public async create(ctx: AccessContext, body: GrowCreate): Promise<GrowListItem> {
-    const ownerId = ctx.userId;
-    if (!ownerId || ctx.isDemo) throw conflict('no_account', 'A grow belongs to somebody, and this session is nobody.');
+    const ownerId = accountOf(ctx, 'A grow belongs to somebody, and this session is nobody.');
 
     await this.requireSpaceFor(ctx, body.spaceId);
     requireDistinctKeys(body.measurements ?? []);

@@ -30,6 +30,7 @@ import { TimelapseService } from './timelapse.service';
 import { changesTheStream } from './stream-url';
 import { V1Answer } from '../answer-shape';
 import { SHARED_READ_OPERATION } from '../../../openapi';
+import { accountOf } from '../caller';
 
 /**
  * The cameras of a tent, and the pictures and films of one camera.
@@ -125,8 +126,7 @@ export class CamerasController {
       throw badRequest('nowhere_to_put_it', 'A camera belongs to a space or to the controller that answers for it; name one of them.');
     }
 
-    const owner = ctx.userId;
-    if (owner === null) throw badRequest('no_account', 'A camera belongs to somebody, and this session is nobody.');
+    const owner = accountOf(ctx, 'A camera belongs to somebody, and this session is nobody.');
 
     // A controller pairs exactly one Terp Cam and reports it over MQTT, so this
     // body adopts the row that pairing already made rather than making a second.
