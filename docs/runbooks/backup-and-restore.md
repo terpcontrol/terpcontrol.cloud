@@ -1,7 +1,7 @@
 ---
 summary: Backing up and restoring a stack beyond the README's commands - what a backup holds and misses, one-database backups, deploy hosts, restoring into a migrated database or from another install
 updated: 2026-10-08
-source: backup.sh, restore.sh, scripts/compose.sh and server/src/migrations/README.md as of 2026-10-08; commits 2025-10-30..2026-10-06; the production hotfix of 2026-09-23 (backup on a deploy host)
+source: backup.sh, restore.sh, scripts/compose.sh and server/src/migrations/README.md as of 2026-10-08; commits 2025-10-30..2026-10-06; the production hotfix of 2026-09-23 (backup on a deploy host); restoring the focused backup on a busy machine (2026-10-08)
 paths:
   - backup.sh
   - restore.sh
@@ -75,6 +75,13 @@ its size on the Docker host.
   `INFLUXDB_BUCKET` must be that install's. The InfluxDB token is the target's own and may differ.
 - Restored accounts keep their passwords, except the one `ADMINUSER_USERNAME` names: the server sets it to
   `ADMINUSER_PASSWORD` at every start.
+- **A restore that ends without a word is a killed `mongorestore`** (exit 137): it runs inside the database's
+  container, and on a machine running several stacks the Docker VM runs out of memory on the picture chunks
+  (`imagedata.chunks`, about 2 GB in a focused backup). `restore.sh` then stops silently after its Mongo step. Run the
+  restore by hand with `--numParallelCollections=1 --numInsertionWorkersPerCollection=1 --batchSize=20`, and if that
+  is killed too, start that `mongodb` with a small cache through a compose override
+  (`command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]`) for the restore; recreating the container drops the
+  archive copied into it, so copy it again.
 
 ## Raspberry Pi
 
