@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { AlarmRule, Device, Me, Metric, OutputMetric, Severity, WebhookMethod } from '@fg2/shared-types/v1';
+import type { AlarmRule, Device, Me, Metric, OutputMetric, Severity } from '@fg2/shared-types/v1';
 import { useCreateAlarmRule, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { Sheet } from '@/ui/Sheet';
 import { EmailAlarmsOffer } from '@/screens/notifications/NotifyNotice';
+import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
+import { WEBHOOK_METHODS } from '@/screens/notifications/settings';
 import { Refused } from '@/ui/PageState';
 import advanced from '@/ui/advanced/Advanced.module.css';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import {
-  channelsLabel,
   createBody,
   DEFAULT_WATCH,
   draftOf,
@@ -21,7 +22,6 @@ import {
   outputName,
   outputsOf,
   readingsOf,
-  routedChannels,
   type RuleDraft,
   ruleTitle,
   scaleNote,
@@ -37,7 +37,6 @@ import { isComplete, templateOf, WEBHOOK_TEMPLATES, type TemplateValues, type We
 import styles from './Alarms.module.css';
 
 const SEVERITIES: Severity[] = ['critical', 'warning', 'info'];
-const METHODS: WebhookMethod[] = ['GET', 'POST', 'PUT'];
 
 /**
  * Writing a rule, and changing one.
@@ -504,7 +503,7 @@ function WebhookFields({ draft, onChange }: { draft: RuleDraft; onChange: (over:
         onChange={event => onChange({ url: event.target.value })}
       />
       <Choices label={t('alarms.sheet.method')}>
-        {METHODS.map(method => (
+        {WEBHOOK_METHODS.map(method => (
           <Choice key={method} chosen={draft.method === method} onChoose={() => onChange({ method })}>
             {method}
           </Choice>

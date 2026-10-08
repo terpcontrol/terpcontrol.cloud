@@ -18,7 +18,7 @@ import { forgetId, pushKey, pushSupported, rememberedId, rememberId, subscribe, 
 import { ChannelCard } from './parts';
 import { useWriteNotifications } from './write';
 import { headersOf, headersText } from '@/ui/headers';
-import { categoriesOn, hostOf, listed, routingWith } from './settings';
+import { categoriesOn, hostOf, listed, routingWith, WEBHOOK_METHODS } from './settings';
 import { alarmsReach } from './reach';
 import styles from './Notifications.module.css';
 
@@ -38,8 +38,6 @@ interface CardProps {
   /** Whether nothing on this screen may be moved: the demo, or a write on its way. */
   held: boolean;
 }
-
-const METHODS: WebhookMethod[] = ['GET', 'POST', 'PUT'];
 
 /** The rows whose Telegram messages take a reply into the diary. */
 const REPLYABLE: NotificationCategory[] = ['alerts', 'warnings', 'tasks'];
@@ -72,7 +70,7 @@ function EditChip({ disabled, onOpen }: { disabled: boolean; onOpen: () => void 
 }
 
 /** Save what was typed, or leave it as it was. Drawn only while a card is being edited. */
-function EditActions({ save, cancel, onCancel }: { save: boolean; cancel: string; onCancel: () => void }) {
+function EditActions({ save, onCancel }: { save: boolean; onCancel: () => void }) {
   const { t } = useTranslation();
 
   return (
@@ -81,7 +79,7 @@ function EditActions({ save, cancel, onCancel }: { save: boolean; cancel: string
         {t('notifications.save')}
       </button>
       <button type="button" className={ui.button} onClick={onCancel}>
-        {cancel}
+        {t('notifications.cancel')}
       </button>
     </div>
   );
@@ -375,11 +373,7 @@ export function EmailCard({ me, held }: CardProps) {
               onChange={event => setDraft(event.target.value)}
             />
           </label>
-          <EditActions
-            save={!held && !pending && changed && draft.trim() !== ''}
-            cancel={t('notifications.cancel')}
-            onCancel={() => setEditing(false)}
-          />
+          <EditActions save={!held && !pending && changed && draft.trim() !== ''} onCancel={() => setEditing(false)} />
         </form>
       ) : null}
       <Refused error={error} />
@@ -465,7 +459,7 @@ export function WebhookCard({ me, held }: CardProps) {
           <div className={styles.field}>
             <span className="label">{t('notifications.webhook.method')}</span>
             <Choices label={t('notifications.webhook.method')}>
-              {METHODS.map(one => (
+              {WEBHOOK_METHODS.map(one => (
                 <Choice key={one} chosen={method === one} disabled={held} onChoose={() => setMethod(one)}>
                   {one}
                 </Choice>
@@ -483,11 +477,7 @@ export function WebhookCard({ me, held }: CardProps) {
               onChange={event => setHeaders(event.target.value)}
             />
           </label>
-          <EditActions
-            save={!held && !pending && changed && draft.url !== ''}
-            cancel={t('notifications.cancel')}
-            onCancel={() => setEditing(false)}
-          />
+          <EditActions save={!held && !pending && changed && draft.url !== ''} onCancel={() => setEditing(false)} />
         </form>
       ) : null}
       <Refused error={error} />

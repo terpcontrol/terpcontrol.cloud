@@ -1,10 +1,9 @@
 import { BellOff, Check, Mail } from 'lucide-react';
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Me, NotificationCategory } from '@fg2/shared-types/v1';
 import { useMailAlarms, useMe, useUpdateMe } from '@/api/account';
-import { channelsLabel } from '@/screens/control/alarms/rules';
 import { instantOf } from '@/ui/age';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
@@ -12,7 +11,7 @@ import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { rowsInWords, useCallingRows } from './calling';
-import { alarmsReach, callsReach, LATER_DAYS, mailAddressOf, putAway, reachedBy } from './reach';
+import { alarmsReach, callsReach, channelsLabel, LATER_DAYS, mailAddressOf, putAway, reachedBy } from './reach';
 import styles from './NotifyNotice.module.css';
 
 const SETTINGS = '/me/notifications';
@@ -116,18 +115,14 @@ export function EmailAlarmsOffer({
   me,
   rows,
   others = true,
-  primary = false,
   compact = false,
   onDone,
-  children,
 }: {
   me: Me;
   /** The rows of the grid the tap routes; the critical alarms where nothing says otherwise. */
   rows?: NotificationCategory[];
   /** Whether the line carries the link to the other channels, which the notification settings page is itself. */
   others?: boolean;
-  /** Whether the tap is the one green action where it stands; inside a sheet or a flow that already has one, it is not. */
-  primary?: boolean;
   /**
    * One row rather than two: "Per E-Mail" with the address it goes to beside
    * it, which reads as the one sentence it is - "Per E-Mail an …" - in the
@@ -135,8 +130,6 @@ export function EmailAlarmsOffer({
    */
   compact?: boolean;
   onDone?: (address: string) => void;
-  /** What stands beside the button, such as "Later". */
-  children?: ReactNode;
 }) {
   const { t } = useTranslation();
   const mail = useMailAlarms();
@@ -147,14 +140,13 @@ export function EmailAlarmsOffer({
       <div className={styles.actions}>
         <button
           type="button"
-          className={`${ui.button} ${primary ? ui.primary : ''} ${styles.button}`}
+          className={`${ui.button} ${styles.button}`}
           disabled={mail.isPending}
           onClick={() => mail.mutate(rows, { onSuccess: () => onDone?.(address) })}
         >
           <Mail size={16} strokeWidth={1.75} aria-hidden />
           {t(mail.isPending ? 'notify.sending' : compact ? 'notify.emailShort' : 'notify.email')}
         </button>
-        {children}
       </div>
       <p className={styles.address}>
         <span className={`mono ${styles.to}`}>{t('notify.to', { email: address })}</span>

@@ -8,8 +8,7 @@ import type {
   SocketPage,
   Space,
 } from '@fg2/shared-types/v1';
-import { channelsLabel } from '@/screens/control/alarms/rules';
-import { alarmsReach, reachedBy } from '@/screens/notifications/reach';
+import { alarmsReach, channelsLabel, reachedBy } from '@/screens/notifications/reach';
 
 /**
  * What each step of the claim flow has settled, and the one line it says once

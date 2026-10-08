@@ -1,4 +1,4 @@
-import type { NotificationCategory, NotificationChannel, NotificationRouting, QuietHours } from '@fg2/shared-types/v1';
+import type { NotificationCategory, NotificationChannel, NotificationRouting, QuietHours, WebhookMethod } from '@fg2/shared-types/v1';
 
 /**
  * The arithmetic of the notification settings, kept apart from the screen so
@@ -12,8 +12,11 @@ import type { NotificationCategory, NotificationChannel, NotificationRouting, Qu
 /** The rows of the grid, in the order the board draws them: what wakes you first. */
 export const CATEGORIES: NotificationCategory[] = ['alerts', 'warnings', 'tasks', 'plan', 'weekly_timelapse'];
 
-/** The columns, in the order of the cards above them. */
+/** The columns, in the order of the cards above them, which is also the order channels are named in. */
 export const CHANNELS: NotificationChannel[] = ['push', 'telegram', 'email', 'webhook'];
+
+/** What a webhook can be called with. */
+export const WEBHOOK_METHODS: WebhookMethod[] = ['GET', 'POST', 'PUT'];
 
 export const routes = (routing: NotificationRouting, category: NotificationCategory, channel: NotificationChannel): boolean =>
   (routing[category] ?? []).includes(channel);

@@ -5,7 +5,8 @@ import { growSchemeLabel, type SchemeSummary } from '@/api/schemes';
 import { isAhead } from '@/ui/age';
 import { calendarDay } from '@/ui/zone';
 import type { ThemeChoice } from '@/theme/theme-context';
-import { timeOf } from '@/screens/notifications/settings';
+import { isConfigured } from '@/screens/notifications/reach';
+import { CHANNELS, timeOf } from '@/screens/notifications/settings';
 import { retentionLabel } from './privacy/climate';
 import { isDead } from './sharing/links';
 
@@ -114,13 +115,8 @@ const stateWord = (t: TFunction, camera: Camera, now: DateTime): string => {
 
 /** The channels that are on, in the order of the cards on the page they lead to, then the quiet hours. */
 export const notificationsLine = (t: TFunction, me: Me, now: DateTime): string => {
-  const { channels, quietHours, mutedUntil } = me.notifications;
-  const on = [
-    me.pushSubscribed ? t('notifications.channel.push') : null,
-    channels.telegram ? t('notifications.channel.telegram') : null,
-    channels.email ? t('notifications.channel.email') : null,
-    channels.webhook ? t('notifications.channel.webhook') : null,
-  ].filter((name): name is string => name !== null);
+  const { quietHours, mutedUntil } = me.notifications;
+  const on = CHANNELS.filter(channel => isConfigured(me, channel)).map(channel => t(`notifications.channel.${channel}`));
 
   return joined([
     isAhead(mutedUntil, now) ? t('me.door.notifications.muted') : null,

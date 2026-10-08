@@ -10,13 +10,11 @@ import type {
   Device,
   Me,
   Metric,
-  NotificationChannel,
   OutputMetric,
   Severity,
   WebhookMethod,
 } from '@fg2/shared-types/v1';
 import {
-  alertCategory,
   CRITICAL_REPEAT_SECONDS,
   inQuietWindow,
   mailFloorSecondsOf,
@@ -267,36 +265,6 @@ export const boundLabel = (t: Translate, watch: AlarmWatch): string => {
     .join(' · ');
 };
 
-/** The order the channels are named in, whatever order the grid holds them in. */
-const CHANNELS: NotificationChannel[] = ['push', 'telegram', 'email', 'webhook'];
-
-/** What a screen says about a channel: its name, and whether the account has it to be reached on at all. */
-export interface RoutedChannel {
-  channel: NotificationChannel;
-  configured: boolean;
-}
-
-/** A channel is configured when the account has given it something to deliver to; push, when some browser of it is subscribed. */
-export const isConfigured = (me: Me, channel: NotificationChannel): boolean =>
-  channel === 'push' ? me.pushSubscribed : me.notifications.channels[channel] !== null;
-
-/**
- * Where a routed rule of this severity goes, read off the account's own grid.
- * Which row that is belongs to the contract rather than to this screen, so the
- * server announcing and the screen saying so cannot drift apart.
- *
- * A row may name a channel the account cannot be reached on - push before any
- * browser has subscribed, e-mail before an address is confirmed - and that is
- * carried rather than hidden: saying "push" of a rule nothing would arrive from
- * is the one thing an alarm screen must not do.
- */
-export const routedChannels = (me: Me | undefined, severity: Severity): RoutedChannel[] => {
-  const category = alertCategory(severity);
-  const named = me && category ? (me.notifications.routing[category] ?? []) : [];
-
-  return CHANNELS.filter(channel => named.includes(channel)).map(channel => ({ channel, configured: me !== undefined && isConfigured(me, channel) }));
-};
-
 /**
  * Why nothing at all would be said right now, or null while the account is
  * being listened to.
@@ -336,15 +304,6 @@ export type Translate = (key: string, options?: Record<string, unknown>) => stri
  */
 export const watchLabel = (t: Translate, watch: AlarmWatch, deviceType: string | null = null): string | null =>
   watch.kind === 'output_running' ? t('alarms.watchRunning', { output: outputName(t, watch.output, deviceType) }) : null;
-
-/** "push + e-mail", with a channel the account has not set up marked as the dead end it is. */
-export const channelsLabel = (t: Translate, channels: RoutedChannel[]): string =>
-  channels
-    .map(routed => {
-      const name = t(`alarms.channel.${routed.channel}`);
-      return routed.configured ? name : t('alarms.channelOff', { channel: name });
-    })
-    .join(' + ');
 
 /**
  * The sheet's answers, in the shape its fields hold them: a bound is a string

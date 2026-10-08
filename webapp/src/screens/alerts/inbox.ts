@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon';
 import type { AlarmRule, Alert, Me, OutputLevelWatch, ReadingWatch, Severity } from '@fg2/shared-types/v1';
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
-import { routedChannels } from '@/screens/control/alarms/rules';
+import { severityReaches } from '@/screens/notifications/reach';
 import { ageLabel, silentSince } from '@/ui/age';
 import { nowThere, zoned } from '@/ui/zone';
 
@@ -148,7 +148,7 @@ export const deliveryOf = (alert: Alert, rule: AlarmRule | null, me: Me | undefi
 
   if (!rule || rule.delivery.mode === 'routing') {
     if (alertCategory(alert.severity) === null) return 'notAnnounced';
-    if (!routedChannels(me, alert.severity).some(routed => routed.configured)) return 'unheard';
+    if (!severityReaches(me, alert.severity)) return 'unheard';
   }
 
   return rule !== null && rule.repeatSeconds > 0 ? 'repeats' : 'once';

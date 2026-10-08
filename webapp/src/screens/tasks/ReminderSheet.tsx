@@ -4,7 +4,7 @@ import type { GrowListItem, GrowOrSpaceRef, Reminder, ReminderCreate, ReminderKi
 import { Link } from 'react-router';
 import { useMe } from '@/api/account';
 import { serverNow } from '@/api/clock';
-import { channelsLabel, isConfigured } from '@/screens/control/alarms/rules';
+import { channelsLabel, isConfigured } from '@/screens/notifications/reach';
 import { useCreateReminder, useDeleteReminder, useUpdateReminder } from '@/api/reminders';
 import { Sheet } from '@/ui/Sheet';
 import { dayOf, startOfDayOn } from '@/ui/days';

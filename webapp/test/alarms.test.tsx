@@ -12,7 +12,8 @@ import type { AlarmRule, AlarmRuleCreate, Device, Me, SpaceOverview } from '@fg2
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { Alarms } from '@/screens/control/alarms/Alarms';
-import { boundLabel, channelsLabel, repeatsEvery, routedChannels, scaleNote, type Translate, watchLabel } from '@/screens/control/alarms/rules';
+import { boundLabel, repeatsEvery, scaleNote, type Translate, watchLabel } from '@/screens/control/alarms/rules';
+import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
 import { ruleFor, templateBody, templatesFor } from '@/screens/control/alarms/templates';
 import { headersOf } from '@/ui/headers';
 

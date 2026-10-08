@@ -11,6 +11,7 @@ import { useDeviceCommand } from '@/api/commands';
 import { useSpaceOverview } from '@/api/spaces';
 import { durationLabel } from '@/screens/devices/sockets';
 import { targetWithUnit } from '@/ui/units';
+import { channelsLabel, routedChannels, severityReaches } from '@/screens/notifications/reach';
 import { timeOf } from '@/screens/notifications/settings';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
@@ -22,19 +23,7 @@ import { useNow } from '@/ui/useNow';
 import { clock, zoneOf } from '@/ui/zone';
 import { RuleSheet } from './RuleSheet';
 import { ruleFor, templateBody, templatesFor, type AlarmTemplate, type TemplateKey } from './templates';
-import {
-  boundLabel,
-  channelsLabel,
-  groupRules,
-  heldBackBy,
-  missingSensor,
-  repeatsEvery,
-  routedChannels,
-  ruleTitle,
-  type Translate,
-  watchable,
-  watchLabel,
-} from './rules';
+import { boundLabel, groupRules, heldBackBy, missingSensor, repeatsEvery, ruleTitle, type Translate, watchable, watchLabel } from './rules';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import styles from './Alarms.module.css';
 import { deviceName } from '@/ui/naming';
@@ -98,9 +87,7 @@ export function Alarms({
   const grow = overview.data?.grows[0] ?? null;
   // An account no alarm reaches at all is told so once, over the list, with
   // the one-tap fix - rather than "erreicht dich nicht" under every card.
-  const reachesNoOne =
-    me.data !== undefined &&
-    !(['critical', 'warning'] as const).some(severity => routedChannels(me.data!, severity).some(routed => routed.configured));
+  const reachesNoOne = me.data !== undefined && !(['critical', 'warning'] as const).some(severity => severityReaches(me.data!, severity));
 
   return (
     <div className={styles.page}>
@@ -589,4 +576,4 @@ const reachesNobody = (rule: AlarmRule, me: Me | undefined, now: DateTime): bool
   rule.delivery.mode === 'routing' &&
   rule.severity !== 'info' &&
   heldBackBy(me, rule.severity, now) === null &&
-  !routedChannels(me, rule.severity).some(routed => routed.configured);
+  !severityReaches(me, rule.severity);

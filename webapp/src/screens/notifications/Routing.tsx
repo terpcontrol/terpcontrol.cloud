@@ -7,6 +7,7 @@ import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { usePushSubscription } from './push';
 import { useWriteNotifications } from './write';
+import { isConfigured } from './reach';
 import { CATEGORIES, CHANNELS, routes, routingWith } from './settings';
 import styles from './Notifications.module.css';
 
@@ -30,22 +31,17 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
   const { t } = useTranslation();
   const { write, error } = useWriteNotifications(me);
   const subscription = usePushSubscription();
-  const { channels, routing } = me.notifications;
+  const { routing } = me.notifications;
   const cameras = useCameras();
   const filmed = cameras.data !== undefined && ownsCamera(cameras.data.items);
   // Until a server says otherwise the diary is there, which is the app as it has always been.
   const diary = me.layers?.diary !== false;
   const categories = CATEGORIES.filter(category => (category !== 'weekly_timelapse' || filmed) && (category !== 'tasks' || diary));
 
-  const configured: Record<NotificationChannel, boolean> = {
-    // Push goes somewhere as soon as any browser of the account is subscribed, not only this one.
-    push: subscription.data != null || me.pushSubscribed,
-    telegram: channels.telegram !== null,
-    email: channels.email !== null,
-    webhook: channels.webhook !== null,
-  };
+  // Push goes somewhere as soon as any browser of the account is subscribed, not only this one.
+  const configured = (channel: NotificationChannel): boolean => isConfigured(me, channel) || (channel === 'push' && subscription.data != null);
 
-  const keptSomewhere = CHANNELS.some(channel => !configured[channel] && categories.some(category => routes(routing, category, channel)));
+  const keptSomewhere = CHANNELS.some(channel => !configured(channel) && categories.some(category => routes(routing, category, channel)));
 
   return (
     <div className={styles.gridBlock}>
@@ -54,7 +50,7 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
           <tr>
             <td />
             {CHANNELS.map(channel => (
-              <th key={channel} scope="col" className={styles.gridHead} data-off={!configured[channel]}>
+              <th key={channel} scope="col" className={styles.gridHead} data-off={!configured(channel)}>
                 {t(`notifications.channel.${channel}`)}
               </th>
             ))}
@@ -75,8 +71,8 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
                         category: t(`notifications.category.${category}`),
                         channel: t(`notifications.channel.${channel}`),
                       })}
-                      on={on && configured[channel]}
-                      disabled={held || !configured[channel]}
+                      on={on && configured(channel)}
+                      disabled={held || !configured(channel)}
                       onChange={() => write({ routing: routingWith(routing, category, channel, !on) })}
                     />
                   </td>
