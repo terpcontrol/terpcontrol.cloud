@@ -12,7 +12,7 @@ import { useSpaces } from '@/api/spaces';
 import { useCorrecting } from '@/log/corrections';
 import { authorOf, headlineOf, KIND_ICON, readingFigure } from '@/ui/entries';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
-import { enough, standsIn, useMayWith } from '@/ui/session-access';
+import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { zoned, NARROW_DAY, useZone } from '@/ui/zone';
@@ -86,7 +86,7 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
 
   // Moving, splitting, harvesting and renaming a plant are the grow's own
   // moves, which are `manage` where the grow stands today.
-  const youMay = mayWith({ ownerId: grow.data.ownerId, spaceId: standsIn(grow.data) });
+  const youMay = mayWith(growStanding(grow.data));
   const mayManage = enough(youMay, 'manage');
   const lines = entries.data?.items ?? [];
   const photos = lines.filter(entry => entry.mediaIds.length > 0);
@@ -313,7 +313,7 @@ function Line({ entry, grow, plant, measurements }: LineProps) {
   const readings = 'readings' in entry.values ? entry.values.readings : [];
   // The plant's own label rather than the grow's: a line drawn here is about
   // this plant, and the toast that acknowledges the correction says so.
-  const open = correcting(entry, { label: plant.label, dayNumber: day, ownerId: grow.ownerId, spaceId: standsIn(grow) });
+  const open = correcting(entry, { label: plant.label, dayNumber: day, ...growStanding(grow) });
 
   const body = (
     <>

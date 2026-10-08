@@ -5,7 +5,7 @@ import type { MeasurementDefinition } from '@fg2/shared-types/v1';
 import { useGrow, useGrowSeries, useUpdateGrow } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { LoadFailed, NoLongerHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
-import { enough, standsIn, useMayWith } from '@/ui/session-access';
+import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -59,7 +59,7 @@ function MeasurementsScreen({ growId }: { growId: string }) {
   }
   if (!grow.data) return noLongerThere(grow.error) ? <NoLongerHere what="grow" /> : <LoadFailed retry={() => void grow.refetch()} />;
 
-  const mayManage = enough(mayWith({ ownerId: grow.data.ownerId, spaceId: standsIn(grow.data) }), 'manage');
+  const mayManage = enough(mayWith(growStanding(grow.data)), 'manage');
 
   // Null until the series has answered: what has been measured is what settles
   // a definition, and the screen says nothing about it before it knows.

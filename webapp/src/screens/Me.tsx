@@ -17,6 +17,7 @@ import { ownsCamera } from '@/screens/devices/cameras';
 import { countsOf } from '@/screens/grow/my-grows';
 import { useTheme } from '@/theme/theme-context';
 import ui from '@/ui/ui.module.css';
+import { useAccountMe } from '@/ui/session-access';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
 import {
@@ -204,7 +205,7 @@ function AppearanceLine({ language }: { language: string }) {
   const { choice } = useTheme();
   const { user } = useSession();
   const hasAccount = user !== null && !user.isDemo;
-  const me = useMe(false, hasAccount);
+  const me = useAccountMe();
 
   if (hasAccount) {
     if (me.isPending) return t('home.waiting');

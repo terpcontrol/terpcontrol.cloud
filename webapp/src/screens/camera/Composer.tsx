@@ -2,11 +2,10 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Camera, GrowListItem, MediaAspect, MediaOverlays, MediaQuality, MediaWindow, TimelapseCreate } from '@fg2/shared-types/v1';
-import { useMe } from '@/api/account';
 import { useCameras, useLatestStills } from '@/api/cameras';
 import { serverNow } from '@/api/clock';
 import { useDevices } from '@/api/devices';
-import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
+import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel, instantOf } from '@/ui/age';
 import type { HelpTopic } from '@/ui/explain';
@@ -14,7 +13,7 @@ import { Help } from '@/ui/Help';
 import { Choice } from '@/ui/SheetParts';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
-import { zoneOf } from '@/ui/zone';
+import { nowThere, useZone } from '@/ui/zone';
 import styles from './CameraPage.module.css';
 import { emptyRolling } from './rolling';
 
@@ -46,13 +45,11 @@ interface ComposerProps {
  */
 export function Composer({ camera, grow, growFilms = true, pending, onRender, onClose }: ComposerProps) {
   const { t } = useTranslation();
-  const { user } = useSession();
   // A date somebody picks here is a day of theirs, so the days the fields open
   // on and the instants they are turned into are the account's - the same zone
   // the rest of the app draws its clocks in. Read from the cache the camera
   // page has already filled; until it answers, the browser's zone stands in.
-  const me = useMe(false, user?.isDemo !== true);
-  const zone = zoneOf(me.data);
+  const zone = useZone();
   const [range, setRange] = useState<MediaWindow>('day');
   const [from, setFrom] = useState(today(zone, 7));
   const [to, setTo] = useState(today(zone, 0));
@@ -203,11 +200,7 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
 }
 
 /** A day the account is in, some days back, as the date fields spell one. */
-const today = (zone: string | null, daysAgo: number): string => {
-  const at = serverNow().minus({ days: daysAgo });
-
-  return (zone ? at.setZone(zone) : at).toISODate()!;
-};
+const today = (zone: string | null, daysAgo: number): string => nowThere(serverNow().minus({ days: daysAgo }), zone).toISODate()!;
 
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (

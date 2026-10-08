@@ -3,11 +3,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import type { Camera, CameraUpdate } from '@fg2/shared-types/v1';
-import { useMe } from '@/api/account';
 import { useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
-import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { deviceName } from '@/screens/devices/naming';
 import { countdownDays } from '@/screens/me/premium/entitlement';
@@ -15,6 +13,7 @@ import { missingLine } from '@/screens/me/premium/free-tier';
 import { AdvancedSection } from '@/ui/advanced/Advanced';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
+import { useAccountMe } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import styles from './CameraPage.module.css';
@@ -49,7 +48,6 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
   const { t } = useTranslation();
   const navigate = useNavigate();
   const now = useNow();
-  const { user } = useSession();
   const diary = useDiaryLayer();
   const devices = useDevices();
   const spaces = useSpaces();
@@ -57,7 +55,7 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
   // the camera's: a camera's record carries its date on every install, and only
   // `/me` says whether the date means anything here. The demo has no account to
   // ask, so for it the camera's own record is all there is.
-  const me = useMe(false, user?.isDemo !== true);
+  const me = useAccountMe();
   const enforced = me.data ? me.data.premium.enforced : null;
   const ending = enforced ? countdownDays(camera, now) : null;
   const update = useUpdateCamera();

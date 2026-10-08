@@ -8,7 +8,7 @@ import { useGrow, useGrowPlants } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
-import { enough, standsIn, useMayWith } from '@/ui/session-access';
+import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import { Tabs } from '@/ui/Tabs';
 import { Term } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
@@ -71,7 +71,7 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
   // A grow is written to through the place it stands in today, which is what
   // `access()` widens a membership over; the lifecycle moves are `manage` there
   // and putting the diary on the open web is the owner's alone.
-  const youMay = mayWith({ ownerId: grow.data.ownerId, spaceId: standsIn(grow.data) });
+  const youMay = mayWith(growStanding(grow.data));
   const mayManage = enough(youMay, 'manage');
   const mayOwn = enough(youMay, 'own');
   const tabs = TABS.map(key => ({ key, label: t(`grow.tabs.${key}`), to: `/grows/${growId}/${key}` }));

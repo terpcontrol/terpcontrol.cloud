@@ -1,11 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { useHome } from '@/api/home';
-import { useSession } from '@/api/session';
 import { FollowedTile } from '@/screens/home/Strips';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { Page, SectionHead } from './Page';
+import { MePage } from '../parts';
+import { SectionHead } from './SectionHead';
 import styles from './sharing.module.css';
 
 /**
@@ -20,21 +20,11 @@ import styles from './sharing.module.css';
  */
 export function Following() {
   const { t } = useTranslation();
-  const { user } = useSession();
-  const title = t('me.following.title');
-
-  if (user?.isDemo) {
-    return (
-      <Page title={title}>
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.following.demo')}</p>
-      </Page>
-    );
-  }
 
   return (
-    <Page title={title}>
+    <MePage title={t('me.following.title')} demo={t('me.following.demo')}>
       <Followed />
-    </Page>
+    </MePage>
   );
 }
 

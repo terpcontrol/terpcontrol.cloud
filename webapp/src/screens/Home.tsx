@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { HomeAnswer, HomeSpaceCard } from '@fg2/shared-types/v1';
 import { isPlace, type PlaceCard as Place } from '@/app/places';
-import { useMe } from '@/api/account';
 import { useDevices } from '@/api/devices';
 import { useMyGrows } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
-import { useSession } from '@/api/session';
 import { LoadFailed, RefreshFailed } from '@/ui/PageState';
+import { useAccountMe } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { EmptyHome } from './EmptyHome';
@@ -130,8 +129,7 @@ function Places({
 }) {
   const { t } = useTranslation();
   const now = useNow();
-  const { user } = useSession();
-  const me = useMe(false, user !== null && user.isDemo !== true);
+  const me = useAccountMe();
   const devices = useDevices(places.some(place => place.deviceIds.length > 0));
   const cards = sortedByAttention(places);
   const diary = useDiaryLayer();

@@ -19,7 +19,7 @@ import { PictureViewer } from '@/ui/PictureViewer';
 import { useZone } from '@/ui/zone';
 import { pictureCaption, picturesOf } from './photos';
 import { useShape } from '@/app/shell/shape';
-import { standsIn } from '@/ui/session-access';
+import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import styles from './Report.module.css';
 
@@ -257,12 +257,7 @@ function Chapter({
                 picture={mediaUrl}
                 measurements={measurements}
                 day={growDayOf(grow, entry.occurredAt)}
-                onOpen={correcting(entry, {
-                  label: grow.name,
-                  dayNumber: growDayOf(grow, entry.occurredAt),
-                  ownerId: grow.ownerId,
-                  spaceId: standsIn(grow),
-                })}
+                onOpen={correcting(entry, { label: grow.name, dayNumber: growDayOf(grow, entry.occurredAt), ...growStanding(grow) })}
               />
             ))}
           </ul>

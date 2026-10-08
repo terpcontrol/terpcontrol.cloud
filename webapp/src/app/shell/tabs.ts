@@ -1,7 +1,7 @@
 import { ChartLine, Cpu, House, Plus, SlidersHorizontal, type LucideIcon } from 'lucide-react';
 import { useLocation } from 'react-router';
 import { FROM_PLACE, openedFrom } from '@/app/places';
-import { useMayLog } from '@/log/log-context';
+import { useMayLogIn } from '@/ui/session-access';
 import { useShape, type Shape } from './shape';
 
 export interface Tab {
@@ -51,7 +51,7 @@ export const tabsOf = (shape: Pick<Shape, 'diary' | 'devices'> & Partial<Pick<Sh
   return [...others.slice(0, middle), LOG, ...others.slice(middle)];
 };
 
-export const useTabs = (): Tab[] => tabsOf(useShape(), useMayLog());
+export const useTabs = (): Tab[] => tabsOf(useShape(), useMayLogIn());
 
 /**
  * Whether a tab is the one the address is on: its own path, or one of the pages

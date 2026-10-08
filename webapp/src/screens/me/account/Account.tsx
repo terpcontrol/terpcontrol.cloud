@@ -1,18 +1,16 @@
 import { type DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Me } from '@fg2/shared-types/v1';
-import { useChangePassword, useMe, useRevokeOtherSessions, useRevokeSession, useSessions, useUpdatingMe } from '@/api/account';
+import { useChangePassword, useRevokeOtherSessions, useRevokeSession, useSessions } from '@/api/account';
 import { itemsOf } from '@/api/pages';
 import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
-import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
+import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay, useZone } from '@/ui/zone';
-import { ExportRow, MePage, Row } from '../parts';
+import { AccountPage, ExportRow, Row } from '../parts';
 import { DeleteRow } from '../privacy/DeleteRow';
 import { deviceLabel, sortedSessions } from './sessions';
 import styles from './Account.module.css';
@@ -34,64 +32,34 @@ import styles from './Account.module.css';
 export function Account() {
   const { t } = useTranslation();
   const now = useNow();
-  const { user, sessionId } = useSession();
-  const isDemo = user?.isDemo === true;
-  const me = useMe(false, !isDemo);
-  const mayManage = useMayManage();
-  const updating = useUpdatingMe();
-  const title = t('me.account.title');
-
-  if (isDemo) {
-    return (
-      <MePage title={title}>
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.account.demo')}</p>
-      </MePage>
-    );
-  }
-
-  if (me.isPending) {
-    return (
-      <MePage title={title}>
-        <Waiting lines={4} />
-      </MePage>
-    );
-  }
-
-  if (!me.data) {
-    return (
-      <MePage title={title}>
-        <LoadFailed retry={() => void me.refetch()} />
-      </MePage>
-    );
-  }
-
-  const account: Me = me.data;
-  const held = !mayManage || updating;
+  const { sessionId } = useSession();
 
   return (
-    <MePage title={title}>
-      <RefreshFailed failedAt={me.isError ? me.dataUpdatedAt : null} now={now} />
+    <AccountPage title={t('me.account.title')} demo={t('me.account.demo')}>
+      {(account, held) => (
+        <>
+          <span className="label">{t('me.account.signIn')}</span>
 
-      <span className="label">{t('me.account.signIn')}</span>
+          <Row
+            title={t('me.account.email.title')}
+            line={
+              <>
+                <span className="mono">{account.email}</span> · {t('me.account.email.line')}
+              </>
+            }
+          />
 
-      <Row
-        title={t('me.account.email.title')}
-        line={
-          <>
-            <span className="mono">{account.email}</span> · {t('me.account.email.line')}
-          </>
-        }
-      />
+          <PasswordRow held={held} />
 
-      <PasswordRow held={held} />
+          <span className="label">{t('me.account.sessions.title')}</span>
+          <Sessions currentId={sessionId} now={now} held={held} />
 
-      <span className="label">{t('me.account.sessions.title')}</span>
-      <Sessions currentId={sessionId} now={now} held={held} />
-
-      <span className="label">{t('me.account.data')}</span>
-      <ExportRow title={t('me.account.export.title')} line={t('me.account.export.note')} ask={t('me.account.export.ask')} />
-      <DeleteRow handle={account.handle} disabled={held} />
-    </MePage>
+          <span className="label">{t('me.account.data')}</span>
+          <ExportRow title={t('me.account.export.title')} line={t('me.account.export.note')} ask={t('me.account.export.ask')} />
+          <DeleteRow handle={account.handle} disabled={held} />
+        </>
+      )}
+    </AccountPage>
   );
 }
 

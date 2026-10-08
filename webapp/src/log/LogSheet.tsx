@@ -10,7 +10,7 @@ import { livenessOf } from '@/screens/home/attention';
 import { ageLabel } from '@/ui/age';
 import { VISIT_MINUTES } from '@/ui/maintenance';
 import { readingFigure } from '@/ui/entries';
-import { enough, standsIn, useMayWith } from '@/ui/session-access';
+import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import { Choice } from '@/ui/SheetParts';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
@@ -103,7 +103,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   // stage and puts the tent's climate on it, which the decision record keeps at
   // `manage` where the grow stands - so in a tent somebody only writes in, that
   // tile is not there rather than there and refused.
-  const mayStartAPhase = grow ? enough(mayWith({ ownerId: grow.ownerId, spaceId: standsIn(grow) }), 'manage') : false;
+  const mayStartAPhase = grow ? enough(mayWith(growStanding(grow)), 'manage') : false;
   // A reading is written against a grow's own measurements, so a tent with
   // nothing growing in it has nothing to measure and is not offered the tile.
   // Maintenance is offered where something would hear it: a place whose

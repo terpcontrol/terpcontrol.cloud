@@ -1,6 +1,5 @@
 import { createContext, use } from 'react';
 import type { Entry, HumanEntryKind } from '@fg2/shared-types/v1';
-import { useSession } from '@/api/session';
 
 /**
  * Logging, reachable from every screen: the raised button opens the sheet over
@@ -81,14 +80,3 @@ export function useLog(): LogState {
   if (!state) throw new Error('useLog outside LogProvider');
   return state;
 }
-
-/**
- * Whether this session may write at all. The demo is a tour of somebody else's
- * account - it reads everything and the server refuses every line - so the
- * button, the tile and the Done are not offered rather than offered and refused.
- */
-export const useMayLog = (): boolean => {
-  const { user } = useSession();
-
-  return user !== null && !user.isDemo;
-};

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { useNavigate, useNavigationType, useSearchParams } from 'react-router';
-import { useLog, useMayLog, type TileKind } from './log-context';
+import { useMayLogIn } from '@/ui/session-access';
+import { useLog, type TileKind } from './log-context';
 
 /**
  * `/log` as a link, for everything that cannot call the sheet directly: a
@@ -15,7 +16,7 @@ const TILES: TileKind[] = ['water', 'feed', 'photo', 'note', 'measurement', 'tra
 
 export function LogRoute() {
   const { openSheet } = useLog();
-  const mayLog = useMayLog();
+  const mayLog = useMayLogIn();
   const navigate = useNavigate();
   const arrival = useNavigationType();
   const [search] = useSearchParams();

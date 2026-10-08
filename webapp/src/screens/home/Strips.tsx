@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { DueTask, FollowedGrowCard, HomeSpaceCard } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, publicPicture } from '@/api/public';
-import { useLog, useMayLog } from '@/log/log-context';
+import { useLog } from '@/log/log-context';
+import { useMayLogIn } from '@/ui/session-access';
 import { FollowButton } from '@/screens/public/FollowButton';
 import { Photo } from '@/ui/Photo';
 import { ageLabel } from '@/ui/age';
@@ -26,7 +27,7 @@ export function DueStrip({ cards, now }: { cards: HomeSpaceCard[]; now: DateTime
   // disagree about what is waiting today.
   const zone = useZone();
   const { complete } = useLog();
-  const mayLog = useMayLog();
+  const mayLog = useMayLogIn();
   const due = cards.flatMap(card => card.dueTasks.map(task => ({ card, task }))).sort((a, b) => a.task.dueAt.localeCompare(b.task.dueAt));
   if (due.length === 0) return null;
 

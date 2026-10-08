@@ -1,7 +1,7 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { Alert, Me } from '@fg2/shared-types/v1';
-import { notificationsWith, useMe, useUpdateMe } from '@/api/account';
+import { notificationsWith, useUpdateMe } from '@/api/account';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { useOpenAlerts, useResolvedAlerts } from '@/api/alerts';
 import { fetchedAt } from '@/api/clock';
@@ -11,7 +11,7 @@ import { instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
-import { enough, useMayInEach, useMayManage } from '@/ui/session-access';
+import { enough, useAccountMe, useMayInEach, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { clock, WEEKDAY_DAY, zoneOf } from '@/ui/zone';
@@ -64,7 +64,7 @@ export function Alerts() {
   // it is not asked; what the account would have given this screen - the zone
   // its clock times are drawn in, the channels its cards promise - the demo has
   // no answer to anyway, and an empty inbox draws no card and no mute.
-  const me = useMe(false, user !== null && user.isDemo !== true);
+  const me = useAccountMe();
   const open = useOpenAlerts();
   const resolved = useResolvedAlerts();
   const { names, watching } = useInboxNames();

@@ -5,7 +5,6 @@ import { Link } from 'react-router';
 import { controlPath, devicesPath, timelinePath, useRememberPlace } from '@/app/places';
 import type { Device, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
-import { useMe } from '@/api/account';
 import { serverNow } from '@/api/clock';
 import { useDeviceLive } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
@@ -22,7 +21,7 @@ import { foldRepeats, readingNamesOf } from '@/ui/entries';
 import { maintenanceQuiet, parksAnything, type Quiet } from '@/ui/maintenance';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { usePlaceDevices } from '@/ui/place-devices';
-import { useMayManage, useVisiting } from '@/ui/session-access';
+import { useAccountMe, useMayManage, useVisiting } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
@@ -96,7 +95,7 @@ export function PlaceCockpit({
   const timeline = useTimeline(hasDevice ? spaceId : '', '24h', null).data;
   const mayManage = useMayManage(spaceId);
   const visiting = useVisiting(spaceId);
-  const me = useMe(false, user !== null && user.isDemo !== true);
+  const me = useAccountMe();
   // The grow waits for the account's answer rather than flashing up for somebody who keeps no diary; the demo is shown it whole.
   // Support reading a customer's place is shown the customer's grow where one stands there, whatever its own account keeps.
   const layer = useDiaryLayer() && (me.data !== undefined || user?.isDemo === true);

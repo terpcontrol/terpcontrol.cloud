@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-types/v1';
 import { CAPTURE_BUDGET_SECONDS, readsThroughDevice } from '@fg2/shared-types/v1-schemas/capture.js';
-import { useMe } from '@/api/account';
 import { gaveUp, useCamera, useCameraFrames, useLatestStills, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useSpaceGrows } from '@/api/grows';
@@ -13,7 +12,7 @@ import { useDiaryLayer } from '@/api/layers';
 import { filmStatus } from '@/api/media';
 import { itemsOf } from '@/api/pages';
 import { noLongerThere } from '@/api/problem';
-import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
+import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { placePath, timelinePath } from '@/app/places';
 import { rowReaches } from '@/screens/notifications/reach';
@@ -21,7 +20,7 @@ import { useCameraCalled } from '@/ui/camera-name';
 import { ageLabel, deviceLiveness, instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, NoLongerHere, Refused, Waiting } from '@/ui/PageState';
-import { enough, useMayWith } from '@/ui/session-access';
+import { enough, useAccountMe, useMayWith } from '@/ui/session-access';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -87,14 +86,13 @@ type DayPictures =
 export function CameraScreen({ camera, refetching = null }: { camera: Camera; refetching?: string | null }) {
   const { t } = useTranslation();
   const now = useNow();
-  const { user } = useSession();
   // Every clock time on this screen is the account's, which is what the server
   // means by one: quiet hours are read in that zone and the Appearance page
   // promises it of every hour the app draws. A camera stamps its own pictures
   // and burns the instant into them, so a label an hour or two off is one this
   // page can be caught out on by the picture beside it. The demo has no account
   // to ask, and until the answer lands the browser's zone stands in.
-  const me = useMe(false, user?.isDemo !== true);
+  const me = useAccountMe();
   const zone = zoneOf(me.data);
   // The width a free camera's stills are served at is the install's setting,
   // and an install that sets none serves them whole - so the line under the

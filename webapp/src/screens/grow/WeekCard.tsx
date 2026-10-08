@@ -11,7 +11,7 @@ import { unitSymbol } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 import { readingFigure, weekDayOf } from '@/ui/entries';
 import { Term } from '@/ui/Help';
-import { standsIn } from '@/ui/session-access';
+import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { amountLabel, schemeName } from './scheme';
 import styles from './WeekCard.module.css';
@@ -208,7 +208,7 @@ export function WeekCard({ week, grow, people, now, current, explain, onPicture 
                     picture={mediaUrl}
                     measurements={grow.measurements}
                     day={day}
-                    onOpen={correcting(entry, { label: grow.name, dayNumber: day, ownerId: grow.ownerId, spaceId: standsIn(grow) })}
+                    onOpen={correcting(entry, { label: grow.name, dayNumber: day, ...growStanding(grow) })}
                   />
                 );
               })}

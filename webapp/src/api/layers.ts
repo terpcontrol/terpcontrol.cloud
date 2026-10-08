@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { DiaryChoice, LayoutSeen, Me } from '@fg2/shared-types/v1';
-import { meKey, useMe } from './account';
+import { useAccountMe } from '@/ui/session-access';
+import { meKey } from './account';
 import { api } from './client';
 import { useHomeShape } from './home';
 import { useSession } from './session';
@@ -18,7 +19,7 @@ import { useWrite } from './write';
  */
 export const useDiaryAnswer = (): boolean | undefined => {
   const { user } = useSession();
-  const me = useMe(false, user !== null && user.isDemo !== true);
+  const me = useAccountMe();
   const home = useHomeShape(user !== null);
   if (user?.isDemo === true) return true;
 

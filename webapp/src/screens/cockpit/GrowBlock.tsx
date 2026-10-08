@@ -7,10 +7,10 @@ import type { OverviewCamera, OverviewGrow, OverviewTask, SpaceOverview } from '
 import { useMyGrows } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
 import { MY_GROWS } from '@/app/places';
-import { useLog, useMayLog } from '@/log/log-context';
+import { useLog } from '@/log/log-context';
 import { ageLabel } from '@/ui/age';
 import { authorOf, headlineOf } from '@/ui/entries';
-import { useMayManage } from '@/ui/session-access';
+import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
 import { MoveHereSheet } from '../space/MoveHereSheet';
@@ -197,7 +197,7 @@ function DueRow({ task, overview, now }: { task: OverviewTask; overview: SpaceOv
   const { t } = useTranslation();
   const zone = useZone();
   const { complete } = useLog();
-  const mayLog = useMayLog();
+  const mayLog = useMayLogIn();
   const subject = task.subject.type === 'grow' ? (overview.grows.find(grow => grow.growId === task.subject.id)?.name ?? '') : overview.name;
   const writes = t(`home.entryKind.${task.kind === 'chore' || task.kind === 'custom' ? 'note' : task.kind}`);
 

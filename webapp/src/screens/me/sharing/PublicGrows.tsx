@@ -15,7 +15,8 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { Row } from '../parts';
 import { isDead } from './links';
-import { Page, SectionHead } from './Page';
+import { MePage } from '../parts';
+import { SectionHead } from './SectionHead';
 import styles from './sharing.module.css';
 
 /**
@@ -36,20 +37,11 @@ import styles from './sharing.module.css';
 export function PublicGrows() {
   const { t } = useTranslation();
   const { user } = useSession();
-  const title = t('me.public.title');
-
-  if (user?.isDemo) {
-    return (
-      <Page title={title}>
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.public.demo')}</p>
-      </Page>
-    );
-  }
 
   return (
-    <Page title={title}>
+    <MePage title={t('me.public.title')} demo={t('me.public.demo')}>
       <Grows userId={user?.id ?? null} />
-    </Page>
+    </MePage>
   );
 }
 

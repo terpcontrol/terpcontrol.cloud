@@ -17,7 +17,8 @@ import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
 import { dayLabel, isDead, lifetimeDays, linkAddress } from './links';
 import { NewLinkSheet } from './NewLinkSheet';
-import { Page, SectionHead } from './Page';
+import { MePage } from '../parts';
+import { SectionHead } from './SectionHead';
 import styles from './sharing.module.css';
 
 /**
@@ -38,20 +39,11 @@ import styles from './sharing.module.css';
 export function ShareLinks() {
   const { t } = useTranslation();
   const { user } = useSession();
-  const title = t('me.shareLinks.title');
-
-  if (user?.isDemo) {
-    return (
-      <Page title={title}>
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.shareLinks.demo')}</p>
-      </Page>
-    );
-  }
 
   return (
-    <Page title={title}>
+    <MePage title={t('me.shareLinks.title')} demo={t('me.shareLinks.demo')}>
       <Links userId={user?.id ?? null} />
-    </Page>
+    </MePage>
   );
 }
 

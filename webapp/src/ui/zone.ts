@@ -1,8 +1,7 @@
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import type { Me } from '@fg2/shared-types/v1';
-import { useMe } from '@/api/account';
-import { useSession } from '@/api/session';
+import { useAccountMe } from './session-access';
 
 /**
  * The zone a clock time is drawn in.
@@ -99,11 +98,7 @@ export const zoneNames = (): string[] => {
  * thing worse than the wrong zone is a public page firing a read it has no
  * session for.
  */
-export const useZone = (): string | null => {
-  const { user } = useSession();
-
-  return zoneOf(useMe(false, user !== null && user.isDemo !== true).data);
-};
+export const useZone = (): string | null => zoneOf(useAccountMe().data);
 
 /**
  * An instant the app is already carrying as epoch milliseconds - a timeline

@@ -2,13 +2,17 @@ import { Download } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import type { Me } from '@fg2/shared-types/v1';
+import { useUpdatingMe } from '@/api/account';
 import { exportFilename, useAskAccountExport, useAskedExport, useDownloadExport } from '@/api/exports';
 import { isBuilding, useMedia } from '@/api/media';
+import { useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import type { HelpTopic } from '@/ui/explain';
 import { fileSize } from '@/ui/figures';
 import { Help } from '@/ui/Help';
-import { Refused } from '@/ui/PageState';
+import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
+import { useAccountMe, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { BackLink } from '@/ui/BackLink';
@@ -32,9 +36,13 @@ import styles from './parts.module.css';
  * phone's top bar carries no way back - the wordmark, the bell and the avatar
  * - and a leaf route with no exit but the browser's own gesture is a dead end
  * in an installed app.
+ *
+ * A page with something to keep that the demo has none of says so in `demo`,
+ * and the demo is shown that line in place of the page.
  */
-export function MePage({ title, children }: { title: string; children: ReactNode }) {
+export function MePage({ title, demo, children }: { title: string; demo?: string; children: ReactNode }) {
   const { t } = useTranslation();
+  const { user } = useSession();
 
   return (
     <section className={styles.page}>
@@ -45,8 +53,37 @@ export function MePage({ title, children }: { title: string; children: ReactNode
           <Link to="/me">{t('me.title')}</Link> › {title}
         </span>
       </header>
-      {children}
+      {demo !== undefined && user?.isDemo === true ? <p className={`${ui.cardDashed} ${ui.note}`}>{demo}</p> : children}
     </section>
+  );
+}
+
+/**
+ * A page about the account itself, drawn from `/me`: waited for, said when it
+ * could not be read, and handed over with whether its controls hold still -
+ * while this session may not manage the account, and while a change is on its
+ * way, because every write is the whole object and two crossing would each
+ * carry the other's old state back.
+ */
+export function AccountPage({ title, demo, children }: { title: string; demo: string; children: (me: Me, held: boolean) => ReactNode }) {
+  const now = useNow();
+  const me = useAccountMe();
+  const mayManage = useMayManage();
+  const updating = useUpdatingMe();
+
+  return (
+    <MePage title={title} demo={demo}>
+      {me.isPending ? (
+        <Waiting lines={4} />
+      ) : !me.data ? (
+        <LoadFailed retry={() => void me.refetch()} />
+      ) : (
+        <>
+          <RefreshFailed failedAt={me.isError ? me.dataUpdatedAt : null} now={now} />
+          {children(me.data, !mayManage || updating)}
+        </>
+      )}
+    </MePage>
   );
 }
 

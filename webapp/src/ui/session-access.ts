@@ -1,4 +1,5 @@
 import type { AccessNeed, Placement, Space } from '@fg2/shared-types/v1';
+import { useMe } from '@/api/account';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 
@@ -75,6 +76,16 @@ export const useMayInEach = (enabled = true): ((spaceId: string | null) => Acces
  */
 export const useMayInSpace = (spaceId: string | null): AccessNeed | undefined => useMayInEach(spaceId !== null)(spaceId);
 
+/**
+ * The account's own `/me`, which the demo has none of: a demo session is not
+ * asked for it rather than asked and refused.
+ */
+export const useAccountMe = () => {
+  const { user } = useSession();
+
+  return useMe(false, user !== null && user.isDemo !== true);
+};
+
 /** Something that stands somewhere: a device, a camera, a grow. Both fields are what the access decision is made of. */
 export interface Standing {
   ownerId: string | null;
@@ -111,6 +122,12 @@ export const useMayWith = (): ((thing: Standing) => AccessNeed | undefined) => {
  */
 export const standsIn = (grow: { placements: Placement[] }): string | null =>
   grow.placements.find(placement => placement.endedAt === null)?.spaceId ?? null;
+
+/** What decides what may be done to a grow: whose it is, and where it stands now. */
+export const growStanding = (grow: { ownerId: string | null; placements: Placement[] }): Standing => ({
+  ownerId: grow.ownerId,
+  spaceId: standsIn(grow),
+});
 
 /**
  * Where a grow stood last, which is what a screen looking at it needs and what

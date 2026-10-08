@@ -6,10 +6,8 @@ import { Link, useSearchParams } from 'react-router';
 import { controlPath } from '@/app/places';
 import type { AlarmRule, Device, Me, OverviewGrow } from '@fg2/shared-types/v1';
 import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { useMe } from '@/api/account';
 import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
-import { useSession } from '@/api/session';
 import { useSpaceOverview } from '@/api/spaces';
 import { durationLabel } from '@/screens/devices/sockets';
 import { targetFigure } from '@/screens/home/units';
@@ -19,6 +17,7 @@ import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { maintenanceQuiet } from '@/ui/maintenance';
+import { useAccountMe } from '@/ui/session-access';
 import { useNow } from '@/ui/useNow';
 import { clock, zoneOf } from '@/ui/zone';
 import { RuleSheet } from './RuleSheet';
@@ -87,10 +86,9 @@ export function Alarms({
   back?: 'targets' | 'plan';
 }) {
   const { t } = useTranslation();
-  const { user } = useSession();
   const now = useNow();
   const overview = useSpaceOverview(spaceId);
-  const me = useMe(false, user !== null && user.isDemo !== true);
+  const me = useAccountMe();
   const [params] = useSearchParams();
 
   // The same reads the lists below make, asked once here so that a device
