@@ -37,12 +37,26 @@ namespace fg {
       }
     }
     if(tries >= 10) {
-      // The last good reading stands, as on the other device types; before
-      // the first one there is none (see `state`).
+      // Until the failsafe the last good reading stands, as on the other
+      // device types; before the first one there is none (see `state`).
       Serial.println("failed to read from sensor!!!");
+      if(++sensor_fails >= SENSOR_FAILSAFE_FAILS) {
+        state.temperature = NAN;
+        state.humidity = NAN;
+      }
+      // One diary line when the failsafe trips - the one the fridge writes
+      // when its SHT fails - so the cloud can tell why the lamp went dark.
+      if(sensor_fails == SENSOR_FAILSAFE_FAILS) {
+        const TickType_t now = xTaskGetTickCount();
+        if(sensor_fail_logged == 0 || now - sensor_fail_logged >= SENSOR_FAIL_LOG_INTERVAL) {
+          cloud.log("message-ext-sensor-fail", 1);
+          sensor_fail_logged = now;
+        }
+      }
       return;
     }
 
+    sensor_fails = 0;
     state.temperature = temperature;
     state.humidity = humidity;
   }
@@ -87,6 +101,13 @@ namespace fg {
       loadSettings(saved_settings.c_str());
     }
   }
+  else if(sensor_fails >= SENSOR_FAILSAFE_FAILS) {
+    // Nothing measures the air, so nothing guards the plants from the lamp's
+    // heat: dark until a read succeeds, then the schedule takes over again.
+    Serial.println("SENSOR ERROR!!! FAILSAVE MODE!!!");
+    state.out_light = 0;
+    out_light.set(0);
+  }
   else {
     controlLight();
   }
@@ -104,10 +125,11 @@ namespace fg {
     + JSON_OBJECT_SIZE(1)   // outputs: light
     + 32                    // small headroom
   > status;
-  // A reading goes out only once the sensor has given one, so a light without
-  // a working sensor leaves no placeholder in the history; the controller
-  // sends its optional sensors the same way. `sensors` stays in the document,
-  // empty, so its shape does not change.
+  // A reading goes out only while there is one - from the first good read
+  // until the failsafe trips - so a light without a working sensor leaves no
+  // placeholder or stale figure in the history; the controller sends its
+  // optional sensors the same way. `sensors` stays in the document, empty, so
+  // its shape does not change.
   JsonObject sensors = status.createNestedObject("sensors");
   if(!isnan(state.temperature)) {
     sensors["temperature"] = state.temperature;

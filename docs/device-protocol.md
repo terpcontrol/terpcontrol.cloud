@@ -387,7 +387,7 @@ A payload that is not JSON carries no `firmware_id` and is dropped rather than r
   `heater`, `light`, `fan-internal`, `fan-external`, `fan-backwall`.
 - **plug** (`plug.cpp:825-841`) — sensors `temperature`, `humidity`, `co2`, `sensor_type`; output `relais`.
 - **fan** (`fan.cpp:190-209`) — sensors `temperature`†, `humidity`†, `rpm`, `day`; output `fan`.
-- **light** (`light.cpp:101-120`) — sensors `temperature`†, `humidity`†; output `light`.
+- **light** (`light.cpp:122-142`) — sensors `temperature`†, `humidity`†; output `light`.
 - **cam** — nothing; it never calls `updateStatus` (`cam.cpp:64-66`).
 
 \* sent only when the optional sensor was detected, so no placeholder lands in the history
@@ -395,9 +395,11 @@ A payload that is not JSON carries no `firmware_id` and is dropped rather than r
 
 † sent only once the device's sensor has given a reading since boot; until then a light sends `sensors` as an
 empty object and a fan only `rpm` and `day`, so a light or fan whose sensor is missing or dead leaves nothing in
-the history (`light.cpp:107-117`, `fan.cpp:196-204`, `state` in `light.h` and `fan.h`). A read that fails later
-repeats the last good one, as on every type. Light and fan builds from before 2026-10-08 send `20` and `20` in
-place of a reading, which the server stores like any other: no rule tells them from air.
+the history (`light.cpp:128-139`, `fan.cpp:196-204`, `state` in `light.h` and `fan.h`). A read that fails later
+repeats the last good one, as on every type, but a light whose reads fail ten passes in a row darkens its lamp
+and sends no reading again until one succeeds (`light.cpp:39-57,104-110`). Light and fan builds from before
+2026-10-08 send `20` and `20` in place of a reading, which the server stores like any other: no rule tells them
+from air.
 
 Units and conventions:
 
@@ -467,6 +469,7 @@ The messages current firmware sends:
 | `message-buffer-overflow` | 1 | every type, reading buffer full | `fridgecloud.cpp:514` |
 | `message-co2-low` | 0 | controller, fridge: CO2 under 200 ppm for 60 passes; once per low episode, re-armed by a reading at or above it (before #145 the latch was never cleared, so it practically never fired) | `controller.cpp:984-997`, `fridge.cpp:1107-1118` |
 | `message-ext-sensor-deviate`, `message-ext-sensor-fail` | 0 | fridge, when the fault appears and **at most once per 15 min** each (`SENSOR_FAULT_LOG_INTERVAL`, `fridge.cpp:19,90-104`) | `fridge.cpp:206,220` |
+| `message-ext-sensor-fail` | 1 | light, when its failsafe darkens the lamp after ten passes without a reading; **at most once per 15 min** (`SENSOR_FAIL_LOG_INTERVAL`, `light.h`) | `light.cpp:49-55` |
 | `message-maintenance-mode-activated:<min>` | 0 | controller, fridge, from the device's menu | `controller.cpp:1118`, `fridge.cpp:1184` |
 | `message-maintenance-mode-activated-remote:<min>` | 0 | controller, fridge, on the `maintenance` command | `controller.cpp:586`, `fridge.cpp:731` |
 | `message-smart-socket-connected:<role>` | 0 | pairing or `socket_set` | `wifi.cpp:3073,3408` |
@@ -493,6 +496,11 @@ standing fault report it again each time it came back; a power-on or a brownout 
 was just switched on should do. While the clock is still unset nothing is written at all and the fault is looked at
 again on the next pass: the interval cannot be measured yet, and a device in that state is discarding its readings for
 the same reason.
+
+The light's line follows the fridge's in key, latch and interval, but it reports the failsafe rather than the sensor:
+it is written when the tenth failed pass in a row darkens the lamp, so a sensor with a loose contact writes one line
+per quarter hour at most, and a light whose sensor never answered writes one about ten seconds after boot. It keeps
+its last time as a tick count, so a reboot starts the interval afresh; a reboot writes its own line anyway.
 
 Builds from before #111 (2026-09-23) clear the fail latch on every pass that does not log, so a fridge on one of them
 writes `message-ext-sensor-fail` every other control pass, about every two seconds, for as long as its SHT stays
@@ -697,7 +705,7 @@ device itself.
 When a device receives one it parses it, adopts it silently, writes it to NVS key `config` and re-runs its
 control loop (`controller.cpp:569-578`). It sends **no acknowledgement and no echo**. The `fridge`, `plug`, `fan`
 and `light` types skip the NVS store while `mqttcontrol` is true, so direct control does not overwrite the saved
-settings (`fridge.cpp:685-691`, `plug.cpp:589-595`, `fan.cpp:395-401`, `light.cpp:357-363`).
+settings (`fridge.cpp:685-691`, `plug.cpp:589-595`, `fan.cpp:395-401`, `light.cpp:379-385`).
 
 When a setting is changed on the device itself, the device publishes its whole document on the same topic
 (`saveAndUploadSettings` over `serializeSettings`, e.g. `controller.cpp:521-553`). The server overwrites
@@ -776,7 +784,7 @@ writes `co2inject` from the plug's document - its id, its dosing windows and day
 plug's document is written, from the cloud or from the plug's own menu, and an empty section where the plug no
 longer names the fan or doses in no windows (`followCo2Fan`, `co2InjectFor`).
 
-**light** (`light.cpp:419-425`, echo `:132-145`): flat, not nested — `mqttcontrol` (not echoed), `day`, `night`
+**light** (`light.cpp:441-447`, echo `:154-167`): flat, not nested — `mqttcontrol` (not echoed), `day`, `night`
 (seconds UTC), `max_temperature`, `limit`, `sunrise`, `sunset`. A plan step or a climate preset never writes to
 a light, because its `day` and `night` are a schedule, not climate sections: a preset passes it by, and the server
 refuses a plan for it with 422 `device_states_no_climate`.
@@ -790,11 +798,11 @@ Setting `mqttcontrol: true` on a `fridge`, `plug`, `fan` or `light` hands its ou
 `/devices/<id>/control/<output>` — the topic suffix is the output name and the payload is a bare value
 (`fridgecloud.cpp:243-246`). Accepted names: fridge `heater`, `dehumidifier`, `co2`, `light`, `fan-internal`,
 `fan-external`, `fan-backwall` (`fridge.cpp:766-801`); plug `relais` (`plug.cpp:607-614`); fan `fan`
-(`fan.cpp:422-429`); light `light` (`light.cpp:369-376`). The controller has no `onControl` handler at all.
+(`fan.cpp:422-429`); light `light` (`light.cpp:391-398`). The controller has no `onControl` handler at all.
 
 Direct control expires 60 seconds after the last configuration message, after which the NVS configuration is
 reloaded (`DIRECTMODE_TIMEOUT`, `fridge.h:124`, `fridge.cpp:974-978`; `plug.cpp:767-771`; `fan.cpp:174-178`;
-`light.cpp:84-88`). This server has never published on `control/#`.
+`light.cpp:98-102`). This server has never published on `control/#`.
 
 ### 7.3 Times of day
 
@@ -804,7 +812,7 @@ and the plug's `daynight.day` and `daynight.night`, the light's `day` and `night
 `checkDayCycle`; the controller's menu says "Dayrise (UTC)", `controller.cpp:1186`). `day` is when the light comes
 on and `night` when it goes off, and the comparison is strict: with `day < night` it is day between the two, with
 `day > night` the window runs across midnight UTC, and with `day == night` it is never day
-(`controller.cpp:196-205`, `fridge.cpp:245-254`, `light.cpp:62-70`, `plug.cpp:151-159`). A controller has a day
+(`controller.cpp:196-205`, `fridge.cpp:245-254`, `light.cpp:76-84`, `plug.cpp:151-159`). A controller has a day
 only in `small` and `temp`, a fridge in `small`, `full`, `temp` and `exp`; `off`, `breed` and `dry` hold the
 night's figures round the clock (`controller.cpp:196`, `fridge.cpp:245`). `shared-types/src/v1/day-night.ts`
 does the same arithmetic for the server, the screens and the simulator.
@@ -861,7 +869,7 @@ only to a device that announced `socket_timer` and `socket_override` in `caps`, 
 is never sent at all, because an old build drops what it does not know without a word
 ([12](#12-extending-it-safely)).
 
-`light` and `cam` have empty command handlers (`light.cpp:378-385`, `cam.cpp:56-58`) and so honour nothing
+`light` and `cam` have empty command handlers (`light.cpp:400-407`, `cam.cpp:56-58`) and so honour nothing
 beyond `reboot`; the `plug` honours `cam_relay` and nothing else (`plug.cpp:601-603`). None of `plug`, `fan`,
 `light` or `cam` calls `wifiInitAuxCloudReporting` or `wifiHandleAuxCommand`, so they never report sockets and
 ignore `socket_*`; the fan and the plug hand `cam_relay` to `wifiHandleTerpCamCommand` directly
