@@ -124,9 +124,6 @@ function Account({ title }: { title: string }) {
   const list = cameras.data.items;
   const failedAt = me.isError ? me.dataUpdatedAt : cameras.isError ? cameras.dataUpdatedAt : null;
   const placeOf = (id: string | null): string | null => spaces.data?.items.find(space => space.id === id)?.name ?? null;
-  // Whether any card would carry an offer: where the install has named nowhere
-  // to go, that is said once under the list, rather than on every such card.
-  const due = premium.enforced && list.some(camera => camera.entitlement.renewalVisible);
 
   return (
     <MePage title={title}>
@@ -154,8 +151,6 @@ function Account({ title }: { title: string }) {
           ))}
         </ul>
       )}
-
-      {due && !premium.extendUrl ? <p className={ui.note}>{t('me.premium.nowhereToExtend')}</p> : null}
 
       <Covers free={premium.free} />
       <p className={ui.note}>{t('me.premium.perCamera', { days: RENEWAL_WINDOW_DAYS })}</p>
@@ -193,6 +188,7 @@ function CameraCard({
   const { tier, validUntil } = camera.entitlement;
   const entitled = tier === 'premium';
   const days = enforced ? countdownDays(camera, now) : null;
+  // `renewalVisible` implies a link, but `/me` and `/cameras` are read apart, so the link the offer needs is checked too.
   const offered = enforced && premium.extendUrl !== null && camera.entitlement.renewalVisible;
 
   return (

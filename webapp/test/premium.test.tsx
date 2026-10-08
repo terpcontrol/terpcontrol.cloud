@@ -311,21 +311,12 @@ describe('an install that enforces Premium', () => {
     expect(card('Old cam').getByRole('link', { name: /Extend Premium/ })).toHaveTextContent(/^Extend Premium$/);
   });
 
-  it('has no offer where the install names nowhere to extend, and says once whom to ask', async () => {
+  it('has no offer while the account it was read with names nowhere to extend', async () => {
     server.me = me({ extendUrl: null });
     server.cameras = [migrated, rtsp];
     await drawLoaded();
 
     expect(screen.queryByRole('link', { name: /Extend Premium|Get Premium/ })).toBeNull();
-    expect(screen.getAllByText('This installation names no place to extend Premium from; ask whoever runs it.')).toHaveLength(1);
-  });
-
-  it('says nothing about where to extend while no camera is due', async () => {
-    server.me = me({ extendUrl: null });
-    server.cameras = [included];
-    await drawLoaded();
-
-    expect(screen.queryByText(/names no place to extend/)).toBeNull();
   });
 });
 

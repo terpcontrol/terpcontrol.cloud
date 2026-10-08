@@ -1103,7 +1103,6 @@
       },
       "perCamera": "Per camera, not per account. A Terp Cam comes with 12 months of it; an RTSP camera works without it like any free camera, and has Premium only where it is bought for it. The offer to extend stands on a camera's own card from {{days}} days before its year ends; nothing renews on its own. Self-hosted installations have no Premium at all.",
       "extend": "Extend Premium",
-      "nowhereToExtend": "This installation names no place to extend Premium from; ask whoever runs it.",
       "missing": {
         "widthAndDays_one": "its stills are served {{width}} px wide and kept {{count}} day, and its films stay SD with a watermark",
         "widthAndDays_other": "its stills are served {{width}} px wide and kept {{count}} days, and its films stay SD with a watermark",

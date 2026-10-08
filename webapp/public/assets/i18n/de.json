@@ -1111,7 +1111,6 @@
       },
       "perCamera": "Pro Kamera, nicht pro Konto. Eine Terp Cam bringt 12 Monate mit; eine RTSP-Kamera läuft auch ohne, wie jede Kamera ohne Premium, und hat Premium nur, wenn es für sie gekauft wird. Das Angebot zur Verlängerung steht auf der Karte der Kamera ab {{days}} Tage, bevor ihr Jahr endet; nichts verlängert sich von selbst. Selbst gehostete Installationen haben gar kein Premium.",
       "extend": "Premium verlängern",
-      "nowhereToExtend": "Diese Installation nennt keinen Ort, an dem sich Premium verlängern ließe; frag, wer sie betreibt.",
       "missing": {
         "widthAndDays_one": "ihre Bilder werden {{width}} px breit ausgeliefert und {{count}} Tag aufbewahrt, und ihre Filme bleiben SD mit Wasserzeichen",
         "widthAndDays_other": "ihre Bilder werden {{width}} px breit ausgeliefert und {{count}} Tage aufbewahrt, und ihre Filme bleiben SD mit Wasserzeichen",
