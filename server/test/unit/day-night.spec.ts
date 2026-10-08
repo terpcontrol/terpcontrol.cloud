@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import type { DeviceConfiguration, DeviceSeries, Metric, PlanStep, SeriesPoint } from '@fg2/shared-types/v1';
 import {
   cycleKindOf,
@@ -10,15 +9,12 @@ import {
   transitionsIn,
   type Cycle,
 } from '@fg2/shared-types/v1-schemas/day-night.js';
-import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { heldTo } from '@modules/device-protocol/class-rules';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
-import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
 import { withIdleFiguresKept } from '@modules/device-protocol/idle-figures';
 import { withClockTimesMoved } from '@modules/device-protocol/schedule-clock';
-import { MqttClientService } from '@modules/mqtt/mqtt-client.service';
 import { bandOverRecordAt, settlingOf, type RecordedClimate } from '@modules/v1/device/held-targets';
 import { setpointsOf } from '@modules/v1/device/setpoints';
 import { summariseClimate } from '@modules/v1/diary/week-climate';
@@ -28,6 +24,7 @@ import { settingsSent, stepsOf } from '@modules/v1/plan/plan-steps';
 import { liveOfDevice } from '@modules/v1/space/space-live';
 import { presetConfiguration } from '@modules/v1/space/climate-presets';
 import { nightsOf, targetsOf, transitionsOf } from '@modules/v1/timeline/timeline-series';
+import { deviceStackOn } from './support/device-stack';
 import { useV1TestDatabase } from './support/v1-database';
 
 /**
@@ -682,14 +679,7 @@ describe('a save of the targets', () => {
 
   beforeEach(async () => {
     await db.reset();
-    const mqtt = { canPublish: true, publish: jest.fn(() => true) } as unknown as MqttClientService;
-    configuration = new DeviceConfigurationService(
-      db.devices,
-      db.users,
-      db.targetChanges,
-      new DevicePublisherService(db.devices, mqtt),
-      new EntryWriterService(db.entries),
-    );
+    ({ configuration } = deviceStackOn(db));
   });
 
   it('answers what was stored, keeps the day of a germinating fridge, and tunes a drying room from the humidity it holds', async () => {

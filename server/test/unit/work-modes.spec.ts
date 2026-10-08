@@ -7,9 +7,8 @@ import { DeviceConfigurationService } from '@modules/device-protocol/device-conf
 import { DeviceIngestService } from '@modules/device-protocol/device-ingest.service';
 import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
 import { controlOf, decideWorkmode } from '@modules/device-protocol/work-modes';
-import { MqttClientService } from '@modules/mqtt/mqtt-client.service';
 import { presetConfiguration } from '@modules/v1/space/climate-presets';
-import { Published, deviceStackOn } from './support/device-stack';
+import { Published, deviceStackOn, recordingMqtt } from './support/device-stack';
 import { useV1TestDatabase } from './support/v1-database';
 
 /**
@@ -815,7 +814,7 @@ describe('a humidifier while the device germinates', () => {
 
   it('tells the alarms of every write that leaves the device germinating, and of none other', async () => {
     const told: string[] = [];
-    const mqtt = { canPublish: true, publish: () => true } as unknown as MqttClientService;
+    const { mqtt } = recordingMqtt();
     const writer = new DeviceConfigurationService(
       db.devices,
       db.users,
