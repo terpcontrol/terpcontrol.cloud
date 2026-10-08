@@ -24,6 +24,7 @@ import {
   silenceOf,
 } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { UNIT, targetFigure } from '@/ui/units';
+import { hasCo2Sensor, outputWord } from '@/ui/climate-hardware';
 import { looseFigure } from '@/ui/figures';
 import { isAhead } from '@/ui/age';
 import { zoneOf } from '@/ui/zone';
@@ -117,15 +118,9 @@ const OUTPUTS_OF: Record<string, OutputMetric[]> = {
 
 export const outputsOf = (device: Device): OutputMetric[] => OUTPUTS_OF[device.type] ?? [];
 
-/**
- * What an output is called, on this kind of hardware: one name per machine
- * wherever it is met. A fridge module's dehumidifier output is its compressor,
- * which cools and dries at once - "Kompressor" on the cockpit, in the Timeline
- * and in the maintenance sheet - so a rule about it says so too, and "Kompressor
- * läuft dauerhaft" is found where it is looked for.
- */
+/** What an output is called on this kind of hardware, so "Kompressor läuft dauerhaft" is found where it is looked for. */
 export const outputName = (t: Translate, output: OutputMetric, deviceType: string | null): string =>
-  t(`alarms.output.${deviceType === 'fridge' && output === 'dehumidifier' ? 'compressor' : output}`, { defaultValue: output });
+  t(`alarms.output.${outputWord(output, deviceType === 'fridge')}`, { defaultValue: output });
 
 /**
  * The readings a device reports: what its kind of hardware measures, narrowed
@@ -149,9 +144,7 @@ const HARDWARE_KEY: Record<Sensor, string> = { co2: 'co2', leaf: 'leaf_temp', li
  * where the device says so.
  */
 const isFitted = (device: Device, sensor: Sensor): boolean =>
-  sensor === 'co2' && CLIMATE_HOLDERS.includes(device.type)
-    ? device.state.hardware.co2 !== 'off'
-    : device.state.hardware[HARDWARE_KEY[sensor]] === 'on';
+  sensor === 'co2' && CLIMATE_HOLDERS.includes(device.type) ? hasCo2Sensor(device) : device.state.hardware[HARDWARE_KEY[sensor]] === 'on';
 
 /** The hardware whose CO2 the cockpit and the targets assume until it says otherwise; a plug's sensor is an extra. */
 const CLIMATE_HOLDERS: readonly string[] = ['controller', 'fridge'];
@@ -242,14 +235,13 @@ export const scaleNote = (output: OutputMetric): string | null => {
  * that send 0 to 100, and nothing for a fraction, a switch or a count of valve
  * openings, none of which is a quantity with a sign.
  */
-const MORE_UNITS: Partial<Record<Metric, string>> = { leafTemperature: '°C', lux: 'lx', ppfd: 'µmol/m²/s' };
-
 export const unitOf = (watch: AlarmWatch): string => {
-  if (watch.kind === 'reading') return UNIT[watch.metric] ?? MORE_UNITS[watch.metric] ?? '';
+  if (watch.kind === 'reading') return UNIT[watch.metric] ?? '';
 
   return scaleOf(watch.output) === 'percent' ? '%' : '';
 };
 
+/** A level is written as exactly as it was sent: a heater runs between nought and one, so a rounded figure would say nothing. */
 const figureOf = (watch: AlarmWatch, value: number): string => (watch.kind === 'reading' ? targetFigure(value, watch.metric) : looseFigure(value));
 
 /** The two bounds of a rule as figures with their unit, "30 °C", each null where the rule sets none; an output watched for running sets neither. */

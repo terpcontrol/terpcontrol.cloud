@@ -7,25 +7,25 @@ import type { CardSetpoint, CardValue, Device, DeviceLive, Metric, OverviewTarge
 import { STEERED, type Steered } from '@fg2/shared-types/v1-schemas/steering.js';
 import { useDaySeries, useHourMeans } from '@/api/devices';
 import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
+import { darkReasonOf } from '@/ui/climate-hardware';
 import { decimalFigure } from '@/ui/figures';
 import { Term } from '@/ui/Help';
 import { clock, useZone } from '@/ui/zone';
 import { LastValue } from '../home/OfflineHelp';
 import { figure, figureWithUnit, targetFigure, targetWithUnit, UNIT } from '@/ui/units';
 import { DayBar } from './DayBar';
-import { MiniCurve, type Tone } from './MiniCurve';
+import { MiniCurve } from './MiniCurve';
 import {
   constantHoldOf,
   focusLink,
   halfNowOf,
   holdingNowOf,
-  hoursFigure,
   humidifierHoldOf,
   humidifierOutputs,
   judgedOf,
   judgedPanel,
-  darkReasonOf,
   lightWindowOf,
+  lightWindowText,
   rangeVerdictOf,
   switchRangeOf,
   nightsOf,
@@ -119,8 +119,6 @@ function Frame({
   );
 }
 
-const TONE: Record<Steered, Tone> = { temperature: 'temperature', humidity: 'humidity', co2: 'co2' };
-
 function ClimateTile({
   spaceId,
   values,
@@ -194,7 +192,7 @@ function ClimateTile({
           transitions={timeline?.transitions ?? []}
           from={timeline ? Date.parse(timeline.startsAt) : 0}
           to={timeline ? Date.parse(timeline.endsAt) : 0}
-          tone={TONE[metric]}
+          tone={metric}
           label={t('cockpit.tile.curveAlt', { metric: t(`cockpit.metric.${metric}`) })}
           explain={explainCurve}
         />
@@ -349,14 +347,7 @@ function LightTile({ spaceId, device, live, now, offline }: TilesProps) {
         <p className={`mono ${styles.targetLine}`}>
           {window ? (
             <span>
-              <Term topic="dayNight">
-                {/* A day-long light goes off a second before it comes on, which is no time to name. */}
-                {window.always
-                  ? t('cockpit.light.always')
-                  : window.never
-                    ? t('cockpit.light.never')
-                    : t('cockpit.light.window', { on: window.on, off: window.off, hours: hoursFigure(window.hours) })}
-              </Term>
+              <Term topic="dayNight">{lightWindowText(t, window)}</Term>
             </span>
           ) : (
             <span>{t(dark ? `cockpit.light.dark.${dark}` : 'cockpit.light.noWindow')}</span>

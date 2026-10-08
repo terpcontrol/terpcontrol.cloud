@@ -26,6 +26,7 @@ import {
   type PlotSpan,
 } from '@/charts/series';
 import type { ChartToken } from '@/charts/tokens';
+import { outputWord } from '@/ui/climate-hardware';
 import type { HelpTopic } from '@/ui/explain';
 import { looseFigure } from '@/ui/figures';
 import { targetFigure, UNIT } from '@/ui/units';
@@ -91,15 +92,10 @@ export interface Offered {
   measurements: MeasurementDefinition[];
 }
 
-/**
- * What an output is called on the charts. A fridge module drives one compressor
- * that cools and dries at once, and its dehumidifier output is that compressor:
- * the cockpit, the alarms and the device panel call it so, and a chip or a card
- * calling the same machine "Entfeuchter" would be a second name for it.
- */
+/** What an output is called on the charts: a fridge's name for it where every lane of it is a fridge's. */
 export const outputTitle = (t: Translate, output: OutputMetric, lanes: readonly Pick<TimelineOutputLane, 'output' | 'fridge'>[]): string => {
   const own = lanes.filter(lane => lane.output === output);
-  const word = output === 'dehumidifier' && own.length > 0 && own.every(lane => lane.fridge === true) ? 'compressor' : output;
+  const word = outputWord(output, own.length > 0 && own.every(lane => lane.fridge === true));
 
   return t(`timeline.output.${word}`, { defaultValue: output });
 };

@@ -2,6 +2,7 @@ import type { GrowthStage } from '@fg2/shared-types/v1';
 import { climatePreset, GERMINATION_TOO_HUMID, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
+import { germinates } from '@/ui/climate-hardware';
 import { climateChoiceName, presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -12,7 +13,7 @@ import { draftOf, prefilled } from '../control/targets/targets-draft';
 import { targetFigure } from '@/ui/units';
 import { GerminationChoices } from '../control/germination/GerminationChoices';
 import { choicesOf, useHumidifier } from '../control/germination/germination-choices';
-import { germinates, KEEP_CLIMATE, usePlaceController, type PhaseClimate } from './phase-climate';
+import { KEEP_CLIMATE, usePlaceController, type PhaseClimate } from './phase-climate';
 
 interface Figures {
   /** When the light comes on, in seconds past midnight UTC: the device's, which no preset moves. */

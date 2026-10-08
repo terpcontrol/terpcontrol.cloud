@@ -137,7 +137,7 @@ const deviceRow = (over: Record<string, unknown> = {}) => ({
   type: 'controller',
   name: 'Blue Dream tent',
   spaceId: 'space-1',
-  state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })) },
+  state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })), hardware: {} },
   ...over,
 });
 
@@ -607,7 +607,7 @@ describe('the inbox', () => {
 
   it('dates an offline alert from when the device was last heard rather than from when the cloud noticed', async () => {
     server.alerts = [alert({ id: 'off', kind: 'offline', ruleId: null, severity: 'warning', value: null, startedAt: iso(NOW.minus({ hours: 3 })) })];
-    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 25 })) } })];
+    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 25 })), hardware: {} } })];
     draw();
 
     // Heard, not sampled: the silence is dated from the last time the device
@@ -780,7 +780,9 @@ describe('the inbox', () => {
    * already in it. It says the state now, and offers the end of it.
    */
   it('says that the device is already in maintenance, and offers the end of it instead of a second window', async () => {
-    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })), maintenanceUntil: iso(NOW.plus({ minutes: 8 })) } })];
+    server.devices = [
+      deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })), maintenanceUntil: iso(NOW.plus({ minutes: 8 })), hardware: {} } }),
+    ];
     server.alerts = [alert({})];
     server.rules = [rule()];
     draw();
@@ -806,7 +808,9 @@ describe('the inbox', () => {
    * flipped to offering a fresh window. Both now read the same instant.
    */
   it('says the device is out of maintenance while only the settling still holds the alarms', async () => {
-    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })), maintenanceUntil: iso(NOW.minus({ minutes: 2 })) } })];
+    server.devices = [
+      deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })), maintenanceUntil: iso(NOW.minus({ minutes: 2 })), hardware: {} } }),
+    ];
     server.alerts = [alert({})];
     server.rules = [rule()];
     draw();
@@ -824,7 +828,7 @@ describe('the inbox', () => {
    * reach, beside the alert saying it could not be reached.
    */
   it('offers no maintenance to a device that is offline', async () => {
-    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 25 })) } })];
+    server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 25 })), hardware: {} } })];
     server.alerts = [alert({})];
     server.rules = [rule()];
     draw();

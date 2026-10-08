@@ -118,8 +118,8 @@ export function PlaceCockpit({
   // under the readings: one picture of the tent rather than the same one three
   // times, and the grow a thumb away rather than under the summaries.
   const growUp = diary && camera !== null;
-  const shown = growUp || camera === null ? null : shownStill(camera);
   const pictured = camera ? shownStill(camera) : null;
+  const shown = growUp ? null : pictured;
 
   // Verlauf and Steuerung land on the place last looked at, and looking at one here is what makes it that place.
   useRememberPlace(spaceId);

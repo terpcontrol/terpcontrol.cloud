@@ -176,7 +176,7 @@ const may = { youMay: 'own' as AccessNeed };
 
 /** What stands in Tent 1: one named controller and one nobody has named, which is what the visit panel has to print. */
 const standing = [
-  { id: 'device-1', type: 'controller', name: 'Big tent controller', spaceId: 'space-1' },
+  { id: 'device-1', type: 'controller', name: 'Big tent controller', spaceId: 'space-1', state: { hardware: {} } },
   { id: 'device-2', type: 'plug', name: null, spaceId: 'space-1' },
   { id: 'device-3', type: 'fan', name: 'Somewhere else', spaceId: 'space-2' },
 ] as unknown as Device[];

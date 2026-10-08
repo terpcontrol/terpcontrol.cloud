@@ -5,7 +5,7 @@ import type { Device, GrowthStage, Plan, PlanNotifyMode } from '@fg2/shared-type
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useSavePlan } from '@/api/plans';
 import { Sheet } from '@/ui/Sheet';
-import { awaitingClimate, figureOf as documentFigure, hasCo2Sensor } from '@/ui/climate-hardware';
+import { awaitingClimate, figureOf as documentFigure, germinates, hasCo2Sensor } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
 import { presetsOf, stageChoiceName } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
@@ -16,7 +16,6 @@ import { useNow } from '@/ui/useNow';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { serverNow } from '@/api/clock';
-import { germinates } from '../grow/phase-climate';
 import { GerminationChoices } from './germination/GerminationChoices';
 import { choicesOf, useHumidifier } from './germination/germination-choices';
 import { DURATION_UNITS } from './plan-clock';

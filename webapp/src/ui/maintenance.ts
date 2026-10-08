@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import type { Device, OutputMetric } from '@fg2/shared-types/v1';
 import { MAINTENANCE_SETTLE_SECONDS, MAINTENANCE_VISIT_SECONDS } from '@fg2/shared-types/v1-schemas/maintenance.js';
+import { hasCo2Sensor, outputWord } from './climate-hardware';
 
 /**
  * What a maintenance window actually does, on the hardware it is sent to.
@@ -39,11 +40,10 @@ const PARKED_BY: Record<string, OutputMetric[]> = {
 
 /**
  * A controller that reports no CO2 sensor holds its CO2 target at zero, so its
- * valve is never driven and there is nothing of it to stop - the same reading
- * the targets page and the plan editor make of it.
+ * valve is never driven and there is nothing of it to stop.
  */
 export const parkedOutputs = (device: Device): OutputMetric[] =>
-  (PARKED_BY[device.type] ?? []).filter(output => output !== 'co2' || device.state?.hardware?.co2 !== 'off');
+  (PARKED_BY[device.type] ?? []).filter(output => output !== 'co2' || hasCo2Sensor(device));
 
 /** How long a step-in parks the hardware, in minutes: the alarms page, the Home chip and the panel all name it. */
 export const VISIT_MINUTES = MAINTENANCE_VISIT_SECONDS / 60;
@@ -75,12 +75,8 @@ export const parksAnything = (device: Device): boolean => parkedOutputs(device).
  * to the name the alarm screen uses.
  */
 export const parkedLabel = (t: Translate, device: Device): string => {
-  // A fridge module drives one compressor that both cools and dries, on the
-  // output the firmware calls the dehumidifier; "the dehumidifier" named a
-  // machine that cabinet does not have.
-  const word = (output: OutputMetric): string => (device.type === 'fridge' && output === 'dehumidifier' ? 'compressor' : output);
   const names = parkedOutputs(device).map(output =>
-    t(`maintenance.output.${word(output)}`, { defaultValue: t(`alarms.output.${output}`, { defaultValue: output }) }),
+    t(`maintenance.output.${outputWord(output, device.type === 'fridge')}`, { defaultValue: t(`alarms.output.${output}`, { defaultValue: output }) }),
   );
   if (names.length < 2) return names[0] ?? '';
 

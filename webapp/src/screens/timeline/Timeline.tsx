@@ -10,6 +10,7 @@ import { useGrow } from '@/api/grows';
 import type { Picture } from '@/api/public';
 import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
 import { useCorrecting } from '@/log/corrections';
+import { outputWord } from '@/ui/climate-hardware';
 import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { ageLabel, sinceLabel } from '@/ui/age';
@@ -365,18 +366,15 @@ const useReadings = (growId: string | null, measurements: MeasurementDefinition[
 export type OutputName = (lane: Pick<TimelineOutputLane, 'output' | 'fridge'>) => string;
 
 /**
- * The catalogue's name for each output, except that a fridge module's
- * dehumidifier output is its compressor, which cools and dries at once: the
- * name the cockpit's tiles give it, so a tap on "Kompressor läuft seit 12 Min"
- * lands on a lane of the same name rather than on an "Entfeuchter" the cabinet
- * does not have. The lane says whose it is, a link's included, which is told
- * no device to look up.
+ * The catalogue's name for each output, by the name the cockpit's tiles give
+ * it, so a tap on "Kompressor läuft seit 12 Min" lands on a lane of the same
+ * name. The lane says whose it is, a link's included, which is told no device
+ * to look up.
  */
 const useOutputName = (): OutputName => {
   const { t } = useTranslation();
 
-  return lane =>
-    t(`timeline.output.${lane.output === 'dehumidifier' && lane.fridge === true ? 'compressor' : lane.output}`, { defaultValue: lane.output });
+  return lane => t(`timeline.output.${outputWord(lane.output, lane.fridge === true)}`, { defaultValue: lane.output });
 };
 
 /**

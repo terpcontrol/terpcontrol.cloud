@@ -1,5 +1,5 @@
-import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
-import { figureAt } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import type { Device, DeviceConfiguration, OutputMetric } from '@fg2/shared-types/v1';
+import { figureAt, workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 
 /**
  * Whether a climate could land anywhere in a tent, asked of the hardware
@@ -108,3 +108,32 @@ export const climateLanding = (device: Device): ClimateLanding =>
  * explicit `off` refuses a target.
  */
 export const hasCo2Sensor = (device: Device): boolean => device.state.hardware.co2 !== 'off';
+
+/**
+ * Why a device keeps its lamp dark whatever its window says, or null: switched
+ * off, drying, or germinating in the dark. The window is then no promise, and
+ * "08:00–20:00" over a dark fridge read as a lamp that had failed.
+ */
+type DarkReason = 'off' | 'drying' | 'germination';
+
+export const darkReasonOf = (device: Device | null): DarkReason | null => {
+  const control = device?.control;
+  if (!control) return null;
+  if (!control.running) return 'off';
+  const mode = workModeOf(control);
+  return mode === 'drying' || mode === 'germination' ? mode : null;
+};
+
+/** Whether a device germinates in the dark now. */
+export const germinates = (device: Device | null): boolean => darkReasonOf(device) === 'germination';
+
+/**
+ * What an output is called on this kind of hardware: one name per machine
+ * wherever it is met. A fridge module drives one compressor that both cools and
+ * dries, on the output the firmware calls the dehumidifier, so on a fridge that
+ * output is the compressor - on the cockpit, the charts, the Timeline, the
+ * alarms and the maintenance sheet alike - and never an "Entfeuchter" the
+ * cabinet does not have.
+ */
+export const outputWord = <O extends OutputMetric>(output: O, fridge: boolean): O | 'compressor' =>
+  fridge && output === 'dehumidifier' ? 'compressor' : output;

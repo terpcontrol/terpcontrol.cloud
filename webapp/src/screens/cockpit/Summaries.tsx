@@ -8,7 +8,7 @@ import { controlPath } from '@/app/places';
 import type { AlarmRule, CardSetpoint, Device, DeviceLive, Me, Metric, OverviewTargets } from '@fg2/shared-types/v1';
 import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
-import { awaitingClimate } from '@/ui/climate-hardware';
+import { awaitingClimate, darkReasonOf } from '@/ui/climate-hardware';
 import { Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { offsetOf } from '@/ui/wall-clock';
@@ -18,7 +18,7 @@ import { targetWithUnit } from '@/ui/units';
 import { alarmsReach, reachedBy } from '../notifications/reach';
 import { fanSummaryOf, plugSummaryOf } from '../control/devices/own-summary';
 import { holdsHumidity, storedShapeOf, type Half } from '../control/targets/day-night';
-import { darkReasonOf, halfNowOf, hoursFigure, lightWindowOf, type HumidifierHold } from './place';
+import { halfNowOf, lightWindowOf, lightWindowText, setpointOf, type HumidifierHold } from './place';
 import { PlanLine } from './PlanLine';
 import styles from './Cockpit.module.css';
 
@@ -48,7 +48,7 @@ function Summary({ title, change, children }: { title: string; change: string | 
 
 const halfOf = (row: CardSetpoint[], withCo2: boolean, withHumidity: boolean): string[] =>
   (['temperature', ...(withHumidity ? ['humidity'] : []), ...(withCo2 ? ['co2'] : [])] as Metric[]).flatMap(metric => {
-    const value = row.find(setpoint => setpoint.metric === metric)?.value;
+    const value = setpointOf(row, metric)?.value;
     if (value == null) return [];
     return [metric === 'co2' ? `CO₂ ${targetWithUnit(value, metric)}` : targetWithUnit(value, metric)];
   });
@@ -123,14 +123,7 @@ export function TargetsSummary({
                 ]
   ).filter((row: Row) => row.parts.length > 0);
   if (light) {
-    // A day-long light goes off a second before it comes on, which is no time to name.
-    const parts = [
-      light.always
-        ? t('cockpit.light.always')
-        : light.never
-          ? t('cockpit.light.never')
-          : t('cockpit.light.window', { on: light.on, off: light.off, hours: hoursFigure(light.hours) }),
-    ];
+    const parts = [lightWindowText(t, light)];
     if (light.limit < 100 && !light.never) parts.push(t('cockpit.targets.limit', { percent: light.limit }));
     rows.push({ label: t('cockpit.targets.light'), parts });
   } else if (dark && dark !== 'off') {

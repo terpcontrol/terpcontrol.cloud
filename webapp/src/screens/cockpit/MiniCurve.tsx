@@ -11,7 +11,7 @@ const HEIGHT = 56;
 /** An hour without a sample is a gap in the line; a missed sample is not. */
 const GAP_MS = 60 * 60 * 1000;
 
-export type Tone = 'temperature' | 'humidity' | 'co2' | 'leaf';
+type Tone = 'temperature' | 'humidity' | 'co2' | 'leaf';
 
 interface MiniCurveProps {
   panel: TimelinePanel | null;
