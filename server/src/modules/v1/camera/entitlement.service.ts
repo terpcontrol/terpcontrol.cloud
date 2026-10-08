@@ -21,7 +21,7 @@ import { premiumConfig } from '@config/configuration';
 
 const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
 
-/** Twelve months, as the record decides, for a Terp Cam when it is first claimed or paired. */
+/** Twelve months, as the record decides, for a Terp Cam when it is first claimed or paired. Nothing renews on its own. */
 const ENTITLEMENT_MONTHS = 12;
 
 export const yearFrom = (at: Date): Date => {

@@ -18,10 +18,10 @@ import { useV1TestDatabase } from './support/v1-database';
 /**
  * The composer: what is asked of a render, and what is refused.
  *
- * A render does not finish inside a request, so the route's whole job is to
- * decide - the span, the second camera, what is drawn, what it may cost - and
- * hand back a row to poll. That decision is what is held here; what ffmpeg then
- * does with the frames is the builder's.
+ * A render does not finish inside a request, so asking for one is a decision -
+ * the span, the second camera, what is drawn, what it may cost - and a row to
+ * poll. That decision (`TimelapseService.request`, reached through the route) is
+ * what is held here; what ffmpeg then does with the frames is the render's own.
  */
 
 const OWNER = 'user-owner';

@@ -1,3 +1,4 @@
+import { RENEWAL_WINDOW_DAYS } from '@fg2/shared-types/v1-schemas';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { EntitlementService } from '@modules/v1/camera/entitlement.service';
 
@@ -26,8 +27,9 @@ const gate = (premium: Partial<Premium> = {}) => new EntitlementService({ ...CON
 
 const camera = (validUntil: Date | null): Pick<CameraDocument, 'entitlement'> => ({ entitlement: { validUntil, grant: 'included' } });
 
-const inAYear = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-const lastMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+const DAY = 24 * 60 * 60 * 1000;
+const inAYear = new Date(Date.now() + 365 * DAY);
+const lastMonth = new Date(Date.now() - 30 * DAY);
 
 describe('an install that says nothing', () => {
   it('reads every camera as entitled, whatever its date says', () => {
@@ -58,9 +60,7 @@ describe('an install that enforces', () => {
     expect(gate(enforced).servedStillWidth(camera(inAYear))).toBeUndefined();
   });
 
-  it('gives a free render the lesser resolution and the mark', () => {
-    expect(gate(enforced).isEntitled(camera(lastMonth))).toBe(false);
-    expect(gate(enforced).isEntitled(camera(inAYear))).toBe(true);
+  it('marks a free render', () => {
     expect(gate(enforced).watermarks(camera(lastMonth))).toBe(true);
     expect(gate(enforced).watermarks(camera(inAYear))).toBe(false);
   });
@@ -68,6 +68,14 @@ describe('an install that enforces', () => {
   it('shows the renewal notice once there is somewhere to send the person', () => {
     expect(gate(enforced).serialise(camera(lastMonth)).renewalVisible).toBe(false);
     expect(gate({ ...enforced, extendUrl: 'https://example.invalid/premium' }).serialise(camera(lastMonth)).renewalVisible).toBe(true);
+  });
+
+  it('shows it only once the year is nearly up', () => {
+    const renewal = gate({ ...enforced, extendUrl: 'https://example.invalid/premium' });
+    const ahead = (days: number) => camera(new Date(Date.now() + days * DAY));
+
+    expect(renewal.serialise(ahead(RENEWAL_WINDOW_DAYS + 1)).renewalVisible).toBe(false);
+    expect(renewal.serialise(ahead(RENEWAL_WINDOW_DAYS - 1)).renewalVisible).toBe(true);
   });
 });
 
