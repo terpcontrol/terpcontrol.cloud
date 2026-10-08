@@ -23,7 +23,7 @@ import { withFigures } from './configuration-fields';
 /** The work modes germination is left for: those that hold a day and a night again, which get the night from before germination back, and drying. */
 const LEFT_FOR = [...SCHEDULED_MODES, 'dry'];
 
-export interface GerminationMemory {
+interface GerminationMemory {
   beforeGermination?: Record<string, number> | null;
   restedHumidityBand?: number | null;
 }

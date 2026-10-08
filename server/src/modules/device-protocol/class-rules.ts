@@ -54,13 +54,13 @@ export const HUMIDIFIER_REST_BAND = 100;
  * alone - the firmware holds no day there, and dries nothing - so nothing else
  * changes with it.
  */
-export const HUMIDIFIER_REST_HUMIDITY = 0;
+const HUMIDIFIER_REST_HUMIDITY = 0;
 
 /** What the firmware switches by where its document states no band: what a band that was not kept goes back to. */
 const FIRMWARE_HUMIDITY_BAND = 5;
 
 /** Whether a document rests its humidifier: germinating, with the band nothing switches on at. */
-export const restsHumidifier = (configuration: DeviceConfiguration | null): boolean =>
+const restsHumidifier = (configuration: DeviceConfiguration | null): boolean =>
   configuration?.workmode === 'breed' && bandOf(configuration) === HUMIDIFIER_REST_BAND;
 
 const bandOf = (configuration: DeviceConfiguration): unknown => {

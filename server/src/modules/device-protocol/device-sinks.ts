@@ -30,17 +30,22 @@ export interface DeviceSampleSink {
 export const DEVICE_SAMPLE_SINK = 'device-protocol:samples';
 
 /**
- * The same reading, in the names the contract gives them: what the device
- * measured and what it was driving. Provided by the alarm engine (`onSample`),
- * which has rules on both.
+ * One device's readings of one instant, in the names the contract gives them,
+ * and the outputs it was driving at that instant beside them - a rule may watch
+ * either, so the sample carries both halves of the message.
  */
+export interface MetricSample {
+  deviceId: string;
+  measuredAt: Date;
+  /** A metric the device did not report is absent; no rule on it is evaluated. */
+  values: Partial<Record<Metric, number>>;
+  /** The same, for the outputs: the value as the device reports it, never scaled. */
+  outputs: Partial<Record<OutputMetric, number>>;
+}
+
+/** The same reading, in those names. Provided by the alarm engine (`onSample`), which has rules on both halves. */
 export interface MetricSampleSink {
-  onSample(sample: {
-    deviceId: string;
-    measuredAt: Date;
-    values: Partial<Record<Metric, number>>;
-    outputs: Partial<Record<OutputMetric, number>>;
-  }): Promise<void>;
+  onSample(sample: MetricSample): Promise<void>;
 }
 
 export const DEVICE_METRIC_SINK = 'device-protocol:metrics';

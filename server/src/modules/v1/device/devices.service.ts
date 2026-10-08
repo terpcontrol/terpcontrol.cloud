@@ -55,12 +55,8 @@ export class DevicesService {
     @Optional() private readonly hardwareReport: HardwareReportService | null = null,
   ) {}
 
-  public byId(id: string): Promise<StoredDevice | null> {
-    return this.devices.findOne({ id }).lean<StoredDevice>();
-  }
-
   public async require(id: string): Promise<StoredDevice> {
-    const device = await this.byId(id);
+    const device = await this.devices.findOne({ id }).lean<StoredDevice>();
     if (!device) throw notFound('device_not_found', 'There is no device with that id.');
 
     return device;

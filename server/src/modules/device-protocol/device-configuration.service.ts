@@ -105,10 +105,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     germination?: boolean,
     choices?: ChoicesSaid,
   ): Promise<DeviceConfiguration | null> {
-    const device = await this.devices
-      .findOne({ id: deviceId }, { type: 1, configuration: 1 })
-      .lean<Pick<StoredDevice, 'type' | 'configuration'> | null>();
-    if (!device) throw new HttpException(404, 'Device not found');
+    const device = await this.typeAndDocument(deviceId);
     const refused = figureRefusals(device.type, configuration, { stored: device.configuration ?? null });
     if (refused.length > 0) throw badRequest('validation_failed', 'The settings do not fit what the device reads.', refused);
 
@@ -169,11 +166,8 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * a document leaves out as its default.
    */
   public async configure(deviceId: string, set: Record<string, FieldSetting>, by: string | null = null): Promise<boolean> {
-    const device = await this.devices
-      .findOne({ id: deviceId }, { type: 1, configuration: 1 })
-      .lean<Pick<StoredDevice, 'type' | 'configuration'> | null>();
-    if (!device) throw new HttpException(404, 'Device not found');
-    if (!device.configuration || Object.keys(device.configuration).length === 0) {
+    const device = await this.typeAndDocument(deviceId);
+    if (sentNoSettings(device.configuration)) {
       throw unprocessable('device_sent_no_settings', 'This device has not sent its settings, so there is nothing to change them in.', [
         {
           field: 'set',
@@ -198,12 +192,9 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * never sent its document is refused as `configure` refuses it.
    */
   public async coupleCo2Fan(plugId: string, coupling: Co2Fan | null): Promise<void> {
-    const plug = await this.devices
-      .findOne({ id: plugId }, { type: 1, configuration: 1 })
-      .lean<Pick<StoredDevice, 'type' | 'configuration'> | null>();
-    if (!plug) throw new HttpException(404, 'Device not found');
+    const plug = await this.typeAndDocument(plugId);
     if (plug.type !== 'plug') throw unprocessable('not_a_plug', 'Only a stand-alone smart socket slows a fan while it doses CO2.');
-    if (!plug.configuration || Object.keys(plug.configuration).length === 0) {
+    if (sentNoSettings(plug.configuration)) {
       throw unprocessable('device_sent_no_settings', 'This device has not sent its settings, so there is nothing to change them in.');
     }
     if (coupling) {
@@ -212,6 +203,15 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     }
 
     await this.store(plugId, { kind: 'fields' }, current => (current ? { ...current, fan: co2FanKey(coupling) } : null));
+  }
+
+  private async typeAndDocument(deviceId: string): Promise<Pick<StoredDevice, 'type' | 'configuration'>> {
+    const device = await this.devices
+      .findOne({ id: deviceId }, { type: 1, configuration: 1 })
+      .lean<Pick<StoredDevice, 'type' | 'configuration'> | null>();
+    if (!device) throw new HttpException(404, 'Device not found');
+
+    return device;
   }
 
   /**
@@ -236,10 +236,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * than the night's.
    */
   private async writeDown(deviceId: string, written: Written, by: string | null): Promise<void> {
-    const moved = [
-      ...withScheduleWhole(changedFigures(written.before, written.after, HIDDEN_FIGURES), written.after),
-      ...choicesMoved(written.choices),
-    ];
+    const moved = [...withScheduleWhole(changedFigures(written.before, written.after), written.after), ...choicesMoved(written.choices)];
     if (moved.length === 0) return;
     const mode = written.after.workmode;
 
@@ -557,17 +554,17 @@ const MOST_FIGURES = 12;
  * "day.temperature: 24 → 25", one line per figure that moved, in the dotted
  * names the firmware's own diff has always written into these lines.
  */
-export const changedFigures = (before: unknown, after: unknown, hidden: ReadonlySet<string> = new Set()): string[] => {
-  const lines = figuresMoved(before, after, '', hidden);
+const changedFigures = (before: unknown, after: unknown): string[] => {
+  const lines = figuresMoved(before, after, '');
   return lines.length > MOST_FIGURES ? [...lines.slice(0, MOST_FIGURES), `… ${lines.length - MOST_FIGURES} more`] : lines;
 };
 
-const figuresMoved = (before: unknown, after: unknown, path: string, hidden: ReadonlySet<string>): string[] => {
+const figuresMoved = (before: unknown, after: unknown, path: string): string[] => {
   if (isSection(before) && isSection(after)) {
     const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
-    return keys.flatMap(key => figuresMoved(before[key], after[key], path ? `${path}.${key}` : key, hidden));
+    return keys.flatMap(key => figuresMoved(before[key], after[key], path ? `${path}.${key}` : key));
   }
-  if (hidden.has(path) || JSON.stringify(before) === JSON.stringify(after)) return [];
+  if (HIDDEN_FIGURES.has(path) || JSON.stringify(before) === JSON.stringify(after)) return [];
 
   return [`${path || 'configuration'}: ${figureOf(before)} → ${figureOf(after)}`];
 };
@@ -581,8 +578,11 @@ const withScheduleWhole = (lines: string[], after: DeviceConfiguration): string[
   const section = after.daynight;
   const value = isSection(section) ? section[missing] : undefined;
   if (typeof value !== 'number') return lines;
-  return [...lines, `daynight.${missing}: ${value} → ${value}`].sort((one, other) => (one < other ? -1 : one > other ? 1 : 0));
+  return [...lines, `daynight.${missing}: ${value} → ${value}`].sort();
 };
+
+/** A device that has never sent its document: a write would reach it as the change alone. */
+const sentNoSettings = (configuration: DeviceConfiguration | null | undefined): boolean => !configuration || Object.keys(configuration).length === 0;
 
 const figureOf = (value: unknown): string =>
   value === undefined || value === null ? '–' : typeof value === 'string' ? value : JSON.stringify(value);

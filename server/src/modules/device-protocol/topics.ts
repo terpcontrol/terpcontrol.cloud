@@ -10,15 +10,8 @@
 /** One subscription covers the whole fleet; a device names itself in the topic. */
 export const DEVICE_TOPIC_FILTER = '/devices/#';
 
-/**
- * What a device publishes on. `fwupdate` and `control/#` are subscribed by every
- * device and published by nobody: they stay reserved, so a later server can use
- * them without a firmware change.
- */
-export type InboundTopic = 'status' | 'bulk' | 'fetch' | 'log' | 'configuration' | 'image' | 'tunnel_read';
-
 /** What the server publishes on. The server sees its own messages echoed back and ignores them. */
-export type OutboundTopic = 'command' | 'firmware' | 'configuration' | 'tunnel_write';
+type OutboundTopic = 'command' | 'firmware' | 'configuration' | 'tunnel_write';
 
 export const deviceTopic = (deviceId: string, name: OutboundTopic): string => `/devices/${deviceId}/${name}`;
 

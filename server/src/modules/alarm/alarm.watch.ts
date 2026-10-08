@@ -1,5 +1,5 @@
 import { AlarmWatch, Metric, OutputMetric } from '@fg2/shared-types/v1';
-import { MetricSample } from './alarm.types';
+import { MetricSample } from '@modules/device-protocol/device-sinks';
 
 /**
  * What a watch means, in one place.

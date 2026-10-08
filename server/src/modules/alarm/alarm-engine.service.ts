@@ -8,9 +8,10 @@ import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/clima
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { MetricSample, MetricSampleSink } from '@modules/device-protocol/device-sinks';
 import { DataService } from '../data/data.service';
 import { AlertService, AlertSubject } from './alert.service';
-import { ALARM_DEVICE_FIELDS, AlarmDevice, MetricSample } from './alarm.types';
+import { ALARM_DEVICE_FIELDS, AlarmDevice } from './alarm.types';
 import { bandOf, isOutOfBounds, watchedValue } from './alarm.watch';
 
 /**
@@ -50,7 +51,7 @@ const SETTLED_MS = 4000;
 const MUTEX_TIMEOUT_MS = 300000;
 
 @Injectable()
-export class AlarmEngineService {
+export class AlarmEngineService implements MetricSampleSink {
   constructor(
     @InjectModel(MODEL_V1.alarmRule) private readonly rules: Model<StoredAlarmRule>,
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,

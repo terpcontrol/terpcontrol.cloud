@@ -2,6 +2,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
+import type { Socket } from '@fg2/shared-types/v1';
 import { socketChunkCount, socketListChunk } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -55,7 +56,7 @@ const CAMERA_SECRET_KEYS = ['webcam_pwd', 'webcam_url'];
  */
 const CAMERA_REPORT_KEYS = ['webcam_did', 'webcam_uid', 'webcam_pwd'];
 
-export interface HardwareInfo {
+interface HardwareInfo {
   key: string;
   value: string;
 }
@@ -266,18 +267,14 @@ export class HardwareReportService {
 
     const changed = sockets.filter(socket => {
       const was = previous.get(socket.slot);
-      if (!was) return false;
-      // A row whose hardware id has changed is another socket in the same slot.
-      if (was.hardwareId !== '' && socket.hardwareId !== '' && was.hardwareId !== socket.hardwareId) return false;
-
-      return was.state !== 'unknown' && was.state !== socket.state;
+      return !!was && !swapped(was, socket) && was.state !== 'unknown' && was.state !== socket.state;
     });
 
-    const held = new Set(sockets.map(socket => String(socket.slot)));
+    const bySlot = new Map(sockets.map(socket => [String(socket.slot), socket]));
     const stale = Object.keys(device.state.socketStateChangedAt ?? {}).filter(slot => {
-      const socket = sockets.find(row => String(row.slot) === slot);
+      const socket = bySlot.get(slot);
       const was = previous.get(Number(slot));
-      return !held.has(slot) || (was && socket && was.hardwareId !== '' && socket.hardwareId !== '' && was.hardwareId !== socket.hardwareId);
+      return !socket || (!!was && swapped(was, socket));
     });
 
     await this.devices.updateOne(
@@ -292,6 +289,9 @@ export class HardwareReportService {
     );
   }
 }
+
+/** A row whose hardware id has changed is another socket in the same slot. */
+const swapped = (was: Socket, now: Socket): boolean => was.hardwareId !== '' && now.hardwareId !== '' && was.hardwareId !== now.hardwareId;
 
 /**
  * What the camera is called before anybody has called it anything.

@@ -17,15 +17,13 @@ import type { WriteIntent } from './work-modes';
  * decides rather than writes as given.
  */
 
-export interface FieldChanges {
+interface FieldChanges {
   figures: [path: string, value: number | string | TimerWindow[]][];
   intent: Extract<WriteIntent, { kind: 'fields' }>;
 }
 
-type Value = FieldSetting;
-
 /** Every value that does not fit is named at once, so a form learns all of what it has to correct in one answer. */
-export const fieldChangesOf = (type: string, set: Record<string, Value>): FieldChanges => {
+export const fieldChangesOf = (type: string, set: Record<string, FieldSetting>): FieldChanges => {
   const fields = configurationFieldsOf(type);
   const errors: ProblemError[] = [];
   const changes: FieldChanges = { figures: [], intent: { kind: 'fields' } };
@@ -58,7 +56,7 @@ export const fieldChangesOf = (type: string, set: Record<string, Value>): FieldC
   return changes;
 };
 
-const refusalOf = (field: ConfigurationField, value: Value): string | null => {
+const refusalOf = (field: ConfigurationField, value: FieldSetting): string | null => {
   switch (field.kind) {
     case 'switch':
       return typeof value === 'boolean' ? null : 'This setting is on or off: true or false.';
@@ -88,7 +86,7 @@ const fitsWindow = (window: TimerWindow, longest: number): boolean =>
  * reads as true and false; a choice by its code where the firmware keeps one;
  * a list of windows as fresh objects of the two keys the firmware reads.
  */
-const stored = (field: ConfigurationField, value: Value): number | string | TimerWindow[] => {
+const stored = (field: ConfigurationField, value: FieldSetting): number | string | TimerWindow[] => {
   if (typeof value === 'boolean') return value ? 1 : 0;
   if (Array.isArray(value)) return value.map(({ ontime, duration }) => ({ ontime, duration }));
   if (field.kind === 'choice' && field.codes) return field.codes[field.options.indexOf(value as string)];

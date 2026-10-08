@@ -1,5 +1,5 @@
 import type { DeviceConfiguration, ProblemError } from '@fg2/shared-types/v1';
-import { isSection, MOST_TIMER_WINDOWS } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { isSection, MOST_TIMER_WINDOWS, PLUG_SWITCHING } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { DAY_SECONDS } from '@fg2/shared-types/v1-schemas/day-night.js';
 
 /**
@@ -63,7 +63,7 @@ interface WindowsFigure {
 
 export type DocumentFigure = NumberFigure | FlagFigure | WordFigure | WindowsFigure;
 
-export type DocumentFigures = Readonly<Record<string, DocumentFigure>>;
+type DocumentFigures = Readonly<Record<string, DocumentFigure>>;
 
 const UINT32_MAX = 4_294_967_295;
 
@@ -120,8 +120,6 @@ const FRIDGE: DocumentFigures = {
 
 const CONTROLLER: DocumentFigures = CLIMATE;
 
-const SWITCH_TEMPERATURE = TEMPERATURE;
-
 const PLUG: DocumentFigures = {
   mqttcontrol: FLAG,
   // The socket's own modes (`MODE_*` in plug.h).
@@ -131,10 +129,10 @@ const PLUG: DocumentFigures = {
   'daynight.night': TIME,
   'timer.timeframes': { kind: 'windows', most: MOST_TIMER_WINDOWS, ontime: number(0, DAY_SECONDS), duration: number(0, 24 * 60) },
   ...Object.fromEntries(
-    (['heater', 'cooler', 'humidify', 'dehumidify'] as const).flatMap(mode =>
+    PLUG_SWITCHING.flatMap(mode =>
       ['day.on', 'day.off', 'night.on', 'night.off'].map(point => [
         `${mode}.${point}`,
-        mode === 'heater' || mode === 'cooler' ? SWITCH_TEMPERATURE : HUMIDITY,
+        mode === 'heater' || mode === 'cooler' ? TEMPERATURE : HUMIDITY,
       ]),
     ),
   ),
@@ -207,7 +205,7 @@ export const DOCUMENT_FIGURES: Readonly<Record<string, DocumentFigures>> = {
 export const TEMPLATE_FIGURES: DocumentFigures = { ...FAN, ...CONTROLLER, ...FRIDGE };
 
 /** The figures a type's firmware reads; none for a type this table does not know, whose document is kept as it comes. */
-export const documentFiguresOf = (type: string): DocumentFigures => DOCUMENT_FIGURES[type] ?? {};
+const documentFiguresOf = (type: string): DocumentFigures => DOCUMENT_FIGURES[type] ?? {};
 
 /* ----------------------------------------------------------------- reading */
 

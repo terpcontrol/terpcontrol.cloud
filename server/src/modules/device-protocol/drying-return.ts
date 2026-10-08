@@ -12,7 +12,7 @@ import type { DeviceConfiguration, DryingReturn, PhaseTargets } from '@fg2/share
  */
 
 /** The figures a drying climate sets, by their paths in the document. */
-export const DRYING_FIGURES = ['day.temperature', 'day.humidity', 'night.temperature', 'night.humidity', 'co2.target', 'lights.limit'] as const;
+const DRYING_FIGURES = ['day.temperature', 'day.humidity', 'night.temperature', 'night.humidity', 'co2.target', 'lights.limit'] as const;
 
 /** What the firmware lights at out of the box: what a spell nobody kept anything from comes back to, rather than staying dark. */
 const FACTORY_LIGHT_LIMIT = 100;
