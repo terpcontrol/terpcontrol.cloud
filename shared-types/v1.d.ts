@@ -119,6 +119,8 @@ export type AlarmDeliveryChannel = 'email' | 'webhook';
 
 export type AlarmWatch = ReadingWatch | OutputLevelWatch | OutputRunningWatch;
 
+export type AdminLogLevel = 'error' | 'warn' | 'info';
+
 export type PresetPrompt = 'ask' | 'never';
 
 export type AccessNeed = 'own' | 'manage' | 'log' | 'view';
@@ -1914,6 +1916,27 @@ export interface AdminStats {
    */
   retention: AdminRetentionRun | null;
   alarmWatch: AdminAlarmWatch;
+}
+
+export interface AdminLogLine {
+  /**
+   * What the list is paged by; the log is the process's own and not a collection of this model.
+   */
+  id: string;
+  loggedAt: string;
+  level: AdminLogLevel;
+  context: string;
+  message: string;
+  deviceId: string | null;
+  userId: string | null;
+}
+
+export interface AdminLogPage {
+  items: AdminLogLine[];
+  /**
+   * Pass back as `cursor` for the next page; null on the last one.
+   */
+  nextCursor: string | null;
 }
 
 export interface SpaceRetention {

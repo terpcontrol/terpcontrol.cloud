@@ -2853,3 +2853,44 @@ export declare const adminStats: z.ZodObject<{
         failedAt: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>;
 }, z.core.$strip>;
+export declare const adminLogLevel: z.ZodEnum<{
+    error: "error";
+    info: "info";
+    warn: "warn";
+}>;
+/**
+ * One line of the server's own log, which is not a diary entry: the diary is
+ * what happened to a grow, this is what happened inside the process, and a
+ * hosted install has no shell to read it in. `context` is the module that wrote
+ * the line, and the two ids are filled where a line is about one.
+ */
+export declare const adminLogLine: z.ZodObject<{
+    id: z.ZodString;
+    loggedAt: z.ZodISODateTime;
+    level: z.ZodEnum<{
+        error: "error";
+        info: "info";
+        warn: "warn";
+    }>;
+    context: z.ZodString;
+    message: z.ZodString;
+    deviceId: z.ZodNullable<z.ZodString>;
+    userId: z.ZodNullable<z.ZodString>;
+}, z.core.$strip>;
+/** `GET /admin/logs`. Paged like every list, because a log has no end. */
+export declare const adminLogPage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        loggedAt: z.ZodISODateTime;
+        level: z.ZodEnum<{
+            error: "error";
+            info: "info";
+            warn: "warn";
+        }>;
+        context: z.ZodString;
+        message: z.ZodString;
+        deviceId: z.ZodNullable<z.ZodString>;
+        userId: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>;
+    nextCursor: z.ZodNullable<z.ZodString>;
+}, z.core.$strip>;

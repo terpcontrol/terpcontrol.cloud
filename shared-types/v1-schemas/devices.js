@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.deviceFirmwarePage = exports.deviceFirmware = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.provisionedDevice = exports.adminDeviceProvision = exports.adminDeviceCreate = exports.deviceConfigurationReading = exports.co2FanCoupling = exports.deviceConfigurationPatch = exports.timerWindow = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.deviceSettingsWritten = exports.devicePage = exports.device = exports.deviceState = exports.deviceControl = exports.dryingReturn = exports.operatingMode = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
 exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.setpointsTransition = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = void 0;
-exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = void 0;
+exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 const configuration_fields_js_1 = require("./configuration-fields.js");
@@ -998,3 +998,21 @@ exports.adminStats = (0, common_js_1.named)('AdminStats', zod_1.z.object({
     // one still has something to report, and it is the figure that matters most.
     alarmWatch: exports.adminAlarmWatch,
 }));
+exports.adminLogLevel = (0, common_js_1.named)('AdminLogLevel', zod_1.z.enum(['error', 'warn', 'info']));
+/**
+ * One line of the server's own log, which is not a diary entry: the diary is
+ * what happened to a grow, this is what happened inside the process, and a
+ * hosted install has no shell to read it in. `context` is the module that wrote
+ * the line, and the two ids are filled where a line is about one.
+ */
+exports.adminLogLine = (0, common_js_1.named)('AdminLogLine', zod_1.z.object({
+    id: (0, common_js_1.id)().describe("What the list is paged by; the log is the process's own and not a collection of this model."),
+    loggedAt: (0, common_js_1.instant)(),
+    level: exports.adminLogLevel,
+    context: zod_1.z.string(),
+    message: zod_1.z.string(),
+    deviceId: (0, common_js_1.id)().nullable(),
+    userId: (0, common_js_1.id)().nullable(),
+}));
+/** `GET /admin/logs`. Paged like every list, because a log has no end. */
+exports.adminLogPage = (0, common_js_1.named)('AdminLogPage', (0, common_js_1.page)(exports.adminLogLine));
