@@ -1,5 +1,4 @@
 import type { AccessNeed, Placement } from '@fg2/shared-types/v1';
-import { useMe } from '@/api/account';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 
@@ -67,16 +66,6 @@ export const useMayInEach = (enabled = true): ((spaceId: string | null) => Acces
  * waiting for.
  */
 export const useMayInSpace = (spaceId: string | null): AccessNeed | undefined => useMayInEach(spaceId !== null)(spaceId);
-
-/**
- * The account's own `/me`, which the demo has none of: a demo session is not
- * asked for it rather than asked and refused.
- */
-export const useAccountMe = () => {
-  const { user } = useSession();
-
-  return useMe(false, user !== null && user.isDemo !== true);
-};
 
 /** Something that stands somewhere: a device, a camera, a grow. Both fields are what the access decision is made of. */
 export interface Standing {
@@ -171,11 +160,19 @@ export const useMayLogIn = (spaceId: string | null = null): boolean => useMayIn(
  * screens then say so and offer nothing that would write - an invitation, a
  * saved view, the account's own offers - because what they would write to is
  * the administrator's account, or the customer's place, and neither is what
- * support came for. False until the account's places have been read.
+ * support came for. False until the account's own places have been read.
  */
+export const isVisiting = (user: { isAdmin: boolean } | null, spaceId: string | null, ownIds: string[] | undefined): boolean =>
+  user?.isAdmin === true && spaceId !== null && ownIds !== undefined && !ownIds.includes(spaceId);
+
+/** `isVisiting` for a place known by its id, against the account's spaces. */
 export const useVisiting = (spaceId: string | null): boolean => {
   const { user } = useSession();
   const spaces = useSpaces(user?.isAdmin === true && spaceId !== null);
 
-  return user?.isAdmin === true && spaceId !== null && spaces.data !== undefined && !spaces.data.items.some(space => space.id === spaceId);
+  return isVisiting(
+    user,
+    spaceId,
+    spaces.data?.items.map(space => space.id),
+  );
 };

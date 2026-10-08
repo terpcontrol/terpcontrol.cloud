@@ -17,7 +17,7 @@ import type {
   UserCreate,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
-import { session } from './session';
+import { session, useSession } from './session';
 import { invalidate, useWrite } from './write';
 
 /**
@@ -73,6 +73,16 @@ export const useMe = (refetchEveryMs: number | false = false, enabled = true) =>
     refetchInterval: refetchEveryMs,
     enabled,
   });
+
+/**
+ * The account's own `/me`, which the demo has none of: a demo session is not
+ * asked for it rather than asked and refused.
+ */
+export const useAccountMe = () => {
+  const { user } = useSession();
+
+  return useMe(false, user !== null && user.isDemo !== true);
+};
 
 export const useUpdateMe = () => {
   const client = useQueryClient();

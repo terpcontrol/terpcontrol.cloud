@@ -1,7 +1,7 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { Alert, Me } from '@fg2/shared-types/v1';
-import { notificationsWith, useUpdateMe } from '@/api/account';
+import { notificationsWith, useAccountMe, useUpdateMe } from '@/api/account';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { useOpenAlerts, useResolvedAlerts } from '@/api/alerts';
 import { fetchedAt } from '@/api/clock';
@@ -12,7 +12,7 @@ import { instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
-import { enough, useAccountMe, useMayInEach, useMayManage } from '@/ui/session-access';
+import { enough, useMayInEach, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { clock, WEEKDAY_DAY, zoneOf } from '@/ui/zone';

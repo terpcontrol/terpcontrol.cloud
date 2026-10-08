@@ -83,15 +83,15 @@ vi.mock('@/api/layers', async importOriginal => ({ ...(await importOriginal<obje
  * drawn in. The tests read a UTC account from a machine that is not on UTC, so
  * a label that slipped back onto the browser's zone shows up as an hour out.
  */
-vi.mock('@/api/account', async importOriginal => ({
-  ...(await importOriginal<object>()),
-  useMe: () => ({
+vi.mock('@/api/account', async importOriginal => {
+  const me = () => ({
     data: {
       preferences: { timezone: state.zone },
       premium: { enforced: true, free: { stillWidth: state.stillWidth, stillDays: null, timelapseDays: null } },
     },
-  }),
-}));
+  });
+  return { ...(await importOriginal<object>()), useMe: me, useAccountMe: me };
+});
 
 vi.mock('@/api/media', async importOriginal => ({
   ...(await importOriginal<object>()),

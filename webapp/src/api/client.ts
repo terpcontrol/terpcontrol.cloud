@@ -10,7 +10,10 @@ import { session } from './session';
  * in this file knows a shape.
  */
 
-/** A route's parameters. A list is written as the same name repeated, which is how the routes read one. */
+/**
+ * A route's parameters. A list is written as the name repeated, which is how the series routes read `metrics`,
+ * `outputs` and `measurements`. `/entries` takes `kinds` comma-joined, so its callers join it themselves.
+ */
 export type Query = Record<string, string | number | boolean | readonly (string | number)[] | null | undefined>;
 
 /**

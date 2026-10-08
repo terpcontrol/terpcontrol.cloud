@@ -1,7 +1,7 @@
 import i18next from 'i18next';
+import { useAccountMe } from '@/api/account';
 import { DateTime } from 'luxon';
 import type { Me } from '@fg2/shared-types/v1';
-import { useAccountMe } from './session-access';
 
 /**
  * The zone and the shape a clock time or a date is drawn in.

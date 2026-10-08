@@ -36,11 +36,14 @@ export const useGrowPhotoLines = (growId: string) =>
     queryFn: ({ signal }) => api.get<EntryPage>('/entries', { growId, kinds: 'photo', limit: PHOTO_LIMIT }, signal),
   });
 
+/** How many of a device's own lines support reads, newest first: enough for "since yesterday", few enough to read. */
+const DEVICE_LINES = 60;
+
 /** A device's own lines, newest first. */
-export const useDeviceEntries = (deviceId: string, limit: number) =>
+export const useDeviceEntries = (deviceId: string) =>
   useRead({
     queryKey: ['entries', 'device', deviceId],
-    queryFn: ({ signal }) => api.get<EntryPage>('/entries', { deviceId, limit }, signal),
+    queryFn: ({ signal }) => api.get<EntryPage>('/entries', { deviceId, limit: DEVICE_LINES }, signal),
   });
 
 /** The kinds a tile prefills from, asked for in one read. */

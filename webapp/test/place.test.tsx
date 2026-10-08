@@ -25,10 +25,10 @@ vi.mock('@/api/session', async importOriginal => {
  */
 const account = vi.hoisted(() => ({ zone: null as string | null }));
 
-vi.mock('@/api/account', async importOriginal => ({
-  ...(await importOriginal<object>()),
-  useMe: () => ({ data: account.zone === null ? undefined : { preferences: { timezone: account.zone } } }),
-}));
+vi.mock('@/api/account', async importOriginal => {
+  const me = () => ({ data: account.zone === null ? undefined : { preferences: { timezone: account.zone } } });
+  return { ...(await importOriginal<object>()), useMe: me, useAccountMe: me };
+});
 
 beforeEach(() => {
   account.zone = null;

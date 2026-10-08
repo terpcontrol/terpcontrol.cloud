@@ -1,4 +1,5 @@
 import { CloudOff, Droplets, DropletOff, Refrigerator, ThermometerSnowflake, ThermometerSun, type LucideIcon } from 'lucide-react';
+import { useAccountMe } from '@/api/account';
 import { DateTime } from 'luxon';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -19,7 +20,6 @@ import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { maintenanceQuiet } from '@/ui/maintenance';
-import { useAccountMe } from '@/ui/session-access';
 import { useNow } from '@/ui/useNow';
 import { clock, zoneOf } from '@/ui/zone';
 import { AddDeviceNote } from '../AddDeviceNote';

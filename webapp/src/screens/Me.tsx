@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useShape } from '@/app/shell/shape';
 import { Link, useNavigate } from 'react-router';
-import { useMe } from '@/api/account';
+import { useAccountMe, useMe } from '@/api/account';
 import { useCameras } from '@/api/cameras';
 import { APP_VERSION, BUILD_MODE } from '@/api/config';
 import { useGrows, useMyGrows } from '@/api/grows';
@@ -17,7 +17,6 @@ import { ownsCamera } from '@/screens/devices/cameras';
 import { countsOf } from '@/screens/grow/my-grows';
 import { useTheme } from '@/theme/theme-context';
 import ui from '@/ui/ui.module.css';
-import { useAccountMe } from '@/ui/session-access';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
 import {

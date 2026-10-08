@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import type { MeasurementDefinition } from '@fg2/shared-types/v1';
-import { useGrow, useGrowSeries, useUpdateGrow } from '@/api/grows';
+import { useGrow, useMeasurementSeries, useUpdateGrow } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { LoadFailed, NoLongerHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { enough, growStanding, useMayWith } from '@/ui/session-access';
@@ -32,7 +32,7 @@ export function Measurements() {
   const now = useNow();
   const grow = useGrow(growId);
   const definitions = grow.data?.measurements ?? [];
-  const series = useGrowSeries(
+  const series = useMeasurementSeries(
     growId,
     'grow',
     definitions.map(definition => definition.key),

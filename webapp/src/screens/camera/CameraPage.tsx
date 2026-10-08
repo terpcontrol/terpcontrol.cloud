@@ -1,4 +1,5 @@
 import { Clapperboard } from 'lucide-react';
+import { useAccountMe } from '@/api/account';
 import type { DateTime } from 'luxon';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -21,7 +22,7 @@ import { useCameraCalled } from '@/ui/camera-name';
 import { ageLabel, deviceLiveness, instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, NoLongerHere, Refused, Waiting } from '@/ui/PageState';
-import { enough, useAccountMe, useMayWith } from '@/ui/session-access';
+import { enough, useMayWith } from '@/ui/session-access';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAccountMe } from '@/api/account';
 import { useTranslation } from 'react-i18next';
 import type { HomeAnswer, HomeSpaceCard } from '@fg2/shared-types/v1';
 import { isPlace, type PlaceCard as Place } from '@/app/places';
@@ -7,7 +8,6 @@ import { useMyGrows } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
 import { LoadFailed, RefreshFailed } from '@/ui/PageState';
-import { useAccountMe } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { EmptyHome } from './EmptyHome';

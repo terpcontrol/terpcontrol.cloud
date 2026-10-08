@@ -2,6 +2,7 @@ import { useRead, useReadPages } from './read';
 import type { GrowWeekCard, PublicGrowPage, PublicUserPage, PublicWeekPage, SharedResolution } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { v1 } from './config';
+import { itemsOf } from './pages';
 
 /**
  * What can be read with no account at all: a diary at its own address, the
@@ -71,7 +72,7 @@ const useEarlierWeeks = (queryKey: unknown[], path: string, from: string | null)
   const next = pages.length === 0 ? from : pages[pages.length - 1].nextCursor;
 
   return {
-    weeks: pages.flatMap(page => page.items),
+    weeks: itemsOf(query.data),
     more: next === null ? null : () => void query.fetchNextPage(),
     pending: query.isFetching,
   };

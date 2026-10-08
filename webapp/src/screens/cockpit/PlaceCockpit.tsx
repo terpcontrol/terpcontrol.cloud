@@ -1,4 +1,5 @@
 import { ChevronRight, CircleCheck, Clock, Info, Power, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
+import { useAccountMe } from '@/api/account';
 import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -21,7 +22,7 @@ import { foldRepeats, readingNamesOf } from '@/ui/entries';
 import { maintenanceQuiet, parksAnything, type Quiet } from '@/ui/maintenance';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { usePlaceDevices } from '@/ui/place-devices';
-import { useAccountMe, useMayManage, useVisiting } from '@/ui/session-access';
+import { useMayManage, useVisiting } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { offsetOf } from '@/ui/wall-clock';

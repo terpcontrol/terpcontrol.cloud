@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import type { HomeSpaceCard } from '@fg2/shared-types/v1';
 import { useHome } from '@/api/home';
 import { useSession } from '@/api/session';
+import { isVisiting } from '@/ui/session-access';
 import { readStored, writeStored } from '@/ui/stored';
 
 /**
@@ -109,9 +110,8 @@ export const placeShown = (places: PlaceCard[], asked: string | null): PlaceCard
  * Steuerung along with Verlauf. Choosing another one puts it in the address,
  * and drops whatever else the address said about the place being left.
  *
- * `visiting` is support reading a customer's place from the fleet: an
- * administrator may read any place, and one the address names that is not
- * among their own is drawn as that place rather than swapped for one of theirs.
+ * `visiting` is the place the address names where `isVisiting` says it is a
+ * customer's, which is drawn as that place rather than swapped for one of ours.
  */
 export const useCurrentPlace = () => {
   const home = useHome();
@@ -121,7 +121,7 @@ export const useCurrentPlace = () => {
   const places = (home.data?.spaces ?? []).filter(isPlace);
   const here = placeShown(places, asked);
   const named = here !== null && here.spaceId === asked ? here.spaceId : null;
-  const visiting = asked && user?.isAdmin === true && !places.some(place => place.spaceId === asked) ? asked : null;
+  const visiting = asked && isVisiting(user, asked, home.data && places.map(place => place.spaceId)) ? asked : null;
 
   useEffect(() => {
     if (named) rememberPlace(named);

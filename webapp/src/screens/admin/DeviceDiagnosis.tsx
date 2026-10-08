@@ -23,9 +23,6 @@ import { flatten } from './fleet-rows';
 import { buildLabel, typeName } from '@/ui/naming';
 import styles from './Admin.module.css';
 
-/** How many of a device's own lines the page lists, newest first: enough for "since yesterday", few enough to read. */
-const LINES = 60;
-
 /**
  * One device as support needs it, whoever owns it: what it is and who has it,
  * the way to its curves, every setting it holds, and what it said lately -
@@ -41,7 +38,7 @@ export function DeviceDiagnosis() {
   const { deviceId = '' } = useParams();
   const now = useNow();
   const device = useRead(deviceQuery(deviceId));
-  const lines = useDeviceEntries(deviceId, LINES);
+  const lines = useDeviceEntries(deviceId);
   const people = useAdminUsers();
   useFollowCursor(people);
 

@@ -1,6 +1,7 @@
 import { LIVE_BEAT_MS, useReadPages } from './read';
 import type { AlertPage } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { itemsOf } from './pages';
 
 /**
  * What has gone wrong, for the inbox behind the bell and the count on it.
@@ -51,5 +52,5 @@ export const useOpenAlertCount = (): OpenAlerts | undefined => {
   const open = useOpenAlerts();
   if (!open.data) return undefined;
 
-  return { open: open.data.pages.reduce((count, page) => count + page.items.length, 0), more: open.hasNextPage };
+  return { open: itemsOf(open.data).length, more: open.hasNextPage };
 };

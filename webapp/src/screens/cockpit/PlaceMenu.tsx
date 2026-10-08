@@ -1,4 +1,5 @@
 import { MoreHorizontal } from 'lucide-react';
+import { useAccountMe } from '@/api/account';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -6,7 +7,7 @@ import type { SpaceOverview } from '@fg2/shared-types/v1';
 import { controlPath, membersPath } from '@/app/places';
 import { useDiaryLayer } from '@/api/layers';
 import { useSession } from '@/api/session';
-import { useAccountMe, useMayInSpace, useMayManage } from '@/ui/session-access';
+import { useMayInSpace, useMayManage } from '@/ui/session-access';
 import { RenameSheet } from '../place/RenameSheet';
 import { MoveHereSheet } from '../space/MoveHereSheet';
 import styles from './Cockpit.module.css';

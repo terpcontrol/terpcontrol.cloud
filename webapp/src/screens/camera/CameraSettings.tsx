@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAccountMe } from '@/api/account';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import type { Camera, CameraUpdate } from '@fg2/shared-types/v1';
@@ -13,7 +14,6 @@ import { missingLine } from '@/screens/me/premium/free-tier';
 import { AdvancedSection } from '@/ui/advanced/Advanced';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
-import { useAccountMe } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay, zoneOf } from '@/ui/zone';

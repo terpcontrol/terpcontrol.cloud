@@ -26,10 +26,10 @@ const calls = vi.hoisted(() => ({
 /** The zone the account keeps, which is the zone a day the grower types is read in. */
 const account = vi.hoisted(() => ({ zone: null as string | null }));
 
-vi.mock('@/api/account', async importOriginal => ({
-  ...(await importOriginal<object>()),
-  useMe: () => ({ data: account.zone === null ? undefined : { preferences: { timezone: account.zone } } }),
-}));
+vi.mock('@/api/account', async importOriginal => {
+  const me = () => ({ data: account.zone === null ? undefined : { preferences: { timezone: account.zone } } });
+  return { ...(await importOriginal<object>()), useMe: me, useAccountMe: me };
+});
 
 const mutation = (record?: (value: never) => void) => ({
   mutate: (value: never) => record?.(value),

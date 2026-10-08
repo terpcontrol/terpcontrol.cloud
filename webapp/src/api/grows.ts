@@ -190,18 +190,20 @@ export const useCreateGrow = () =>
   );
 
 /**
- * Every reading a chart is drawn from, over one range. The same read answers a
- * harder question the measurements screen has to ask before it offers to
- * delete a definition: whether anything has ever been written under its key.
+ * The grow's own measurements over one range, and no climate. The same read
+ * answers a harder question the measurements screen has to ask before it offers
+ * to delete a definition: whether anything has ever been written under its key.
  *
  * Which keys are wanted is said in the request, because a series asked for and
- * thrown away is a read of the store nobody looks at.
+ * thrown away is a read of the store nobody looks at. It is kept apart from the
+ * Charts view's series, whose last answer stands in for a failed read and has to
+ * be one that asked for the climate.
  */
-export const useGrowSeries = (growId: string | null, range: GrowSeriesRange, measurements: string[]) => {
+export const useMeasurementSeries = (growId: string | null, range: GrowSeriesRange, measurements: string[]) => {
   const keys = [...measurements].sort();
 
   return useRead({
-    queryKey: ['grow', growId, 'series', range, keys],
+    queryKey: ['grow', growId, 'measurement-series', range, keys],
     queryFn: ({ signal }) => api.get<GrowSeries>(`/grows/${growId}/series`, { range, measurements: keys }, signal),
     enabled: growId !== null && keys.length > 0,
   });
