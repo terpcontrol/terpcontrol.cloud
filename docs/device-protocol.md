@@ -387,11 +387,17 @@ A payload that is not JSON carries no `firmware_id` and is dropped rather than r
   `heater`, `light`, `fan-internal`, `fan-external`, `fan-backwall`.
 - **plug** (`plug.cpp:825-841`) — sensors `temperature`, `humidity`, `co2`, `sensor_type`; output `relais`.
 - **fan** (`fan.cpp:182-194`) — sensors `temperature`, `humidity`, `rpm`, `day`; output `fan`.
-- **light** (`light.cpp:99-109`) — sensors `temperature`, `humidity`; output `light`.
+- **light** (`light.cpp:101-120`) — sensors `temperature`†, `humidity`†; output `light`.
 - **cam** — nothing; it never calls `updateStatus` (`cam.cpp:64-66`).
 
 \* sent only when the optional sensor was detected, so no placeholder lands in the history
 (`controller.cpp:1065-1073`).
+
+† sent only once the light's sensor has given a reading since boot; until then `sensors` is an empty object, so
+a light whose sensor is missing or dead leaves nothing in the history (`light.cpp:107-117`, `state` in
+`light.h`). A read that fails later repeats the last good one, as on every type. Light builds from before
+2026-10-08 send `20` and `20` in place of a reading, which the server stores like any other: no rule tells
+them from air.
 
 Units and conventions:
 
@@ -691,7 +697,7 @@ device itself.
 When a device receives one it parses it, adopts it silently, writes it to NVS key `config` and re-runs its
 control loop (`controller.cpp:569-578`). It sends **no acknowledgement and no echo**. The `fridge`, `plug`, `fan`
 and `light` types skip the NVS store while `mqttcontrol` is true, so direct control does not overwrite the saved
-settings (`fridge.cpp:685-691`, `plug.cpp:589-595`, `fan.cpp:380-386`, `light.cpp:339-345`).
+settings (`fridge.cpp:685-691`, `plug.cpp:589-595`, `fan.cpp:380-386`, `light.cpp:357-363`).
 
 When a setting is changed on the device itself, the device publishes its whole document on the same topic
 (`saveAndUploadSettings` over `serializeSettings`, e.g. `controller.cpp:521-553`). The server overwrites
@@ -770,7 +776,7 @@ writes `co2inject` from the plug's document - its id, its dosing windows and day
 plug's document is written, from the cloud or from the plug's own menu, and an empty section where the plug no
 longer names the fan or doses in no windows (`followCo2Fan`, `co2InjectFor`).
 
-**light** (`light.cpp:401-407`, echo `:121-134`): flat, not nested — `mqttcontrol` (not echoed), `day`, `night`
+**light** (`light.cpp:419-425`, echo `:132-145`): flat, not nested — `mqttcontrol` (not echoed), `day`, `night`
 (seconds UTC), `max_temperature`, `limit`, `sunrise`, `sunset`. A plan step or a climate preset never writes to
 a light, because its `day` and `night` are a schedule, not climate sections: a preset passes it by, and the server
 refuses a plan for it with 422 `device_states_no_climate`.
@@ -784,11 +790,11 @@ Setting `mqttcontrol: true` on a `fridge`, `plug`, `fan` or `light` hands its ou
 `/devices/<id>/control/<output>` — the topic suffix is the output name and the payload is a bare value
 (`fridgecloud.cpp:243-246`). Accepted names: fridge `heater`, `dehumidifier`, `co2`, `light`, `fan-internal`,
 `fan-external`, `fan-backwall` (`fridge.cpp:766-801`); plug `relais` (`plug.cpp:607-614`); fan `fan`
-(`fan.cpp:407-414`); light `light` (`light.cpp:351-358`). The controller has no `onControl` handler at all.
+(`fan.cpp:407-414`); light `light` (`light.cpp:369-376`). The controller has no `onControl` handler at all.
 
 Direct control expires 60 seconds after the last configuration message, after which the NVS configuration is
 reloaded (`DIRECTMODE_TIMEOUT`, `fridge.h:124`, `fridge.cpp:974-978`; `plug.cpp:767-771`; `fan.cpp:166-170`;
-`light.cpp:82-86`). This server has never published on `control/#`.
+`light.cpp:84-88`). This server has never published on `control/#`.
 
 ### 7.3 Times of day
 
@@ -798,7 +804,7 @@ and the plug's `daynight.day` and `daynight.night`, the light's `day` and `night
 `checkDayCycle`; the controller's menu says "Dayrise (UTC)", `controller.cpp:1186`). `day` is when the light comes
 on and `night` when it goes off, and the comparison is strict: with `day < night` it is day between the two, with
 `day > night` the window runs across midnight UTC, and with `day == night` it is never day
-(`controller.cpp:196-205`, `fridge.cpp:245-254`, `light.cpp:60-68`, `plug.cpp:151-159`). A controller has a day
+(`controller.cpp:196-205`, `fridge.cpp:245-254`, `light.cpp:62-70`, `plug.cpp:151-159`). A controller has a day
 only in `small` and `temp`, a fridge in `small`, `full`, `temp` and `exp`; `off`, `breed` and `dry` hold the
 night's figures round the clock (`controller.cpp:196`, `fridge.cpp:245`). `shared-types/src/v1/day-night.ts`
 does the same arithmetic for the server, the screens and the simulator.
@@ -855,7 +861,7 @@ only to a device that announced `socket_timer` and `socket_override` in `caps`, 
 is never sent at all, because an old build drops what it does not know without a word
 ([12](#12-extending-it-safely)).
 
-`light` and `cam` have empty command handlers (`light.cpp:360-367`, `cam.cpp:56-58`) and so honour nothing
+`light` and `cam` have empty command handlers (`light.cpp:378-385`, `cam.cpp:56-58`) and so honour nothing
 beyond `reboot`; the `plug` honours `cam_relay` and nothing else (`plug.cpp:601-603`). None of `plug`, `fan`,
 `light` or `cam` calls `wifiInitAuxCloudReporting` or `wifiHandleAuxCommand`, so they never report sockets and
 ignore `socket_*`; the fan and the plug hand `cam_relay` to `wifiHandleTerpCamCommand` directly

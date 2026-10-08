@@ -41,8 +41,12 @@ namespace fg {
       bool is_day;
       uint32_t timeofday;
 
-      float temperature = 20;
-      float humidity = 20;
+      // NAN until the sensor has given its first reading. A light whose sensor
+      // is missing or dead then reports no temperature or humidity, and its
+      // overheat protection does not act, instead of both taking a made-up
+      // figure for the air. A read that fails later keeps the last good one.
+      float temperature = NAN;
+      float humidity = NAN;
 
       float out_light = 0.0;
     } state;

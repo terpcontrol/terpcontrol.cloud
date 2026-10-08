@@ -37,6 +37,8 @@ namespace fg {
       }
     }
     if(tries >= 10) {
+      // The last good reading stands, as on the other device types; before
+      // the first one there is none (see `state`).
       Serial.println("failed to read from sensor!!!");
       return;
     }
@@ -102,8 +104,17 @@ namespace fg {
     + JSON_OBJECT_SIZE(1)   // outputs: light
     + 32                    // small headroom
   > status;
-  status["sensors"]["temperature"] = state.temperature;
-  status["sensors"]["humidity"] = state.humidity;
+  // A reading goes out only once the sensor has given one, so a light without
+  // a working sensor leaves no placeholder in the history; the controller
+  // sends its optional sensors the same way. `sensors` stays in the document,
+  // empty, so its shape does not change.
+  JsonObject sensors = status.createNestedObject("sensors");
+  if(!isnan(state.temperature)) {
+    sensors["temperature"] = state.temperature;
+  }
+  if(!isnan(state.humidity)) {
+    sensors["humidity"] = state.humidity;
+  }
   status["outputs"]["light"] = state.out_light;
 
   cloud.updateStatus(status);
@@ -149,7 +160,14 @@ void LightController::saveAndUploadSettings() {
 
       static float light_current = 0.0f;
 
-      float out = 1.0f - (state.temperature - settings.max_temperature) / LIGHT_TEMP_HYST;
+      // The overheat protection dims on the measured air only. Without a
+      // reading the lamp follows its schedule: a made-up temperature would
+      // either never dim it or, with `max_temperature` below the placeholder,
+      // keep it dark, and a NAN here would stick in `light_current` for good.
+      float out = 1.0f;
+      if(!isnan(state.temperature)) {
+        out = 1.0f - (state.temperature - settings.max_temperature) / LIGHT_TEMP_HYST;
+      }
 
       float max_out = 1.0f;
       if((state.timeofday + SECONDS_PER_DAY) < (settings.day + SECONDS_PER_DAY + settings.sunrise * 60)) {

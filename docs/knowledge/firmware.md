@@ -179,6 +179,13 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   after 10 consecutive sensor failures (a failed read, an SCD tick without data, a failed re-init without a sensor).
 - The fridge takes the SCD4x readings once its SHT has failed 10 reads; its failsafe (heater, compressor, CO2, light)
   trips when the SCD4x fails 10 times.
+- The light has no failsafe. Its overheat protection (`max_temperature`, menu `Overheat Protection`) dims the lamp
+  from full at that temperature to dark 1 °C above it, on the light's own SHT. Until the SHT has given a reading
+  since boot, the light reports no temperature or humidity and does not dim: it follows its schedule. Before
+  2026-10-08 a placeholder of 20 °C and 20 % stood in for both, which the cloud stored as readings and the
+  protection acted on - never dimming under the default 25 °C, dimming or darkening the lamp under a setting below
+  20. A read that fails later holds the last good reading, as on every type, but the light counts no failures: with
+  a sensor that dies, it dims by that last reading until a read succeeds again.
 - A socket keeps the last target reported to it (`wifiReportSmartSocketOutputs()`) and has it re-sent every minute,
   so every branch that zeroes outputs has to report too. Both failsafes report every target off, `running` included,
   as the OFF mode does; cloud overrides and the timer roles still apply. Until #145 they reported nothing, and a
