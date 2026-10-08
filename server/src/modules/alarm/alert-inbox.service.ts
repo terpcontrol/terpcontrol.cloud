@@ -7,6 +7,7 @@ import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { AccessContext, SubjectRef } from '@common/v1/access.types';
 import { CursorPage, findPage } from '@common/v1/pages';
+import { withSpacesInside } from '@common/v1/rooms';
 import { notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 
@@ -82,10 +83,6 @@ export class AlertInboxService {
     const owned = await this.spaces.find({ ownerId: ctx.userId }, { id: 1 }).lean<{ id: string }[]>();
     const memberships = await this.memberships.find({ userId: ctx.userId }, { spaceId: 1 }).lean<{ spaceId: string }[]>();
 
-    const ids = new Set([...owned.map(space => space.id), ...memberships.map(membership => membership.spaceId)]);
-    const inRooms = await this.spaces.find({ roomId: { $in: [...ids] } }, { id: 1 }).lean<{ id: string }[]>();
-    for (const space of inRooms) ids.add(space.id);
-
-    return [...ids];
+    return withSpacesInside(this.spaces, [...owned.map(space => space.id), ...memberships.map(membership => membership.spaceId)]);
   }
 }
