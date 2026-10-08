@@ -116,7 +116,9 @@ hardware, the development devices and copies of production data are in
   each account a copy of the env file with its own `AGENT_TESTING_*` and pass it as `TERPCONTROL_ENV_FILE`.
 - `demo-seed` makes two tents (one with a camera) and a fridge with 21 days at 30-minute steps, settings and alarm
   rules, the grows "Spring run" and "Balcony tomatoes" (in a balcony without a device) with a backdated diary, and a
-  second account when run as admin. It does not share the tent with that account yet.
+  second account when run as admin. It does not share the tent with that account yet. Its device ids
+  (`demo-tent-blue-dream`, ...) are the same in every worktree, so `pkill -f` on one also kills other sessions'
+  simulators: stop yours by PID (`lsof -a -p <pid> -d cwd` shows whose it is).
 - Alarms on a seeded stack: the first tent's seeded maintenance line holds its alarms for 20 minutes plus
   `MAINTENANCE_SETTLE_SECONDS` (10); a rule trips only after its `forSeconds` out of band (demo-seed: 900), so pin the
   value with `run --set` rather than one `send --set`; once fired it is quiet for its `cooldownSeconds` (1800).
