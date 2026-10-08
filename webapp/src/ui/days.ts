@@ -21,6 +21,11 @@ import { zonedAt } from './zone';
  * null.
  */
 
+/** A minute, an hour and a day in milliseconds, for the arithmetic done on epoch instants. */
+export const MINUTE_MS = 60_000;
+export const HOUR_MS = 60 * MINUTE_MS;
+export const DAY_MS = 24 * HOUR_MS;
+
 /** The shape a date input speaks. It is the machine's rather than the reader's, so it is one shape in every language. */
 const FIELD_DAY = 'yyyy-MM-dd';
 

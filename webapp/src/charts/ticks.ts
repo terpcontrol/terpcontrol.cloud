@@ -1,4 +1,5 @@
 import type { DateTime, DurationLikeObject } from 'luxon';
+import { DAY_MS, HOUR_MS, MINUTE_MS } from '@/ui/days';
 import { CLOCK, zonedAt } from '@/ui/zone';
 
 /**
@@ -27,16 +28,12 @@ interface Step {
   ms: number;
 }
 
-const MINUTE = 60_000;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
-
 const STEPS: Step[] = [
-  ...[5, 10, 15, 30].map(count => ({ unit: 'minute' as const, count, ms: count * MINUTE })),
-  ...[1, 2, 3, 6, 12].map(count => ({ unit: 'hour' as const, count, ms: count * HOUR })),
-  ...[1, 2, 7, 14].map(count => ({ unit: 'day' as const, count, ms: count * DAY })),
-  ...[1, 2, 3, 6].map(count => ({ unit: 'month' as const, count, ms: count * 30 * DAY })),
-  { unit: 'year', count: 1, ms: 365 * DAY },
+  ...[5, 10, 15, 30].map(count => ({ unit: 'minute' as const, count, ms: count * MINUTE_MS })),
+  ...[1, 2, 3, 6, 12].map(count => ({ unit: 'hour' as const, count, ms: count * HOUR_MS })),
+  ...[1, 2, 7, 14].map(count => ({ unit: 'day' as const, count, ms: count * DAY_MS })),
+  ...[1, 2, 3, 6].map(count => ({ unit: 'month' as const, count, ms: count * 30 * DAY_MS })),
+  { unit: 'year', count: 1, ms: 365 * DAY_MS },
 ];
 
 /** How much room a label wants beside the window's two ends, which is what decides how many of them fit across a plot. */
@@ -99,11 +96,11 @@ const labelOf = (time: DateTime, step: Step, span: number, dayInYear: string): s
   if (step.unit === 'minute' || step.unit === 'hour') {
     if (time.hour !== 0 || time.minute !== 0) return time.toFormat(CLOCK);
     // Midnight is the day turning over, which is what the line is there to show.
-    return span <= 7 * DAY ? time.toFormat('ccc') : time.toFormat(dayInYear);
+    return span <= 7 * DAY_MS ? time.toFormat('ccc') : time.toFormat(dayInYear);
   }
   // A week of days is read by weekday, and the day of the month beside it in the reader's own way ("So 27.", "Sun 27").
   if (step.unit === 'day')
-    return step.count === 1 && span <= 8 * DAY ? `${time.toFormat('ccc')} ${time.toFormat(dayInYear.split(' ')[0])}` : time.toFormat(dayInYear);
+    return step.count === 1 && span <= 8 * DAY_MS ? `${time.toFormat('ccc')} ${time.toFormat(dayInYear.split(' ')[0])}` : time.toFormat(dayInYear);
   if (step.unit === 'month') return time.month === 1 ? time.toFormat('yyyy') : time.toFormat('LLL');
 
   return time.toFormat('yyyy');

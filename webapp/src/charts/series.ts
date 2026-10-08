@@ -1,5 +1,6 @@
 import type { Metric } from '@fg2/shared-types/v1';
 import { growDayAt } from '@fg2/shared-types/v1-schemas/feeding.js';
+import { DAY_MS } from '@/ui/days';
 import { zonedAt } from '@/ui/zone';
 import type { ChartOption } from './Chart';
 import type { ChartPalette, ChartToken } from './tokens';
@@ -370,8 +371,6 @@ const niceStep = (rough: number): number => {
 
   return [1, 2, 5, 10].map(one => one * magnitude).find(one => one >= rough) ?? magnitude * 10;
 };
-
-export const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Which day of the grow an instant fell on, counting the first as day 1. It is

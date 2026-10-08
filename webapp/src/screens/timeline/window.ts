@@ -1,5 +1,6 @@
 import type { Metric, SpaceTimeline, TimelineAlarm, TimelinePanel, TimelineSpan, TimelineTarget, TimelineTargets } from '@fg2/shared-types/v1';
 import { niceScale } from '@/charts/series';
+import { HOUR_MS } from '@/ui/days';
 import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY_IN_YEAR, zonedAt } from '@/ui/zone';
 
 /**
@@ -14,8 +15,6 @@ import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY_IN_YEAR, zonedAt } from 
  */
 
 export const at = (iso: string): number => new Date(iso).getTime();
-
-const HOUR_MS = 60 * 60 * 1000;
 
 /**
  * How a moment inside a window is written, from the narrowest that still says

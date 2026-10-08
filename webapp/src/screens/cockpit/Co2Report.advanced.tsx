@@ -6,6 +6,7 @@ import { useCo2Report, useWriteRefill } from '@/api/co2-report';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { advancedItem, type PlaceContext } from '@/ui/advanced/item';
 import { useUnfolded } from '@/ui/advanced/unfolded';
+import { DAY_MS } from '@/ui/days';
 import { decimalFigure } from '@/ui/figures';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -24,8 +25,6 @@ import styles from './Co2Report.module.css';
  * doses from it, and it is under Erweitert because only a tent with a cylinder
  * has one to watch.
  */
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** What a soda cylinder holds, which is what most growers dose from. */
 const USUAL_FILL_GRAMS = 425;

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { SpaceTimeline } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useCameraCalled } from '@/ui/camera-name';
+import { DAY_MS } from '@/ui/days';
 import { DATED_CLOCK, useZone, zonedAt } from '@/ui/zone';
 import { at, captureOf, fractionOf, frameNear, stampOf } from './window';
 import styles from './Timeline.module.css';
@@ -31,7 +32,7 @@ interface CameraFrameProps {
 }
 
 /** How far from the cursor a written photo may have been taken to stand in for a camera picture. */
-const PHOTO_REACH = 24 * 60 * 60 * 1000;
+const PHOTO_REACH = DAY_MS;
 
 /**
  * The picture at the cursor, with the window under it. The slider is the same

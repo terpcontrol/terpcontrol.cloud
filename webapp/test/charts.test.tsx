@@ -12,7 +12,8 @@ import type { ChartViewSpan, GrowListItem, GrowSeries, TimelineTargets } from '@
 import { chartViewCreate } from '@fg2/shared-types/v1-schemas/diary.js';
 import { Charts } from '@/screens/charts/Charts';
 import { cardsOf, csvForCards, offeredBy, type Offered } from '@/screens/charts/cards';
-import { csvOf, DAY_MS, levelPoints, niceScale, plotOption, readAt, stepPoints } from '@/charts/series';
+import { csvOf, levelPoints, niceScale, plotOption, readAt, stepPoints } from '@/charts/series';
+import { DAY_MS } from '@/ui/days';
 
 const state = vi.hoisted(() => ({
   series: null as GrowSeries | null,

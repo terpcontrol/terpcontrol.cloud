@@ -6,6 +6,7 @@ import type { GrowListItem, GrowWeekCard, Person, WeekClimate } from '@fg2/share
 import { useWeekEntries } from '@/api/grows';
 import { useCorrecting } from '@/log/corrections';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
+import { DAY_MS } from '@/ui/days';
 import { EntryRow } from '@/ui/EntryRow';
 import { unitSymbol } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
@@ -254,8 +255,6 @@ function Stat({ value, unit, label }: { value: string; unit: string; label: Reac
     </div>
   );
 }
-
-const DAY_MS = 86_400_000;
 
 /** The first photo written into the diary during the grow's day that begins at `startsAt`, or null. */
 const photoOn = (startsAt: string, entries: { occurredAt: string; mediaIds: string[] }[]): string | null => {

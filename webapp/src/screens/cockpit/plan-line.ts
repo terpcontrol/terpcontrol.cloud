@@ -1,14 +1,12 @@
 import type { DateTime } from 'luxon';
 import type { Plan } from '@fg2/shared-types/v1';
+import { DAY_MS, HOUR_MS } from '@/ui/days';
 import { activeStep, isOpenEnded, isWaiting, leftMs, nextStepIndex, readingAt } from '../control/plan-clock';
 
 /**
  * "Flower, 12 more days, then late flower": where a running plan stands and
  * when it changes the targets next, in the words of the cockpit's plan line.
  */
-
-const HOUR_MS = 60 * 60 * 1000;
-const DAY_MS = 24 * HOUR_MS;
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 

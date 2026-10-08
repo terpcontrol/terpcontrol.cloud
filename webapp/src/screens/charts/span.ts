@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import type { ChartViewSpan, GrowSeriesRange } from '@fg2/shared-types/v1';
 import { instantOf } from '@/ui/age';
+import { DAY_MS, HOUR_MS, MINUTE_MS } from '@/ui/days';
 import { zoned, zonedAt } from '@/ui/zone';
 
 /**
@@ -14,10 +15,6 @@ import { zoned, zonedAt } from '@/ui/zone';
  * somebody narrowed the window to on the chart itself, which stands in for
  * whichever of the others it was taken from until it is reset.
  */
-
-const MINUTE_MS = 60 * 1000;
-const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
 
 /** Every rolling width there is, narrowest first: twenty minutes to three years, which is what the old charts offered. */
 export const WIDTHS = {

@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import type { GrowListItem, GrowthStage, Phase } from '@fg2/shared-types/v1';
 import { growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
+import { DAY_MS } from '@/ui/days';
 
 /**
  * What correcting or withdrawing a phase would do, said before it is done.
@@ -17,8 +18,6 @@ import { growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
  * a fact about the plants rather than about the dates, and guessing at it would
  * be the sheet inventing a second day counter.
  */
-
-const DAY_MS = 86_400_000;
 
 /** Whole days from one instant to another (epoch milliseconds), counted as the serialiser counts them: elapsed, not calendar. */
 const daysBetween = (from: number, to: number): number => Math.round((to - from) / DAY_MS);

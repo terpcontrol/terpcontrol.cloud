@@ -25,6 +25,7 @@ import { AdvancedSection } from '@/ui/advanced/Advanced';
 import type { ChartSettings } from '@/ui/advanced/item';
 import { ageLabel } from '@/ui/age';
 import { CopyButton } from '@/ui/CopyButton';
+import { DAY_MS } from '@/ui/days';
 import { saveFile } from '@/ui/download';
 import { looseFigure } from '@/ui/figures';
 import { Help } from '@/ui/Help';
@@ -990,7 +991,7 @@ const edgesOf = (from: number, to: number, zone: string | null, now: number): [s
  * charts dated every window. A window of this week keeps the weekday, which the
  * eye places at once.
  */
-const datedFrom = (from: number, now: number): number => (now - from > 6 * 24 * 60 * 60 * 1000 ? 2 : 0);
+const datedFrom = (from: number, now: number): number => (now - from > 6 * DAY_MS ? 2 : 0);
 
 /** A moment inside the window, as the cursor writes it: by the window's width, and dated where the window lies past this week. */
 const momentStamp = (time: number, from: number, to: number, zone: string | null, now: number): string =>
