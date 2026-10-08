@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VALUE_AGE = void 0;
+exports.heardAt = exports.CAMERA_STILLS = exports.valueStateOfAge = exports.VALUE_AGE = void 0;
 /**
  * The one place the ages of a value are stated. The server decides `valueState`
  * from these and its own clock, and that verdict is the only one anything acts
@@ -21,3 +21,42 @@ exports.VALUE_AGE = void 0;
  * zod and the whole contract into its bundle.
  */
 exports.VALUE_AGE = { liveSeconds: 120, staleSeconds: 600 };
+/**
+ * The state of a value this many seconds old, by the seconds above. A value
+ * from the future is `live`: a device's clock running ahead is not a reason to
+ * call the reading it just sent stale.
+ */
+const valueStateOfAge = (seconds) => seconds < exports.VALUE_AGE.liveSeconds ? 'live' : seconds < exports.VALUE_AGE.staleSeconds ? 'stale' : 'offline';
+exports.valueStateOfAge = valueStateOfAge;
+/**
+ * How many of its own stills a camera may miss. A reading is live for two
+ * minutes because that is how often a device reports; a camera reports every
+ * `stillIntervalSeconds`, which a person sets, so it is judged against its own
+ * promise instead: two missed is stale, ten is a camera that has stopped.
+ */
+exports.CAMERA_STILLS = { staleAfter: 2, offlineAfter: 10 };
+/**
+ * When a device was really last heard, from everything that proves it.
+ *
+ * `lastSeenAt` is the cloud's own note of the last message it took, and the
+ * ingest stamps it on every one, so on a device claimed into this cloud the
+ * note and the readings can never part. The devices carried over from the old
+ * cloud were given the last *connection* that cloud recorded, and that fleet
+ * went on writing samples for another half day afterwards - so for them the
+ * note is simply older than the truth, and a silence counted from it is longer
+ * than the one the stored readings show.
+ *
+ * A stored reading is proof the device was heard, so the later of the two is
+ * the answer. It can only shorten a silence and never invent one: no device is
+ * made to look present by a reading older than the last message from it. The
+ * alarm that says how long a device has been quiet and the row that dates it go
+ * by this one rule, so the sentence never contradicts the chart beside it.
+ */
+const heardAt = (lastSeenAt, sampleAt) => {
+    if (!lastSeenAt)
+        return sampleAt;
+    if (!sampleAt)
+        return lastSeenAt;
+    return new Date(sampleAt).getTime() > new Date(lastSeenAt).getTime() ? sampleAt : lastSeenAt;
+};
+exports.heardAt = heardAt;

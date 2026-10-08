@@ -212,7 +212,6 @@ export declare const valueState: z.ZodEnum<{
     live: "live";
     stale: "stale";
 }>;
-export { VALUE_AGE } from './value-age.js';
 /**
  * A measured value with its age. `state` is decided by the server from
  * `VALUE_AGE` and its own clock, and is what anything acting on the value goes

@@ -39,6 +39,7 @@ import {
   rampsAt,
   utcSecondsOf,
 } from '../shared-types/v1-schemas/day-night.js';
+import { valueStateOfAge } from '../shared-types/v1-schemas/value-age.js';
 
 const STATE_DIR = '.simulated-devices';
 const API_URL = process.env.SIM_API_URL.replace(/\/$/, '');
@@ -2026,13 +2027,10 @@ const hwinfo = options =>
     await sleep(300);
   });
 
-// The server decides a value's age from VALUE_AGE; a device unheard from for as
-// long as the stale window lasts is what both it and this tool call offline.
-const OFFLINE_MS = 600000;
-
 const lastSeen = device => (device.state.lastSeenAt ? Date.parse(device.state.lastSeenAt) : 0);
 
-const isOnline = device => lastSeen(device) > 0 && Date.now() - lastSeen(device) < OFFLINE_MS;
+// Online and offline as the server calls them.
+const isOnline = device => lastSeen(device) > 0 && valueStateOfAge((Date.now() - lastSeen(device)) / 1000) !== 'offline';
 
 const info = async options => {
   const token = await login();

@@ -2,13 +2,13 @@ import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { OFFLINE_RULE_NAME, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { CAMERA_STILLS, OFFLINE_RULE_NAME, VALUE_AGE, heardAt } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { BackgroundWork } from '@common/background-work';
-import { heardAt, isOffline } from '@common/v1/value-age';
+import { isOffline } from '@common/v1/value-age';
 import { logger } from '@utils/logger';
 import { DataService, NewestSamples } from '../data/data.service';
 import { AlarmEngineService } from './alarm-engine.service';
@@ -34,13 +34,6 @@ const TICK_MS = 60 * 1000;
 
 /** How often a device that stays gone is said to be gone. */
 const OFFLINE_REPEAT_SECONDS = 30 * 60;
-
-/**
- * How many stills a camera may miss before it is called stale, and the floor
- * under that: a camera asked every 30 seconds is not stale after two minutes,
- * and one asked every hour is not stale after a quarter of an hour.
- */
-const MISSED_STILLS = 10;
 
 /** What one pass did, which is what the health card is drawn from and what a test reads. */
 export interface AlarmHealthPass {
@@ -264,7 +257,10 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
 
       const open = await this.alerts.openOfCamera(camera.id);
       const quietSeconds = (at.getTime() - camera.state.lastStillAt.getTime()) / 1000;
-      const stale = quietSeconds >= Math.max(camera.stillIntervalSeconds * MISSED_STILLS, VALUE_AGE.staleSeconds);
+      // Judged by the stills it has missed, with a floor under that: a camera
+      // asked every 30 seconds is not stale after two minutes, and one asked
+      // every hour is not stale after a quarter of an hour.
+      const stale = quietSeconds >= Math.max(camera.stillIntervalSeconds * CAMERA_STILLS.offlineAfter, VALUE_AGE.staleSeconds);
 
       if (!stale && open) await this.alerts.settle(subjectOf(camera), open, quietSeconds, at);
       // A picture always ends an alert; only raising one asks whether the tent

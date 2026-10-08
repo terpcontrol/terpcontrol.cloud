@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.METRIC_DECIMALS = exports.TARGET_BAND = exports.outputMetric = exports.metric = exports.schemeWeek = exports.schemeAmount = exports.accountLayers = exports.diaryChoice = exports.unitPreference = exports.volumeUnit = exports.weightUnit = exports.temperatureUnit = exports.growOrSpaceRef = exports.growOrSpaceType = exports.shareKind = exports.reminderKind = exports.growType = exports.spaceKind = exports.planStatus = exports.grantKind = exports.mediaKind = exports.cameraKind = exports.seriesPoint = exports.metricValue = exports.VALUE_AGE = exports.valueState = exports.socketRole = exports.planTransitionKind = exports.notificationChannel = exports.webhookMethod = exports.alertKind = exports.severity = exports.entrySource = exports.entryKind = exports.person = exports.memberRole = exports.germinationChoices = exports.growthStage = exports.subjectRef = exports.problem = exports.problemError = exports.page = exports.bytes = exports.anyValue = exports.id = exports.instant = exports.named = exports.registry = void 0;
+exports.METRIC_DECIMALS = exports.TARGET_BAND = exports.outputMetric = exports.metric = exports.schemeWeek = exports.schemeAmount = exports.accountLayers = exports.diaryChoice = exports.unitPreference = exports.volumeUnit = exports.weightUnit = exports.temperatureUnit = exports.growOrSpaceRef = exports.growOrSpaceType = exports.shareKind = exports.reminderKind = exports.growType = exports.spaceKind = exports.planStatus = exports.grantKind = exports.mediaKind = exports.cameraKind = exports.seriesPoint = exports.metricValue = exports.valueState = exports.socketRole = exports.planTransitionKind = exports.notificationChannel = exports.webhookMethod = exports.alertKind = exports.severity = exports.entrySource = exports.entryKind = exports.person = exports.memberRole = exports.germinationChoices = exports.growthStage = exports.subjectRef = exports.problem = exports.problemError = exports.page = exports.bytes = exports.anyValue = exports.id = exports.instant = exports.named = exports.registry = void 0;
 const zod_1 = require("zod");
 /**
  * The base of the `/v1` wire contract: the registry, the scalar helpers, the
@@ -182,11 +182,6 @@ exports.socketRole = (0, exports.named)('SocketRole', zod_1.z.enum([
 ]));
 /** How old a value is. Dimmed on the screens, never hidden. */
 exports.valueState = (0, exports.named)('ValueState', zod_1.z.enum(['live', 'stale', 'offline']));
-// Stated in a module of its own, which carries no schema, so that a client can
-// import the seconds without zod coming with them; re-exported here because
-// this is where the rest of the contract reaches for it.
-var value_age_js_1 = require("./value-age.js");
-Object.defineProperty(exports, "VALUE_AGE", { enumerable: true, get: function () { return value_age_js_1.VALUE_AGE; } });
 /**
  * A measured value with its age. `state` is decided by the server from
  * `VALUE_AGE` and its own clock, and is what anything acting on the value goes

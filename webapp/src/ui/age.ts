@@ -1,7 +1,7 @@
 import i18next from 'i18next';
 import { DateTime, Duration } from 'luxon';
 import type { MetricValue, ValueState } from '@fg2/shared-types/v1';
-import { VALUE_AGE } from '@fg2/shared-types/v1-schemas/value-age.js';
+import { valueStateOfAge } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { serverNow } from '@/api/clock';
 import { CLOCK, DATED_CLOCK, nowThere, zoned } from './zone';
 
@@ -108,16 +108,18 @@ export const ageAttribute = (state: ValueState): { 'data-age': ValueState } => (
 const RANK: Record<ValueState, number> = { live: 0, stale: 1, offline: 2 };
 
 /**
- * The arithmetic the server does in `valueStateAt`, said once here in the
- * client's own terms, so that a screen judging a reading it is still drawing
- * uses the shared seconds and not a second copy of them.
+ * How alive a device is, from the last thing it said.
+ *
+ * The server decides the state of a *value* and answers it; a device's own
+ * liveness is in no answer, so it is worked out here - against the contract's
+ * one constant rather than a second copy of those seconds, and against the
+ * clock that stamped `lastSeenAt` rather than the one the reader's laptop
+ * keeps. A verdict is the whole of what a row says about a device, so a browser
+ * an hour fast would otherwise call four live devices dead and sort them to the
+ * top of the list for it.
  */
-const stateAt = (measuredAt: string | null, now: DateTime): ValueState => {
-  if (!measuredAt) return 'offline';
-  const seconds = (now.toMillis() - DateTime.fromISO(measuredAt).toMillis()) / 1000;
-  if (seconds < VALUE_AGE.liveSeconds) return 'live';
-  return seconds < VALUE_AGE.staleSeconds ? 'stale' : 'offline';
-};
+export const deviceLiveness = (lastSeenAt: string | null, now: DateTime): ValueState =>
+  lastSeenAt ? valueStateOfAge((now.toMillis() - DateTime.fromISO(lastSeenAt).toMillis()) / 1000) : 'offline';
 
 /**
  * How old a value is *now*, which is what a screen draws it by.
@@ -135,66 +137,25 @@ const stateAt = (measuredAt: string | null, now: DateTime): ValueState => {
  * that a guarantee rather than an assumption about clock offset.
  */
 export const valueAge = (value: Pick<MetricValue, 'state' | 'measuredAt'>, now: DateTime = serverNow()): ValueState => {
-  const drawn = stateAt(value.measuredAt, now);
+  const drawn = deviceLiveness(value.measuredAt, now);
   return RANK[drawn] > RANK[value.state] ? drawn : value.state;
 };
 
 export const isStale = (value: Pick<MetricValue, 'state' | 'measuredAt'>, now: DateTime = serverNow()): boolean => valueAge(value, now) !== 'live';
 
 /**
- * How alive a device is, from the last thing it said.
- *
- * The server decides the state of a *value* and answers it; a device's own
- * liveness is in no answer, so it is worked out here - against the contract's
- * one constant rather than a second copy of those seconds, and against the
- * clock that stamped `lastSeenAt` rather than the one the reader's laptop
- * keeps. A verdict is the whole of what a row says about a device, so a browser
- * an hour fast would otherwise call four live devices dead and sort them to the
- * top of the list for it.
- */
-/**
- * When a device was last heard, from everything a screen holds that proves it.
- *
- * `lastSeenAt` is the cloud's note of the last message it took from the device,
- * and the ingest stamps it on every one, so on a device claimed into this cloud
- * the two can never part. The devices carried over from the old one were given
- * the last *connection* the old cloud recorded, which for a fleet that went on
- * reporting for another half day afterwards is simply older than the truth: a
- * row read "offline · 4 d" directly above its own light output at "60 % · 3 d
- * ago", which is the same device saying it was heard a day later than the row
- * claimed.
- *
- * A stored reading is proof the device was heard, so the later of the two is
- * taken. It can only shorten a silence and never invent one, which is what
- * makes it safe to prefer over the raw field: no device is made to look present
- * by a reading older than the last message from it.
- */
-/**
  * When the silence an offline alert is about began.
  *
  * The health loop raises it with the seconds since the device was last heard -
- * counted by the server's own `heardAt`, the later of its last message and its
- * newest stored reading - so the start of the silence is that many seconds
- * before the raise. Every screen that says how long a device has been quiet
- * counts from this one instant: the raise itself is only when the cloud noticed,
- * which after a restore is minutes ago about a device silent for days, and the
- * figure in the alert is frozen at the raise while this goes on counting.
+ * counted by `heardAt`, the later of its last message and its newest stored
+ * reading - so the start of the silence is that many seconds before the raise.
+ * Every screen that says how long a device has been quiet counts from this one
+ * instant: the raise itself is only when the cloud noticed, which after a
+ * restore is minutes ago about a device silent for days, and the figure in the
+ * alert is frozen at the raise while this goes on counting.
  */
 export const silentSince = (alert: { startedAt: string; value: number | null }): string =>
   alert.value === null ? alert.startedAt : (DateTime.fromISO(alert.startedAt).minus({ seconds: alert.value }).toUTC().toISO() ?? alert.startedAt);
-
-export const heardAt = (lastSeenAt: string | null, measuredAt: string | null): string | null => {
-  if (!lastSeenAt) return measuredAt;
-  if (!measuredAt) return lastSeenAt;
-  return measuredAt > lastSeenAt ? measuredAt : lastSeenAt;
-};
-
-export const deviceLiveness = (lastSeenAt: string | null, now: DateTime): ValueState => {
-  if (!lastSeenAt) return 'offline';
-  const seconds = (now.toMillis() - DateTime.fromISO(lastSeenAt).toMillis()) / 1000;
-  if (seconds <= VALUE_AGE.liveSeconds) return 'live';
-  return seconds <= VALUE_AGE.staleSeconds ? 'stale' : 'offline';
-};
 
 /**
  * The hour something was last heard, where the account is: "10:19" today, and

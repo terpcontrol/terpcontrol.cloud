@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AdminAlarmWatch, AdminRetentionRun, AdminStats } from '@fg2/shared-types/v1';
+import { CAMERA_STILLS } from '@fg2/shared-types/v1-schemas';
 import { onlineSince } from '@common/v1/value-age';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -45,9 +46,6 @@ import { UPGRADE_TIMEOUT_MS } from './firmware-rollout.service';
  * instant, and a card that says "now" about figures gathered over a second is
  * the sort of small lie the rest of this app refuses.
  */
-
-/** Two pictures missed is late; ten is a camera that has stopped, which is the verdict the camera rows are drawn with. */
-const OFFLINE_AFTER_STILLS = 10;
 
 @Injectable()
 export class AdminStatsService {
@@ -134,7 +132,10 @@ export class AdminStatsService {
           $or: [
             { $eq: ['$state.lastStillAt', null] },
             {
-              $gt: [{ $subtract: [now, '$state.lastStillAt'] }, { $multiply: [OFFLINE_AFTER_STILLS, 1000, { $max: [1, '$stillIntervalSeconds'] }] }],
+              $gt: [
+                { $subtract: [now, '$state.lastStillAt'] },
+                { $multiply: [CAMERA_STILLS.offlineAfter, 1000, { $max: [1, '$stillIntervalSeconds'] }] },
+              ],
             },
           ],
         },

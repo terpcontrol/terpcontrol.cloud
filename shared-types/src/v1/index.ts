@@ -39,3 +39,6 @@ export * from './configuration-fields.js';
 export * from './day-night.js';
 export * from './capture.js';
 export * from './plan-clock.js';
+// Also without a schema: how old a value is, which the server answers and the
+// screens age further.
+export * from './value-age.js';

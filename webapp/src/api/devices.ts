@@ -18,7 +18,7 @@ import type {
   SocketUpdate,
   ValueState,
 } from '@fg2/shared-types/v1';
-import { heardAt } from '@/ui/age';
+import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { api, apiRequest } from './client';
 
 /**

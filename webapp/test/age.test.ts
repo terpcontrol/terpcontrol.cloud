@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ageLabel, countdownLabel, isStale, spanLabel, valueAge } from '@/ui/age';
+import { ageLabel, countdownLabel, deviceLiveness, isStale, spanLabel, valueAge } from '@/ui/age';
 
 describe('the age beside a value', () => {
   const now = DateTime.fromISO('2026-09-18T12:00:00Z');
@@ -45,6 +45,24 @@ describe('a value still on the screen after its answer has aged', () => {
 
   it('is offline when nothing was ever measured, which is what an empty tile is dimmed by', () => {
     expect(valueAge({ state: 'live', measuredAt: null }, now)).toBe('offline');
+  });
+});
+
+/**
+ * A device's liveness is in no answer, so the screens judge it by the same rule
+ * the server judges a value by - down to the second a device turns stale and
+ * the second it turns offline, so a row and the alarm about it never disagree.
+ */
+describe('how alive a device is', () => {
+  const now = DateTime.fromISO('2026-09-18T12:00:00Z');
+  const ago = (seconds: number) => now.minus({ seconds }).toISO();
+
+  it('turns stale and offline on the very seconds the server does', () => {
+    expect(deviceLiveness(ago(119), now)).toBe('live');
+    expect(deviceLiveness(ago(120), now)).toBe('stale');
+    expect(deviceLiveness(ago(599), now)).toBe('stale');
+    expect(deviceLiveness(ago(600), now)).toBe('offline');
+    expect(deviceLiveness(null, now)).toBe('offline');
   });
 });
 

@@ -54,3 +54,6 @@ __exportStar(require("./configuration-fields.js"), exports);
 __exportStar(require("./day-night.js"), exports);
 __exportStar(require("./capture.js"), exports);
 __exportStar(require("./plan-clock.js"), exports);
+// Also without a schema: how old a value is, which the server answers and the
+// screens age further.
+__exportStar(require("./value-age.js"), exports);
