@@ -11,9 +11,9 @@ import type {
   TargetBand,
   VerdictRating,
 } from '@fg2/shared-types/v1';
-import { DAY_ONLY, STEERED, TARGET_BAND, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { DAY_ONLY, STEERED, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
 import { SETTLE_SECONDS, cycleAt, type Cycle } from '@fg2/shared-types/v1-schemas/day-night.js';
-import { bandOverRecordAt, type RecordedClimate } from '../device/held-targets';
+import { bandAround, bandOverRecordAt, unionOf, type RecordedClimate } from '../device/held-targets';
 
 /**
  * How the last day went, read out of one aggregation.
@@ -76,11 +76,6 @@ const TREND_POINTS = 48;
 /** A value at or below zero is off, whether the output is a relay or a percentage. */
 const isOn = (value: number | null): boolean => value !== null && value > 0;
 
-const bandOf = (target: number | undefined, metric: Metric): TargetBand | null => {
-  const tolerance = TARGET_BAND[metric];
-  return target === undefined || tolerance === undefined ? null : { low: target - tolerance, high: target + tolerance };
-};
-
 const ratingOf = (share: number): VerdictRating => (share > GOOD_ABOVE ? 'good' : share > WATCH_ABOVE ? 'watch' : 'poor');
 
 /** The worst of them, which is what the headline says; null while none of them has a band. */
@@ -114,8 +109,8 @@ type HalfAt = (index: number) => { half: 'day' | 'night'; changing: boolean };
 type BandAt = (metric: Metric, index: number) => TargetBand | null;
 
 const bandsOf = (metric: Metric, targets: Setpoints | null): { dayBand: TargetBand | null; nightBand: TargetBand | null } => ({
-  dayBand: bandOf(targets?.day[metric], metric),
-  nightBand: DAY_ONLY.includes(metric) ? null : bandOf(targets?.night[metric], metric),
+  dayBand: bandAround(metric, targets?.day[metric]),
+  nightBand: DAY_ONLY.includes(metric) ? null : bandAround(metric, targets?.night[metric]),
 });
 
 /**
@@ -126,10 +121,7 @@ const bandsOf = (metric: Metric, targets: Setpoints | null): { dayBand: TargetBa
 const bandAt = (halfAt: HalfAt, index: number, bands: { dayBand: TargetBand | null; nightBand: TargetBand | null }): TargetBand | null => {
   const { half, changing } = halfAt(index);
   if (!changing) return half === 'day' ? bands.dayBand : bands.nightBand;
-
-  return bands.dayBand && bands.nightBand
-    ? { low: Math.min(bands.dayBand.low, bands.nightBand.low), high: Math.max(bands.dayBand.high, bands.nightBand.high) }
-    : null;
+  return unionOf([bands.dayBand, bands.nightBand]);
 };
 
 const countMetric = (

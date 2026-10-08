@@ -11,12 +11,12 @@ import type {
   TimelineTarget,
   TimelineTargets,
 } from '@fg2/shared-types/v1';
-import { DAY_ONLY, METRIC_DECIMALS, TARGET_BAND, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { DAY_ONLY, METRIC_DECIMALS, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
 import { cycleKindOf, nightsIn, transitionsIn, type Cycle, type Span } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { OUTPUT_LEVEL } from '@common/v1/metrics';
 import type { DeviceHistory, OutputHistory } from '@modules/data/data.service';
 import type { OutputSwitching } from '@modules/data/flux';
-import { halvesHeld, recordedBandAt, unionOf, type RecordedClimate } from '../device/held-targets';
+import { bandAround, halvesHeld, recordedBandAt, unionOf, type RecordedClimate } from '../device/held-targets';
 import type { CycleStretch } from '../phase/target-record';
 
 /**
@@ -511,10 +511,8 @@ const closed = (points: readonly SeriesPoint[], endsAt: number | null, silence: 
 };
 
 const halfOf = (metric: Metric, setpoint: number | null): TimelineTarget | null => {
-  const tolerance = TARGET_BAND[metric];
-  if (setpoint === null || tolerance === undefined) return null;
-
-  return { setpoint, band: { low: rounded(setpoint - tolerance, metric), high: rounded(setpoint + tolerance, metric) } };
+  const band = bandAround(metric, setpoint ?? undefined);
+  return setpoint === null || band === null ? null : { setpoint, band: { low: rounded(band.low, metric), high: rounded(band.high, metric) } };
 };
 
 const mean = (values: readonly number[]): number => values.reduce((sum, value) => sum + value, 0) / values.length;
