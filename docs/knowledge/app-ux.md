@@ -175,7 +175,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   column (temperature, plus humidity where a humidifier holds it); Trocknung one column without light or CO₂;
   Regelung aus no table, a sentence and the way to switch on; 24 h or 0 h one column. An absent half stays as stored.
 - **The light plan heads the card**: "Licht an um" (account wall clock, any minute, kept across DST) and "Dauer"; the
-  night is what the day leaves. Presets change the duration, never the on-time.
+  night is what the day leaves. Presets change the duration, never the on-time. Late flower still enriches CO₂, to
+  600 ppm against flowering's 1000 (Chris, 2026-10-08; `shared-types/src/v1/climate-presets.ts`).
 - **Chips and presets only prefill a draft**; nothing applies before Speichern. Every screen reads the one preset
   table, `shared-types/src/v1/climate-presets.ts`, whose figures are deliberately conservative.
 - **"Regelung ein/aus"** stands in the targets card and the device panel (Chris, 2026-10-02): a device on off - the
@@ -212,7 +213,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
 
 ## 10. Privacy in the app
 No location, no comments, no feed, no directory (Chris, 2026-09-16). Harvest weights and plant counts can be logged
-and are hidden from shared views by a setting (`hideWeights`, `hideCounts`). The handle is the only name others see;
+and are hidden from shared views by a setting (`hideWeights`, `hideCounts`), which a new account starts with on
+(Chris, 2026-10-08; existing accounts keep what they hold). The handle is the only name others see;
 no real name is stored (`shared-types/src/v1/accounts.ts`). Following a public grow puts it on one's own Start;
 Follow is offered on the grow's public page and its author's profile to an account of its own, never to the demo nor
 through a share link, which is a window, not a subscription (`screens/public/FollowButton.tsx`). Every sign-up agrees

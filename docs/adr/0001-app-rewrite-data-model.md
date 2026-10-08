@@ -73,8 +73,8 @@ users, so nothing of today's routes is kept for compatibility and the Garmin wid
 the database of the simulated stack (*amended 2026-09-19:* and against copies of the hosted database, see
 "Tooling"); old share links and saved chart presets are not migrated; a camera gets twelve months of Premium when
 it is first claimed or paired, and every camera that exists at the migration starts its twelve months on migration
-day; pairing a standalone Terp Cam from the phone ships as "coming soon" and gets its own session once the rewrite
-is merged.
+day; pairing a standalone Terp Cam from the phone shipped as "coming soon" and was then taken out of the app
+(Chris, 2026-10-08; see "Cameras").
 
 Settled on 2026-09-19, when Chris signed off the backend: **a space is not deleted while it still has members**,
 which is the opposite of what this record assumed. Deleting an account is the other act and stays possible, see
@@ -545,9 +545,10 @@ OpenAPI document the server serves at `/api-docs`.
   a paired Terp Cam over MQTT, the protocol module upserts its camera row. A controller still pairs exactly one
   Terp Cam (*amended 2026-10-02:* so do a fridge, an AIR fan and a smart socket, one each); "several cameras per
   tent" is that camera plus RTSP cameras pulled through the controller's existing tunnel plus standalone Terp
-  Cams, none of which needs firmware. Creating an RTSP camera is never refused. **Pairing a standalone Terp Cam
-  ships as "coming soon"**: the model and the camera kind are built and the tab that would pair one says it is
-  coming. The server-side path that was built for it - the cloud finding the camera through the manufacturer's
+  Cams, none of which needs firmware. Creating an RTSP camera is never refused; *amended 2026-10-08:* one created with a
+  device and without `tunnel` is pulled through that device (not over UDP). **The app does not offer a standalone
+  Terp Cam** (*amended 2026-10-08*, Chris; it first shipped as "coming soon"): the model and the camera kind are
+  built, and the screen that adds a camera has no tab for one. The server-side path that was built for it - the cloud finding the camera through the manufacturer's
   rendezvous servers - is gone: those servers stopped answering, and the cloud now reaches every Terp Cam over a
   relay the device it is paired at opens to the API (`cam_relay`, see `docs/device-protocol.md` §9). A standalone
   camera has no such device, so it has no path at all until one is found, and the server refuses to create one.
@@ -798,7 +799,7 @@ and merged as #104; the table of slices that planned it is done and was removed.
    role - a humidifier that never stops soaks a room - so one tent with a real socket per new role is watched for
    a day or two before the roles reach a grower's controller; the firmware check only proves a build boots and
    updates. On 2026-10-02 the roles had not yet run on hardware.
-8. **The standalone Terp Cam has no way in.** It ships as "coming soon" rather than as a tab that fails on a
+8. **The standalone Terp Cam has no way in.** The app does not offer it rather than showing a tab that fails on a
    stranger's camera; with the rendezvous gone, finishing it needs a new path to a camera that stands at no
    device, not only a session with a camera on a desk.
 9. **Retention can delete pictures** where today everything is kept for three years. It is off unless an
@@ -834,7 +835,7 @@ own words, the others by "Assume the rest is agreed", which made each assumption
 1. **Does a Terp Cam's entitlement cover another camera in the same tent?** Assumed no: entitlement sits on the
    camera, as the record decides, so an RTSP camera beside an entitled Terp Cam is not entitled by it. Reading
    it per controller instead is one lookup in the tier function and changes nothing else. **Answered: no**, per
-   camera (`server/src/modules/v1/camera/entitlement.service.ts`).
+   camera (`server/src/modules/v1/camera/entitlement.service.ts`); confirmed by Chris on 2026-10-08.
 2. **Free-tier limits as configuration.** Assumed the served width and the free retention windows stay out of
    this public repository and live in the hosted install's configuration. **Answered: yes** -
    `PREMIUM_FREE_STILL_WIDTH`, `PREMIUM_FREE_RETENTION` (the switch, off unless set), `PREMIUM_FREE_STILL_DAYS`
@@ -863,8 +864,8 @@ own words, the others by "Assume the rest is agreed", which made each assumption
 
 Open since:
 
-12. **Keep the standalone Terp Cam kind at all?** (2026-10-04) `terpcam_standalone` stays in the model, but no
-   path reaches such a camera and the server refuses to create one (see "Cameras"). Whether to keep the kind is
-   the owner's to decide.
+12. **Keep the standalone Terp Cam kind at all?** (2026-10-04) **Answered 2026-10-08** (Chris): the app stops
+   offering it for now; `terpcam_standalone` stays in the model, and the server goes on refusing to create one,
+   because it may come back once a camera without a device has a way in.
 13. **`GET /admin/logs`** is in the API above and its answer is in the contract (`AdminLogPage`), but the route
    was never built. Build it, or take it out of both?

@@ -44,9 +44,9 @@ Checked against the code on 2026-10-08. Take an item out once it is done.
 - **Two task sources are not derived.** The contract's `taskSource` names `scheme` and `plan_suggestion`, but tasks
   come only from reminders and from plan steps waiting to be confirmed; `server/src/modules/v1/diary/tasks.service.ts`
   says why.
-- **A standalone Terp Cam cannot be added.** The add-camera tab says "Coming soon." and `POST /v1/cameras` refuses
-  `terpcam_standalone` with `not_yet`: a Terp Cam is reached over a relay its device opens, and one paired at no
-  device has nothing to open it. Chris asked for a follow-up on it once the rewrite was merged (2026-09-17).
+- **A standalone Terp Cam cannot be added.** The app does not offer it any more (Chris, 2026-10-08, for now) and
+  `POST /v1/cameras` refuses `terpcam_standalone` with `not_yet`: a Terp Cam is reached over a relay its device
+  opens, and one paired at no device has nothing to open it. The kind stays in the model in case it comes back.
 - **The firmware since 2026-09-23 has not been checked on hardware.** #109, #110, #111 (fridge heat pulses,
   controller heater cut, fridge SCD4x fallback), #128 (Terp Cam relay on AIR and plug) and #141 (settings reported
   on connect) say in their descriptions that they were not tried on a device, and no `/firmware-check` is recorded

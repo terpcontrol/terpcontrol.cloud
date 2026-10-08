@@ -41,9 +41,12 @@ way and what the code has to respect. Internal notes on the camera exist.
 - `terpcam_controller`: a Terp Cam paired in the menu of a fridge module, controller, AIR (fan) or Smart Socket
   (plug) - the LIGHT has no entry (PR #128). One per device; the server treats every type alike.
 - `rtsp`: any URL ffmpeg reads (RTSP or an HTTP snapshot URL), pulled directly or, with `tunnel: true`, through the
-  MQTT tunnel of any Terp Control device in the place - the tunnel is in the firmware all types share.
-- `terpcam_standalone`: in the model only. `POST /v1/cameras` refuses it ("coming"): without a device nothing opens
-  a relay, and the cloud cannot reach a camera behind the grower's router on its own.
+  MQTT tunnel of any Terp Control device in the place - the tunnel is in the firmware all types share. Through the
+  device is the default (Chris, 2026-10-08): the app's switch starts on, and a create that names a device and leaves
+  `tunnel` out gets it (not over UDP); a direct pull is for a camera the cloud can reach on the internet.
+- `terpcam_standalone`: in the model only; the app does not offer it (Chris, 2026-10-08) and `POST /v1/cameras`
+  refuses it: without a device nothing opens a relay, and the cloud cannot reach a camera behind the grower's router
+  on its own.
 
 ## Pairing on the device (`firmware/src/wifi.cpp`, `firmware/src/terpcam.cpp`)
 - "connect cam" needs the device's WiFi set up and refuses a second camera. It joins the camera's open setup access
