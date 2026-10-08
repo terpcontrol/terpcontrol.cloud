@@ -41,7 +41,9 @@ export * from './capture.js';
 export * from './plan-clock.js';
 // Also without a schema: how old a value is, which the server answers and the
 // screens age further; which readings a controller steers and how far from a
-// target still counts as on it; and the largest page any list answers.
+// target still counts as on it; the largest page any list answers; and how long
+// before its year runs out a camera's renewal is offered.
 export * from './value-age.js';
 export * from './steering.js';
 export * from './pages.js';
+export * from './entitlement.js';

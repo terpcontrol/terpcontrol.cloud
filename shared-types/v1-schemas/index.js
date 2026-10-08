@@ -56,7 +56,9 @@ __exportStar(require("./capture.js"), exports);
 __exportStar(require("./plan-clock.js"), exports);
 // Also without a schema: how old a value is, which the server answers and the
 // screens age further; which readings a controller steers and how far from a
-// target still counts as on it; and the largest page any list answers.
+// target still counts as on it; the largest page any list answers; and how long
+// before its year runs out a camera's renewal is offered.
 __exportStar(require("./value-age.js"), exports);
 __exportStar(require("./steering.js"), exports);
 __exportStar(require("./pages.js"), exports);
+__exportStar(require("./entitlement.js"), exports);

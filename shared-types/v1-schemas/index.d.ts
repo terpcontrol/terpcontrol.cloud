@@ -27,3 +27,4 @@ export * from './plan-clock.js';
 export * from './value-age.js';
 export * from './steering.js';
 export * from './pages.js';
+export * from './entitlement.js';

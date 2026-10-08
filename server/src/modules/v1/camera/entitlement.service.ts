@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { CameraEntitlement, MediaQuality, PremiumFree } from '@fg2/shared-types/v1';
+import { RENEWAL_WINDOW_DAYS } from '@fg2/shared-types/v1-schemas';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { premiumConfig } from '@config/configuration';
 
@@ -17,9 +18,6 @@ import { premiumConfig } from '@config/configuration';
  * `premium`, stills are served whole and no picture is ever deleted for being a
  * free camera's. That is what a self-hosted install gets, and it is the default.
  */
-
-/** How long before a year runs out the renewal is worth mentioning, as the record decides. */
-const RENEWAL_WINDOW_DAYS = 60;
 
 const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
 

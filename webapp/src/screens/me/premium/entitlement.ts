@@ -6,36 +6,17 @@ import type { Camera } from '@fg2/shared-types/v1';
  * What a camera's entitlement means for a screen, worked out in one place.
  *
  * The server says whether a camera is entitled (`tier`), why it was given its
- * year (`grant`), until when (`validUntil`) and whether a renewal may be
- * offered at all (`renewalVisible`: something is gated here and there is
- * somewhere to send the person). Nothing here decides any of those again - a
- * date still ahead is not entitlement, and a date is never read where the
- * server has not allowed a notice.
- *
- * What the server does not carry is the board's rule that the renewal is shown
- * sixty days before the year ends and not earlier. That window is applied
- * here, inside the permission the server gives, which is why a camera whose
- * renewal is not visible never gets a countdown however close its date is.
+ * year (`grant`), until when (`validUntil`) and whether a renewal is to be
+ * offered now (`renewalVisible`: something is gated here, there is somewhere to
+ * send the person, and the year is inside its last `RENEWAL_WINDOW_DAYS` or
+ * there never was one). Nothing here decides any of those again - a date still
+ * ahead is not entitlement, and a date is never read where the server has not
+ * allowed a notice, however close it is.
  */
-export const RENEWAL_NOTICE_DAYS = 60;
 
 /** Whole days until the entitlement ends; negative once it has; null where there is no date at all. */
 export const daysLeft = (validUntil: string | null, now: DateTime): number | null =>
   validUntil === null ? null : Math.floor(DateTime.fromISO(validUntil).diff(now, 'days').days);
-
-/**
- * Whether the renewal is to be offered for this camera: the server allows a
- * notice, and the camera is either without Premium or inside the last sixty
- * days of it. A camera without Premium is due now, not in sixty days.
- */
-export const renewalDue = (camera: Pick<Camera, 'entitlement'>, now: DateTime): boolean => {
-  const { renewalVisible, tier, validUntil } = camera.entitlement;
-  if (!renewalVisible) return false;
-  if (tier === 'free') return true;
-
-  const left = daysLeft(validUntil, now);
-  return left !== null && left <= RENEWAL_NOTICE_DAYS;
-};
 
 /**
  * The days a countdown says, or null where none is drawn: the renewal is not
@@ -43,7 +24,7 @@ export const renewalDue = (camera: Pick<Camera, 'entitlement'>, now: DateTime): 
  * or no notice is allowed on this install.
  */
 export const countdownDays = (camera: Pick<Camera, 'entitlement'>, now: DateTime): number | null => {
-  if (camera.entitlement.tier !== 'premium' || !renewalDue(camera, now)) return null;
+  if (camera.entitlement.tier !== 'premium' || !camera.entitlement.renewalVisible) return null;
 
   const left = daysLeft(camera.entitlement.validUntil, now);
   return left !== null && left >= 0 ? left : null;

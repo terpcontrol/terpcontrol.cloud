@@ -10,7 +10,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Me, PremiumFree } from '@fg2/shared-types/v1';
 import { CameraSettings } from '@/screens/camera/CameraSettings';
-import { countdownDays, renewalDue } from '@/screens/me/premium/entitlement';
+import { countdownDays } from '@/screens/me/premium/entitlement';
 import { Premium } from '@/screens/me/premium/Premium';
 import { Privacy } from '@/screens/me/privacy/Privacy';
 import { spacePage, spaceWhere } from './session';
@@ -111,7 +111,7 @@ const ahead = (days: number) => NOW.plus({ days }).toISO()!;
 
 const included = camera({
   name: 'Terp Cam 1',
-  entitlement: { validUntil: ahead(300), grant: 'included', tier: 'premium', renewalVisible: true },
+  entitlement: { validUntil: ahead(300), grant: 'included', tier: 'premium', renewalVisible: false },
 });
 
 const migrated = camera({
@@ -123,7 +123,7 @@ const bought = camera({
   name: 'Tapo C200',
   kind: 'rtsp',
   url: 'rtsp://192.168.1.40/stream1',
-  entitlement: { validUntil: ahead(400), grant: 'purchase', tier: 'premium', renewalVisible: true },
+  entitlement: { validUntil: ahead(400), grant: 'purchase', tier: 'premium', renewalVisible: false },
 });
 
 const rtsp = camera({
@@ -497,24 +497,12 @@ describe('the two screens that describe the free tier', () => {
 });
 
 describe('when the renewal is due', () => {
-  it('is never before the server allows a notice', () => {
-    expect(renewalDue({ entitlement: { validUntil: ahead(5), grant: 'included', tier: 'premium', renewalVisible: false } }, NOW)).toBe(false);
-    expect(renewalDue({ entitlement: { validUntil: null, grant: null, tier: 'free', renewalVisible: false } }, NOW)).toBe(false);
-  });
-
-  it('is inside the last sixty days, or at once for a camera without Premium', () => {
-    expect(renewalDue({ entitlement: { validUntil: ahead(61), grant: 'included', tier: 'premium', renewalVisible: true } }, NOW)).toBe(false);
-    expect(renewalDue({ entitlement: { validUntil: ahead(60), grant: 'included', tier: 'premium', renewalVisible: true } }, NOW)).toBe(true);
-    expect(renewalDue({ entitlement: { validUntil: null, grant: null, tier: 'free', renewalVisible: true } }, NOW)).toBe(true);
-  });
-
   it('counts whole days down to today and stops once the year is over', () => {
     expect(countdownDays({ entitlement: { validUntil: ahead(60), grant: 'included', tier: 'premium', renewalVisible: true } }, NOW)).toBe(60);
     expect(
       countdownDays({ entitlement: { validUntil: NOW.plus({ hours: 5 }).toISO()!, grant: 'included', tier: 'premium', renewalVisible: true } }, NOW),
     ).toBe(0);
     expect(countdownDays({ entitlement: { validUntil: ahead(-1), grant: 'included', tier: 'free', renewalVisible: true } }, NOW)).toBeNull();
-    expect(countdownDays({ entitlement: { validUntil: ahead(90), grant: 'included', tier: 'premium', renewalVisible: true } }, NOW)).toBeNull();
   });
 });
 

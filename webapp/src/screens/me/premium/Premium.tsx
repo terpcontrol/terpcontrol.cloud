@@ -3,6 +3,7 @@ import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Camera, Me, PremiumFree } from '@fg2/shared-types/v1';
+import { RENEWAL_WINDOW_DAYS } from '@fg2/shared-types/v1-schemas/entitlement.js';
 import { useMe } from '@/api/account';
 import { useCameras } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
@@ -14,7 +15,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
 import { MePage } from '../parts';
-import { countdownDays, dayLabel, RENEWAL_NOTICE_DAYS, renewalDue } from './entitlement';
+import { countdownDays, dayLabel } from './entitlement';
 import { missingLine, servedWidthCell, stillsKeptCell } from './free-tier';
 import styles from './Premium.module.css';
 
@@ -77,7 +78,7 @@ export function Premium() {
       <MePage title={title}>
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.premium.demo')}</p>
         <Covers free={null} />
-        <p className={ui.note}>{t('me.premium.perCamera', { days: RENEWAL_NOTICE_DAYS })}</p>
+        <p className={ui.note}>{t('me.premium.perCamera', { days: RENEWAL_WINDOW_DAYS })}</p>
       </MePage>
     );
   }
@@ -124,7 +125,7 @@ function Account({ title }: { title: string }) {
   const placeOf = (id: string | null): string | null => spaces.data?.items.find(space => space.id === id)?.name ?? null;
   // Whether any card would carry an offer: where the install has named nowhere
   // to go, that is said once under the list, rather than on every such card.
-  const due = premium.enforced && list.some(camera => renewalDue(camera, now));
+  const due = premium.enforced && list.some(camera => camera.entitlement.renewalVisible);
 
   return (
     <MePage title={title}>
@@ -156,7 +157,7 @@ function Account({ title }: { title: string }) {
       {due && !premium.extendUrl ? <p className={ui.note}>{t('me.premium.nowhereToExtend')}</p> : null}
 
       <Covers free={premium.free} />
-      <p className={ui.note}>{t('me.premium.perCamera', { days: RENEWAL_NOTICE_DAYS })}</p>
+      <p className={ui.note}>{t('me.premium.perCamera', { days: RENEWAL_WINDOW_DAYS })}</p>
     </MePage>
   );
 }
@@ -191,7 +192,7 @@ function CameraCard({
   const { tier, validUntil } = camera.entitlement;
   const entitled = tier === 'premium';
   const days = enforced ? countdownDays(camera, now) : null;
-  const offered = enforced && premium.extendUrl !== null && renewalDue(camera, now);
+  const offered = enforced && premium.extendUrl !== null && camera.entitlement.renewalVisible;
 
   return (
     <li className={`${ui.card} ${styles.camera}`}>
