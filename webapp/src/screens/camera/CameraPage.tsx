@@ -1,5 +1,5 @@
 import { Clapperboard } from 'lucide-react';
-import { DateTime } from 'luxon';
+import type { DateTime } from 'luxon';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
@@ -29,7 +29,7 @@ import { cameraFreshness } from '../devices/cameras';
 import { deviceName } from '@/ui/naming';
 import { OfflineHelp } from '../home/OfflineHelp';
 import { causeOf } from './capture-failure';
-import { at, stamps, stampFor } from '../timeline/window';
+import { at, frameAt, stampOf } from '../timeline/window';
 import { Slider } from '../timeline/CameraFrame';
 import { Composer } from './Composer';
 import { emptyRolling } from './rolling';
@@ -137,7 +137,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   const diary = useDiaryLayer();
   const growFilms = grow !== null || diary;
   const shots = useMemo(() => [...(frames.data?.items ?? [])].sort((one, other) => at(one.capturedAt) - at(other.capturedAt)), [frames.data]);
-  const from = shots.length > 0 ? at(shots[0].capturedAt) : DateTime.fromISO(day.startsAt).toMillis();
+  const from = shots.length > 0 ? at(shots[0].capturedAt) : at(day.startsAt);
   const newest = shots.at(-1) ?? null;
   // The right-hand end of the day is now, or the newest picture where that is
   // later. This screen's clock beats every ten seconds, and a picture taken
@@ -150,6 +150,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   const [cursor, setCursor] = useState<number | null>(null);
   const time = cursor ?? to;
   const shown = frameAt(shots, time);
+  const shownAt = shown ? stampOf(at(shown.capturedAt), to - from, zone) : null;
   // Decided once, above everything that draws from it, so that no two lines on
   // this screen can answer the same question differently. The read's own state
   // comes first: an empty `shots` is what a pending read and a failed one both
@@ -253,7 +254,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
               // gets the picture through its alt text alone was told "just now"
               // about a still four days old, which is the one thing the frame's
               // own dimming and dated label were there to stop it saying.
-              alt={t('camera.frameAlt', { name: camera.name, time: zonedAt(at(shown.capturedAt), zone).toFormat(stamps()[stampFor(to - from)]) })}
+              alt={t('camera.frameAlt', { name: camera.name, time: shownAt })}
             />
           ) : older && camera.state.lastStillAt ? (
             <img
@@ -275,7 +276,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           )}
           {shown ? (
             <span className={ui.photoCaption}>
-              {zonedAt(at(shown.capturedAt), zone).toFormat(stamps()[stampFor(to - from)])}
+              {shownAt}
               {/* "live" is a claim about how late the picture is, so it is the
                 pill's own verdict that decides it and not the frame's position
                 in the day. This camera misses most of its captures, and the
@@ -661,14 +662,3 @@ const dayOf = (now: DateTime, zone: string | null): { startsAt: string; endsAt: 
   return { startsAt: instantOf(start), endsAt: instantOf(start.endOf('day')) };
 };
 
-/** The newest picture taken by the cursor, and the oldest there is before the first one. */
-const frameAt = (shots: Media[], time: number): Media | null => {
-  if (shots.length === 0) return null;
-  let found = shots[0];
-  for (const shot of shots) {
-    if (at(shot.capturedAt) > time) break;
-    found = shot;
-  }
-
-  return found;
-};

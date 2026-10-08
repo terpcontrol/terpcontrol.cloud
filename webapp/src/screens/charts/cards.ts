@@ -26,6 +26,7 @@ import {
   type PlotSpan,
 } from '@/charts/series';
 import type { ChartToken } from '@/charts/tokens';
+import type { VpdHalf } from '@/ui/advanced/item';
 import { outputWord } from '@/ui/climate-hardware';
 import type { HelpTopic } from '@/ui/explain';
 import { looseFigure } from '@/ui/figures';
@@ -68,10 +69,33 @@ export const metricColour = (metric: Metric): ChartToken => METRIC_COLOUR[metric
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** How far the leaf sits under the air in either half of the cycle, which is what turns a pair of targets into a deficit. */
-export interface LeafOffsets {
+interface LeafOffsets {
   day: number;
   night: number;
 }
+
+/**
+ * What the VPD panel takes the leaf to be, and what its band is worked out
+ * from. A place with two controllers set up differently draws a curve that is
+ * the mean of two computations, so where they disagree the panel says nothing
+ * rather than something it cannot stand behind.
+ */
+export const leafOffsetsOf = (
+  devices: readonly { id: string; settings: { vpdLeafOffsetDay: number; vpdLeafOffsetNight: number } }[],
+  series: ChartData | undefined,
+): LeafOffsets | null => {
+  const here = devices.filter(device => (series?.deviceIds ?? []).includes(device.id));
+  const first = here[0];
+  if (!first) return null;
+
+  return here.every(
+    device =>
+      device.settings.vpdLeafOffsetDay === first.settings.vpdLeafOffsetDay &&
+      device.settings.vpdLeafOffsetNight === first.settings.vpdLeafOffsetNight,
+  )
+    ? { day: first.settings.vpdLeafOffsetDay, night: first.settings.vpdLeafOffsetNight }
+    : null;
+};
 
 /** A plant, as far as a chart needs one: a reading per plant is a line per plant, and each of them is called something. */
 export interface PlantName {
@@ -176,9 +200,6 @@ interface Drawn {
   help?: HelpTopic;
 }
 
-/** Which half of the cycle the VPD line keeps: both, or only the lit or only the dark one. */
-export type VpdMode = 'all' | 'day' | 'night';
-
 export interface CardsInput {
   picked: Picked;
   layout: ChartViewLayout;
@@ -187,7 +208,7 @@ export interface CardsInput {
   plants: readonly PlantName[];
   /** Set only in the day-of-grow layout, which is the one thing two runs can share an axis in. */
   compared?: Compared;
-  vpdMode?: VpdMode;
+  vpdMode?: VpdHalf;
 }
 
 /** Day 1 of the grow, or the start of the window where no grow is charted: what the day-of-grow axis counts from. */
@@ -722,7 +743,7 @@ export const csvForCards = (t: Translate, series: ChartData, input: CardsInput, 
  * by; a window with no light to read it from has no night, and its every point
  * counts as day.
  */
-export const halfOf = (panel: TimelinePanel, nights: TimelineSpan[], mode: VpdMode = 'all'): TimelinePanel =>
+export const halfOf = (panel: TimelinePanel, nights: TimelineSpan[], mode: VpdHalf = 'all'): TimelinePanel =>
   mode === 'all'
     ? panel
     : {

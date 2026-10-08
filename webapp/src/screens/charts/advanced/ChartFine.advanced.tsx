@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { advancedItem, type ChartsContext } from '@/ui/advanced/item';
+import { advancedItem, VPD_HALVES, type ChartsContext } from '@/ui/advanced/item';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { Choice, Choices } from '@/ui/SheetParts';
 import { Switch } from '@/ui/Switch';
@@ -43,15 +43,13 @@ function Step({ settings, change, answeredStep }: ChartsContext) {
   );
 }
 
-const HALVES = ['all', 'day', 'night'] as const;
-
 function VpdHalf({ settings, change }: ChartsContext) {
   const { t } = useTranslation();
 
   return (
     <SettingRow label={t('chartFine.vpdHalf')} help="advanced.chartVpdHalf" note={t(`chartFine.vpdHalfNote.${settings.vpdHalf}`)} wide>
       <Choices label={t('chartFine.vpdHalf')}>
-        {HALVES.map(half => (
+        {VPD_HALVES.map(half => (
           <Choice key={half} chosen={settings.vpdHalf === half} onChoose={() => change({ vpdHalf: half })}>
             {t(`chartFine.half.${half}`)}
           </Choice>

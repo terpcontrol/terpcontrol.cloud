@@ -4,6 +4,7 @@ import type { GrowMeasurementSeries, GrowSeriesPoint, MeasurementDefinition, Pla
 import { Chart, type ChartOption } from '@/charts/Chart';
 import type { ChartPalette } from '@/charts/tokens';
 import ui from '@/ui/ui.module.css';
+import { at } from '../../timeline/window';
 import { bandEnds, bandOf } from '../measurements/definitions';
 import styles from './Plant.module.css';
 
@@ -100,8 +101,6 @@ const scaleOf = (points: GrowSeriesPoint[], definition: MeasurementDefinition): 
 
   return { low: low - air, high: high + air };
 };
-
-const at = (instant: string): number => new Date(instant).getTime();
 
 /** The green wash behind the line, where the measurement is aimed at anything at all. */
 const bandArea = (definition: MeasurementDefinition, scale: { low: number; high: number }, palette: ChartPalette) => {

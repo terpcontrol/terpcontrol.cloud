@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import { timelinePath, useCurrentPlace } from '@/app/places';
 import type { ChartView, ChartViewDefinition, ChartViewLayout, GrowListItem, ShareLink } from '@fg2/shared-types/v1';
-import { CHART_METRICS, CHART_OUTPUTS } from '@/api/charts';
 import { useChartViews } from '@/api/chart-views';
 import { serverNow } from '@/api/clock';
 import { useDevices, useDevicesById } from '@/api/devices';
@@ -38,21 +37,22 @@ import { DAY_IN_YEAR, useZone, zonedAt } from '@/ui/zone';
 import { BackLink } from '@/ui/BackLink';
 import { figure } from '@/ui/units';
 import { CameraFrame } from '../timeline/CameraFrame';
-import { at, stampFor, stampForEnds, stamps } from '../timeline/window';
+import { at, momentOf, stampFor, stampForEnds, stamps } from '../timeline/window';
 import {
   cardsOf,
   csvForCards,
   defaultPick,
   droppedBy,
   isEmpty,
+  leafOffsetsOf,
   metricColour,
   offeredBy,
   outputTitle,
   prunedTo,
   type Card,
-  type LeafOffsets,
   type Picked,
 } from './cards';
+import { pickedOf, settingsOf, showOf, zoomOf, zoomValue } from './address';
 import { ChartCard } from './ChartCard';
 import { useChartData, type ChartData } from './data';
 import { MESSAGE_CATEGORIES } from './message-columns';
@@ -78,7 +78,7 @@ import {
   type Width,
   type Zoom,
 } from './span';
-import { stepLabel, STEPS } from './steps';
+import { stepLabel } from './steps';
 import styles from './Charts.module.css';
 
 const LAYOUTS: ChartViewLayout[] = ['stacked', 'overlay', 'day_of_grow'];
@@ -88,8 +88,6 @@ const OUTPUTS_SHOWN = 2;
 
 /** And how many earlier runs of the same tent, which an account that has grown in it for years has plenty of. */
 const RUNS_SHOWN = 3;
-
-const VPD_HALVES = ['all', 'day', 'night'] as const;
 
 /**
  * The Charts view: the nerd's room.
@@ -316,7 +314,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem | null; spaceId: stri
   };
 
   /** A zoom is two instants on the chart, and goes into the address with the rest of the window. */
-  const zoomParam = (next: Zoom | null): Record<string, string | null> => ({ zoom: next ? `${instant(next.from)}~${instant(next.to)}` : null });
+  const zoomParam = (next: Zoom | null): Record<string, string | null> => ({ zoom: next ? zoomValue(next) : null });
 
   const setRange = (next: ChartRange) => {
     setScrubbed(null);
@@ -1001,75 +999,6 @@ const spanOfSelection = (selection: Selection, from: number, to: number): Zoom =
   from: from + selection.from * (to - from),
   to: from + selection.to * (to - from),
 });
-
-/**
- * What the VPD panel takes the leaf to be, and what its band is worked out
- * from. A place with two controllers set up differently draws a curve that is
- * the mean of two computations, so where they disagree the panel says nothing
- * rather than something it cannot stand behind.
- */
-const leafOffsetsOf = (
-  devices: readonly { id: string; settings: { vpdLeafOffsetDay: number; vpdLeafOffsetNight: number } }[],
-  series: ChartData | undefined,
-): LeafOffsets | null => {
-  const here = devices.filter(device => (series?.deviceIds ?? []).includes(device.id));
-  const first = here[0];
-  if (!first) return null;
-
-  return here.every(
-    device =>
-      device.settings.vpdLeafOffsetDay === first.settings.vpdLeafOffsetDay &&
-      device.settings.vpdLeafOffsetNight === first.settings.vpdLeafOffsetNight,
-  )
-    ? { day: first.settings.vpdLeafOffsetDay, night: first.settings.vpdLeafOffsetNight }
-    : null;
-};
-
-/** The fine settings as the address carries them; anything it does not recognise is the default. */
-const settingsOf = (params: URLSearchParams): ChartSettings => {
-  const step = Number(params.get('step'));
-  const half = params.get('vpd');
-
-  return {
-    stepSeconds: STEPS.includes(step) ? step : null,
-    vpdHalf: VPD_HALVES.find(one => one === half) ?? 'all',
-    live: params.get('live') === '1',
-  };
-};
-
-/**
- * The curves an address names: a metric by its name, an output and a grow's own
- * measurement each behind a prefix of its own, comma separated. Nothing named is
- * the board's own pick; named and empty is every curve turned off.
- */
-const OUTPUT_MARK = 'out.';
-const MEASUREMENT_MARK = 'm.';
-
-const pickedOf = (value: string | null): Picked | null => {
-  if (value === null) return null;
-  const names = value.split(',').filter(Boolean);
-  return {
-    metrics: CHART_METRICS.filter(metric => names.includes(metric)),
-    outputs: CHART_OUTPUTS.filter(output => names.includes(OUTPUT_MARK + output)),
-    measurements: names.filter(name => name.startsWith(MEASUREMENT_MARK)).map(name => name.slice(MEASUREMENT_MARK.length)),
-  };
-};
-
-const showOf = (picked: Picked): string =>
-  [...picked.metrics, ...picked.outputs.map(output => OUTPUT_MARK + output), ...picked.measurements.map(key => MEASUREMENT_MARK + key)].join(',');
-
-/** The zoom an address names, as two instants, or null where it names none or two that are not a stretch. */
-const zoomOf = (value: string | null): Zoom | null => {
-  const [from, to] = (value ?? '').split('~').map(momentOf);
-  return from != null && to != null && from < to ? { from, to } : null;
-};
-
-/** The instant an address names, or null where it names none or something that is not one. */
-const momentOf = (value: string | null): number | null => {
-  if (!value) return null;
-  const moment = DateTime.fromISO(value);
-  return moment.isValid ? moment.toMillis() : null;
-};
 
 /** A file a grower can find again: what it is of, and over what. */
 const csvName = (name: string, range: ChartRange): string => {

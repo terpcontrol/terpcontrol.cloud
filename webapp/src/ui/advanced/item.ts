@@ -42,12 +42,15 @@ export interface PlaceContext {
   mayManage: boolean;
 }
 
+/** Which half of the cycle the VPD line keeps: both, or only the lit or only the dark one. */
+export const VPD_HALVES = ['all', 'day', 'night'] as const;
+export type VpdHalf = (typeof VPD_HALVES)[number];
+
 /** The fine settings of the charts page, which its items read and change; they travel in the page's address. */
 export interface ChartSettings {
   /** The window each point summarises; null leaves it to the width of the window. */
   stepSeconds: number | null;
-  /** Which half of the cycle the VPD line keeps. */
-  vpdHalf: 'all' | 'day' | 'night';
+  vpdHalf: VpdHalf;
   /** Whether a window that ends now follows it. */
   live: boolean;
 }

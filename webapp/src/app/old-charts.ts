@@ -1,3 +1,4 @@
+import { zoomValue } from '@/screens/charts/address';
 import { instant, WIDTHS, type Width } from '@/screens/charts/span';
 
 /**
@@ -86,7 +87,7 @@ export const chartsAddressOf = (spaceId: string, old: URLSearchParams): string =
   // Two dates were a stretch of the old page's own; one was where a timespan started.
   const from = instantOf(old.get('date'));
   const to = instantOf(old.get('dateEnd'));
-  if (from !== null && to !== null && from < to) next.set('zoom', `${instant(from)}~${instant(to)}`);
+  if (from !== null && to !== null && from < to) next.set('zoom', zoomValue({ from, to }));
   else if (from !== null && range) next.set('at', instant(from + WIDTHS[range]));
 
   return `/charts?${next.toString()}`;

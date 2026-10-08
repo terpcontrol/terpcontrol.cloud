@@ -1,5 +1,6 @@
+import { DateTime } from 'luxon';
 import type { Metric, SpaceTimeline, TimelineAlarm, TimelinePanel, TimelineSpan, TimelineTarget, TimelineTargets } from '@fg2/shared-types/v1';
-import { niceScale } from '@/charts/series';
+import { niceScale, type PlotScale } from '@/charts/series';
 import { HOUR_MS } from '@/ui/days';
 import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY_IN_YEAR, zonedAt } from '@/ui/zone';
 
@@ -15,6 +16,13 @@ import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY_IN_YEAR, zonedAt } from 
  */
 
 export const at = (iso: string): number => new Date(iso).getTime();
+
+/** The instant an address names, or null where it names none or something that is not one. */
+export const momentOf = (value: string | null): number | null => {
+  if (!value) return null;
+  const moment = DateTime.fromISO(value);
+  return moment.isValid ? moment.toMillis() : null;
+};
 
 /**
  * How a moment inside a window is written, from the narrowest that still says
@@ -235,11 +243,6 @@ export const stretchAt = (stretches: Stretch[], time: number): Stretch | null =>
 /** Only what this panel is about: an alarm the health loop raised without a metric belongs on the rail, not over a curve. */
 export const alarmsOf = (alarms: TimelineAlarm[], metric: Metric): TimelineAlarm[] => alarms.filter(alarm => alarm.metric === metric);
 
-export interface Scale {
-  low: number;
-  high: number;
-}
-
 /**
  * What a panel is drawn between: everything measured and everything aimed at,
  * with a little air, rounded outwards to a figure worth printing in the corner.
@@ -251,7 +254,7 @@ export interface Scale {
  * screens draw the same metric of the same tent from the same points, so a
  * reader moving between them is owed the same two corner figures anyway.
  */
-export const scaleOf = (panel: TimelinePanel, stretches: Stretch[]): Scale =>
+export const scaleOf = (panel: TimelinePanel, stretches: Stretch[]): PlotScale =>
   niceScale([
     ...panel.points.flatMap(point => (point.value === null ? [] : [point.value])),
     ...stretches.flatMap(stretch => [stretch.target.band.low, stretch.target.band.high]),
@@ -269,7 +272,7 @@ const FRAME_REACH_MIN = 10 * 60 * 1000;
  * an hour is not called absent between two of its pictures.
  */
 export const frameNear = (camera: SpaceTimeline['cameras'][number] | undefined, time: number) => {
-  const frame = frameAt(camera, time);
+  const frame = frameAt(camera?.frames ?? [], time);
   if (!camera || !frame) return null;
   const gaps = camera.frames
     .slice(1)
@@ -280,10 +283,10 @@ export const frameNear = (camera: SpaceTimeline['cameras'][number] | undefined, 
 };
 
 /** The frame to show at the cursor: the newest picture taken by then, and the oldest there is before the first one was taken. */
-export const frameAt = (camera: SpaceTimeline['cameras'][number] | undefined, time: number) => {
-  if (!camera || camera.frames.length === 0) return null;
-  let found = camera.frames[0];
-  for (const frame of camera.frames) {
+export const frameAt = <F extends { capturedAt: string }>(frames: readonly F[], time: number): F | null => {
+  if (frames.length === 0) return null;
+  let found = frames[0];
+  for (const frame of frames) {
     if (at(frame.capturedAt) > time) break;
     found = frame;
   }

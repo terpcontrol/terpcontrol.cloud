@@ -9,6 +9,7 @@ import { serverNow } from '@/api/clock';
 import { useGrow } from '@/api/grows';
 import type { Picture } from '@/api/public';
 import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
+import { useScrub } from '@/charts/scrub';
 import { useCorrecting } from '@/log/corrections';
 import { outputWord } from '@/ui/climate-hardware';
 import { Term } from '@/ui/Help';
@@ -22,7 +23,7 @@ import { CameraFrame, Slider } from './CameraFrame';
 import { Lanes } from './Lanes';
 import { Panel } from './Panel';
 import { ReadingPanel } from './ReadingPanel';
-import { at, pointAt, spans, stampOf } from './window';
+import { at, momentOf, pointAt, spans, stampOf } from './window';
 import styles from './Timeline.module.css';
 
 const RANGES: TimelineRange[] = ['24h', '7d', '30d', 'phase', 'grow'];
@@ -113,7 +114,7 @@ function TimelineFor({ spaceId, heading, shared }: TimelineProps & { shared: Sha
     if (!data) return;
     const { from, to } = boundsOf(data);
     setCursor(from + fraction * (to - from));
-  });
+  }).handlers;
 
   // The stretches of a grow are offered where a grow is, and a month where none
   // is: nothing is drawn greyed out for somebody who has never started one.
@@ -469,45 +470,6 @@ const dayLabel = (t: Translate, timeline: SpaceTimeline): string => {
   return timeline.dayFrom === timeline.dayTo
     ? t('timeline.dayN', { day: timeline.dayTo })
     : t('timeline.dayRange', { from: timeline.dayFrom, to: timeline.dayTo });
-};
-
-/**
- * Dragging across the stack moves the cursor. The surface only claims
- * horizontal gestures, so a thumb still scrolls the page vertically over it,
- * and the pointer is captured on the way down so a drag that wanders off the
- * panel keeps scrubbing.
- */
-const useScrub = (onFraction: (fraction: number) => void): React.HTMLAttributes<HTMLDivElement> => {
-  const dragging = useRef(false);
-  const report = (event: React.PointerEvent<HTMLDivElement>) => {
-    const box = event.currentTarget.getBoundingClientRect();
-    if (box.width > 0) onFraction(Math.min(1, Math.max(0, (event.clientX - box.left) / box.width)));
-  };
-
-  return {
-    onPointerDown: event => {
-      dragging.current = true;
-      event.currentTarget.setPointerCapture(event.pointerId);
-      report(event);
-    },
-    onPointerMove: event => {
-      if (dragging.current || event.pointerType === 'mouse') report(event);
-    },
-    onPointerUp: event => {
-      dragging.current = false;
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    },
-    onPointerCancel: () => {
-      dragging.current = false;
-    },
-  };
-};
-
-/** The instant an address names, or null where it names none or something that is not one. */
-const momentOf = (value: string | null): number | null => {
-  if (!value) return null;
-  const moment = DateTime.fromISO(value);
-  return moment.isValid ? moment.toMillis() : null;
 };
 
 /** The shortest rolling window that still holds an instant, a month at most. */
