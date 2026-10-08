@@ -1,14 +1,12 @@
 import { useTranslation } from 'react-i18next';
-import type { Device } from '@fg2/shared-types/v1';
 import { FIRMWARE_LIGHTS_OFF, FIRMWARE_LIGHTS_ON, roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { Block } from '@/ui/SheetParts';
 import { useNow } from '@/ui/useNow';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
-import type { Unsaved } from '../targets/LeaveGuard';
-import { TargetRow } from '../targets/TargetRow';
 import { useFieldsDraft } from './fields-draft';
-import { OwnPanel, TimeRow } from './OwnPanel';
+import { OwnPanel, TimeRow, type OwnPanelProps } from './OwnPanel';
+import { TargetRow } from './TargetRow';
 
 /**
  * A LIGHT: when it comes on and goes off, on the account's wall clock, and how
@@ -20,14 +18,7 @@ import { OwnPanel, TimeRow } from './OwnPanel';
 
 const FIELDS = ['lightsOn', 'lightsOff', 'brightness'];
 
-export function LightPanel(props: {
-  device: Device;
-  name: string;
-  titled: boolean;
-  mayManage: boolean;
-  report: (deviceId: string, entry: Unsaved | null) => void;
-  asking: boolean;
-}) {
+export function LightPanel(props: OwnPanelProps) {
   const { t, i18n } = useTranslation();
   const now = useNow();
   const zone = useZone();

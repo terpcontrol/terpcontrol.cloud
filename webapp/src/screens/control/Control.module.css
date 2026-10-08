@@ -515,8 +515,9 @@
   color: var(--muted);
 }
 
-/* The way out of an empty tent, inside the dashed note: underlined rather than
-   coloured, so it reads as the link it is without shouting from a quiet note. */
+/* The way out of a tab with nothing to set, inside the dashed note: underlined
+   rather than coloured, so it reads as the link it is without shouting from a
+   quiet note, and the green stays the Save's. */
 .addDevice {
   color: inherit;
   text-decoration: underline;

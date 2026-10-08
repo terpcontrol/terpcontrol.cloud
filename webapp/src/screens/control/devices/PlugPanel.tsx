@@ -20,12 +20,11 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { offsetOf, secondsOf, wallClock } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
-import type { Unsaved } from '../targets/LeaveGuard';
-import { TargetRow } from '../targets/TargetRow';
 import { TimeInput } from '../TimeInput';
 import { useFieldsDraft, type FieldsDraft } from './fields-draft';
-import { OwnPanel, TimeRow } from './OwnPanel';
+import { OwnPanel, TimeRow, type OwnPanelProps } from './OwnPanel';
 import { PLUG_READING, RISING } from './own-summary';
+import { TargetRow } from './TargetRow';
 import styles from './Own.module.css';
 
 /**
@@ -57,14 +56,7 @@ const FIELDS = [
   ),
 ];
 
-export function PlugPanel(props: {
-  device: Device;
-  name: string;
-  titled: boolean;
-  mayManage: boolean;
-  report: (deviceId: string, entry: Unsaved | null) => void;
-  asking: boolean;
-}) {
+export function PlugPanel(props: OwnPanelProps) {
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();

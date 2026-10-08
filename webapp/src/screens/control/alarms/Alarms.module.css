@@ -170,17 +170,6 @@
   text-align: center;
 }
 
-/* The one thing there is to do where nothing here has rules yet. The other
-   half of this tab draws the same way out of the same dashed note, so it is
-   drawn the same way here: underlined rather than coloured, because the note
-   is a quiet one and the green is the Save's. */
-.addDevice {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  white-space: nowrap;
-}
-
 /* The sheet's insides: a few questions apart, like every other sheet. */
 .sheet {
   display: flex;

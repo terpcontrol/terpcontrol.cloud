@@ -6,10 +6,9 @@ import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { deviceTitle } from '@/ui/naming';
-import type { Unsaved } from '../targets/LeaveGuard';
-import { TargetRow } from '../targets/TargetRow';
 import { useFieldsDraft } from './fields-draft';
-import { OwnPanel } from './OwnPanel';
+import { OwnPanel, type OwnPanelProps } from './OwnPanel';
+import { TargetRow } from './TargetRow';
 import styles from './Own.module.css';
 
 /**
@@ -24,14 +23,7 @@ import styles from './Own.module.css';
 
 const FIELDS = ['fanMode', 'fixedDay', 'fixedNight', 'mostDay', 'mostNight', 'least'];
 
-export function FanPanel(props: {
-  device: Device;
-  name: string;
-  titled: boolean;
-  mayManage: boolean;
-  report: (deviceId: string, entry: Unsaved | null) => void;
-  asking: boolean;
-}) {
+export function FanPanel(props: OwnPanelProps) {
   const { t } = useTranslation();
   const draft = useFieldsDraft(props.device, FIELDS);
   const mode = draft.value<string>('fanMode', 'fixed') as FanMode;

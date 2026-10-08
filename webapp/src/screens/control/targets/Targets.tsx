@@ -26,12 +26,15 @@ import { DeviceAdvanced } from '../../devices/DeviceAdvanced';
 import { deviceName, deviceTitle } from '@/ui/naming';
 import { FanPanel } from '../devices/FanPanel';
 import { LightPanel } from '../devices/LightPanel';
+import type { OwnPanelProps } from '../devices/OwnPanel';
 import { PlugPanel } from '../devices/PlugPanel';
 import { changedFields, heldOf, holdsHumidity, nowHoldingOf, ownedBy, runningStep, shapeOf } from './day-night';
 import { DayNightTable } from './DayNightTable';
 import { LightPlan } from './LightPlan';
 import { LeaveGuard, type Unsaved } from './LeaveGuard';
+import { useReportUnsaved } from './report-unsaved';
 import { ControlState, EnergySaving } from './Operation';
+import { AddDeviceNote } from '../AddDeviceNote';
 import { GerminationChoices } from '../germination/GerminationChoices';
 import { choicesOf, choicesSaid, useHumidifier } from '../germination/germination-choices';
 import { stepLightHours, stepLightsOn } from '../plan-edit';
@@ -154,12 +157,7 @@ export function Targets({
             </p>
           ))
         ) : (
-          <p className={`${ui.cardDashed} ${ui.note}`}>
-            {t('targets.nothing')}{' '}
-            <Link to="/claim" className={styles.addDevice}>
-              {t('space.control.noControllerAdd')}
-            </Link>
-          </p>
+          <AddDeviceNote>{t('targets.nothing')}</AddDeviceNote>
         )}
         <DevicesAdvanced devices={devices} />
       </div>
@@ -243,7 +241,7 @@ function DevicesAdvanced({ devices }: { devices: Device[] }) {
 /** The hardware that has a panel of its own here instead of targets. */
 const OWN_PANEL_TYPES = ['plug', 'light'];
 
-function OwnPanelOf(props: React.ComponentProps<typeof PlugPanel>) {
+function OwnPanelOf(props: OwnPanelProps) {
   return props.device.type === 'plug' ? <PlugPanel {...props} /> : <LightPanel {...props} />;
 }
 
@@ -429,13 +427,6 @@ function Panel({
     }
   };
 
-  // Handed up while there is something to lose, so that leaving the page asks
-  // about it. The save is read through a ref, because the draft it sends is the
-  // one standing when the question is answered and not when it was first asked.
-  const latest = useRef(commit);
-  useEffect(() => {
-    latest.current = commit;
-  });
   // A link that names the chips - the climate preset of the place menu - lands on them once they are drawn.
   const { hash } = useLocation();
   const presets = useRef<HTMLDivElement>(null);
@@ -444,12 +435,7 @@ function Panel({
     if (anchor && drawn && hash === '#presets') presets.current?.scrollIntoView({ block: 'center' });
   }, [anchor, drawn, hash]);
 
-  const unsaved = dirty && mayManage;
-  useEffect(() => {
-    if (!unsaved) return;
-    report(device.id, { save: () => latest.current(), discard: () => setEdit(null) });
-    return () => report(device.id, null);
-  }, [unsaved, device.id, report]);
+  useReportUnsaved(report, device.id, dirty && mayManage, { save: commit, discard: () => setEdit(null) });
 
   const bar = useRef<HTMLDivElement>(null);
   const touched = useKeepInView(bar, dirty, editing?.draft ?? null);

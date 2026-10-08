@@ -21,6 +21,7 @@ import { maintenanceQuiet } from '@/ui/maintenance';
 import { useAccountMe } from '@/ui/session-access';
 import { useNow } from '@/ui/useNow';
 import { clock, zoneOf } from '@/ui/zone';
+import { AddDeviceNote } from '../AddDeviceNote';
 import { RuleSheet } from './RuleSheet';
 import { ruleFor, templateBody, templatesFor, type AlarmTemplate, type TemplateKey } from './templates';
 import { boundLabel, groupRules, heldBackBy, missingSensor, repeatsEvery, ruleTitle, type Translate, watchable, watchLabel } from './rules';
@@ -106,12 +107,7 @@ export function Alarms({
       {watched.length === 0 && held.isPending ? (
         <Waiting lines={3} />
       ) : watched.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>
-          {t('alarms.noController')}{' '}
-          <Link to="/claim" className={styles.addDevice}>
-            {t('alarms.addDevice')}
-          </Link>
-        </p>
+        <AddDeviceNote>{t('alarms.noController')}</AddDeviceNote>
       ) : (
         watched.map(device => (
           <DeviceRules

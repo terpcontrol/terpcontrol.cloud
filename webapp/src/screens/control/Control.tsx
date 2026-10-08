@@ -10,6 +10,7 @@ import { LoadFailed, Waiting } from '@/ui/PageState';
 import { usePlaceDevices } from '@/ui/place-devices';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
+import { AddDeviceNote } from './AddDeviceNote';
 import { Alarms } from './alarms/Alarms';
 import { PlanPanel } from './PlanPanel';
 import { Targets } from './targets/Targets';
@@ -55,12 +56,7 @@ export function Control({ spaceId, sub }: { spaceId: string; sub: string | null 
   if (here.length === 0) {
     return (
       <div className={styles.page}>
-        <p className={`${ui.cardDashed} ${ui.note}`}>
-          {t('space.control.noController')}{' '}
-          <Link to="/claim" className={styles.addDevice}>
-            {t('space.control.noControllerAdd')}
-          </Link>
-        </p>
+        <AddDeviceNote>{t('space.control.noController')}</AddDeviceNote>
       </div>
     );
   }

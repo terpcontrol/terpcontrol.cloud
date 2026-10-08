@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import styles from './Targets.module.css';
+import styles from './Own.module.css';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
