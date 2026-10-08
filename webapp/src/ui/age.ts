@@ -40,9 +40,6 @@ const SYMBOL: Record<DurationUnit, string> = { s: 's', min: 'min', h: 'h', d: 'd
  */
 export const unitSymbol = (unit: DurationUnit): string => (i18next.exists(`units.${unit}`) ? i18next.t(`units.${unit}`) : SYMBOL[unit]);
 
-/** What follows an hour of the day in a window such as "06–24 h": "h" in English, "Uhr" in German, never the "Std" of a length of time. */
-export const oClock = (): string => (i18next.exists('units.oClock') ? i18next.t('units.oClock') : 'h');
-
 /** A figure and its unit of time: "4 min", "3 T". */
 export const durationFigure = (figure: number | string, unit: DurationUnit): string => `${figure} ${unitSymbol(unit)}`;
 
@@ -140,8 +137,6 @@ export const valueAge = (value: Pick<MetricValue, 'state' | 'measuredAt'>, now: 
   const drawn = deviceLiveness(value.measuredAt, now);
   return RANK[drawn] > RANK[value.state] ? drawn : value.state;
 };
-
-export const isStale = (value: Pick<MetricValue, 'state' | 'measuredAt'>, now: DateTime = serverNow()): boolean => valueAge(value, now) !== 'live';
 
 /**
  * When the silence an offline alert is about began.

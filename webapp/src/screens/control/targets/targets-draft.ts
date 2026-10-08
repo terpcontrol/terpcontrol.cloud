@@ -2,10 +2,8 @@ import type { DateTime } from 'luxon';
 import type { DeviceConfiguration, DeviceSettings } from '@fg2/shared-types/v1';
 import { climatePreset, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
-import { lightsOffOf, lightWindowOf, lightWindowTimes, roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { lightWindowOf, lightWindowTimes, roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
-import { serverNow } from '@/api/clock';
-import { oClock } from '@/ui/age';
 import { figureOf } from '@/ui/climate-hardware';
 import type { ClimateChoice } from '@/ui/presets';
 
@@ -221,17 +219,4 @@ export const secondsOf = (time: string, offset: number): number | null => {
   if (hours > 23 || minutes > 59) return null;
 
   return roundTheClock(hours * HOUR_SECONDS + minutes * 60 - offset);
-};
-
-/**
- * "06-18 h": when the light comes on and goes off, on the account's wall clock.
- * Minutes are shown only where a window does not fall on the hour.
- */
-export const lightWindowLabel = (draft: TargetsDraft, now: DateTime = serverNow(), zone: string | null = null): string => {
-  const offset = offsetOf(now, zone);
-  const on = wallClock(draft.lightsOn, offset);
-  const off = wallClock(lightsOffOf(draft), offset);
-  const onTheHour = on.endsWith(':00') && off.endsWith(':00');
-
-  return `${onTheHour ? on.slice(0, 2) : on}–${onTheHour ? off.slice(0, 2) : off} ${oClock()}`;
 };

@@ -1,4 +1,4 @@
-import type { AccessNeed, Placement, Space } from '@fg2/shared-types/v1';
+import type { AccessNeed, Placement } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
@@ -32,14 +32,6 @@ const LADDER: Record<AccessNeed, number> = { view: 0, log: 1, manage: 2, own: 3 
 
 /** Whether what somebody may do reaches what a control needs. */
 export const enough = (youMay: AccessNeed | undefined, needed: AccessNeed): boolean => youMay !== undefined && LADDER[youMay] >= LADDER[needed];
-
-/**
- * What this session may do in a space it has in its hands. `undefined` is the
- * honest answer while the space has not arrived: a screen waits rather than
- * drawing controls it may have to take away again.
- */
-export const mayInSpace = (space: Space | null | undefined, isDemo: boolean): AccessNeed | undefined =>
-  space === null || space === undefined ? undefined : isDemo ? 'view' : space.youMay;
 
 /**
  * The same question asked of many places at once, as the question rather than

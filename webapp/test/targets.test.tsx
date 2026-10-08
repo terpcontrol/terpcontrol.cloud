@@ -13,7 +13,7 @@ import type { Device, DeviceConfiguration, DeviceLive, Me, Plan, PlanStep, Setpo
 import { Targets } from '@/screens/control/targets/Targets';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { nowHoldingOf, ownedBy, phaseOf, shapeOf } from '@/screens/control/targets/day-night';
-import { draftOf, lightWindowLabel, secondsOf, vpdOf, wallClock, withDraft } from '@/screens/control/targets/targets-draft';
+import { draftOf, secondsOf, vpdOf, wallClock, withDraft } from '@/screens/control/targets/targets-draft';
 import { CLIMATE_CHOICES, presetsOf, STAGES_WITH_CLIMATE } from '@/ui/presets';
 
 /**
@@ -1506,11 +1506,6 @@ describe('the one list of presets', () => {
 });
 
 describe('the document a draft becomes', () => {
-  it("reads the light window in the reader's time from seconds past midnight UTC", () => {
-    expect(lightWindowLabel(draftOf(CONFIGURATION), NOW)).toBe('06–18 h');
-    expect(lightWindowLabel(draftOf({ daynight: { day: 6.5 * 3600, night: 18 * 3600 } }), NOW)).toBe('06:30–18:00 h');
-  });
-
   it('turns the account´s wall clock into the document´s seconds and back, round midnight where it must', () => {
     const kolkata = 5.5 * 3600;
     const berlinInWinter = 3600;

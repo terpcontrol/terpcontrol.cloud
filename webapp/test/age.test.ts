@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ageLabel, countdownLabel, deviceLiveness, isStale, spanLabel, valueAge } from '@/ui/age';
+import { ageLabel, countdownLabel, deviceLiveness, spanLabel, valueAge } from '@/ui/age';
 
 describe('the age beside a value', () => {
   const now = DateTime.fromISO('2026-09-18T12:00:00Z');
@@ -35,7 +35,6 @@ describe('a value still on the screen after its answer has aged', () => {
     expect(valueAge({ state: 'live', measuredAt: ago(30) }, now)).toBe('live');
     expect(valueAge({ state: 'live', measuredAt: ago(3 * 60) }, now)).toBe('stale');
     expect(valueAge({ state: 'live', measuredAt: ago(12 * 60) }, now)).toBe('offline');
-    expect(isStale({ state: 'live', measuredAt: ago(12 * 60) }, now)).toBe(true);
   });
 
   it('never freshens what the server called old, because the server knows what this side does not', () => {

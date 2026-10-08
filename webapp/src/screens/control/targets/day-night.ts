@@ -90,9 +90,6 @@ export const halvesOf = (regime: Regime): Half[] => {
   }
 };
 
-/** Whether the regime has a light schedule to set and a lamp and CO2 by day. */
-export const hasSchedule = (regime: Regime): boolean => regime === 'cycle' || regime === 'always' || regime === 'never';
-
 /** Whether the regime has a day in which the lamp shines and CO2 is dosed. */
 export const hasDay = (regime: Regime): boolean => regime === 'cycle' || regime === 'always';
 

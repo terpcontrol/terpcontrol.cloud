@@ -56,11 +56,3 @@ export const scheduleTitle = (t: Translate, schedule: LightSchedule, offset: num
   if (words.never) return t('targets.plan.never');
   return t('targets.plan.window', { on: words.on, off: words.off, hours: words.hours });
 };
-
-/** "08:00–20:00", or what stands for a window where there is none. */
-export const windowSpan = (t: Translate, schedule: LightSchedule, offset: number): string => {
-  const words = windowWords(schedule, offset);
-  if (words.always) return t('targets.plan.alwaysShort');
-  if (words.never) return t('targets.plan.neverShort');
-  return `${words.on}–${words.off}`;
-};

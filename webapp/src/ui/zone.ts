@@ -212,8 +212,6 @@ export const NARROW_DAY = 'dd.MM';
 
 export const clock = (instant: string, zone: string | null): string => zoned(instant, zone).toFormat(CLOCK);
 
-export const datedClock = (instant: string, zone: string | null): string => zoned(instant, zone).toFormat(DATED_CLOCK);
-
 /** The day an instant fell on, where the account is - because which day that is depends on the zone it is asked in. */
 export const calendarDay = (instant: string, zone: string | null): string => zoned(instant, zone).toFormat(DAY);
 
