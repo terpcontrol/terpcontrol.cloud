@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "autoMemoryEnabled": false,
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs\"",
+            "timeout": 30
+          },
+          {
+            "type": "prompt",
+            "timeout": 30,
+            "prompt": "You check, at the end of a turn, whether a coding agent working in terpcontrol.cloud - a PUBLIC repository - still has to record knowledge, or has put company knowledge into this repository. Input (the Stop hook's JSON; last_assistant_message is the agent's final reply): $ARGUMENTS\n\nIf stop_hook_active is true, answer {\"ok\": true}.\n\nAnswer {\"ok\": false, \"reason\": \"...\"} in exactly two cases:\n1. The turn produced new, lasting knowledge that a later agent cannot read from the code, and the reply does not show that it was recorded (in docs/ here, or in the private terpcontrol.com repository): a decision or instruction from a person, the reason behind something, the cause of a non-obvious failure, a procedure, a fact about the business. The reason names the knowledge and says: 'Record it with the remember skill. It decides the repository first: technical knowledge into docs/ here (English, index), company knowledge into the private terpcontrol.com repository, never here. Then end the turn.'\n2. The reply shows that company knowledge - prices, costs, margins, suppliers, customers, sales, market or competitor figures, strategy, roadmap or pricing decisions, reverse engineering of purchased hardware, legal matters - was written into this repository (docs/, code, comments, commit messages, PR descriptions). The reason names it and says: 'Move it to the private terpcontrol.com repository with the remember skill and remove it here before anything is pushed.'\n\nNever send the agent back to record secrets or server details (host names, domains, IPs, paths, users, ports, versions, services): they belong in no repository. In every other case - plain questions, routine work, knowledge that is already recorded or only matters to this conversation - answer {\"ok\": true}."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
