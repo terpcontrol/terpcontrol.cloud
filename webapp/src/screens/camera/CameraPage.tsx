@@ -661,4 +661,3 @@ const dayOf = (now: DateTime, zone: string | null): { startsAt: string; endsAt: 
 
   return { startsAt: instantOf(start), endsAt: instantOf(start.endOf('day')) };
 };
-
