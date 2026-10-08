@@ -26,7 +26,7 @@ import { assetTitle } from '@/screens/grow/scheme';
 import { climateRequest, defaultPick, KEEP_CLIMATE, usePlaceController, type PhaseClimate } from '@/screens/grow/phase-climate';
 import { dayOf, momentOn } from '@/ui/days';
 import { looseFigure, typedFigure } from '@/ui/figures';
-import { parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES, VISIT_MINUTES } from '@/ui/maintenance';
+import { maintenanceSpans, parksLine, VISIT_MINUTES } from '@/ui/maintenance';
 import { useMayManage } from '@/ui/session-access';
 import { Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
@@ -461,14 +461,7 @@ const useQuietened = (spaceId: string | null): Quietened => {
 function WhatItQuietens({ quietens }: { quietens: Quietened }) {
   const { t } = useTranslation();
   const { name, devices, among, isPending, failed } = quietens;
-  // The window, how much longer the cloud stays quiet afterwards, and the sum
-  // of the two - which is the span a grower is actually unwatched for.
-  const where = {
-    name: name ?? t('log.visit.hereFallback'),
-    minutes: VISIT_MINUTES,
-    settle: SETTLE_MINUTES,
-    quiet: quietMinutes(VISIT_MINUTES * 60),
-  };
+  const where = { name: name ?? t('log.visit.hereFallback'), ...maintenanceSpans(VISIT_MINUTES) };
 
   if (isPending) return <p className={ui.note}>{t('log.visit.reading', where)}</p>;
   if (failed || devices === null) return <p className={ui.note}>{t('log.visit.unreadable', where)}</p>;
@@ -483,7 +476,7 @@ function WhatItQuietens({ quietens }: { quietens: Quietened }) {
             <span>{deviceTitle(device, t, among)}</span>
             <span className={styles.quietensParks}>
               {' — '}
-              {parksAnything(device) ? t('log.visit.parksOutputs', { outputs: parkedLabel(t, device) }) : t('log.visit.parksNothing')}
+              {parksLine(t, device)}
             </span>
           </li>
         ))}

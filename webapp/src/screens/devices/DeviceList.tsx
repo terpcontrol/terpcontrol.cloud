@@ -1,4 +1,4 @@
-import { Camera as CameraIcon, ChevronDown, ChevronRight, Cpu, Pencil } from 'lucide-react';
+import { Camera as CameraIcon, ChevronRight, Cpu, Pencil } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -28,7 +28,7 @@ import { cameraFreshness } from './cameras';
 import { DeviceAdvanced } from './DeviceAdvanced';
 import { DeviceSettingsSheet } from './DeviceSettingsSheet';
 import { movesAnywhere } from './moving';
-import { Fact, Facts } from './Facts';
+import { Expand, Fact, Facts } from './RowParts';
 import { isLightRole, lightOutputOf } from './lights';
 import { LightOutputRow } from './LightOutputRow';
 import { ControlButton } from './ControlSwitch';
@@ -232,8 +232,15 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
           const unheard = deviceLiveness(spokeAt(device), now) === 'offline' ? t('devices.socket.offline') : null;
           const needsFirmware = !table.capabilities.socketOverride ? t('devices.socket.needsFirmware') : null;
           const refusal = unheard ?? needsFirmware;
-          const refusals = [unheard, needsFirmware].filter((one): one is string => one !== null);
-          const place = placeOf(device.spaceId) ?? deviceTitle(device, t, devices.data!.items);
+          const notes = [unheard, needsFirmware]
+            .filter((one): one is string => one !== null)
+            .map(one => (
+              <p key={one} className={ui.note}>
+                {one}
+              </p>
+            ));
+          const title = deviceTitle(device, t, devices.data!.items);
+          const place = placeOf(device.spaceId) ?? title;
           // A socket and the lamp above it are this device's configuration, which
           // is `manage` where the device stands.
           const mayManage = enough(mayWith(device), 'manage');
@@ -250,7 +257,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
                 runs={runsOf(verdicts.get(device.spaceId ?? ''), row.role)}
                 now={now}
                 capabilities={table.capabilities}
-                deviceName={deviceTitle(device, t, devices.data!.items)}
+                deviceName={title}
               />
             ));
 
@@ -261,7 +268,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
               <details className={socketStyles.listAdvanced}>
                 {/* Named for what it holds: right under a socket's own Erweitert, a second one said nothing of which was which. */}
                 <summary className="label">{t('socketForm.pair.another')}</summary>
-                <PairSocketRow deviceId={device.id} deviceName={deviceTitle(device, t, devices.data!.items)} capabilities={table.capabilities} />
+                <PairSocketRow deviceId={device.id} deviceName={title} capabilities={table.capabilities} />
               </details>
             ) : null;
 
@@ -272,13 +279,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
                   <span className="label">
                     {t('devices.lights')} · {place}
                   </span>
-                  {mayManage && lamps.length > 0
-                    ? refusals.map(one => (
-                        <p key={one} className={ui.note}>
-                          {one}
-                        </p>
-                      ))
-                    : null}
+                  {mayManage && lamps.length > 0 ? notes : null}
                   <ul className={ui.group}>
                     {light ? (
                       <LightOutputRow
@@ -303,13 +304,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
                     {t('devices.sockets')} · {place}
                     {explainSockets ? <Help topic="socketRoles" /> : null}
                   </span>
-                  {mayManage
-                    ? refusals.map(one => (
-                        <p key={one} className={ui.note}>
-                          {one}
-                        </p>
-                      ))
-                    : null}
+                  {mayManage ? notes : null}
                   <ul className={ui.group}>{plugs(rest)}</ul>
                   {pairing}
                 </section>
@@ -462,9 +457,7 @@ function DeviceRow({ device, among, place, sockets, cameras, spokeAt, now, expla
             {spokeAt ? ` · ${ageLabel(spokeAt, now)}` : ''}
           </span>
         )}
-        <button type="button" className={styles.expand} aria-expanded={open} aria-label={t('devices.details', { name: title })}>
-          {open ? <ChevronDown size={16} strokeWidth={2} aria-hidden /> : <ChevronRight size={16} strokeWidth={2} aria-hidden />}
-        </button>
+        <Expand open={open} label={t('devices.details', { name: title })} />
       </div>
 
       {open ? (

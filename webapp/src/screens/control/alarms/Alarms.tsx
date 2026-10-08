@@ -9,10 +9,10 @@ import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/clima
 import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
 import { useSpaceOverview } from '@/api/spaces';
-import { durationLabel } from '@/screens/devices/sockets';
 import { targetWithUnit } from '@/ui/units';
 import { channelsLabel, routedChannels, severityReaches } from '@/screens/notifications/reach';
 import { timeOf } from '@/screens/notifications/settings';
+import { durationLabel } from '@/ui/age';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';

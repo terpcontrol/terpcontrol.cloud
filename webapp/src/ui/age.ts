@@ -60,6 +60,13 @@ export const spanLabel = (seconds: number): string => {
   return durationFigure(Math.floor(whole / 86_400), 'd');
 };
 
+/** "30 s", "15 min", "6 h", "24 h": a length somebody chooses, in the coarsest unit the number is whole in. */
+export const durationLabel = (seconds: number): string => {
+  if (seconds < 60) return durationFigure(seconds, 's');
+  if (seconds < 3600 || seconds % 3600 !== 0) return durationFigure(Math.round(seconds / 60), 'min');
+  return durationFigure(Math.round(seconds / 3600), 'h');
+};
+
 /**
  * The same words for a span that has yet to run rather than one that already
  * has: how much of a step is left, how long an override still holds.

@@ -6,7 +6,7 @@ import { controlPath, devicesPath, timelinePath } from '@/app/places';
 import type { Alert, AlarmRule, AlarmWatch, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
-import { maintenanceQuiet, parkedLabel, parksAnything, quietMinutes, SETTLE_MINUTES } from '@/ui/maintenance';
+import { maintenanceQuiet, maintenanceSpans, parkedLabel, parksAnything, VISIT_MINUTES } from '@/ui/maintenance';
 import { repeatsEvery, ruleTitle, unitOf } from '@/screens/control/alarms/rules';
 import { ageAttribute, deviceLiveness, isAhead, offlineLabel, silentSince, sinceLabel, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
@@ -23,18 +23,11 @@ import styles from './Alerts.module.css';
 import { deviceName } from '@/ui/naming';
 import { serverNow } from '@/api/clock';
 
-/** How long a silence from the card holds, and how long maintenance does. */
+/** How long a silence from the card holds. */
 export const SILENCE_SECONDS = 3600;
-export const MAINTENANCE_SECONDS = 900;
 
-/**
- * The three spans the question and the receipt are written around: the window
- * the device is given, the settling the cloud adds to it, and the quiet a
- * grower actually gets, which is their sum. The card used to name the window
- * for all three, so a quarter of an hour was promised for a silence that ran
- * for twenty-five minutes.
- */
-const SPANS = { minutes: Math.round(MAINTENANCE_SECONDS / 60), settle: SETTLE_MINUTES, quiet: quietMinutes(MAINTENANCE_SECONDS) };
+/** The maintenance the card offers is a step-in, and the question and the receipt name all three of its spans. */
+const SPANS = maintenanceSpans(VISIT_MINUTES);
 
 type Translate = ReturnType<typeof useTranslation>['t'];
 
@@ -516,7 +509,7 @@ function OpenChips({
               disabled={busy}
               onClick={() =>
                 maintenance.mutate(
-                  { deviceId, command: { kind: 'maintenance', forSeconds: MAINTENANCE_SECONDS } },
+                  { deviceId, command: { kind: 'maintenance', forSeconds: VISIT_MINUTES * 60 } },
                   { onSuccess: () => setAsking(false) },
                 )
               }

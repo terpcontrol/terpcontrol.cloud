@@ -14,7 +14,8 @@ import { DeviceList } from '@/screens/devices/DeviceList';
 import { LightOutputRow } from '@/screens/devices/LightOutputRow';
 import { lightOutputOf, withLightLimit } from '@/screens/devices/lights';
 import { SocketRow } from '@/screens/devices/SocketRow';
-import { defaultHold, durationLabel, holdsFor, rowsOf } from '@/screens/devices/sockets';
+import { DEFAULT_HOLD_SECONDS, HOLD_SECONDS, rowsOf } from '@/screens/devices/sockets';
+import { durationLabel } from '@/ui/age';
 import { cameraFreshness } from '@/screens/devices/cameras';
 import type { OutputLevel, OverrideRequest } from '@/api/devices';
 import { spaceWhere, THE_HOST } from './session';
@@ -305,8 +306,8 @@ describe('what a row is made of', () => {
     // `pulseSeconds` is the time after the last command at which the socket
     // switches itself off, so a role that carries one is held no differently
     // from a role that does not.
-    expect(holdsFor()).toEqual([900, 3600, 4 * 3600, 8 * 3600, 86400]);
-    expect(defaultHold()).toBe(3600);
+    expect(HOLD_SECONDS).toEqual([900, 3600, 4 * 3600, 8 * 3600, 86400]);
+    expect(DEFAULT_HOLD_SECONDS).toBe(3600);
   });
 });
 
@@ -463,7 +464,7 @@ describe("the controller's own light output", () => {
     drawOutput();
     fireEvent.click(screen.getByRole('button', { name: /Details of Light output/ }));
 
-    expect(holdsFor().map(durationLabel)).toEqual(['15 min', '1 h', '4 h', '8 h', '24 h']);
+    expect(HOLD_SECONDS.map(durationLabel)).toEqual(['15 min', '1 h', '4 h', '8 h', '24 h']);
     fireEvent.click(screen.getByRole('button', { name: '4 h' }));
 
     expect(screen.getByRole('button', { name: '4 h' })).toHaveAttribute('aria-pressed', 'true');

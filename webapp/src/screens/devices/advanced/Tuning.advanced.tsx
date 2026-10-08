@@ -19,8 +19,8 @@ import { hasCo2Sensor } from '@/ui/climate-hardware';
 
 const hasDocument = (device: Device): boolean => device.configuration != null && Object.keys(device.configuration).length > 0;
 
-/** The lamp of a fridge and of a tent controller ramps over this; a stand-alone lamp keeps its own times. */
-function LightRamps({ device, mayManage }: DeviceContext) {
+/** How many minutes a lamp fades in after it comes on, and out before it goes off. */
+export function LightRamps({ device, mayManage }: DeviceContext) {
   const { t } = useTranslation();
   const unit = t('units.min');
 

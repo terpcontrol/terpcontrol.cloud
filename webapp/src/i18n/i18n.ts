@@ -1,4 +1,4 @@
-import i18next from 'i18next';
+import i18next, { type i18n as I18n } from 'i18next';
 import { Settings } from 'luxon';
 import { initReactI18next } from 'react-i18next';
 import { readStored, writeStored } from '@/ui/stored';
@@ -79,3 +79,11 @@ export const initI18n = async (): Promise<typeof i18next> => {
   document.documentElement.lang = language;
   return i18next;
 };
+
+/**
+ * Whether a text the app stored is this key in any loaded language. A reason
+ * written from here is written in the language of whoever wrote it, and stays
+ * ours after somebody reads it in the other one.
+ */
+export const saidInAnyLanguage = (i18n: I18n, key: string, text: string | null | undefined): boolean =>
+  text != null && Object.keys(i18n.store?.data ?? {}).some(language => i18n.getFixedT(language)(key) === text);

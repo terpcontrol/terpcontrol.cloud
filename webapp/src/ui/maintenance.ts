@@ -56,7 +56,7 @@ export const VISIT_MINUTES = MAINTENANCE_VISIT_SECONDS / 60;
 export const MAINTENANCE_MINUTES = [VISIT_MINUTES, 30, 60] as const;
 
 /** The minutes the cloud goes on holding a device's alarms after its window has run out. */
-export const SETTLE_MINUTES = MAINTENANCE_SETTLE_SECONDS / 60;
+const SETTLE_MINUTES = MAINTENANCE_SETTLE_SECONDS / 60;
 
 /** Whether the hardware itself changes anything, or whether the quiet is the cloud's alone. */
 export const parksAnything = (device: Device): boolean => parkedOutputs(device).length > 0;
@@ -83,6 +83,10 @@ export const parkedLabel = (t: Translate, device: Device): string => {
   return `${names.slice(0, -1).join(', ')} ${t('maintenance.and')} ${names[names.length - 1]}`;
 };
 
+/** What a window stops on this device, as the line beside its name in a list of devices. */
+export const parksLine = (t: Translate, device: Device): string =>
+  parksAnything(device) ? t('log.visit.parksOutputs', { outputs: parkedLabel(t, device) }) : t('log.visit.parksNothing');
+
 /**
  * How long the alarms really stay held, for a window of this many seconds.
  *
@@ -94,7 +98,14 @@ export const parkedLabel = (t: Translate, device: Device): string => {
  * minutes - and somebody who stepped back out at the sixteenth had ten more in
  * which a tent going wrong would have raised nothing at all.
  */
-export const quietMinutes = (windowSeconds: number): number => Math.round(windowSeconds / 60) + SETTLE_MINUTES;
+const quietMinutes = (windowSeconds: number): number => Math.round(windowSeconds / 60) + SETTLE_MINUTES;
+
+/**
+ * The three spans a sentence about a window of so many minutes is written
+ * around: the window the device is given, the settling the cloud adds to it,
+ * and the quiet a grower actually gets, which is their sum.
+ */
+export const maintenanceSpans = (minutes: number) => ({ minutes, settle: SETTLE_MINUTES, quiet: quietMinutes(minutes * 60) });
 
 /** The two ends of a quiet: when the hardware is let go, and when an alarm can be raised on it again. */
 export interface Quiet {

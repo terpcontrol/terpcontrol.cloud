@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DeviceCapabilities, DeviceCommandResult, SocketRole } from '@fg2/shared-types/v1';
+import type { DeviceCapabilities, SocketRole } from '@fg2/shared-types/v1';
 import { useRemoveSocket, useSetSocket } from '@/api/devices';
 import { Sheet } from '@/ui/Sheet';
 import { SettingRow } from '@/ui/advanced/SettingRow';
+import { durationLabel } from '@/ui/age';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { draftFor, isTimed, problemOf, rolesFor, TIMER_UNITS, timerOf, updateOf, type SocketDraft, type Span, type TimerUnit } from './socket-form';
-import { durationLabel, type SocketRowModel } from './sockets';
+import type { SocketRowModel } from './sockets';
 import styles from './Sockets.module.css';
 
 /**
@@ -97,7 +98,7 @@ export function SocketSheet({
     >
       <div className={styles.form} role={receipt ? 'status' : undefined}>
         {receipt ? (
-          <Answer receipt={receipt} sent={t(`socketForm.${word}.sent`, { device: deviceName })} device={deviceName} />
+          <p>{receipt.deviceOnline ? t(`socketForm.${word}.sent`, { device: deviceName }) : t('socketForm.unheard', { device: deviceName })}</p>
         ) : (
           <>
             {socket ? null : <p className={ui.note}>{t('socketForm.pair.intro', { device: deviceName })}</p>}
@@ -255,11 +256,6 @@ function SpanField({ label, span, disabled, onChange }: { label: string; span: S
       </select>
     </span>
   );
-}
-
-function Answer({ receipt, sent, device }: { receipt: DeviceCommandResult; sent: string; device: string }) {
-  const { t } = useTranslation();
-  return <p>{receipt.deviceOnline ? sent : t('socketForm.unheard', { device })}</p>;
 }
 
 /**
