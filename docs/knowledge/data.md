@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
 updated: 2026-10-08
-source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-01); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -103,6 +103,13 @@ Pitfalls, each met at least once:
   with the device's `settings` (`vpdLeafOffsetDay`/`Night`, 0 meaning the air's VPD; `ppfdLuxFactor`, default 0.015),
   so changing a factor changes the history. The VPD curve is `shared-types/src/v1/vpd.ts`, the one the targets screen
   uses too. Targets live in Mongo (`targetChanges`, phase snapshots).
+- **Which leaf offset a VPD takes** is the half the device was in: off the lamp for a controller, a fridge and a LIGHT
+  (a series window by the lamp's majority, from its switchings); for a smart plug, which has none, its own schedule
+  (`usedaynight`), else the newest measured still of a camera in its space (grey is night, `media.monochrome`), else
+  the night (Chris, 2026-10-08; [ADR 0006](../adr/0006-day-and-night-by-the-device-clock.md)). A plug window is read
+  at its middle. Without a schedule a plug's read costs two Mongo reads more (`StillDaylightService`: the space's
+  cameras, one `$group` of their stills by half steps), none per point. An AIR fan's VPD takes the night's offset:
+  it reports its day, but no read hands that to `vpdOf`.
 - **Written, not served:** the controller diagnostics `avg`, `p`, `i`, `d`, `rpm`, `day`, `sensor_type`.
 - **Reads** (`DataService`): a series is `aggregateWindow(mean)` over `status` and `status_daily`, empty windows kept -
   at most 1,000 windows unasked, an asked step honoured down to 5 s up to 5,000 windows, at most 50,000 points.

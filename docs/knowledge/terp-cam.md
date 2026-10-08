@@ -165,12 +165,19 @@ way and what the code has to respect. Internal notes on the camera exist.
 - `lit`: the controller's light output at capture time, else `false` for a picture too dark to show anything (mean
   luma under 24), else null, which counts as lit. Pictures meant to show plants (week, home, cockpit and grow cards)
   query `lit != false`; a week's day takes the lit still nearest midday.
+- `monochrome` (since 2026-10-08, server-side only): whether the still came out grey - the camera's night (IR) mode,
+  or a black tent - measured once when stored (`monochromeOf`, `still-light.ts`: channels under 4 of 255 apart on a
+  192-pixel copy; night stills measure 0, day stills 20-53 on the development cameras); null for an unreadable
+  picture, absent on older stills, both unknown, never backfilled. A smart plug without a schedule takes its VPD's
+  day and night from it: the newest measured still of any camera in its space speaks for its camera for ten
+  intervals plus the gap thinning has left by its age (`StillDaylightService`; Chris, 2026-10-08,
+  [ADR 0006](../adr/0006-day-and-night-by-the-device-clock.md)).
 - The camera burns its own local time into the picture; the app shows the account's zone, so a mismatch means the
   account's zone is wrong (Me > Appearance), not the app.
-- Thinning, once a day after the films: older than 1 day one per minute, 7 days one per 5 min, 30 days one per 15
-  min, 90 days one per hour (`THINNING_TIERS`). Stills the previous release still holds rows for are left alone
-  until the release that drops `legacy_*`. Stills go after 3 years; cameras without Premium only earlier where the
-  install switches that on.
+- Thinning, once a day after the films: older than 1 day one per minute, 7 days one per 5 min, 30 days one per 15 min,
+  90 days one per hour (`THINNING_TIERS`, `still-thinning.ts`). Stills the previous release still holds rows for are
+  left alone until the release that drops `legacy_*`. Stills go after 3 years; cameras without Premium only earlier
+  where the install switches that on.
 
 ## Timelapses (`timelapse.service.ts`)
 - The builder runs 60 s after start, then an hour after its previous pass ends: queued renders first (also woken

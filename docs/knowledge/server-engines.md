@@ -123,6 +123,8 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   `stepSeconds` is honoured down to 5 s until a read would pass 5000 windows (`timeline-window.ts`, which leaves an
   asked step to the store's `stepFor` in `modules/data/flux.ts`). The rail caps machine lines (system, plan) apart
   from people's lines, so they cannot push the diary out.
+- A VPD's leaf offset follows the half the device was in; a smart plug, having no lamp, takes its own schedule, else
+  the colour of its space's camera stills, else the night ([data.md](data.md#influxdb), ADR 0006).
 - The 24-hour climate verdict (`overview.service.ts`) reads 2-minute means (`VERDICT_STEP_SECONDS`): an excursion
   much shorter than that is averaged away. How a switch between day and night is judged: ADR 0006.
 - A week's light hours are lit time over heard time, refused below a day heard; a report judges each phase against
