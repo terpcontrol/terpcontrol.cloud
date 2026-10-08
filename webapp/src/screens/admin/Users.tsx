@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 import type { AdminUserUpdate, User } from '@fg2/shared-types/v1';
 import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '@/api/admin';
 import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
 import { matchesHandle } from '@/ui/handle';
-import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
+import { Refused } from '@/ui/PageState';
+import { AdminHead, AdminWaiting } from './parts';
 import { HandleField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
@@ -46,32 +46,11 @@ export function Users() {
 
   useFollowCursor(people);
 
-  const header = (
-    <header className={styles.head}>
-      <h1 className={styles.title}>{t('admin.users.title')}</h1>
-      <span className={`mono ${styles.crumb}`}>
-        <Link to="/admin/fleet">{t('admin.fleet.title')}</Link> › {t('admin.users.title')}
-      </span>
-    </header>
-  );
+  const header = <AdminHead title={t('admin.users.title')} crumb={t('admin.users.title')} />;
 
-  if (people.isPending) {
-    return (
-      <section className={styles.page}>
-        {header}
-        <Waiting lines={4} />
-      </section>
-    );
-  }
+  if (people.isPending) return <AdminWaiting head={header} />;
 
-  if (!people.data) {
-    return (
-      <section className={styles.page}>
-        {header}
-        <LoadFailed retry={() => void people.refetch()} />
-      </section>
-    );
-  }
+  if (!people.data) return <AdminWaiting head={header} retry={() => void people.refetch()} />;
 
   const all = people.data.pages.flatMap(page => page.items);
   const needle = search.trim().toLowerCase().replace(/^@/, '');
@@ -85,8 +64,7 @@ export function Users() {
 
   return (
     <section className={styles.page}>
-      <header className={styles.head}>
-        <h1 className={styles.title}>{t('admin.users.title')}</h1>
+      <AdminHead title={t('admin.users.title')}>
         <span className={`mono ${styles.counts}`}>
           {[
             t('admin.count.accounts', { count: all.length }),
@@ -108,7 +86,7 @@ export function Users() {
             {t('admin.users.create')}
           </button>
         </span>
-      </header>
+      </AdminHead>
 
       <p className={`${ui.note} ${styles.consequence}`}>{t('admin.users.privacy')}</p>
 

@@ -9,7 +9,8 @@ import { fetchedAt } from '@/api/clock';
 import { useSession } from '@/api/session';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
+import { RefreshFailed } from '@/ui/PageState';
+import { AdminHead, AdminWaiting, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { filteredRows, fleetRows, NO_FILTER, typesOf, type FleetFilter, type FleetRow } from './fleet-rows';
@@ -66,29 +67,11 @@ export function Fleet() {
   useFollowCursor(firmwares);
   useReportFreshness(fleet.dataUpdatedAt ? fetchedAt(fleet.dataUpdatedAt) : null);
 
-  const header = (
-    <header className={styles.head}>
-      <h1 className={styles.title}>{t('admin.fleet.title')}</h1>
-    </header>
-  );
+  const header = <AdminHead title={t('admin.fleet.title')} />;
 
-  if (fleet.isPending || devices.isPending) {
-    return (
-      <section className={styles.page}>
-        {header}
-        <Waiting lines={4} />
-      </section>
-    );
-  }
+  if (fleet.isPending || devices.isPending) return <AdminWaiting head={header} />;
 
-  if (!fleet.data || !devices.data) {
-    return (
-      <section className={styles.page}>
-        {header}
-        <LoadFailed retry={() => void fleet.refetch()} />
-      </section>
-    );
-  }
+  if (!fleet.data || !devices.data) return <AdminWaiting head={header} retry={() => void fleet.refetch()} />;
 
   const known: Map<string, User> = new Map((people.data?.pages ?? []).flatMap(page => page.items).map(one => [one.id, one]));
   const loadedCameras = (cameras.data?.pages ?? []).flatMap(page => page.items);
@@ -107,13 +90,12 @@ export function Fleet() {
 
   return (
     <section className={styles.page}>
-      <header className={styles.head}>
-        <h1 className={styles.title}>{t('admin.fleet.title')}</h1>
+      <AdminHead title={t('admin.fleet.title')}>
         <span className={`mono ${styles.counts}`}>
           {`${t('admin.count.devices', { count: counted })} · ${t('admin.count.online', { count: online })}`}
         </span>
         <Filters filter={filter} onChange={setFilter} types={typesOf(rows)} />
-      </header>
+      </AdminHead>
 
       <RefreshFailed failedAt={fleet.isError ? fleet.dataUpdatedAt : null} now={now} />
 
@@ -267,10 +249,7 @@ function Row({ row, now }: { row: FleetRow; now: DateTime }) {
           this install has one. */}
       <td className="mono">{row.firmwareName ?? row.firmwareId ?? '—'}</td>
       <td>
-        <span className={`mono ${styles.liveness}`} data-liveness={liveness}>
-          <span className={styles.dot} aria-hidden />
-          {row.lastSeenAt ? ageLabel(row.lastSeenAt, now) : t('admin.fleet.neverSeen')}
-        </span>
+        <Liveness state={liveness}>{row.lastSeenAt ? ageLabel(row.lastSeenAt, now) : t('admin.fleet.neverSeen')}</Liveness>
       </td>
       <td className={`mono ${styles.numbers}`}>
         {row.sockets ?? '—'} · {row.cams ?? '—'}

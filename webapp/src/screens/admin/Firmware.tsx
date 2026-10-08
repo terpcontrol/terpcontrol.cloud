@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 import type { DeviceClass, Firmware, Fleet } from '@fg2/shared-types/v1';
 import {
   useAdminDevices,
@@ -13,7 +12,8 @@ import {
   useUploadBinary,
 } from '@/api/admin';
 import { Sheet } from '@/ui/Sheet';
-import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
+import { Refused } from '@/ui/PageState';
+import { AdminHead, AdminWaiting } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, useZone, zoned } from '@/ui/zone';
@@ -48,32 +48,11 @@ export function FirmwareScreen() {
   useFollowCursor(firmwares);
   useFollowCursor(devices);
 
-  const header = (
-    <header className={styles.head}>
-      <h1 className={styles.title}>{t('admin.firmware.title')}</h1>
-      <span className={`mono ${styles.crumb}`}>
-        <Link to="/admin/fleet">{t('admin.fleet.title')}</Link> › {t('admin.firmware.title')}
-      </span>
-    </header>
-  );
+  const header = <AdminHead title={t('admin.firmware.title')} crumb={t('admin.firmware.title')} />;
 
-  if (classes.isPending || firmwares.isPending) {
-    return (
-      <section className={styles.page}>
-        {header}
-        <Waiting lines={4} />
-      </section>
-    );
-  }
+  if (classes.isPending || firmwares.isPending) return <AdminWaiting head={header} />;
 
-  if (!classes.data || !firmwares.data) {
-    return (
-      <section className={styles.page}>
-        {header}
-        <LoadFailed retry={() => void classes.refetch()} />
-      </section>
-    );
-  }
+  if (!classes.data || !firmwares.data) return <AdminWaiting head={header} retry={() => void classes.refetch()} />;
 
   const builds = firmwares.data.pages.flatMap(page => page.items);
   const known = classes.data.items;

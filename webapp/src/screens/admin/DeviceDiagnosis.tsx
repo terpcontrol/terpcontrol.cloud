@@ -11,6 +11,7 @@ import { ageLabel, deviceLiveness } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
 import { foldRepeats } from '@/ui/entries';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
+import { AdminHead, AdminWaiting, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { serverNow } from '@/api/clock';
@@ -47,32 +48,11 @@ export function DeviceDiagnosis() {
   const people = useAdminUsers();
   useFollowCursor(people);
 
-  const head = (
-    <header className={styles.head}>
-      <h1 className={styles.title}>{t('admin.diagnosis.title')}</h1>
-      <span className={`mono ${styles.crumb}`}>
-        <Link to="/admin/fleet">{t('admin.fleet.title')}</Link> › {deviceId}
-      </span>
-    </header>
-  );
+  const head = <AdminHead title={t('admin.diagnosis.title')} crumb={deviceId} />;
 
-  if (device.isPending) {
-    return (
-      <section className={styles.page}>
-        {head}
-        <Waiting lines={4} />
-      </section>
-    );
-  }
+  if (device.isPending) return <AdminWaiting head={head} />;
   if (!device.data) {
-    return noLongerThere(device.error) ? (
-      <NoLongerHere what="device" />
-    ) : (
-      <section className={styles.page}>
-        {head}
-        <LoadFailed retry={() => void device.refetch()} />
-      </section>
-    );
+    return noLongerThere(device.error) ? <NoLongerHere what="device" /> : <AdminWaiting head={head} retry={() => void device.refetch()} />;
   }
 
   const one = device.data;
@@ -95,12 +75,7 @@ export function DeviceDiagnosis() {
         {owner ? <Fact label={t('admin.diagnosis.zone')} value={owner.preferences.timezone ?? t('admin.diagnosis.noZone')} /> : null}
         <Fact
           label={t('admin.diagnosis.lastSeen')}
-          value={
-            <span className={`mono ${styles.liveness}`} data-liveness={deviceLiveness(seen, now)}>
-              <span className={styles.dot} aria-hidden />
-              {seen ? ageLabel(seen, now) : t('admin.fleet.neverSeen')}
-            </span>
-          }
+          value={<Liveness state={deviceLiveness(seen, now)}>{seen ? ageLabel(seen, now) : t('admin.fleet.neverSeen')}</Liveness>}
         />
         <Fact label={t('admin.diagnosis.firmware')} value={<Build device={one} />} />
         {one.spaceId ? <Place spaceId={one.spaceId} /> : <Fact label={t('admin.diagnosis.place')} value={t('admin.fleet.noPlace')} />}
