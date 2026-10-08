@@ -98,7 +98,13 @@ export declare const lightWindowTimes: (window: LightWindow) => {
     day: number;
     night: number;
 };
-/** When the light goes off, in seconds past midnight UTC: the hour it comes on again for a light that never goes off, or never comes on. */
+/**
+ * When the light goes off, in seconds past midnight UTC, for saying it and for
+ * drawing it: the hour it comes on again for a light that never goes off, or
+ * never comes on. The times a document is written with are another matter - a
+ * whole day, no day and a light off at midnight UTC each have their own form
+ * there (`lightWindowTimes`).
+ */
 export declare const lightsOffOf: (window: LightWindow) => number;
 /** What the firmware decides a fridge's or a controller's day and night from, as its document states it. */
 export interface Cycle {

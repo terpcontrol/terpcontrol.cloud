@@ -135,7 +135,13 @@ export const lightWindowTimes = (window: LightWindow): { day: number; night: num
   return { day: on, night: off === 0 ? DAY_SECONDS - 1 : off };
 };
 
-/** When the light goes off, in seconds past midnight UTC: the hour it comes on again for a light that never goes off, or never comes on. */
+/**
+ * When the light goes off, in seconds past midnight UTC, for saying it and for
+ * drawing it: the hour it comes on again for a light that never goes off, or
+ * never comes on. The times a document is written with are another matter - a
+ * whole day, no day and a light off at midnight UTC each have their own form
+ * there (`lightWindowTimes`).
+ */
 export const lightsOffOf = (window: LightWindow): number => wrap(window.lightsOn + Math.round(window.lightHours * 3600));
 
 /* ---------------------------------------------------------------- the cycle */
