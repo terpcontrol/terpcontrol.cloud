@@ -1,9 +1,10 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { DateTime } from 'luxon';
+import { DateTime, Settings } from 'luxon';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FollowedGrowCard, HomeAnswer } from '@fg2/shared-types/v1';
 import { Following } from '@/screens/me/sharing/Following';
 import { drawAt, json, NOT_FOUND } from './harness';
+import { meWith } from './session';
 import { translate } from './translations';
 
 /**
@@ -37,13 +38,18 @@ const followed: FollowedGrowCard = {
   updatedAt: NOW.minus({ hours: 3 }).toISO()!,
 };
 
-const server = { home: { spaces: [], followedGrows: [followed], people: [], layers: { diary: true } } as HomeAnswer, unfollowed: [] as string[] };
+const server = {
+  home: { spaces: [], followedGrows: [followed], people: [], layers: { diary: true } } as HomeAnswer,
+  unfollowed: [] as string[],
+  zone: 'Europe/Berlin',
+};
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
   const method = init?.method ?? 'GET';
 
   if (path === '/home') return json(server.home);
+  if (path === '/me') return json(meWith({ preferences: { ...meWith().preferences, timezone: server.zone } }));
   if (path === '/follows' && method === 'GET') {
     return json({
       items: server.home.followedGrows.map(row => ({ id: `follow-${row.growId}`, userId: 'user-1', growId: row.growId, createdAt: NOW.toISO() })),
@@ -68,6 +74,7 @@ beforeEach(() => {
   session.demo = false;
   server.home = { spaces: [], followedGrows: [followed], people: [], layers: { diary: true } };
   server.unfollowed = [];
+  server.zone = 'Europe/Berlin';
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -80,6 +87,20 @@ describe('the followed grows', () => {
     expect(screen.getByText(/Day 51 · Flower · 3 h ago/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Autoflower run/ })).toHaveAttribute('href', '/g/autoflower-run');
     expect(screen.getByText('Following', { selector: 'span.label' }).nextElementSibling).toHaveTextContent('1 grow');
+  });
+
+  it('dates a finished diary on the account’s calendar rather than the browser’s', async () => {
+    // 22:31 UTC is still the 30th in Los Angeles and already the 1st in Tokyo.
+    server.home = { ...server.home, followedGrows: [{ ...followed, endedAt: '2026-09-30T22:31:00.000Z' }] };
+    server.zone = 'Asia/Tokyo';
+    Settings.defaultZone = 'America/Los_Angeles';
+    try {
+      draw();
+
+      expect(await screen.findByText(/ended 1 Oct 2026/)).toBeInTheDocument();
+    } finally {
+      Settings.defaultZone = 'system';
+    }
   });
 
   it('stops following from the tile, and the grow leaves the list', async () => {

@@ -9,13 +9,14 @@ import { calendarDay } from '@/ui/zone';
  * way wherever it is listed - among the diaries somebody follows and on its
  * author's profile. A finished diary says so and keeps its day number, which
  * is the day it ended on; the age beside it dates the last line rather than
- * the end.
+ * the end. The end date is read in the zone the caller draws in: the
+ * account's on a signed-in screen, the reader's own on a public page.
  */
-export const followedMeta = (t: Translate, grow: FollowedGrowCard, now: DateTime): string =>
+export const followedMeta = (t: Translate, grow: FollowedGrowCard, now: DateTime, zone: string | null): string =>
   [
     grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null,
     grow.stage ? t(`home.stage.${grow.stage}`) : null,
-    grow.endedAt ? t('grow.ended', { date: calendarDay(grow.endedAt, null) }) : null,
+    grow.endedAt ? t('grow.ended', { date: calendarDay(grow.endedAt, zone) }) : null,
     t('home.card.ago', { age: ageLabel(grow.updatedAt, now) }),
   ]
     .filter(Boolean)

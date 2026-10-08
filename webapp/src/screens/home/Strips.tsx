@@ -99,6 +99,7 @@ export function FollowingStrip({ grows, now }: { grows: FollowedGrowCard[]; now:
  */
 export function FollowedTile({ grow, now }: { grow: FollowedGrowCard; now: DateTime }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const cover = grow.coverMediaId ? publicPicture(grow.slug)(grow.coverMediaId, PUBLIC_WIDTH.card) : null;
 
   return (
@@ -108,7 +109,7 @@ export function FollowedTile({ grow, now }: { grow: FollowedGrowCard; now: DateT
         <span className={styles.tileTitle}>
           @{grow.handle} · {grow.name}
         </span>
-        <span className={`mono ${styles.tileMeta}`}>{followedMeta(t, grow, now)}</span>
+        <span className={`mono ${styles.tileMeta}`}>{followedMeta(t, grow, now, zone)}</span>
       </Link>
       <FollowButton growId={grow.growId} />
     </li>

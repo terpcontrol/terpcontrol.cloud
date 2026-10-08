@@ -104,7 +104,7 @@ function DiaryCard({ grow, now, own }: { grow: FollowedGrowCard; now: DateTime; 
         <Photo src={cover} alt="" className={styles.cardCover} fallback={<Leaf size={22} strokeWidth={1.5} aria-hidden />} />
         <span className={styles.cardText}>
           <span className={`name ${styles.cardTitle}`}>{grow.name}</span>
-          <span className={`mono ${styles.cardMeta}`}>{followedMeta(t, grow, now)}</span>
+          <span className={`mono ${styles.cardMeta}`}>{followedMeta(t, grow, now, null)}</span>
         </span>
       </Link>
       {own ? null : <FollowButton growId={grow.growId} />}
