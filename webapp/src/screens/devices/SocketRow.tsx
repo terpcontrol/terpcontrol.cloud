@@ -12,7 +12,7 @@ import { isTimed } from './socket-form';
 import { defaultHold, durationLabel, holdsFor, TEST_SECONDS, type SocketRowModel } from './sockets';
 import { SocketAdvanced, SocketTimerBlock } from './SocketSheets';
 import styles from './Devices.module.css';
-import { refusalText } from '@/ui/refusal';
+import { Refused } from '@/ui/PageState';
 
 /** How long a press has to be held before it counts as asking for a time rather than for a switch. */
 const HOLD_MS = 450;
@@ -265,13 +265,7 @@ function Receipt({ result, error, pending }: { result?: { deviceOnline: boolean 
   const { t } = useTranslation();
 
   if (pending) return <p className={`${ui.note} ${styles.socketWhy}`}>{t('devices.socket.asking')}</p>;
-  if (error) {
-    return (
-      <p className={`${ui.problem} ${styles.socketWhy}`} role="alert">
-        {refusalText(error, t('devices.socket.askFailed'))}
-      </p>
-    );
-  }
+  if (error) return <Refused error={error} fallback={t('devices.socket.askFailed')} className={styles.socketWhy} />;
   if (!result) return null;
 
   return (

@@ -17,7 +17,7 @@ import { Fact, Facts } from './Facts';
 import { LEVEL_STEP, percentLabel, withLightLimit, type LightOutput } from './lights';
 import { defaultHold, durationLabel, holdsFor } from './sockets';
 import styles from './Devices.module.css';
-import { refusalText } from '@/ui/refusal';
+import { Refused } from '@/ui/PageState';
 
 interface LightOutputRowProps {
   output: LightOutput;
@@ -383,13 +383,7 @@ function Saved({ save, paused }: { save: Mutation & { isSuccess: boolean }; paus
 
   if (save.isPending || paused.isPending) return <p className={`${ui.note} ${styles.socketWhy}`}>{t('devices.lightOutput.saving')}</p>;
   const failed = save.error ?? paused.error;
-  if (failed) {
-    return (
-      <p className={`${ui.problem} ${styles.socketWhy}`} role="alert">
-        {refusalText(failed, t('devices.lightOutput.saveFailed'))}
-      </p>
-    );
-  }
+  if (failed) return <Refused error={failed} fallback={t('devices.lightOutput.saveFailed')} className={styles.socketWhy} />;
 
   return save.isSuccess ? (
     <p className={`${ui.note} ${styles.socketWhy}`} role="status">
@@ -411,13 +405,7 @@ function Asked({ ask, heldFor }: { ask: Mutation & { data?: { deviceOnline: bool
   const { t } = useTranslation();
 
   if (ask.isPending) return <p className={`${ui.note} ${styles.socketWhy}`}>{t('devices.socket.asking')}</p>;
-  if (ask.error) {
-    return (
-      <p className={`${ui.problem} ${styles.socketWhy}`} role="alert">
-        {refusalText(ask.error, t('devices.socket.askFailed'))}
-      </p>
-    );
-  }
+  if (ask.error) return <Refused error={ask.error} fallback={t('devices.socket.askFailed')} className={styles.socketWhy} />;
   if (!ask.data) return null;
 
   if (!ask.data.deviceOnline) {

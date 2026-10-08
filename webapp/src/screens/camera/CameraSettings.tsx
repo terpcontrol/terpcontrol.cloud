@@ -18,7 +18,7 @@ import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import styles from './CameraPage.module.css';
-import { refusalText } from '@/ui/refusal';
+import { Refused } from '@/ui/PageState';
 
 /**
  * What the camera itself is set to: how it is reached, what it is pointed at,
@@ -282,11 +282,7 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
         </Row>
       </ul>
 
-      {update.error ? (
-        <p className={ui.problem} role="alert">
-          {refusalText(update.error, t('camera.saveFailed'))}
-        </p>
-      ) : null}
+      <Refused error={update.error} fallback={t('camera.saveFailed')} />
 
       {mayManage ? (
         <div className={styles.settingActions}>

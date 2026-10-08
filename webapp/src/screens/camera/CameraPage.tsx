@@ -18,7 +18,7 @@ import { rowReaches } from '@/screens/notifications/reach';
 import { useCameraCalled } from '@/ui/camera-name';
 import { ageLabel, deviceLiveness, instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
-import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
+import { LoadFailed, NoLongerHere, Refused, Waiting } from '@/ui/PageState';
 import { enough, useMayWith } from '@/ui/session-access';
 import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
@@ -359,11 +359,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
               {t('camera.makeOne')}
             </button>
           ) : null}
-          {ask.error ? (
-            <p className={ui.problem} role="alert">
-              {refusalText(ask.error, t('camera.askFailed'))}
-            </p>
-          ) : null}
+          <Refused error={ask.error} fallback={t('camera.askFailed')} />
           {job ? <Film mediaId={job.id} mayOwn={mayOwn} /> : null}
           {shownFilms.length > 0 ? (
             <ul className={`${ui.group} ${styles.films}`} aria-label={t('camera.timelapses')}>

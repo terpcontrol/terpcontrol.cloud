@@ -3,13 +3,12 @@ import { useTranslation } from 'react-i18next';
 import type { HomeAnswer, HomeSpaceCard } from '@fg2/shared-types/v1';
 import { isPlace, type PlaceCard as Place } from '@/app/places';
 import { useMe } from '@/api/account';
-import { fetchedAt } from '@/api/clock';
 import { useDevices } from '@/api/devices';
 import { useMyGrows } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
 import { useSession } from '@/api/session';
-import { ageLabel } from '@/ui/age';
+import { LoadFailed, RefreshFailed } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { EmptyHome } from './EmptyHome';
@@ -38,7 +37,6 @@ import styles from './Home.module.css';
  * again: a refresh that fails keeps the last answer with its ages.
  */
 export function Home() {
-  const { t } = useTranslation();
   const home = useHome();
   // The sheet is held here rather than in the list, because the first thing it
   // writes - a grow, or the place to stand it in - can change which Start is
@@ -46,18 +44,7 @@ export function Home() {
   const [starting, setStarting] = useState(false);
 
   if (home.isPending) return <Waiting />;
-  if (home.isError && !home.data) {
-    return (
-      <section className={styles.page}>
-        <p className={ui.problem} role="alert">
-          {t('shell.loadFailed')}
-        </p>
-        <button type="button" className={ui.button} onClick={() => void home.refetch()}>
-          {t('home.retry')}
-        </button>
-      </section>
-    );
-  }
+  if (home.isError && !home.data) return <LoadFailed retry={() => void home.refetch()} />;
 
   const answer = home.data!;
   const places = answer.spaces.filter(isPlace);
@@ -159,11 +146,7 @@ function Places({
           whoever hears the page rather than sees it. */}
       <h1 className={styles.hiddenTitle}>{t('shell.tabs.home')}</h1>
 
-      {failedAt ? (
-        <p className={`mono ${styles.failed}`} role="status">
-          {t('home.refreshFailed', { age: ageLabel(fetchedAt(failedAt), now) })}
-        </p>
-      ) : null}
+      <RefreshFailed failedAt={failedAt} now={now} />
 
       {/* It says itself whether anything here can call on the account - a device, a camera, a reminder. */}
       <NotifyNotice later />

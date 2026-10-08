@@ -19,16 +19,17 @@ import { refusalText } from '@/ui/refusal';
  * Anything that is not a problem document never reached the server at all - a
  * dropped connection, a request that timed out - and is said as that. It is a
  * write that was refused rather than a page that would not load, so it offers
- * the same tap again rather than a gesture.
+ * the same tap again rather than a gesture - in the caller's `fallback` where
+ * it can say what was being tried.
  */
-export function Refused({ error }: { error: unknown }) {
+export function Refused({ error, fallback, className }: { error: unknown; fallback?: string; className?: string }) {
   // Subscribed so the sentence is written again when the language changes.
   useTranslation();
   if (!error) return null;
 
   return (
-    <p className={ui.problem} role="alert">
-      {refusalText(error)}
+    <p className={className ? `${ui.problem} ${className}` : ui.problem} role="alert">
+      {refusalText(error, fallback)}
     </p>
   );
 }
