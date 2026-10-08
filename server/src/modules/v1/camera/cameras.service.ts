@@ -84,9 +84,14 @@ export class CamerasService {
     return this.cameras.findOne({ deviceId, kind: 'terpcam_controller', removedAt: null }).lean<CameraDocument>();
   }
 
-  /** Only the two paths that open a stream ask for this; every other read leaves the secret behind. */
+  /**
+   * Only the two paths that open a stream ask for this; every other read leaves
+   * the secret behind. Both read a live camera, so a tombstone is none: a
+   * camera taken away is no longer read from, by the test button or by a pass
+   * of the poller that listed it before it went.
+   */
   public withSecret(id: string): Promise<CameraWithSecret | null> {
-    return this.cameras.findOne({ id }).select('+secret').lean<CameraWithSecret>();
+    return this.cameras.findOne({ id, removedAt: null }).select('+secret').lean<CameraWithSecret>();
   }
 
   /** Every camera the pipeline reads from: live ones, whatever kind. */

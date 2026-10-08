@@ -155,7 +155,8 @@ way and what the code has to respect. Internal notes on the camera exist.
 - Giving a device up (`releaseClaim`) tombstones its cameras and clears `deviceId`, `uid`, `ip` and `secret` but
   keeps `did`, so the same person pairing again gets the row and its entitlement back.
 - `did`, `uid`, `ip`, `url` and `state.lastError` are served to owner and admins only; members, links and the demo
-  get them redacted. A removed camera stays as a tombstone so its pictures keep their link.
+  get them redacted. A removed camera stays as a tombstone so its pictures keep their link, and nothing reads from
+  it: the poller passes it by, and a test capture is 404 `camera_not_found` (`withSecret` finds live rows only).
 - The old app stored a paired Terp Cam as `terpcam://<did>` (earlier `okam://<did>`) in its RTSP field; only
   migration `008-cameras` reads that (`TERPCAM_STREAM_PREFIXES` in `server/src/migrations/legacy.ts`), and it dates
   `state.lastStillAt` by the newest legacy still.
