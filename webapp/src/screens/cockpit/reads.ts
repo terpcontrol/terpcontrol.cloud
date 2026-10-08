@@ -1,5 +1,6 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import type { Device, DeviceLive, DeviceSeries, Metric, SpaceOverview } from '@fg2/shared-types/v1';
+import { STEERED } from '@fg2/shared-types/v1-schemas/steering.js';
 import { api } from '@/api/client';
 import { serverNow } from '@/api/clock';
 import { DEVICES_REFRESH_MS } from '@/api/devices';
@@ -51,7 +52,6 @@ export const useDaySeries = (deviceId: string | null, metric: Metric, enabled: b
 
 /** Five minutes a point: windows the server aligns to the clock, small enough that the hour is not cut short by one. */
 const HOUR_STEP_SECONDS = 300;
-const STEERED_METRICS: Metric[] = ['temperature', 'humidity', 'co2'];
 
 /**
  * The mean of each steered reading over the last hour, beside the live value:
@@ -65,7 +65,7 @@ export const useHourMeans = (deviceId: string | null) =>
     queryFn: async ({ signal }) => {
       const endsAt = serverNow().toUTC().startOf('minute');
       const query = new URLSearchParams([
-        ...STEERED_METRICS.map(metric => ['metrics', metric]),
+        ...STEERED.map(metric => ['metrics', metric]),
         ['startsAt', endsAt.minus({ hours: 1 }).toISO()!],
         ['endsAt', endsAt.toISO()!],
         ['stepSeconds', String(HOUR_STEP_SECONDS)],

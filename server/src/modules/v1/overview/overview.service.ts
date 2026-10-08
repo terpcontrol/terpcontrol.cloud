@@ -13,7 +13,7 @@ import type {
   SpaceOverview,
   Setpoints,
 } from '@fg2/shared-types/v1';
-import { growDayAt, growOriginOf, metric as metricSchema, outputMetric } from '@fg2/shared-types/v1-schemas';
+import { STEERED, growDayAt, growOriginOf, metric as metricSchema, outputMetric } from '@fg2/shared-types/v1-schemas';
 import { cycleOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { AccessRange, Grant } from '@common/v1/access.types';
 import { clampRange, seenOf, withinRange } from '@common/v1/range';
@@ -38,7 +38,7 @@ import { dueTasksOf, occurrencePrefix } from '../home/due-tasks';
 import { liveOfDevice, mergeLive, setpointOf } from '../space/space-live';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
-import { STEERED, verdictOf } from './climate-verdict';
+import { verdictOf } from './climate-verdict';
 import { openAlertReader } from '../home/open-alerts';
 
 /**
@@ -176,6 +176,7 @@ export class OverviewService {
       this.redactionFor(grant, grows),
       steering
         ? this.data.series(steering.deviceId, {
+            // Only the metrics a band can be drawn around: nothing is fetched the verdict has nothing to say about.
             metrics: STEERED,
             // Every output in the same read: what the verdict counts runs of, and
             // the light it tells day from night by.

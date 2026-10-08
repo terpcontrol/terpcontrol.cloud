@@ -22,6 +22,7 @@ import type {
 import { germinationChoicesOf } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { switchPointName, workModeOf, type PlugMode, type PlugSwitching } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { lightsOffOf, roundTheClock, utcSecondsOf } from '@fg2/shared-types/v1-schemas/day-night.js';
+import { STEERED, TARGET_BAND, type Steered } from '@fg2/shared-types/v1-schemas/steering.js';
 import { timelinePath } from '@/app/places';
 import { fieldValue } from '@/ui/advanced/field-values';
 import { offlineLabel, sinceLabel, valueAge } from '@/ui/age';
@@ -46,9 +47,6 @@ import { plugModeOf } from '../control/devices/own-summary';
 
 /** The tiles a cockpit can draw, in the order it draws them. `leaf` is the tent's leaf-and-light tile, which reads two sensors. */
 export type TileKey = 'temperature' | 'humidity' | 'light' | 'co2' | 'leaf';
-
-/** The three readings a target is held for, which are the ones with a band, a verdict and outputs that move them. */
-export type Steered = 'temperature' | 'humidity' | 'co2';
 
 /**
  * The device that holds the place's climate: the first one whose document
@@ -145,14 +143,12 @@ export interface HumidifierHold {
   band: number;
 }
 
-const HUMIDITY_BAND = 5;
-
 /** What a humidifier holds now, or null: the device does not germinate, has no humidifier paired, or the grower lets it rest. */
 export const humidifierHoldOf = (device: Device | null, humidifierPaired: boolean): HumidifierHold | null => {
   if (!humidifierPaired || darkReasonOf(device) !== 'germination' || !device?.configuration) return null;
   if (!germinationChoicesOf(device.control?.germinationChoices).humidifierHolds) return null;
   const target = figureOf(device.configuration, 'night', 'humidity');
-  return target === null ? null : { target, band: HUMIDITY_BAND };
+  return target === null ? null : { target, band: TARGET_BAND.humidity! };
 };
 
 /**
@@ -526,8 +522,6 @@ export interface StatusInput {
   /** The humidity a humidifier holds while the device germinates, which the server names no target for. */
   humidifierHold?: HumidifierHold | null;
 }
-
-const STEERED: Steered[] = ['temperature', 'humidity', 'co2'];
 
 export const statusOf = (place: StatusInput, now: DateTime): Status => {
   const liveness: Liveness = livenessOf(place, now);

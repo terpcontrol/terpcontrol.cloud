@@ -1,8 +1,8 @@
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { isSection } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { STEERED } from '@fg2/shared-types/v1-schemas';
 import { SETTLE_SECONDS, cycleOf, type Cycle } from '@fg2/shared-types/v1-schemas/day-night.js';
-import { STEERED } from '@common/v1/steering';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { settlingOf, type RecordedClimate, type Settling } from '../device/held-targets';
 import { targetsOf } from './phase-targets';

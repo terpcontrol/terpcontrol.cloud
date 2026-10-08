@@ -445,18 +445,6 @@ export declare const outputMetric: z.ZodEnum<{
     fanBackwall: "fanBackwall";
 }>;
 /**
- * How far either side of its target a reading still counts as on target: the
- * green band a chart draws, and what "in band" means in a verdict.
- *
- * It is one tolerance per metric rather than the controller's own hysteresis,
- * which differs per output, per hardware type and per firmware: a band read off
- * the control laws would mean something different on every device, and none of
- * them is what a grower means by "the humidity held". A metric that is not named
- * here is not steered and has no band. Stated once, like `VALUE_AGE`, so the
- * server decides and no client works it out.
- */
-export declare const TARGET_BAND: Readonly<Partial<Record<z.infer<typeof metric>, number>>>;
-/**
  * How many decimals a reading of a metric is worth.
  *
  * A window of a series is a mean of what a device reported, and the mean of two

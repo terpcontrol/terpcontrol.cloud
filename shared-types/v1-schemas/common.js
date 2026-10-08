@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.METRIC_DECIMALS = exports.TARGET_BAND = exports.outputMetric = exports.metric = exports.schemeWeek = exports.schemeAmount = exports.accountLayers = exports.diaryChoice = exports.unitPreference = exports.volumeUnit = exports.weightUnit = exports.temperatureUnit = exports.growOrSpaceRef = exports.growOrSpaceType = exports.shareKind = exports.reminderKind = exports.growType = exports.spaceKind = exports.planStatus = exports.grantKind = exports.mediaKind = exports.cameraKind = exports.seriesPoint = exports.metricValue = exports.valueState = exports.socketRole = exports.planTransitionKind = exports.notificationChannel = exports.webhookMethod = exports.alertKind = exports.severity = exports.entrySource = exports.entryKind = exports.person = exports.memberRole = exports.germinationChoices = exports.growthStage = exports.subjectRef = exports.problem = exports.problemError = exports.page = exports.bytes = exports.anyValue = exports.id = exports.instant = exports.named = exports.registry = void 0;
+exports.METRIC_DECIMALS = exports.outputMetric = exports.metric = exports.schemeWeek = exports.schemeAmount = exports.accountLayers = exports.diaryChoice = exports.unitPreference = exports.volumeUnit = exports.weightUnit = exports.temperatureUnit = exports.growOrSpaceRef = exports.growOrSpaceType = exports.shareKind = exports.reminderKind = exports.growType = exports.spaceKind = exports.planStatus = exports.grantKind = exports.mediaKind = exports.cameraKind = exports.seriesPoint = exports.metricValue = exports.valueState = exports.socketRole = exports.planTransitionKind = exports.notificationChannel = exports.webhookMethod = exports.alertKind = exports.severity = exports.entrySource = exports.entryKind = exports.person = exports.memberRole = exports.germinationChoices = exports.growthStage = exports.subjectRef = exports.problem = exports.problemError = exports.page = exports.bytes = exports.anyValue = exports.id = exports.instant = exports.named = exports.registry = void 0;
 const zod_1 = require("zod");
 /**
  * The base of the `/v1` wire contract: the registry, the scalar helpers, the
@@ -308,18 +308,6 @@ exports.schemeWeek = (0, exports.named)('SchemeWeek', zod_1.z.object({
 exports.metric = (0, exports.named)('Metric', zod_1.z.enum(['temperature', 'humidity', 'co2', 'leafTemperature', 'lux', 'vpd', 'ppfd', 'offline']));
 /** A controller's outputs, as a series. Their state is what the timeline draws under the climate charts. */
 exports.outputMetric = (0, exports.named)('OutputMetric', zod_1.z.enum(['heater', 'dehumidifier', 'co2', 'light', 'fan', 'relais', 'fanInternal', 'fanExternal', 'fanBackwall']));
-/**
- * How far either side of its target a reading still counts as on target: the
- * green band a chart draws, and what "in band" means in a verdict.
- *
- * It is one tolerance per metric rather than the controller's own hysteresis,
- * which differs per output, per hardware type and per firmware: a band read off
- * the control laws would mean something different on every device, and none of
- * them is what a grower means by "the humidity held". A metric that is not named
- * here is not steered and has no band. Stated once, like `VALUE_AGE`, so the
- * server decides and no client works it out.
- */
-exports.TARGET_BAND = { temperature: 1, humidity: 5, co2: 200 };
 /**
  * How many decimals a reading of a metric is worth.
  *

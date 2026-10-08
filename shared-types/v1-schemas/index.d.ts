@@ -25,3 +25,4 @@ export * from './day-night.js';
 export * from './capture.js';
 export * from './plan-clock.js';
 export * from './value-age.js';
+export * from './steering.js';

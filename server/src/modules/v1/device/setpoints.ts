@@ -1,8 +1,8 @@
 import type { CardTransition, Metric, Setpoints, SetpointsTransition, TargetBand } from '@fg2/shared-types/v1';
 import { figureAt } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { DAY_ONLY } from '@fg2/shared-types/v1-schemas';
 import { cycleAt, cycleOf, glidingTarget, type CycleMoment } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { reportsNoSensor } from '@common/v1/sentinels';
-import { DAY_ONLY } from '@common/v1/steering';
 import { bandAround, HELD, unionOf, type Held, type Settling } from './held-targets';
 
 /**

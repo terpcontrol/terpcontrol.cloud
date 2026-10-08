@@ -11,10 +11,9 @@ import type {
   TimelineTarget,
   TimelineTargets,
 } from '@fg2/shared-types/v1';
-import { METRIC_DECIMALS, TARGET_BAND, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { DAY_ONLY, METRIC_DECIMALS, TARGET_BAND, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
 import { cycleKindOf, nightsIn, transitionsIn, type Cycle, type Span } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { OUTPUT_LEVEL } from '@common/v1/metrics';
-import { DAY_ONLY } from '@common/v1/steering';
 import type { DeviceHistory, OutputHistory } from '@modules/data/data.service';
 import type { OutputSwitching } from '@modules/data/flux';
 import { halvesHeld, recordedBandAt, unionOf, type RecordedClimate } from '../device/held-targets';

@@ -55,5 +55,7 @@ __exportStar(require("./day-night.js"), exports);
 __exportStar(require("./capture.js"), exports);
 __exportStar(require("./plan-clock.js"), exports);
 // Also without a schema: how old a value is, which the server answers and the
-// screens age further.
+// screens age further; and which readings a controller steers and how far from
+// a target still counts as on it.
 __exportStar(require("./value-age.js"), exports);
+__exportStar(require("./steering.js"), exports);

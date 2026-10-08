@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { CardSetpoint, CardValue, Device, DeviceLive, Metric, OverviewTargets, SpaceTimeline, TimelinePanel } from '@fg2/shared-types/v1';
+import { STEERED, type Steered } from '@fg2/shared-types/v1-schemas/steering.js';
 import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
 import { Term } from '@/ui/Help';
@@ -34,7 +35,6 @@ import {
   verdictOf,
   type HumidifierHold,
   type OutputState,
-  type Steered,
   type TileKey,
   type Verdict,
 } from './place';
@@ -69,9 +69,7 @@ export function Tiles(props: TilesProps) {
   const { values, device, live } = props;
   const lit = lightWindowOf(device, props.now, null) !== null || live?.outputs.light?.value != null;
   // What "in band" means is said on the first tile that is judged against a band, and on no other.
-  const judged = (['temperature', 'humidity', 'co2'] as Steered[]).find(
-    metric => verdictOf(valueOf(values, metric), setpointOf(props.setpoints, metric), props.now)?.kind === 'in',
-  );
+  const judged = STEERED.find(metric => verdictOf(valueOf(values, metric), setpointOf(props.setpoints, metric), props.now)?.kind === 'in');
 
   return (
     <div className={styles.tiles}>
