@@ -24,6 +24,7 @@ import { DoneCard, RhythmCard, TaskCard } from './tasks/TaskCard';
 import {
   dateLabel,
   dayLabel,
+  entryKindOf,
   GROUPS,
   groupOf,
   isMine,
@@ -248,8 +249,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
    * nobody was writing.
    */
   const doneLabel = (task: Task) => {
-    const kind = task.kind === 'chore' || task.kind === 'custom' ? 'note' : task.kind;
-    const what = task.source === 'plan_step' ? t('tasks.stepConfirmed') : t(`home.entryKind.${kind}`);
+    const what = task.source === 'plan_step' ? t('tasks.stepConfirmed') : t(`home.entryKind.${entryKindOf(task.kind)}`);
     const name = nameOf(task);
     return name ? `${what} · ${name}` : what;
   };

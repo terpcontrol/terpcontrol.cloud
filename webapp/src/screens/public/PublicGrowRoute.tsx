@@ -1,14 +1,11 @@
 import { useEffect } from 'react';
 import { useParams } from 'react-router';
 import { publicPicture, usePublicGrow, usePublicGrowWeeks } from '@/api/public';
-import { noLongerThere } from '@/api/problem';
 import { session } from '@/api/session';
 import { FollowButton } from './FollowButton';
-import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
 import { Diary } from './Diary';
-import { Nothing } from './Nothing';
-import { PublicShell } from './PublicShell';
+import { PublicShell, PublicUnread } from './PublicShell';
 
 /**
  * `/g/{slug}`: the address somebody pastes into a message.
@@ -34,25 +31,7 @@ export function PublicGrowRoute() {
     void session.restore();
   }, []);
 
-  if (grow.isPending) {
-    return (
-      <PublicShell>
-        <Waiting lines={4} />
-      </PublicShell>
-    );
-  }
-
-  if (!grow.data) {
-    return (
-      <PublicShell>
-        {noLongerThere(grow.error) ? (
-          <Nothing titleKey="publicPage.noDiary.title" bodyKey="publicPage.noDiary.body" />
-        ) : (
-          <LoadFailed retry={() => void grow.refetch()} />
-        )}
-      </PublicShell>
-    );
-  }
+  if (!grow.data) return <PublicUnread read={grow} lines={4} titleKey="publicPage.noDiary.title" bodyKey="publicPage.noDiary.body" />;
 
   // Beside the author, which is where the Following screen and the empty home
   // both say it is. The id is null for a diary that has no public page of its

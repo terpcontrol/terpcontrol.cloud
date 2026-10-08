@@ -1,7 +1,7 @@
-import type { DateTime } from 'luxon';
-import type { GrowListItem, GrowOrSpaceRef, Reminder, Space, Task } from '@fg2/shared-types/v1';
+import { DateTime } from 'luxon';
+import type { EntryKind, GrowListItem, GrowOrSpaceRef, Reminder, ReminderKind, Space, Task } from '@fg2/shared-types/v1';
 import { readStored, writeStored } from '@/ui/stored';
-import { DAY, nowThere, WEEKDAY_DAY, zoned } from '@/ui/zone';
+import { clock, DAY, nowThere, WEEKDAY_DAY, zoned } from '@/ui/zone';
 
 /**
  * The arithmetic of the Tasks tab, kept apart from the drawing so it can be
@@ -32,6 +32,24 @@ export const GROUPS: Group[] = ['today', 'tomorrow', 'week'];
  */
 export const daysUntil = (dueAt: string, now: DateTime, zone: string | null): number =>
   Math.floor(zoned(dueAt, zone).startOf('day').diff(nowThere(now, zone).startOf('day'), 'days').days);
+
+/**
+ * "today", "tomorrow", "in 3 d", or how overdue: a task counted down on the
+ * account's calendar as this tab counts it. With `since`, a task due today
+ * whose hour has passed says since when, rather than "today" an hour after it
+ * fell due.
+ */
+export const dueLabel = (t: Translate, dueAt: string, now: DateTime, zone: string | null, { since = false } = {}): string => {
+  const days = daysUntil(dueAt, now, zone);
+  if (days < 0) return t('home.strip.overdue', { count: -days });
+  if (days === 0 && since && DateTime.fromISO(dueAt) < now) return t('home.strip.dueSince', { time: clock(dueAt, zone) });
+  if (days === 0) return t('home.strip.today');
+  if (days === 1) return t('home.strip.tomorrow');
+  return t('home.strip.inDays', { count: days });
+};
+
+/** The diary line ticking a task off writes: a chore or a task of one's own is a note, the rest are what they say. */
+export const entryKindOf = (kind: ReminderKind): EntryKind => (kind === 'chore' || kind === 'custom' ? 'note' : kind);
 
 export const groupOf = (task: Task, now: DateTime, zone: string | null): Group => {
   const days = daysUntil(task.dueAt, now, zone);

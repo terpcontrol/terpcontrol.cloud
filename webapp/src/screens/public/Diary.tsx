@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowHarvest, PublicAuthor, PublicGrowPage } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type EarlierWeeks, type Picture } from '@/api/public';
+import { initials } from '@/ui/handle';
 import ui from '@/ui/ui.module.css';
 import { DiaryWeek } from './DiaryWeek';
 import { Photo } from '@/ui/Photo';
@@ -131,7 +132,7 @@ function Author({ author, picture, aside }: { author: PublicAuthor; picture: Pic
 
   const name = (
     <>
-      <Photo src={avatar} alt="" className={styles.avatar} fallback={author.handle.slice(0, 2).toUpperCase()} />
+      <Photo src={avatar} alt="" className={styles.avatar} fallback={initials(author.handle)} />
       <span className={styles.handle}>@{author.handle}</span>
     </>
   );
