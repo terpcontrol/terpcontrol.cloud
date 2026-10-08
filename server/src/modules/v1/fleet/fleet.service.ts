@@ -25,10 +25,7 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StoredFirmware } from '@database/schemas/v1/firmwares.schema';
 import { StoredFirmwareBinary } from '@database/schemas/v1/firmware-binaries.schema';
 import { logger } from '@utils/logger';
-import { UPGRADE_TIMEOUT_MS } from './firmware-rollout.service';
-
-/** The channels a class names a current build for; `manual` names none. */
-const RELEASE_CHANNELS = ['stable', 'beta', 'alpha'] as const;
+import { RELEASE_CHANNELS, updateFilters } from './firmware-rollout.service';
 
 /**
  * The builds this cloud hands out and the classes they are handed out to.
@@ -113,7 +110,11 @@ export class FleetService implements OnModuleInit, OnApplicationShutdown {
     return { items: page.items.map(serialiseClass), nextCursor: page.nextCursor };
   }
 
-  public async requireClass(id: string): Promise<StoredDeviceClass> {
+  public async readClass(id: string): Promise<DeviceClass> {
+    return serialiseClass(await this.requireClass(id));
+  }
+
+  private async requireClass(id: string): Promise<StoredDeviceClass> {
     const deviceClass = await this.classes.findOne({ id }).lean<StoredDeviceClass>();
     if (!deviceClass) throw notFound('device_class_not_found', 'There is no device class with that id.');
 
@@ -214,7 +215,7 @@ export class FleetService implements OnModuleInit, OnApplicationShutdown {
     return { classId: device.classId, $or: [{ wasStable: true }, { createdAt: { $gt: newestStable.createdAt } }, { id: { $in: own } }] };
   }
 
-  public async requireFirmware(id: string): Promise<StoredFirmware> {
+  private async requireFirmware(id: string): Promise<StoredFirmware> {
     const firmware = await this.firmwares.findOne({ id }).lean<StoredFirmware>();
     if (!firmware) throw notFound('firmware_not_found', 'There is no firmware build with that id.');
 
@@ -247,9 +248,7 @@ export class FleetService implements OnModuleInit, OnApplicationShutdown {
   public async removeFirmware(id: string): Promise<void> {
     await this.requireFirmware(id);
 
-    const pointedAt = await this.classes.exists({
-      $or: [{ 'firmwareIds.stable': id }, { 'firmwareIds.beta': id }, { 'firmwareIds.alpha': id }],
-    });
+    const pointedAt = await this.classes.exists({ $or: RELEASE_CHANNELS.map(channel => ({ [`firmwareIds.${channel}`]: id })) });
     if (pointedAt) throw conflict('firmware_in_use', 'A channel of a device class still points at this build. Point it elsewhere first.');
 
     await this.binaries.deleteMany({ firmwareId: id });
@@ -315,10 +314,7 @@ export class FleetService implements OnModuleInit, OnApplicationShutdown {
 
   private async firmwareStats(classId: string, build: StoredFirmware, now: Date): Promise<FleetFirmwareStats> {
     const running = { classId, 'state.firmwareId': build.id };
-    // Told to install this build and not yet reporting it: still going inside
-    // the window, given up afterwards.
-    const partway = { classId, 'firmware.targetId': build.id, 'state.firmwareId': { $ne: build.id } };
-    const deadline = new Date(now.getTime() - UPGRADE_TIMEOUT_MS);
+    const partway = updateFilters(build.id, now);
 
     const [durations] = await this.devices.aggregate<{ average: number; longest: number }>([
       { $match: { 'state.firmwareId': build.id, 'state.updateStartedAt': { $ne: null }, 'state.updateEndedAt': { $ne: null } } },
@@ -337,8 +333,8 @@ export class FleetService implements OnModuleInit, OnApplicationShutdown {
       name: build.name,
       total: await this.devices.countDocuments(running),
       online: await this.devices.countDocuments({ ...running, 'state.lastSeenAt': { $gte: onlineSince(now) } }),
-      updating: await this.devices.countDocuments({ ...partway, 'state.updateStartedAt': { $gte: deadline } }),
-      failed: await this.devices.countDocuments({ ...partway, 'state.updateStartedAt': { $lt: deadline } }),
+      updating: await this.devices.countDocuments({ classId, ...partway.updating }),
+      failed: await this.devices.countDocuments({ classId, ...partway.failed }),
       averageUpdateMs: durations ? Math.round(durations.average) : null,
       maxUpdateMs: durations ? Math.round(durations.longest) : null,
     };
@@ -349,7 +345,7 @@ export class FleetService implements OnModuleInit, OnApplicationShutdown {
 const defined = <T extends object>(body: T): Partial<T> => Object.fromEntries(Object.entries(body).filter(([, v]) => v !== undefined)) as Partial<T>;
 
 /** Field by field, because `_id` rides along on a lean document and never leaves the server. */
-export const serialiseClass = (row: StoredDeviceClass): DeviceClass => ({
+const serialiseClass = (row: StoredDeviceClass): DeviceClass => ({
   id: row.id,
   createdAt: row.createdAt.toISOString(),
   name: row.name,
@@ -360,7 +356,7 @@ export const serialiseClass = (row: StoredDeviceClass): DeviceClass => ({
   rollout: { paused: row.rollout.paused, percent: row.rollout.percent },
 });
 
-export const serialiseFirmware = (row: StoredFirmware): Firmware => ({
+const serialiseFirmware = (row: StoredFirmware): Firmware => ({
   id: row.id,
   createdAt: row.createdAt.toISOString(),
   classId: row.classId,

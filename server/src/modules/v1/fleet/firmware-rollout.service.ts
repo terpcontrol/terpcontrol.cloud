@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { createHash } from 'node:crypto';
 import { FirmwareChannel } from '@fg2/shared-types/v1';
+import { firmwareChannel } from '@fg2/shared-types/v1-schemas';
 import { BackgroundWork, logIfItFails } from '@common/background-work';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { startedNow } from '@common/v1/firmware-instruction';
@@ -29,14 +30,27 @@ import { DevicePublisherService } from '@modules/device-protocol/device-publishe
  */
 
 /** After this, a device that was told to update and has not reported back has failed. */
-export const UPGRADE_TIMEOUT_MS = 10 * 60 * 1000;
+const UPGRADE_TIMEOUT_MS = 10 * 60 * 1000;
 
 const INSTRUCTION_INITIAL_DELAY_MS = 30 * 1000;
 const INSTRUCTION_MAX_DELAY_MS = 24 * 60 * 60 * 1000;
 const SWEEP_INTERVAL_MS = 10 * 1000;
 
 /** The channels a class hands a build out on. `manual` is the absence of one and is never swept. */
-const CHANNELS: readonly Exclude<FirmwareChannel, 'manual'>[] = ['stable', 'beta', 'alpha'];
+export const RELEASE_CHANNELS = firmwareChannel.exclude(['manual']).options;
+
+/** Told before this and still not back is a failed update rather than a running one. */
+export const updateDeadline = (now: Date): Date => new Date(now.getTime() - UPGRADE_TIMEOUT_MS);
+
+/** Told to install the build and not yet reporting it: still going inside the window, given up afterwards. */
+export const updateFilters = (firmwareId: string, now: Date) => {
+  const deadline = updateDeadline(now);
+  const owing = { 'firmware.targetId': firmwareId, 'state.firmwareId': { $ne: firmwareId } };
+  return {
+    updating: { ...owing, 'state.updateStartedAt': { $gte: deadline } },
+    failed: { ...owing, 'state.updateStartedAt': { $lt: deadline } },
+  };
+};
 
 @Injectable()
 export class FirmwareRolloutService implements OnModuleInit, OnApplicationShutdown, DevicePresenceSink {
@@ -131,7 +145,7 @@ export class FirmwareRolloutService implements OnModuleInit, OnApplicationShutdo
       if (this.work.isStopped) break;
       if (deviceClass.rollout.paused) continue;
 
-      for (const channel of CHANNELS) {
+      for (const channel of RELEASE_CHANNELS) {
         const firmwareId = deviceClass.firmwareIds[channel];
         // A channel with no build on it has nothing to roll out, and a pass made
         // for one would record the devices it picked as updating to nothing.
@@ -142,12 +156,11 @@ export class FirmwareRolloutService implements OnModuleInit, OnApplicationShutdo
 
   private async sweepChannel(deviceClass: StoredDeviceClass, channel: FirmwareChannel, firmwareId: string): Promise<void> {
     const now = new Date();
-    const deadline = new Date(now.getTime() - UPGRADE_TIMEOUT_MS);
     const onChannel: FilterQuery<StoredDevice> = { classId: deviceClass.id, 'firmware.channel': channel };
-    const partway: FilterQuery<StoredDevice> = { ...onChannel, 'firmware.targetId': firmwareId, 'state.firmwareId': { $ne: firmwareId } };
+    const partway = updateFilters(firmwareId, now);
 
-    const updating = await this.devices.countDocuments({ ...partway, 'state.updateStartedAt': { $gte: deadline } });
-    const failed = await this.devices.countDocuments({ ...partway, 'state.updateStartedAt': { $lt: deadline } });
+    const updating = await this.devices.countDocuments({ ...onChannel, ...partway.updating });
+    const failed = await this.devices.countDocuments({ ...onChannel, ...partway.failed });
 
     const room = deviceClass.concurrentUpdates - updating;
     if (room <= 0 || failed >= deviceClass.maxFailures) return;
@@ -200,7 +213,7 @@ export class FirmwareRolloutService implements OnModuleInit, OnApplicationShutdo
    */
   private async closeFailedUpdates(): Promise<void> {
     const failedAt = new Date();
-    const deadline = new Date(failedAt.getTime() - UPGRADE_TIMEOUT_MS);
+    const deadline = updateDeadline(failedAt);
 
     // Heard from since the instruction and since the last verdict: a device that
     // has not been cannot have written that it was told again.

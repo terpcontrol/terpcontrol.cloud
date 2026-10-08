@@ -15,7 +15,7 @@ import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { AlarmHealthService } from '@modules/alarm/alarm-health.service';
 import { ClimateRetentionService } from '@modules/retention/climate-retention.service';
-import { UPGRADE_TIMEOUT_MS } from './firmware-rollout.service';
+import { updateDeadline } from './firmware-rollout.service';
 
 /**
  * How the install itself is doing: the figures the fleet screen's health card
@@ -106,7 +106,7 @@ export class AdminStatsService {
       this.devices.countDocuments({}),
       this.devices.countDocuments({ ownerId: { $ne: null } }),
       this.devices.countDocuments({ 'state.lastSeenAt': { $gte: onlineSince(now) } }),
-      this.devices.countDocuments({ ...partway, 'state.updateStartedAt': { $gte: new Date(now.getTime() - UPGRADE_TIMEOUT_MS) } }),
+      this.devices.countDocuments({ ...partway, 'state.updateStartedAt': { $gte: updateDeadline(now) } }),
     ]);
 
     return { total, claimed, online, updating };
