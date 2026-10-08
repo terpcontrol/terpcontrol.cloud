@@ -1114,7 +1114,7 @@ namespace fg {
       }
       else {
         co2_low_count = 0;
-        co2_warning_triggered = true;
+        co2_warning_triggered = false;
       }
     }
 
