@@ -112,7 +112,6 @@ writeFileSync(planFile, JSON.stringify(plan.slice(1)));
 const answer = () => {
   const write = () => {
     if (run.stderr) process.stderr.write(run.stderr);
-    if (run.stdout) process.stdout.write(Buffer.from(run.stdout, 'base64'));
     process.exit(run.exit ?? 0);
   };
 

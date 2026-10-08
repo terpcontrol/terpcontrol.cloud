@@ -11,7 +11,7 @@ export type Method = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options';
  * gets its own X-Forwarded-For. Without that, unrelated specs would exhaust
  * each other's login and signup budgets.
  */
-const randomIp = (): string => `10.${randomInt(1, 254)}.${randomInt(1, 254)}.${randomInt(1, 254)}`;
+export const randomIp = (): string => `10.${randomInt(1, 254)}.${randomInt(1, 254)}.${randomInt(1, 254)}`;
 
 export const unique = (prefix: string): string => `${prefix}-${randomBytes(6).toString('hex')}`;
 

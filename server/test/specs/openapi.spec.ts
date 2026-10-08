@@ -3,6 +3,7 @@ import addFormats from 'ajv-formats';
 import supertest from 'supertest';
 import { anonymous, ApiClient, context, createAccount, loginAsAdmin, Method, Session, unique } from '../support/api';
 import { claimCodeOf, DeviceCredentials, provisionDevice, registerDevice } from '../support/device';
+import { A_PICTURE } from '../support/fixtures';
 
 /**
  * The API document, and whether it tells the truth.
@@ -480,10 +481,10 @@ describe('the document', () => {
   });
 
   it('refuses a picture size and a byte range it cannot serve, and says so in the document', async () => {
-    const picture = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR42mP4z8DAAMIM/4EAAB/uBfvxq7p3AAAAAElFTkSuQmCC', 'base64');
     const grow = (await owner.client.post('/v1/grows').send({ name: 'Sized', type: 'photoperiod', plants: [] }).expect(201)).body;
-    const media = (await owner.client.post('/v1/media').field('kind', 'photo').field('growId', grow.id).attach('file', picture, 'a.png').expect(201))
-      .body;
+    const media = (
+      await owner.client.post('/v1/media').field('kind', 'photo').field('growId', grow.id).attach('file', A_PICTURE, 'a.png').expect(201)
+    ).body;
 
     for (const path of ['/v1/media/{id}/content', '/v1/public/grows/{slug}/media/{id}']) {
       expect(declaredQuery(path).width.schema).toMatchObject({ type: 'integer' });

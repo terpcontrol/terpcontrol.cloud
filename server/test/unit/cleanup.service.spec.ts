@@ -1,4 +1,4 @@
-import { ObjectId } from 'mongodb';
+import type { mongo } from 'mongoose';
 import { Model } from 'mongoose';
 import { ImageStore } from '@database/image-store';
 import { MODEL_V1 } from '@database/models';
@@ -59,7 +59,7 @@ const storeBytes = async (mediaId: string, uploadedAt: Date) => {
   await store.upload(mediaId, Buffer.from(`bytes of ${mediaId}`));
   // A file carries the media id as its `_id`, where the driver's types expect an
   // ObjectId - the store writes it the same way.
-  const fileId = mediaId as unknown as ObjectId;
+  const fileId = mediaId as unknown as mongo.ObjectId;
   await db.connection.db!.collection('imagedata.files').updateOne({ _id: fileId }, { $set: { uploadDate: uploadedAt } });
 };
 

@@ -1,13 +1,6 @@
 import { spawn } from 'node:child_process';
-import { join } from 'node:path';
 import { context } from '../support/api';
-
-const SERVER_ROOT = join(__dirname, '..', '..');
-
-const entryPoint = () =>
-  process.env.HARNESS_BUILT === '1'
-    ? { script: 'dist/main.js', nodeArgs: [] as string[] }
-    : { script: 'src/main.ts', nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] };
+import { entryPoint, SERVER_ROOT } from '../support/infra/app';
 
 interface Outcome {
   code: number | null;

@@ -1,5 +1,5 @@
 import { createAccount, Session } from '../support/api';
-import { DeviceCredentials, DeviceSimulator, provisionDevice, settle, startSimulator } from '../support/device';
+import { DeviceCredentials, DeviceSimulator, provisionDevice, settle, startSimulator, utcSecondsOf } from '../support/device';
 
 /**
  * Day and night over HTTP and MQTT: what a fridge and a controller are sent
@@ -10,9 +10,6 @@ import { DeviceCredentials, DeviceSimulator, provisionDevice, settle, startSimul
 
 const HOUR = 3600;
 const MINUTES = 60_000;
-
-/** The UTC time of day of an instant, in the seconds a device keeps its schedule in. */
-const utcSecondsOf = (at: number): number => Math.floor(at / 1000) % 86_400;
 
 let owner: Session;
 

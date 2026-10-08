@@ -1,11 +1,12 @@
-import { randomInt } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { hash } from 'bcrypt';
-import { Db, MongoClient, ObjectId } from 'mongodb';
+import { mongo } from 'mongoose';
 import supertest from 'supertest';
-import { context } from '../support/api';
+import { context, randomIp } from '../support/api';
+import { entryPoint, SERVER_ROOT } from '../support/infra/app';
 import { freePort } from '../support/infra/ports';
+import { runMigrationCli } from '../support/migration-cli';
 
 /**
  * Signing in afterwards, as the person whose account was migrated.
@@ -23,14 +24,8 @@ import { freePort } from '../support/infra/ports';
  * as long as the old app ran and has to sign in here.
  */
 
-const SERVER_ROOT = join(__dirname, '..', '..');
 const DATABASE = 'legacy-account-spec';
 const PASSWORD = 'correct horse battery';
-
-const entryPoint = (built: string, source: string) =>
-  process.env.HARNESS_BUILT === '1'
-    ? { script: built, nodeArgs: [] as string[] }
-    : { script: source, nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] };
 
 interface Account {
   /** What it is a case of, which is also what a failure is named by. */
@@ -60,27 +55,10 @@ const ACCOUNTS: Account[] = [
   { key: 'never an administrator', username: 'root-none@example.test', is_active: true, expect: { status: 201, isAdmin: false } },
 ];
 
-const migrate = (...args: string[]): Promise<{ code: number | null; output: string }> => {
-  const entry = entryPoint('dist/migrations/cli.js', 'src/migrations/cli.ts');
-  const child = spawn('node', [...entry.nodeArgs, entry.script, ...args], {
-    cwd: SERVER_ROOT,
-    env: { ...process.env, ...context.appEnv, DB_DATABASE: DATABASE },
-  });
-
-  let output = '';
-  child.stdout.on('data', chunk => (output += String(chunk)));
-  child.stderr.on('data', chunk => (output += String(chunk)));
-
-  return new Promise((resolve, reject) => {
-    child.on('error', reject);
-    child.on('exit', code => resolve({ code, output }));
-  });
-};
-
 /** A server of its own, serving the migrated database. Its own log directory, so it stays out of the suite's. */
 const start = async (): Promise<{ url: string; stop: () => Promise<void> }> => {
   const port = await freePort();
-  const entry = entryPoint('dist/main.js', 'src/main.ts');
+  const entry = entryPoint();
   const child = spawn('node', [...entry.nodeArgs, entry.script], {
     cwd: SERVER_ROOT,
     env: {
@@ -126,19 +104,16 @@ const start = async (): Promise<{ url: string; stop: () => Promise<void> }> => {
 
 /** The API rate-limits sign-ins per client address and trusts one proxy hop, so each attempt comes from its own. */
 const signIn = (url: string, email: string) =>
-  supertest(url)
-    .post('/v1/sessions')
-    .set('X-Forwarded-For', `10.${randomInt(1, 254)}.${randomInt(1, 254)}.${randomInt(1, 254)}`)
-    .send({ email, password: PASSWORD });
+  supertest(url).post('/v1/sessions').set('X-Forwarded-For', randomIp()).send({ email, password: PASSWORD });
 
-let client: MongoClient;
-let database: Db;
+let client: mongo.MongoClient;
+let database: mongo.Db;
 let server: { url: string; stop: () => Promise<void> };
 
 jest.setTimeout(300_000);
 
 beforeAll(async () => {
-  client = new MongoClient(context.mongoUri);
+  client = new mongo.MongoClient(context.mongoUri);
   await client.connect();
   database = client.db(DATABASE);
   await database.dropDatabase();
@@ -148,7 +123,7 @@ beforeAll(async () => {
   const passwordHash = await hash(PASSWORD, 10);
   await database.collection('users').insertMany(
     ACCOUNTS.map(account => ({
-      _id: new ObjectId(),
+      _id: new mongo.ObjectId(),
       username: account.username,
       password: passwordHash,
       user_id: `user-${account.username.split('@')[0]}`,
@@ -158,7 +133,7 @@ beforeAll(async () => {
     })) as never[],
   );
 
-  expect((await migrate()).code).toBe(0);
+  expect((await runMigrationCli(DATABASE)).code).toBe(0);
   server = await start();
 });
 

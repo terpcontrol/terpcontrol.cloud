@@ -1,4 +1,5 @@
 import { anonymous, context, createAccount, demoSession, login, loginAsAdmin, Session, unique } from '../support/api';
+import { A_PICTURE } from '../support/fixtures';
 
 /**
  * What a token is still good for.
@@ -19,9 +20,6 @@ import { anonymous, context, createAccount, demoSession, login, loginAsAdmin, Se
  */
 
 const PASSWORD = 'Passw0rd!test';
-
-/** A 2x2 PNG, which is all any of these need to have a picture at all. */
-const A_PICTURE = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR42mP4z8DAAMIM/4EAAB/uBfvxq7p3AAAAAElFTkSuQmCC', 'base64');
 
 let admin: Session;
 

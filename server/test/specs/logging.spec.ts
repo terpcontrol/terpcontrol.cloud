@@ -1,10 +1,8 @@
 import { anonymous, context, createAccount, Session, unique } from '../support/api';
-import { provisionDevice, registerDevice } from '../support/device';
+import { provisionDevice, registerDevice, settle } from '../support/device';
 import { diaryEntriesOf } from '../support/fixtures';
 import { serverLog as logContents } from '../support/logs';
 import { takeTestPicture } from '../support/test-picture';
-
-const settle = (ms = 300) => new Promise(resolve => setTimeout(resolve, ms));
 
 let owner: Session;
 

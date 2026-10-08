@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { delimiter, join } from 'node:path';
 
 export const SERVER_ROOT = join(__dirname, '..', '..', '..');
-const LOG_DIR = join(SERVER_ROOT, 'test', '.tmp', 'logs');
+export const LOG_DIR = join(SERVER_ROOT, 'test', '.tmp', 'logs');
 
 // The image endpoints shell out to ffmpeg, and what they run it with - and what
 // they make of what it answers - is not visible through HTTP. The app finds a
@@ -11,7 +11,7 @@ const LOG_DIR = join(SERVER_ROOT, 'test', '.tmp', 'logs');
 // unless a spec has armed one or the stream is on another machine. See
 // support/ffmpeg.ts.
 const FFMPEG_BIN_DIR = join(SERVER_ROOT, 'test', 'support', 'infra', 'fake-bin');
-const FFMPEG_STATE_DIR = join(SERVER_ROOT, 'test', '.tmp', 'ffmpeg');
+export const FFMPEG_STATE_DIR = join(SERVER_ROOT, 'test', '.tmp', 'ffmpeg');
 
 export interface AppEnvironment {
   port: number;
@@ -32,10 +32,10 @@ export interface AppEnvironment {
  * has its own decorator and path handling, and a suite that never exercises it
  * would not notice it breaking.
  */
-const entryPoint = () =>
+export const entryPoint = (built = 'dist/main.js', source = 'src/main.ts') =>
   process.env.HARNESS_BUILT === '1'
-    ? { script: 'dist/main.js', nodeArgs: [] as string[] }
-    : { script: 'src/main.ts', nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] };
+    ? { script: built, nodeArgs: [] as string[] }
+    : { script: source, nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] };
 
 export const buildEnv = (environment: AppEnvironment): NodeJS.ProcessEnv => {
   const mongo = new URL(environment.mongoUri);

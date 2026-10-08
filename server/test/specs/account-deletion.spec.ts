@@ -1,9 +1,19 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { join } from 'node:path';
 import { anonymous, context, createAccount, demoSession, login, loginAsAdmin, Session, unique } from '../support/api';
 import { claimCodeOf, provisionDevice } from '../support/device';
-import { beginDeletionOf, diaryEntriesOf, joinSpace, remindSpace, rowsIn, seedRow, storeCameraStill, storedImageExists } from '../support/fixtures';
+import {
+  A_PICTURE,
+  beginDeletionOf,
+  diaryEntriesOf,
+  joinSpace,
+  remindSpace,
+  rowsIn,
+  seedRow,
+  storeCameraStill,
+  storedImageExists,
+} from '../support/fixtures';
+import { entryPoint, SERVER_ROOT } from '../support/infra/app';
 
 /**
  * Deleting an account, and everything the account is.
@@ -18,11 +28,6 @@ import { beginDeletionOf, diaryEntriesOf, joinSpace, remindSpace, rowsIn, seedRo
  * The device is the other half. It is not deleted, it is handed back: the
  * hardware is still out there, and somebody has to be able to claim it again.
  */
-
-const SERVER_ROOT = join(__dirname, '..', '..');
-
-/** A 2x2 PNG, small enough to be stored a dozen times without mattering. */
-const A_PICTURE = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR42mP4z8DAAMIM/4EAAB/uBfvxq7p3AAAAAElFTkSuQmCC', 'base64');
 
 interface Household {
   owner: Session;
@@ -500,11 +505,8 @@ describe('a run that was interrupted', () => {
     const home = await aHousehold();
     await beginDeletionOf(home.owner.userId);
 
-    const built = process.env.HARNESS_BUILT === '1';
-    const script = built ? 'dist/main.js' : 'src/main.ts';
-    const nodeArgs = built ? [] : ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'];
-
-    const child = spawn('node', [...nodeArgs, script], {
+    const entry = entryPoint();
+    const child = spawn('node', [...entry.nodeArgs, entry.script], {
       cwd: SERVER_ROOT,
       // Port 0, so this one does not want the port the running server holds -
       // which is also why the database is polled rather than a probe.
