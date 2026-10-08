@@ -586,7 +586,7 @@ describe('what is in the zip', () => {
     // The settings are JSON because they are nested, and the two secrets of an
     // account are in none of it.
     const settings = JSON.parse(files.get('account.json')!.toString('utf8'));
-    expect(settings).toMatchObject({ handle: 'owner', email: 'owner@test.invalid', privacy: { hideWeights: false }, retention: {} });
+    expect(settings).toMatchObject({ handle: 'owner', email: 'owner@test.invalid', privacy: { hideWeights: true, hideCounts: true }, retention: {} });
     expect(files.get('account.json')!.toString('utf8')).not.toContain('passwordHash');
     expect(files.get('account.json')!.toString('utf8')).not.toContain('activationCode');
 

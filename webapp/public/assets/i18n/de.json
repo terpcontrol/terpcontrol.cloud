@@ -3273,7 +3273,6 @@
       "cancel": "Abbrechen",
       "demo": "Die Demo darf alles ansehen und nichts ändern, sie kann also keine Kamera hinzufügen.",
       "tab": {
-        "standalone": "Terp Cam · eigenständig",
         "rtsp": "RTSP",
         "terpcam": "Terp Cam"
       },
@@ -3313,11 +3312,6 @@
         "looksAtHint": "Kronendach, Seitenansicht …",
         "save": "Speichern",
         "saving": "Wird gespeichert…"
-      },
-      "standalone": {
-        "label": "Eigenständige Terp Cam",
-        "text": "Kommt per Handy in dein WLAN (QR-Code auf der Cam). Hängt an einem Ort ohne Gerät, bekommt eigene Zeitraffer, Premium für 12 Monate enthalten.",
-        "coming": "Kommt bald."
       },
       "rtsp": {
         "label": "RTSP-Kamera",

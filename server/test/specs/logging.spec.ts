@@ -47,9 +47,17 @@ describe('what the server writes down', () => {
   it('never writes a camera password down, or hands one back', async () => {
     const device = await provisionDevice(owner);
     const password = `cam-secret-${Date.now()}`;
+    // Opened by the cloud itself rather than through the device, which is never
+    // heard from: what fails is then ffmpeg, with the address in its command line.
     const camera = await owner.client
       .post('/v1/cameras')
-      .send({ kind: 'rtsp', deviceId: device.deviceId, name: 'Nothing here', url: `rtsp://camera-user:${password}@127.0.0.1:1/nothing-here` })
+      .send({
+        kind: 'rtsp',
+        deviceId: device.deviceId,
+        tunnel: false,
+        name: 'Nothing here',
+        url: `rtsp://camera-user:${password}@127.0.0.1:1/nothing-here`,
+      })
       .expect(201);
 
     // The failure message quotes the whole ffmpeg command line, which carries
@@ -75,6 +83,7 @@ describe('what the server writes down', () => {
       .send({
         kind: 'rtsp',
         deviceId: device.deviceId,
+        tunnel: false,
         name: 'Nothing here either',
         url: `rtsp://camera-user:${password}@127.0.0.1:1/nothing-here`,
         logErrors: true,

@@ -694,6 +694,8 @@ describe('applying a climate preset', () => {
 
     expect(applied.stage).toBe('flowering');
     expect(configured[0].settings).toMatchObject({ day: { temperature: 24, humidity: 45 }, night: { temperature: 18, humidity: 45 } });
+    // Still enriched, if less than flower's 1000, rather than back to outdoor air.
+    expect(configured[0].settings.co2).toEqual({ target: 600 });
   });
 
   it('keeps an autoflower under a long day in flower, because it never gets the 12/12 flip', async () => {

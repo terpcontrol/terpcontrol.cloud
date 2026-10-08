@@ -184,7 +184,11 @@ export class CamerasService {
       secret: null,
       url: body.kind === 'rtsp' ? streamUrl(null, body) : null,
       transport: body.kind === 'rtsp' ? (body.transport ?? null) : null,
-      tunnel: body.kind === 'rtsp' ? (body.tunnel ?? false) : false,
+      // Pulled through the device it names unless the body says otherwise: the
+      // tunnel reaches an address on a home network with no port opened to the
+      // internet. UDP does not pass through a tunnel, so a stream read over it
+      // is opened by the cloud itself.
+      tunnel: body.kind === 'rtsp' ? (body.tunnel ?? (device !== null && body.transport !== 'udp')) : false,
       model: body.kind === 'rtsp' ? (body.model ?? null) : 'terp_cam',
       stillIntervalSeconds: body.stillIntervalSeconds ?? DEFAULT_STILL_INTERVAL_SECONDS,
       nightOff: body.nightOff ?? false,

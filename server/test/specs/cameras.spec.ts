@@ -71,6 +71,31 @@ describe('adding a camera', () => {
     expect(created.body).toMatchObject({ deviceId: fridge.deviceId, tunnel: true });
   });
 
+  it('pulls a stream through the device it names unless told otherwise, and opens one read over UDP itself', async () => {
+    const unsaid = await owner.client
+      .post('/v1/cameras')
+      .send(rtsp({ deviceId: device.deviceId }))
+      .expect(201);
+    expect(unsaid.body).toMatchObject({ deviceId: device.deviceId, tunnel: true });
+
+    const direct = await owner.client
+      .post('/v1/cameras')
+      .send(rtsp({ deviceId: device.deviceId, tunnel: false }))
+      .expect(201);
+    expect(direct.body).toMatchObject({ deviceId: device.deviceId, tunnel: false });
+
+    // UDP does not pass through a tunnel, so the default does not send it there.
+    const overUdp = await owner.client
+      .post('/v1/cameras')
+      .send(rtsp({ deviceId: device.deviceId, transport: 'udp' }))
+      .expect(201);
+    expect(overUdp.body).toMatchObject({ deviceId: device.deviceId, transport: 'udp', tunnel: false });
+
+    // Without a device there is no tunnel to pull it through.
+    const deviceless = await owner.client.post('/v1/cameras').send(rtsp()).expect(201);
+    expect(deviceless.body).toMatchObject({ deviceId: null, tunnel: false });
+  });
+
   it('makes the Terp Cam a fridge module pairs at its display, and adopts it rather than doubling it', async () => {
     const fridge = await provisionDevice(owner, 'fridge');
     const simulator = await startSimulator(fridge);

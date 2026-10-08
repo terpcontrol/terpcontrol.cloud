@@ -116,8 +116,8 @@ export class CamerasController {
   public async create(@Caller() ctx: AccessContext, @V1Body(cameraCreate) body: CameraCreate): Promise<Camera> {
     // A Terp Cam is reached over a relay its device opens to the cloud, and one
     // paired at no device has nobody to open it. The kind stays in the model, but
-    // the tab says it is coming rather than taking a camera it would never read a
-    // picture from.
+    // no camera is taken that the cloud would never read a picture from; the app
+    // does not offer one.
     if (body.kind === 'terpcam_standalone') {
       throw badRequest('not_yet', 'Pairing a standalone Terp Cam is coming: a Terp Cam is reached through the device it is paired at.');
     }

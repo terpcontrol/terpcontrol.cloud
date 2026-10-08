@@ -589,7 +589,11 @@ export const camera = named(
     ip: z.string().nullable().describe('Last address on the local network, as the controller reported it.'),
     url: z.string().nullable().describe('The stream URL with its credentials removed.'),
     transport: cameraTransport.nullable(),
-    tunnel: z.boolean().describe('Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly.'),
+    tunnel: z
+      .boolean()
+      .describe(
+        'Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly. A stream camera created with a device and without this field is pulled through it, unless it is read over UDP, which does not pass through a tunnel.',
+      ),
     model: cameraModel.nullable(),
     stillIntervalSeconds: z.number().int(),
     nightOff: z.boolean(),
@@ -662,8 +666,9 @@ export const controllerCameraCreate = named(
 
 /**
  * A Terp Cam the cloud reaches itself, addressed by the P2P id printed on it.
- * The model and the server-side path exist; the tab that would pair one says it
- * is coming, because the flow is unproven against a camera on a desk.
+ * The kind is part of the model, but the cloud reaches a Terp Cam only through
+ * the device it is paired at, so `POST /cameras` refuses this body with
+ * `not_yet` and the app does not offer it.
  */
 export const standaloneCameraCreate = named(
   'StandaloneCameraCreate',

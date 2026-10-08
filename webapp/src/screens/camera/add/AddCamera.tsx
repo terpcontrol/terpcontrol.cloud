@@ -13,24 +13,21 @@ import { RtspCamera } from './RtspCamera';
 import styles from './AddCamera.module.css';
 
 /**
- * The three ways a camera arrives, which are three different things to explain
- * rather than three shapes of the same form.
+ * The two ways a camera arrives, which are two different things to explain
+ * rather than two shapes of the same form.
  *
  * A Terp Cam is paired at a fridge module or a controller and the cloud hears
  * about it over MQTT, so this screen has nothing to send for one: it says what
- * to do at the hardware and then watches for what turns up. A standalone Terp
- * Cam is the same camera without a device to pair it, and that flow is unproven
- * against a camera on a desk, so the tab says what it will do and offers
- * nothing that could fail on somebody's - drawn in the dashed card the app
- * gives every "not here yet", so that the tab has the shape its two siblings
- * get from the controls inside them. Only the third has a form, because a
- * stream is an address and nobody but the person knows it.
+ * to do at the hardware and then watches for what turns up. Only a stream
+ * camera has a form, because a stream is an address and nobody but the person
+ * knows it. A Terp Cam without a device to pair it at is not offered: the cloud
+ * reaches a Terp Cam only through the device it is paired at.
  *
- * Which of the three is meant is held here rather than in the address: they are
- * one question with three answers, and a tab is not a place to come back to.
- * They are drawn as three chips saying which one is pressed rather than as an
- * ARIA tab strip: a tab strip tells a screen reader to press an arrow key, and
- * the app has no arrow-key handler anywhere to answer that promise.
+ * Which of the two is meant is held here rather than in the address: they are
+ * one question with two answers, and a tab is not a place to come back to.
+ * They are drawn as chips saying which one is pressed rather than as an ARIA
+ * tab strip: a tab strip tells a screen reader to press an arrow key, and the
+ * app has no arrow-key handler anywhere to answer that promise.
  */
 export function AddCamera() {
   const { t } = useTranslation();
@@ -51,7 +48,7 @@ export function AddCamera() {
 }
 
 /**
- * The tabs and whichever of the three is open, which is everything that reads
+ * The tabs and whichever of the two is open, which is everything that reads
  * an account. It is its own component so that a session which may only look
  * asks for none of it.
  *
@@ -79,11 +76,11 @@ function Ways() {
 
   return (
     <>
-      {/* The three ways in, as one control: which of them is meant is a choice
-          between three, not three buttons that each do something. They say
-          which one is pressed rather than being an ARIA tab strip, because the
-          arrow keys a tab strip promises are a behaviour nothing else in the
-          app has. */}
+      {/* The two ways in, as one control: which of them is meant is a choice
+          between two, not two buttons that each do something. They say which
+          one is pressed rather than being an ARIA tab strip, because the arrow
+          keys a tab strip promises are a behaviour nothing else in the app
+          has. */}
       <div className={`${ui.segments} ${ui.segmentsFill}`} role="group" aria-label={t('cameras.add.which')}>
         {KINDS.map(one => (
           <button key={one} type="button" className={ui.segment} aria-pressed={one === kind} onClick={() => setChosen(one)}>
@@ -93,32 +90,12 @@ function Ways() {
       </div>
 
       <section className={styles.panel} aria-label={t(`cameras.add.tab.${kind}`)}>
-        {kind === 'terpcam' ? <PairTerpCam pairers={pairers} opened={opened} /> : null}
-        {kind === 'standalone' ? <Standalone /> : null}
-        {kind === 'rtsp' ? <RtspCamera devices={devices.data.items} /> : null}
+        {kind === 'terpcam' ? <PairTerpCam pairers={pairers} opened={opened} /> : <RtspCamera devices={devices.data.items} />}
       </section>
     </>
   );
 }
 
-type Kind = 'terpcam' | 'standalone' | 'rtsp';
+type Kind = 'terpcam' | 'rtsp';
 
-const KINDS: Kind[] = ['terpcam', 'standalone', 'rtsp'];
-
-/**
- * What a standalone Terp Cam will be, and that it is not here yet. It is the
- * one tab with no control on it at all: everything it would offer runs against
- * a stranger's camera, and a button that fails on the hardware in front of
- * somebody is worse than a sentence saying to wait.
- */
-function Standalone() {
-  const { t } = useTranslation();
-
-  return (
-    <section className={`${ui.cardDashed} ${styles.block}`}>
-      <span className="label">{t('cameras.add.standalone.label')}</span>
-      <p className={styles.text}>{t('cameras.add.standalone.text')}</p>
-      <p className={`${styles.text} ${styles.coming}`}>{t('cameras.add.standalone.coming')}</p>
-    </section>
-  );
-}
+const KINDS: Kind[] = ['terpcam', 'rtsp'];

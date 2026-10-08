@@ -3265,7 +3265,6 @@
       "cancel": "Cancel",
       "demo": "The demo may look at everything and change nothing, so it cannot add a camera.",
       "tab": {
-        "standalone": "Terp Cam · standalone",
         "rtsp": "RTSP",
         "terpcam": "Terp Cam"
       },
@@ -3305,11 +3304,6 @@
         "looksAtHint": "Canopy, side view …",
         "save": "Save",
         "saving": "Saving…"
-      },
-      "standalone": {
-        "label": "Standalone Terp Cam",
-        "text": "Joins your Wi-Fi from this phone (QR on the cam). Lives in a place with no device; gets its own timelapses; Premium included 12 months.",
-        "coming": "Coming soon."
       },
       "rtsp": {
         "label": "RTSP camera",

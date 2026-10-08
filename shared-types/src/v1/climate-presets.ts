@@ -9,9 +9,9 @@
  * what the tent is being put on. Like `VALUE_AGE`, it carries no schema, so a
  * client imports this module on its own without pulling zod in.
  *
- * The figures are the ones the phase tiles have always written, and they are
- * deliberately conservative: they are what a beginner's tent is safe at rather
- * than what a competition is won with. The reasoning per row is kept with the
+ * The figures are deliberately conservative: they are what a beginner's tent is
+ * safe at rather than what a competition is won with. Most of them are the ones
+ * the phase tiles have always written. The reasoning per row is kept with the
  * company documents.
  *
  * `stage` is the botanical fact and is the key; a preset refines one stage into
@@ -121,7 +121,7 @@ const PRESETS: Readonly<Record<string, ClimatePreset>> = {
     nightHumidity: 45,
     lightHours: 12,
     lightLimit: 100,
-    co2: AMBIENT_CO2,
+    co2: 600,
   },
   'flowering:autoflower': { dayTemperature: 25, nightTemperature: 20, dayHumidity: 50, nightHumidity: 50, lightHours: 18, lightLimit: 100, co2: 1000 },
   drying: { dayTemperature: 18, nightTemperature: 18, dayHumidity: 58, nightHumidity: 58, lightHours: null, lightLimit: 0, co2: AMBIENT_CO2 },

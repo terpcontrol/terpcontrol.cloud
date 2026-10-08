@@ -15,7 +15,7 @@ import { AddCamera } from '@/screens/camera/add/AddCamera';
 import { spaceWhere } from './session';
 
 /**
- * Adding a camera: what the three tabs offer, what turns up while somebody
+ * Adding a camera: what the two tabs offer, what turns up while somebody
  * stands at the device, and exactly what a stream address sends.
  *
  * Every request goes through the app's own client, mocked at that one seam, so
@@ -373,20 +373,13 @@ describe('an account with no device to pair a cam at', () => {
   });
 });
 
-describe('the standalone tab', () => {
-  it('says what it will do and offers nothing that could fail', async () => {
-    await openTab('Terp Cam · standalone');
+describe('the ways in', () => {
+  it('offers a Terp Cam paired at a device and a stream, and no Terp Cam without a device', async () => {
+    draw();
 
-    expect(panel().getByText(/Joins your Wi-Fi from this phone/)).toBeInTheDocument();
-    expect(panel().getByText('Coming soon.')).toBeInTheDocument();
-    expect(panel().queryAllByRole('button')).toHaveLength(0);
-    expect(panel().queryAllByRole('textbox')).toHaveLength(0);
-  });
-
-  it('stands in the dashed card every other "not here yet" state stands in', async () => {
-    await openTab('Terp Cam · standalone');
-
-    expect(panel().getByText('Coming soon.').closest('section')?.className).toMatch(/cardDashed/);
+    const ways = within(await screen.findByRole('group', { name: 'Which camera' })).getAllByRole('button');
+    expect(ways.map(way => way.textContent)).toEqual(['Terp Cam', 'RTSP']);
+    expect(screen.queryByText(/standalone/i)).not.toBeInTheDocument();
   });
 });
 
